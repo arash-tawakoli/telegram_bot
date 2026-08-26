@@ -1,13 +1,13 @@
 # Traumwohnung Hamburg Bot
 
-Backend für `@traumwohnunghamburgbot`: automatische Wohnungssuche in Hamburg über 65 konfigurierte Quellen, Suchprofil-Matching und Telegram-Push.
+Backend für `@traumwohnunghamburgbot`: automatische Wohnungssuche in Hamburg über 65 konfigurierte Quellen, Suchprofil-Matching, gespeicherte Inserate und Telegram-Push.
 
 ## Stack
 
-- **Telegram Bot API** – Menü, Onboarding und Inserat-Push
-- **Supabase Postgres** – Nutzer, Suchprofile, Quellen, Listings, Deduplizierung und Logs
-- **Supabase Edge Functions** – Telegram-Webhook und Source-Adapter
-- **Supabase Cron + pg_net** – zeitgesteuertes Crawling
+- **Telegram Bot API** – Button-Onboarding, Einstellungen, Saved Listings und Foto-Inseratkarten
+- **Supabase Postgres** – Nutzer, Suchprofile, Hamburg-Geografie, Quellen, Listings, Deduplizierung und Logs
+- **Supabase Edge Functions** – `telegram-ui`, `notification-dispatcher` und Source-Adapter
+- **Supabase Cron + pg_net** – zeitgesteuertes Crawling und Notification-Dispatch
 - **Supabase Vault** – Bot-Token und interne Secrets; keine Secrets im Repository
 
 ## Quellenlogik
@@ -22,49 +22,73 @@ K1/K2/K3 laufen aktuell alle 15/30/60 Minuten. Quelle 64 bleibt deaktiviert, da 
 
 ## Telegram Commands
 
-- `/start`
-- `/suche`
-- `/profile`
+- `/start` – Startseite
+- `/suche` – neue Suche
+- `/profile` – Suchprofile
+- `/gespeichert` – gespeicherte Inserate
+- `/einstellungen` – Sprache/Einstellungen
 - `/pause`
 - `/resume`
 - `/status`
-- `/delete`
 - `/hilfe`
 
-Während eines Workflows steht zusätzlich `/abbrechen` zur Verfügung.
+## Button-Onboarding
 
-## Onboarding
+Der Workflow ist auf wenige, klare Schritte reduziert:
 
-`/suche` fragt bewusst nur die wichtigsten Kriterien ab:
+1. Immobilientyp: Wohnung, Haus, WG, Tauschwohnung – Mehrfachauswahl möglich
+2. Gebiet: Ganz Hamburg, Bezirk(e) oder einzelne Stadtteile
+3. maximale Warmmiete: vier Presets oder eigener Betrag
+4. Mindestfläche: vier Button-Optionen
+5. Zusammenfassung und Aktivierung
 
-1. maximale Warmmiete
-2. Mindestzimmer
-3. Mindestfläche
-4. Stadtteile oder ganz Hamburg
-5. nur WBS: ja/nein
+Zurück-/Bestätigen-Buttons sind Bestandteil der einzelnen Schritte. Freitext wird nur beim individuellen Mietbetrag benötigt.
 
-Pro Telegram-Nutzer sind maximal drei Suchprofile vorgesehen.
+## Hamburg-Geografie
+
+Im Backend sind die **7 Bezirke und 104 bestehenden Stadtteile** hinterlegt. Oberbillwerder ist als geplanter 105. Stadtteil bewusst nicht als bestehender Stadtteil enthalten. Die Stadtteilansicht wird mit bis zu 15 Auswahlbuttons pro Seite und Vor/Zurück-Navigation ausgegeben.
+
+## Sprachen
+
+Der Bot speichert eine Sprache pro Nutzer. Verfügbar sind Deutsch, Englisch, Türkisch, Arabisch, Farsi, Dari, Pashto sowie Kurdisch Sorani, Kurmanji und Badini.
+
+## Inseratkarten
+
+Neue Treffer werden zentral durch `notification-dispatcher` als Telegram-Fotokarte zugestellt. Die Karte enthält – sofern von der Quelle veröffentlicht bzw. aus den Quelldaten ableitbar – Titel, Bild, vollständige Adresse, Warmmiete, Heizkosten, Nebenkosten, Kaution, Zimmer und Fläche.
+
+Unter jeder Karte stehen:
+
+- ein quellenbezogener Öffnen-Button, z. B. `Immowelt.de` oder `Kleinanzeigen.de`
+- `💾 Speichern`
+- `📍 Google Maps`
+
+Fehlende Angaben werden nicht erfunden. Wenn ein Anbieter z. B. keine Kaution oder keine vollständige Adresse veröffentlicht, wird dies entsprechend als nicht angegeben behandelt.
 
 ## Datenfluss
 
 1. Cron wählt fällige Quellen anhand ihres K1/K2/K3-Intervalls aus.
 2. `source-engine` probiert P1 und danach höchstens P2/P3.
 3. Immowelt nutzt zusätzlich den spezialisierten Adapter `source-immowelt`.
-4. Inserate werden normalisiert und je Quelle dedupliziert; zusätzlich wird ein Cross-Source-Hash gebildet.
+4. Inserate werden normalisiert und dedupliziert.
 5. Der erste erfolgreiche Lauf einer Quelle ist ein Warm-up und versendet keine historischen Inserate.
-6. Danach werden nur neue Inserate gegen aktive Suchprofile gematcht und per Telegram verschickt.
-7. Crawls und Zustellungen werden protokolliert.
+6. Neue Treffer werden über `delivery_events` an den zentralen Foto-Dispatcher übergeben.
+7. `notification-dispatcher` prüft das Suchprofil nochmals und sendet die Telegram-Karte.
+8. Gespeicherte Inserate liegen in `saved_listings` und sind über `/gespeichert` wieder abrufbar.
 
 ## Repository
 
 ```text
 supabase/
   functions/
-    telegram-webhook/
+    telegram-ui/
+    notification-dispatcher/
     source-engine/
     source-immowelt/
+    telegram-webhook/        # historische Version; nicht aktiver Telegram-Webhook
   migrations/
     202608260001_core_schema.sql
+    ...
+    202608260006_fix_private_function_search_path.sql
   seed.sql
 docs/
   source-connectors.md
@@ -72,13 +96,7 @@ docs/
 
 ## Secrets
 
-Erforderliche Vault-Namen:
-
-- `telegram_bot_token`
-- `telegram_webhook_secret`
-- `internal_worker_secret`
-
-Die Secret-Werte gehören ausschließlich in Supabase Vault und dürfen niemals committed werden.
+Die Secret-Werte liegen ausschließlich in Supabase Vault. Produktionswerte dürfen niemals committed werden.
 
 ## Betriebshinweis
 
