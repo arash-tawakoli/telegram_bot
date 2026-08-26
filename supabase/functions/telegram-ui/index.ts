@@ -1,48 +1,355 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.112.4";
+import { LANGS, textFor } from "./i18n.ts";
 
-type TgUser={id:number;first_name?:string;last_name?:string;username?:string;language_code?:string};
-type TgMessage={message_id:number;from?:TgUser;chat:{id:number;type:string};text?:string};
-type TgCallback={id:string;from:TgUser;message?:TgMessage;data?:string};
-type TgUpdate={update_id:number;message?:TgMessage;callback_query?:TgCallback};
+type TgUser = { id:number; first_name?:string; last_name?:string; username?:string; language_code?:string };
+type TgMessage = { message_id:number; from?:TgUser; chat:{ id:number; type:string }; text?:string };
+type TgCallback = { id:string; from:TgUser; message?:TgMessage; data?:string };
+type TgUpdate = { update_id:number; message?:TgMessage; callback_query?:TgCallback };
 
-const URL=Deno.env.get("SUPABASE_URL")!;
-const KEYS=JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS")||"{}");
-const db=createClient(URL,KEYS.default||Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,{auth:{persistSession:false,autoRefreshToken:false}});
-const FALLBACK_PHOTO="https://placehold.co/1200x630/0aa7b8/ffffff/png?text=Traumwohnung+Hamburg";
-const TYPE_OPTIONS=["Wohnung","Haus","WG","Tauschwohnung"];
-const LANGS:Record<string,string>={de:"🇩🇪 Deutsch",en:"🇬🇧 English",tr:"🇹🇷 Türkçe",ar:"🇸🇦 العربية",fa:"🇮🇷 فارسی",prs:"🇦🇫 دری",ps:"🇦🇫 پښتو",ckb:"☀️ کوردی (سۆرانی)",ku:"☀️ Kurdî (Kurmancî)",bad:"☀️ Kurdî (Badînî)"};
-const TXT:Record<string,Record<string,string>>={
- de:{welcome:"🏠 <b>Traumwohnung Hamburg</b>\n\nFinde passende Wohnungen automatisiert in ganz Hamburg. Erstelle in wenigen Schritten dein persönliches Suchprofil.",create:"🔎 Suche erstellen",back:"⬅️ Zurück",confirm:"Auswahl bestätigen",all:"Alle auswählen",types:"1/4 · <b>Was suchst du?</b>\n\nDu kannst mehrere Optionen auswählen.",location:"2/4 · <b>Wo möchtest du suchen?</b>",allhh:"🌐 Ganz Hamburg",boroughs:"🏙 Bezirke auswählen",neighborhoods:"📍 Stadtteile auswählen",chooseB:"Wähle einen oder mehrere der 7 Hamburger Bezirke.",chooseN:"Wähle beliebig viele Stadtteile. Alle 104 bestehenden Stadtteile werden berücksichtigt.",all104:"Alle 104 auswählen",clear:"Auswahl löschen",rent:"3/4 · <b>Maximale Warmmiete</b>",custom:"✏️ Eigener Betrag",enter:"Gib deine maximale Warmmiete als Zahl ein, z. B. <code>1250</code>.",area:"4/4 · <b>Mindestfläche</b>",none:"Keine Mindestfläche",review:"✅ <b>Suchprofil prüfen</b>",activate:"✅ Suche aktivieren",settings:"⚙️ Einstellungen",language:"🌐 Sprache",saved:"💾 Gespeicherte Inserate",nosaved:"Du hast noch keine Inserate gespeichert.",created:"✅ Deine Suche ist aktiv. Neue passende Inserate werden automatisch zugestellt.",use:"Bitte verwende die Buttons unter der Nachricht."},
- en:{welcome:"🏠 <b>Traumwohnung Hamburg</b>\n\nFind matching homes automatically across Hamburg and create your search profile in a few steps.",create:"🔎 Create search",back:"⬅️ Back",confirm:"Confirm",all:"Select all",types:"1/4 · <b>What are you looking for?</b>\n\nYou can select multiple options.",location:"2/4 · <b>Where do you want to search?</b>",allhh:"🌐 All Hamburg",boroughs:"🏙 Select boroughs",neighborhoods:"📍 Select neighborhoods",chooseB:"Select one or more of Hamburg's 7 boroughs.",chooseN:"Select any neighborhoods. All 104 existing neighborhoods are included.",all104:"Select all 104",clear:"Clear selection",rent:"3/4 · <b>Maximum warm rent</b>",custom:"✏️ Custom amount",enter:"Enter your maximum warm rent, e.g. <code>1250</code>.",area:"4/4 · <b>Minimum area</b>",none:"No minimum",review:"✅ <b>Review search profile</b>",activate:"✅ Activate search",settings:"⚙️ Settings",language:"🌐 Language",saved:"💾 Saved listings",nosaved:"You have no saved listings yet.",created:"✅ Your search is active. New matching listings will be delivered automatically.",use:"Please use the buttons below the message."},
- tr:{welcome:"🏠 <b>Traumwohnung Hamburg</b>\n\nHamburg genelinde uygun evleri otomatik bulun ve arama profilinizi birkaç adımda oluşturun.",create:"🔎 Arama oluştur",back:"⬅️ Geri",confirm:"Onayla",all:"Tümünü seç",types:"1/4 · <b>Ne arıyorsunuz?</b>\n\nBirden fazla seçenek seçebilirsiniz.",location:"2/4 · <b>Nerede aramak istiyorsunuz?</b>",allhh:"🌐 Tüm Hamburg",boroughs:"🏙 İlçeleri seç",neighborhoods:"📍 Semtleri seç",chooseB:"Hamburg'un 7 ilçesinden bir veya birkaçını seçin.",chooseN:"İstediğiniz semtleri seçin. Mevcut 104 semtin tamamı dahildir.",all104:"104'ünü seç",clear:"Seçimi temizle",rent:"3/4 · <b>Maksimum sıcak kira</b>",custom:"✏️ Özel tutar",enter:"Maksimum sıcak kirayı girin, ör. <code>1250</code>.",area:"4/4 · <b>Minimum alan</b>",none:"Minimum yok",review:"✅ <b>Arama profilini kontrol et</b>",activate:"✅ Aramayı etkinleştir",settings:"⚙️ Ayarlar",language:"🌐 Dil",saved:"💾 Kaydedilen ilanlar",nosaved:"Henüz kayıtlı ilanınız yok.",created:"✅ Aramanız aktif. Yeni uygun ilanlar otomatik gönderilecek.",use:"Lütfen mesajın altındaki düğmeleri kullanın."},
- ar:{welcome:"🏠 <b>Traumwohnung Hamburg</b>\n\nاعثر تلقائياً على السكن المناسب في جميع أنحاء هامبورغ وأنشئ ملف البحث بخطوات قليلة.",create:"🔎 إنشاء بحث",back:"⬅️ رجوع",confirm:"تأكيد",all:"اختيار الكل",types:"1/4 · <b>ماذا تبحث؟</b>\n\nيمكنك اختيار عدة خيارات.",location:"2/4 · <b>أين تريد البحث؟</b>",allhh:"🌐 كل هامبورغ",boroughs:"🏙 اختيار المناطق",neighborhoods:"📍 اختيار الأحياء",chooseB:"اختر منطقة أو أكثر من مناطق هامبورغ السبع.",chooseN:"اختر الأحياء المطلوبة. جميع الأحياء الـ104 الحالية مدرجة.",all104:"اختيار 104 كلها",clear:"مسح الاختيار",rent:"3/4 · <b>الحد الأقصى للإيجار الدافئ</b>",custom:"✏️ مبلغ مخصص",enter:"أدخل الحد الأقصى للإيجار، مثال <code>1250</code>.",area:"4/4 · <b>الحد الأدنى للمساحة</b>",none:"بدون حد أدنى",review:"✅ <b>مراجعة ملف البحث</b>",activate:"✅ تفعيل البحث",settings:"⚙️ الإعدادات",language:"🌐 اللغة",saved:"💾 الإعلانات المحفوظة",nosaved:"لا توجد إعلانات محفوظة بعد.",created:"✅ تم تفعيل البحث. ستصلك الإعلانات الجديدة المطابقة تلقائياً.",use:"يرجى استخدام الأزرار أسفل الرسالة."},
- fa:{welcome:"🏠 <b>Traumwohnung Hamburg</b>\n\nخانه‌های مناسب را در سراسر هامبورگ به‌صورت خودکار پیدا کنید و پروفایل جست‌وجوی خود را بسازید.",create:"🔎 ایجاد جست‌وجو",back:"⬅️ بازگشت",confirm:"تأیید",all:"انتخاب همه",types:"1/4 · <b>دنبال چه هستید؟</b>\n\nمی‌توانید چند گزینه انتخاب کنید.",location:"2/4 · <b>کجا می‌خواهید جست‌وجو کنید؟</b>",allhh:"🌐 کل هامبورگ",boroughs:"🏙 انتخاب مناطق",neighborhoods:"📍 انتخاب محله‌ها",chooseB:"یک یا چند مورد از ۷ منطقه هامبورگ را انتخاب کنید.",chooseN:"محله‌های موردنظر را انتخاب کنید. همه ۱۰۴ محله موجود لحاظ می‌شوند.",all104:"انتخاب هر ۱۰۴",clear:"پاک کردن انتخاب",rent:"3/4 · <b>حداکثر اجاره گرم</b>",custom:"✏️ مبلغ دلخواه",enter:"حداکثر اجاره گرم را وارد کنید، مثال <code>1250</code>.",area:"4/4 · <b>حداقل متراژ</b>",none:"بدون حداقل",review:"✅ <b>بررسی پروفایل جست‌وجو</b>",activate:"✅ فعال‌کردن جست‌وجو",settings:"⚙️ تنظیمات",language:"🌐 زبان",saved:"💾 آگهی‌های ذخیره‌شده",nosaved:"هنوز آگهی ذخیره‌شده‌ای ندارید.",created:"✅ جست‌وجوی شما فعال است. آگهی‌های جدید مطابق به‌صورت خودکار ارسال می‌شوند.",use:"لطفاً از دکمه‌های زیر پیام استفاده کنید."},
- prs:{welcome:"🏠 <b>Traumwohnung Hamburg</b>\n\nخانه مناسب را در سراسر هامبورگ به‌صورت خودکار پیدا کنید و پروفایل جست‌وجوی خود را بسازید.",create:"🔎 ایجاد جست‌وجو",back:"⬅️ برگشت",confirm:"تأیید",all:"انتخاب همه",types:"1/4 · <b>دنبال چه نوع خانه هستید؟</b>",location:"2/4 · <b>در کجا جست‌وجو شود؟</b>",allhh:"🌐 تمام هامبورگ",boroughs:"🏙 انتخاب مناطق",neighborhoods:"📍 انتخاب محله‌ها",chooseB:"یک یا چند منطقه از ۷ منطقه هامبورگ را انتخاب کنید.",chooseN:"محله‌های دلخواه را انتخاب کنید. هر ۱۰۴ محله موجود شامل است.",all104:"انتخاب همه ۱۰۴",clear:"پاک‌کردن",rent:"3/4 · <b>حداکثر کرایه گرم</b>",custom:"✏️ مبلغ دلخواه",enter:"حداکثر کرایه را وارد کنید، مثال <code>1250</code>.",area:"4/4 · <b>حداقل مساحت</b>",none:"بدون حداقل",review:"✅ <b>بررسی پروفایل</b>",activate:"✅ فعال‌سازی",settings:"⚙️ تنظیمات",language:"🌐 زبان",saved:"💾 آگهی‌های ذخیره‌شده",nosaved:"هنوز آگهی ذخیره‌شده ندارید.",created:"✅ جست‌وجوی شما فعال است.",use:"لطفاً از دکمه‌های زیر پیام استفاده کنید."},
- ps:{welcome:"🏠 <b>Traumwohnung Hamburg</b>\n\nپه ټول هامبورګ کې مناسب کورونه په اتومات ډول ومومئ او خپل د لټون پروفایل جوړ کړئ.",create:"🔎 لټون جوړول",back:"⬅️ شاته",confirm:"تایید",all:"ټول وټاکئ",types:"1/4 · <b>څه لټوئ؟</b>",location:"2/4 · <b>چېرته لټون کول غواړئ؟</b>",allhh:"🌐 ټول هامبورګ",boroughs:"🏙 ولسوالۍ وټاکئ",neighborhoods:"📍 سیمې وټاکئ",chooseB:"د هامبورګ له ۷ ولسوالیو څخه یوه یا څو وټاکئ.",chooseN:"هرې سیمې چې غواړئ وټاکئ. ټولې ۱۰۴ سیمې شاملې دي.",all104:"ټولې ۱۰۴ وټاکئ",clear:"پاکول",rent:"3/4 · <b>اعظمي ګرم کرایه</b>",custom:"✏️ خپله اندازه",enter:"اعظمي کرایه ولیکئ، لکه <code>1250</code>.",area:"4/4 · <b>لږ تر لږه مساحت</b>",none:"حد نشته",review:"✅ <b>پروفایل وګورئ</b>",activate:"✅ لټون فعال کړئ",settings:"⚙️ تنظیمات",language:"🌐 ژبه",saved:"💾 خوندي اعلانونه",nosaved:"تر اوسه خوندي اعلان نشته.",created:"✅ ستاسو لټون فعال دی.",use:"د پیغام لاندې تڼۍ وکاروئ."},
- ckb:{welcome:"🏠 <b>Traumwohnung Hamburg</b>\n\nلە هەموو هامبۆرگدا بە شێوەی ئۆتۆماتیکی خانووی گونجاو بدۆزەوە و پڕۆفایلی گەڕانت دروست بکە.",create:"🔎 دروستکردنی گەڕان",back:"⬅️ گەڕانەوە",confirm:"پشتڕاستکردنەوە",all:"هەمووی هەڵبژێرە",types:"1/4 · <b>بەدوای چی دەگەڕێیت؟</b>",location:"2/4 · <b>لە کوێ دەگەڕێیت؟</b>",allhh:"🌐 هەموو هامبۆرگ",boroughs:"🏙 ناوچەکان",neighborhoods:"📍 گەڕەکەکان",chooseB:"یەک یان چەند ناوچە لە ٧ ناوچەی هامبۆرگ هەڵبژێرە.",chooseN:"گەڕەکەکان هەڵبژێرە. هەموو ١٠٤ گەڕەک لەبەرچاو دەگیرێن.",all104:"هەموو ١٠٤",clear:"سڕینەوە",rent:"3/4 · <b>زۆرترین کرێی گەرم</b>",custom:"✏️ بڕی تایبەت",enter:"زۆرترین کرێ بنووسە، بۆ نموونە <code>1250</code>.",area:"4/4 · <b>کەمترین ڕووبەر</b>",none:"بێ سنوور",review:"✅ <b>پشکنینی پڕۆفایل</b>",activate:"✅ چالاککردنی گەڕان",settings:"⚙️ ڕێکخستنەکان",language:"🌐 زمان",saved:"💾 پاشەکەوتکراوەکان",nosaved:"هێشتا هیچت پاشەکەوت نەکردووە.",created:"✅ گەڕانت چالاکە.",use:"دوگمەکانی ژێر پەیام بەکاربهێنە."},
- ku:{welcome:"🏠 <b>Traumwohnung Hamburg</b>\n\nLi hemû Hamburgê xaniyên guncaw bixweber bibîne û profîla lêgerînê ava bike.",create:"🔎 Lêgerînê biafirîne",back:"⬅️ Paş",confirm:"Piştrast bike",all:"Hemû hilbijêre",types:"1/4 · <b>Tu li çi digerî?</b>",location:"2/4 · <b>Li ku derê bigere?</b>",allhh:"🌐 Hemû Hamburg",boroughs:"🏙 Herêm hilbijêre",neighborhoods:"📍 Tax hilbijêre",chooseB:"Ji 7 herêmên Hamburgê yek an çend hilbijêre.",chooseN:"Taxên ku dixwazî hilbijêre. Hemû 104 tax têne hesibandin.",all104:"Hemû 104",clear:"Paqij bike",rent:"3/4 · <b>Herî zêde kirêya germ</b>",custom:"✏️ Meblaqa xwe",enter:"Kirêya germ binivîse, mînak <code>1250</code>.",area:"4/4 · <b>Kêmtirîn rûber</b>",none:"Bê sînor",review:"✅ <b>Profîlê kontrol bike</b>",activate:"✅ Lêgerînê çalak bike",settings:"⚙️ Mîheng",language:"🌐 Ziman",saved:"💾 Îlanên tomar kirî",nosaved:"Hêj îlanek tomar nekiriye.",created:"✅ Lêgerîna te çalak e.",use:"Bişkokên binê peyamê bikar bîne."},
- bad:{welcome:"🏠 <b>Traumwohnung Hamburg</b>\n\nLi hemû Hamburgê malên guncaw bixweber bibîne û profîla lêgerînê çêke.",create:"🔎 Lêgerîn çêke",back:"⬅️ Paş",confirm:"Piştrast bike",all:"Hemû hilbijêre",types:"1/4 · <b>Tu li çi digerî?</b>",location:"2/4 · <b>Li ku derê bigere?</b>",allhh:"🌐 Hemû Hamburg",boroughs:"🏙 Herêm hilbijêre",neighborhoods:"📍 Tax hilbijêre",chooseB:"Ji 7 herêmên Hamburgê yek an çend hilbijêre.",chooseN:"Taxên ku dixwazî hilbijêre. Hemû 104 tax têne hesibandin.",all104:"Hemû 104",clear:"Paqij bike",rent:"3/4 · <b>Herî zêde kirêya germ</b>",custom:"✏️ Meblaqa xwe",enter:"Kirêya germ binivîse, mînak <code>1250</code>.",area:"4/4 · <b>Kêmtirîn rûber</b>",none:"Bê sînor",review:"✅ <b>Profîlê kontrol bike</b>",activate:"✅ Lêgerînê çalak bike",settings:"⚙️ Mîheng",language:"🌐 Ziman",saved:"💾 Îlanên tomar kirî",nosaved:"Hêj îlanek tomar nekiriye.",created:"✅ Lêgerîna te çalak e.",use:"Bişkokên binê peyamê bikar bîne."}
-};
-function t(u:any,k:string){return TXT[u?.ui_language]?.[k]||TXT.de[k]||k}function cb(text:string,data:string){return{text,callback_data:data}}function esc(v:any){return String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}function money(v:any){if(v==null||v==="")return"nicht angegeben";const n=Number(v);return Number.isFinite(n)?`${new Intl.NumberFormat("de-DE",{maximumFractionDigits:2}).format(n)} €`:String(v)}
-async function secret(n:string){const{data,error}=await db.rpc("get_bot_secret",{secret_name:n});if(error||!data)throw new Error(`secret ${n} unavailable`);return String(data)}
-async function tg(method:string,body:any){const token=await secret("telegram_bot_token_runtime");const r=await fetch(`https://api.telegram.org/bot${token}/${method}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body)});const j=await r.json();if(!r.ok||!j.ok)throw new Error(JSON.stringify(j));return j.result}
-async function send(chat:number,text:string,markup?:any){return tg("sendMessage",{chat_id:chat,text,parse_mode:"HTML",disable_web_page_preview:true,reply_markup:markup})}async function edit(chat:number,msg:number,text:string,markup?:any){try{return await tg("editMessageText",{chat_id:chat,message_id:msg,text,parse_mode:"HTML",disable_web_page_preview:true,reply_markup:markup})}catch{return send(chat,text,markup)}}async function ans(id:string,text?:string){try{await tg("answerCallbackQuery",{callback_query_id:id,text})}catch{}}
-async function ensure(from:TgUser,chat:number){const{data,error}=await db.from("bot_users").upsert({telegram_user_id:from.id,chat_id:chat,username:from.username||null,first_name:from.first_name||null,last_name:from.last_name||null,language_code:from.language_code||null,is_active:true,updated_at:new Date().toISOString()},{onConflict:"telegram_user_id"}).select("*").single();if(error)throw error;return data}async function fresh(id:string){const{data,error}=await db.from("bot_users").select("*").eq("id",id).single();if(error)throw error;return data}async function state(id:string,step:string|null,s:any){const{error}=await db.from("bot_users").update({onboarding_step:step,onboarding_state:s,updated_at:new Date().toISOString()}).eq("id",id);if(error)throw error}
-function welcomeMarkup(u:any){return{inline_keyboard:[[cb(t(u,"create"),"home:new")]]}}async function welcome(u:any,chat:number,msg?:number){return msg?edit(chat,msg,t(u,"welcome"),welcomeMarkup(u)):send(chat,t(u,"welcome"),welcomeMarkup(u))}
-function typesMarkup(u:any,s:any){const sel:string[]=s.property_types||[];const icon:Record<string,string>={Wohnung:"🏢",Haus:"🏡",WG:"🛏",Tauschwohnung:"🔄"};const rows=TYPE_OPTIONS.map(x=>[cb(`${sel.includes(x)?"✅ ":""}${icon[x]} ${x}`,`type:${x}`)]);rows.push([cb(t(u,"all"),"type:all")]);rows.push([cb(t(u,"back"),"nav:welcome"),cb(t(u,"confirm"),"type:next")]);return{inline_keyboard:rows}}
-async function renderTypes(u:any,c:number,m:number,s:any){await state(u.id,"types",s);return edit(c,m,t(u,"types"),typesMarkup(u,s))}
-function locMarkup(u:any){return{inline_keyboard:[[cb(t(u,"allhh"),"loc:all")],[cb(t(u,"boroughs"),"loc:boroughs")],[cb(t(u,"neighborhoods"),"loc:neighborhoods")],[cb(t(u,"back"),"nav:types")]]}}async function renderLoc(u:any,c:number,m:number,s:any){await state(u.id,"location",s);return edit(c,m,t(u,"location"),locMarkup(u))}
-async function boroughMarkup(u:any,s:any){const{data}=await db.from("hamburg_boroughs").select("id,name").order("sort_order");const ids:number[]=s.borough_ids||[];const rows:any[]=[];for(let i=0;i<(data||[]).length;i+=2)rows.push((data||[]).slice(i,i+2).map((b:any)=>cb(`${ids.includes(b.id)?"✅ ":""}${b.name}`,`bor:${b.id}`)));rows.push([cb(t(u,"all"),"bor:all")]);rows.push([cb(t(u,"back"),"nav:location"),cb(t(u,"confirm"),"bor:done")]);return{inline_keyboard:rows}}async function renderB(u:any,c:number,m:number,s:any){await state(u.id,"boroughs",s);return edit(c,m,t(u,"chooseB"),await boroughMarkup(u,s))}
-async function neighMarkup(u:any,s:any){const{data}=await db.from("hamburg_neighborhoods").select("id,name").order("id");const all=data||[],ids:number[]=s.neighborhood_ids||[],pages=Math.ceil(all.length/15),page=Math.max(0,Math.min(Number(s.neighborhood_page||0),pages-1)),part=all.slice(page*15,page*15+15),rows:any[]=[];for(let i=0;i<part.length;i+=3)rows.push(part.slice(i,i+3).map((n:any)=>cb(`${ids.includes(n.id)?"✅ ":""}${n.name}`,`nei:${n.id}`)));rows.push([cb(t(u,"all104"),"nei:all"),cb(t(u,"clear"),"nei:clear")]);rows.push([cb("◀️","nei:prev"),cb(`${page+1}/${pages}`,"noop"),cb("▶️","nei:next")]);rows.push([cb(t(u,"back"),"nav:location"),cb(t(u,"confirm"),"nei:done")]);return{markup:{inline_keyboard:rows},page}}async function renderN(u:any,c:number,m:number,s:any){const x=await neighMarkup(u,s);s.neighborhood_page=x.page;await state(u.id,"neighborhoods",s);return edit(c,m,`${t(u,"chooseN")}\n\n<b>${(s.neighborhood_ids||[]).length}/104</b>`,x.markup)}
-function rentMarkup(u:any){return{inline_keyboard:[[cb("bis 800 €","rent:800"),cb("bis 1.000 €","rent:1000")],[cb("bis 1.250 €","rent:1250"),cb("bis 1.500 €","rent:1500")],[cb(t(u,"custom"),"rent:custom")],[cb(t(u,"back"),"nav:location")]]}}async function renderRent(u:any,c:number,m:number,s:any){await state(u.id,"rent",s);return edit(c,m,t(u,"rent"),rentMarkup(u))}
-function areaMarkup(u:any){return{inline_keyboard:[[cb(t(u,"none"),"area:0"),cb("40 m²","area:40")],[cb("60 m²","area:60"),cb("80 m²","area:80")],[cb(t(u,"back"),"nav:rent")]]}}async function renderArea(u:any,c:number,m:number,s:any){await state(u.id,"area",s);return edit(c,m,t(u,"area"),areaMarkup(u))}
-async function names(s:any){let location="Ganz Hamburg",districts=["Ganz Hamburg"],boroughs:string[]=[],neighborhoods:string[]=[];if(s.location_mode==="boroughs"){const ids=s.borough_ids||[];const{data:b}=await db.from("hamburg_boroughs").select("name").in("id",ids);boroughs=(b||[]).map((x:any)=>x.name);const{data:n}=await db.from("hamburg_neighborhoods").select("name").in("borough_id",ids);districts=(n||[]).map((x:any)=>x.name);location=boroughs.join(", ")}else if(s.location_mode==="neighborhoods"){const{data:n}=await db.from("hamburg_neighborhoods").select("name").in("id",s.neighborhood_ids||[]);neighborhoods=(n||[]).map((x:any)=>x.name);districts=neighborhoods;location=neighborhoods.length>12?`${neighborhoods.slice(0,12).join(", ")} … (+${neighborhoods.length-12})`:neighborhoods.join(", ")}return{location,districts,boroughs,neighborhoods}}
-async function review(u:any,c:number,m:number,s:any){const n=await names(s);const text=`${t(u,"review")}\n\n🏠 <b>Typ:</b> ${esc((s.property_types||[]).join(", "))}\n📍 <b>Gebiet:</b> ${esc(n.location)}\n💶 <b>Warmmiete:</b> bis ${money(s.max_warm_rent)}\n📐 <b>Mindestfläche:</b> ${Number(s.min_area_sqm||0)>0?`${s.min_area_sqm} m²`:t(u,"none")}`;await state(u.id,"review",s);return edit(c,m,text,{inline_keyboard:[[cb(t(u,"activate"),"review:save")],[cb(t(u,"back"),"nav:area")]]})}
-function addr(l:any){return l.address&&String(l.address).trim()?String(l.address).trim():[l.district,l.postal_code,l.city||"Hamburg"].filter(Boolean).join(", ")||"Vom Anbieter nicht veröffentlicht"}function maps(l:any){return`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr(l))}`}function cap(l:any){return`🏠 <b>${esc(String(l.title||"Neue Wohnung").slice(0,180))}</b>\n\n📍 <b>Adresse:</b> ${esc(addr(l))}\n💶 <b>Warmmiete:</b> ${money(l.warm_rent)}\n🔥 <b>Heizkosten:</b> ${money(l.heating_costs)}\n🧾 <b>Nebenkosten:</b> ${money(l.additional_costs)}\n🔐 <b>Kaution:</b> ${l.deposit_text?esc(l.deposit_text):money(l.deposit)}\n🚪 <b>Zimmer:</b> ${l.rooms??"nicht angegeben"}\n📐 <b>Fläche:</b> ${l.area_sqm!=null?`${l.area_sqm} m²`:"nicht angegeben"}`}function cardKeys(l:any,s:any,saved=false){return{inline_keyboard:[[{text:`🔗 ${s?.button_label||s?.name||"Angebot"}`,url:l.canonical_url}],[{text:saved?"✅ Gespeichert":"💾 Speichern",callback_data:`save:${l.id}`},{text:"📍 Google Maps",url:maps(l)}]]}}async function card(chat:number,l:any,s:any,saved=false){for(const photo of [l.image_url,FALLBACK_PHOTO].filter(Boolean)){try{return await tg("sendPhoto",{chat_id:chat,photo,caption:cap(l),parse_mode:"HTML",reply_markup:cardKeys(l,s,saved)})}catch{}}throw new Error("sendPhoto failed")}
-async function saved(u:any,c:number){const{data,error}=await db.from("saved_listings").select("created_at,listings(*,sources(name,button_label))").eq("user_id",u.id).order("created_at",{ascending:false}).limit(10);if(error)throw error;if(!data?.length){await send(c,t(u,"nosaved"));return}await send(c,`${t(u,"saved")} · ${data.length}`);for(const r of data as any[]){if(r.listings)await card(c,r.listings,r.listings.sources,true)}}
-async function settings(u:any,c:number,m?:number){const rows=Object.entries(LANGS).map(([k,v])=>[cb(`${u.ui_language===k?"✅ ":""}${v}`,`lang:${k}`)]);rows.push([cb(t(u,"back"),"nav:welcome")]);return m?edit(c,m,`${t(u,"settings")}\n\n${t(u,"language")}`,{inline_keyboard:rows}):send(c,`${t(u,"settings")}\n\n${t(u,"language")}`,{inline_keyboard:rows})}
-async function callback(q:TgCallback,u:any){const c=q.message?.chat.id,m=q.message?.message_id,d=q.data||"";if(!c||!m)return ans(q.id);u=await fresh(u.id);let s={...(u.onboarding_state||{})};if(d==="noop")return ans(q.id);if(d.startsWith("lang:")){const k=d.slice(5);if(LANGS[k])await db.from("bot_users").update({ui_language:k}).eq("id",u.id);u=await fresh(u.id);await ans(q.id);return settings(u,c,m)}if(d==="home:new"){s={property_types:[],borough_ids:[],neighborhood_ids:[],location_mode:null,max_warm_rent:null,min_area_sqm:0};await ans(q.id);return renderTypes(u,c,m,s)}if(d==="nav:welcome"){await state(u.id,null,{});await ans(q.id);return welcome(u,c,m)}if(d==="nav:types"){await ans(q.id);return renderTypes(u,c,m,s)}if(d==="nav:location"){await ans(q.id);return renderLoc(u,c,m,s)}if(d==="nav:rent"){await ans(q.id);return renderRent(u,c,m,s)}if(d==="nav:area"){await ans(q.id);return renderArea(u,c,m,s)}if(d.startsWith("type:")){const v=d.slice(5);let a:string[]=s.property_types||[];if(v==="all")a=[...TYPE_OPTIONS];else if(v==="next"){if(!a.length)return ans(q.id,"Bitte mindestens eine Option wählen.");s.property_types=a;await ans(q.id);return renderLoc(u,c,m,s)}else a=a.includes(v)?a.filter(x=>x!==v):[...a,v];s.property_types=a;await ans(q.id);return renderTypes(u,c,m,s)}if(d.startsWith("loc:")){const v=d.slice(4);if(v==="all"){s.location_mode="all_hamburg";await ans(q.id);return renderRent(u,c,m,s)}if(v==="boroughs"){s.location_mode="boroughs";await ans(q.id);return renderB(u,c,m,s)}if(v==="neighborhoods"){s.location_mode="neighborhoods";s.neighborhood_page=0;await ans(q.id);return renderN(u,c,m,s)}}if(d.startsWith("bor:")){const v=d.slice(4);let ids:number[]=s.borough_ids||[];if(v==="all")ids=[1,2,3,4,5,6,7];else if(v==="done"){if(!ids.length)return ans(q.id,"Bitte mindestens einen Bezirk wählen.");s.borough_ids=ids;await ans(q.id);return renderRent(u,c,m,s)}else{const id=Number(v);ids=ids.includes(id)?ids.filter(x=>x!==id):[...ids,id]}s.borough_ids=ids;await ans(q.id);return renderB(u,c,m,s)}if(d.startsWith("nei:")){const v=d.slice(4);let ids:number[]=s.neighborhood_ids||[];if(v==="all"){const{data}=await db.from("hamburg_neighborhoods").select("id");ids=(data||[]).map((x:any)=>x.id)}else if(v==="clear")ids=[];else if(v==="prev")s.neighborhood_page=Math.max(0,Number(s.neighborhood_page||0)-1);else if(v==="next")s.neighborhood_page=Number(s.neighborhood_page||0)+1;else if(v==="done"){if(!ids.length)return ans(q.id,"Bitte mindestens einen Stadtteil wählen.");s.neighborhood_ids=ids;await ans(q.id);return renderRent(u,c,m,s)}else{const id=Number(v);ids=ids.includes(id)?ids.filter(x=>x!==id):[...ids,id]}s.neighborhood_ids=ids;await ans(q.id);return renderN(u,c,m,s)}if(d.startsWith("rent:")){const v=d.slice(5);if(v==="custom"){await state(u.id,"custom_rent",s);await ans(q.id);return edit(c,m,t(u,"enter"),{inline_keyboard:[[cb(t(u,"back"),"nav:rent")]]})}s.max_warm_rent=Number(v);await ans(q.id);return renderArea(u,c,m,s)}if(d.startsWith("area:")){s.min_area_sqm=Number(d.slice(5));await ans(q.id);return review(u,c,m,s)}if(d==="review:save"){const n=await names(s);const{count}=await db.from("search_profiles").select("id",{count:"exact",head:true}).eq("user_id",u.id);if((count||0)>=3)return ans(q.id,"Maximal 3 Suchprofile.");const{error}=await db.from("search_profiles").insert({user_id:u.id,name:"Meine Suche",property_types:s.property_types,max_warm_rent:s.max_warm_rent,min_rooms:0,min_area_sqm:s.min_area_sqm||0,districts:n.districts,location_mode:s.location_mode||"all_hamburg",boroughs:n.boroughs,neighborhoods:n.neighborhoods,wbs_only:false,is_active:true});if(error)throw error;await state(u.id,null,{});await ans(q.id);return edit(c,m,t(u,"created"),{inline_keyboard:[[cb(t(u,"create"),"home:new")]]})}if(d.startsWith("save:")){const id=d.slice(5);const{data:e}=await db.from("saved_listings").select("id").eq("user_id",u.id).eq("listing_id",id).maybeSingle();let yes=false;if(e)await db.from("saved_listings").delete().eq("id",e.id);else{await db.from("saved_listings").insert({user_id:u.id,listing_id:id});yes=true}await ans(q.id,yes?"Gespeichert":"Entfernt");const{data:l}=await db.from("listings").select("*,sources(name,button_label)").eq("id",id).single();if(l)try{await tg("editMessageReplyMarkup",{chat_id:c,message_id:m,reply_markup:cardKeys(l,l.sources,yes)})}catch{};return}return ans(q.id)}
-async function message(msg:TgMessage,u:any){const c=msg.chat.id,text=(msg.text||"").trim(),cmd=text.split(/\s+/)[0].toLowerCase().replace(/@traumwohnunghamburgbot$/i,"");u=await fresh(u.id);if(cmd==="/start"){const last=u.last_start_at?new Date(u.last_start_at).getTime():0;if(last&&Date.now()-last<5000)return;await db.from("bot_users").update({last_start_at:new Date().toISOString(),onboarding_step:null,onboarding_state:{}}).eq("id",u.id);return welcome(await fresh(u.id),c)}if(cmd==="/suche"){const s={property_types:[],borough_ids:[],neighborhood_ids:[],location_mode:null,max_warm_rent:null,min_area_sqm:0};await state(u.id,"types",s);return send(c,t(u,"types"),typesMarkup(u,s))}if(cmd==="/gespeichert"||cmd==="/saved")return saved(u,c);if(cmd==="/einstellungen"||cmd==="/settings")return settings(u,c);if(cmd==="/profile"){const{data}=await db.from("search_profiles").select("name,property_types,max_warm_rent,min_area_sqm,location_mode,boroughs,neighborhoods,is_active").eq("user_id",u.id).order("created_at");if(!data?.length)return send(c,"Noch kein Suchprofil vorhanden. Nutze /suche.");return send(c,data.map((p:any,i:number)=>`<b>${i+1}. ${esc(p.name)}</b> ${p.is_active?"🟢":"⏸"}\n🏠 ${esc((p.property_types||[]).join(", "))}\n💶 bis ${money(p.max_warm_rent)}\n📐 ${Number(p.min_area_sqm||0)>0?`ab ${p.min_area_sqm} m²`:"keine Mindestfläche"}\n📍 ${p.location_mode==="all_hamburg"?"Ganz Hamburg":esc((p.neighborhoods?.length?p.neighborhoods:p.boroughs||[]).join(", "))}`).join("\n\n"))}if(cmd==="/pause"){await db.from("search_profiles").update({is_active:false}).eq("user_id",u.id);return send(c,"⏸ Deine Suchprofile sind pausiert.")}if(cmd==="/resume"){await db.from("search_profiles").update({is_active:true}).eq("user_id",u.id);return send(c,"▶️ Deine Suchprofile sind wieder aktiv.")}if(cmd==="/status"){const{count:p}=await db.from("search_profiles").select("id",{count:"exact",head:true}).eq("user_id",u.id).eq("is_active",true);const{count:s}=await db.from("sources").select("id",{count:"exact",head:true}).eq("enabled",true);return send(c,`📡 <b>Status</b>\nAktive Suchprofile: ${p||0}\nAktive Quellen: ${s||0}\nSystem: online`)}if(cmd==="/hilfe")return send(c,"/suche – Suche erstellen\n/profile – Suchprofile\n/gespeichert – Gespeicherte Inserate\n/einstellungen – Sprache\n/pause – pausieren\n/resume – fortsetzen\n/status – Systemstatus");if(u.onboarding_step==="custom_rent"){const n=Number(text.replace(/\./g,"").replace(",","."));if(!Number.isFinite(n)||n<100||n>20000)return send(c,t(u,"enter"));const s={...(u.onboarding_state||{}),max_warm_rent:n};await state(u.id,"area",s);return send(c,t(u,"area"),areaMarkup(u))}return send(c,t(u,"use"))}
-async function test(req:Request,b:any){if((req.headers.get("x-internal-secret")||"")!==await secret("internal_worker_secret"))return new Response("unauthorized",{status:401});const chat=Number(b.chat_id);const{data,error}=await db.from("listings").select("*,sources(name,button_label)").not("image_url","is",null).not("address","is",null).order("first_seen_at",{ascending:false}).limit(1);if(error)throw error;const l=(data||[])[0];if(!l)return Response.json({ok:false,error:"no test listing"},{status:404});const r=await card(chat,l,l.sources,false);return Response.json({ok:true,message_id:r?.message_id,listing_id:l.id})}
-Deno.serve(async(req:Request)=>{try{if(req.method!=="POST")return new Response("method not allowed",{status:405});const b=await req.json().catch(()=>({}));if(b.action==="test_listing")return test(req,b);if((req.headers.get("x-telegram-bot-api-secret-token")||"")!==await secret("telegram_webhook_secret"))return new Response("unauthorized",{status:401});const u=b as TgUpdate;const{error}=await db.from("bot_events").insert({telegram_update_id:u.update_id,event_type:u.callback_query?"callback_query":u.message?"message":"other",telegram_user_id:u.callback_query?.from?.id||u.message?.from?.id||null,payload:u});if(error&&(error.code==="23505"||String(error.message).toLowerCase().includes("duplicate")))return Response.json({ok:true,duplicate:true});if(u.callback_query?.from&&u.callback_query.message){const user=await ensure(u.callback_query.from,u.callback_query.message.chat.id);await callback(u.callback_query,user);return Response.json({ok:true})}if(u.message?.from&&u.message.chat.type==="private"&&u.message.text){const user=await ensure(u.message.from,u.message.chat.id);await message(u.message,user)}return Response.json({ok:true})}catch(e){console.error(e);return Response.json({ok:false,error:e instanceof Error?e.message:String(e)},{status:500})}});
+const URL = Deno.env.get("SUPABASE_URL")!;
+const KEYS = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") || "{}");
+const db = createClient(URL, KEYS.default || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, { auth:{ persistSession:false, autoRefreshToken:false } });
+const FALLBACK_PHOTO = "https://placehold.co/1200x630/0aa7b8/ffffff/png?text=Traumwohnung+Hamburg";
+const TYPE_OPTIONS = ["Wohnung", "Haus", "WG", "Tauschwohnung"];
+const NEIGHBORHOODS_PER_PAGE = 15;
+const SAVED_PAGE_SIZE = 8;
+const START_DEBOUNCE_MS = 8000;
+
+function t(u:any, key:string) { return textFor(u?.ui_language, key); }
+function cb(text:string, data:string) { return { text, callback_data:data }; }
+function esc(v:unknown) { return String(v ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+function money(v:any, missing="nicht angegeben") {
+  if (v === null || v === undefined || v === "") return missing;
+  const n = Number(v);
+  return Number.isFinite(n) ? `${new Intl.NumberFormat("de-DE", { maximumFractionDigits:2 }).format(n)} €` : String(v);
+}
+function short(s:unknown, n=45) { const v=String(s ?? "Inserat").replace(/\s+/g," ").trim(); return v.length > n ? `${v.slice(0,n-1)}…` : v; }
+
+async function secret(name:string) {
+  const { data, error } = await db.rpc("get_bot_secret", { secret_name:name });
+  if (error || !data) throw new Error(`secret ${name} unavailable`);
+  return String(data);
+}
+async function telegram(method:string, body:Record<string,unknown>) {
+  const token = await secret("telegram_bot_token_runtime");
+  const r = await fetch(`https://api.telegram.org/bot${token}/${method}`, { method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify(body) });
+  const j = await r.json();
+  if (!r.ok || !j.ok) throw new Error(`Telegram ${method}: ${JSON.stringify(j)}`);
+  return j.result;
+}
+async function send(chatId:number, text:string, reply_markup?:any) {
+  return telegram("sendMessage", { chat_id:chatId, text, parse_mode:"HTML", disable_web_page_preview:true, reply_markup });
+}
+async function edit(chatId:number, messageId:number, text:string, reply_markup?:any) {
+  try { return await telegram("editMessageText", { chat_id:chatId, message_id:messageId, text, parse_mode:"HTML", disable_web_page_preview:true, reply_markup }); }
+  catch { return send(chatId, text, reply_markup); }
+}
+async function answerCallback(id:string, text?:string) {
+  try { await telegram("answerCallbackQuery", { callback_query_id:id, text:text || undefined, show_alert:false }); } catch {}
+}
+
+async function ensureUser(from:TgUser, chatId:number) {
+  const payload = { telegram_user_id:from.id, chat_id:chatId, username:from.username || null, first_name:from.first_name || null, last_name:from.last_name || null, language_code:from.language_code || null, is_active:true, updated_at:new Date().toISOString() };
+  const { data, error } = await db.from("bot_users").upsert(payload, { onConflict:"telegram_user_id" }).select("*").single();
+  if (error) throw error;
+  return data;
+}
+async function freshUser(id:string) {
+  const { data, error } = await db.from("bot_users").select("*").eq("id", id).single();
+  if (error) throw error;
+  return data;
+}
+async function setState(id:string, step:string|null, state:any) {
+  const { error } = await db.from("bot_users").update({ onboarding_step:step, onboarding_state:state, updated_at:new Date().toISOString() }).eq("id",id);
+  if (error) throw error;
+}
+
+function welcomeMarkup(u:any) { return { inline_keyboard:[[cb(t(u,"create"),"home:new")]] }; }
+async function showWelcome(u:any, chatId:number, messageId?:number) {
+  return messageId ? edit(chatId,messageId,t(u,"welcome"),welcomeMarkup(u)) : send(chatId,t(u,"welcome"),welcomeMarkup(u));
+}
+
+function typesMarkup(u:any, state:any) {
+  const selected:string[] = state.property_types || [];
+  const icons:Record<string,string> = { Wohnung:"🏢", Haus:"🏡", WG:"🛏", Tauschwohnung:"🔄" };
+  const rows:any[] = TYPE_OPTIONS.map(x => [cb(`${selected.includes(x)?"✅ ":""}${icons[x]} ${x}`, `type:${x}`)]);
+  rows.push([cb(t(u,"all"),"type:all")]);
+  rows.push([cb(t(u,"back"),"nav:welcome"), cb(t(u,"confirm"),"type:next")]);
+  return { inline_keyboard:rows };
+}
+async function renderTypes(u:any, chatId:number, messageId:number, state:any) {
+  await setState(u.id,"types",state);
+  return edit(chatId,messageId,t(u,"types"),typesMarkup(u,state));
+}
+
+function locationMarkup(u:any) {
+  return { inline_keyboard:[[cb(t(u,"allhh"),"loc:all")],[cb(t(u,"boroughs"),"loc:boroughs")],[cb(t(u,"neighborhoods"),"loc:neighborhoods")],[cb(t(u,"back"),"nav:types")]] };
+}
+async function renderLocation(u:any, chatId:number, messageId:number, state:any) {
+  await setState(u.id,"location",state);
+  return edit(chatId,messageId,t(u,"location"),locationMarkup(u));
+}
+
+async function boroughMarkup(u:any, state:any) {
+  const { data, error } = await db.from("hamburg_boroughs").select("id,name").order("sort_order");
+  if (error) throw error;
+  const selected:number[] = state.borough_ids || [];
+  const rows:any[] = [];
+  for (let i=0;i<(data||[]).length;i+=2) rows.push((data||[]).slice(i,i+2).map((b:any)=>cb(`${selected.includes(b.id)?"✅ ":""}${b.name}`,`bor:${b.id}`)));
+  rows.push([cb(t(u,"all"),"bor:all")]);
+  rows.push([cb(t(u,"back"),"nav:location"), cb(t(u,"confirm"),"bor:done")]);
+  return { inline_keyboard:rows };
+}
+async function renderBoroughs(u:any, chatId:number, messageId:number, state:any) {
+  await setState(u.id,"boroughs",state);
+  return edit(chatId,messageId,t(u,"chooseB"),await boroughMarkup(u,state));
+}
+
+async function neighborhoodMarkup(u:any, state:any) {
+  const { data, error } = await db.from("hamburg_neighborhoods").select("id,name").order("id");
+  if (error) throw error;
+  const all=data||[], selected:number[]=state.neighborhood_ids||[];
+  const pages=Math.max(1,Math.ceil(all.length/NEIGHBORHOODS_PER_PAGE));
+  const page=Math.max(0,Math.min(Number(state.neighborhood_page||0),pages-1));
+  const part=all.slice(page*NEIGHBORHOODS_PER_PAGE,(page+1)*NEIGHBORHOODS_PER_PAGE);
+  const rows:any[]=[];
+  for(let i=0;i<part.length;i+=3) rows.push(part.slice(i,i+3).map((n:any)=>cb(`${selected.includes(n.id)?"✅ ":""}${n.name}`,`nei:${n.id}`)));
+  rows.push([cb(t(u,"all104"),"nei:all"),cb(t(u,"clear"),"nei:clear")]);
+  rows.push([cb("◀️","nei:prev"),cb(`${page+1}/${pages}`,"noop"),cb("▶️","nei:next")]);
+  rows.push([cb(t(u,"back"),"nav:location"),cb(t(u,"confirm"),"nei:done")]);
+  return { markup:{inline_keyboard:rows}, page };
+}
+async function renderNeighborhoods(u:any, chatId:number, messageId:number, state:any) {
+  const { markup, page }=await neighborhoodMarkup(u,state);
+  state.neighborhood_page=page;
+  await setState(u.id,"neighborhoods",state);
+  return edit(chatId,messageId,`${t(u,"chooseN")}\n\n<b>${(state.neighborhood_ids||[]).length}/104</b>`,markup);
+}
+
+function rentMarkup(u:any) {
+  return { inline_keyboard:[[cb("bis 800 €","rent:800"),cb("bis 1.000 €","rent:1000")],[cb("bis 1.250 €","rent:1250"),cb("bis 1.500 €","rent:1500")],[cb(t(u,"custom"),"rent:custom")],[cb(t(u,"back"),"nav:location")]] };
+}
+async function renderRent(u:any, chatId:number, messageId:number, state:any) {
+  await setState(u.id,"rent",state);
+  return edit(chatId,messageId,t(u,"rent"),rentMarkup(u));
+}
+function areaMarkup(u:any) {
+  return { inline_keyboard:[[cb(t(u,"none"),"area:0"),cb("40 m²","area:40")],[cb("60 m²","area:60"),cb("80 m²","area:80")],[cb(t(u,"back"),"nav:rent")]] };
+}
+async function renderArea(u:any, chatId:number, messageId:number, state:any) {
+  await setState(u.id,"area",state);
+  return edit(chatId,messageId,t(u,"area"),areaMarkup(u));
+}
+
+async function selectedNames(state:any) {
+  let location="Ganz Hamburg", districts=["Ganz Hamburg"] as string[], boroughs:string[]=[], neighborhoods:string[]=[];
+  if(state.location_mode==="boroughs") {
+    const ids:number[]=state.borough_ids||[];
+    const { data:b }=await db.from("hamburg_boroughs").select("name").in("id",ids).order("sort_order");
+    boroughs=(b||[]).map((x:any)=>x.name);
+    const { data:n }=await db.from("hamburg_neighborhoods").select("name").in("borough_id",ids).order("name");
+    districts=(n||[]).map((x:any)=>x.name); location=boroughs.join(", ");
+  } else if(state.location_mode==="neighborhoods") {
+    const { data:n }=await db.from("hamburg_neighborhoods").select("name").in("id",state.neighborhood_ids||[]).order("name");
+    neighborhoods=(n||[]).map((x:any)=>x.name); districts=neighborhoods;
+    location=neighborhoods.length>12?`${neighborhoods.slice(0,12).join(", ")} … (+${neighborhoods.length-12})`:neighborhoods.join(", ");
+  }
+  return { location, districts, boroughs, neighborhoods };
+}
+async function renderReview(u:any, chatId:number, messageId:number, state:any) {
+  const names=await selectedNames(state);
+  const text=`${t(u,"review")}\n\n🏠 <b>Typ:</b> ${esc((state.property_types||[]).join(", "))}\n📍 <b>Gebiet:</b> ${esc(names.location)}\n💶 <b>${esc(t(u,"warmRent"))}:</b> bis ${money(state.max_warm_rent,t(u,"missing"))}\n📐 <b>${esc(t(u,"areaLabel"))}:</b> ${Number(state.min_area_sqm||0)>0?`${state.min_area_sqm} m²`:t(u,"none")}`;
+  await setState(u.id,"review",state);
+  return edit(chatId,messageId,text,{inline_keyboard:[[cb(t(u,"activate"),"review:save")],[cb(t(u,"back"),"nav:area")]]});
+}
+
+function listingAddress(l:any) {
+  if(l.address&&String(l.address).trim()) return String(l.address).trim().replace(/^Geschoss\s+/i,"").replace(/^EG\s+/i,"");
+  return [l.district,l.postal_code,l.city||"Hamburg"].filter(Boolean).join(", ") || "Vom Anbieter nicht veröffentlicht";
+}
+function mapUrl(l:any) { return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(listingAddress(l))}`; }
+function listingCaption(u:any,l:any) {
+  const missing=t(u,"missing");
+  return `🏠 <b>${esc(short(l.title,180))}</b>\n\n📍 <b>${esc(t(u,"address"))}:</b> ${esc(listingAddress(l))}\n💶 <b>${esc(t(u,"warmRent"))}:</b> ${money(l.warm_rent,missing)}\n❄️ <b>${esc(t(u,"coldRent"))}:</b> ${money(l.cold_rent,missing)}\n🔥 <b>${esc(t(u,"heating"))}:</b> ${money(l.heating_costs,missing)}\n🧾 <b>${esc(t(u,"additional"))}:</b> ${money(l.additional_costs,missing)}\n🔐 <b>${esc(t(u,"deposit"))}:</b> ${l.deposit_text?esc(l.deposit_text):money(l.deposit,missing)}\n🚪 <b>${esc(t(u,"rooms"))}:</b> ${l.rooms??missing}\n📐 <b>${esc(t(u,"areaLabel"))}:</b> ${l.area_sqm!=null?`${esc(l.area_sqm)} m²`:missing}`;
+}
+function listingKeyboard(u:any,l:any,source:any,saved=false) {
+  const label=source?.button_label||source?.name||"Angebot";
+  return { inline_keyboard:[[{text:`🔗 ${label}`,url:l.canonical_url}],[cb(saved?t(u,"savedState"):t(u,"save"),`save:${l.id}`),{text:t(u,"maps"),url:mapUrl(l)}]] };
+}
+async function sendListingCard(u:any,chatId:number,l:any,source:any,saved=false) {
+  for(const photo of [l.image_url,FALLBACK_PHOTO].filter(Boolean)) {
+    try { return await telegram("sendPhoto",{chat_id:chatId,photo,caption:listingCaption(u,l),parse_mode:"HTML",reply_markup:listingKeyboard(u,l,source,saved)}); } catch {}
+  }
+  throw new Error("sendPhoto failed");
+}
+
+async function savedMenu(u:any,chatId:number,messageId?:number,page=0) {
+  const { count, error:countError }=await db.from("saved_listings").select("id",{count:"exact",head:true}).eq("user_id",u.id);
+  if(countError) throw countError;
+  const total=count||0;
+  if(!total) {
+    const markup={inline_keyboard:[[cb(t(u,"back"),"nav:welcome")]]};
+    return messageId?edit(chatId,messageId,t(u,"nosaved"),markup):send(chatId,t(u,"nosaved"),markup);
+  }
+  const pages=Math.max(1,Math.ceil(total/SAVED_PAGE_SIZE));
+  page=Math.max(0,Math.min(page,pages-1));
+  const from=page*SAVED_PAGE_SIZE,to=from+SAVED_PAGE_SIZE-1;
+  const { data,error }=await db.from("saved_listings").select("listing_id,created_at,listings(title,district,postal_code)").eq("user_id",u.id).order("created_at",{ascending:false}).range(from,to);
+  if(error) throw error;
+  const rows:any[]=(data||[]).map((r:any,i:number)=>[cb(`🏠 ${from+i+1}. ${short(r.listings?.title,42)}`,`savedopen:${r.listing_id}`)]);
+  rows.push([cb("◀️",`savedpage:${Math.max(0,page-1)}`),cb(`${page+1}/${pages}`,"noop"),cb("▶️",`savedpage:${Math.min(pages-1,page+1)}`)]);
+  rows.push([cb(t(u,"back"),"nav:welcome")]);
+  const text=`${t(u,"saved")}\n\n${total} · Seite ${page+1}/${pages}`;
+  return messageId?edit(chatId,messageId,text,{inline_keyboard:rows}):send(chatId,text,{inline_keyboard:rows});
+}
+
+async function settings(u:any,chatId:number,messageId?:number) {
+  const rows:any[]=Object.entries(LANGS).map(([code,label])=>[cb(`${u.ui_language===code?"✅ ":""}${label}`,`lang:${code}`)]);
+  rows.push([cb(t(u,"back"),"nav:welcome")]);
+  const text=`${t(u,"settings")}\n\n${t(u,"language")}`;
+  return messageId?edit(chatId,messageId,text,{inline_keyboard:rows}):send(chatId,text,{inline_keyboard:rows});
+}
+
+async function handleCallback(q:TgCallback,user:any) {
+  const chatId=q.message?.chat.id,messageId=q.message?.message_id,data=q.data||"";
+  if(!chatId||!messageId) return answerCallback(q.id);
+  let u=await freshUser(user.id), state={...(u.onboarding_state||{})};
+  if(data==="noop") return answerCallback(q.id);
+  if(data.startsWith("lang:")) {
+    const code=data.slice(5); if(LANGS[code]) await db.from("bot_users").update({ui_language:code,updated_at:new Date().toISOString()}).eq("id",u.id);
+    u=await freshUser(u.id); await answerCallback(q.id); return settings(u,chatId,messageId);
+  }
+  if(data==="home:new") { state={property_types:[],borough_ids:[],neighborhood_ids:[],location_mode:null,max_warm_rent:null,min_area_sqm:0}; await answerCallback(q.id); return renderTypes(u,chatId,messageId,state); }
+  if(data==="nav:welcome") { await setState(u.id,null,{}); await answerCallback(q.id); return showWelcome(u,chatId,messageId); }
+  if(data==="nav:types") { await answerCallback(q.id); return renderTypes(u,chatId,messageId,state); }
+  if(data==="nav:location") { await answerCallback(q.id); return renderLocation(u,chatId,messageId,state); }
+  if(data==="nav:rent") { await answerCallback(q.id); return renderRent(u,chatId,messageId,state); }
+  if(data==="nav:area") { await answerCallback(q.id); return renderArea(u,chatId,messageId,state); }
+  if(data.startsWith("type:")) {
+    const v=data.slice(5); let selected:string[]=state.property_types||[];
+    if(v==="all") selected=[...TYPE_OPTIONS];
+    else if(v==="next") { if(!selected.length) return answerCallback(q.id,"Bitte mindestens eine Option wählen."); state.property_types=selected; await answerCallback(q.id); return renderLocation(u,chatId,messageId,state); }
+    else selected=selected.includes(v)?selected.filter(x=>x!==v):[...selected,v];
+    state.property_types=selected; await answerCallback(q.id); return renderTypes(u,chatId,messageId,state);
+  }
+  if(data.startsWith("loc:")) {
+    const v=data.slice(4);
+    if(v==="all") { state.location_mode="all_hamburg"; state.borough_ids=[]; state.neighborhood_ids=[]; await answerCallback(q.id); return renderRent(u,chatId,messageId,state); }
+    if(v==="boroughs") { state.location_mode="boroughs"; await answerCallback(q.id); return renderBoroughs(u,chatId,messageId,state); }
+    if(v==="neighborhoods") { state.location_mode="neighborhoods"; state.neighborhood_page=0; await answerCallback(q.id); return renderNeighborhoods(u,chatId,messageId,state); }
+  }
+  if(data.startsWith("bor:")) {
+    const v=data.slice(4); let ids:number[]=state.borough_ids||[];
+    if(v==="all") ids=[1,2,3,4,5,6,7];
+    else if(v==="done") { if(!ids.length) return answerCallback(q.id,"Bitte mindestens einen Bezirk wählen."); state.borough_ids=ids; await answerCallback(q.id); return renderRent(u,chatId,messageId,state); }
+    else { const id=Number(v); ids=ids.includes(id)?ids.filter(x=>x!==id):[...ids,id]; }
+    state.borough_ids=ids; await answerCallback(q.id); return renderBoroughs(u,chatId,messageId,state);
+  }
+  if(data.startsWith("nei:")) {
+    const v=data.slice(4); let ids:number[]=state.neighborhood_ids||[];
+    if(v==="all") { const {data:ns}=await db.from("hamburg_neighborhoods").select("id"); ids=(ns||[]).map((x:any)=>x.id); }
+    else if(v==="clear") ids=[];
+    else if(v==="prev") state.neighborhood_page=Math.max(0,Number(state.neighborhood_page||0)-1);
+    else if(v==="next") state.neighborhood_page=Number(state.neighborhood_page||0)+1;
+    else if(v==="done") { if(!ids.length) return answerCallback(q.id,"Bitte mindestens einen Stadtteil wählen."); state.neighborhood_ids=ids; await answerCallback(q.id); return renderRent(u,chatId,messageId,state); }
+    else { const id=Number(v); ids=ids.includes(id)?ids.filter(x=>x!==id):[...ids,id]; }
+    state.neighborhood_ids=ids; await answerCallback(q.id); return renderNeighborhoods(u,chatId,messageId,state);
+  }
+  if(data.startsWith("rent:")) {
+    const v=data.slice(5);
+    if(v==="custom") { await setState(u.id,"custom_rent",state); await answerCallback(q.id); return edit(chatId,messageId,t(u,"enter"),{inline_keyboard:[[cb(t(u,"back"),"nav:rent")]]}); }
+    state.max_warm_rent=Number(v); await answerCallback(q.id); return renderArea(u,chatId,messageId,state);
+  }
+  if(data.startsWith("area:")) { state.min_area_sqm=Number(data.slice(5)); await answerCallback(q.id); return renderReview(u,chatId,messageId,state); }
+  if(data==="review:save") {
+    const names=await selectedNames(state);
+    const {count}=await db.from("search_profiles").select("id",{count:"exact",head:true}).eq("user_id",u.id);
+    if((count||0)>=3) return answerCallback(q.id,"Maximal 3 Suchprofile.");
+    const {error}=await db.from("search_profiles").insert({user_id:u.id,name:"Meine Suche",property_types:state.property_types,max_warm_rent:state.max_warm_rent,min_rooms:0,min_area_sqm:state.min_area_sqm||0,districts:names.districts,location_mode:state.location_mode||"all_hamburg",boroughs:names.boroughs,neighborhoods:names.neighborhoods,wbs_only:false,is_active:true});
+    if(error) throw error; await setState(u.id,null,{}); await answerCallback(q.id); return edit(chatId,messageId,t(u,"created"),{inline_keyboard:[[cb(t(u,"create"),"home:new")]]});
+  }
+  if(data.startsWith("save:")) {
+    const listingId=data.slice(5); const {data:existing}=await db.from("saved_listings").select("id").eq("user_id",u.id).eq("listing_id",listingId).maybeSingle(); let isSaved=false;
+    if(existing) await db.from("saved_listings").delete().eq("id",existing.id);
+    else { await db.from("saved_listings").insert({user_id:u.id,listing_id:listingId}); isSaved=true; }
+    await answerCallback(q.id,isSaved?t(u,"savedState"):"Entfernt");
+    const {data:l}=await db.from("listings").select("*,sources(name,button_label)").eq("id",listingId).single();
+    if(l) try { await telegram("editMessageReplyMarkup",{chat_id:chatId,message_id:messageId,reply_markup:listingKeyboard(u,l,l.sources,isSaved)}); } catch {}
+    return;
+  }
+  if(data.startsWith("savedpage:")) { await answerCallback(q.id); return savedMenu(u,chatId,messageId,Number(data.slice(10))||0); }
+  if(data.startsWith("savedopen:")) {
+    const listingId=data.slice(10); const {data:l,error}=await db.from("listings").select("*,sources(name,button_label)").eq("id",listingId).single();
+    if(error||!l) return answerCallback(q.id,"Inserat nicht verfügbar.");
+    await answerCallback(q.id); return sendListingCard(u,chatId,l,l.sources,true);
+  }
+  return answerCallback(q.id);
+}
+
+async function handleMessage(msg:TgMessage,user:any) {
+  const chatId=msg.chat.id,text=(msg.text||"").trim(),cmd=text.split(/\s+/)[0].toLowerCase().replace(/@traumwohnunghamburgbot$/i,"");
+  let u=await freshUser(user.id);
+  if(cmd==="/start") {
+    const last=u.last_start_at?new Date(u.last_start_at).getTime():0;
+    if(last&&Date.now()-last<START_DEBOUNCE_MS) return;
+    await db.from("bot_users").update({last_start_at:new Date().toISOString(),onboarding_step:null,onboarding_state:{},updated_at:new Date().toISOString()}).eq("id",u.id);
+    return showWelcome(await freshUser(u.id),chatId);
+  }
+  if(cmd==="/suche") { const state={property_types:[],borough_ids:[],neighborhood_ids:[],location_mode:null,max_warm_rent:null,min_area_sqm:0}; await setState(u.id,"types",state); return send(chatId,t(u,"types"),typesMarkup(u,state)); }
+  if(cmd==="/gespeichert"||cmd==="/saved") return savedMenu(u,chatId,undefined,0);
+  if(cmd==="/einstellungen"||cmd==="/settings") return settings(u,chatId);
+  if(cmd==="/profile") {
+    const {data}=await db.from("search_profiles").select("name,property_types,max_warm_rent,min_area_sqm,location_mode,boroughs,neighborhoods,is_active").eq("user_id",u.id).order("created_at");
+    if(!data?.length) return send(chatId,"Noch kein Suchprofil vorhanden. Nutze /suche.");
+    return send(chatId,data.map((p:any,i:number)=>`<b>${i+1}. ${esc(p.name)}</b> ${p.is_active?"🟢":"⏸"}\n🏠 ${esc((p.property_types||[]).join(", "))}\n💶 bis ${money(p.max_warm_rent,t(u,"missing"))}\n📐 ${Number(p.min_area_sqm||0)>0?`ab ${p.min_area_sqm} m²`:t(u,"none")}\n📍 ${p.location_mode==="all_hamburg"?t(u,"allhh").replace(/^🌐\s*/,""):esc((p.neighborhoods?.length?p.neighborhoods:p.boroughs||[]).join(", "))}`).join("\n\n"));
+  }
+  if(cmd==="/pause") { await db.from("search_profiles").update({is_active:false,updated_at:new Date().toISOString()}).eq("user_id",u.id); return send(chatId,"⏸ Deine Suchprofile sind pausiert."); }
+  if(cmd==="/resume") { await db.from("search_profiles").update({is_active:true,updated_at:new Date().toISOString()}).eq("user_id",u.id); return send(chatId,"▶️ Deine Suchprofile sind wieder aktiv."); }
+  if(cmd==="/status") {
+    const {count:p}=await db.from("search_profiles").select("id",{count:"exact",head:true}).eq("user_id",u.id).eq("is_active",true);
+    const {count:s}=await db.from("sources").select("id",{count:"exact",head:true}).eq("enabled",true);
+    return send(chatId,`📡 <b>Status</b>\nAktive Suchprofile: ${p||0}\nAktive Quellen: ${s||0}\nSystem: online`);
+  }
+  if(cmd==="/hilfe") return send(chatId,"/suche – Suche erstellen\n/profile – Suchprofile\n/gespeichert – Gespeicherte Inserate\n/einstellungen – Sprache\n/pause – pausieren\n/resume – fortsetzen\n/status – Systemstatus");
+  if(u.onboarding_step==="custom_rent") {
+    const n=Number(text.replace(/\./g,"").replace(",","."));
+    if(!Number.isFinite(n)||n<100||n>20000) return send(chatId,t(u,"enter"));
+    const state={...(u.onboarding_state||{}),max_warm_rent:n}; await setState(u.id,"area",state); return send(chatId,t(u,"area"),areaMarkup(u));
+  }
+  return send(chatId,t(u,"use"));
+}
+
+async function internalTest(req:Request,body:any) {
+  if((req.headers.get("x-internal-secret")||"")!==await secret("internal_worker_secret")) return new Response("unauthorized",{status:401});
+  const chatId=Number(body.chat_id); if(!chatId) return Response.json({ok:false,error:"chat_id required"},{status:400});
+  let query:any=db.from("listings").select("*,sources(name,button_label)");
+  if(body.listing_id) query=query.eq("id",String(body.listing_id));
+  else query=query.or("warm_rent.not.is.null,cold_rent.not.is.null").not("rooms","is",null).not("area_sqm","is",null).order("first_seen_at",{ascending:false});
+  const {data,error}=await query.limit(1); if(error) throw error;
+  const l=(data||[])[0]; if(!l) return Response.json({ok:false,error:"no test listing"},{status:404});
+  const {data:user}=await db.from("bot_users").select("*").eq("chat_id",chatId).maybeSingle();
+  const result=await sendListingCard(user||{ui_language:"de"},chatId,l,l.sources,false);
+  return Response.json({ok:true,message_id:result?.message_id,listing_id:l.id});
+}
+
+Deno.serve(async(req:Request)=>{
+  try {
+    if(req.method!=="POST") return new Response("method not allowed",{status:405});
+    const body=await req.json().catch(()=>({}));
+    if(body?.action==="test_listing") return internalTest(req,body);
+    if((req.headers.get("x-telegram-bot-api-secret-token")||"")!==await secret("telegram_webhook_secret")) return new Response("unauthorized",{status:401});
+    const update=body as TgUpdate;
+    const {error:eventError}=await db.from("bot_events").insert({telegram_update_id:update.update_id,event_type:update.callback_query?"callback_query":update.message?"message":"other",telegram_user_id:update.callback_query?.from?.id||update.message?.from?.id||null,payload:update});
+    if(eventError) {
+      if(eventError.code==="23505"||String(eventError.message).toLowerCase().includes("duplicate")) return Response.json({ok:true,duplicate:true});
+      console.error(eventError);
+    }
+    if(update.callback_query?.from&&update.callback_query.message) { const user=await ensureUser(update.callback_query.from,update.callback_query.message.chat.id); await handleCallback(update.callback_query,user); return Response.json({ok:true}); }
+    if(update.message?.from&&update.message.chat.type==="private"&&update.message.text) { const user=await ensureUser(update.message.from,update.message.chat.id); await handleMessage(update.message,user); }
+    return Response.json({ok:true});
+  } catch(e) {
+    console.error(e);
+    return Response.json({ok:false,error:e instanceof Error?e.message:String(e)},{status:500});
+  }
+});
