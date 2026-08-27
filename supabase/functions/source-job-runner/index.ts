@@ -35,7 +35,12 @@ Deno.serve(async(req:Request)=>{
         });
         status=res.status;
         detail=(await res.text()).slice(0,1200);
-        ok=res.ok;
+        let explicitOk: boolean | null = null;
+        try {
+          const parsed=JSON.parse(detail);
+          if(typeof parsed?.ok==="boolean") explicitOk=parsed.ok;
+        } catch {}
+        ok=res.ok && explicitOk!==false;
       }catch(e){ detail=e instanceof Error?e.message:String(e); }
 
       const {error:finishError}=await db.rpc("finish_source_job",{p_job_id:job.job_id,p_success:ok,p_error:ok?null:`HTTP ${status||0}: ${detail}`});
