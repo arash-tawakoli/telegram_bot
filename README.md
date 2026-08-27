@@ -1,103 +1,98 @@
 # Traumwohnung Hamburg Bot
 
-Backend für `@traumwohnunghamburgbot`: automatische Wohnungssuche in Hamburg über 65 konfigurierte Quellen, Suchprofil-Matching, gespeicherte Inserate und Telegram-Push.
+Backend für `@traumwohnunghamburgbot`: automatische Wohnungssuche in Hamburg über 65 konfigurierte Quellen, kanonische Deduplizierung, Suchprofil-Matching und Telegram-Push.
 
 ## Stack
 
-- **Telegram Bot API** – Button-Onboarding, Einstellungen, Saved Listings und Foto-Inseratkarten
-- **Supabase Postgres** – Nutzer, Suchprofile, Hamburg-Geografie, Quellen, Listings, Deduplizierung und Logs
-- **Supabase Edge Functions** – `telegram-ui`, `notification-dispatcher` und Source-Adapter
-- **Supabase Cron + pg_net** – zeitgesteuertes Crawling und Notification-Dispatch
+- **Telegram Bot API** – Button-Onboarding, Einstellungen, gespeicherte Listings und Foto-Inseratkarten
+- **Supabase Postgres** – Nutzer, Suchprofile, Quellen, kanonische Listings, Source-Vorkommen, Matching, Outbox und Logs
+- **Supabase PGMQ** – persistente Source-Job-Queue
+- **Supabase Edge Functions** – Telegram-Komponenten, Source-Job-Runner und bestehende Source-Adapter
+- **Supabase Cron + pg_net** – Enqueue, Worker-Dispatch, Availability und Notification-Dispatch
 - **Supabase Vault** – Bot-Token und interne Secrets; keine Secrets im Repository
 
 ## Quellenlogik
 
-Die Mastertabelle wird auf höchstens drei Connector-Stufen abgebildet:
+P1/P2/P3 bleiben Connector-Prioritäten:
 
 - P1 = Primär
 - P2 = Fallback 1
 - P3 = Fallback 2
 
-K1/K2/K3 laufen aktuell alle 15/30/60 Minuten. Quelle 64 bleibt deaktiviert, da kein bestätigter digitaler Listing-Connector vorliegt. Die vollständige Registry steht in `docs/source-connectors.md`.
+Polling und Evidenz sind getrennt:
+
+- Poll-Tier K1/K2/K3 = 15/30/60 Minuten
+- Evidence-Tier K1/K2/K3 = technische Vertrauensstufe des Connectors
+- `enumerable=true` = Connector kann den vollständigen aktuellen Bestand zuverlässig enumerieren
+- `shadow_only=true` = keine Verfügbarkeitsentscheidung aus dieser Evidenz
+
+Die Connector-Registry steht in `docs/source-connectors.md`. Die stabile Orchestrierungsregistry steht maschinenlesbar in `data/source_catalog.json`.
 
 ## Telegram Commands
 
-- `/start` – Startseite
-- `/suche` – neue Suche
-- `/profile` – Suchprofile
-- `/gespeichert` – gespeicherte Inserate
-- `/einstellungen` – Sprache/Einstellungen
+- `/start`
+- `/suche`
+- `/profile`
+- `/gespeichert`
+- `/einstellungen`
 - `/pause`
 - `/resume`
 - `/status`
 - `/hilfe`
 
-## Button-Onboarding
-
-Der Workflow ist auf wenige, klare Schritte reduziert:
-
-1. Immobilientyp: Wohnung, Haus, WG, Tauschwohnung – Mehrfachauswahl möglich
-2. Gebiet: Ganz Hamburg, Bezirk(e) oder einzelne Stadtteile
-3. maximale Warmmiete: vier Presets oder eigener Betrag
-4. Mindestfläche: vier Button-Optionen
-5. Zusammenfassung und Aktivierung
-
-Zurück-/Bestätigen-Buttons sind Bestandteil der einzelnen Schritte. Freitext wird nur beim individuellen Mietbetrag benötigt.
-
-## Hamburg-Geografie
-
-Im Backend sind die **7 Bezirke und 104 bestehenden Stadtteile** hinterlegt. Oberbillwerder ist als geplanter 105. Stadtteil bewusst nicht als bestehender Stadtteil enthalten. Die Stadtteilansicht wird mit bis zu 15 Auswahlbuttons pro Seite und Vor/Zurück-Navigation ausgegeben.
-
-## Sprachen
-
-Der Bot speichert eine Sprache pro Nutzer. Verfügbar sind Deutsch, Englisch, Türkisch, Arabisch, Farsi, Dari, Pashto sowie Kurdisch Sorani, Kurmanji und Badini.
-
-## Inseratkarten
-
-Neue Treffer werden zentral durch `notification-dispatcher` als Telegram-Fotokarte zugestellt. Die Karte enthält – sofern von der Quelle veröffentlicht bzw. aus den Quelldaten ableitbar – Titel, Bild, vollständige Adresse, Warmmiete, Heizkosten, Nebenkosten, Kaution, Zimmer und Fläche.
-
-Unter jeder Karte stehen:
-
-- ein quellenbezogener Öffnen-Button, z. B. `Immowelt.de` oder `Kleinanzeigen.de`
-- `💾 Speichern`
-- `📍 Google Maps`
-
-Fehlende Angaben werden nicht erfunden. Wenn ein Anbieter z. B. keine Kaution oder keine vollständige Adresse veröffentlicht, wird dies entsprechend als nicht angegeben behandelt.
+Mehrere aktive Suchprofile bleiben unterstützt. Empfängerbasierte Deduplizierung verhindert doppelte Telegram-Zustellungen desselben Treffers.
 
 ## Datenfluss
 
-1. Cron wählt fällige Quellen anhand ihres K1/K2/K3-Intervalls aus.
-2. `source-engine` probiert P1 und danach höchstens P2/P3.
-3. Immowelt nutzt zusätzlich den spezialisierten Adapter `source-immowelt`.
-4. Inserate werden normalisiert und dedupliziert.
-5. Der erste erfolgreiche Lauf einer Quelle ist ein Warm-up und versendet keine historischen Inserate.
-6. Neue Treffer werden über `delivery_events` an den zentralen Foto-Dispatcher übergeben.
-7. `notification-dispatcher` prüft das Suchprofil nochmals und sendet die Telegram-Karte.
-8. Gespeicherte Inserate liegen in `saved_listings` und sind über `/gespeichert` wieder abrufbar.
+1. Cron ermittelt fällige Sources und schreibt Jobs in PGMQ `source_jobs`.
+2. `source-job-runner` claimt Jobs und ruft den bereits bestehenden Worker auf.
+3. Source-Routing: `source-immoscout`, `source-kleinanzeigen`, `source-immowelt`, `source-immomio` oder `source-engine`.
+4. Bestehende Adapter schreiben unverändert in `listings`.
+5. DB-Trigger erzeugen `listing_occurrences` und `canonical_listings`.
+6. Passende Profile werden als `matches` gespeichert.
+7. `notification_outbox` erzeugt kompatible `delivery_events`.
+8. Der bestehende `notification-dispatcher` prüft das Profil nochmals und sendet die Telegram-Karte.
+9. Versandstatus wird zurück in die Outbox gespiegelt.
+10. Verfügbarkeit wird nur nach drei erfolgreichen, vollständigen Crawls eines tatsächlich verwendeten `enumerable`-Connectors herabgestuft.
+
+## Architektur
+
+Die vollständigen Invarianten und das Diagramm stehen in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## Repository
 
 ```text
+.github/workflows/
+  architecture-check.yml
+
+data/
+  source_catalog.json
+
+docs/
+  ARCHITECTURE.md
+  source-connectors.md
+
 supabase/
   functions/
     telegram-ui/
+    telegram-webhook/
     notification-dispatcher/
+    source-job-runner/
     source-engine/
+    source-immoscout/
+    source-kleinanzeigen/
     source-immowelt/
-    telegram-webhook/        # historische Version; nicht aktiver Telegram-Webhook
+    source-immomio/
   migrations/
-    202608260001_core_schema.sql
-    ...
-    202608260006_fix_private_function_search_path.sql
   seed.sql
-docs/
-  source-connectors.md
 ```
+
+## Betrieb
+
+Die funktionierenden Source-Adapter bleiben getrennt von der Orchestrierung. Architekturänderungen sollen deshalb bevorzugt Queue-, Datenmodell-, Matching-, Observability- oder GitOps-Schichten verändern, nicht funktionierende Provider-Adapter.
+
+Login-Schranken, CAPTCHAs oder Anti-Bot-Schutz werden nicht umgangen. HTTP-401/403-, TLS- oder Netzwerkfehler bleiben im Monitoring sichtbar und verwenden kontrolliertes Backoff.
 
 ## Secrets
 
-Die Secret-Werte liegen ausschließlich in Supabase Vault. Produktionswerte dürfen niemals committed werden.
-
-## Betriebshinweis
-
-Der Crawler verwendet ausschließlich öffentlich erreichbare Anbindungen. Login-Schranken, CAPTCHAs oder Anti-Bot-Schutz werden nicht umgangen. Quellen, die serverseitig mit 401/403 oder TLS-/Netzwerkfehlern antworten, bleiben im Monitoring sichtbar und werden nicht durch unsichere Workarounds umgangen.
+Secret-Werte liegen ausschließlich in Supabase. Produktionswerte dürfen niemals committed werden.
