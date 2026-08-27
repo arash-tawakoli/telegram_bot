@@ -39,6 +39,7 @@ Deno.serve(async(req:Request)=>{
         try {
           const parsed=JSON.parse(detail);
           if(typeof parsed?.ok==="boolean") explicitOk=parsed.ok;
+          if(typeof parsed?.valid==="number" && typeof parsed?.upserted==="number" && parsed.upserted < parsed.valid) explicitOk=false;
         } catch {}
         ok=res.ok && explicitOk!==false;
       }catch(e){ detail=e instanceof Error?e.message:String(e); }
