@@ -1,0 +1,58 @@
+name: Architecture check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate source catalog
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path('data/source_catalog.json')
+          data = json.loads(path.read_text())
+          assert isinstance(data, list) and data, 'source catalog must be a non-empty list'
+          ids = [row['id'] for row in data]
+          assert len(ids) == len(set(ids)), 'duplicate source ids'
+          assert ids == sorted(ids), 'source ids must be sorted'
+          workers = {'source-engine','source-immoscout','source-kleinanzeigen','source-immowelt','source-immomio'}
+          for row in data:
+              assert row['worker'] in workers, f"unknown worker for source {row['id']}"
+              assert row['pollTier'] in {'K1','K2','K3'}
+              assert row['pollIntervalMinutes'] in {15,30,60}
+              assert row['deliveryMode'] in {'live','shadow'}
+          print(f'validated {len(data)} sources')
+          PY
+
+      - name: Validate architecture files
+        run: |
+          test -f docs/ARCHITECTURE.md
+          test -f supabase/functions/source-job-runner/index.ts
+          test -f supabase/functions/notification-dispatcher/index.ts
+          test -f supabase/functions/source-engine/index.ts
+          test -f supabase/functions/source-immoscout/index.ts
+          test -f supabase/functions/source-kleinanzeigen/index.ts
+          test -f supabase/functions/source-immowelt/index.ts
+          test -f supabase/functions/source-immomio/index.ts
+          test -f supabase/migrations/20260827174953_architecture_v2_core.sql
+          test -f supabase/migrations/20260827175119_architecture_v2_source_queue.sql
+          test -f supabase/migrations/20260827175348_architecture_v2_observability_and_availability.sql
+
+      - name: Reject obvious committed secrets
+        run: |
+          if grep -RInE --exclude-dir=.git --exclude='*.md' \
+            '(sk-proj-[A-Za-z0-9_-]{20,}|sb_secret_[A-Za-z0-9_-]{20,}|[0-9]{8,12}:[A-Za-z0-9_-]{30,})' .; then
+            echo 'Potential secret found in repository.' >&2
+            exit 1
+          fi
