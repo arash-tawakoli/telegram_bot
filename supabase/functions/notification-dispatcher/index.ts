@@ -1,9 +1,168 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.112.4";
 import { label } from "./labels.ts";
-const SUPABASE_URL=Deno.env.get("SUPABASE_URL")!,SECRET_KEYS=JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS")||"{}"),ADMIN_KEY=SECRET_KEYS.default||Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,db=createClient(SUPABASE_URL,ADMIN_KEY,{auth:{persistSession:false,autoRefreshToken:false}}),FALLBACK_PHOTO="https://placehold.co/1200x630/0aa7b8/ffffff/png?text=Traumwohnung+Hamburg";
-async function secret(name:string){const{data,error}=await db.rpc("get_bot_secret",{secret_name:name});if(error||!data)throw new Error(`secret ${name} unavailable`);return String(data)}function esc(v:unknown){return String(v??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}function money(v:any,missing:string){if(v===null||v===undefined||v==="")return missing;const n=Number(v);return Number.isFinite(n)?`${new Intl.NumberFormat("de-DE",{maximumFractionDigits:2}).format(n)} €`:esc(v)}function addressOf(l:any){if(l.address&&String(l.address).trim())return String(l.address).trim().replace(/^Geschoss\s+/i,"").replace(/^EG\s+/i,"");return[l.district,l.postal_code,l.city||"Hamburg"].filter(Boolean).join(", ")||"Vom Anbieter nicht veröffentlicht"}function mapUrl(l:any){return`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressOf(l))}`}function detectType(l:any){const h=`${l.title||""} ${JSON.stringify(l.raw||{}).slice(0,3000)}`;if(/tauschwohnung|tauschangebot|wohnungstausch/i.test(h))return"Tauschwohnung";if(/\bWG\b|WG-Zimmer|Zimmer zur Miete|roommate/i.test(h))return"WG";if(/\bHaus\b|Einfamilienhaus|Reihenhaus|Doppelhaus|Villa/i.test(h))return"Haus";return"Wohnung"}function matches(p:any,l:any){const types:string[]=p.property_types||[];if(types.length&&!types.includes(detectType(l)))return false;const rent=l.warm_rent??l.cold_rent;if(p.max_warm_rent!=null&&rent!=null&&Number(rent)>Number(p.max_warm_rent))return false;if(Number(p.min_area_sqm||0)>0&&(l.area_sqm==null||Number(l.area_sqm)<Number(p.min_area_sqm)))return false;const districts=(p.districts||[]).map((x:string)=>x.toLowerCase());if(districts.length&&!districts.includes("ganz hamburg")){const h=`${l.district||""} ${l.address||""} ${l.title||""}`.toLowerCase();if(!districts.some((x:string)=>h.includes(x)))return false}return true}
-function caption(l:any,lang:string){const missing=label(lang,"missing"),title=String(l.title||"Neue Wohnung").replace(/\s+/g," ").slice(0,180);return`🏠 <b>${esc(title)}</b>\n\n📍 <b>${esc(label(lang,"address"))}:</b> ${esc(addressOf(l))}\n💶 <b>${esc(label(lang,"warm"))}:</b> ${money(l.warm_rent,missing)}\n❄️ <b>${esc(label(lang,"cold"))}:</b> ${money(l.cold_rent,missing)}\n🔥 <b>${esc(label(lang,"heating"))}:</b> ${money(l.heating_costs,missing)}\n🧾 <b>${esc(label(lang,"additional"))}:</b> ${money(l.additional_costs,missing)}\n🔐 <b>${esc(label(lang,"deposit"))}:</b> ${l.deposit_text?esc(l.deposit_text):money(l.deposit,missing)}\n🚪 <b>${esc(label(lang,"rooms"))}:</b> ${l.rooms??missing}\n📐 <b>${esc(label(lang,"area"))}:</b> ${l.area_sqm!=null?`${esc(l.area_sqm)} m²`:missing}`}function keyboard(l:any,s:any,lang:string){const source=s?.button_label||s?.name||"Angebot";return{inline_keyboard:[[{text:`🔗 ${source}`,url:l.canonical_url}],[{text:label(lang,"save"),callback_data:`save:${l.id}`},{text:label(lang,"maps"),url:mapUrl(l)}]]}}async function sendPhoto(token:string,chatId:number,l:any,s:any,lang:string){const body=(photo:string)=>({chat_id:chatId,photo,caption:caption(l,lang),parse_mode:"HTML",reply_markup:keyboard(l,s,lang)});for(const photo of[l.image_url,FALLBACK_PHOTO].filter(Boolean)){const r=await fetch(`https://api.telegram.org/bot${token}/sendPhoto`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body(String(photo)))});const j=await r.json();if(r.ok&&j.ok)return j.result?.message_id||null}throw new Error("Telegram sendPhoto failed for listing and fallback image")}
-async function testListing(body:any,token:string){const chatId=Number(body.chat_id);if(!chatId)return Response.json({ok:false,error:"chat_id required"},{status:400});let q:any=db.from("listings").select("*,sources(name,button_label)");if(body.listing_id)q=q.eq("id",String(body.listing_id));else q=q.or("warm_rent.not.is.null,cold_rent.not.is.null").not("rooms","is",null).not("area_sqm","is",null).order("first_seen_at",{ascending:false});const{data,error}=await q.limit(1);if(error)throw error;const l=(data||[])[0];if(!l)return Response.json({ok:false,error:"no test listing"},{status:404});const{data:user}=await db.from("bot_users").select("ui_language").eq("chat_id",chatId).maybeSingle();const messageId=await sendPhoto(token,chatId,l,l.sources,user?.ui_language||"de");return Response.json({ok:true,message_id:messageId,listing_id:l.id})}
-async function dispatchAll(token:string){const results:any[]=[];const totals={sent:0,failed:0,skipped:0};const PAGE=200;while(true){const now=new Date(),iso=now.toISOString();const{data,error}=await db.from("delivery_events").select("id,status,dispatch_attempts,next_retry_at,created_at,search_profiles!inner(id,property_types,max_warm_rent,min_area_sqm,districts,is_active,bot_users!inner(chat_id,is_active,ui_language)),listings!inner(*,sources!inner(name,button_label))").in("status",["pending","failed"]).lt("dispatch_attempts",5).or(`next_retry_at.is.null,next_retry_at.lte.${iso}`).order("created_at",{ascending:true}).limit(PAGE);if(error)throw error;if(!data?.length)break;for(const e of data){const p=e.search_profiles,l=e.listings,u=p?.bot_users,s=l?.sources;if(!p?.is_active||!u?.is_active||!matches(p,l)){await db.from("delivery_events").update({status:"skipped",last_attempt_at:iso}).eq("id",e.id);totals.skipped++;results.push({id:e.id,status:"skipped"});continue}try{const mid=await sendPhoto(token,Number(u.chat_id),l,s,u.ui_language||"de");await db.from("delivery_events").update({status:"sent",telegram_message_id:mid,sent_at:new Date().toISOString(),last_attempt_at:new Date().toISOString(),dispatch_attempts:Number(e.dispatch_attempts||0)+1,error_message:null,next_retry_at:null}).eq("id",e.id);totals.sent++;results.push({id:e.id,status:"sent",message_id:mid})}catch(err){const attempts=Number(e.dispatch_attempts||0)+1;await db.from("delivery_events").update({status:"failed",dispatch_attempts:attempts,last_attempt_at:new Date().toISOString(),next_retry_at:new Date(Date.now()+Math.min(60,Math.pow(2,attempts))*60000).toISOString(),error_message:err instanceof Error?err.message:String(err)}).eq("id",e.id);totals.failed++;results.push({id:e.id,status:"failed"})}}if(data.length<PAGE)break}return{processed:totals.sent+totals.failed+totals.skipped,totals,results}}
-Deno.serve(async(req:Request)=>{try{if(req.method!=="POST")return new Response("method not allowed",{status:405});const expected=await secret("internal_worker_secret");if((req.headers.get("x-internal-secret")||"")!==expected)return new Response("unauthorized",{status:401});const token=await secret("telegram_bot_token_runtime"),body=await req.json().catch(()=>({}));if(body?.action==="test_listing")return testListing(body,token);const out=await dispatchAll(token);return Response.json({ok:true,...out})}catch(e){console.error(e);return Response.json({ok:false,error:e instanceof Error?e.message:String(e)},{status:500})}});
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SECRET_KEYS = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") || "{}");
+const ADMIN_KEY = SECRET_KEYS.default || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const db = createClient(SUPABASE_URL, ADMIN_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+const FALLBACK_PHOTO = "https://placehold.co/1200x630/0aa7b8/ffffff/png?text=Traumwohnung+Hamburg";
+const PROCESSING_LEASE_MS = 120_000;
+const PAGE = 200;
+
+async function secret(name: string) {
+  const { data, error } = await db.rpc("get_bot_secret", { secret_name: name });
+  if (error || !data) throw new Error(`secret ${name} unavailable`);
+  return String(data);
+}
+
+function esc(v: unknown) {
+  return String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function money(v: any, missing: string) {
+  if (v === null || v === undefined || v === "") return missing;
+  const n = Number(v);
+  return Number.isFinite(n) ? `${new Intl.NumberFormat("de-DE", { maximumFractionDigits: 2 }).format(n)} €` : esc(v);
+}
+
+function addressOf(l: any) {
+  if (l.address && String(l.address).trim()) return String(l.address).trim().replace(/^Geschoss\s+/i, "").replace(/^EG\s+/i, "");
+  return [l.district, l.postal_code, l.city || "Hamburg"].filter(Boolean).join(", ") || "Vom Anbieter nicht veröffentlicht";
+}
+
+function mapUrl(l: any) {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressOf(l))}`;
+}
+
+function detectType(l: any) {
+  const h = `${l.property_type || ""} ${l.title || ""} ${JSON.stringify(l.raw || {}).slice(0, 3000)}`;
+  if (/tauschwohnung|tauschangebot|wohnungstausch/i.test(h)) return "Tauschwohnung";
+  if (/\bWG\b|WG-Zimmer|Zimmer zur Miete|roommate/i.test(h)) return "WG";
+  if (/\bHaus\b|Einfamilienhaus|Reihenhaus|Doppelhaus|Villa/i.test(h)) return "Haus";
+  return "Wohnung";
+}
+
+function matches(p: any, l: any) {
+  const types: string[] = p.property_types || [];
+  if (types.length && !types.includes(detectType(l))) return false;
+  const rent = l.warm_rent ?? l.cold_rent;
+  if (p.max_warm_rent != null && rent != null && Number(rent) > Number(p.max_warm_rent)) return false;
+  if (Number(p.min_rooms || 0) > 0 && l.rooms != null && Number(l.rooms) < Number(p.min_rooms)) return false;
+  if (Number(p.min_area_sqm || 0) > 0 && l.area_sqm != null && Number(l.area_sqm) < Number(p.min_area_sqm)) return false;
+  if (p.wbs_only && !l.wbs_required) return false;
+  const pref = String(p.furnished_preference || "any");
+  if (pref !== "any" && l.furnished != null) {
+    if (pref === "furnished" && l.furnished !== true) return false;
+    if (pref === "unfurnished" && l.furnished !== false) return false;
+  }
+  const districts = (p.districts || []).map((x: string) => x.toLowerCase());
+  if (districts.length && !districts.includes("ganz hamburg")) {
+    const h = `${l.district || ""} ${l.address || ""} ${l.title || ""}`.toLowerCase();
+    if (!districts.some((x: string) => h.includes(x))) return false;
+  }
+  return true;
+}
+
+function caption(l: any, lang: string) {
+  const missing = label(lang, "missing");
+  const title = String(l.title || "Neue Wohnung").replace(/\s+/g, " ").slice(0, 180);
+  return `🏠 <b>${esc(title)}</b>\n\n📍 <b>${esc(label(lang, "address"))}:</b> ${esc(addressOf(l))}\n💶 <b>${esc(label(lang, "warm"))}:</b> ${money(l.warm_rent, missing)}\n❄️ <b>${esc(label(lang, "cold"))}:</b> ${money(l.cold_rent, missing)}\n🔥 <b>${esc(label(lang, "heating"))}:</b> ${money(l.heating_costs, missing)}\n🧾 <b>${esc(label(lang, "additional"))}:</b> ${money(l.additional_costs, missing)}\n🔐 <b>${esc(label(lang, "deposit"))}:</b> ${l.deposit_text ? esc(l.deposit_text) : money(l.deposit, missing)}\n🚪 <b>${esc(label(lang, "rooms"))}:</b> ${l.rooms ?? missing}\n📐 <b>${esc(label(lang, "area"))}:</b> ${l.area_sqm != null ? `${esc(l.area_sqm)} m²` : missing}`;
+}
+
+function keyboard(l: any, s: any, lang: string) {
+  const source = s?.button_label || s?.name || "Angebot";
+  return { inline_keyboard: [[{ text: `🔗 ${source}`, url: l.canonical_url }], [{ text: label(lang, "save"), callback_data: `save:${l.id}` }, { text: label(lang, "maps"), url: mapUrl(l) }]] };
+}
+
+async function sendPhoto(token: string, chatId: number, l: any, s: any, lang: string) {
+  const body = (photo: string) => ({ chat_id: chatId, photo, caption: caption(l, lang), parse_mode: "HTML", reply_markup: keyboard(l, s, lang) });
+  for (const photo of [l.image_url, FALLBACK_PHOTO].filter(Boolean)) {
+    const r = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body(String(photo))) });
+    const j = await r.json();
+    if (r.ok && j.ok) return j.result?.message_id || null;
+  }
+  throw new Error("Telegram sendPhoto failed for listing and fallback image");
+}
+
+async function testListing(body: any, token: string) {
+  const chatId = Number(body.chat_id);
+  if (!chatId) return Response.json({ ok: false, error: "chat_id required" }, { status: 400 });
+  let q: any = db.from("listings").select("*,sources(name,button_label)");
+  if (body.listing_id) q = q.eq("id", String(body.listing_id));
+  else q = q.or("warm_rent.not.is.null,cold_rent.not.is.null").not("rooms", "is", null).not("area_sqm", "is", null).order("first_seen_at", { ascending: false });
+  const { data, error } = await q.limit(1);
+  if (error) throw error;
+  const l = (data || [])[0];
+  if (!l) return Response.json({ ok: false, error: "no test listing" }, { status: 404 });
+  const { data: user } = await db.from("bot_users").select("ui_language").eq("chat_id", chatId).maybeSingle();
+  const messageId = await sendPhoto(token, chatId, l, l.sources, user?.ui_language || "de");
+  return Response.json({ ok: true, message_id: messageId, listing_id: l.id });
+}
+
+async function recoverStaleProcessing() {
+  const staleBefore = new Date(Date.now() - PROCESSING_LEASE_MS).toISOString();
+  const now = new Date().toISOString();
+  const { error } = await db.from("delivery_events").update({ status: "failed", next_retry_at: now, error_message: "Recovered stale processing lease" }).eq("status", "processing").lt("last_attempt_at", staleBefore);
+  if (error) throw error;
+}
+
+async function dispatchAll(token: string) {
+  await recoverStaleProcessing();
+  const results: any[] = [];
+  const totals = { sent: 0, failed: 0, skipped: 0, claimed: 0 };
+  while (true) {
+    const iso = new Date().toISOString();
+    const { data, error } = await db.from("delivery_events").select("id,status,dispatch_attempts,last_attempt_at,next_retry_at,created_at,search_profiles!inner(id,property_types,max_warm_rent,min_rooms,min_area_sqm,districts,furnished_preference,wbs_only,is_active,bot_users!inner(chat_id,is_active,ui_language)),listings!inner(*,sources!inner(name,button_label))").in("status", ["pending", "failed"]).lt("dispatch_attempts", 5).or(`next_retry_at.is.null,next_retry_at.lte.${iso}`).order("created_at", { ascending: true }).limit(PAGE);
+    if (error) throw error;
+    if (!data?.length) break;
+    let claimedThisPage = 0;
+    for (const e of data) {
+      const claimAt = new Date().toISOString();
+      const { data: claimed, error: claimError } = await db.from("delivery_events").update({ status: "processing", last_attempt_at: claimAt }).eq("id", e.id).eq("status", e.status).select("id").maybeSingle();
+      if (claimError) throw claimError;
+      if (!claimed) continue;
+      claimedThisPage++;
+      totals.claimed++;
+      const p = e.search_profiles, l = e.listings, u = p?.bot_users, s = l?.sources;
+      if (!p?.is_active || !u?.is_active || !matches(p, l)) {
+        const { error: skipError } = await db.from("delivery_events").update({ status: "skipped", last_attempt_at: claimAt, next_retry_at: null }).eq("id", e.id).eq("status", "processing");
+        if (skipError) throw skipError;
+        totals.skipped++;
+        results.push({ id: e.id, status: "skipped" });
+        continue;
+      }
+      try {
+        const mid = await sendPhoto(token, Number(u.chat_id), l, s, u.ui_language || "de");
+        const { error: sentError } = await db.from("delivery_events").update({ status: "sent", telegram_message_id: mid, sent_at: new Date().toISOString(), last_attempt_at: new Date().toISOString(), dispatch_attempts: Number(e.dispatch_attempts || 0) + 1, error_message: null, next_retry_at: null }).eq("id", e.id).eq("status", "processing");
+        if (sentError) throw sentError;
+        totals.sent++;
+        results.push({ id: e.id, status: "sent", message_id: mid });
+      } catch (err) {
+        const attempts = Number(e.dispatch_attempts || 0) + 1;
+        const { error: failError } = await db.from("delivery_events").update({ status: "failed", dispatch_attempts: attempts, last_attempt_at: new Date().toISOString(), next_retry_at: new Date(Date.now() + Math.min(60, Math.pow(2, attempts)) * 60_000).toISOString(), error_message: err instanceof Error ? err.message : String(err) }).eq("id", e.id).eq("status", "processing");
+        if (failError) console.error(failError);
+        totals.failed++;
+        results.push({ id: e.id, status: "failed" });
+      }
+    }
+    if (data.length < PAGE || claimedThisPage === 0) break;
+  }
+  return { processed: totals.sent + totals.failed + totals.skipped, totals, results };
+}
+
+Deno.serve(async (req: Request) => {
+  try {
+    if (req.method !== "POST") return new Response("method not allowed", { status: 405 });
+    const expected = await secret("internal_worker_secret");
+    if ((req.headers.get("x-internal-secret") || "") !== expected) return new Response("unauthorized", { status: 401 });
+    const token = await secret("telegram_bot_token_runtime");
+    const body = await req.json().catch(() => ({}));
+    if (body?.action === "test_listing") return testListing(body, token);
+    const out = await dispatchAll(token);
+    return Response.json({ ok: true, ...out });
+  } catch (e) {
+    console.error(e);
+    return Response.json({ ok: false, error: e instanceof Error ? e.message : String(e) }, { status: 500 });
+  }
+});
