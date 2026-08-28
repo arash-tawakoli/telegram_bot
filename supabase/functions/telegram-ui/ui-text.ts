@@ -1,5 +1,5 @@
-import { LANGS, msg as baseMsg, typeLabel } from "./ui-text-v2.ts";
-export { LANGS, typeLabel };
+import { LANGS, msg as baseMsg } from "./ui-text-v2.ts";
+export { LANGS };
 
 type Dict=Record<string,string>;
 
@@ -40,4 +40,8 @@ export function msg(lang:string|null|undefined,key:string){
     return baseMsg(FAMILY_FALLBACK[code],normalizedKey);
   }
   return value;
+}
+
+export function typeLabel(lang:string|null|undefined,value:string){
+  return msg(lang,value==="Wohnung"?"typeApartment":value==="Haus"?"typeHouse":value==="WG"?"typeWG":"typeSwap");
 }
