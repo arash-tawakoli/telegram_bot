@@ -353,15 +353,23 @@ async function run(source: Source) {
     }
     if (!items.size) throw new Error(errors.length ? errors.join(" | ") : "ImmoScout MCP returned no usable listings");
 
-    const normalized: any[] = [];
-    for (const item of items.values()) {
-      const d = discovery.get(item.key);
-      normalized.push({ source_id: SOURCE_ID, source_listing_key: item.key, external_id: item.key, canonical_url: item.url, title: item.title, address: item.address, district: item.district, postal_code: item.postal, city: "Hamburg", warm_rent: null, cold_rent: null, rooms: item.rooms, area_sqm: item.area, property_type: item.propertyType, image_url: item.image, cross_source_hash: await sha256(`${item.key}|${item.postal || ""}|${item.rooms ?? ""}|${item.area ?? ""}`), raw: { ...item.raw, coverage_strategy: COVERAGE_STRATEGY, discovered_by_exact_profile: Boolean(d?.exactProfiles.size), discovered_by_coverage: Boolean(d?.coverageProfiles.size) }, last_seen_at: new Date().toISOString(), is_active: true });
-    }
-    const keys = normalized.map((row) => row.source_listing_key);
+    const coverageWarmup = !coverageHadSuccess;
+    const keys = [...items.keys()];
     const { data: existing, error: existingError } = await db.from("listings").select("source_listing_key").eq("source_id", SOURCE_ID).in("source_listing_key", keys);
     if (existingError) throw new Error(`listings lookup: ${errorText(existingError)}`);
     const oldKeys = new Set((existing || []).map((row: any) => String(row.source_listing_key)));
+
+    const normalized: any[] = [];
+    let coverageWarmupBackfilled = 0;
+    for (const item of items.values()) {
+      const d = discovery.get(item.key);
+      const row: any = { source_id: SOURCE_ID, source_listing_key: item.key, external_id: item.key, canonical_url: item.url, title: item.title, address: item.address, district: item.district, postal_code: item.postal, city: "Hamburg", warm_rent: null, cold_rent: null, rooms: item.rooms, area_sqm: item.area, property_type: item.propertyType, image_url: item.image, cross_source_hash: await sha256(`${item.key}|${item.postal || ""}|${item.rooms ?? ""}|${item.area ?? ""}`), raw: { ...item.raw, coverage_strategy: COVERAGE_STRATEGY, discovered_by_exact_profile: Boolean(d?.exactProfiles.size), discovered_by_coverage: Boolean(d?.coverageProfiles.size) }, last_seen_at: new Date().toISOString(), is_active: true };
+      if (coverageWarmup && !oldKeys.has(item.key) && !d?.exactProfiles.size && d?.coverageProfiles.size) {
+        row.enrichment_delivery_eligible = false;
+        coverageWarmupBackfilled++;
+      }
+      normalized.push(row);
+    }
     const { error: upsertError } = await db.from("listings").upsert(normalized, { onConflict: "source_id,source_listing_key" });
     if (upsertError) throw new Error(`listings upsert: ${errorText(upsertError)}`);
     const newKeys = keys.filter((key) => !oldKeys.has(key));
@@ -372,7 +380,6 @@ async function run(source: Source) {
       newRows = data || [];
     }
     const connectorWarmup = !connectorHadSuccess;
-    const coverageWarmup = !coverageHadSuccess;
     const queueResult = await queueNewListings(newRows, discovery, connectorWarmup || !source.warmed_up, coverageWarmup);
     const finishedAt = new Date().toISOString();
     const { error: sourceUpdateError } = await db.from("sources").update({ warmed_up: true, last_success_at: finishedAt, last_error_at: null, consecutive_failures: 0, updated_at: finishedAt }).eq("id", SOURCE_ID);
@@ -380,6 +387,7 @@ async function run(source: Source) {
     const metadata = {
       queued: queueResult.queued,
       coverage_warmup_suppressed: queueResult.warmupSuppressed,
+      coverage_warmup_backfilled: coverageWarmupBackfilled,
       mcp_endpoint: MCP_URL,
       mcp_query_count: plan.jobs.length,
       mcp_profile_query_count: plan.profileQueryCount,
@@ -398,7 +406,7 @@ async function run(source: Source) {
     };
     const { error: runUpdateError } = await db.from("crawl_runs").update({ finished_at: finishedAt, success: true, connector_priority: 1, connector_label: MCP_LABEL, fetched_count: items.size, inserted_count: newKeys.length, metadata }).eq("id", runId);
     if (runUpdateError) throw new Error(`crawl_runs update: ${errorText(runUpdateError)}`);
-    return { ok: true, connector: 1, label: MCP_LABEL, fetched: items.size, new: newKeys.length, queued: queueResult.queued, warmup_suppressed: queueResult.warmupSuppressed, queries: plan.jobs.length, profile_queries: plan.profileQueryCount, coverage_queries: plan.coverageQueryCount, coverage_candidates: plan.coverageCandidateCount, coverage_trimmed: plan.coverageTrimmed, total_reported_sum: totalSeen ? totalReported : null, coverage_warmup: coverageWarmup, connector_warmup_skipped: connectorWarmup, errors };
+    return { ok: true, connector: 1, label: MCP_LABEL, fetched: items.size, new: newKeys.length, queued: queueResult.queued, warmup_suppressed: queueResult.warmupSuppressed, warmup_backfilled: coverageWarmupBackfilled, queries: plan.jobs.length, profile_queries: plan.profileQueryCount, coverage_queries: plan.coverageQueryCount, coverage_candidates: plan.coverageCandidateCount, coverage_trimmed: plan.coverageTrimmed, total_reported_sum: totalSeen ? totalReported : null, coverage_warmup: coverageWarmup, connector_warmup_skipped: connectorWarmup, errors };
   } catch (error) {
     const message = errorText(error);
     const finishedAt = new Date().toISOString();
