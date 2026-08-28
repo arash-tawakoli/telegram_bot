@@ -9,11 +9,7 @@ const UA = "Mozilla/5.0 (compatible; TraumwohnungHamburgBot/3.0; +https://traumw
 const CONFIG_BASE = "https://config.hpm.immosolve.eu/hpmconfigurationsservice/v1/configurations";
 
 type HpmConfig = {
-  mandatorConstants?: {
-    mandatorId?: string;
-    mandatorIdUnhashed?: string;
-    server?: string;
-  };
+  mandatorConstants?: { mandatorId?: string; mandatorIdUnhashed?: string; server?: string };
   presentationConfig?: Record<string, unknown> & { objectIdentifiers?: Array<number | string> };
 };
 type HpmObject = {
@@ -21,6 +17,14 @@ type HpmObject = {
   objectIdentifier?: number | string;
   labels?: Record<string, unknown>;
   teaserImage?: { filename?: string | null } | null;
+};
+type ResolvedHpm = {
+  server:string;
+  mandatorHash:string;
+  objectIdentifiers:Array<number|string>;
+  presentationFor:(objectIdentifier:number|string)=>string;
+  moduleUrl:string;
+  legacy:boolean;
 };
 
 async function secret(name:string){
@@ -78,6 +82,41 @@ function postBody(presentationId:string,mandatorId:string,objectIdentifier:numbe
     floor:null,specialties:[],userCode:null,elementsPerPage:2000,currentPage:page,orderBy:null,objectId:null,objectCode:null,category:null
   };
 }
+async function resolveHpm(config:any,configuredUrl:string,mandatorId:string):Promise<ResolvedHpm>{
+  const explicitServer=String(config?.server||"");
+  const explicitHash=String(config?.mandator_hash||"");
+  const explicitPresentation=String(config?.presentation_id||"");
+  const explicitIdentifiers=Array.isArray(config?.object_identifiers)?config.object_identifiers:[];
+  if(explicitServer&&explicitHash&&explicitPresentation&&explicitIdentifiers.length){
+    return {
+      server:explicitServer,
+      mandatorHash:explicitHash,
+      objectIdentifiers:explicitIdentifiers,
+      presentationFor:()=>explicitPresentation,
+      moduleUrl:String(config?.module_url||configuredUrl),
+      legacy:true
+    };
+  }
+  const hpm:HpmConfig=await fetchJson(`${CONFIG_BASE}/${mandatorId}`);
+  const server=String(hpm.mandatorConstants?.server||"");
+  const mandatorHash=String(hpm.mandatorConstants?.mandatorId||"");
+  const objectIdentifiers=hpm.presentationConfig?.objectIdentifiers||[];
+  if(!server||!mandatorHash||!objectIdentifiers.length) throw new Error("ImmoSolve HPM configuration incomplete");
+  return {
+    server,mandatorHash,objectIdentifiers,
+    presentationFor:(objectIdentifier:number|string)=>String((hpm.presentationConfig as any)?.[`config_${objectIdentifier}`]?.presentationId||""),
+    moduleUrl:String(config?.module_url||`https://${mandatorId}.hpm.immosolve.eu/`),
+    legacy:false
+  };
+}
+function canonicalUrl(hpm:ResolvedHpm,objectIdentifier:number|string,id:string,title:string){
+  if(hpm.legacy){
+    const u=new URL(hpm.moduleUrl);
+    u.searchParams.set("objectId",id);
+    return u.href;
+  }
+  return `${hpm.moduleUrl.replace(/#.*$/,'')}#!/detail-expose-${objectIdentifier}-${encodeURIComponent(id)}-${slug(title)}`;
+}
 
 Deno.serve(async(req:Request)=>{
   const started=new Date().toISOString();
@@ -104,27 +143,20 @@ Deno.serve(async(req:Request)=>{
     const configuredUrl=String(connector.config?.url||source.search_url||source.homepage_url||"");
     const mandatorId=String(connector.config?.mandator_id||mandatorFromUrl(configuredUrl)||"");
     if(!mandatorId||!/^\d+$/.test(mandatorId)) throw new Error("ImmoSolve mandator id missing");
+    const hpm=await resolveHpm(connector.config||{},configuredUrl,mandatorId);
 
-    const config:HpmConfig=await fetchJson(`${CONFIG_BASE}/${mandatorId}`);
-    const server=String(config.mandatorConstants?.server||"");
-    const mandatorHash=String(config.mandatorConstants?.mandatorId||"");
-    const objectIdentifiers=config.presentationConfig?.objectIdentifiers||[];
-    if(!server||!mandatorHash||!objectIdentifiers.length) throw new Error("ImmoSolve HPM configuration incomplete");
-
-    const moduleUrl=`https://${mandatorId}.hpm.immosolve.eu/`;
-    const listUrl=`https://${server}/immosolve2/api/rest/hpm/estates/list`;
-    const detailUrl=`https://${server}/immosolve2/api/rest/hpm/estates/details`;
+    const listUrl=`https://${hpm.server}/immosolve2/api/rest/hpm/estates/list`;
+    const detailUrl=`https://${hpm.server}/immosolve2/api/rest/hpm/estates/details`;
     const candidates:HpmObject[]=[];
     let enumerated=0;
 
-    for(const rawIdentifier of objectIdentifiers){
+    for(const rawIdentifier of hpm.objectIdentifiers){
       const objectIdentifier=typeof rawIdentifier==="string"&&/^\d+$/.test(rawIdentifier)?Number(rawIdentifier):rawIdentifier;
-      const presentation=(config.presentationConfig as any)?.[`config_${objectIdentifier}`];
-      const presentationId=String(presentation?.presentationId||"");
+      const presentationId=hpm.presentationFor(objectIdentifier);
       if(!presentationId) continue;
       let page=1,totalPages=1;
       do{
-        const payload=await fetchJson(listUrl,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(postBody(presentationId,mandatorHash,objectIdentifier,page))});
+        const payload=await fetchJson(listUrl,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(postBody(presentationId,hpm.mandatorHash,objectIdentifier,page))});
         const objects=Array.isArray(payload?.immoObjects)?payload.immoObjects:[];
         enumerated+=objects.length;
         candidates.push(...objects);
@@ -143,11 +175,15 @@ Deno.serve(async(req:Request)=>{
     const keys:string[]=[];
     for(const item of residential){
       const objectIdentifier=Number(item.objectIdentifier||item.labels?.objectIdentifier||0);
-      const presentation=(config.presentationConfig as any)?.[`config_${objectIdentifier}`];
-      const presentationId=String(presentation?.presentationId||"");
+      const presentationId=hpm.presentationFor(objectIdentifier);
       if(!presentationId) throw new Error(`presentation missing for objectIdentifier ${objectIdentifier}`);
       const id=String(item.id);
-      const detail=await fetchJson(detailUrl,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({presentationId,mandatorId:mandatorHash,userCode:null,id:item.id,code:null})});
+      let detail:any=null;
+      try{
+        detail=await fetchJson(detailUrl,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({presentationId,mandatorId:hpm.mandatorHash,userCode:null,id:item.id,code:null})});
+      }catch{
+        detail={immoObject:item};
+      }
       const labels=(detail?.immoObject?.labels||item.labels||{}) as Record<string,unknown>;
       if(!isResidential(labels)) continue;
       const postal=String(labels.plz||"");
@@ -161,8 +197,8 @@ Deno.serve(async(req:Request)=>{
       const area=deNum(labels.wohnflaeche);
       const title=String(labels.titel||item.labels?.titel||"Wohnungsangebot");
       const imagePath=String(detail?.immoObject?.teaserImage?.filename||detail?.images?.[0]?.filename||item.teaserImage?.filename||"");
-      const imageUrl=imagePath?new URL(imagePath,`https://${server}/`).href:null;
-      const canonical=`${moduleUrl}#!/detail-expose-${objectIdentifier}-${encodeURIComponent(id)}-${slug(title)}`;
+      const imageUrl=imagePath?new URL(imagePath,`https://${hpm.server}/`).href:null;
+      const canonical=canonicalUrl(hpm,objectIdentifier,id,title);
       const key=id;
       keys.push(key);
       const row={
@@ -172,7 +208,7 @@ Deno.serve(async(req:Request)=>{
         property_type:"Wohnung",furnished:null,wbs_required:String(labels.wohnberechtigungsschein||"0")!=="0",
         image_url:imageUrl,
         cross_source_hash:await sha256(`${address.toLowerCase()}|${warm??cold??""}|${rooms??""}|${area??""}`),
-        raw:{provider:"immosolve_hpm_rest",mandator_id:mandatorId,object_identifier:objectIdentifier,detail},
+        raw:{provider:"immosolve_hpm_rest",mandator_id:mandatorId,object_identifier:objectIdentifier,legacy:hpm.legacy,detail},
         last_seen_at:new Date().toISOString(),is_active:true
       };
       const {data:existing}=await db.from("listings").select("id").eq("source_id",sourceId).eq("source_listing_key",key).maybeSingle();
@@ -193,10 +229,12 @@ Deno.serve(async(req:Request)=>{
 
     const now=new Date().toISOString();
     await db.from("sources").update({last_success_at:now,last_error_at:null,consecutive_failures:0,updated_at:now}).eq("id",sourceId);
-    await db.from("crawl_runs").insert({source_id:sourceId,started_at:started,finished_at:now,success:true,connector_label:connector.label,
+    await db.from("crawl_runs").insert({
+      source_id:sourceId,started_at:started,finished_at:now,success:true,connector_label:connector.label,
       fetched_count:residential.length,inserted_count:inserted,
-      metadata:{mode:"immosolve-hpm-rest",mandator_id:mandatorId,server,object_identifiers:objectIdentifiers,enumerated,valid_hamburg_flats:residential.length,updated,deactivated}});
-    return Response.json({ok:true,source_id:sourceId,mandator_id:mandatorId,enumerated,fetched:residential.length,inserted,updated,deactivated});
+      metadata:{mode:"immosolve-hpm-rest",legacy:hpm.legacy,mandator_id:mandatorId,server:hpm.server,object_identifiers:hpm.objectIdentifiers,enumerated,valid_hamburg_flats:residential.length,updated,deactivated}
+    });
+    return Response.json({ok:true,source_id:sourceId,mandator_id:mandatorId,legacy:hpm.legacy,enumerated,fetched:residential.length,inserted,updated,deactivated});
   }catch(e){
     const msg=e instanceof Error?e.message:String(e);
     if(sourceId){
