@@ -7,6 +7,7 @@ const ADMIN_KEY = SECRET_KEYS.default || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY
 const db = createClient(SUPABASE_URL, ADMIN_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
 const UA = "Mozilla/5.0 (compatible; TraumwohnungHamburgBot/3.0; +https://traumwohnunghamburg.de)";
 const GQL_URL = "https://gql-hp.immomio.com/homepage/graphql";
+const PAGE_SIZE = 250;
 const QUERY = `query propertyList($input: HomepagePropertySearchRequest!) {
   propertyList(input: $input) {
     page { page size totalElements totalPages }
@@ -55,6 +56,15 @@ async function resolveHomepageUrl(configUrl:string){
 function hamburgPostal(v:string|null|undefined){if(!v||!/^\d{5}$/.test(v))return false;const n=Number(v);return (n>=20095&&n<=21149)||(n>=22041&&n<=22769)}
 function validApply(url:string|null|undefined){try{const u=new URL(String(url));return u.protocol==="https:"&&u.hostname==="tenant.immomio.com"&&/^\/(?:de\/)?apply\/[0-9a-f-]{36}$/i.test(u.pathname)}catch{return false}}
 async function sha256(v:string){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(v));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
+async function fetchPropertyPage(token:string,page:number){
+  const res=await fetch(GQL_URL,{method:"POST",headers:{"content-type":"application/json","accept":"application/json"},body:JSON.stringify({query:QUERY,variables:{input:{page,size:PAGE_SIZE,token,sort:["created,desc"],marketingType:"RENT"}}})});
+  if(!res.ok) throw new Error(`Immomio GraphQL HTTP ${res.status}`);
+  const payload=await res.json();
+  if(payload.errors?.length) throw new Error(`Immomio GraphQL: ${payload.errors[0]?.message||"unknown error"}`);
+  const list=payload.data?.propertyList;
+  if(!list?.page || !Array.isArray(list?.nodes)) throw new Error("Immomio GraphQL returned incomplete propertyList");
+  return list;
+}
 
 Deno.serve(async(req:Request)=>{
   const started=new Date().toISOString();
@@ -76,16 +86,22 @@ Deno.serve(async(req:Request)=>{
     const token=tokenFromUrl(resolved.url);
     if(!token) throw new Error("Immomio homepage token missing");
 
-    const res=await fetch(GQL_URL,{method:"POST",headers:{"content-type":"application/json","accept":"application/json"},body:JSON.stringify({query:QUERY,variables:{input:{page:0,size:250,token,sort:["created,desc"],marketingType:"RENT"}}})});
-    if(!res.ok) throw new Error(`Immomio GraphQL HTTP ${res.status}`);
-    const payload=await res.json();
-    if(payload.errors?.length) throw new Error(`Immomio GraphQL: ${payload.errors[0]?.message||"unknown error"}`);
+    const first=await fetchPropertyPage(token,0);
+    const totalPages=Math.max(1,Number(first.page.totalPages||1));
+    const totalElements=Math.max(0,Number(first.page.totalElements||0));
+    const nodes:any[]=[...first.nodes];
+    for(let page=1;page<totalPages;page++){
+      const next=await fetchPropertyPage(token,page);
+      nodes.push(...next.nodes);
+    }
+    if(nodes.length<totalElements) throw new Error(`Immomio inventory incomplete: ${nodes.length}/${totalElements}`);
 
-    const nodes=payload.data?.propertyList?.nodes||[];
     const valid=nodes.filter((n:any)=>n?.propertyType==="FLAT"&&n?.marketingType==="RENT"&&n?.status!=="RENTED"&&validApply(n?.applicationLink)&&String(n?.address?.city||"").toLowerCase()==="hamburg"&&hamburgPostal(n?.address?.zipCode));
     let inserted=0,updated=0;
+    const seenKeys=new Set<string>();
     for(const n of valid){
       const key=String(n.objectId||n.externalId||await sha256(n.applicationLink));
+      seenKeys.add(key);
       const address=[n.address?.street,n.address?.houseNumber].filter(Boolean).join(" ")+(n.address?.zipCode?`, ${n.address.zipCode} Hamburg`:"");
       const row={source_id:sourceId,source_listing_key:key,external_id:n.externalId||n.objectId||null,canonical_url:n.applicationLink,title:n.name||"Wohnungsangebot",address,district:n.address?.district||null,postal_code:n.address?.zipCode||null,city:"Hamburg",warm_rent:n.totalRentGross??null,cold_rent:null,rooms:n.totalRooms??null,area_sqm:n.size??null,available_from:n.availableFrom?.dateAvailable||null,property_type:"Wohnung",furnished:null,wbs_required:!!n.wbs,image_url:n.titleImage?.url||null,cross_source_hash:await sha256(`${address.toLowerCase()}|${n.totalRentGross??""}|${n.totalRooms??""}|${n.size??""}`),raw:{provider:"immomio",tenant_apply_url:n.applicationLink,object_id:n.objectId,external_id:n.externalId,status:n.status},last_seen_at:new Date().toISOString(),is_active:true};
       const {data:existing}=await db.from("listings").select("id").eq("source_id",sourceId).eq("source_listing_key",key).maybeSingle();
@@ -94,10 +110,15 @@ Deno.serve(async(req:Request)=>{
       existing?updated++:inserted++;
     }
 
+    const {data:activeRows,error:ae}=await db.from("listings").select("id,source_listing_key,raw").eq("source_id",sourceId).eq("is_active",true);
+    if(ae) throw ae;
+    const staleIds=(activeRows||[]).filter((r:any)=>r?.raw?.provider==="immomio"&&!seenKeys.has(String(r.source_listing_key))).map((r:any)=>r.id);
+    if(staleIds.length){const {error}=await db.from("listings").update({is_active:false}).in("id",staleIds);if(error)throw error}
+
     const now=new Date().toISOString();
     await db.from("sources").update({last_success_at:now,last_error_at:null,consecutive_failures:0,updated_at:now}).eq("id",sourceId);
-    await db.from("crawl_runs").insert({source_id:sourceId,started_at:started,finished_at:now,success:true,connector_label:connector.label,fetched_count:valid.length,inserted_count:inserted,metadata:{mode:"immomio-tenant-graphql",token_discovered:resolved.discovered,total_elements:payload.data?.propertyList?.page?.totalElements??nodes.length,valid_flats:valid.length,updated}});
-    return Response.json({ok:true,source_id:sourceId,fetched:valid.length,inserted,updated,token_discovered:resolved.discovered});
+    await db.from("crawl_runs").insert({source_id:sourceId,started_at:started,finished_at:now,success:true,connector_label:connector.label,fetched_count:valid.length,inserted_count:inserted,metadata:{mode:"immomio-tenant-graphql",token_discovered:resolved.discovered,total_elements:totalElements,total_pages:totalPages,enumerated_nodes:nodes.length,valid_flats:valid.length,updated,deactivated:staleIds.length}});
+    return Response.json({ok:true,source_id:sourceId,fetched:valid.length,inserted,updated,deactivated:staleIds.length,total_elements:totalElements,total_pages:totalPages,token_discovered:resolved.discovered});
   }catch(e){
     const msg=e instanceof Error?e.message:String(e);
     if(sourceId){const now=new Date().toISOString();await db.from("sources").update({last_error_at:now,consecutive_failures:1,updated_at:now}).eq("id",sourceId);await db.from("crawl_runs").insert({source_id:sourceId,started_at:started,finished_at:now,success:false,fetched_count:0,inserted_count:0,error_message:msg,metadata:{mode:"immomio-tenant-graphql"}})}
