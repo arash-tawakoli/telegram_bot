@@ -355,18 +355,23 @@ async function run(source: Source) {
 
     const coverageWarmup = !coverageHadSuccess;
     const keys = [...items.keys()];
-    const { data: existing, error: existingError } = await db.from("listings").select("source_listing_key").eq("source_id", SOURCE_ID).in("source_listing_key", keys);
+    const { data: existing, error: existingError } = await db.from("listings").select("source_listing_key,enrichment_delivery_eligible").eq("source_id", SOURCE_ID).in("source_listing_key", keys);
     if (existingError) throw new Error(`listings lookup: ${errorText(existingError)}`);
-    const oldKeys = new Set((existing || []).map((row: any) => String(row.source_listing_key)));
+    const oldEligibility = new Map((existing || []).map((row: any) => [String(row.source_listing_key), Boolean(row.enrichment_delivery_eligible)]));
+    const oldKeys = new Set(oldEligibility.keys());
 
     const normalized: any[] = [];
     let coverageWarmupBackfilled = 0;
     for (const item of items.values()) {
       const d = discovery.get(item.key);
       const row: any = { source_id: SOURCE_ID, source_listing_key: item.key, external_id: item.key, canonical_url: item.url, title: item.title, address: item.address, district: item.district, postal_code: item.postal, city: "Hamburg", warm_rent: null, cold_rent: null, rooms: item.rooms, area_sqm: item.area, property_type: item.propertyType, image_url: item.image, cross_source_hash: await sha256(`${item.key}|${item.postal || ""}|${item.rooms ?? ""}|${item.area ?? ""}`), raw: { ...item.raw, coverage_strategy: COVERAGE_STRATEGY, discovered_by_exact_profile: Boolean(d?.exactProfiles.size), discovered_by_coverage: Boolean(d?.coverageProfiles.size) }, last_seen_at: new Date().toISOString(), is_active: true };
-      if (coverageWarmup && !oldKeys.has(item.key) && !d?.exactProfiles.size && d?.coverageProfiles.size) {
+      if (oldKeys.has(item.key)) {
+        row.enrichment_delivery_eligible = oldEligibility.get(item.key) ?? true;
+      } else if (coverageWarmup && !d?.exactProfiles.size && d?.coverageProfiles.size) {
         row.enrichment_delivery_eligible = false;
         coverageWarmupBackfilled++;
+      } else {
+        row.enrichment_delivery_eligible = true;
       }
       normalized.push(row);
     }
