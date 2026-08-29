@@ -1,6 +1,12 @@
 name: Kleinanzeigen Public Inventory
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/kleinanzeigen-public-inventory.yml'
+      - 'scripts/kleinanzeigen-public-inventory.mjs'
+      - '.kleinanzeigen-scan-trigger'
   schedule:
     - cron: '*/5 * * * *'
 permissions:
