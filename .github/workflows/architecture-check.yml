@@ -14,40 +14,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Validate source catalog
-        run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-
-          path = Path('data/source_catalog.json')
-          data = json.loads(path.read_text())
-          assert isinstance(data, list) and data, 'source catalog must be a non-empty list'
-          ids = [row['id'] for row in data]
-          assert len(ids) == len(set(ids)), 'duplicate source ids'
-          assert ids == sorted(ids), 'source ids must be sorted'
-          workers = {'source-engine','source-immoscout','source-kleinanzeigen','source-immowelt','source-immomio'}
-          for row in data:
-              assert row['worker'] in workers, f"unknown worker for source {row['id']}"
-              assert row['pollTier'] in {'K1','K2','K3'}
-              assert row['pollIntervalMinutes'] in {15,30,60}
-              assert row['deliveryMode'] in {'live','shadow'}
-          print(f'validated {len(data)} sources')
-          PY
-
       - name: Validate architecture files
         run: |
+          set -eu
           test -f docs/ARCHITECTURE.md
-          test -f supabase/functions/source-job-runner/index.ts
+          test -f supabase/functions/source-worker/index.ts
+          test -f supabase/functions/source-worker/shared.ts
+          test -f supabase/functions/source-worker/scout.ts
+          test -f supabase/functions/source-worker/klein.ts
+          test -f supabase/functions/source-worker/immomio.ts
+          test -f supabase/functions/source-worker/hpm.ts
+          test -f supabase/functions/source-worker/generic.ts
           test -f supabase/functions/notification-dispatcher/index.ts
-          test -f supabase/functions/source-engine/index.ts
-          test -f supabase/functions/source-immoscout/index.ts
-          test -f supabase/functions/source-kleinanzeigen/index.ts
-          test -f supabase/functions/source-immowelt/index.ts
-          test -f supabase/functions/source-immomio/index.ts
-          test -f supabase/migrations/20260827174953_architecture_v2_core.sql
-          test -f supabase/migrations/20260827175119_architecture_v2_source_queue.sql
-          test -f supabase/migrations/20260827175348_architecture_v2_observability_and_availability.sql
+          test -f supabase/functions/telegram-ui/index.ts
+          test -f supabase/migrations/20260829195000_architecture_v3_final_cutover.sql
+          test ! -f .github/workflows/kleinanzeigen-public-inventory.yml
+          test ! -f scripts/kleinanzeigen-public-inventory.mjs
+          test ! -f data/source_catalog.json
+
+      - name: Reject legacy runtime references
+        run: |
+          if grep -RInE --exclude-dir=.git --exclude-dir=migrations --exclude='*.md' \
+            '(source-job-runner|source-immoscout-fast|source-immoscout-rolling|source-kleinanzeigen-fast|source-kleinanzeigen-rolling|listing_enrichment)' \
+            supabase/functions .github scripts 2>/dev/null; then
+            echo 'Legacy runtime reference remains.' >&2
+            exit 1
+          fi
 
       - name: Reject obvious committed secrets
         run: |
