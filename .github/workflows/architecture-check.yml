@@ -18,7 +18,9 @@ jobs:
         run: |
           set -eu
           test -f docs/ARCHITECTURE.md
+          test -f docs/source-connectors.md
           test -f supabase/functions/source-worker/index.ts
+          test -f supabase/functions/source-worker/deno.json
           test -f supabase/functions/source-worker/shared.ts
           test -f supabase/functions/source-worker/scout.ts
           test -f supabase/functions/source-worker/klein.ts
@@ -28,6 +30,8 @@ jobs:
           test -f supabase/functions/notification-dispatcher/index.ts
           test -f supabase/functions/telegram-ui/index.ts
           test -f supabase/migrations/20260829195000_architecture_v3_final_cutover.sql
+          test -f supabase/migrations/20260829204000_route_cron_to_canonical_source_worker.sql
+          test -f supabase/migrations/20260829204100_restore_master_tier_gartenstadt_wandsbek.sql
           test ! -f .github/workflows/kleinanzeigen-public-inventory.yml
           test ! -f scripts/kleinanzeigen-public-inventory.mjs
           test ! -f data/source_catalog.json
@@ -35,7 +39,7 @@ jobs:
       - name: Reject legacy runtime references
         run: |
           if grep -RInE --exclude-dir=.git --exclude-dir=migrations --exclude='*.md' \
-            '(source-job-runner|source-immoscout-fast|source-immoscout-rolling|source-kleinanzeigen-fast|source-kleinanzeigen-rolling|listing_enrichment)' \
+            '(source-job-runner|source-worker-v3|source-immoscout-fast|source-immoscout-rolling|source-kleinanzeigen-fast|source-kleinanzeigen-rolling|listing_enrichment)' \
             supabase/functions .github scripts 2>/dev/null; then
             echo 'Legacy runtime reference remains.' >&2
             exit 1
