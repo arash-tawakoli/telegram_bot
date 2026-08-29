@@ -1,121 +1,97 @@
-# Architektur v2
+# Architektur v3
 
 ## Ziel
 
-Die Architektur trennt Abruf, Orchestrierung, kanonische Wohnungsidentität, Profil-Matching und Telegram-Zustellung. Bestehende funktionierende Source-Adapter bleiben unverändert und schreiben weiterhin in `public.listings`.
-
-## Datenfluss
+Eine einzige Orchestrierung für alle 65 Quellen: keine userabhängigen Portal-Suchen, keine Source-spezifischen Scheduler, keine parallelen Match-/Outbox-/Enrichment-Pipelines.
 
 ```mermaid
 flowchart LR
-    C[pg_cron: 1 min] --> E[enqueue_due_source_jobs]
-    E --> Q[(PGMQ source_jobs)]
-    Q --> R[source-job-runner]
-    R --> W1[source-immoscout]
-    R --> W2[source-kleinanzeigen]
-    R --> W3[source-immowelt]
-    R --> W4[source-immomio]
-    R --> WG[source-engine]
-    W1 --> L[(listings)]
-    W2 --> L
-    W3 --> L
-    W4 --> L
-    WG --> L
-    L --> O[(listing_occurrences)]
-    O --> CL[(canonical_listings)]
-    L --> M[(matches)]
-    M --> OB[(notification_outbox)]
-    OB --> DE[(delivery_events)]
-    DE --> ND[notification-dispatcher]
-    ND --> TG[Telegram Bot API]
+  C[pg_cron: jede Minute] --> E[enqueue_due_source_jobs]
+  E --> Q[(PGMQ source_jobs)]
+  Q --> W[source-worker\nmax. 3 Jobs parallel]
+  W --> A[Coverage Adapter]
+  A --> L[(listings)]
+  L --> D[listing_dedupe_groups]
+  L --> M[SQL Matching]
+  M --> DE[(delivery_events)]
+  DE --> ND[notification-dispatcher]
+  ND --> TG[Telegram]
 ```
 
-## Zentrale Regeln
+## Source Worker
 
-### 1. Bestehende Adapter bleiben kompatibel
+`source-worker` ist die einzige produktive Source-Edge-Function. Der Worker liest `sources` und `source_connectors` und wählt den Adapter innerhalb desselben Deployments.
 
-`public.listings` ist die Compatibility-Ingestion-Schicht. Source-Adapter müssen für Architektur v2 nicht umgeschrieben werden. Datenbank-Trigger erzeugen daraus die neue kanonische Ebene.
+Coverage-Strategien:
 
-### 2. Polling und Evidenz sind getrennt
+- `adaptive_partition`: ImmoScout – 7 Bezirke, adaptive Preispartitionierung über MCP, Stadtteil nur als Fallback.
+- `district_pagination`: Kleinanzeigen – 7 Bezirke plus Pagination.
+- `tenant_api`: Immomio, ImmoSolve/HPM und strukturierte APIs.
+- `pagination`: Resultlisten mit Seiten/Cursor.
+- `full_page`: kleine vollständige Angebotsseiten.
+- `availability`: Verfügbarkeits-/Booking-Systeme.
+- `generic`: Quelle bleibt live, bis ein spezifischer Adapter erforderlich ist.
 
-- `sources.tier` / `poll_interval_minutes` = Abrufhäufigkeit.
-- `source_connectors.evidence_tier` = Qualität der technischen Evidenz.
-- `source_connectors.connector_role` = `primary` oder `fallback`.
-- `source_connectors.enumerable` = Connector kann den vollständigen aktuellen Bestand sicher enumerieren.
-- `source_connectors.shadow_only` = Ergebnisse dürfen nicht als vertrauenswürdige Live-Evidenz für Verfügbarkeitsentscheidungen dienen.
+Die Coverage-Position liegt generisch in `source_coverage_state`; es gibt keine ImmoScout-spezifischen Inventory-Tabellen mehr.
 
-Ein schneller Poll ist nicht automatisch eine starke Evidenz und umgekehrt.
+## Scheduling
 
-### 3. Source-Orchestrierung ist Queue-basiert
+- Master Scheduler: jede Minute.
+- Alle fälligen Live-Quellen werden in `source_jobs` eingereiht.
+- `source-worker` verarbeitet höchstens 3 Source-Jobs gleichzeitig und zieht innerhalb seiner Laufzeit weitere Jobs nach.
+- Polling: ImmoScout/Kleinanzeigen 1 min; ausgewählte große Portale 2 min; K1 typischerweise 5 min; K2 10 min; K3 30 min.
+- Fehler erhalten zusätzlichen Backoff.
 
-`pg_cron` führt Source-Worker nicht mehr direkt aus. Es enqueued fällige Quellen nach `pgmq.source_jobs`. `source-job-runner` claimt Nachrichten mit Visibility Timeout und ruft den bereits bestehenden Worker auf.
+`sources.crawl_priority` steuert die Reihenfolge gleichzeitig fälliger Quellen. `sources.tier` bleibt die unabhängige K1/K2/K3-Kategorisierung aus der fachlichen Mastertabelle.
 
-Retry-Backoff pro Job:
+## Live und Shadow
 
-- Versuch 1: 60 Sekunden
-- Versuch 2: 5 Minuten
-- weitere Versuche: 15 Minuten
-- nach 5 Fehlversuchen: `dead`
+`runtime_mode` ist von K1/K2/K3 getrennt. Shadow bedeutet: keine normale Crawl-/Delivery-Ausführung. Die Quelle bleibt trotzdem im 65-Quellen-Katalog in Supabase erhalten.
 
-Die bestehenden Source-spezifischen Fehler-Backoffs in `sources.consecutive_failures` bleiben zusätzlich bestehen.
+## Baseline
 
-### 4. Kanonische Wohnung und Source-Vorkommen sind getrennt
+Eine Quelle darf erst nach erfolgreicher Erstinventarisierung neue Inserate zustellen. `baseline_completed_at` verhindert, dass vorhandener Altbestand beim Cutover massenhaft an Telegram gesendet wird.
 
-`canonical_listings` repräsentiert die kanonische Wohnung. `listing_occurrences` repräsentiert das konkrete Auftreten bei einer Quelle.
+## Listings, Dedupe und Delivery
 
-Damit kann dieselbe Wohnung parallel bei Immomio, ImmoScout24 oder einer anderen Quelle vorhanden sein, ohne mehrfach als unterschiedliche Wohnung behandelt werden zu müssen.
+`listings` ist die einzige Listing-Ingestion-Tabelle. Cross-Source-Dubletten werden über `listing_dedupe_groups` zusammengeführt; `preferred_listing_id` bestimmt das auszuliefernde Vorkommen.
 
-Die bevorzugte Occurrence wird deterministisch nach Qualitätsrang und Aktualität ausgewählt.
+Neue primäre Listings werden direkt gegen das eine aktive Suchprofil des Users gematcht und als `delivery_events` eingereiht. Es gibt keine separaten Tabellen `matches`, `notification_outbox`, `canonical_listings` oder `listing_occurrences` mehr.
 
-### 5. Verfügbarkeit ist konservativ
+`notification-dispatcher` verarbeitet `delivery_events` sequenziell je Ereignis und sendet die Telegram-Karte. Wenn ein Bild nicht verwendbar ist, fällt die Zustellung auf eine normale Textnachricht zurück statt eine zusätzliche Bild-Edge-Function zu benötigen.
 
-Eine Occurrence wird nur aufgrund von Abwesenheit deaktiviert, wenn:
+## Datenbank-Kern
 
-1. der Crawl erfolgreich war,
-2. der tatsächlich verwendete Connector bekannt ist,
-3. genau dieser Connector `enumerable=true` ist,
-4. der Connector nicht `shadow_only` ist,
-5. die Occurrence in drei vollständigen erfolgreichen Crawls nicht erneut gesehen wurde.
+Die produktive Architektur besteht aus 14 Public-Kerntabellen:
 
-Ein kanonisches Listing wird erst inaktiv, wenn keine aktive Occurrence mehr existiert.
+- `sources`, `source_connectors`, `source_coverage_state`, `source_jobs`, `crawl_runs`
+- `listings`, `listing_dedupe_groups`
+- `bot_users`, `search_profiles`, `saved_listings`, `delivery_events`, `bot_events`
+- `hamburg_boroughs`, `hamburg_neighborhoods`
 
-### 6. Matching und Zustellung sind getrennt
+Es gibt genau eine PGMQ-Queue: `source_jobs`.
 
-`matches` speichert die fachliche Übereinstimmung zwischen Profil und kanonischer Wohnung.
+## Cron
 
-`notification_outbox` speichert die Zustellabsicht. Sie bridged in die bestehende `delivery_events`-Pipeline, sodass `notification-dispatcher` unverändert weiterarbeitet.
+Vier produktive Jobs:
 
-### 7. Mehrere Suchprofile bleiben unterstützt
-
-Die bestehende Telegram-UI darf mehrere aktive Suchprofile verwalten. Deduplizierung geschieht auf Empfänger-Ebene in der Outbox und zusätzlich in `delivery_events`, sodass dieselbe Wohnung nicht mehrfach an denselben Telegram-Empfänger gesendet wird.
-
-### 8. Immomio bleibt strikt
-
-Bestätigte Immomio-Quellen verwenden den bestehenden `source-immomio`-Adapter. Gültige Angebote müssen echte `tenant.immomio.com/apply/<UUID>`-Links sein. Interessenten-/Registrierungstokens sind keine Listing-Feeds.
-
-### 9. Sicherheit
-
-- Public-Tabellen verwenden RLS deny-by-default.
-- Source-Job-RPCs sind nur für `service_role` ausführbar.
-- Secrets bleiben in Supabase; im Source-Katalog stehen keine Credentials.
-- Bestehende öffentliche RPCs werden nicht erweitert; Default-EXECUTE für neue Public-RPCs ist entzogen.
-
-### 10. Observability
-
-Private Views:
-
-- `app_private.queue_health`
-- `app_private.source_health_v2`
-- `app_private.architecture_health`
-
-Wichtige Betriebsmetriken sind Queue-Alter, offene/dead Jobs, letzter Crawl, Trefferzahl, Fehlerzustand und aktive Occurrences.
+1. `source-scheduler-every-minute`
+2. `source-worker-every-minute`
+3. `notification-dispatcher-every-minute`
+4. `architecture-maintenance-daily`
 
 ## GitOps
 
-`data/source_catalog.json` enthält stabile Source-Orchestrierungsdaten: ID, Name, Typ, Polling, Worker und Live/Shadow-Modus. Provider-spezifische Connector-Konfiguration bleibt in Supabase bzw. den vorhandenen Migrationen.
+Supabase `sources` und `source_connectors` sind die Runtime-Source-of-Truth. Ein zweiter `data/source_catalog.json` wird bewusst nicht gepflegt, damit kein Konfigurationsdrift entsteht.
 
-Produktionsänderungen an Architektur und Schema werden als Migrationen versioniert. Edge Functions werden im Repository gespiegelt. CI prüft Struktur, Source-Katalog und offensichtliche Secret-Leaks.
+Produktionsschema wird über Migrationen versioniert. Die drei produktiven Runtime-Bereiche liegen in GitHub unter:
 
-## Nicht eingeführt
+- `supabase/functions/source-worker`
+- `supabase/functions/notification-dispatcher`
+- `supabase/functions/telegram-ui`
 
-Bewusst nicht eingeführt wurden Redis, Realtime, Partitionierung oder ein separates Cache-System. Für die aktuelle Last reichen Postgres, PGMQ, pg_cron und Edge Functions aus.
+Historische Migrationen bleiben erhalten. Obsolete Runtime-Implementierungen werden nach dem Cutover aus dem aktuellen Codebaum entfernt.
+
+## Bekannte Connector-Grenzen
+
+Architektur-Cutover und Connector-Coverage sind getrennte Zustände. ImmoScout nutzt die geprüfte MCP-Coverage-Strategie und ist damit nicht gleichbedeutend mit dem vollständigen öffentlichen ImmoScout-Webbestand. Kleinanzeigen kann bei serverseitigem HTTP-Zugriff 403 liefern; ein solcher Lauf wird als Fehler/Backoff behandelt und niemals als vollständige Baseline gewertet.
