@@ -18,7 +18,7 @@ Deno.serve(async(req:Request)=>{
     const internal=await secret("internal_worker_secret");
     if(!supplied||supplied!==internal) return new Response("unauthorized",{status:401});
 
-    const {data:jobs,error}=await db.rpc("claim_source_jobs",{p_worker:"source-job-runner",p_qty:4});
+    const {data:jobs,error}=await db.rpc("claim_source_jobs",{p_worker:"source-job-runner",p_qty:2});
     if(error) throw new Error(`claim_source_jobs: ${error.message}`);
 
     const results=await Promise.all((jobs||[]).map(async(job:any)=>{
@@ -27,11 +27,12 @@ Deno.serve(async(req:Request)=>{
       let ok=false; let status=0; let detail="";
       try{
         if(!/^source-[a-z0-9-]+$/.test(slug)) throw new Error("invalid worker slug");
+        const timeoutMs=sourceId===1?90000:45000;
         const res=await fetch(`${SUPABASE_URL}/functions/v1/${slug}`,{
           method:"POST",
           headers:{"content-type":"application/json","x-internal-secret":internal},
           body:JSON.stringify({source_id:sourceId}),
-          signal:AbortSignal.timeout(35000),
+          signal:AbortSignal.timeout(timeoutMs),
         });
         status=res.status;
         detail=(await res.text()).slice(0,1200);
