@@ -24,7 +24,7 @@ jobs:
 
       - name: Run real Chrome pagination test
         run: |
-          cat > /tmp/immowelt-test.mjs <<'EOF'
+          cat > immowelt-test.mjs <<'EOF'
           import puppeteer from 'puppeteer-core';
           import fs from 'node:fs';
 
@@ -98,7 +98,7 @@ jobs:
           await page.screenshot({path:'immowelt-browser-final.png', fullPage:false});
           await browser.close();
           EOF
-          node /tmp/immowelt-test.mjs
+          node immowelt-test.mjs
 
       - name: Upload results
         if: always()
