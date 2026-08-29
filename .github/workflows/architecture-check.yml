@@ -32,6 +32,7 @@ jobs:
           test -f supabase/migrations/20260829195000_architecture_v3_final_cutover.sql
           test -f supabase/migrations/20260829204000_route_cron_to_canonical_source_worker.sql
           test -f supabase/migrations/20260829204100_restore_master_tier_gartenstadt_wandsbek.sql
+          test -f supabase/migrations/20260829210500_require_complete_coverage_before_baseline.sql
           test ! -f .github/workflows/kleinanzeigen-public-inventory.yml
           test ! -f scripts/kleinanzeigen-public-inventory.mjs
           test ! -f data/source_catalog.json
