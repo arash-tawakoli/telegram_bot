@@ -19,6 +19,7 @@ jobs:
           set -eu
           test -f docs/ARCHITECTURE.md
           test -f docs/source-connectors.md
+          test -f supabase/seed.sql
           test -f supabase/functions/source-worker/index.ts
           test -f supabase/functions/source-worker/deno.json
           test -f supabase/functions/source-worker/shared.ts
@@ -36,6 +37,21 @@ jobs:
           test ! -f .github/workflows/kleinanzeigen-public-inventory.yml
           test ! -f scripts/kleinanzeigen-public-inventory.mjs
           test ! -f data/source_catalog.json
+
+      - name: Validate v3 source seed
+        run: |
+          set -eu
+          grep -q "Architecture-v3 bootstrap registry" supabase/seed.sql
+          grep -q "runtime_mode" supabase/seed.sql
+          grep -q "source-worker" supabase/seed.sql
+          grep -q "adaptive_partition" supabase/seed.sql
+          grep -q "district_pagination" supabase/seed.sql
+          grep -q "immomio_tenant" supabase/seed.sql
+          grep -q "immosolve_api" supabase/seed.sql
+          if grep -q "immomio_graphql" supabase/seed.sql; then
+            echo 'Legacy Immomio connector kind remains in seed.' >&2
+            exit 1
+          fi
 
       - name: Reject legacy runtime references
         run: |
