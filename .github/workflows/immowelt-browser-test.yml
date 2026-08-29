@@ -1,0 +1,111 @@
+name: Immowelt Browser Pagination Test
+
+on:
+  push:
+    paths:
+      - '.github/workflows/immowelt-browser-test.yml'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install puppeteer-core
+        run: npm install --no-save puppeteer-core@24
+
+      - name: Run real Chrome pagination test
+        run: |
+          cat > /tmp/immowelt-test.mjs <<'EOF'
+          import puppeteer from 'puppeteer-core';
+          import fs from 'node:fs';
+
+          const BASE = 'https://www.immowelt.de/suche/mieten/wohnung/hamburg/hamburg-20095/ad08de1113';
+          const chrome = process.env.CHROME_PATH || '/usr/bin/google-chrome';
+          const browser = await puppeteer.launch({
+            executablePath: chrome,
+            headless: true,
+            args: ['--no-sandbox','--disable-dev-shm-usage','--disable-blink-features=AutomationControlled'],
+          });
+          const page = await browser.newPage();
+          await page.setViewport({width: 1440, height: 1000});
+          await page.setUserAgent('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36');
+
+          const net = [];
+          page.on('response', r => {
+            const u = r.url();
+            if (/serp-bff|classified-search|immowelt\.de\/suche/i.test(u)) net.push({status:r.status(), url:u.slice(0,500)});
+          });
+
+          const ids = async () => await page.evaluate(() => [...new Set([...document.querySelectorAll('a[href*="/expose/"]')].map(a => {
+            const m = a.href.match(/\/expose\/([0-9a-f-]{16,})/i); return m?.[1]?.toLowerCase();
+          }).filter(Boolean))]);
+          const state = async label => ({
+            label,
+            url: page.url(),
+            title: await page.title(),
+            bodyTextHead: (await page.evaluate(() => document.body.innerText)).slice(0,500),
+            ids: await ids(),
+            buttons: await page.evaluate(() => [...document.querySelectorAll('button')].map(b=>b.innerText.trim()).filter(Boolean).slice(-30)),
+          });
+          const clickPage = async n => {
+            const found = await page.evaluate((n) => {
+              const candidates=[...document.querySelectorAll('button')];
+              const b=candidates.find(x=>x.innerText.trim()===String(n));
+              if (!b) return false;
+              b.scrollIntoView({block:'center'}); b.click(); return true;
+            }, n);
+            if (!found) throw new Error(`pagination button ${n} not found`);
+            await new Promise(r=>setTimeout(r,4500));
+            return found;
+          };
+
+          let navStatus = null;
+          try {
+            const resp = await page.goto(BASE, {waitUntil:'networkidle2', timeout:60000});
+            navStatus = resp?.status() ?? null;
+          } catch (e) {
+            navStatus = `goto_error:${e.message}`;
+          }
+          await new Promise(r=>setTimeout(r,2500));
+          const p1 = await state('p1');
+
+          let p2, p3, click2=false, click3=false, error=null;
+          try { click2=await clickPage(2); p2=await state('p2'); } catch(e){ error=`p2:${e.message}`; p2=await state('p2_failed'); }
+          try { click3=await clickPage(3); p3=await state('p3'); } catch(e){ error=(error?error+'; ':'')+`p3:${e.message}`; p3=await state('p3_failed'); }
+
+          const set = a => new Set(a);
+          const diff = (a,b) => [...set(a)].filter(x=>!set(b).has(x));
+          const overlap = (a,b) => [...set(a)].filter(x=>set(b).has(x)).length;
+          const result = {
+            chrome, navStatus, click2, click3, error,
+            counts:{p1:p1.ids.length,p2:p2.ids.length,p3:p3.ids.length},
+            overlap:{p1_p2:overlap(p1.ids,p2.ids),p2_p3:overlap(p2.ids,p3.ids)},
+            only:{p2:diff(p2.ids,p1.ids).slice(0,20),p3:diff(p3.ids,p2.ids).slice(0,20)},
+            states:[p1,p2,p3].map(s=>({...s,ids:s.ids.slice(0,50)})),
+            network:net.slice(-100),
+          };
+          fs.writeFileSync('immowelt-browser-test.json', JSON.stringify(result,null,2));
+          console.log('IMMOWELT_RESULT='+JSON.stringify(result));
+          await page.screenshot({path:'immowelt-browser-final.png', fullPage:false});
+          await browser.close();
+          EOF
+          node /tmp/immowelt-test.mjs
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: immowelt-browser-test
+          path: |
+            immowelt-browser-test.json
+            immowelt-browser-final.png
+          if-no-files-found: ignore
