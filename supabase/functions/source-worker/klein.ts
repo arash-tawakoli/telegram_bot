@@ -1,7 +1,7 @@
 import {Candidate,HH_ZIPS,Source,db,deNum,fetchText,iso,markFailure,markSuccess,strip,upsertCandidates} from './shared.ts';
 
 const D=[['hamburg-nord',16436],['hamburg-mitte',16423],['altona',9497],['eimsbuettel',16446],['wandsbek',9446],['harburg',9440],['bergedorf',9511]] as const;
-const FAST_INTERVAL_MS=3*60*1000,REQUEST_GAP_MS=300;
+const FAST_INTERVAL_MS=3*60*1000,REQUEST_GAP_MS=700;
 const sleep=(ms:number)=>new Promise(r=>setTimeout(r,ms));
 
 function url(s:string,id:number,p:number){return p===1?`https://www.kleinanzeigen.de/s-wohnung-mieten/${s}/anzeige:angebote/c203l${id}`:`https://www.kleinanzeigen.de/s-wohnung-mieten/${s}/anzeige:angebote/seite:${p}/c203l${id}`}
@@ -12,8 +12,6 @@ async function fetchPage(s:string,id:number,p:number,retries=1){let last:any=nul
 
 export async function runKlein(source:Source){const started=iso();try{
   let{data:st}=await db.from('source_coverage_state').select('*').eq('source_id',2).maybeSingle();
-  if(st?.backoff_until&&new Date(st.backoff_until)>new Date())return{ok:true,source_id:2,backoff_until:st.backoff_until};
-
   const legacy=st?.status!=='running'||Number(st?.cursor?.v||0)!==2;
   const cycle=legacy?crypto.randomUUID():String(st.cycle_id);
   const cursor:any=legacy?{v:2,district:0,page:2,pages:{},totals:{},fast_checked_at:null}:st.cursor;
@@ -33,7 +31,7 @@ export async function runKlein(source:Source){const started=iso();try{
   const fastSaved=fastItems.length?await upsertCandidates(source,fastItems):{seen:0,fresh:0};
   const missing=D.filter(([s])=>!Number(pages[s])).map(([s])=>s);
   const fastCheckedAt=fastDue&&!fastErrors.length?iso():cursor.fast_checked_at||null;
-  if(missing.length){await db.from('source_coverage_state').update({cursor:{...cursor,pages,totals,fast_checked_at:fastCheckedAt},expected_count:Object.values(totals).reduce((a:any,x:any)=>a+Number(x||0),0),request_count:Number(st?.request_count||0)+fastRequests,updated_at:iso(),last_error:`missing first pages: ${missing.join(', ')}`}).eq('source_id',2);throw new Error(`Kleinanzeigen first-page coverage incomplete: ${missing.join(', ')}`)}
+  if(missing.length){const msg=`missing first pages: ${missing.join(', ')}${fastErrors.length?` | ${fastErrors.join(' | ')}`:''}`.slice(0,1000);await db.from('source_coverage_state').update({status:'running',cursor:{...cursor,pages,totals,fast_checked_at:fastCheckedAt},expected_count:Object.values(totals).reduce((a:any,x:any)=>a+Number(x||0),0),request_count:Number(st?.request_count||0)+fastRequests,consecutive_errors:Number(st?.consecutive_errors||0)+1,backoff_until:null,updated_at:iso(),last_error:msg}).eq('source_id',2);throw new Error(`Kleinanzeigen first-page coverage incomplete: ${msg}`)}
 
   let district=Math.max(0,Number(cursor.district||0)),page=Math.max(2,Number(cursor.page||2));
   while(district<D.length&&page>Number(pages[D[district][0]]||1)){district++;page=2}
@@ -50,4 +48,4 @@ export async function runKlein(source:Source){const started=iso();try{
   await db.from('source_coverage_state').update({status:complete?'complete':'running',strategy:'district_hybrid',cursor:nextCursor,expected_count:Object.values(totals).reduce((a:any,x:any)=>a+Number(x||0),0),seen_count:Number(st?.seen_count||0)+seenIncrement,request_count:Number(st?.request_count||0)+requests,cycle_finished_at:complete?t:null,last_complete_at:complete?t:st?.last_complete_at||null,consecutive_errors:0,backoff_until:null,last_error:fastErrors.length?`fast lane partial: ${fastErrors.join(' | ').slice(0,900)}`:null,updated_at:t}).eq('source_id',2);
   await markSuccess(source,started,null,fastItems.length+coverageItems.length,fastSaved.fresh+coverageSaved.fresh,{strategy:'7_borough_fast_lane_plus_sequential_cursor',cycle_id:cycle,fast_lane:fastDue,fast_requests:fastRequests,fast_opens:fastOpens,fast_accepted:fastItems.length,fast_errors:fastErrors,coverage_page:coverageLabel,coverage_requests:coverageRequests,coverage_opens:coverageOpens,coverage_accepted:coverageItems.length,next_district:complete?null:D[district]?.[0]||null,next_page:complete?null:page,expected_count:Object.values(totals).reduce((a:any,x:any)=>a+Number(x||0),0),complete});
   return{ok:true,source_id:2,fetched:fastItems.length+coverageItems.length,new:fastSaved.fresh+coverageSaved.fresh,fast_lane:fastDue,coverage_page:coverageLabel,coverage_accepted:coverageItems.length,next:complete?null:{district:D[district]?.[0]||null,page},complete};
-}catch(e){const t=iso(),{data:st}=await db.from('source_coverage_state').select('consecutive_errors').eq('source_id',2).maybeSingle(),c=Number(st?.consecutive_errors||0)+1,mins=c===1?2:c===2?5:15;await db.from('source_coverage_state').update({status:'backoff',consecutive_errors:c,last_error:String(e).slice(0,1000),backoff_until:new Date(Date.now()+mins*60000).toISOString(),updated_at:t}).eq('source_id',2);return markFailure(source,started,e)}}
+}catch(e){const t=iso(),{data:st}=await db.from('source_coverage_state').select('consecutive_errors').eq('source_id',2).maybeSingle();await db.from('source_coverage_state').update({status:'running',consecutive_errors:Number(st?.consecutive_errors||0)+1,last_error:String(e).slice(0,1000),backoff_until:null,updated_at:t}).eq('source_id',2);return markFailure(source,started,e)}}
