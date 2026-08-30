@@ -79,7 +79,7 @@ on conflict (id) do update set
 update public.sources set
   coverage_strategy=case
     when id=1 then 'adaptive_partition'
-    when id=2 then 'district_pagination'
+    when id=2 then 'district_hybrid'
     when id in (5,7,23,24,25,26,27,28,29,30,32,33,34,35,36,37,39,43,61,65) then 'tenant_api'
     when id in (3,6,8,9,10,12,14,15,16,21,22) then 'pagination'
     when id in (38,41,42,46,52,53,58) then 'full_page'
@@ -122,7 +122,7 @@ where homepage_url is not null and search_url is distinct from homepage_url;
 
 -- Specialized primary adapters. Public tenant/search URLs are used instead of committing credentials.
 update public.source_connectors set label='ImmoScout MCP adaptive coverage',connector_kind='mcp',enumerable=true,config='{}'::jsonb where source_id=1 and priority=1;
-update public.source_connectors set label='Kleinanzeigen 7-district pagination',connector_kind='pagination',enumerable=true,config='{}'::jsonb where source_id=2 and priority=1;
+update public.source_connectors set label='Kleinanzeigen 7-district hybrid coverage',connector_kind='pagination',enumerable=true,config='{}'::jsonb where source_id=2 and priority=1;
 update public.source_connectors set label='Vonovia REST /api/real-estate/list',connector_kind='json_endpoint',enumerable=true,config='{"path":"/api/real-estate/list"}'::jsonb where source_id=5 and priority=1;
 update public.source_connectors set label='TAG JSON /properties',connector_kind='json_endpoint',enumerable=true,config='{"path":"/properties"}'::jsonb where source_id=7 and priority=1;
 update public.source_connectors set label='Immomio Tenant',connector_kind='immomio_tenant',enumerable=true,config=jsonb_build_object('url',(select search_url from public.sources where id=source_connectors.source_id)) where source_id in (23,28,29,30,32,34,35,36,39,65) and priority=1;
@@ -135,4 +135,4 @@ update public.source_connectors set label='Finkenwaerder REST API',connector_kin
 -- Mark strategies that are designed to enumerate the entire source.
 update public.source_connectors c set enumerable=true
 from public.sources s
-where c.source_id=s.id and c.priority=1 and s.coverage_strategy in ('pagination','full_page','district_pagination','adaptive_partition');
+where c.source_id=s.id and c.priority=1 and s.coverage_strategy in ('pagination','full_page','district_pagination','district_hybrid','adaptive_partition');
