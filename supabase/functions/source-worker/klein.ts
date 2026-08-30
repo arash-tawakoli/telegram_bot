@@ -30,7 +30,7 @@ export async function runKlein(source:Source){const started=iso();try{
       await sleep(REQUEST_GAP_MS);
     }
   }
-  const fastSaved=fastItems.length?await upsertCandidates(source,fastItems):{seen:0,fresh:0};
+  const fastSaved=fastItems.length?await upsertCandidates(source,fastItems,true):{seen:0,fresh:0};
   const missing=D.filter(([s])=>!Number(pages[s])).map(([s])=>s);
   const fastCheckedAt=fastDue&&!fastErrors.length?iso():cursor.fast_checked_at||null;
   if(missing.length){const msg=`missing first pages: ${missing.join(', ')}${fastErrors.length?` | ${fastErrors.join(' | ')}`:''}`.slice(0,1000);await db.from('source_coverage_state').update({status:'running',cursor:{...cursor,pages,totals,fast_checked_at:fastCheckedAt},expected_count:Object.values(totals).reduce((a:any,x:any)=>a+Number(x||0),0),request_count:Number(st?.request_count||0)+fastRequests,consecutive_errors:Number(st?.consecutive_errors||0)+1,backoff_until:null,updated_at:iso(),last_error:msg}).eq('source_id',2);throw new Error(`Kleinanzeigen first-page coverage incomplete: ${msg}`)}
@@ -40,7 +40,7 @@ export async function runKlein(source:Source){const started=iso();try{
 
   let coverageItems:Candidate[]=[],coverageRequests=0,coverageOpens=0,coverageLabel:string|null=null;
   if(district<D.length){const [s,id]=D[district];const currentPage=page,r=await fetchPage(transportSecret,s,id,currentPage,1);coverageRequests=r.attempts;coverageOpens=r.opens;coverageItems=r.items;coverageLabel=`${s}:page:${currentPage}`;page++;if(page>Number(pages[s]||1)){district++;page=2}}
-  const coverageSaved=coverageItems.length?await upsertCandidates(source,coverageItems):{seen:0,fresh:0};
+  const coverageSaved=coverageItems.length?await upsertCandidates(source,coverageItems,false):{seen:0,fresh:0};
   const complete=district>=D.length,t=iso(),cycleStarted=String(st?.cycle_started_at||started);
   if(complete)await db.from('listings').update({is_active:false}).eq('source_id',2).eq('is_active',true).lt('last_seen_at',cycleStarted);
 
