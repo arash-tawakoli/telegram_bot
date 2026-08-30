@@ -28,6 +28,7 @@ jobs:
           test -f supabase/functions/source-worker/immomio.ts
           test -f supabase/functions/source-worker/hpm.ts
           test -f supabase/functions/source-worker/generic.ts
+          test -f supabase/functions/kleinanzeigen-transport/index.ts
           test -f supabase/functions/notification-dispatcher/index.ts
           test -f supabase/functions/telegram-ui/index.ts
           test -f supabase/migrations/20260829195000_architecture_v3_final_cutover.sql
@@ -45,6 +46,7 @@ jobs:
           grep -q "runtime_mode" supabase/seed.sql
           grep -q "source-worker" supabase/seed.sql
           grep -q "adaptive_partition" supabase/seed.sql
+          grep -q "district_hybrid" supabase/seed.sql
           grep -q "district_pagination" supabase/seed.sql
           grep -q "immomio_tenant" supabase/seed.sql
           grep -q "immosolve_api" supabase/seed.sql
