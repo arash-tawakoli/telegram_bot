@@ -1,0 +1,29 @@
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+
+const UA="Mozilla/5.0 (compatible; TraumwohnungHamburgBot/13.0; +https://traumwohnung-hamburg.de)";
+const BASE="https://www.immobilien.de/mieten/wohnung/hamburg/";
+const HH_ZIPS=new Set("20095,20097,20099,20144,20146,20148,20149,20249,20251,20253,20255,20257,20259,20354,20355,20357,20359,20457,20459,20535,20537,20539,21029,21031,21033,21035,21037,21039,21073,21075,21077,21079,21107,21109,21129,21147,21149,22041,22043,22045,22047,22049,22081,22083,22085,22087,22089,22111,22113,22115,22117,22119,22143,22145,22147,22149,22159,22175,22177,22179,22297,22299,22301,22303,22305,22307,22309,22335,22337,22339,22359,22391,22393,22395,22397,22399,22415,22417,22419,22453,22455,22457,22459,22523,22525,22527,22529,22547,22549,22559,22587,22589,22605,22609,22761,22763,22765,22767,22769,27499".split(','));
+
+function decode(s:string){return s.replace(/&nbsp;|&#160;/gi," ").replace(/&amp;/gi,"&").replace(/&quot;/gi,'"').replace(/&#39;|&apos;/gi,"'").replace(/&sup2;|&#178;/gi,"²").replace(/&euro;|&#8364;/gi,"€").replace(/&auml;/gi,"ä").replace(/&ouml;/gi,"ö").replace(/&uuml;/gi,"ü").replace(/&szlig;/gi,"ß")}
+function strip(h:string){return decode(h).replace(/<script\b[\s\S]*?<\/script>/gi," ").replace(/<style\b[\s\S]*?<\/style>/gi," ").replace(/<[^>]+>/g," ").replace(/\s+/g," ").trim()}
+function num(v:string|undefined){if(!v)return null;let s=v.replace(/\s/g,"").replace(/[^\d.,-]/g,"");if(!s)return null;if(s.includes(","))s=s.replace(/\./g,"").replace(",",".");else if(/^\d{1,3}\.\d{3}$/.test(s))s=s.replace(".","");const n=Number(s);return Number.isFinite(n)?n:null}
+function cleanImage(raw:string|undefined,base:string){if(!raw)return null;try{const u=new URL(decode(raw.split(/\s+/)[0]),base).href;if(/\.svg(?:[?#]|$)|(?:logo|favicon|sprite|spinner|placeholder|avatar)/i.test(u))return null;return u}catch{return null}}
+function firstImage(html:string,base:string){for(const m of html.matchAll(/<img\b[^>]*(?:data-src|src)=["']([^"']+)["'][^>]*>/gi)){const u=cleanImage(m[1],base);if(u)return u}return null}
+function titleFrom(anchor:string,chunk:string){const t=strip(anchor);if(t.length>=5&&!/^\d+$/.test(t))return t.slice(0,240);const h=chunk.match(/<h[1-4]\b[^>]*>([\s\S]*?)<\/h[1-4]>/i)?.[1];if(h){const x=strip(h);if(x.length>=5)return x.slice(0,240)}return "Wohnungsangebot"}
+function parse(html:string,base:string){
+  const out:any[]=[],seen=new Set<string>();
+  for(const m of html.matchAll(/<a\b[^>]*href=["']([^"']*\/wohnen\/(\d+)[^"']*)["'][^>]*>([\s\S]*?)<\/a>/gi)){
+    const id=m[2];if(seen.has(id))continue;
+    const idx=m.index||0,chunk=html.slice(Math.max(0,idx-900),Math.min(html.length,idx+m[0].length+1800)),plain=strip(chunk).slice(0,5000);
+    const zipCode=plain.match(/\b(\d{5})\b/)?.[1]||null;if(zipCode&&!HH_ZIPS.has(zipCode))continue;
+    let url:string;try{url=new URL(decode(m[1]),base).href.replace(/#.*$/,"")}catch{continue}
+    const coldRent=num(plain.match(/([\d.]+(?:,\d{1,2})?)\s*€\s*(?:Kaltmiete|Nettokaltmiete)/i)?.[1]);
+    const rooms=num(plain.match(/(?:Zimmer|Zi\.?)\s*([\d.,]+)/i)?.[1]||plain.match(/([\d.,]+)\s*(?:Zimmer|Zi\.?)/i)?.[1]);
+    const size=num(plain.match(/(?:Fläche|Wohnfläche)\s*([\d.,]+)\s*m(?:²|2)/i)?.[1]||plain.match(/([\d.,]+)\s*m(?:²|2)/i)?.[1]);
+    if(coldRent==null&&rooms==null&&size==null)continue;
+    out.push({id,url,title:titleFrom(m[3],chunk),zipCode,coldRent,rooms,size,imageUrl:firstImage(chunk,base),provider:"immobilien.de"});seen.add(id);
+  }
+  return out;
+}
+async function load(page:number){const url=page===1?BASE:`${BASE}?page=${page}`;const r=await fetch(url,{redirect:"follow",headers:{"user-agent":UA,"accept":"text/html,application/xhtml+xml,*/*","accept-language":"de-DE,de;q=0.9","cache-control":"no-cache"},signal:AbortSignal.timeout(15000)});if(!r.ok)throw new Error(`HTTP ${r.status} page ${page}`);const text=await r.text(),total=num(strip(text).match(/Hamburg:\s*([\d.]+)\s+aktuelle Angebote/i)?.[1]);return{text,url:r.url,total}}
+Deno.serve(async(req:Request)=>{if(req.method!=="GET")return new Response("method not allowed",{status:405});try{const map=new Map<string,any>();let totalHint:number|null=null,pagesChecked=0;for(let page=1;page<=5;page++){const r=await load(page);pagesChecked++;if(totalHint==null&&r.total!=null)totalHint=r.total;const items=parse(r.text,r.url);let added=0;for(const item of items)if(!map.has(item.id)){map.set(item.id,item);added++}if(page>1&&added===0)break;if(totalHint!=null&&map.size>=totalHint)break}const items=[...map.values()];if(!items.length)return Response.json({ok:false,count:0,pagesChecked,totalHint},{status:502});return Response.json({ok:true,provider:"immobilien.de",count:items.length,pagesChecked,totalHint,items},{headers:{"cache-control":"no-store"}})}catch(e){return Response.json({ok:false,error:e instanceof Error?e.message:String(e)},{status:502})}});
