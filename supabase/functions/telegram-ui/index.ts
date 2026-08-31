@@ -81,9 +81,13 @@ function stripNavIcon(v: string) {
 function rentPrompt(u: any) {
   return `${msg(u.ui_language, "enterRent")}\n\n<b>Max. 5.000 €</b>`;
 }
+function helpText(u: any) {
+  return msg(u.ui_language, "helpText").split("\n").filter((line: string) => !line.trim().startsWith("/profile")).join("\n");
+}
 function coreOnly(s: S) {
   s.wbs_only = false;
   s.furnished_preference = "any";
+  s.profile_name = null;
   return s;
 }
 function coreIssue(s: S): CoreStep | null {
@@ -92,7 +96,7 @@ function coreIssue(s: S): CoreStep | null {
   if (s.location_mode === "boroughs" && !s.borough_ids.length) return "boroughs";
   if (s.location_mode === "neighborhoods" && !s.neighborhood_ids.length) return "neighborhoods";
   if (s.max_warm_rent == null || !Number.isFinite(s.max_warm_rent) || s.max_warm_rent < 100 || s.max_warm_rent > 5000) return "rent";
-  if (!Number.isFinite(s.min_rooms) || s.min_rooms < 1 || s.min_rooms > 5) return "rooms";
+  if (!Number.isFinite(s.min_rooms) || s.min_rooms < 1 || s.min_rooms > 4) return "rooms";
   if (!AREA_PRESETS.has(s.min_area_sqm)) return "area";
   return null;
 }
@@ -217,7 +221,7 @@ function hm(u: any) {
   if (u.onboarding_step && Object.keys(u.onboarding_state || {}).length) r.push([cb(msg(u.ui_language, "continueDraft"), "draft")]);
   r.push(
     [cb(msg(u.ui_language, "create"), "new")],
-    [cb(msg(u.ui_language, "profiles"), "profiles"), cb(msg(u.ui_language, "saved"), "saved:0")],
+    [cb(msg(u.ui_language, "saved"), "saved:0")],
     [cb(msg(u.ui_language, "settings"), "settings"), cb(msg(u.ui_language, "help"), "help")],
   );
   return { inline_keyboard: r };
@@ -285,7 +289,6 @@ function rm(u: any) {
   return { inline_keyboard: [
     [cb("800 €", "rent:800"), cb("1.000 €", "rent:1000")],
     [cb("1.250 €", "rent:1250"), cb("1.500 €", "rent:1500")],
-    [cb("2.000 €", "rent:2000")],
     [cb(msg(u.ui_language, "custom"), "rent:custom")],
     nav(u, "location"),
     later(u),
@@ -296,8 +299,8 @@ async function rent(u: any, c: number, m: number, s: S) {
 }
 function rmm(u: any) {
   return { inline_keyboard: [
-    [cb("1+", "rooms:1"), cb("2+", "rooms:2"), cb("3+", "rooms:3")],
-    [cb("4+", "rooms:4"), cb("5+", "rooms:5")],
+    [cb("1+", "rooms:1"), cb("2+", "rooms:2")],
+    [cb("3+", "rooms:3"), cb("4+", "rooms:4")],
     nav(u, "rent"), later(u),
   ] };
 }
@@ -321,10 +324,8 @@ async function places(s: S) {
   if (s.location_mode === "boroughs") {
     const selected = new Set(s.borough_ids);
     bs = g.boroughs.filter(x => selected.has(x.id)).map(x => x.name);
-    const namesById = new Map(g.boroughs.map(x => [x.id, x.name]));
     districts = g.neighborhoods.filter(x => selected.has(x.borough_id)).map(x => x.name);
     location = bs.join(", ");
-    void namesById;
   } else if (s.location_mode === "neighborhoods") {
     const selected = new Set(s.neighborhood_ids);
     ns = g.neighborhoods.filter(x => selected.has(x.id)).map(x => x.name).sort((a, b) => a.localeCompare(b, "de"));
@@ -333,21 +334,19 @@ async function places(s: S) {
   }
   return { location, districts, bs, ns };
 }
-async function auto(u: any) {
-  const { count } = await db.from("search_profiles").select("id", { count: "exact", head: true }).eq("user_id", u.id);
-  return `${msg(u.ui_language, "profileBase")} ${(count || 0) + 1}`;
+function auto(u: any) {
+  return msg(u.ui_language, "profileBase");
 }
 async function review(u: any, c: number, m: number, s: S) {
   coreOnly(s);
   const issue = coreIssue(s);
   if (issue) return renderCoreStep(u, c, m, s, issue);
-  const [p, generatedName] = await Promise.all([places(s), s.profile_name ? Promise.resolve(s.profile_name) : auto(u)]);
-  s.profile_name = s.profile_name || generatedName;
+  const p = await places(s);
   const tt = s.property_types.map(v => typeLabel(u.ui_language, v)).join(", ");
   const rr = money(s.max_warm_rent);
   const ro = `${num(s.min_rooms)}+`;
   const aa = `${num(s.min_area_sqm)} m²+`;
-  const text = `${msg(u.ui_language, "review")}\n\n<b>${esc(s.profile_name)}</b>\n\n🏠 <b>${esc(msg(u.ui_language, "fieldType"))}:</b> ${esc(tt)}\n📍 <b>${esc(msg(u.ui_language, "fieldLocation"))}:</b> ${esc(p.location)}\n💶 <b>${esc(msg(u.ui_language, "fieldRent"))}:</b> ${esc(rr)}\n🚪 <b>${esc(msg(u.ui_language, "fieldRooms"))}:</b> ${esc(ro)}\n📐 <b>${esc(msg(u.ui_language, "fieldArea"))}:</b> ${esc(aa)}`;
+  const text = `${msg(u.ui_language, "review")}\n\n<b>${esc(auto(u))}</b>\n\n🏠 <b>${esc(msg(u.ui_language, "fieldType"))}:</b> ${esc(tt)}\n📍 <b>${esc(msg(u.ui_language, "fieldLocation"))}:</b> ${esc(p.location)}\n💶 <b>${esc(msg(u.ui_language, "fieldRent"))}:</b> ${esc(rr)}\n🚪 <b>${esc(msg(u.ui_language, "fieldRooms"))}:</b> ${esc(ro)}\n📐 <b>${esc(msg(u.ui_language, "fieldArea"))}:</b> ${esc(aa)}`;
   const markup = { inline_keyboard: [
     [cb(msg(u.ui_language, "activate"), "saveProfile")],
     [cb(`🏠 ${msg(u.ui_language, "fieldType")}`, "edit:types"), cb(`📍 ${msg(u.ui_language, "fieldLocation")}`, "edit:location")],
@@ -420,16 +419,6 @@ async function settings(u: any, c: number, m?: number) {
   const x = `${msg(u.ui_language, "settings")}\n\n🌐 ${LANGS[u.ui_language] || LANGS.de}`;
   return m ? edit(c, m, x, { inline_keyboard: r }) : send(c, x, { inline_keyboard: r });
 }
-async function profiles(u: any, c: number, m?: number) {
-  const { data } = await db.from("search_profiles").select("*").eq("user_id", u.id).order("created_at");
-  if (!data?.length) {
-    const k = { inline_keyboard: [[cb(msg(u.ui_language, "create"), "new")], [cb(msg(u.ui_language, "back"), "home")]] };
-    return m ? edit(c, m, msg(u.ui_language, "noProfiles"), k) : send(c, msg(u.ui_language, "noProfiles"), k);
-  }
-  const r = data.map((p: any) => [cb(`${p.is_active ? "🟢" : "⏸"} ${short(p.name, 38)}`, `profile:${p.id}`)]);
-  r.push([cb(msg(u.ui_language, "create"), "new")], [cb(msg(u.ui_language, "back"), "home")]);
-  return m ? edit(c, m, `🔎 <b>${msg(u.ui_language, "profiles")}</b>\n\n${data.length}/3`, { inline_keyboard: r }) : send(c, `🔎 <b>${msg(u.ui_language, "profiles")}</b>\n\n${data.length}/3`, { inline_keyboard: r });
-}
 async function saved(u: any, c: number, m?: number, p = 0) {
   const { count } = await db.from("saved_listings").select("id", { count: "exact", head: true }).eq("user_id", u.id);
   if (!count) {
@@ -439,7 +428,7 @@ async function saved(u: any, c: number, m?: number, p = 0) {
   const ps = Math.ceil(count / 8); p = Math.max(0, Math.min(p, ps - 1));
   const { data } = await db.from("saved_listings").select("listing_id,created_at,listings(title,duplicate_of_listing_id)").eq("user_id", u.id).order("created_at", { ascending: false }).range(p * 8, p * 8 + 7);
   const r = (data || []).map((x: any, i: number) => [cb(`🏠 ${p * 8 + i + 1}. ${short(x.listings?.title, 40)}`, `savedOpen:${x.listings?.duplicate_of_listing_id || x.listing_id}`)]);
-  r.push([cb("◀️", `saved:${Math.max(0, p - 1)}`), cb(`${p + 1}/${ps}`, "noop"), cb("▶️", `saved:${Math.min(ps - 1, p + 1)}`)], [cb(msg(u.ui_language, "back"), "home")]);
+  r.push([cb("←", `saved:${Math.max(0, p - 1)}`), cb(`${p + 1}/${ps}`, "noop"), cb("→", `saved:${Math.min(ps - 1, p + 1)}`)], [cb(msg(u.ui_language, "back"), "home")]);
   const text = `${msg(u.ui_language, "saved")}\n\n${count} · ${msg(u.ui_language, "page")} ${p + 1}/${ps}`;
   return m ? edit(c, m, text, { inline_keyboard: r }) : send(c, text, { inline_keyboard: r });
 }
@@ -466,12 +455,11 @@ async function callback(q: Q, u0: any, preAcked = false) {
     }
     await qa(); return settings(u, c, m);
   }
-  if (d === "home") { await qa(); return home(u, c, m); }
+  if (d === "home" || d === "profiles") { await qa(); return home(u, c, m); }
   if (d === "new") { s = empty(); await qa(); return types(u, c, m, s); }
   if (d === "draft") { await qa(); return resumeStep(u, c, m, s); }
-  if (d === "profiles") { await qa(); return profiles(u, c, m); }
   if (d === "settings") { await qa(); return settings(u, c, m); }
-  if (d === "help") { await qa(); return edit(c, m, `${msg(u.ui_language, "help")}\n\n${msg(u.ui_language, "helpText")}`, { inline_keyboard: [[cb(msg(u.ui_language, "back"), "home")]] }); }
+  if (d === "help") { await qa(); return edit(c, m, `${msg(u.ui_language, "help")}\n\n${helpText(u)}`, { inline_keyboard: [[cb(msg(u.ui_language, "back"), "home")]] }); }
   if (["types", "location", "rent", "rooms", "area"].includes(d)) {
     await qa();
     return d === "types" ? types(u, c, m, s) : d === "location" ? loc(u, c, m, s) : d === "rent" ? rent(u, c, m, s) : d === "rooms" ? rooms(u, c, m, s) : area(u, c, m, s);
@@ -530,7 +518,7 @@ async function callback(q: Q, u0: any, preAcked = false) {
   }
   if (d.startsWith("rooms:")) {
     const value = Number(d.slice(6));
-    if (!Number.isFinite(value) || value < 1 || value > 5) { await qa(); return rooms(u, c, m, s); }
+    if (!Number.isFinite(value) || value < 1 || value > 4) { await qa(); return rooms(u, c, m, s); }
     s.min_rooms = value; await qa(); return after(u, c, m, s, area);
   }
   if (d.startsWith("area:")) {
@@ -539,7 +527,7 @@ async function callback(q: Q, u0: any, preAcked = false) {
     s.min_area_sqm = value; await qa(); return review(u, c, m, s);
   }
   if (d.startsWith("wbs:") || d.startsWith("furn:") || d.startsWith("name:")) {
-    coreOnly(s); s.profile_name = null; await qa();
+    await qa();
     const issue = coreIssue(s);
     return issue ? renderCoreStep(u, c, m, s, issue) : review(u, c, m, s);
   }
@@ -547,10 +535,23 @@ async function callback(q: Q, u0: any, preAcked = false) {
     coreOnly(s);
     const issue = coreIssue(s);
     if (issue) { await qa(); return renderCoreStep(u, c, m, s, issue); }
-    const { count } = await db.from("search_profiles").select("id", { count: "exact", head: true }).eq("user_id", u.id);
-    if ((count || 0) >= 3) return qa(msg(u.ui_language, "maxProfiles"));
     const p = await places(s);
-    const { error } = await db.from("search_profiles").insert({ user_id: u.id, name: s.profile_name || await auto(u), property_types: s.property_types, max_warm_rent: s.max_warm_rent, min_rooms: s.min_rooms, min_area_sqm: s.min_area_sqm, districts: p.districts, location_mode: s.location_mode || "all_hamburg", boroughs: p.bs, neighborhoods: p.ns, wbs_only: false, furnished_preference: "any", is_active: true });
+    const { error } = await db.from("search_profiles").upsert({
+      user_id: u.id,
+      name: auto(u),
+      property_types: s.property_types,
+      max_warm_rent: s.max_warm_rent,
+      min_rooms: s.min_rooms,
+      min_area_sqm: s.min_area_sqm,
+      districts: p.districts,
+      location_mode: s.location_mode || "all_hamburg",
+      boroughs: p.bs,
+      neighborhoods: p.ns,
+      wbs_only: false,
+      furnished_preference: "any",
+      is_active: true,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "user_id" });
     if (error) throw error;
     await st(u.id, null, {}); u = { ...u, onboarding_step: null, onboarding_state: {} }; await qa();
     return edit(c, m, msg(u.ui_language, "created"), hm(u));
@@ -575,15 +576,14 @@ async function callback(q: Q, u0: any, preAcked = false) {
 
 async function message(m: M, u0: any) {
   const c = m.chat.id, text = (m.text || "").trim(), cmd = text.split(/\s+/)[0].toLowerCase().replace(/@traumwohnunghamburgbot$/i, ""), u = u0;
-  if (cmd === "/start") return home(u, c);
+  if (cmd === "/start" || cmd === "/profile") return home(u, c);
   if (cmd === "/suche") {
     const s = empty();
     return renderState(u.id, "types", s, send(c, stepMsg(u, "typeStep"), tm(u, s)));
   }
-  if (cmd === "/profile") return profiles(u, c);
   if (cmd === "/gespeichert" || cmd === "/saved") return saved(u, c);
   if (cmd === "/einstellungen" || cmd === "/settings") return settings(u, c);
-  if (cmd === "/hilfe" || cmd === "/help") return send(c, `${msg(u.ui_language, "help")}\n\n${msg(u.ui_language, "helpText")}`);
+  if (cmd === "/hilfe" || cmd === "/help") return send(c, `${msg(u.ui_language, "help")}\n\n${helpText(u)}`);
   if (cmd === "/pause") { await db.from("search_profiles").update({ is_active: false }).eq("user_id", u.id); return send(c, msg(u.ui_language, "paused")); }
   if (cmd === "/resume") { await db.from("search_profiles").update({ is_active: true }).eq("user_id", u.id); return send(c, msg(u.ui_language, "resumed")); }
   if (cmd === "/status") {
@@ -604,7 +604,7 @@ async function message(m: M, u0: any) {
   if (u.onboarding_step === "custom_area") {
     return renderState(u.id, "area", s, send(c, stepMsg(u, "areaStep"), am(u)));
   }
-  if (u.onboarding_step === "custom_name" || ["wbs", "furn", "name", "review"].includes(u.onboarding_step)) {
+  if (["custom_name", "wbs", "furn", "name", "review"].includes(u.onboarding_step)) {
     const issue = coreIssue(s);
     if (issue) return renderCoreStep(u, c, m.message_id, s, issue);
     return review(u, c, m.message_id, s);
