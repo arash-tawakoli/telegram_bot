@@ -17,7 +17,7 @@ pg_cron
   -> Telegram
 ```
 
-Es gibt keine userabhängigen Portal-Suchen. Eine Quelle wird global gecrawlt; neue oder geänderte Listings werden anschließend intern gegen die Suchprofile gematcht.
+Es gibt keine userabhängigen Portal-Suchen. Eine Quelle wird global gecrawlt; neue oder geänderte Listings werden anschließend intern gegen das eine Suchprofil des Nutzers gematcht.
 
 ## Runtime
 
@@ -77,9 +77,19 @@ neues primäres Listing
 
 Es gibt keine separaten Runtime-Tabellen `matches`, `notification_outbox`, `canonical_listings` oder `listing_occurrences` mehr.
 
-## Suchprofile
+## Suchprofil
 
-Es gilt **genau ein Suchprofil pro Nutzer**. Die Datenbank erzwingt dies über einen Unique Index auf `search_profiles(user_id)`.
+Es gilt **genau ein Suchprofil pro Nutzer**. Die Datenbank erzwingt dies über einen Unique Index auf `search_profiles(user_id)`. Ein erneutes Durchlaufen von `/suche` ersetzt das bestehende Profil beim Aktivieren, statt ein zweites Profil anzulegen.
+
+Der Telegram-Onboarding-Flow besteht aus genau fünf Fragen:
+
+1. Objekttyp
+2. Gebiet
+3. maximale Warmmiete: 800 €, 1.000 €, 1.250 €, 1.500 € oder eigener Betrag bis maximal 5.000 €
+4. Mindestzimmer: 1+, 2+, 3+ oder 4+
+5. Mindestfläche: 30, 50, 70 oder 90 m²
+
+Danach folgt direkt die Suchprofil-Vorschau. WBS, Möblierung, Profilname, „Kein Limit“, „Egal“ und freie Flächeneingabe sind kein Teil des Onboardings mehr.
 
 ## Repository
 
@@ -115,7 +125,6 @@ Die Source-Adapter sind Module innerhalb von `source-worker`; sie sind keine eig
 
 - `/start`
 - `/suche`
-- `/profile`
 - `/gespeichert`
 - `/einstellungen`
 - `/pause`
