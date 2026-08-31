@@ -396,7 +396,7 @@ function cap(u: any, l: any) {
   return x.join("\n");
 }
 function lmk(u: any, l: any, s = false) {
-  const r: any[] = [[{ text: msg(u.ui_language, "offer"), url: l.canonical_url }]], a = addr(l);
+  const r: any[] = [[{ text: l.sources?.button_label ? `🔗 Zu ${l.sources.button_label}` : msg(u.ui_language, "offer"), url: l.canonical_url }]], a = addr(l);
   if (a) r.push([{ text: msg(u.ui_language, "maps"), url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a)}` }]);
   r.push([cb(s ? msg(u.ui_language, "savedState") : msg(u.ui_language, "save"), `save:${l.id}`)]);
   return { inline_keyboard: r };
@@ -544,7 +544,7 @@ async function callback(q: Q, u0: any, preAcked = false) {
   }
   if (d.startsWith("saved:")) { await qa(); return saved(u, c, m, Number(d.slice(6)) || 0); }
   if (d.startsWith("savedOpen:")) {
-    const { data: l } = await db.from("listings").select("*").eq("id", d.slice(10)).single();
+    const { data: l } = await db.from("listings").select("*,sources(button_label)").eq("id", d.slice(10)).single();
     if (!l) return qa(msg(u.ui_language, "listingUnavailable"));
     await qa(); return card(u, c, l, true);
   }
