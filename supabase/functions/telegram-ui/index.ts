@@ -70,6 +70,14 @@ function short(v: any, n = 44) {
   const s = String(v || "Listing").replace(/\s+/g, " ").trim();
   return s.length > n ? s.slice(0, n - 1) + "…" : s;
 }
+function stepMsg(u: any, key: string) {
+  return msg(u.ui_language, key).replace(/\/8\b/, "/5");
+}
+function coreOnly(s: S) {
+  s.wbs_only = false;
+  s.furnished_preference = "any";
+  return s;
+}
 
 async function secret(name: string, force = false) {
   const now = Date.now();
@@ -207,7 +215,7 @@ function tm(u: any, s: S) {
   return { inline_keyboard: r };
 }
 async function types(u: any, c: number, m: number, s: S) {
-  return renderState(u.id, "types", s, edit(c, m, msg(u.ui_language, "typeStep"), tm(u, s)));
+  return renderState(u.id, "types", s, edit(c, m, stepMsg(u, "typeStep"), tm(u, s)));
 }
 function lm(u: any) {
   return { inline_keyboard: [
@@ -219,7 +227,7 @@ function lm(u: any) {
   ] };
 }
 async function loc(u: any, c: number, m: number, s: S) {
-  return renderState(u.id, "location", s, edit(c, m, msg(u.ui_language, "locationStep"), lm(u)));
+  return renderState(u.id, "location", s, edit(c, m, stepMsg(u, "locationStep"), lm(u)));
 }
 async function bm(u: any, s: S) {
   const { boroughs } = await geo();
@@ -266,7 +274,7 @@ function rm(u: any) {
   ] };
 }
 async function rent(u: any, c: number, m: number, s: S) {
-  return renderState(u.id, "rent", s, edit(c, m, msg(u.ui_language, "rentStep"), rm(u)));
+  return renderState(u.id, "rent", s, edit(c, m, stepMsg(u, "rentStep"), rm(u)));
 }
 function rmm(u: any) {
   return { inline_keyboard: [
@@ -276,7 +284,7 @@ function rmm(u: any) {
   ] };
 }
 async function rooms(u: any, c: number, m: number, s: S) {
-  return renderState(u.id, "rooms", s, edit(c, m, msg(u.ui_language, "roomsStep"), rmm(u)));
+  return renderState(u.id, "rooms", s, edit(c, m, stepMsg(u, "roomsStep"), rmm(u)));
 }
 function am(u: any) {
   return { inline_keyboard: [
@@ -286,7 +294,7 @@ function am(u: any) {
   ] };
 }
 async function area(u: any, c: number, m: number, s: S) {
-  return renderState(u.id, "area", s, edit(c, m, msg(u.ui_language, "areaStep"), am(u)));
+  return renderState(u.id, "area", s, edit(c, m, stepMsg(u, "areaStep"), am(u)));
 }
 function wm(u: any) {
   return { inline_keyboard: [
@@ -342,20 +350,19 @@ async function auto(u: any) {
   return `${msg(u.ui_language, "profileBase")} ${(count || 0) + 1}`;
 }
 async function review(u: any, c: number, m: number, s: S) {
+  coreOnly(s);
   const [p, generatedName] = await Promise.all([places(s), s.profile_name ? Promise.resolve(s.profile_name) : auto(u)]);
   s.profile_name = s.profile_name || generatedName;
   const tt = s.property_types.map(v => typeLabel(u.ui_language, v)).join(", ");
   const rr = s.max_warm_rent ? money(s.max_warm_rent) : msg(u.ui_language, "noLimit");
   const ro = s.min_rooms ? `${num(s.min_rooms)}+` : msg(u.ui_language, "any");
   const aa = s.min_area_sqm ? `${num(s.min_area_sqm)} m²+` : msg(u.ui_language, "any");
-  const ff = s.furnished_preference === "yes" ? msg(u.ui_language, "furnished") : s.furnished_preference === "no" ? msg(u.ui_language, "unfurnished") : msg(u.ui_language, "any");
-  const text = `${msg(u.ui_language, "review")}\n\n<b>${esc(s.profile_name)}</b>\n\n🏠 <b>${esc(msg(u.ui_language, "fieldType"))}:</b> ${esc(tt)}\n📍 <b>${esc(msg(u.ui_language, "fieldLocation"))}:</b> ${esc(p.location)}\n💶 <b>${esc(msg(u.ui_language, "fieldRent"))}:</b> ${esc(rr)}\n🚪 <b>${esc(msg(u.ui_language, "fieldRooms"))}:</b> ${esc(ro)}\n📐 <b>${esc(msg(u.ui_language, "fieldArea"))}:</b> ${esc(aa)}\n🏷 <b>WBS:</b> ${esc(s.wbs_only ? msg(u.ui_language, "onlyWbs") : msg(u.ui_language, "withWbs"))}\n🛋 <b>${esc(msg(u.ui_language, "fieldFurn"))}:</b> ${esc(ff)}`;
+  const text = `${msg(u.ui_language, "review")}\n\n<b>${esc(s.profile_name)}</b>\n\n🏠 <b>${esc(msg(u.ui_language, "fieldType"))}:</b> ${esc(tt)}\n📍 <b>${esc(msg(u.ui_language, "fieldLocation"))}:</b> ${esc(p.location)}\n💶 <b>${esc(msg(u.ui_language, "fieldRent"))}:</b> ${esc(rr)}\n🚪 <b>${esc(msg(u.ui_language, "fieldRooms"))}:</b> ${esc(ro)}\n📐 <b>${esc(msg(u.ui_language, "fieldArea"))}:</b> ${esc(aa)}`;
   const markup = { inline_keyboard: [
     [cb(msg(u.ui_language, "activate"), "saveProfile")],
     [cb(`🏠 ${msg(u.ui_language, "fieldType")}`, "edit:types"), cb(`📍 ${msg(u.ui_language, "fieldLocation")}`, "edit:location")],
     [cb(`💶 ${msg(u.ui_language, "fieldRent")}`, "edit:rent"), cb(`🚪 ${msg(u.ui_language, "fieldRooms")}`, "edit:rooms")],
-    [cb(`📐 ${msg(u.ui_language, "fieldArea")}`, "edit:area"), cb("🏷 WBS", "edit:wbs")],
-    [cb(`🛋 ${msg(u.ui_language, "fieldFurn")}`, "edit:furn"), cb(`✏️ ${msg(u.ui_language, "fieldName")}`, "edit:name")],
+    [cb(`📐 ${msg(u.ui_language, "fieldArea")}`, "edit:area")],
     later(u),
   ] };
   return renderState(u.id, "review", s, edit(c, m, text, markup));
@@ -365,16 +372,14 @@ async function after(u: any, c: number, m: number, s: S, n: (u: any, c: number, 
   return n(u, c, m, s);
 }
 async function resumeStep(u: any, c: number, m: number, s: S) {
+  coreOnly(s);
   return u.onboarding_step === "location" ? loc(u, c, m, s)
     : u.onboarding_step === "boroughs" ? borough(u, c, m, s)
     : u.onboarding_step === "neighborhoods" ? neigh(u, c, m, s)
     : ["rent", "custom_rent"].includes(u.onboarding_step) ? rent(u, c, m, s)
     : u.onboarding_step === "rooms" ? rooms(u, c, m, s)
     : ["area", "custom_area"].includes(u.onboarding_step) ? area(u, c, m, s)
-    : u.onboarding_step === "wbs" ? wbs(u, c, m, s)
-    : u.onboarding_step === "furn" ? furn(u, c, m, s)
-    : ["name", "custom_name"].includes(u.onboarding_step) ? nameStep(u, c, m, s)
-    : u.onboarding_step === "review" ? review(u, c, m, s)
+    : ["wbs", "furn", "name", "custom_name", "review"].includes(u.onboarding_step) ? review(u, c, m, s)
     : types(u, c, m, s);
 }
 
@@ -451,7 +456,7 @@ async function callback(q: Q, u0: any, preAcked = false) {
   const c = q.message?.chat.id, m = q.message?.message_id, d = q.data || "";
   const qa = (text?: string) => preAcked ? Promise.resolve() : ack(q.id, text);
   if (!c || !m) return qa();
-  let u = u0, s = { ...empty(), ...(u.onboarding_state || {}) } as S;
+  let u = u0, s = coreOnly({ ...empty(), ...(u.onboarding_state || {}) } as S);
   if (d === "noop") return qa();
   if (d.startsWith("lang:")) {
     const x = d.slice(5);
@@ -468,13 +473,19 @@ async function callback(q: Q, u0: any, preAcked = false) {
   if (d === "profiles") { await qa(); return profiles(u, c, m); }
   if (d === "settings") { await qa(); return settings(u, c, m); }
   if (d === "help") { await qa(); return edit(c, m, `${msg(u.ui_language, "help")}\n\n${msg(u.ui_language, "helpText")}`, { inline_keyboard: [[cb(msg(u.ui_language, "back"), "home")]] }); }
-  if (["types", "location", "rent", "rooms", "area", "wbs", "furn"].includes(d)) {
+  if (["types", "location", "rent", "rooms", "area"].includes(d)) {
     await qa();
-    return d === "types" ? types(u, c, m, s) : d === "location" ? loc(u, c, m, s) : d === "rent" ? rent(u, c, m, s) : d === "rooms" ? rooms(u, c, m, s) : d === "area" ? area(u, c, m, s) : d === "wbs" ? wbs(u, c, m, s) : furn(u, c, m, s);
+    return d === "types" ? types(u, c, m, s) : d === "location" ? loc(u, c, m, s) : d === "rent" ? rent(u, c, m, s) : d === "rooms" ? rooms(u, c, m, s) : area(u, c, m, s);
   }
   if (d.startsWith("edit:")) {
     s.edit_return = true; await qa(); const x = d.slice(5);
-    return x === "types" ? types(u, c, m, s) : x === "location" ? loc(u, c, m, s) : x === "rent" ? rent(u, c, m, s) : x === "rooms" ? rooms(u, c, m, s) : x === "area" ? area(u, c, m, s) : x === "wbs" ? wbs(u, c, m, s) : x === "furn" ? furn(u, c, m, s) : nameStep(u, c, m, s);
+    if (x === "types") return types(u, c, m, s);
+    if (x === "location") return loc(u, c, m, s);
+    if (x === "rent") return rent(u, c, m, s);
+    if (x === "rooms") return rooms(u, c, m, s);
+    if (x === "area") return area(u, c, m, s);
+    delete s.edit_return;
+    return review(u, c, m, s);
   }
   if (d.startsWith("type:")) {
     const x = d.slice(5);
@@ -522,22 +533,17 @@ async function callback(q: Q, u0: any, preAcked = false) {
       await qa();
       return renderState(u.id, "custom_area", s, edit(c, m, msg(u.ui_language, "enterArea"), { inline_keyboard: [nav(u, "area"), later(u)] }));
     }
-    s.min_area_sqm = Number(x); await qa(); return after(u, c, m, s, wbs);
+    s.min_area_sqm = Number(x); await qa(); return review(u, c, m, s);
   }
-  if (d.startsWith("wbs:")) { s.wbs_only = d.slice(4) === "yes"; await qa(); return after(u, c, m, s, furn); }
-  if (d.startsWith("furn:")) { s.furnished_preference = d.slice(5); await qa(); return after(u, c, m, s, nameStep); }
-  if (d.startsWith("name:")) {
-    if (d.endsWith("custom")) {
-      await qa();
-      return renderState(u.id, "custom_name", s, edit(c, m, msg(u.ui_language, "enterName"), { inline_keyboard: [nav(u, "furn"), later(u)] }));
-    }
-    s.profile_name = await auto(u); await qa(); return review(u, c, m, s);
+  if (d.startsWith("wbs:") || d.startsWith("furn:") || d.startsWith("name:")) {
+    coreOnly(s); s.profile_name = null; await qa(); return review(u, c, m, s);
   }
   if (d === "saveProfile") {
+    coreOnly(s);
     const { count } = await db.from("search_profiles").select("id", { count: "exact", head: true }).eq("user_id", u.id);
     if ((count || 0) >= 3) return qa(msg(u.ui_language, "maxProfiles"));
     const p = await places(s);
-    const { error } = await db.from("search_profiles").insert({ user_id: u.id, name: s.profile_name || await auto(u), property_types: s.property_types, max_warm_rent: s.max_warm_rent, min_rooms: s.min_rooms, min_area_sqm: s.min_area_sqm, districts: p.districts, location_mode: s.location_mode || "all_hamburg", boroughs: p.bs, neighborhoods: p.ns, wbs_only: s.wbs_only, furnished_preference: s.furnished_preference, is_active: true });
+    const { error } = await db.from("search_profiles").insert({ user_id: u.id, name: s.profile_name || await auto(u), property_types: s.property_types, max_warm_rent: s.max_warm_rent, min_rooms: s.min_rooms, min_area_sqm: s.min_area_sqm, districts: p.districts, location_mode: s.location_mode || "all_hamburg", boroughs: p.bs, neighborhoods: p.ns, wbs_only: false, furnished_preference: "any", is_active: true });
     if (error) throw error;
     await st(u.id, null, {}); u = { ...u, onboarding_step: null, onboarding_state: {} }; await qa();
     return edit(c, m, msg(u.ui_language, "created"), hm(u));
@@ -565,7 +571,7 @@ async function message(m: M, u0: any) {
   if (cmd === "/start") return home(u, c);
   if (cmd === "/suche") {
     const s = empty();
-    return renderState(u.id, "types", s, send(c, msg(u.ui_language, "typeStep"), tm(u, s)));
+    return renderState(u.id, "types", s, send(c, stepMsg(u, "typeStep"), tm(u, s)));
   }
   if (cmd === "/profile") return profiles(u, c);
   if (cmd === "/gespeichert" || cmd === "/saved") return saved(u, c);
@@ -580,22 +586,20 @@ async function message(m: M, u0: any) {
     ]);
     return send(c, `${msg(u.ui_language, "status")}\n${msg(u.ui_language, "activeProfiles")}: ${p || 0}\n${msg(u.ui_language, "activeSources")}: ${s || 0}\n${msg(u.ui_language, "online")}`);
   }
-  const s = { ...empty(), ...(u.onboarding_state || {}) } as S;
+  const s = coreOnly({ ...empty(), ...(u.onboarding_state || {}) } as S);
   if (u.onboarding_step === "custom_rent") {
     const x = Number(text.replace(/\./g, "").replace(",", "."));
     if (!Number.isFinite(x) || x < 100 || x > 20000) return send(c, msg(u.ui_language, "enterRent"));
     s.max_warm_rent = x; if (s.edit_return) { delete s.edit_return; return review(u, c, m.message_id, s); }
-    return renderState(u.id, "rooms", s, send(c, msg(u.ui_language, "roomsStep"), rmm(u)));
+    return renderState(u.id, "rooms", s, send(c, stepMsg(u, "roomsStep"), rmm(u)));
   }
   if (u.onboarding_step === "custom_area") {
     const x = Number(text.replace(",", "."));
     if (!Number.isFinite(x) || x < 8 || x > 1000) return send(c, msg(u.ui_language, "invalidArea"));
-    s.min_area_sqm = x; if (s.edit_return) { delete s.edit_return; return review(u, c, m.message_id, s); }
-    return renderState(u.id, "wbs", s, send(c, msg(u.ui_language, "wbsStep"), wm(u)));
+    s.min_area_sqm = x; delete s.edit_return; return review(u, c, m.message_id, s);
   }
-  if (u.onboarding_step === "custom_name") {
-    if (text.length < 2) return send(c, msg(u.ui_language, "invalidName"));
-    s.profile_name = text.replace(/\s+/g, " ").slice(0, 60); return review(u, c, m.message_id, s);
+  if (u.onboarding_step === "custom_name" || ["wbs", "furn", "name"].includes(u.onboarding_step)) {
+    coreOnly(s); s.profile_name = null; return review(u, c, m.message_id, s);
   }
   return send(c, msg(u.ui_language, "useButtons"));
 }
