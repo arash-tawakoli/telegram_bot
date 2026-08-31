@@ -23,13 +23,13 @@ export async function runGeneric(source:Source,connectors:Connector[]){
     if(source.id===31)return await runGwgMirrorMonitor(source,connectors);
     if(source.id===14)return await runMeinestadtMirrorMonitor(source,connectors);
     let picked:Connector|null=null,cands:Candidate[]=[],complete=true,meta:any={connector_attempts:[]},savedOverride:{seen:number;fresh:number}|null=null,primaryTrustedSnapshot=false,successfulLaneCount=0;
-    const attempted=new Set<string>();
+    const attempted=new Set<string>(),livePriorities=connectors.filter(c=>!c.shadow_only).map(c=>c.priority),effectivePrimaryPriority=livePriorities.length?Math.min(...livePriorities):Infinity;
     const candidateKey=(c:Candidate)=>String(c.key||c.url.split('/').filter(Boolean).at(-1)||'').slice(0,500);
     const upsertAdditive=async(batch:Candidate[],allowNew:boolean)=>{
       const keyed=batch.map(c=>({c,key:candidateKey(c)})).filter(x=>x.key),old=new Map<string,boolean>();
       const keys=[...new Set(keyed.map(x=>x.key))];
       for(let i=0;i<keys.length;i+=300){const{data}=await db.from('listings').select('source_listing_key,fresh_delivery_eligible').eq('source_id',source.id).in('source_listing_key',keys.slice(i,i+300));for(const x of data||[])old.set(String(x.source_listing_key),x.fresh_delivery_eligible===true)}
-      const yes:keyed[number]['c'][]=[],no:keyed[number]['c'][]=[],fresh:keyed[number]['c'][]=[];
+      const yes:Candidate[]=[],no:Candidate[]=[],fresh:Candidate[]=[];
       for(const x of keyed){if(old.has(x.key))(old.get(x.key)?yes:no).push(x.c);else fresh.push(x.c)}
       let seen=0,created=0;
       for(const [rows,eligible] of [[yes,true],[no,false],[fresh,allowNew]] as [Candidate[],boolean][]){if(!rows.length)continue;const r=await upsertCandidates(source,rows,eligible);seen+=r.seen;created+=r.fresh}
@@ -74,11 +74,18 @@ export async function runGeneric(source:Source,connectors:Connector[]){
           await db.from('source_coverage_state').upsert({source_id:source.id,cycle_id:cycle,strategy:'pagination',status:done?'complete':'running',cursor:{page:done?2:next,max:detected},cycle_started_at:st?.cycle_started_at||started,cycle_finished_at:done?iso():null,last_complete_at:done?iso():st?.last_complete_at||null,updated_at:iso()});
           complete=done;meta={...meta,pages_detected:detected,next_page:done?2:next,freshness_mode:frontFresh?'newest_first':'unverified'};picked=c;successfulLaneCount=1;break;
         }
-        const x=await parseOne(source,c,target);
+        const x=await parseOne(source,c,target),isFallbackLane=c.priority!==effectivePrimaryPriority;
         if(!picked){
-          picked=c;complete=!!c.enumerable;primaryTrustedSnapshot=complete&&c.enumerable&&['tenant_api','full_page'].includes(source.coverage_strategy);
-          const r=await upsertCandidates(source,x.cands,primaryTrustedSnapshot);savedOverride=r;cands=[...x.cands];successfulLaneCount=1;
-          meta.connector_attempts.push({priority:c.priority,label:c.label,status:'ok',fetched:x.cands.length,role:'primary'});
+          if(isFallbackLane){
+            const warmed=await laneWasWarmed(c),allowNew=!!source.baseline_completed_at&&warmed,r=await upsertAdditive(x.cands,allowNew);
+            picked=c;complete=!!c.enumerable;primaryTrustedSnapshot=false;savedOverride=r;cands=[...x.cands];successfulLaneCount=1;
+            meta.connector_attempts.push({priority:c.priority,label:c.label,status:'ok',fetched:x.cands.length,role:'fallback_primary',warmed,delivery_mode:allowNew?'new_only':'warmup'});
+            await recordLane(c,laneStarted,true,x.cands.length,r.fresh,null,{warmed,delivery_mode:allowNew?'new_only':'warmup',fallback_primary:true});
+          }else{
+            picked=c;complete=!!c.enumerable;primaryTrustedSnapshot=complete&&c.enumerable&&['tenant_api','full_page'].includes(source.coverage_strategy);
+            const r=await upsertCandidates(source,x.cands,primaryTrustedSnapshot);savedOverride=r;cands=[...x.cands];successfulLaneCount=1;
+            meta.connector_attempts.push({priority:c.priority,label:c.label,status:'ok',fetched:x.cands.length,role:'primary'});
+          }
           continue;
         }
         const warmed=await laneWasWarmed(c),allowNew=!!source.baseline_completed_at&&warmed,r=await upsertAdditive(x.cands,allowNew);
@@ -91,10 +98,10 @@ export async function runGeneric(source:Source,connectors:Connector[]){
       }
     }
     if(!picked)throw new Error(meta.last_connector_error||'no connector succeeded');
-    const trustedSnapshot=primaryTrustedSnapshot||(complete&&picked.enumerable&&['tenant_api','full_page'].includes(source.coverage_strategy));
+    const trustedSnapshot=primaryTrustedSnapshot||(complete&&picked.enumerable&&['tenant_api','full_page'].includes(source.coverage_strategy)&&picked.priority===effectivePrimaryPriority);
     const saved=savedOverride||await upsertCandidates(source,cands,trustedSnapshot);
-    if(successfulLaneCount<=1&&complete&&picked.enumerable&&source.baseline_completed_at)await db.from('listings').update({is_active:false}).eq('source_id',source.id).eq('is_active',true).lt('last_seen_at',started);
-    const freshDeliveryMode=source.coverage_strategy==='pagination'?meta.freshness_mode:(trustedSnapshot?'complete_snapshot':(successfulLaneCount>1?'primary_plus_additive_new_only':'blocked_unverified'));
+    if(successfulLaneCount<=1&&complete&&picked.enumerable&&source.baseline_completed_at&&picked.priority===effectivePrimaryPriority)await db.from('listings').update({is_active:false}).eq('source_id',source.id).eq('is_active',true).lt('last_seen_at',started);
+    const freshDeliveryMode=source.coverage_strategy==='pagination'?meta.freshness_mode:(successfulLaneCount>1?'primary_plus_additive_new_only':(trustedSnapshot?'complete_snapshot':'blocked_unverified'));
     await markSuccess(source,started,picked,cands.length,saved.fresh,{strategy:source.coverage_strategy,fresh_delivery_mode:freshDeliveryMode,complete,multi_connector:successfulLaneCount>1,connector_success_count:successfulLaneCount,...meta});
     return{ok:true,source_id:source.id,fetched:cands.length,new:saved.fresh,complete,multi_connector:successfulLaneCount>1,connector_success_count:successfulLaneCount};
   }catch(e){return markFailure(source,started,e)}
