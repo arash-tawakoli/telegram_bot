@@ -416,7 +416,7 @@ async function run(token: string) {
     const { data, error } = await db
       .from("delivery_events")
       .select(
-        "id,status,dispatch_attempts,next_retry_at,created_at,search_profiles!inner(id,profile_slot,property_types,max_warm_rent,min_rooms,min_area_sqm,districts,location_mode,boroughs,neighborhoods,is_active,bot_users!inner(id,chat_id,is_active,ui_language)),listings!inner(*,sources(button_label,source_type))",
+        "id,status,dispatch_attempts,next_retry_at,created_at,search_profiles!inner(id,profile_slot,property_types,max_warm_rent,min_rooms,min_area_sqm,districts,location_mode,boroughs,neighborhoods,is_active,bot_users!inner(id,chat_id,is_active,ui_language,plan_override)),listings!inner(*,sources(button_label,source_type))",
       )
       .in("status", ["pending", "failed"])
       .lt("dispatch_attempts", 5)
@@ -442,7 +442,13 @@ async function run(token: string) {
         u = p?.bot_users,
         base = e.listings,
         l = await enrichDetails(base, detailCache),
-        premium = premiumUsers.has(String(u?.id || ""));
+        stripePremium = premiumUsers.has(String(u?.id || "")),
+        premium =
+          u?.plan_override === "premium"
+            ? true
+            : u?.plan_override === "free"
+              ? false
+              : stripePremium;
       if (l.warm_rent != null && base.warm_rent == null) totals.enriched++;
       if (
         !p?.is_active ||
