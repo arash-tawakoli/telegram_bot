@@ -95,3 +95,22 @@ begin
   return v_group;
 end;
 $function$;
+
+update public.source_connectors
+set label='Immowelt Vonovia Provider Mirror',
+    connector_kind='html_discovery',
+    enumerable=false,
+    enabled=true,
+    shadow_only=false,
+    config=jsonb_build_object('provider','Vonovia Kundenservice GmbH','transport','immowelt_hamburg_borough_frontpages')
+where source_id=5 and priority=1;
+
+update public.source_connectors
+set enabled=false,shadow_only=true
+where source_id=5 and priority in (2,3);
+
+update public.sources
+set search_url='https://www.vonovia.de/zuhause-finden',
+    coverage_strategy='provider_mirror',
+    updated_at=now()
+where id=5;
