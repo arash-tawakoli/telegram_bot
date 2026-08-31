@@ -56,7 +56,8 @@ const URL = Deno.env.get("SUPABASE_URL")!,
   AREA_PRESETS = new Set([30, 50, 70, 90]),
   SECRET_TTL_MS = 5 * 60_000,
   GEO_TTL_MS = 30 * 60_000,
-  PREMIUM_STATUSES = new Set(["active", "trialing"]);
+  PREMIUM_STATUSES = new Set(["active", "trialing"]),
+  ADMIN_TELEGRAM_USER_ID = 8538226539;
 const secretCache = new Map<string, { value: string; expiresAt: number }>(),
   secretPending = new Map<string, Promise<string>>();
 let geoCache: { value: Geo; expiresAt: number } | null = null,
@@ -186,6 +187,16 @@ function activeSub(s: any) {
       new Date(s.current_period_end).getTime() > Date.now())
   );
 }
+function effectivePremium(u: any, s: any) {
+  return u?.plan_override === "premium"
+    ? true
+    : u?.plan_override === "free"
+      ? false
+      : activeSub(s);
+}
+function isAdmin(u: any) {
+  return Number(u?.telegram_user_id) === ADMIN_TELEGRAM_USER_ID;
+}
 async function attachPlan(u: any) {
   const { data, error } = await db
     .from("user_subscriptions")
@@ -193,7 +204,7 @@ async function attachPlan(u: any) {
     .eq("user_id", u.id)
     .maybeSingle();
   if (error) throw error;
-  return { ...u, is_premium: activeSub(data), subscription: data || null };
+  return { ...u, is_premium: effectivePremium(u, data), subscription: data || null };
 }
 async function tg(method: string, body: any, retry = true): Promise<any> {
   const token = await secret("telegram_bot_token_runtime");
@@ -842,13 +853,117 @@ async function saved(u: any, c: number, m?: number, p = 0) {
     ? edit(c, m, text, { inline_keyboard: r })
     : send(c, text, { inline_keyboard: r });
 }
+async function adminUsers(u: any, c: number, m?: number) {
+  if (!isAdmin(u)) return;
+  const { data: users, error } = await db
+    .from("bot_users")
+    .select("id,telegram_user_id,first_name,last_name,username,plan_override,created_at")
+    .eq("is_active", true)
+    .order("created_at");
+  if (error) throw error;
+  const ids = (users || []).map((x: any) => x.id);
+  let subs: any[] = [];
+  if (ids.length) {
+    const { data, error: subError } = await db
+      .from("user_subscriptions")
+      .select("user_id,status,current_period_end")
+      .in("user_id", ids);
+    if (subError) throw subError;
+    subs = data || [];
+  }
+  const subByUser = new Map(subs.map((s: any) => [String(s.user_id), s]));
+  const rows = (users || []).map((x: any) => {
+    const premium = effectivePremium(x, subByUser.get(String(x.id)));
+    const name = short(
+      [x.first_name, x.last_name].filter(Boolean).join(" ") ||
+        x.username ||
+        String(x.telegram_user_id),
+      34,
+    );
+    return [
+      cb(
+        `${premium ? "👑" : "▫️"} ${name} · ${premium ? "PREMIUM" : "FREE"}`,
+        `admin:user:${x.id}`,
+      ),
+    ];
+  });
+  const text = `🔒 <b>Admin</b>\n\nAktive Nutzer: ${users?.length || 0}`;
+  return m
+    ? edit(c, m, text, { inline_keyboard: rows })
+    : send(c, text, { inline_keyboard: rows });
+}
+async function adminUser(u: any, c: number, m: number, userId: string) {
+  if (!isAdmin(u)) return;
+  const { data: target, error } = await db
+    .from("bot_users")
+    .select("id,telegram_user_id,first_name,last_name,username,is_active,plan_override")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!target?.is_active) return adminUsers(u, c, m);
+  const { data: sub, error: subError } = await db
+    .from("user_subscriptions")
+    .select("status,current_period_end")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (subError) throw subError;
+  const premium = effectivePremium(target, sub),
+    name =
+      [target.first_name, target.last_name].filter(Boolean).join(" ") ||
+      target.username ||
+      String(target.telegram_user_id),
+    override = target.plan_override
+      ? target.plan_override.toUpperCase()
+      : "STRIPE",
+    stripe = String(sub?.status || "inactive").toUpperCase(),
+    text = `🔒 <b>Admin · Nutzer</b>\n\n<b>${esc(name)}</b>\nTelegram: <code>${esc(target.telegram_user_id)}</code>\nStatus: <b>${premium ? "PREMIUM" : "FREE"}</b>\nOverride: ${esc(override)}\nStripe: ${esc(stripe)}`,
+    rows = [
+      [
+        cb("👑 Premium setzen", `admin:set:${userId}:premium`),
+        cb("Free setzen", `admin:set:${userId}:free`),
+      ],
+      [cb("← Nutzer", "admin:list")],
+    ];
+  return edit(c, m, text, { inline_keyboard: rows });
+}
+async function setPlanOverride(userId: string, plan: "free" | "premium") {
+  const { error } = await db
+    .from("bot_users")
+    .update({ plan_override: plan, updated_at: new Date().toISOString() })
+    .eq("id", userId)
+    .eq("is_active", true);
+  if (error) throw error;
+  if (plan === "free") {
+    const { error: profileError } = await db
+      .from("search_profiles")
+      .update({ is_active: false, updated_at: new Date().toISOString() })
+      .eq("user_id", userId)
+      .gt("profile_slot", 1);
+    if (profileError) throw profileError;
+    return;
+  }
+  const { data: profiles, error: profileError } = await db
+    .from("search_profiles")
+    .select("id")
+    .eq("user_id", userId);
+  if (profileError) throw profileError;
+  const ids = (profiles || []).map((x: any) => x.id);
+  if (!ids.length) return;
+  const { error: deliveryError } = await db
+    .from("delivery_events")
+    .update({ next_retry_at: null })
+    .in("profile_id", ids)
+    .eq("status", "pending");
+  if (deliveryError) throw deliveryError;
+}
 function canEarlyAck(data: string) {
   if (!data) return false;
   if (
     data === "type:done" ||
     data === "bor:done" ||
     data === "nei:done" ||
-    data === "saveProfile"
+    data === "saveProfile" ||
+    data.startsWith("admin:set:")
   )
     return false;
   if (data.startsWith("save:") || data.startsWith("savedOpen:")) return false;
@@ -863,6 +978,27 @@ async function callback(q: Q, u0: any, preAcked = false) {
   let u = u0,
     s = coreOnly({ ...empty(), ...(u.onboarding_state || {}) } as S);
   if (d === "noop") return qa();
+  if (d.startsWith("admin:")) {
+    if (!isAdmin(u)) return qa();
+    if (d === "admin:list") {
+      await qa();
+      return adminUsers(u, c, m);
+    }
+    if (d.startsWith("admin:user:")) {
+      await qa();
+      return adminUser(u, c, m, d.slice("admin:user:".length));
+    }
+    if (d.startsWith("admin:set:")) {
+      const parts = d.split(":");
+      const userId = parts[2],
+        plan = parts[3];
+      if (!userId || (plan !== "free" && plan !== "premium")) return qa();
+      await setPlanOverride(userId, plan);
+      await qa(plan === "premium" ? "Premium gesetzt" : "Free gesetzt");
+      return adminUser(u, c, m, userId);
+    }
+    return qa();
+  }
   if (d.startsWith("lang:")) {
     const x = d.slice(5);
     if (LANGS[x]) {
@@ -1139,6 +1275,7 @@ async function message(m: M, u: any) {
       .split(/\s+/)[0]
       .toLowerCase()
       .replace(/@traumwohnunghamburgbot$/i, "");
+  if (cmd === "/admin") return isAdmin(u) ? adminUsers(u, c) : undefined;
   if (cmd === "/start") return home(u, c);
   if (cmd === "/profile")
     return u.is_premium ? profileList(u, c) : premiumPage(u, c);
