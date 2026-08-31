@@ -91,10 +91,22 @@ async function apply(userId: string, patch: any, eventCreated: number) {
     .from("user_subscriptions")
     .upsert(row, { onConflict: "user_id" });
   if (error) throw error;
-  const premium =
+  const stripePremium =
     ACTIVE.has(String(row.status || old?.status || "")) &&
     (!row.current_period_end ||
       new Date(row.current_period_end).getTime() > Date.now());
+  const { data: user, error: userError } = await db
+    .from("bot_users")
+    .select("plan_override")
+    .eq("id", userId)
+    .maybeSingle();
+  if (userError) throw userError;
+  const premium =
+    user?.plan_override === "premium"
+      ? true
+      : user?.plan_override === "free"
+        ? false
+        : stripePremium;
   if (premium) {
     const { data: profiles, error: profileError } = await db
       .from("search_profiles")
