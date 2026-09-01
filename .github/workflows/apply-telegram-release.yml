@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - .release/telegram_release_payload.tar.xz.b64
+      - .release/telegram_release_payload.part.*
 
 permissions:
   contents: write
@@ -25,8 +25,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          base64 --decode .release/telegram_release_payload.tar.xz.b64 > /tmp/telegram-release.tar.xz
-          echo "5a6ce38cf98ff7dece3c9a84cbde691716837dddfe2ac02307332ccc50efa5a9  /tmp/telegram-release.tar.xz" | sha256sum --check
+          cat .release/telegram_release_payload.part.* > /tmp/telegram-release.b64
+          base64 --decode /tmp/telegram-release.b64 > /tmp/telegram-release.tar.xz
+          echo "2a8c49e3a2f9cefb64e13f851fe8b836c9afb6bbb23ad7266c3a337e278d2aed  /tmp/telegram-release.tar.xz" | sha256sum --check
+          xz --test /tmp/telegram-release.tar.xz
           tar -xJf /tmp/telegram-release.tar.xz
           rm -rf .release
           rm -f .github/workflows/apply-telegram-release.yml
