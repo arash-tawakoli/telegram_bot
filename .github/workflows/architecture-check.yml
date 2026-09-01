@@ -31,6 +31,9 @@ jobs:
           test -f supabase/functions/kleinanzeigen-transport/index.ts
           test -f supabase/functions/notification-dispatcher/index.ts
           test -f supabase/functions/telegram-ui/index.ts
+          test -f supabase/functions/telegram-gateway/index.ts
+          test ! -d supabase/functions/mini-app
+          test ! -d supabase/static/mini-app
           test -f supabase/migrations/20260829195000_architecture_v3_final_cutover.sql
           test -f supabase/migrations/20260829204000_route_cron_to_canonical_source_worker.sql
           test -f supabase/migrations/20260829204100_restore_master_tier_gartenstadt_wandsbek.sql
@@ -52,6 +55,18 @@ jobs:
           grep -q "immosolve_api" supabase/seed.sql
           if grep -q "immomio_graphql" supabase/seed.sql; then
             echo 'Legacy Immomio connector kind remains in seed.' >&2
+            exit 1
+          fi
+
+      - name: Reject Mini App runtime references
+        run: |
+          if grep -RInE \
+            '(MINI_APP_URL|functions/v1/mini-app|traumwohnung-mini-app\.vercel\.app|web_app)' \
+            supabase/functions/telegram-ui \
+            supabase/functions/telegram-gateway \
+            supabase/config.toml \
+            docs/product-releases-2026-09-01.md; then
+            echo 'Mini App reference remains in the command runtime.' >&2
             exit 1
           fi
 
