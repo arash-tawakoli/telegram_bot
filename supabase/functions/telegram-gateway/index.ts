@@ -8,7 +8,6 @@ const db = createClient(SUPABASE_URL, ADMIN_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 const CORE_URL = `${SUPABASE_URL}/functions/v1/telegram-ui`;
-const MINI_APP_URL = "https://traumwohnung-mini-app.vercel.app";
 const STRIPE_API_VERSION = "2026-06-24.dahlia";
 
 async function secret(name: string, required = true) {
@@ -360,11 +359,7 @@ async function setMenuButton(chatId: number) {
   try {
     await telegram("setChatMenuButton", {
       chat_id: chatId,
-      menu_button: {
-        type: "web_app",
-        text: "Wohnungssuche",
-        web_app: { url: MINI_APP_URL },
-      },
+      menu_button: { type: "commands" },
     });
   } catch (error) {
     console.error("set_chat_menu_button", error);

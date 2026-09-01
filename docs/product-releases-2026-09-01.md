@@ -8,8 +8,6 @@ This release finalizes the code and database implementation of releases A–E wh
 - `notification-dispatcher`: recipient-aware delivery, profile matching, quiet hours, digests, daily limits, feedback/mutes, change messages, and non-blocking map routes.
 - `stripe-webhook`: signed and idempotent Stripe lifecycle processing.
 - `billing-maintenance`: retryable referral-credit processing.
-- `mini-app`: Telegram `initData` verification and the Mini App JSON API.
-- Mini App frontend: `https://traumwohnung-mini-app.vercel.app`.
 
 ## Required Stripe configuration
 
@@ -29,9 +27,6 @@ No paid Google Routes or Geocoding API has been enabled. Pendelziel links use Go
 
 ## Verification
 
-- Vercel Mini App HTML and JavaScript return HTTP 200 with CSP headers.
-- Invalid Telegram Mini App authentication returns HTTP 401.
-- A correctly signed current Telegram `initData` bootstrap returns HTTP 200.
 - Stripe webhook event claiming returns `busy` for a concurrent duplicate and `duplicate` after completion.
-- Telegram global menu button points to the Vercel Mini App.
+- Telegram navigation uses the native slash-command menu.
 - Supabase security and performance advisors contain no new warning or error findings; remaining notices are informational.
