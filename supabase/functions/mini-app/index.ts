@@ -483,19 +483,11 @@ async function api(req: Request, user: any) {
     });
     if (error) return json({ error: error.message }, 400);
     return json({ url: `https://t.me/traumwohnunghamburgbot?start=join_${token}` });
-  } else if (path === "unmute") {
-    const { error } = await db
-      .from("user_source_mutes")
-      .delete()
-      .eq("user_id", user.id)
-      .eq("source_id", Number(body.source_id));
-    if (error) return json({ error: error.message }, 400);
   } else {
     return json({ error: "unknown" }, 404);
   }
   return json({ ok: true });
 }
-
 
 const MINI_APP_URL = "https://traumwohnung-mini-app.vercel.app";
 
