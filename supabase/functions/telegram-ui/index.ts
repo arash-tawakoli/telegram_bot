@@ -47,9 +47,9 @@ const PROPERTY_TYPES: PropertyType[] = [
   "WG",
   "Tauschwohnung",
 ];
-const RENT_PRESETS = new Set([800, 1000, 1250, 1500]);
+const RENT_PRESETS = new Set([800, 1000, 1250, 2000]);
 const ROOM_PRESETS = new Set([1, 2, 3, 4]);
-const AREA_PRESETS = new Set([30, 50, 70, 90]);
+const AREA_PRESETS = new Set([20, 50, 70, 90]);
 const NEIGHBORHOODS_PER_PAGE = 10;
 const SECRET_TTL_MS = 5 * 60_000;
 const GEO_TTL_MS = 30 * 60_000;
@@ -323,40 +323,43 @@ function homeKeyboard(user: any) {
     rows.push([button("▶️ Entwurf fortsetzen", "draft")]);
   }
   rows.push(
-    [button("🔎 Suchprofil", "profile")],
-    [button("💾 Gespeichert", "saved")],
     [
-      button("⚙️ Einstellungen", "settings"),
-      button("❓ Hilfe", "help"),
+      button("🔎 Suchprofil", "profile"),
+      button("❤️ Gespeichert", "saved"),
     ],
     [
       button(
         user.is_premium ? "👑 Premium aktiv" : "👑 Premium",
         "premium",
       ),
+      button("⚙️ Einstellungen", "settings"),
+    ],
+    [
+      button("📡 Status", "status"),
+      button("❓ Hilfe", "help"),
     ],
   );
   return { inline_keyboard: rows };
 }
 
 const HELP_TEXT =
-  "❓ <b>Hilfe</b>\n\n" +
-  "/start – Startmenü\n" +
-  "/suche – Suchprofil erstellen oder ersetzen\n" +
-  "/profile – Suchprofil anzeigen\n" +
-  "/gespeichert – gespeicherte Inserate\n" +
-  "/einstellungen – Einstellungen\n" +
-  "/pause – Suche pausieren\n" +
-  "/resume – Suche fortsetzen\n" +
-  "/status – Systemstatus\n" +
-  "/premium – Premium anzeigen\n" +
-  "/hilfe – Hilfe";
+  "❓ <b>Hilfe & Befehle</b>\n\n" +
+  "🏠 /start – Startmenü\n" +
+  "🔎 /suche – Suchprofil erstellen oder ersetzen\n" +
+  "👤 /profile – Suchprofil anzeigen\n" +
+  "❤️ /gespeichert – gespeicherte Inserate\n" +
+  "⚙️ /einstellungen – Einstellungen\n" +
+  "⏸ /pause – Suche pausieren\n" +
+  "▶️ /resume – Suche fortsetzen\n" +
+  "📡 /status – Systemstatus\n" +
+  "👑 /premium – Premium anzeigen\n" +
+  "❓ /hilfe – Hilfe";
 
 function home(user: any, chatId: number, messageId?: number) {
   const text =
     "🏠 <b>Traumwohnung Hamburg</b>\n\n" +
-    "Die Bedienung läuft vollständig über Telegram-Befehle und Buttons.\n\n" +
-    "Nutze /suche, um dein Suchprofil zu erstellen oder zu ersetzen.";
+    "Finde passende Mietangebote in Hamburg – automatisch und direkt per Telegram.\n\n" +
+    "Wähle unten, was du machen möchtest.";
   return messageId
     ? edit(chatId, messageId, text, homeKeyboard(user))
     : send(chatId, text, homeKeyboard(user));
@@ -533,7 +536,7 @@ async function renderRent(
   return edit(chatId, messageId, "3/5 · <b>Maximale Warmmiete</b>", {
     inline_keyboard: [
       [button("800 €", "rent:800"), button("1.000 €", "rent:1000")],
-      [button("1.250 €", "rent:1250"), button("1.500 €", "rent:1500")],
+      [button("1.250 €", "rent:1250"), button("2.000 €", "rent:2000")],
       [button("✏️ Eigener Betrag", "rent:custom")],
       backRow("location"),
       cancelRow(),
@@ -582,7 +585,7 @@ async function renderArea(
   await saveState(user.id, "area", draft);
   return edit(chatId, messageId, "5/5 · <b>Mindestfläche</b>", {
     inline_keyboard: [
-      [button("30 m²", "area:30"), button("50 m²", "area:50")],
+      [button("20 m²", "area:20"), button("50 m²", "area:50")],
       [button("70 m²", "area:70"), button("90 m²", "area:90")],
       backRow("rooms"),
       cancelRow(),
@@ -745,7 +748,7 @@ async function profile(user: any, chatId: number, messageId?: number) {
     const markup = {
       inline_keyboard: [
         [button("➕ Erstellen", "new")],
-        [button("← Start", "home")],
+        [button("← Zurück", "home")],
       ],
     };
     return messageId
@@ -768,14 +771,14 @@ async function profile(user: any, chatId: number, messageId?: number) {
     `Fläche: ${esc(data.min_area_sqm ?? "–")} m²+`;
   const markup = {
     inline_keyboard: [
-      [button("✏️ Ersetzen", "new")],
+      [button("✏️ Suchprofil ändern", "new")],
       [
         button(
           data.is_active ? "⏸ Pausieren" : "▶️ Fortsetzen",
           data.is_active ? "pause" : "resume",
         ),
       ],
-      [button("← Start", "home")],
+      [button("← Zurück", "home")],
     ],
   };
   return messageId
@@ -787,14 +790,21 @@ async function premium(user: any, chatId: number, messageId?: number) {
   const rows: any[] = [];
   let text: string;
   if (user.is_premium) {
-    text = "👑 <b>Premium aktiv</b>\n\nAlle Premium-Funktionen sind aktiv.";
+    text =
+      "👑 <b>Traumwohnung Premium</b>\n\n" +
+      "✅ <b>Premium ist aktiv.</b>\n\n" +
+      "<b>Deine Vorteile:</b>\n" +
+      "⚡ Sofortige Zustellung\n" +
+      "🏢 Alle Quellen inkl. Baugenossenschaften\n" +
+      "❤️ Inserate speichern";
     rows.push([button("💳 Abo verwalten", "portal")]);
   } else {
     text =
       "👑 <b>Traumwohnung Premium</b>\n\n" +
-      "✅ Alle Quellen inkl. Baugenossenschaften\n" +
-      "✅ Sofortige Zustellung\n" +
-      "✅ Inserate speichern\n\n" +
+      "<b>Deine Vorteile:</b>\n" +
+      "⚡ Sofortige Zustellung\n" +
+      "🏢 Alle Quellen inkl. Baugenossenschaften\n" +
+      "❤️ Inserate speichern\n\n" +
       "<b>0,99 € / Monat</b>\n" +
       "Keine Mindestlaufzeit · jederzeit kündbar";
     rows.push([
@@ -804,7 +814,7 @@ async function premium(user: any, chatId: number, messageId?: number) {
       },
     ]);
   }
-  rows.push([button("← Start", "home")]);
+  rows.push([button("← Zurück", "home")]);
   const markup = { inline_keyboard: rows };
   return messageId
     ? edit(chatId, messageId, text, markup)
@@ -823,14 +833,14 @@ async function saved(user: any, chatId: number, messageId?: number) {
   if (error) throw error;
 
   if (!data?.length) {
-    const text = "💾 <b>Gespeicherte Inserate</b>\n\nNoch keine Inserate gespeichert.";
-    const markup = { inline_keyboard: [[button("← Start", "home")]] };
+    const text = "❤️ <b>Gespeicherte Inserate</b>\n\nNoch keine Inserate gespeichert.";
+    const markup = { inline_keyboard: [[button("← Zurück", "home")]] };
     return messageId
       ? edit(chatId, messageId, text, markup)
       : send(chatId, text, markup);
   }
 
-  const lines = ["💾 <b>Gespeicherte Inserate</b>", ""];
+  const lines = ["❤️ <b>Gespeicherte Inserate</b>", ""];
   const rows: any[] = [];
   for (const [index, row] of data.entries()) {
     const listing: any = row.listings || {};
@@ -846,7 +856,7 @@ async function saved(user: any, chatId: number, messageId?: number) {
       // Ignore malformed historic listing URLs.
     }
   }
-  rows.push([button("← Start", "home")]);
+  rows.push([button("← Zurück", "home")]);
   const markup = { inline_keyboard: rows };
   return messageId
     ? edit(chatId, messageId, lines.join("\n"), markup)
@@ -871,11 +881,11 @@ async function renderStatus(user: any, chatId: number, messageId?: number) {
   if (sourceResult.error) throw sourceResult.error;
 
   const text =
-    "📡 <b>Status</b>\n\n" +
-    `Aktives Suchprofil: ${profileResult.count ? "ja" : "nein"}\n` +
-    `Aktive Quellen: ${sourceResult.count || 0}\n` +
-    "System: online";
-  const markup = { inline_keyboard: [[button("← Start", "home")]] };
+    "📡 <b>Systemstatus</b>\n\n" +
+    `🔎 Suchprofil: ${profileResult.count ? "aktiv" : "inaktiv"}\n` +
+    `🌐 Aktive Quellen: ${sourceResult.count || 0}\n` +
+    "✅ System: online";
+  const markup = { inline_keyboard: [[button("← Zurück", "home")]] };
   return messageId
     ? edit(chatId, messageId, text, markup)
     : send(chatId, text, markup);
@@ -1159,13 +1169,18 @@ async function referralPage(user: any, chatId: number, messageId?: number) {
 }
 
 async function settings(user: any, chatId: number, messageId?: number) {
-  const text = "⚙️ <b>Einstellungen</b>\n\nDie Bedienung erfolgt über Befehle und Buttons.";
+  const text =
+    "⚙️ <b>Einstellungen</b>\n\n" +
+    "Verwalte hier deine Suche, Premium und Empfehlungen.";
   const markup = {
     inline_keyboard: [
-      [button("⏸ Pausieren", "pause"), button("▶️ Fortsetzen", "resume")],
-      [button("👑 Premium", "premium")],
-      [button("🎁 Freunde empfehlen", "referral")],
-      [button("← Start", "home")],
+      [
+        button("⏸ Suche pausieren", "pause"),
+        button("▶️ Suche fortsetzen", "resume"),
+      ],
+      [button("👑 Premium", "premium"), button("🎁 Freunde empfehlen", "referral")],
+      [button("📡 Systemstatus", "status")],
+      [button("← Zurück", "home")],
     ],
   };
   return messageId
@@ -1314,7 +1329,7 @@ async function handleCallback(query: any, user: any) {
       await acknowledge(query.id);
       return premium(user, chatId, messageId);
     }
-    return acknowledge(query.id, savedState ? "Gespeichert" : "Entfernt");
+    return acknowledge(query.id, savedState ? "❤️ Gespeichert" : "Entfernt");
   }
 
   await acknowledge(query.id);
@@ -1362,7 +1377,7 @@ async function handleCallback(query: any, user: any) {
   if (data === "referral") return referralPage(user, chatId, messageId);
   if (data === "help") {
     return edit(chatId, messageId, HELP_TEXT, {
-      inline_keyboard: [[button("← Start", "home")]],
+      inline_keyboard: [[button("← Zurück", "home")]],
     });
   }
   if (data === "premium") return premium(user, chatId, messageId);

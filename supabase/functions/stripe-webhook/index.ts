@@ -8,7 +8,7 @@ const db = createClient(SUPABASE_URL, ADMIN_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
-const PAYMENT_LINK_ID = "plink_1UAdHZ2NorDNIWqIYpkB7lRq";
+const PAYMENT_LINK_ID = "plink_1UAy8Z2NorDNIWqI9h5j73q0";
 const ACTIVE_STATUSES = new Set(["active", "trialing"]);
 const STRIPE_API_VERSION = "2026-06-24.dahlia";
 
@@ -424,6 +424,27 @@ Deno.serve(async (req: Request) => {
           eventCreated,
           false,
         );
+        if (paid) {
+          try {
+            await telegramMessage(
+              userId,
+              "🎉 <b>Danke für dein Abo!</b>\n\n" +
+                "👑 Dein Traumwohnung Premium-Abo ist jetzt aktiv.\n\n" +
+                "<b>Ab sofort profitierst du von:</b>\n" +
+                "⚡ Sofortiger Zustellung neuer passender Inserate\n" +
+                "🏢 Allen Quellen inkl. Baugenossenschaften\n" +
+                "❤️ Inserate speichern\n\n" +
+                "Viel Erfolg bei der Wohnungssuche! 🏠",
+              {
+                inline_keyboard: [[
+                  { text: "🏠 Zum Menü", callback_data: "home" },
+                ]],
+              },
+            );
+          } catch (noticeError) {
+            console.error("premium_activation_notice", noticeError);
+          }
+        }
         const { error: referralError } = await db
           .from("referrals")
           .update({
