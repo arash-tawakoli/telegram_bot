@@ -40,7 +40,7 @@ const db = createClient(SUPABASE_URL, SERVICE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
-const PREMIUM_LINK = "https://buy.stripe.com/00w00c7DSgHD6k64z3fYY00";
+const PREMIUM_LINK = "https://buy.stripe.com/dRm9AM7DSajfgYK2qVfYY01";
 const PROPERTY_TYPES: PropertyType[] = [
   "Wohnung",
   "Haus",
@@ -795,7 +795,7 @@ async function premium(user: any, chatId: number, messageId?: number) {
       "✅ Alle Quellen inkl. Baugenossenschaften\n" +
       "✅ Sofortige Zustellung\n" +
       "✅ Inserate speichern\n\n" +
-      "<b>4,99 € / Monat</b>\n" +
+      "<b>0,99 € / Monat</b>\n" +
       "Keine Mindestlaufzeit · jederzeit kündbar";
     rows.push([
       {
