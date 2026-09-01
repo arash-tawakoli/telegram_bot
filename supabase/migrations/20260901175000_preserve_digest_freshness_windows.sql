@@ -70,7 +70,6 @@ begin
         end
     from public.listings l
     join public.sources s on s.id = l.source_id
-    left join public.notification_preferences np on np.profile_id = de.profile_id
     where l.id = de.listing_id
       and de.event_type = 'new_listing'
       and de.status in ('pending', 'failed')
@@ -80,7 +79,14 @@ begin
         or not coalesce(l.is_active, false)
         or not coalesce(l.fresh_delivery_eligible, false)
         or de.created_at - l.first_seen_at > interval '3 hours'
-        or now() - l.first_seen_at > case coalesce(np.delivery_mode, 'instant')
+        or now() - l.first_seen_at > case coalesce(
+          (
+            select np.delivery_mode
+            from public.notification_preferences np
+            where np.profile_id = de.profile_id
+          ),
+          'instant'
+        )
           when 'daily_digest' then interval '26 hours'
           when 'hourly_digest' then interval '4 hours'
           else interval '3 hours'
