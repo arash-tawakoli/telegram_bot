@@ -440,13 +440,6 @@ Deno.serve(async (req: Request) => {
       eventType === "customer.subscription.deleted"
     ) {
       await applySubscriptionObject(object, eventCreated);
-    } else if (
-      eventType === "invoice.paid" &&
-      String(object.billing_reason || "") === "subscription_cycle"
-    ) {
-      const customerId = stripeId(object.customer);
-      const subscription = await existingSubscription(undefined, undefined, customerId);
-      if (subscription) await qualifyReferral(String(subscription.user_id));
     } else if (eventType === "invoice.payment_failed") {
       const customerId = stripeId(object.customer);
       const subscription = await existingSubscription(undefined, undefined, customerId);
