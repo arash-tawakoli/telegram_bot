@@ -1,0 +1,17 @@
+[functions.telegram-ui]
+verify_jwt = false
+
+[functions.telegram-gateway]
+verify_jwt = false
+
+[functions.notification-dispatcher]
+verify_jwt = false
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.billing-maintenance]
+verify_jwt = false
+
+[functions.mini-app]
+verify_jwt = false

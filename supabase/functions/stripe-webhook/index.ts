@@ -1,112 +1,166 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.112.4";
 
-const URL = Deno.env.get("SUPABASE_URL")!;
-const KEYS = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") || "{}");
-const db = createClient(
-  URL,
-  KEYS.default || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  { auth: { persistSession: false, autoRefreshToken: false } },
-);
-const PAYMENT_LINK_ID = "plink_1UAdHZ2NorDNIWqIYpkB7lRq";
-const ACTIVE = new Set(["active", "trialing"]);
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SECRET_KEYS = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") || "{}");
+const ADMIN_KEY = SECRET_KEYS.default || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const db = createClient(SUPABASE_URL, ADMIN_KEY, {
+  auth: { persistSession: false, autoRefreshToken: false },
+});
 
-async function secret(name: string) {
+const PAYMENT_LINK_ID = "plink_1UAdHZ2NorDNIWqIYpkB7lRq";
+const ACTIVE_STATUSES = new Set(["active", "trialing"]);
+const STRIPE_API_VERSION = "2026-06-24.dahlia";
+
+async function requiredSecret(name: string) {
   const { data, error } = await db.rpc("get_bot_secret", { secret_name: name });
   if (error || !data) throw new Error(`secret ${name} unavailable`);
   return String(data);
 }
-function hex(a: ArrayBuffer) {
-  return [...new Uint8Array(a)]
-    .map((x) => x.toString(16).padStart(2, "0"))
+
+async function optionalSecret(name: string) {
+  const { data, error } = await db.rpc("get_bot_secret", { secret_name: name });
+  if (error || !data) return null;
+  return String(data);
+}
+
+function hex(buffer: ArrayBuffer) {
+  return [...new Uint8Array(buffer)]
+    .map((value) => value.toString(16).padStart(2, "0"))
     .join("");
 }
-function equal(a: string, b: string) {
+
+function timingSafeEqual(a: string, b: string) {
   if (a.length !== b.length) return false;
-  let x = 0;
-  for (let i = 0; i < a.length; i++) x |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return x === 0;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return result === 0;
 }
-async function verify(body: string, header: string, whsec: string) {
-  const parts = header.split(","),
-    t = parts.find((x) => x.startsWith("t="))?.slice(2),
-    sigs = parts.filter((x) => x.startsWith("v1=")).map((x) => x.slice(3));
-  if (!t || !sigs.length || Math.abs(Date.now() / 1000 - Number(t)) > 300)
+
+async function verifyStripeSignature(body: string, header: string, secret: string) {
+  const parts = header.split(",");
+  const timestamp = parts.find((part) => part.startsWith("t="))?.slice(2);
+  const signatures = parts
+    .filter((part) => part.startsWith("v1="))
+    .map((part) => part.slice(3));
+  if (
+    !timestamp ||
+    !signatures.length ||
+    Math.abs(Date.now() / 1000 - Number(timestamp)) > 300
+  ) {
     return false;
+  }
+
   const key = await crypto.subtle.importKey(
     "raw",
-    new TextEncoder().encode(whsec),
+    new TextEncoder().encode(secret),
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"],
   );
-  const mac = hex(
+  const expected = hex(
     await crypto.subtle.sign(
       "HMAC",
       key,
-      new TextEncoder().encode(`${t}.${body}`),
+      new TextEncoder().encode(`${timestamp}.${body}`),
     ),
   );
-  return sigs.some((s) => equal(mac, s));
+  return signatures.some((signature) => timingSafeEqual(expected, signature));
 }
-function period(v: any) {
-  const n = Number(v);
-  return Number.isFinite(n) && n > 0 ? new Date(n * 1000).toISOString() : null;
+
+function isoFromUnix(value: unknown) {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0
+    ? new Date(n * 1000).toISOString()
+    : null;
 }
-function validUser(v: any) {
+
+function validUuid(value: unknown) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    String(v || ""),
+    String(value || ""),
   );
 }
 
-async function existingFor(
+function stripeId(value: any) {
+  return typeof value === "string" ? value : String(value?.id || "");
+}
+
+async function existingSubscription(
   userId?: string,
-  subId?: string,
+  subscriptionId?: string,
   customerId?: string,
 ) {
-  let q = db.from("user_subscriptions").select("*");
-  if (userId) q = q.eq("user_id", userId);
-  else if (subId && customerId)
-    q = q.or(
-      `stripe_subscription_id.eq.${subId},stripe_customer_id.eq.${customerId}`,
+  let query = db.from("user_subscriptions").select("*");
+  if (userId) query = query.eq("user_id", userId);
+  else if (subscriptionId && customerId) {
+    query = query.or(
+      `stripe_subscription_id.eq.${subscriptionId},stripe_customer_id.eq.${customerId}`,
     );
-  else if (subId) q = q.eq("stripe_subscription_id", subId);
-  else if (customerId) q = q.eq("stripe_customer_id", customerId);
-  else return null;
-  const { data, error } = await q.limit(1).maybeSingle();
+  } else if (subscriptionId) {
+    query = query.eq("stripe_subscription_id", subscriptionId);
+  } else if (customerId) {
+    query = query.eq("stripe_customer_id", customerId);
+  } else {
+    return null;
+  }
+  const { data, error } = await query.limit(1).maybeSingle();
   if (error) throw error;
   return data || null;
 }
-async function apply(userId: string, patch: any, eventCreated: number) {
-  const old = await existingFor(userId);
-  if (old && Number(old.last_event_created || 0) > eventCreated) return;
-  const row = {
+
+async function applyEntitlement(
+  userId: string,
+  patch: Record<string, unknown>,
+  eventCreated: number,
+  enforceOrdering = true,
+) {
+  const old = await existingSubscription(userId);
+  if (
+    enforceOrdering &&
+    old &&
+    Number(old.last_event_created || 0) > eventCreated
+  ) {
+    return;
+  }
+
+  const row: any = {
     user_id: userId,
     provider: "stripe",
     ...patch,
-    last_event_created: eventCreated,
+    last_event_created: enforceOrdering
+      ? eventCreated
+      : Number(old?.last_event_created || 0),
     updated_at: new Date().toISOString(),
   };
   const { error } = await db
     .from("user_subscriptions")
     .upsert(row, { onConflict: "user_id" });
   if (error) throw error;
+
+  const status = String(row.status || old?.status || "inactive");
+  const periodEnd = row.current_period_end ?? old?.current_period_end;
   const stripePremium =
-    ACTIVE.has(String(row.status || old?.status || "")) &&
-    (!row.current_period_end ||
-      new Date(row.current_period_end).getTime() > Date.now());
+    ACTIVE_STATUSES.has(status) &&
+    (!periodEnd || new Date(String(periodEnd)).getTime() > Date.now());
+
   const { data: user, error: userError } = await db
     .from("bot_users")
-    .select("plan_override")
+    .select("plan_override,plan_override_expires_at,referral_bonus_until")
     .eq("id", userId)
     .maybeSingle();
   if (userError) throw userError;
-  const premium =
-    user?.plan_override === "premium"
-      ? true
-      : user?.plan_override === "free"
-        ? false
-        : stripePremium;
+
+  const premium = user?.plan_override === "free"
+    ? false
+    : (user?.plan_override === "premium" &&
+        (!user.plan_override_expires_at ||
+          new Date(user.plan_override_expires_at).getTime() > Date.now())) ||
+      (!!user?.referral_bonus_until &&
+        new Date(user.referral_bonus_until).getTime() > Date.now()) ||
+      stripePremium;
+
   if (premium) {
     const { data: profiles, error: profileError } = await db
       .from("search_profiles")
@@ -132,92 +186,300 @@ async function apply(userId: string, patch: any, eventCreated: number) {
     if (profileError) throw profileError;
   }
 }
-async function applySubscription(o: any, eventCreated: number) {
-  const subId = String(o.id || ""),
-    customerId =
-      typeof o.customer === "string"
-        ? o.customer
-        : String(o.customer?.id || "");
-  const old = await existingFor(undefined, subId, customerId);
+
+async function applySubscriptionObject(object: any, eventCreated: number) {
+  const subscriptionId = String(object.id || "");
+  const customerId = stripeId(object.customer);
+  const old = await existingSubscription(undefined, subscriptionId, customerId);
   if (!old || Number(old.last_event_created || 0) > eventCreated) return;
-  const status = String(o.status || old.status || "inactive");
+
+  const itemPeriodEnds = (object.items?.data || []).map((item: any) =>
+    Number(item.current_period_end || 0)
+  );
   const currentPeriodEnd =
-    o.current_period_end ||
-    Math.max(
-      0,
-      ...(o.items?.data || []).map((item: any) =>
-        Number(item.current_period_end || 0),
-      ),
-    );
-  await apply(
+    Number(object.current_period_end || 0) || Math.max(0, ...itemPeriodEnds);
+  await applyEntitlement(
     String(old.user_id),
     {
       stripe_customer_id: customerId || old.stripe_customer_id,
-      stripe_subscription_id: subId || old.stripe_subscription_id,
-      status,
-      current_period_end: period(currentPeriodEnd),
-      cancel_at_period_end: !!o.cancel_at_period_end,
+      stripe_subscription_id: subscriptionId || old.stripe_subscription_id,
+      status: String(object.status || old.status || "inactive"),
+      current_period_end: isoFromUnix(currentPeriodEnd),
+      cancel_at_period_end: !!object.cancel_at_period_end,
     },
     eventCreated,
+    true,
   );
 }
 
-Deno.serve(async (req: Request) => {
-  try {
-    if (req.method !== "POST")
-      return new Response("method not allowed", { status: 405 });
-    const body = await req.text(),
-      sig = req.headers.get("stripe-signature") || "",
-      whsec = await secret("stripe_webhook_signing_secret");
-    if (!(await verify(body, sig, whsec)))
-      return new Response("bad signature", { status: 400 });
-    const e = JSON.parse(body),
-      type = String(e.type || ""),
-      o = e.data?.object || {},
-      created = Number(e.created || 0);
-    if (
-      type === "checkout.session.completed" ||
-      type === "checkout.session.async_payment_succeeded"
-    ) {
-      if (
-        String(o.payment_link || "") !== PAYMENT_LINK_ID ||
-        String(o.metadata?.plan || "") !== "premium_monthly"
-      )
-        return Response.json({ received: true, ignored: true });
-      const userId = String(o.client_reference_id || "");
-      if (!validUser(userId))
-        return Response.json({ received: true, ignored: "missing_user" });
-      const paid =
-        type === "checkout.session.async_payment_succeeded" ||
-        String(o.payment_status || "") === "paid";
-      await apply(
-        userId,
-        {
-          stripe_customer_id:
-            typeof o.customer === "string"
-              ? o.customer
-              : String(o.customer?.id || "") || null,
-          stripe_subscription_id:
-            typeof o.subscription === "string"
-              ? o.subscription
-              : String(o.subscription?.id || "") || null,
-          status: paid ? "active" : "incomplete",
-          current_period_end: null,
-          cancel_at_period_end: false,
-        },
-        created,
-      );
-    } else if (
-      type === "customer.subscription.created" ||
-      type === "customer.subscription.updated" ||
-      type === "customer.subscription.deleted"
+async function telegramMessage(
+  userId: string,
+  text: string,
+  replyMarkup?: Record<string, unknown>,
+) {
+  const { data: user, error } = await db
+    .from("bot_users")
+    .select("chat_id")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!user?.chat_id) return;
+
+  const token = await requiredSecret("telegram_bot_token_runtime");
+  const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      chat_id: user.chat_id,
+      text,
+      parse_mode: "HTML",
+      reply_markup: replyMarkup,
+    }),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || !result.ok) {
+    throw new Error(
+      `Telegram sendMessage ${response.status}: ${String(result?.description || "failed")}`,
+    );
+  }
+}
+
+async function stripePost(
+  apiKey: string,
+  path: string,
+  params: URLSearchParams,
+  idempotencyKey: string,
+) {
+  const response = await fetch(`https://api.stripe.com/v1/${path}`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${apiKey}`,
+      "content-type": "application/x-www-form-urlencoded",
+      "stripe-version": STRIPE_API_VERSION,
+      "idempotency-key": idempotencyKey,
+    },
+    body: params,
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(
+      `Stripe ${response.status}: ${String(result?.error?.message || "request failed")}`,
+    );
+  }
+  return result;
+}
+
+async function processReferralReward(referralId: string) {
+  const apiKey = await optionalSecret("stripe_restricted_api_key");
+  if (!apiKey) return { processed: false, reason: "stripe_key_missing" };
+
+  const { data: referral, error } = await db
+    .from("referrals")
+    .select(
+      "id,referrer_user_id,referred_user_id,status,rewarded_at,reward_amount_cents,stripe_credit_transaction_id",
     )
-      await applySubscription(o, created);
+    .eq("id", referralId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!referral || referral.rewarded_at || referral.status !== "qualified") {
+    return { processed: false, reason: "not_qualified" };
+  }
+
+  const { data: referrerSubscription, error: subscriptionError } = await db
+    .from("user_subscriptions")
+    .select("stripe_customer_id")
+    .eq("user_id", referral.referrer_user_id)
+    .maybeSingle();
+  if (subscriptionError) throw subscriptionError;
+  if (!referrerSubscription?.stripe_customer_id) {
+    return { processed: false, reason: "referrer_customer_missing" };
+  }
+
+  const amount = Math.max(1, Number(referral.reward_amount_cents || 499));
+  const params = new URLSearchParams();
+  params.set("amount", String(-amount));
+  params.set("currency", "eur");
+  params.set("description", "Empfehlungsgutschrift Traumwohnung Premium");
+  params.set("metadata[referral_id]", referral.id);
+  params.set("metadata[referred_user_id]", referral.referred_user_id);
+
+  const transaction = await stripePost(
+    apiKey,
+    `customers/${encodeURIComponent(referrerSubscription.stripe_customer_id)}/balance_transactions`,
+    params,
+    `referral-reward-${referral.id}`,
+  );
+
+  const { error: updateError } = await db
+    .from("referrals")
+    .update({
+      status: "rewarded",
+      rewarded_at: new Date().toISOString(),
+      stripe_credit_transaction_id: String(transaction.id || "") || null,
+    })
+    .eq("id", referral.id)
+    .eq("status", "qualified")
+    .is("rewarded_at", null);
+  if (updateError) throw updateError;
+
+  try {
+    await telegramMessage(
+      referral.referrer_user_id,
+      `🎁 <b>Empfehlungsgutschrift erhalten</b>\n\nDir wurden ${(amount / 100).toFixed(2).replace(".", ",")} € in Stripe gutgeschrieben.`,
+    );
+  } catch (noticeError) {
+    console.error("referral_reward_notice", noticeError);
+  }
+  return { processed: true, transaction_id: transaction.id };
+}
+
+async function qualifyReferral(referredUserId: string) {
+  const { data: referralId, error } = await db.rpc("qualify_referral_reward", {
+    p_referred_user_id: referredUserId,
+  });
+  if (error) throw error;
+  if (!referralId) return;
+  const result = await processReferralReward(String(referralId));
+  if (!result.processed) {
+    console.log(JSON.stringify({ event: "referral_reward_deferred", referralId, ...result }));
+  }
+}
+
+async function claimEvent(eventId: string, eventType: string, eventCreated: number) {
+  const { data, error } = await db.rpc("claim_stripe_webhook_event", {
+    p_event_id: eventId,
+    p_event_type: eventType,
+    p_event_created: eventCreated,
+  });
+  if (error) throw error;
+  return String(data || "");
+}
+
+async function finishEvent(
+  eventId: string,
+  status: "processed" | "failed",
+  errorMessage: string | null = null,
+) {
+  const { error } = await db.rpc("finish_stripe_webhook_event", {
+    p_event_id: eventId,
+    p_status: status,
+    p_error: errorMessage,
+  });
+  if (error) throw error;
+}
+
+Deno.serve(async (req: Request) => {
+  let eventId = "";
+  let claimed = false;
+  try {
+    if (req.method !== "POST") {
+      return new Response("method not allowed", { status: 405 });
+    }
+
+    const body = await req.text();
+    const signature = req.headers.get("stripe-signature") || "";
+    const signingSecret = await requiredSecret("stripe_webhook_signing_secret");
+    if (!(await verifyStripeSignature(body, signature, signingSecret))) {
+      return new Response("bad signature", { status: 400 });
+    }
+
+    const event = JSON.parse(body);
+    eventId = String(event.id || "");
+    const eventType = String(event.type || "");
+    const eventCreated = Number(event.created || 0);
+    const object = event.data?.object || {};
+    if (!eventId) return new Response("missing event id", { status: 400 });
+
+    const claim = await claimEvent(eventId, eventType, eventCreated);
+    if (claim === "duplicate") {
+      return Response.json({ received: true, duplicate: true });
+    }
+    if (claim === "busy") {
+      return Response.json({ received: true, processing: true });
+    }
+    if (claim !== "claimed") throw new Error(`unexpected claim result: ${claim}`);
+    claimed = true;
+
+    if (
+      eventType === "checkout.session.completed" ||
+      eventType === "checkout.session.async_payment_succeeded"
+    ) {
+      const isExpectedCheckout =
+        String(object.payment_link || "") === PAYMENT_LINK_ID &&
+        String(object.metadata?.plan || "") === "premium_monthly";
+      const userId = String(object.client_reference_id || "");
+      if (isExpectedCheckout && validUuid(userId)) {
+        const paid =
+          eventType === "checkout.session.async_payment_succeeded" ||
+          String(object.payment_status || "") === "paid";
+        const customerId = stripeId(object.customer) || null;
+        await applyEntitlement(
+          userId,
+          {
+            stripe_customer_id: customerId,
+            stripe_subscription_id: stripeId(object.subscription) || null,
+            status: paid ? "active" : "incomplete",
+            cancel_at_period_end: false,
+          },
+          eventCreated,
+          false,
+        );
+        const { error: referralError } = await db
+          .from("referrals")
+          .update({
+            status: "subscribed",
+            stripe_customer_id: customerId,
+          })
+          .eq("referred_user_id", userId)
+          .eq("status", "registered");
+        if (referralError) throw referralError;
+      }
+    } else if (
+      eventType === "customer.subscription.created" ||
+      eventType === "customer.subscription.updated" ||
+      eventType === "customer.subscription.deleted"
+    ) {
+      await applySubscriptionObject(object, eventCreated);
+    } else if (
+      eventType === "invoice.paid" &&
+      String(object.billing_reason || "") === "subscription_cycle"
+    ) {
+      const customerId = stripeId(object.customer);
+      const subscription = await existingSubscription(undefined, undefined, customerId);
+      if (subscription) await qualifyReferral(String(subscription.user_id));
+    } else if (eventType === "invoice.payment_failed") {
+      const customerId = stripeId(object.customer);
+      const subscription = await existingSubscription(undefined, undefined, customerId);
+      if (subscription) {
+        await telegramMessage(
+          String(subscription.user_id),
+          "⚠️ <b>Premium-Zahlung fehlgeschlagen</b>\n\nBitte aktualisiere deine Zahlungsmethode über „Abo verwalten“.",
+          {
+            inline_keyboard: [[
+              { text: "💳 Abo verwalten", callback_data: "portal" },
+            ]],
+          },
+        );
+      }
+    }
+
+    await finishEvent(eventId, "processed");
     return Response.json({ received: true });
-  } catch (e) {
-    console.error(e);
+  } catch (error) {
+    console.error(error);
+    if (claimed && eventId) {
+      try {
+        await finishEvent(
+          eventId,
+          "failed",
+          error instanceof Error ? error.message : String(error),
+        );
+      } catch (finishError) {
+        console.error("stripe_webhook_finish_failed", finishError);
+      }
+    }
     return Response.json(
-      { received: false, error: e instanceof Error ? e.message : String(e) },
+      { received: false, error: error instanceof Error ? error.message : String(error) },
       { status: 500 },
     );
   }
