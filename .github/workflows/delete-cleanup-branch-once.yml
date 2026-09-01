@@ -1,0 +1,21 @@
+name: Delete cleanup branch once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/delete-cleanup-branch-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete temporary branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          gh api --method DELETE repos/${{ github.repository }}/git/refs/heads/cleanup/architecture-2026-09-01
