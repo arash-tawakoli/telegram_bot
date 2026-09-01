@@ -1,0 +1,71 @@
+name: Set premium price 0.99 once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/set-premium-price-099-once.yml
+
+permissions:
+  contents: write
+
+env:
+  OLD_LINK: https://buy.stripe.com/00w00c7DSgHD6k64z3fYY00
+  NEW_LINK: https://buy.stripe.com/dRm9AM7DSajfgYK2qVfYY01
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Update Telegram premium price
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          path = Path('supabase/functions/telegram-ui/index.ts')
+          text = path.read_text()
+          old_link = os.environ['OLD_LINK']
+          new_link = os.environ['NEW_LINK']
+
+          if text.count(old_link) != 1:
+              raise SystemExit(f'expected one old premium link, found {text.count(old_link)}')
+          if text.count('4,99 € / Monat') != 1:
+              raise SystemExit(f'expected one old premium price label, found {text.count("4,99 € / Monat")}')
+
+          text = text.replace(old_link, new_link, 1)
+          text = text.replace('4,99 € / Monat', '0,99 € / Monat', 1)
+          path.write_text(text)
+          PY
+
+          grep -q 'https://buy.stripe.com/dRm9AM7DSajfgYK2qVfYY01' supabase/functions/telegram-ui/index.ts
+          grep -q '0,99 € / Monat' supabase/functions/telegram-ui/index.ts
+          if grep -q '4,99 € / Monat' supabase/functions/telegram-ui/index.ts; then
+            echo 'old price label still present' >&2
+            exit 1
+          fi
+          git diff --check
+
+      - name: Export updated Telegram UI
+        uses: actions/upload-artifact@v4
+        with:
+          name: telegram-ui-price-099
+          path: supabase/functions/telegram-ui/index.ts
+          retention-days: 1
+
+      - name: Commit update and remove one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/set-premium-price-099-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add supabase/functions/telegram-ui/index.ts .github/workflows/set-premium-price-099-once.yml
+          git commit -m "Set premium subscription to 0.99 EUR"
+          git push origin HEAD:main
