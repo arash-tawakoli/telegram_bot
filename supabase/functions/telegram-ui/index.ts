@@ -3,6 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2.112.4";
 
 type PropertyType = "Wohnung" | "Haus" | "WG" | "Tauschwohnung";
 type LocationMode = "all_hamburg" | "boroughs" | "neighborhoods";
+type AdminGrant = "free" | "7d" | "30d" | "3m" | "life";
 type OnboardingStep =
   | "types"
   | "location"
@@ -52,6 +53,7 @@ const AREA_PRESETS = new Set([30, 50, 70, 90]);
 const NEIGHBORHOODS_PER_PAGE = 10;
 const SECRET_TTL_MS = 5 * 60_000;
 const GEO_TTL_MS = 30 * 60_000;
+const ADMIN_TELEGRAM_USER_ID = 8538226539;
 
 const secretCache = new Map<string, { value: string; expiresAt: number }>();
 let geoCache: { value: Geography; expiresAt: number } | null = null;
@@ -924,12 +926,245 @@ async function toggleSave(user: any, listingId: string) {
   return true;
 }
 
+function isAdmin(user: any) {
+  return Number(user?.telegram_user_id) === ADMIN_TELEGRAM_USER_ID;
+}
+
+function effectivePremiumFor(user: any, subscription: any) {
+  const now = Date.now();
+  if (user?.plan_override === "free") return false;
+  if (
+    user?.plan_override === "premium" &&
+    (!user.plan_override_expires_at ||
+      new Date(user.plan_override_expires_at).getTime() > now)
+  ) return true;
+  if (
+    user?.referral_bonus_until &&
+    new Date(user.referral_bonus_until).getTime() > now
+  ) return true;
+  return !!subscription &&
+    ["active", "trialing"].includes(String(subscription.status || "")) &&
+    (!subscription.current_period_end ||
+      new Date(subscription.current_period_end).getTime() > now);
+}
+
+function adminGrantLabel(grant: AdminGrant) {
+  return grant === "7d"
+    ? "7 Tage"
+    : grant === "30d"
+    ? "30 Tage"
+    : grant === "3m"
+    ? "3 Monate"
+    : "lebenslang";
+}
+
+function adminGrantExpiry(grant: AdminGrant) {
+  if (grant === "free" || grant === "life") return null;
+  const date = new Date();
+  if (grant === "7d") date.setUTCDate(date.getUTCDate() + 7);
+  else if (grant === "30d") date.setUTCDate(date.getUTCDate() + 30);
+  else date.setUTCMonth(date.getUTCMonth() + 3);
+  return date.toISOString();
+}
+
+function adminOverrideLabel(user: any) {
+  if (user.plan_override === "free") return "FREE";
+  if (user.plan_override !== "premium") return "STRIPE";
+  if (!user.plan_override_expires_at) return "PREMIUM · LEBENSLANG";
+  const until = new Intl.DateTimeFormat("de-DE", {
+    timeZone: "Europe/Berlin",
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date(user.plan_override_expires_at));
+  return `PREMIUM · bis ${until}`;
+}
+
+function adminPremiumNotice(grant: AdminGrant) {
+  return grant === "life"
+    ? "🎁 <b>Kostenloses Premium aktiviert</b>\n\nDu hast kostenlos Premium auf Lebenszeit bekommen. Premium ist ab sofort aktiv."
+    : `🎁 <b>Kostenloses Premium aktiviert</b>\n\nDu hast ${adminGrantLabel(grant)} kostenlos Premium bekommen. Premium ist ab sofort aktiv.`;
+}
+
+async function adminUsers(user: any, chatId: number, messageId?: number) {
+  if (!isAdmin(user)) return;
+  const { data: users, error } = await db
+    .from("bot_users")
+    .select("id,telegram_user_id,first_name,last_name,username,plan_override,plan_override_expires_at,referral_bonus_until,created_at")
+    .eq("is_active", true)
+    .order("created_at");
+  if (error) throw error;
+
+  const ids = (users || []).map((entry: any) => entry.id);
+  let subscriptions: any[] = [];
+  if (ids.length) {
+    const { data, error: subscriptionError } = await db
+      .from("user_subscriptions")
+      .select("user_id,status,current_period_end")
+      .in("user_id", ids);
+    if (subscriptionError) throw subscriptionError;
+    subscriptions = data || [];
+  }
+  const subscriptionByUser = new Map(
+    subscriptions.map((entry: any) => [String(entry.user_id), entry]),
+  );
+  const rows: any[] = (users || []).map((entry: any) => {
+    const premium = effectivePremiumFor(
+      entry,
+      subscriptionByUser.get(String(entry.id)),
+    );
+    const name = short(
+      [entry.first_name, entry.last_name].filter(Boolean).join(" ") ||
+        entry.username ||
+        String(entry.telegram_user_id),
+      34,
+    );
+    return [
+      button(
+        `${premium ? "👑" : "▫️"} ${name} · ${premium ? "PREMIUM" : "FREE"}`,
+        `admin:user:${entry.id}`,
+      ),
+    ];
+  });
+  if (!rows.length) rows.push([button("Keine aktiven Nutzer", "noop")]);
+  const text = `🔒 <b>Admin</b>\n\nAktive Nutzer: ${users?.length || 0}`;
+  const markup = { inline_keyboard: rows };
+  return messageId
+    ? edit(chatId, messageId, text, markup)
+    : send(chatId, text, markup);
+}
+
+async function adminUser(
+  user: any,
+  chatId: number,
+  messageId: number,
+  userId: string,
+) {
+  if (!isAdmin(user)) return;
+  const { data: target, error } = await db
+    .from("bot_users")
+    .select("id,telegram_user_id,chat_id,first_name,last_name,username,is_active,plan_override,plan_override_expires_at,referral_bonus_until")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!target?.is_active) return adminUsers(user, chatId, messageId);
+
+  const { data: subscription, error: subscriptionError } = await db
+    .from("user_subscriptions")
+    .select("status,current_period_end,cancel_at_period_end")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (subscriptionError) throw subscriptionError;
+
+  const premium = effectivePremiumFor(target, subscription);
+  const name = [target.first_name, target.last_name].filter(Boolean).join(" ") ||
+    target.username || String(target.telegram_user_id);
+  const text =
+    `🔒 <b>Admin · Nutzer</b>\n\n` +
+    `<b>${esc(name)}</b>\n` +
+    `Telegram: <code>${esc(target.telegram_user_id)}</code>\n` +
+    `Status: <b>${premium ? "PREMIUM" : "FREE"}</b>\n` +
+    `Override: ${esc(adminOverrideLabel(target))}\n` +
+    `Stripe: ${esc(String(subscription?.status || "inactive").toUpperCase())}`;
+  const markup = {
+    inline_keyboard: [
+      [
+        button("7 Tage", `admin:set:${userId}:7d`),
+        button("30 Tage", `admin:set:${userId}:30d`),
+      ],
+      [
+        button("3 Monate", `admin:set:${userId}:3m`),
+        button("♾ Lebenslang", `admin:set:${userId}:life`),
+      ],
+      [button("Free setzen", `admin:set:${userId}:free`)],
+      [button("← Nutzer", "admin:list")],
+    ],
+  };
+  return edit(chatId, messageId, text, markup);
+}
+
+async function setPlanOverride(userId: string, grant: AdminGrant) {
+  const plan = grant === "free" ? "free" : "premium";
+  const expiresAt = adminGrantExpiry(grant);
+  const { data: target, error } = await db
+    .from("bot_users")
+    .update({
+      plan_override: plan,
+      plan_override_expires_at: expiresAt,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", userId)
+    .eq("is_active", true)
+    .select("id,chat_id")
+    .maybeSingle();
+  if (error) throw error;
+  if (!target) throw new Error("user unavailable");
+
+  if (plan === "premium") {
+    const { data: profiles, error: profileError } = await db
+      .from("search_profiles")
+      .select("id")
+      .eq("user_id", userId);
+    if (profileError) throw profileError;
+    const profileIds = (profiles || []).map((profile: any) => profile.id);
+    if (profileIds.length) {
+      const { error: deliveryError } = await db
+        .from("delivery_events")
+        .update({ next_retry_at: null })
+        .in("profile_id", profileIds)
+        .eq("status", "pending");
+      if (deliveryError) throw deliveryError;
+    }
+  }
+  return target;
+}
+
+async function referralPage(user: any, chatId: number, messageId?: number) {
+  let { data: code, error } = await db
+    .from("referral_codes")
+    .select("code")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (error) throw error;
+
+  if (!code) {
+    const value = crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase();
+    const result = await db
+      .from("referral_codes")
+      .insert({ user_id: user.id, code: value })
+      .select("code")
+      .single();
+    if (result.error) throw result.error;
+    code = result.data;
+  }
+
+  const { count, error: countError } = await db
+    .from("referrals")
+    .select("id", { count: "exact", head: true })
+    .eq("referrer_user_id", user.id)
+    .eq("status", "rewarded");
+  if (countError) throw countError;
+
+  const text =
+    "🎁 <b>Freunde empfehlen</b>\n\n" +
+    "Dein persönlicher Empfehlungslink:\n" +
+    `<code>https://t.me/traumwohnunghamburgbot?start=ref_${esc(code.code)}</code>\n\n` +
+    `Erfolgreiche Empfehlungen: ${count || 0}\n` +
+    "Wer deinen Link erstmals nutzt, erhält einmalig 7 Tage Premium.";
+  const markup = {
+    inline_keyboard: [[button("← Einstellungen", "settings")]],
+  };
+  return messageId
+    ? edit(chatId, messageId, text, markup)
+    : send(chatId, text, markup);
+}
+
 async function settings(user: any, chatId: number, messageId?: number) {
   const text = "⚙️ <b>Einstellungen</b>\n\nDie Bedienung erfolgt über Befehle und Buttons.";
   const markup = {
     inline_keyboard: [
       [button("⏸ Pausieren", "pause"), button("▶️ Fortsetzen", "resume")],
       [button("👑 Premium", "premium")],
+      [button("🎁 Freunde empfehlen", "referral")],
       [button("← Start", "home")],
     ],
   };
@@ -945,6 +1180,11 @@ async function handleMessage(message: any, user: any) {
   const command = rawCommand
     .toLowerCase()
     .replace(/@traumwohnunghamburgbot$/i, "");
+
+  if (command === "/admin") {
+    if (!isAdmin(user)) return;
+    return adminUsers(user, chatId);
+  }
 
   if (command === "/start") {
     if (argument.startsWith("ref_")) {
@@ -1023,6 +1263,51 @@ async function handleCallback(query: any, user: any) {
   const data = String(query.data || "");
   if (!chatId || !messageId) return acknowledge(query.id);
 
+  if (data.startsWith("admin:")) {
+  if (!isAdmin(user)) return acknowledge(query.id);
+  if (data === "admin:list") {
+    await acknowledge(query.id);
+    return adminUsers(user, chatId, messageId);
+  }
+  if (data.startsWith("admin:user:")) {
+    await acknowledge(query.id);
+    return adminUser(
+      user,
+      chatId,
+      messageId,
+      data.slice("admin:user:".length),
+    );
+  }
+  if (data.startsWith("admin:set:")) {
+    const parts = data.split(":");
+    const userId = parts[2];
+    const grant = parts[3] as AdminGrant;
+    if (!userId || !["free", "7d", "30d", "3m", "life"].includes(grant)) {
+      return acknowledge(query.id);
+    }
+    const target = await setPlanOverride(userId, grant);
+    let noticeFailed = false;
+    if (grant !== "free") {
+      try {
+        await send(Number(target.chat_id), adminPremiumNotice(grant));
+      } catch (error) {
+        noticeFailed = true;
+        console.error("admin_premium_notice", error);
+      }
+    }
+    await acknowledge(
+      query.id,
+      grant === "free"
+        ? "Free gesetzt"
+        : noticeFailed
+        ? "Premium gesetzt · Nachricht fehlgeschlagen"
+        : `${adminGrantLabel(grant)} Premium gesetzt`,
+    );
+    return adminUser(user, chatId, messageId, userId);
+  }
+  return acknowledge(query.id);
+}
+
   if (data.startsWith("save:")) {
     const savedState = await toggleSave(user, data.slice(5));
     if (savedState === null) {
@@ -1074,6 +1359,7 @@ async function handleCallback(query: any, user: any) {
     return saved(user, chatId, messageId);
   }
   if (data === "settings") return settings(user, chatId, messageId);
+  if (data === "referral") return referralPage(user, chatId, messageId);
   if (data === "help") {
     return edit(chatId, messageId, HELP_TEXT, {
       inline_keyboard: [[button("← Start", "home")]],
