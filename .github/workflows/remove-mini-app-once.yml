@@ -40,7 +40,6 @@ jobs:
               'r.push([{text:"📱 Wohnungssuche öffnen",web_app:{url:MINI_APP_URL}}]);',
               "",
           )
-
           replace_exact(
               "supabase/functions/telegram-gateway/index.ts",
               'const MINI_APP_URL = "https://traumwohnung-mini-app.vercel.app";\n',
@@ -55,7 +54,6 @@ jobs:
                 },''',
               '      menu_button: { type: "commands" },',
           )
-
           replace_exact(
               "supabase/config.toml",
               '\n[functions.mini-app]\nverify_jwt = false\n',
@@ -77,27 +75,9 @@ jobs:
               '- Telegram navigation uses the native slash-command menu.\n',
           )
           release.write_text(text)
-
-          workflow = Path(".github/workflows/architecture-check.yml")
-          text = workflow.read_text()
-          marker = "          test -f supabase/functions/telegram-ui/index.ts\n"
-          addition = (
-              marker
-              + "          test -f supabase/functions/telegram-gateway/index.ts\n"
-              + "          test ! -d supabase/functions/mini-app\n"
-              + "          test ! -d supabase/static/mini-app\n"
-              + "          if grep -qE '(MINI_APP_URL|web_app)' supabase/functions/telegram-ui/index.ts supabase/functions/telegram-gateway/index.ts; then\n"
-              + "            echo 'Mini App reference remains in Telegram runtime.' >&2\n"
-              + "            exit 1\n"
-              + "          fi\n"
-          )
-          if marker not in text:
-              raise SystemExit("architecture check insertion marker missing")
-          workflow.write_text(text.replace(marker, addition, 1))
           PY
 
           rm -rf supabase/functions/mini-app supabase/static/mini-app
-          rm -f .github/workflows/remove-mini-app-once.yml
 
       - name: Verify focused cleanup
         run: |
