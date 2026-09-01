@@ -413,6 +413,18 @@ Deno.serve(async (req: Request) => {
           eventType === "checkout.session.async_payment_succeeded" ||
           String(object.payment_status || "") === "paid";
         const customerId = stripeId(object.customer) || null;
+        if (paid) {
+          const { error: overrideError } = await db
+            .from("bot_users")
+            .update({
+              plan_override: null,
+              plan_override_expires_at: null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", userId)
+            .eq("plan_override", "free");
+          if (overrideError) throw overrideError;
+        }
         await applyEntitlement(
           userId,
           {
