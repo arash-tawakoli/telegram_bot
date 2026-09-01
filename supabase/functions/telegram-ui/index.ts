@@ -42,6 +42,7 @@ type CoreStep =
   | "rent"
   | "rooms"
   | "area";
+type AdminGrant = "free" | "7d" | "30d" | "3m" | "life";
 const URL = Deno.env.get("SUPABASE_URL")!,
   KEYS = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") || "{}"),
   db = createClient(
@@ -188,11 +189,14 @@ function activeSub(s: any) {
   );
 }
 function effectivePremium(u: any, s: any) {
-  return u?.plan_override === "premium"
-    ? true
-    : u?.plan_override === "free"
-      ? false
-      : activeSub(s);
+  if (u?.plan_override === "free") return false;
+  if (
+    u?.plan_override === "premium" &&
+    (!u.plan_override_expires_at ||
+      new Date(u.plan_override_expires_at).getTime() > Date.now())
+  )
+    return true;
+  return activeSub(s);
 }
 function isAdmin(u: any) {
   return Number(u?.telegram_user_id) === ADMIN_TELEGRAM_USER_ID;
@@ -853,11 +857,44 @@ async function saved(u: any, c: number, m?: number, p = 0) {
     ? edit(c, m, text, { inline_keyboard: r })
     : send(c, text, { inline_keyboard: r });
 }
+function adminGrantLabel(grant: AdminGrant) {
+  return grant === "7d"
+    ? "7 Tage"
+    : grant === "30d"
+      ? "30 Tage"
+      : grant === "3m"
+        ? "3 Monate"
+        : "lebenslang";
+}
+function adminGrantExpiry(grant: AdminGrant) {
+  if (grant === "free" || grant === "life") return null;
+  const d = new Date();
+  if (grant === "7d") d.setUTCDate(d.getUTCDate() + 7);
+  else if (grant === "30d") d.setUTCDate(d.getUTCDate() + 30);
+  else d.setUTCMonth(d.getUTCMonth() + 3);
+  return d.toISOString();
+}
+function adminPremiumNotice(grant: AdminGrant) {
+  return grant === "life"
+    ? "🎁 <b>Kostenloses Premium aktiviert</b>\n\nDu hast kostenlos Premium auf Lebenszeit bekommen. Premium ist ab sofort aktiv."
+    : `🎁 <b>Kostenloses Premium aktiviert</b>\n\nDu hast ${adminGrantLabel(grant)} kostenlos Premium bekommen. Premium ist ab sofort aktiv.`;
+}
+function adminOverrideLabel(target: any) {
+  if (target.plan_override === "free") return "FREE";
+  if (target.plan_override !== "premium") return "STRIPE";
+  if (!target.plan_override_expires_at) return "PREMIUM · LEBENSLANG";
+  const until = new Intl.DateTimeFormat("de-DE", {
+    timeZone: "Europe/Berlin",
+    dateStyle: "short",
+    timeStyle: "short",
+  }).format(new Date(target.plan_override_expires_at));
+  return `PREMIUM · bis ${until}`;
+}
 async function adminUsers(u: any, c: number, m?: number) {
   if (!isAdmin(u)) return;
   const { data: users, error } = await db
     .from("bot_users")
-    .select("id,telegram_user_id,first_name,last_name,username,plan_override,created_at")
+    .select("id,telegram_user_id,first_name,last_name,username,plan_override,plan_override_expires_at,created_at")
     .eq("is_active", true)
     .order("created_at");
   if (error) throw error;
@@ -896,7 +933,7 @@ async function adminUser(u: any, c: number, m: number, userId: string) {
   if (!isAdmin(u)) return;
   const { data: target, error } = await db
     .from("bot_users")
-    .select("id,telegram_user_id,first_name,last_name,username,is_active,plan_override")
+    .select("id,telegram_user_id,chat_id,first_name,last_name,username,is_active,plan_override,plan_override_expires_at")
     .eq("id", userId)
     .maybeSingle();
   if (error) throw error;
@@ -912,27 +949,39 @@ async function adminUser(u: any, c: number, m: number, userId: string) {
       [target.first_name, target.last_name].filter(Boolean).join(" ") ||
       target.username ||
       String(target.telegram_user_id),
-    override = target.plan_override
-      ? target.plan_override.toUpperCase()
-      : "STRIPE",
+    override = adminOverrideLabel(target),
     stripe = String(sub?.status || "inactive").toUpperCase(),
     text = `🔒 <b>Admin · Nutzer</b>\n\n<b>${esc(name)}</b>\nTelegram: <code>${esc(target.telegram_user_id)}</code>\nStatus: <b>${premium ? "PREMIUM" : "FREE"}</b>\nOverride: ${esc(override)}\nStripe: ${esc(stripe)}`,
     rows = [
       [
-        cb("👑 Premium setzen", `admin:set:${userId}:premium`),
-        cb("Free setzen", `admin:set:${userId}:free`),
+        cb("7 Tage", `admin:set:${userId}:7d`),
+        cb("30 Tage", `admin:set:${userId}:30d`),
       ],
+      [
+        cb("3 Monate", `admin:set:${userId}:3m`),
+        cb("♾ Lebenslang", `admin:set:${userId}:life`),
+      ],
+      [cb("Free setzen", `admin:set:${userId}:free`)],
       [cb("← Nutzer", "admin:list")],
     ];
   return edit(c, m, text, { inline_keyboard: rows });
 }
-async function setPlanOverride(userId: string, plan: "free" | "premium") {
-  const { error } = await db
-    .from("bot_users")
-    .update({ plan_override: plan, updated_at: new Date().toISOString() })
-    .eq("id", userId)
-    .eq("is_active", true);
+async function setPlanOverride(userId: string, grant: AdminGrant) {
+  const plan = grant === "free" ? "free" : "premium",
+    expiresAt = adminGrantExpiry(grant),
+    { data: target, error } = await db
+      .from("bot_users")
+      .update({
+        plan_override: plan,
+        plan_override_expires_at: expiresAt,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", userId)
+      .eq("is_active", true)
+      .select("id,chat_id")
+      .maybeSingle();
   if (error) throw error;
+  if (!target) throw new Error("user unavailable");
   if (plan === "free") {
     const { error: profileError } = await db
       .from("search_profiles")
@@ -940,7 +989,7 @@ async function setPlanOverride(userId: string, plan: "free" | "premium") {
       .eq("user_id", userId)
       .gt("profile_slot", 1);
     if (profileError) throw profileError;
-    return;
+    return target;
   }
   const { data: profiles, error: profileError } = await db
     .from("search_profiles")
@@ -948,13 +997,15 @@ async function setPlanOverride(userId: string, plan: "free" | "premium") {
     .eq("user_id", userId);
   if (profileError) throw profileError;
   const ids = (profiles || []).map((x: any) => x.id);
-  if (!ids.length) return;
-  const { error: deliveryError } = await db
-    .from("delivery_events")
-    .update({ next_retry_at: null })
-    .in("profile_id", ids)
-    .eq("status", "pending");
-  if (deliveryError) throw deliveryError;
+  if (ids.length) {
+    const { error: deliveryError } = await db
+      .from("delivery_events")
+      .update({ next_retry_at: null })
+      .in("profile_id", ids)
+      .eq("status", "pending");
+    if (deliveryError) throw deliveryError;
+  }
+  return target;
 }
 function canEarlyAck(data: string) {
   if (!data) return false;
@@ -989,12 +1040,28 @@ async function callback(q: Q, u0: any, preAcked = false) {
       return adminUser(u, c, m, d.slice("admin:user:".length));
     }
     if (d.startsWith("admin:set:")) {
-      const parts = d.split(":");
-      const userId = parts[2],
-        plan = parts[3];
-      if (!userId || (plan !== "free" && plan !== "premium")) return qa();
-      await setPlanOverride(userId, plan);
-      await qa(plan === "premium" ? "Premium gesetzt" : "Free gesetzt");
+      const parts = d.split(":"),
+        userId = parts[2],
+        grant = parts[3] as AdminGrant;
+      if (!userId || !["free", "7d", "30d", "3m", "life"].includes(grant))
+        return qa();
+      const target = await setPlanOverride(userId, grant);
+      let noticeFailed = false;
+      if (grant !== "free") {
+        try {
+          await send(Number(target.chat_id), adminPremiumNotice(grant));
+        } catch (e) {
+          noticeFailed = true;
+          console.error("admin_premium_notice", e);
+        }
+      }
+      await qa(
+        grant === "free"
+          ? "Free gesetzt"
+          : noticeFailed
+            ? "Premium gesetzt · Nachricht fehlgeschlagen"
+            : `${adminGrantLabel(grant)} Premium gesetzt`,
+      );
       return adminUser(u, c, m, userId);
     }
     return qa();
