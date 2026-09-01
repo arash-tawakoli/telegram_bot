@@ -132,53 +132,32 @@ function safeUrl(value: unknown) {
 }
 
 async function contextFor(user: any) {
-  const [subscriptionResult, membershipResult] = await Promise.all([
-    db
-      .from("user_subscriptions")
-      .select("stripe_customer_id,status,current_period_end,cancel_at_period_end")
-      .eq("user_id", user.id)
-      .maybeSingle(),
-    db
-      .from("household_members")
-      .select("household_id,role,households(name,owner_user_id)")
-      .eq("user_id", user.id)
-      .maybeSingle(),
-  ]);
-  if (subscriptionResult.error) throw subscriptionResult.error;
-  if (membershipResult.error) throw membershipResult.error;
-  const subscription = subscriptionResult.data;
-  const membership = membershipResult.data;
+  const { data: subscription, error } = await db
+    .from("user_subscriptions")
+    .select("stripe_customer_id,status,current_period_end,cancel_at_period_end")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (error) throw error;
   return {
     subscription: subscription || null,
-    membership: membership || null,
     premium: effectivePremium(user, subscription),
   };
 }
 
 async function bootstrap(user: any) {
   const context = await contextFor(user);
-  const householdId = context.membership?.household_id || null;
-
-  const profilesPromise = context.membership?.role === "member" && householdId
-    ? db
-        .from("search_profiles")
-        .select(
-          "id,user_id,profile_slot,name,is_active,property_types,location_mode,boroughs,neighborhoods,max_warm_rent,min_rooms,min_area_sqm,max_deposit,require_known_warm_rent,wbs_only,furnished_preference",
-        )
-        .eq("household_id", householdId)
-        .order("profile_slot")
-    : db
-        .from("search_profiles")
-        .select(
-          "id,user_id,profile_slot,name,is_active,property_types,location_mode,boroughs,neighborhoods,max_warm_rent,min_rooms,min_area_sqm,max_deposit,require_known_warm_rent,wbs_only,furnished_preference",
-        )
-        .eq("user_id", user.id)
-        .order("profile_slot");
+  const profilesPromise = db
+    .from("search_profiles")
+    .select(
+      "id,user_id,profile_slot,name,is_active,property_types,location_mode,boroughs,neighborhoods,max_warm_rent,min_rooms,min_area_sqm,max_deposit,require_known_warm_rent,wbs_only,furnished_preference",
+    )
+    .eq("user_id", user.id)
+    .order("profile_slot");
 
   const savedQuery = db
     .from("saved_listings")
     .select(
-      "id,user_id,household_id,status,note,listing_id,updated_at,listings(title,address,district,warm_rent,cold_rent,rooms,area_sqm,latitude,longitude,canonical_url,is_active)",
+      "id,user_id,status,note,listing_id,updated_at,listings(title,address,district,warm_rent,cold_rent,rooms,area_sqm,latitude,longitude,canonical_url,is_active)",
     )
     .eq("user_id", user.id)
     .order("updated_at", { ascending: false })
@@ -198,7 +177,7 @@ async function bootstrap(user: any) {
   const profiles = await profilesPromise;
   if (profiles.error) throw profiles.error;
   const profileIds = (profiles.data || []).map((profile: any) => profile.id);
-  const [saved, recent, preferences, destinations, referral, members] =
+  const [saved, recent, preferences, destinations, referral] =
     await Promise.all([
       savedQuery,
       recentPromise,
@@ -211,15 +190,9 @@ async function bootstrap(user: any) {
         .eq("user_id", user.id)
         .order("created_at"),
       db.from("referral_codes").select("code").eq("user_id", user.id).maybeSingle(),
-      householdId
-        ? db
-            .from("household_members")
-            .select("user_id,role,bot_users(first_name,username)")
-            .eq("household_id", householdId)
-        : Promise.resolve({ data: [], error: null }),
     ]);
 
-  for (const result of [saved, recent, preferences, destinations, referral, members]) {
+  for (const result of [saved, recent, preferences, destinations, referral]) {
     if ((result as any).error) throw (result as any).error;
   }
 
@@ -239,7 +212,6 @@ async function bootstrap(user: any) {
       ui_language: user.ui_language || "de",
       is_premium: context.premium,
       cancel_at_period_end: !!context.subscription?.cancel_at_period_end,
-      can_manage_household: context.membership?.role !== "member",
     },
     profiles: profiles.data || [],
     saved: (saved.data || []).map((row: any) => ({
@@ -252,8 +224,6 @@ async function bootstrap(user: any) {
     })),
     preferences: preferences.data || [],
     destinations: destinations.data || [],
-    household: context.membership,
-    household_members: members.data || [],
     referral: referral.data || null,
   };
 }
@@ -272,7 +242,7 @@ async function ownsProfile(user: any, profileId: string) {
 async function ownsSaved(user: any, savedId: string) {
   const { data, error } = await db
     .from("saved_listings")
-    .select("id,user_id,household_id")
+    .select("id,user_id")
     .eq("id", savedId)
     .eq("user_id", user.id)
     .maybeSingle();
@@ -311,17 +281,6 @@ async function createPortalSession(user: any) {
   return String(result.url);
 }
 
-function randomToken(bytes = 18) {
-  const values = crypto.getRandomValues(new Uint8Array(bytes));
-  return btoa(String.fromCharCode(...values))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/g, "");
-}
-
-async function sha256(value: string) {
-  return hex(await crypto.subtle.digest("SHA-256", encoder.encode(value)));
-}
 
 function randomReferralCode() {
   const values = crypto.getRandomValues(new Uint8Array(6));
@@ -455,34 +414,6 @@ async function api(req: Request, user: any) {
     }
     if (!code) return json({ error: "code unavailable" }, 500);
     return json({ code: code.code });
-  } else if (path === "household-invite") {
-    if (!context.premium || context.membership?.role === "member") {
-      return json({ error: "premium_owner_required" }, 403);
-    }
-    let householdId = context.membership?.household_id;
-    if (!householdId) {
-      const created = await db
-        .from("households")
-        .insert({ owner_user_id: user.id })
-        .select("id")
-        .single();
-      if (created.error) return json({ error: created.error.message }, 400);
-      householdId = created.data.id;
-      const member = await db.from("household_members").insert({
-        household_id: householdId,
-        user_id: user.id,
-        role: "owner",
-      });
-      if (member.error) return json({ error: member.error.message }, 400);
-    }
-    const token = randomToken();
-    const { error } = await db.from("household_invites").insert({
-      household_id: householdId,
-      token_hash: await sha256(token),
-      expires_at: new Date(Date.now() + 24 * 60 * 60_000).toISOString(),
-    });
-    if (error) return json({ error: error.message }, 400);
-    return json({ url: `https://t.me/traumwohnunghamburgbot?start=join_${token}` });
   } else {
     return json({ error: "unknown" }, 404);
   }

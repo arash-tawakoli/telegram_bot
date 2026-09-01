@@ -71,16 +71,6 @@ async function ensureUser(from: any, chatId: number) {
   if (result.error) throw result.error;
 }
 
-async function sha256(value: string) {
-  const buffer = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(value),
-  );
-  return [...new Uint8Array(buffer)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
-
 async function userFor(telegramUserId: number) {
   const { data: user, error } = await db
     .from("bot_users")
@@ -322,14 +312,13 @@ function randomCode() {
     .toUpperCase();
 }
 
-async function referralPage(query: any, user: any) {
+async function referralData(user: any) {
   let { data: code, error } = await db
     .from("referral_codes")
     .select("code")
     .eq("user_id", user.id)
     .maybeSingle();
   if (error) throw error;
-
   for (let attempt = 0; !code && attempt < 5; attempt++) {
     const result = await db
       .from("referral_codes")
@@ -340,133 +329,100 @@ async function referralPage(query: any, user: any) {
     else if (result.error.code !== "23505") throw result.error;
   }
   if (!code) throw new Error("referral code unavailable");
-
   const { count, error: countError } = await db
     .from("referrals")
     .select("id", { count: "exact", head: true })
     .eq("referrer_user_id", user.id)
-    .eq("status", "rewarded");
+    .eq("status", "claimed");
   if (countError) throw countError;
+  return { code: code.code, count: count || 0 };
+}
 
+function referralText(referral: { code: string; count: number }) {
+  return `🎁 <b>Freunde empfehlen</b>
+
+Link:
+<code>https://t.me/traumwohnunghamburgbot?start=ref_${referral.code}</code>
+
+Einlösungen: ${referral.count}
+Wer deinen Link erstmalig nutzt, erhält einmalig 7 Tage Premium kostenlos.`;
+}
+
+async function referralPage(query: any, user: any) {
+  const referral = await referralData(user);
   await answerCallback(query.id);
-  await editMessage(
-    query,
-    `🎁 <b>Freunde empfehlen</b>\n\nLink:\n<code>https://t.me/traumwohnunghamburgbot?start=ref_${code.code}</code>\n\nBelohnungen: ${count || 0}\nNach der ersten bezahlten Verlängerung erhältst du eine Stripe-Gutschrift von 4,99 €.`,
-    [[{ text: "← Einstellungen", callback_data: "settings" }]],
-  );
+  await editMessage(query, referralText(referral), [
+    [{ text: "← Einstellungen", callback_data: "settings" }],
+  ]);
 }
 
-async function setMenuButton(chatId: number) {
-  try {
-    await telegram("setChatMenuButton", {
-      chat_id: chatId,
-      menu_button: {
-        type: "web_app",
-        text: "Wohnungssuche",
-        web_app: { url: MINI_APP_URL },
-      },
-    });
-  } catch (error) {
-    console.error("set_chat_menu_button", error);
-  }
-}
-
-
-async function joinHousehold(message: any, user: any, token: string) {
-  const tokenHash = await sha256(token);
-  const { data: invite, error } = await db
-    .from("household_invites")
-    .select("id,household_id,expires_at,used_at,households(owner_user_id)")
-    .eq("token_hash", tokenHash)
-    .maybeSingle();
-  if (error) throw error;
-  if (
-    !invite ||
-    invite.used_at ||
-    new Date(invite.expires_at).getTime() <= Date.now()
-  ) {
-    await telegram("sendMessage", {
-      chat_id: message.chat.id,
-      text: "Diese Partner-Einladung ist ungültig oder abgelaufen.",
-    });
-    return;
-  }
-
-  const ownerUserId = (invite as any).households?.owner_user_id;
-  if (!ownerUserId || ownerUserId === user.id) {
-    await telegram("sendMessage", {
-      chat_id: message.chat.id,
-      text: "Diese Einladung kann nicht für dieses Konto verwendet werden.",
-    });
-    return;
-  }
-  const { data: existingMembership, error: membershipError } = await db
-    .from("household_members")
-    .select("household_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (membershipError) throw membershipError;
-  if (existingMembership) {
-    await telegram("sendMessage", {
-      chat_id: message.chat.id,
-      text: "Dieses Konto ist bereits mit einem Partner-Haushalt verbunden.",
-    });
-    return;
-  }
-
-  const { error: insertError } = await db.from("household_members").insert({
-    household_id: invite.household_id,
-    user_id: user.id,
-    role: "member",
-  });
-  if (insertError) {
-    await telegram("sendMessage", {
-      chat_id: message.chat.id,
-      text: insertError.message.includes("premium")
-        ? "Der Eigentümer benötigt aktives Premium für den Partner-Modus."
-        : "Die Partner-Verbindung konnte nicht hergestellt werden.",
-    });
-    return;
-  }
-
-  const { error: inviteError } = await db
-    .from("household_invites")
-    .update({ used_at: new Date().toISOString() })
-    .eq("id", invite.id)
-    .is("used_at", null);
-  if (inviteError) throw inviteError;
-
+async function referralCommand(message: any, user: any) {
+  const referral = await referralData(user);
   await telegram("sendMessage", {
     chat_id: message.chat.id,
-    text: "✅ Partner-Modus aktiviert. Gemeinsame Profile und gespeicherte Wohnungen sind jetzt verbunden.",
+    text: referralText(referral),
+    parse_mode: "HTML",
+    disable_web_page_preview: true,
     reply_markup: {
-      inline_keyboard: [[{ text: "Startseite", callback_data: "home" }]],
+      inline_keyboard: [[{ text: "📱 Mini-App öffnen", web_app: { url: MINI_APP_URL } }]],
     },
   });
-  await setMenuButton(message.chat.id);
 }
 
-async function patchSavedHousehold(user: any, listingId: string) {
-  const { data: listing } = await db
-    .from("listings")
-    .select("id,duplicate_of_listing_id")
-    .eq("id", listingId)
-    .maybeSingle();
-  const canonicalId = listing?.duplicate_of_listing_id || listing?.id || listingId;
-  const { data: membership } = await db
-    .from("household_members")
-    .select("household_id")
-    .eq("user_id", user.id)
-    .maybeSingle();
-  if (!membership?.household_id) return;
-  await db
-    .from("saved_listings")
-    .update({
-      household_id: membership.household_id,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("user_id", user.id)
-    .eq("listing_id", canonicalId);
+const COMMANDS = [
+  { command: "start", description: "Startseite öffnen" },
+  { command: "commands", description: "Alle Funktionen anzeigen" },
+  { command: "app", description: "Mini-App öffnen" },
+  { command: "suche", description: "Suchprofil erstellen oder ersetzen" },
+  { command: "profile", description: "Suchprofil verwalten" },
+  { command: "gespeichert", description: "Wohnungs-Cockpit öffnen" },
+  { command: "empfehlen", description: "7 Tage Premium verschenken" },
+  { command: "premium", description: "Premium und Abo verwalten" },
+  { command: "einstellungen", description: "Einstellungen öffnen" },
+  { command: "status", description: "Systemstatus anzeigen" },
+  { command: "pause", description: "Wohnungssuche pausieren" },
+  { command: "resume", description: "Wohnungssuche fortsetzen" },
+  { command: "hilfe", description: "Hilfe anzeigen" },
+];
+
+async function configureCommandMenu(chatId: number) {
+  await telegram("setMyCommands", { commands: COMMANDS });
+  await telegram("setChatMenuButton", {
+    chat_id: chatId,
+    menu_button: { type: "commands" },
+  });
+}
+
+async function commandsPage(message: any) {
+  await telegram("sendMessage", {
+    chat_id: message.chat.id,
+    parse_mode: "HTML",
+    text: "📋 <b>Bot-Menü</b>
+
+Die Befehle sind wieder im Telegram-Menü hinterlegt. Die Mini-App bleibt über /app und den Button unten erreichbar.",
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: "📱 Mini-App öffnen", web_app: { url: MINI_APP_URL } }],
+        [
+{ text: "🎁 Freunde empfehlen", callback_data: "referral" },
+{ text: "👑 Premium", callback_data: "premium" },
+        ],
+      ],
+    },
+  });
+}
+
+async function miniAppPage(message: any) {
+  await telegram("sendMessage", {
+    chat_id: message.chat.id,
+    parse_mode: "HTML",
+    text: "📱 <b>Traumwohnung Mini-App</b>
+
+Suche, neue Angebote, Cockpit und Einstellungen in einer Ansicht.",
+    reply_markup: {
+      inline_keyboard: [[{ text: "Mini-App öffnen", web_app: { url: MINI_APP_URL } }]],
+    },
+  });
 }
 
 Deno.serve(async (req: Request) => {
@@ -513,17 +469,6 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    if (
-      query &&
-      (data === "household:create" || data === "household:invite") &&
-      user &&
-      !isPremium(user)
-    ) {
-      if (await claimHandledUpdate(update)) {
-        await answerCallback(query.id, "Partner-Modus ist Premium");
-      }
-      return Response.json({ ok: true });
-    }
 
     const command = String(message?.text || "")
       .trim()
@@ -531,11 +476,20 @@ Deno.serve(async (req: Request) => {
       .toLowerCase()
       .replace(/@traumwohnunghamburgbot$/i, "");
     const argument = String(message?.text || "").trim().split(/\s+/)[1] || "";
-    if (message && command === "/start" && argument.startsWith("join_") && user) {
-      if (!(await claimHandledUpdate(update))) {
-        return Response.json({ ok: true, duplicate: true });
-      }
-      await joinHousehold(message, user, argument.slice(5));
+    if (message && command === "/commands" && user) {
+      if (!(await claimHandledUpdate(update))) return Response.json({ ok: true, duplicate: true });
+      await configureCommandMenu(message.chat.id);
+      await commandsPage(message);
+      return Response.json({ ok: true });
+    }
+    if (message && command === "/app" && user) {
+      if (!(await claimHandledUpdate(update))) return Response.json({ ok: true, duplicate: true });
+      await miniAppPage(message);
+      return Response.json({ ok: true });
+    }
+    if (message && (command === "/empfehlen" || command === "/referral") && user) {
+      if (!(await claimHandledUpdate(update))) return Response.json({ ok: true, duplicate: true });
+      await referralCommand(message, user);
       return Response.json({ ok: true });
     }
     if (message && command === "/profile" && user && !isPremium(user)) {
@@ -547,11 +501,8 @@ Deno.serve(async (req: Request) => {
     const response = await forward(update, webhookSecret);
     const responseText = await response.text();
 
-    if (query && data.startsWith("save:") && user && response.ok) {
-      await patchSavedHousehold(user, data.slice(5));
-    }
     if (message && command === "/start") {
-      await setMenuButton(message.chat.id);
+      await configureCommandMenu(message.chat.id);
     }
 
     return new Response(responseText, {
