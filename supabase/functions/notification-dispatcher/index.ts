@@ -346,31 +346,7 @@ function matches(profile: any, listing: any) {
   return true;
 }
 
-function matchReasons(profile: any, listing: any) {
-  const reasons: string[] = [];
-  const rent = Number(listing.warm_rent || listing.cold_rent);
-  if (profile.max_warm_rent != null && Number.isFinite(rent) && rent > 0) {
-    reasons.push(
-      `✅ ${money(rent)} liegt unter deinem Limit von ${money(profile.max_warm_rent)}`,
-    );
-  }
-  if (profile.min_rooms && listing.rooms != null) {
-    reasons.push(
-      `✅ ${num(listing.rooms, 1)} Zimmer erfüllen mindestens ${num(profile.min_rooms, 1)}`,
-    );
-  }
-  if (profile.min_area_sqm && listing.area_sqm != null) {
-    reasons.push(
-      `✅ ${num(listing.area_sqm, 1)} m² erfüllen mindestens ${num(profile.min_area_sqm, 1)} m²`,
-    );
-  }
-  if (listing.district) {
-    reasons.push(`✅ ${String(listing.district).slice(0, 60)} liegt in deinem Suchgebiet`);
-  }
-  return reasons.slice(0, 4);
-}
-
-function listingCaption(listing: any, language: string, profile?: any) {
+function listingCaption(listing: any, language: string) {
   const lines = [
     `🏠 <b>${esc(
       String(listing.title || "Listing")
@@ -418,11 +394,6 @@ function listingCaption(listing: any, language: string, profile?: any) {
   if (location) {
     lines.push(`📍 <b>${esc(label(language, "address"))}:</b> ${esc(location)}`);
   }
-
-  const reasons = profile ? matchReasons(profile, listing) : [];
-  if (reasons.length) {
-    lines.push("", "<b>Warum passend?</b>", ...reasons.map(esc));
-  }
   return lines.join("\n");
 }
 
@@ -451,18 +422,6 @@ function listingKeyboard(
       { text: label(language, "save"), callback_data: `save:${listing.id}` },
     ]);
   }
-  if (listing.dedupe_group_id) {
-    rows.push([
-      {
-        text: "👎 Nicht passend",
-        callback_data: `dismiss:${listing.dedupe_group_id}:not_relevant`,
-      },
-      {
-        text: "🔕 Quelle ausblenden",
-        callback_data: `mute:${listing.source_id}`,
-      },
-    ]);
-  }
   return { inline_keyboard: rows };
 }
 
@@ -485,7 +444,6 @@ async function sendListing(
   listing: any,
   language: string,
   premium: boolean,
-  profile: any,
   routeUrl?: string | null,
 ) {
   const images = [
@@ -503,7 +461,7 @@ async function sendListing(
       const message = await telegram(token, "sendPhoto", {
         chat_id: chatId,
         photo: image,
-        caption: listingCaption(listing, language, profile),
+        caption: listingCaption(listing, language),
         parse_mode: "HTML",
         reply_markup: listingKeyboard(listing, language, premium, routeUrl),
       });
@@ -516,7 +474,7 @@ async function sendListing(
   try {
     const message = await telegram(token, "sendMessage", {
       chat_id: chatId,
-      text: listingCaption(listing, language, profile),
+      text: listingCaption(listing, language),
       parse_mode: "HTML",
       disable_web_page_preview: true,
       reply_markup: listingKeyboard(listing, language, premium, routeUrl),
@@ -900,31 +858,6 @@ async function run(token: string) {
         continue;
       }
 
-      const [{ data: feedback }, { data: muted }] = await Promise.all([
-        db
-          .from("listing_feedback")
-          .select("id")
-          .eq("user_id", recipient.id)
-          .eq(
-            "dedupe_key",
-            listing.dedupe_group_id
-              ? `group:${listing.dedupe_group_id}`
-              : event.dedupe_key,
-          )
-          .maybeSingle(),
-        db
-          .from("user_source_mutes")
-          .select("source_id")
-          .eq("user_id", recipient.id)
-          .eq("source_id", listing.source_id)
-          .maybeSingle(),
-      ]);
-      if (feedback || muted) {
-        await markSkipped(event.id, feedback ? "Dismissed by user" : "Source muted");
-        totals.skipped++;
-        continue;
-      }
-
       if (event.event_type === "listing_changed") {
         try {
           const result = await sendChange(token, event, listing, recipient);
@@ -1003,35 +936,8 @@ async function run(token: string) {
           const validGroup: any[] = [];
           for (const item of claimedGroup) {
             const candidate = await enrichDetails(item.listings, detailCache);
-            const [{ data: candidateFeedback }, { data: candidateMuted }] =
-              await Promise.all([
-                db
-                  .from("listing_feedback")
-                  .select("id")
-                  .eq("user_id", recipient.id)
-                  .eq(
-                    "dedupe_key",
-                    candidate.dedupe_group_id
-                      ? `group:${candidate.dedupe_group_id}`
-                      : item.dedupe_key,
-                  )
-                  .maybeSingle(),
-                db
-                  .from("user_source_mutes")
-                  .select("source_id")
-                  .eq("user_id", recipient.id)
-                  .eq("source_id", candidate.source_id)
-                  .maybeSingle(),
-              ]);
-            if (!matches(profile, candidate) || candidateFeedback || candidateMuted) {
-              await markSkipped(
-                item.id,
-                candidateFeedback
-                  ? "Dismissed by user"
-                  : candidateMuted
-                    ? "Source muted"
-                    : "No longer matches profile",
-              );
+            if (!matches(profile, candidate)) {
+              await markSkipped(item.id, "No longer matches profile");
               totals.skipped++;
               continue;
             }
@@ -1120,7 +1026,6 @@ async function run(token: string) {
           listing,
           recipient.ui_language || "de",
           premium,
-          profile,
           routeUrl,
         );
         const { error: sentError } = await db
