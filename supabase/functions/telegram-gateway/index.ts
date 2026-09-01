@@ -397,9 +397,9 @@ async function commandsPage(message: any) {
   await telegram("sendMessage", {
     chat_id: message.chat.id,
     parse_mode: "HTML",
-    text: "📋 <b>Bot-Menü</b>
+    text: `📋 <b>Bot-Menü</b>
 
-Die Befehle sind wieder im Telegram-Menü hinterlegt. Die Mini-App bleibt über /app und den Button unten erreichbar.",
+Die Befehle sind wieder im Telegram-Menü hinterlegt. Die Mini-App bleibt über /app und den Button unten erreichbar.`,
     reply_markup: {
       inline_keyboard: [
         [{ text: "📱 Mini-App öffnen", web_app: { url: MINI_APP_URL } }],
@@ -416,9 +416,9 @@ async function miniAppPage(message: any) {
   await telegram("sendMessage", {
     chat_id: message.chat.id,
     parse_mode: "HTML",
-    text: "📱 <b>Traumwohnung Mini-App</b>
+    text: `📱 <b>Traumwohnung Mini-App</b>
 
-Suche, neue Angebote, Cockpit und Einstellungen in einer Ansicht.",
+Suche, neue Angebote, Cockpit und Einstellungen in einer Ansicht.`,
     reply_markup: {
       inline_keyboard: [[{ text: "Mini-App öffnen", web_app: { url: MINI_APP_URL } }]],
     },

@@ -53,7 +53,7 @@ async function verifyInitData(initData: string) {
   const secretKey = await crypto.subtle.sign(
     "HMAC",
     hmacKey,
-    encoder.encode(await secret("telegram_bot_token_runtime")),
+    encoder.encode((await secret("telegram_bot_token_runtime"))!),
   );
   const verificationKey = await crypto.subtle.importKey(
     "raw",
