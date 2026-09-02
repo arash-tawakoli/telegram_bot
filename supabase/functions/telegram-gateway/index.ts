@@ -5,7 +5,6 @@ const URL = Deno.env.get("SUPABASE_URL")!;
 const KEYS = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") || "{}");
 const KEY = KEYS.default || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const CORE = `${URL}/functions/v1/telegram-ui`;
-const PREMIUM = `${URL}/functions/v1/telegram-premium`;
 const db = createClient(URL, KEY, { auth: { persistSession: false, autoRefreshToken: false } });
 let cached: { value: string; expiresAt: number } | null = null;
 
@@ -15,19 +14,6 @@ async function webhookSecret(force = false) {
   if (error || !data) throw new Error("telegram webhook secret unavailable");
   cached = { value: String(data), expiresAt: Date.now() + 5 * 60_000 };
   return cached.value;
-}
-
-function targetFor(body: string) {
-  try {
-    const update = JSON.parse(body);
-    const callback = String(update?.callback_query?.data || "");
-    const raw = String(update?.message?.text || "").trim().split(/\s+/, 1)[0].toLowerCase();
-    const command = raw.replace(/@traumwohnunghamburgbot$/i, "");
-    if (callback === "premium" || command === "/premium") return PREMIUM;
-  } catch {
-    // Telegram updates are JSON; malformed payloads keep the existing core behavior.
-  }
-  return CORE;
 }
 
 Deno.serve(async (req: Request) => {
@@ -40,7 +26,7 @@ Deno.serve(async (req: Request) => {
       if (supplied !== expected) return new Response("unauthorized", { status: 401 });
     }
     const body = await req.text();
-    const response = await fetch(targetFor(body), {
+    const response = await fetch(CORE, {
       method: "POST",
       headers: {
         "content-type": "application/json",
