@@ -23,6 +23,13 @@ jobs:
             capture {sub(/^          /, ""); print}
           ' .github/workflows/premium-ui-access-refresh-once.yml > /tmp/patch.py
           test -s /tmp/patch.py
+          python3 - <<'PY'
+          p='/tmp/patch.py'
+          s=open(p).read()
+          s=s.replace("re=s.index('async function setPaused(', rs)", "rend=s.index('async function setPaused(', rs)")
+          s=s.replace("s=s[:rs]+status_block+s[re:]", "s=s[:rs]+status_block+s[rend:]")
+          open(p,'w').write(s)
+          PY
           python3 /tmp/patch.py
       - name: Validate requested behavior
         shell: bash
