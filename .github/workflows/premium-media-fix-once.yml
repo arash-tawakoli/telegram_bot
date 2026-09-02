@@ -30,49 +30,27 @@ jobs:
 
           path = Path('supabase/functions/telegram-ui/index.ts')
           source = path.read_text()
+          payload = Path('.github/tmp/premium-preview-1024.b64').read_text().strip()
 
-          match = re.search(r'const PREMIUM_PREVIEW_B64 = "([^"]+)";', source)
-          if not match:
-              raise SystemExit('premium preview base64 missing')
-          raw = base64.b64decode(match.group(1), validate=True)
+          raw = base64.b64decode(payload, validate=True)
           if not (raw.startswith(b'\xff\xd8') and raw.endswith(b'\xff\xd9')):
-              raise SystemExit('premium preview is not a valid JPEG')
-          print('premium preview bytes:', len(raw))
-          print('premium preview sha256:', hashlib.sha256(raw).hexdigest())
+              raise SystemExit('replacement premium preview is not a valid JPEG')
+          if hashlib.sha256(raw).hexdigest() != 'c02ad8e47d2ce7f75c4a0f9ae70d15542f397f7eb76d30b936ee2aa2acf3645e':
+              raise SystemExit('replacement premium preview checksum mismatch')
 
-          old = '''async function sendPremiumPreview(chatId: number, caption: string, replyMarkup: any) {
-            const language = chatLanguages.get(chatId);
-            return telegram("sendPhoto", {
-              chat_id: chatId,
-              photo: `${SUPABASE_URL}/functions/v1/telegram-ui?asset=premium&v=20260903`,
-              caption: localizeText(caption, language),
-              parse_mode: "HTML",
-              reply_markup: localizeMarkup(replyMarkup, language),
-            });
-          }
-          '''.replace('          ', '')
+          source, count = re.subn(
+              r'const PREMIUM_PREVIEW_B64 = "[^"]*";',
+              f'const PREMIUM_PREVIEW_B64 = "{payload}";',
+              source,
+              count=1,
+          )
+          if count != 1:
+              raise SystemExit('premium preview constant anchor missing')
 
-          new = '''function premiumPreviewUrl() {
+          helper_start = source.index('async function sendPremiumPreview(')
+          helper_end = source.index('async function acknowledge(', helper_start)
+          helper = '''function premiumPreviewUrl() {
             return `${SUPABASE_URL}/functions/v1/telegram-ui?asset=premium&v=20260903b`;
-          }
-
-          function decodeBase64Bytes(value: string) {
-            const clean = value.replace(/\\s+/g, "");
-            const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-            const padding = clean.endsWith("==") ? 2 : clean.endsWith("=") ? 1 : 0;
-            const bytes = new Uint8Array(Math.floor(clean.length * 3 / 4) - padding);
-            let offset = 0;
-            for (let index = 0; index < clean.length; index += 4) {
-              const a = alphabet.indexOf(clean[index]);
-              const b = alphabet.indexOf(clean[index + 1]);
-              const c = clean[index + 2] === "=" ? 0 : alphabet.indexOf(clean[index + 2]);
-              const d = clean[index + 3] === "=" ? 0 : alphabet.indexOf(clean[index + 3]);
-              if (a < 0 || b < 0 || c < 0 || d < 0) throw new Error("invalid premium preview base64");
-              bytes[offset++] = (a << 2) | (b >> 4);
-              if (clean[index + 2] !== "=") bytes[offset++] = ((b & 15) << 4) | (c >> 2);
-              if (clean[index + 3] !== "=") bytes[offset++] = ((c & 3) << 6) | d;
-            }
-            return bytes;
           }
 
           async function sendPremiumPreview(chatId: number, caption: string, replyMarkup: any) {
@@ -100,48 +78,41 @@ jobs:
               reply_markup: localizeMarkup(replyMarkup, language),
             });
           }
+
           '''.replace('          ', '')
+          source = source[:helper_start] + helper + source[helper_end:]
 
-          if old not in source:
-              raise SystemExit('sendPremiumPreview anchor missing')
-          source = source.replace(old, new, 1)
-
-          old = 'async function premium(user: any, chatId: number, _messageId?: number) {'
-          new = 'async function premium(user: any, chatId: number, messageId?: number, messageHasPhoto = false) {'
-          if old not in source:
+          old_signature = 'async function premium(user: any, chatId: number, _messageId?: number) {'
+          new_signature = 'async function premium(user: any, chatId: number, messageId?: number, messageHasPhoto = false) {'
+          if old_signature not in source:
               raise SystemExit('premium signature anchor missing')
-          source = source.replace(old, new, 1)
+          source = source.replace(old_signature, new_signature, 1)
 
-          old = '  return sendPremiumPreview(chatId, text, { inline_keyboard: rows });\n}\n\nasync function saved('
-          new = '  const markup = { inline_keyboard: rows };\n  if (messageId && messageHasPhoto) return editPremiumPreview(chatId, messageId, text, markup);\n  return sendPremiumPreview(chatId, text, markup);\n}\n\nasync function saved('
-          if old not in source:
+          premium_start = source.index('async function premium(')
+          premium_end = source.index('async function saved(', premium_start)
+          premium_block = source[premium_start:premium_end]
+          old_return = '  return sendPremiumPreview(chatId, text, { inline_keyboard: rows });\n}'
+          new_return = '  const markup = { inline_keyboard: rows };\n  if (messageId && messageHasPhoto) return editPremiumPreview(chatId, messageId, text, markup);\n  return sendPremiumPreview(chatId, text, markup);\n}'
+          if old_return not in premium_block:
               raise SystemExit('premium return anchor missing')
-          source = source.replace(old, new, 1)
+          premium_block = premium_block.replace(old_return, new_return, 1)
+          source = source[:premium_start] + premium_block + source[premium_end:]
 
-          old = '  if (data === "premium") return premium(user, chatId, messageId);'
-          new = '''  if (data === "premium") {
+          old_callback = '  if (data === "premium") return premium(user, chatId, messageId);'
+          new_callback = '''  if (data === "premium") {
             if (query.message?.photo) return premium(user, chatId, messageId, true);
             await telegram("deleteMessage", { chat_id: chatId, message_id: messageId }).catch(() => {});
             return premium(user, chatId);
           }'''.replace('          ', '')
-          if old not in source:
+          if old_callback not in source:
               raise SystemExit('premium callback anchor missing')
-          source = source.replace(old, new, 1)
-
-          old = '''        const raw = atob(PREMIUM_PREVIEW_B64);
-                  const bytes = new Uint8Array(raw.length);
-                  for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
-          '''.replace('        ', '')
-          new = '        const bytes = decodeBase64Bytes(PREMIUM_PREVIEW_B64);\n'
-          if old not in source:
-              raise SystemExit('asset decoder anchor missing')
-          source = source.replace(old, new, 1)
+          source = source.replace(old_callback, new_callback, 1)
 
           path.write_text(source)
           PY
 
           grep -q 'editMessageMedia' supabase/functions/telegram-ui/index.ts
-          grep -q 'decodeBase64Bytes' supabase/functions/telegram-ui/index.ts
+          grep -q 'v=20260903b' supabase/functions/telegram-ui/index.ts
           grep -q '<s>1,99 €</s> <b>0,99 € / Monat</b>' supabase/functions/telegram-ui/index.ts
 
       - name: Commit source change
@@ -168,4 +139,4 @@ jobs:
           test "$code" = '200'
           test "$(head -c 2 /tmp/premium.jpg | xxd -p)" = 'ffd8'
           test "$(tail -c 2 /tmp/premium.jpg | xxd -p)" = 'ffd9'
-          test "$(wc -c < /tmp/premium.jpg)" -gt 10000
+          test "$(wc -c < /tmp/premium.jpg)" -eq 39844
