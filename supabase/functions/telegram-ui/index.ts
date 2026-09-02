@@ -779,7 +779,6 @@ async function persistProfile(user: any, draft: Draft) {
     min_area_sqm: draft.min_area_sqm,
     wbs_only: false,
     furnished_preference: "any",
-    is_active: true,
     updated_at: new Date().toISOString(),
   }, { onConflict: "user_id,profile_slot" });
   if (error) throw error;
