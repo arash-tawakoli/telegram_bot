@@ -85,8 +85,9 @@ export async function runGeneric(source:Source,connectors:Connector[]){
             await recordLane(c,laneStarted,true,x.cands.length,r.fresh,null,{warmed,delivery_mode:allowNew?'new_only':'warmup',fallback_primary:true});
           }else{
             picked=c;complete=!!c.enumerable;primaryTrustedSnapshot=complete&&c.enumerable&&['tenant_api','full_page'].includes(source.coverage_strategy);
-            const r=await upsertCandidates(source,x.cands,primaryTrustedSnapshot);savedOverride=r;cands=[...x.cands];successfulLaneCount=1;
-            meta.connector_attempts.push({priority:c.priority,label:c.label,status:'ok',fetched:x.cands.length,role:'primary'});
+            const newestFirst=String(c.config?.freshness_mode||'')==='newest_first',allowNewest=!!source.baseline_completed_at&&newestFirst;
+            const r=await upsertCandidates(source,x.cands,primaryTrustedSnapshot||allowNewest);savedOverride=r;cands=[...x.cands];successfulLaneCount=1;
+            meta.connector_attempts.push({priority:c.priority,label:c.label,status:'ok',fetched:x.cands.length,role:'primary',freshness_mode:newestFirst?'newest_first':undefined});
           }
           continue;
         }

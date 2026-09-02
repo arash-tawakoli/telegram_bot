@@ -11,7 +11,6 @@ const db = createClient(SUPABASE_URL, ADMIN_KEY, {
 
 const PAGE_SIZE = 200;
 const LEASE_MS = 2 * 60_000;
-const FREE_DELAY_MS = 2 * 60 * 60_000;
 const MAX_ATTEMPTS = 5;
 const DETAIL_SOURCES = new Set([2, 15, 16]);
 const USER_AGENT =
@@ -596,13 +595,6 @@ function nextDeliveryDue(event: any, listing: any, premium: boolean, pref: any) 
   const now = new Date();
   const created = new Date(event.created_at || now);
   let due = Number.isFinite(created.getTime()) ? created : now;
-
-  if (!premium && listing.first_seen_at) {
-    const freeDue = new Date(
-      new Date(listing.first_seen_at).getTime() + FREE_DELAY_MS,
-    );
-    if (Number.isFinite(freeDue.getTime()) && freeDue > due) due = freeDue;
-  }
 
   if (pref?.delivery_mode === "hourly_digest") {
     const hourlyDue = new Date(created.getTime() + 60 * 60_000);
