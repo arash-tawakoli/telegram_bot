@@ -224,7 +224,6 @@ async function edit(
   }
 }
 
-
 async function sendPremiumPreview(chatId: number, caption: string, replyMarkup: any) {
   const language = chatLanguages.get(chatId);
   return telegram("sendPhoto", {
@@ -427,7 +426,10 @@ async function renderTypes(
       button("Alle auswählen", "type:all"),
       button("Auswahl löschen", "type:clear"),
     ],
-    backRow("home", "type:done"),
+    backRow(
+      draft.edit_return ? `profile:edit:${draft.profile_slot}` : "home",
+      "type:done",
+    ),
     cancelRow(),
   );
   const text =
@@ -447,10 +449,10 @@ async function renderLocation(
   await saveState(user.id, "location", draft);
   return edit(chatId, messageId, "2/5 · <b>Wo möchtest du suchen?</b>", {
     inline_keyboard: [
-      [button("🌐 Ganz Hamburg", "loc:all")],
-      [button("🏙 Bezirke auswählen", "loc:boroughs")],
-      [button("📍 Stadtteile auswählen", "loc:neighborhoods")],
-      backRow("types"),
+      [button(`${draft.location_mode === "all_hamburg" ? "✅ " : ""}🌐 Ganz Hamburg`, "loc:all")],
+      [button(`${draft.location_mode === "boroughs" ? "✅ " : ""}🏙 Bezirke auswählen`, "loc:boroughs")],
+      [button(`${draft.location_mode === "neighborhoods" ? "✅ " : ""}📍 Stadtteile auswählen`, "loc:neighborhoods")],
+      backRow(draft.edit_return ? `profile:edit:${draft.profile_slot}` : "types"),
       cancelRow(),
     ],
   });
@@ -549,12 +551,25 @@ async function renderRent(
   draft: Draft,
 ) {
   await saveState(user.id, "rent", draft);
+  const customSelected = draft.max_warm_rent != null &&
+    !RENT_PRESETS.has(draft.max_warm_rent);
   return edit(chatId, messageId, "3/5 · <b>Maximale Warmmiete</b>", {
     inline_keyboard: [
-      [button("800 €", "rent:800"), button("1.000 €", "rent:1000")],
-      [button("1.250 €", "rent:1250"), button("2.000 €", "rent:2000")],
-      [button("✏️ Eigener Betrag", "rent:custom")],
-      backRow("location"),
+      [
+        button(`${draft.max_warm_rent === 800 ? "✅ " : ""}800 €`, "rent:800"),
+        button(`${draft.max_warm_rent === 1000 ? "✅ " : ""}1.000 €`, "rent:1000"),
+      ],
+      [
+        button(`${draft.max_warm_rent === 1250 ? "✅ " : ""}1.250 €`, "rent:1250"),
+        button(`${draft.max_warm_rent === 2000 ? "✅ " : ""}2.000 €`, "rent:2000"),
+      ],
+      [button(
+        customSelected
+          ? `✅ Eigener Betrag · ${money(draft.max_warm_rent)}`
+          : "✏️ Eigener Betrag",
+        "rent:custom",
+      )],
+      backRow(draft.edit_return ? `profile:edit:${draft.profile_slot}` : "location"),
       cancelRow(),
     ],
   });
@@ -567,10 +582,13 @@ async function renderCustomRent(
   draft: Draft,
 ) {
   await saveState(user.id, "rent_custom", draft);
+  const current = draft.max_warm_rent != null
+    ? `\n\nAktuell gespeichert: <b>${esc(money(draft.max_warm_rent))}</b>`
+    : "";
   return edit(
     chatId,
     messageId,
-    "Gib die maximale Warmmiete als Zahl ein, z. B. <code>1250</code>.\n\n<b>Erlaubt: 100 bis 5.000 €</b>",
+    `Gib die maximale Warmmiete als Zahl ein, z. B. <code>1250</code>.\n\n<b>Erlaubt: 100 bis 5.000 €</b>${current}`,
     { inline_keyboard: [backRow("rent"), cancelRow()] },
   );
 }
@@ -584,9 +602,15 @@ async function renderRooms(
   await saveState(user.id, "rooms", draft);
   return edit(chatId, messageId, "4/5 · <b>Mindestens wie viele Zimmer?</b>", {
     inline_keyboard: [
-      [button("1+", "rooms:1"), button("2+", "rooms:2")],
-      [button("3+", "rooms:3"), button("4+", "rooms:4")],
-      backRow("rent"),
+      [
+        button(`${draft.min_rooms === 1 ? "✅ " : ""}1+`, "rooms:1"),
+        button(`${draft.min_rooms === 2 ? "✅ " : ""}2+`, "rooms:2"),
+      ],
+      [
+        button(`${draft.min_rooms === 3 ? "✅ " : ""}3+`, "rooms:3"),
+        button(`${draft.min_rooms === 4 ? "✅ " : ""}4+`, "rooms:4"),
+      ],
+      backRow(draft.edit_return ? `profile:edit:${draft.profile_slot}` : "rent"),
       cancelRow(),
     ],
   });
@@ -601,9 +625,15 @@ async function renderArea(
   await saveState(user.id, "area", draft);
   return edit(chatId, messageId, "5/5 · <b>Mindestfläche</b>", {
     inline_keyboard: [
-      [button("20 m²", "area:20"), button("50 m²", "area:50")],
-      [button("70 m²", "area:70"), button("90 m²", "area:90")],
-      backRow("rooms"),
+      [
+        button(`${draft.min_area_sqm === 20 ? "✅ " : ""}20 m²`, "area:20"),
+        button(`${draft.min_area_sqm === 50 ? "✅ " : ""}50 m²`, "area:50"),
+      ],
+      [
+        button(`${draft.min_area_sqm === 70 ? "✅ " : ""}70 m²`, "area:70"),
+        button(`${draft.min_area_sqm === 90 ? "✅ " : ""}90 m²`, "area:90"),
+      ],
+      backRow(draft.edit_return ? `profile:edit:${draft.profile_slot}` : "rooms"),
       cancelRow(),
     ],
   });
@@ -715,8 +745,10 @@ async function afterSelection(
   next: OnboardingStep,
 ) {
   if (draft.edit_return) {
+    const slot = draft.profile_slot;
     delete draft.edit_return;
-    return renderReview(user, chatId, messageId, draft);
+    await persistProfile(user, draft);
+    return profile(user, chatId, messageId, slot);
   }
   return renderStep(user, chatId, messageId, draft, next);
 }
@@ -749,6 +781,47 @@ async function persistProfile(user: any, draft: Draft) {
 
 function profileLimit(user: any) { return user.is_premium ? 3 : 1; }
 
+function profileLocation(current: any) {
+  return current.location_mode === "all_hamburg"
+    ? "Ganz Hamburg"
+    : current.location_mode === "boroughs"
+    ? (current.boroughs || []).join(", ") || "Hamburg"
+    : (current.neighborhoods || []).join(", ") ||
+      (current.districts || []).join(", ") ||
+      "Hamburg";
+}
+
+async function draftFromProfile(current: any): Promise<Draft> {
+  const geo = await geography();
+  const boroughNames = new Set(
+    (Array.isArray(current.boroughs) ? current.boroughs : []).map(String),
+  );
+  const neighborhoodSource = Array.isArray(current.neighborhoods) &&
+      current.neighborhoods.length
+    ? current.neighborhoods
+    : current.location_mode === "neighborhoods" && Array.isArray(current.districts)
+    ? current.districts
+    : [];
+  const neighborhoodNames = new Set(neighborhoodSource.map(String));
+
+  return normalizeDraft({
+    profile_slot: current.profile_slot,
+    property_types: current.property_types || [],
+    location_mode: current.location_mode,
+    borough_ids: geo.boroughs
+      .filter((entry) => boroughNames.has(String(entry.name)))
+      .map((entry) => entry.id),
+    neighborhood_ids: geo.neighborhoods
+      .filter((entry) => neighborhoodNames.has(String(entry.name)))
+      .map((entry) => entry.id),
+    neighborhood_page: 0,
+    max_warm_rent: current.max_warm_rent,
+    min_rooms: current.min_rooms,
+    min_area_sqm: current.min_area_sqm,
+    edit_return: true,
+  });
+}
+
 async function startNewProfile(user: any, chatId: number, messageId?: number, requestedSlot?: number) {
   const limit = profileLimit(user);
   const { data, error } = await db.from("search_profiles").select("profile_slot").eq("user_id", user.id).order("profile_slot");
@@ -762,6 +835,43 @@ async function startNewProfile(user: any, chatId: number, messageId?: number, re
   return renderTypes({ ...user, onboarding_state: draft }, chatId, messageId, draft);
 }
 
+async function profileEditMenu(
+  user: any,
+  chatId: number,
+  messageId: number,
+  selectedSlot: number,
+) {
+  if (!Number.isInteger(selectedSlot) || selectedSlot < 1 || selectedSlot > profileLimit(user)) {
+    return profile(user, chatId, messageId);
+  }
+  const { data: current, error } = await db
+    .from("search_profiles")
+    .select("*")
+    .eq("user_id", user.id)
+    .eq("profile_slot", selectedSlot)
+    .maybeSingle();
+  if (error) throw error;
+  if (!current) return profile(user, chatId, messageId);
+
+  const text =
+    "✏️ <b>Suchprofil ändern</b>\n\n" +
+    "Wähle, was du ändern möchtest. Deine aktuell gespeicherten Werte bleiben vorausgewählt.\n\n" +
+    `🏠 <b>Typ:</b> ${esc((current.property_types || []).join(", "))}\n` +
+    `📍 <b>Gebiet:</b> ${esc(profileLocation(current))}\n` +
+    `💶 <b>Warmmiete:</b> bis ${esc(money(current.max_warm_rent))}\n` +
+    `🚪 <b>Zimmer:</b> ${esc(current.min_rooms ?? "–")}+\n` +
+    `📐 <b>Fläche:</b> ${esc(current.min_area_sqm ?? "–")} m²+`;
+  const markup = { inline_keyboard: [
+    [button("🏠 Wohnungsart", `profile:edit-field:${selectedSlot}:types`)],
+    [button("📍 Gebiet", `profile:edit-field:${selectedSlot}:location`)],
+    [button("💶 Warmmiete", `profile:edit-field:${selectedSlot}:rent`)],
+    [button("🚪 Zimmer", `profile:edit-field:${selectedSlot}:rooms`)],
+    [button("📐 Fläche", `profile:edit-field:${selectedSlot}:area`)],
+    [button("← Zurück", `profile:view:${selectedSlot}`)],
+  ] };
+  return edit(chatId, messageId, text, markup);
+}
+
 async function profile(user: any, chatId: number, messageId?: number, selectedSlot?: number) {
   const limit = profileLimit(user);
   const { data, error } = await db.from("search_profiles").select("*").eq("user_id", user.id).lte("profile_slot", limit).order("profile_slot");
@@ -770,7 +880,7 @@ async function profile(user: any, chatId: number, messageId?: number, selectedSl
   if (selectedSlot) {
     const current: any = profiles.find((row: any) => Number(row.profile_slot) === selectedSlot);
     if (!current) return profile(user, chatId, messageId);
-    const location = current.location_mode === "all_hamburg" ? "Ganz Hamburg" : current.location_mode === "boroughs" ? (current.boroughs || []).join(", ") || "Hamburg" : (current.neighborhoods || []).join(", ") || "Hamburg";
+    const location = profileLocation(current);
     const text = `🔎 <b>${esc(current.name || `Meine Suche ${selectedSlot}`)}</b>\n\n` +
       `Status: ${current.is_active ? "aktiv" : "pausiert"}\n` +
       `Typ: ${esc((current.property_types || []).join(", "))}\n` +
@@ -1222,8 +1332,10 @@ async function handleMessage(message: any, user: any) {
     }
     draft.max_warm_rent = value;
     if (draft.edit_return) {
+      const slot = draft.profile_slot;
       delete draft.edit_return;
-      return renderReview(user, chatId, message.message_id, draft);
+      await persistProfile(user, draft);
+      return profile(user, chatId, undefined, slot);
     }
     await saveState(user.id, "rooms", draft);
     return send(chatId, "4/5 · <b>Mindestens wie viele Zimmer?</b>", {
@@ -1340,7 +1452,30 @@ async function handleCallback(query: any, user: any) {
   if (data === "profile" || data === "profiles") return profile(user, chatId, messageId);
   if (data === "p:view:1") return profile(user, chatId, messageId, 1);
   if (data.startsWith("profile:view:")) return profile(user, chatId, messageId, Number(data.split(":")[2]));
-  if (data.startsWith("profile:edit:")) return startNewProfile(user, chatId, messageId, Number(data.split(":")[2]));
+  if (data.startsWith("profile:edit-field:")) {
+    const parts = data.split(":");
+    const slot = Number(parts[2]);
+    const field = parts[3];
+    if (!Number.isInteger(slot) || slot < 1 || slot > profileLimit(user)) return;
+    const { data: current, error } = await db
+      .from("search_profiles")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("profile_slot", slot)
+      .maybeSingle();
+    if (error) throw error;
+    if (!current) return profile(user, chatId, messageId);
+    const draft = await draftFromProfile(current);
+    if (field === "types") return renderTypes(user, chatId, messageId, draft);
+    if (field === "location") return renderLocation(user, chatId, messageId, draft);
+    if (field === "rent") return renderRent(user, chatId, messageId, draft);
+    if (field === "rooms") return renderRooms(user, chatId, messageId, draft);
+    if (field === "area") return renderArea(user, chatId, messageId, draft);
+    return profileEditMenu(user, chatId, messageId, slot);
+  }
+  if (data.startsWith("profile:edit:")) {
+    return profileEditMenu(user, chatId, messageId, Number(data.split(":")[2]));
+  }
   if (data.startsWith("profile:delete-confirm:")) {
     const slot = Number(data.split(":")[2]);
     if (!Number.isInteger(slot) || slot < 1 || slot > profileLimit(user)) return;
@@ -1576,6 +1711,9 @@ async function handleCallback(query: any, user: any) {
     const area = Number(data.slice(5));
     if (AREA_PRESETS.has(area)) {
       draft.min_area_sqm = area;
+      if (draft.edit_return) {
+        return afterSelection(user, chatId, messageId, draft, "review");
+      }
       delete draft.edit_return;
       return renderReview(user, chatId, messageId, draft);
     }
