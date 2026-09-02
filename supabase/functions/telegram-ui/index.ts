@@ -230,7 +230,7 @@ async function sendPremiumPreview(chatId: number, caption: string, replyMarkup: 
   const language = chatLanguages.get(chatId);
   return telegram("sendPhoto", {
     chat_id: chatId,
-    photo: `${SUPABASE_URL}/functions/v1/telegram-ui?asset=premium`,
+    photo: `${SUPABASE_URL}/functions/v1/telegram-ui?asset=premium&v=20260903`,
     caption: localizeText(caption, language),
     parse_mode: "HTML",
     reply_markup: localizeMarkup(replyMarkup, language),
