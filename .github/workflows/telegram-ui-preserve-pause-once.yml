@@ -1,0 +1,40 @@
+name: Telegram UI preserve pause once
+
+on:
+  push:
+    paths:
+      - .github/workflows/telegram-ui-preserve-pause-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Preserve profile pause state on edit
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('supabase/functions/telegram-ui/index.ts')
+          text = path.read_text()
+          old = '''    furnished_preference: "any",
+    is_active: true,
+    updated_at: new Date().toISOString(),'''
+          new = '''    furnished_preference: "any",
+    updated_at: new Date().toISOString(),'''
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one target, found {text.count(old)}')
+          path.write_text(text.replace(old, new, 1))
+          PY
+
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add supabase/functions/telegram-ui/index.ts
+          git diff --cached --quiet && exit 0
+          git commit -m "Preserve paused profile state when editing"
+          git push
