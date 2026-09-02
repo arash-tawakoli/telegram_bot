@@ -1,0 +1,61 @@
+name: Run premium UI refresh once
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/run-premium-ui-refresh-once.yml
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Extract and apply patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          awk '
+            /python3 - <<.PY./ {capture=1; next}
+            capture && /^          PY$/ {capture=0; exit}
+            capture {sub(/^          /, ""); print}
+          ' .github/workflows/premium-ui-access-refresh-once.yml > /tmp/patch.py
+          test -s /tmp/patch.py
+          python3 /tmp/patch.py
+      - name: Validate requested behavior
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'profile_slot: number' supabase/functions/telegram-ui/index.ts
+          grep -q 'Bis zu 3 Suchprofile' supabase/functions/telegram-ui/index.ts
+          grep -q 'Empfehle Traumwohnung Hamburg weiter und erhaltet beide 7 Tage Premium kostenlos' supabase/functions/telegram-ui/index.ts
+          grep -q 'Erfolgreiche Empfehlungen' supabase/functions/telegram-ui/index.ts
+          grep -q 'TXT.ru' supabase/functions/telegram-ui/i18n.ts
+          grep -q '⭐️ Speichern' supabase/functions/notification-dispatcher/labels.ts
+          grep -q '🔒 Angebot öffnen · 💎 Premium' supabase/functions/notification-dispatcher/index.ts
+          ! grep -q 'Route zum Pendelziel' supabase/functions/notification-dispatcher/index.ts
+          ! grep -q 'Premium source required' supabase/functions/notification-dispatcher/index.ts
+          git diff --check
+      - name: Export updated functions
+        uses: actions/upload-artifact@v4
+        with:
+          name: premium-ui-access-refresh
+          path: |
+            supabase/functions/telegram-ui/index.ts
+            supabase/functions/telegram-ui/i18n.ts
+            supabase/functions/notification-dispatcher/index.ts
+            supabase/functions/notification-dispatcher/labels.ts
+            supabase/functions/stripe-webhook/index.ts
+          retention-days: 1
+      - name: Commit and clean up
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/premium-ui-access-refresh-once.yml .github/workflows/run-premium-ui-refresh-once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Expand premium profiles and Telegram access controls"
+          git push origin HEAD:main
