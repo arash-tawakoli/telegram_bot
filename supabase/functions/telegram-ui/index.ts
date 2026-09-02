@@ -27,6 +27,7 @@ type Draft = {
   min_area_sqm: number | null;
   profile_slot: number;
   edit_return?: boolean;
+  profile_edit?: boolean;
 };
 
 type Geography = {
@@ -113,6 +114,7 @@ function normalizeDraft(raw: any): Draft {
     min_rooms: finiteOrNull(raw?.min_rooms ?? raw?.rooms),
     min_area_sqm: finiteOrNull(raw?.min_area_sqm ?? raw?.area),
     edit_return: raw?.edit_return === true,
+    profile_edit: raw?.profile_edit === true,
   };
 }
 
@@ -427,7 +429,7 @@ async function renderTypes(
       button("Auswahl löschen", "type:clear"),
     ],
     backRow(
-      draft.edit_return ? `profile:edit:${draft.profile_slot}` : "home",
+      draft.profile_edit ? `profile:edit:${draft.profile_slot}` : "home",
       "type:done",
     ),
     cancelRow(),
@@ -452,7 +454,7 @@ async function renderLocation(
       [button(`${draft.location_mode === "all_hamburg" ? "✅ " : ""}🌐 Ganz Hamburg`, "loc:all")],
       [button(`${draft.location_mode === "boroughs" ? "✅ " : ""}🏙 Bezirke auswählen`, "loc:boroughs")],
       [button(`${draft.location_mode === "neighborhoods" ? "✅ " : ""}📍 Stadtteile auswählen`, "loc:neighborhoods")],
-      backRow(draft.edit_return ? `profile:edit:${draft.profile_slot}` : "types"),
+      backRow(draft.profile_edit ? `profile:edit:${draft.profile_slot}` : "types"),
       cancelRow(),
     ],
   });
@@ -569,7 +571,7 @@ async function renderRent(
           : "✏️ Eigener Betrag",
         "rent:custom",
       )],
-      backRow(draft.edit_return ? `profile:edit:${draft.profile_slot}` : "location"),
+      backRow(draft.profile_edit ? `profile:edit:${draft.profile_slot}` : "location"),
       cancelRow(),
     ],
   });
@@ -610,7 +612,7 @@ async function renderRooms(
         button(`${draft.min_rooms === 3 ? "✅ " : ""}3+`, "rooms:3"),
         button(`${draft.min_rooms === 4 ? "✅ " : ""}4+`, "rooms:4"),
       ],
-      backRow(draft.edit_return ? `profile:edit:${draft.profile_slot}` : "rent"),
+      backRow(draft.profile_edit ? `profile:edit:${draft.profile_slot}` : "rent"),
       cancelRow(),
     ],
   });
@@ -633,7 +635,7 @@ async function renderArea(
         button(`${draft.min_area_sqm === 70 ? "✅ " : ""}70 m²`, "area:70"),
         button(`${draft.min_area_sqm === 90 ? "✅ " : ""}90 m²`, "area:90"),
       ],
-      backRow(draft.edit_return ? `profile:edit:${draft.profile_slot}` : "rooms"),
+      backRow(draft.profile_edit ? `profile:edit:${draft.profile_slot}` : "rooms"),
       cancelRow(),
     ],
   });
@@ -744,11 +746,16 @@ async function afterSelection(
   draft: Draft,
   next: OnboardingStep,
 ) {
-  if (draft.edit_return) {
+  if (draft.profile_edit) {
     const slot = draft.profile_slot;
+    delete draft.profile_edit;
     delete draft.edit_return;
     await persistProfile(user, draft);
     return profile(user, chatId, messageId, slot);
+  }
+  if (draft.edit_return) {
+    delete draft.edit_return;
+    return renderReview(user, chatId, messageId, draft);
   }
   return renderStep(user, chatId, messageId, draft, next);
 }
@@ -818,7 +825,7 @@ async function draftFromProfile(current: any): Promise<Draft> {
     max_warm_rent: current.max_warm_rent,
     min_rooms: current.min_rooms,
     min_area_sqm: current.min_area_sqm,
-    edit_return: true,
+    profile_edit: true,
   });
 }
 
@@ -852,6 +859,7 @@ async function profileEditMenu(
     .maybeSingle();
   if (error) throw error;
   if (!current) return profile(user, chatId, messageId);
+  await saveState(user.id, null, {});
 
   const text =
     "✏️ <b>Suchprofil ändern</b>\n\n" +
@@ -1331,11 +1339,16 @@ async function handleMessage(message: any, user: any) {
       );
     }
     draft.max_warm_rent = value;
-    if (draft.edit_return) {
+    if (draft.profile_edit) {
       const slot = draft.profile_slot;
+      delete draft.profile_edit;
       delete draft.edit_return;
       await persistProfile(user, draft);
       return profile(user, chatId, undefined, slot);
+    }
+    if (draft.edit_return) {
+      delete draft.edit_return;
+      return renderReview(user, chatId, message.message_id, draft);
     }
     await saveState(user.id, "rooms", draft);
     return send(chatId, "4/5 · <b>Mindestens wie viele Zimmer?</b>", {
@@ -1711,11 +1724,7 @@ async function handleCallback(query: any, user: any) {
     const area = Number(data.slice(5));
     if (AREA_PRESETS.has(area)) {
       draft.min_area_sqm = area;
-      if (draft.edit_return) {
-        return afterSelection(user, chatId, messageId, draft, "review");
-      }
-      delete draft.edit_return;
-      return renderReview(user, chatId, messageId, draft);
+      return afterSelection(user, chatId, messageId, draft, "review");
     }
     return renderArea(user, chatId, messageId, draft);
   }
