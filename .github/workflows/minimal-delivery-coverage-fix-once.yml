@@ -1,6 +1,8 @@
 name: Minimal delivery coverage fix once
 on:
-  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/minimal-delivery-coverage-fix-once.yml'
 permissions:
   contents: write
 jobs:
@@ -17,45 +19,17 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-
-          p=Path('supabase/functions/notification-dispatcher/index.ts')
-          s=p.read_text()
-          s=s.replace('const FREE_DELAY_MS = 2 * 60 * 60_000;\n','')
-          old='''  if (!premium && listing.first_seen_at) {\n    const freeDue = new Date(\n      new Date(listing.first_seen_at).getTime() + FREE_DELAY_MS,\n    );\n    if (Number.isFinite(freeDue.getTime()) && freeDue > due) due = freeDue;\n  }\n\n'''
-          assert old in s
-          s=s.replace(old,'')
-          p.write_text(s)
-
-          p=Path('supabase/functions/source-worker/shared.ts')
-          s=p.read_text()
-          old="coverage_status:'degraded',"
-          assert old in s
-          s=s.replace(old,'')
-          p.write_text(s)
-
-          p=Path('supabase/functions/source-worker/scout.ts')
-          s=p.read_text()
+          p=Path('supabase/functions/notification-dispatcher/index.ts'); s=p.read_text(); s=s.replace('const FREE_DELAY_MS = 2 * 60 * 60_000;\n','')
+          old='''  if (!premium && listing.first_seen_at) {\n    const freeDue = new Date(\n      new Date(listing.first_seen_at).getTime() + FREE_DELAY_MS,\n    );\n    if (Number.isFinite(freeDue.getTime()) && freeDue > due) due = freeDue;\n  }\n\n'''; assert old in s; p.write_text(s.replace(old,''))
+          p=Path('supabase/functions/source-worker/shared.ts'); s=p.read_text(); assert "coverage_status:'degraded'," in s; p.write_text(s.replace("coverage_status:'degraded',",''))
+          p=Path('supabase/functions/source-worker/scout.ts'); s=p.read_text()
           old=""" const fq='Wohnungen zur Miete in Hamburg, neueste Inserate',fresh=await enrichedSearch(fq);let freshItems=candidates(fresh.entries,fq).map(c=>({...c,raw:{...c.raw,delivery_lane:'fresh'}})),coverageItems:Candidate[]=[],requests=2,mapEnriched=Number(fresh.map_enriched||0),mapErrors=fresh.map_ok?0:1,queue:any[]=Array.isArray(cursor.queue)?cursor.queue:[],processed=0,saturated=0;const work=queue.splice(0,6);"""
-          new=""" const fq='Wohnungen zur Miete in Hamburg, neueste Inserate',fresh=await enrichedSearch(fq),freshBoroughIndex=Number(cursor.fresh_borough_index||0)%BOROUGHS.length,freshBorough=BOROUGHS[freshBoroughIndex],bfq=`Wohnungen zur Miete in ${freshBorough}, Hamburg, neueste Inserate`,boroughFresh=await enrichedSearch(bfq);let freshItems=[...candidates(fresh.entries,fq).map(c=>({...c,raw:{...c.raw,delivery_lane:'fresh'}})),...candidates(boroughFresh.entries,bfq).map(c=>({...c,raw:{...c.raw,delivery_lane:'fresh_borough',fresh_borough:freshBorough}}))],coverageItems:Candidate[]=[],requests=4,mapEnriched=Number(fresh.map_enriched||0)+Number(boroughFresh.map_enriched||0),mapErrors=(fresh.map_ok?0:1)+(boroughFresh.map_ok?0:1),queue:any[]=Array.isArray(cursor.queue)?cursor.queue:[],processed=0,saturated=0;const work=queue.splice(0,5);"""
-          assert old in s
-          s=s.replace(old,new)
-          old2="cursor:{queue,processed:Number(cursor.processed||0)+processed}"
-          new2="cursor:{queue,processed:Number(cursor.processed||0)+processed,fresh_borough_index:(freshBoroughIndex+1)%BOROUGHS.length}"
-          assert old2 in s
-          s=s.replace(old2,new2)
-          old3="fresh_lane_items:freshItems.length,coverage_items:coverageItems.length"
-          new3="fresh_lane_items:freshItems.length,fresh_borough:freshBorough,coverage_items:coverageItems.length"
-          assert old3 in s
-          s=s.replace(old3,new3)
-          p.write_text(s)
-
-          p=Path('supabase/functions/source-worker/generic.ts')
-          s=p.read_text()
+          new=""" const fq='Wohnungen zur Miete in Hamburg, neueste Inserate',fresh=await enrichedSearch(fq),freshBoroughIndex=Number(cursor.fresh_borough_index||0)%BOROUGHS.length,freshBorough=BOROUGHS[freshBoroughIndex],bfq=`Wohnungen zur Miete in ${freshBorough}, Hamburg, neueste Inserate`,boroughFresh=await enrichedSearch(bfq);let freshItems=[...candidates(fresh.entries,fq).map(c=>({...c,raw:{...c.raw,delivery_lane:'fresh'}})),...candidates(boroughFresh.entries,bfq).map(c=>({...c,raw:{...c.raw,delivery_lane:'fresh_borough',fresh_borough:freshBorough}}))],coverageItems:Candidate[]=[],requests=4,mapEnriched=Number(fresh.map_enriched||0)+Number(boroughFresh.map_enriched||0),mapErrors=(fresh.map_ok?0:1)+(boroughFresh.map_ok?0:1),queue:any[]=Array.isArray(cursor.queue)?cursor.queue:[],processed=0,saturated=0;const work=queue.splice(0,5);"""; assert old in s; s=s.replace(old,new)
+          old2="cursor:{queue,processed:Number(cursor.processed||0)+processed}"; assert old2 in s; s=s.replace(old2,"cursor:{queue,processed:Number(cursor.processed||0)+processed,fresh_borough_index:(freshBoroughIndex+1)%BOROUGHS.length}")
+          old3="fresh_lane_items:freshItems.length,coverage_items:coverageItems.length"; assert old3 in s; s=s.replace(old3,"fresh_lane_items:freshItems.length,fresh_borough:freshBorough,coverage_items:coverageItems.length"); p.write_text(s)
+          p=Path('supabase/functions/source-worker/generic.ts'); s=p.read_text()
           old="""          }else{\n            picked=c;complete=!!c.enumerable;primaryTrustedSnapshot=complete&&c.enumerable&&['tenant_api','full_page'].includes(source.coverage_strategy);\n            const r=await upsertCandidates(source,x.cands,primaryTrustedSnapshot);savedOverride=r;cands=[...x.cands];successfulLaneCount=1;\n            meta.connector_attempts.push({priority:c.priority,label:c.label,status:'ok',fetched:x.cands.length,role:'primary'});\n          }"""
-          new="""          }else{\n            picked=c;complete=!!c.enumerable;primaryTrustedSnapshot=complete&&c.enumerable&&['tenant_api','full_page'].includes(source.coverage_strategy);\n            const newestFirst=String(c.config?.freshness_mode||'')==='newest_first',allowNewest=!!source.baseline_completed_at&&newestFirst;\n            const r=await upsertCandidates(source,x.cands,primaryTrustedSnapshot||allowNewest);savedOverride=r;cands=[...x.cands];successfulLaneCount=1;\n            meta.connector_attempts.push({priority:c.priority,label:c.label,status:'ok',fetched:x.cands.length,role:'primary',freshness_mode:newestFirst?'newest_first':undefined});\n          }"""
-          assert old in s
-          s=s.replace(old,new)
-          p.write_text(s)
+          new="""          }else{\n            picked=c;complete=!!c.enumerable;primaryTrustedSnapshot=complete&&c.enumerable&&['tenant_api','full_page'].includes(source.coverage_strategy);\n            const newestFirst=String(c.config?.freshness_mode||'')==='newest_first',allowNewest=!!source.baseline_completed_at&&newestFirst;\n            const r=await upsertCandidates(source,x.cands,primaryTrustedSnapshot||allowNewest);savedOverride=r;cands=[...x.cands];successfulLaneCount=1;\n            meta.connector_attempts.push({priority:c.priority,label:c.label,status:'ok',fetched:x.cands.length,role:'primary',freshness_mode:newestFirst?'newest_first':undefined});\n          }"""; assert old in s; p.write_text(s.replace(old,new))
           PY
       - name: Sanity checks
         run: |
@@ -66,7 +40,7 @@ jobs:
           grep -q "allowNewest" supabase/functions/source-worker/generic.ts
           grep -q 'source_type || "") === "Baugenossenschaft"' supabase/functions/notification-dispatcher/index.ts
           git diff --check
-      - name: Commit
+      - name: Commit and clean up
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
