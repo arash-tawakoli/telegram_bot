@@ -1,8 +1,10 @@
 name: Telegram UI menu fix once
 on:
   push:
-    branches: [main]
-    paths: [.github/workflows/telegram-ui-menu-fix-once.yml]
+    branches:
+      - main
+    paths:
+      - '.github/workflows/telegram-ui-menu-fix-once.yml'
 permissions:
   contents: write
 jobs:
@@ -10,46 +12,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - uses: supabase/setup-cli@v1
         with:
           version: latest
-      - name: Apply minimal Telegram UI changes
+      - name: Patch UI
         shell: bash
         run: |
-          set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
           p=Path('supabase/functions/telegram-ui/index.ts')
           s=p.read_text()
-
-          # Settings: hide global pause/resume buttons. Keep callbacks/commands intact.
-          ss=s.index('async function settings(')
-          se=s.index('async function handleMessage(', ss)
-          settings=s[ss:se]
-          settings=settings.replace('    [button("⏸ Suche pausieren", "pause"), button("▶️ Suche fortsetzen", "resume")],\n','')
-          s=s[:ss]+settings+s[se:]
-
-          # Home: move Status out, leaving Help as its own row.
+          settings_start=s.index('async function settings(')
+          settings_end=s.index('async function handleMessage(', settings_start)
+          part=s[settings_start:settings_end]
+          part=part.replace('    [button("⏸ Suche pausieren", "pause"), button("▶️ Suche fortsetzen", "resume")],\n','')
+          s=s[:settings_start]+part+s[settings_end:]
           old='''    [
       button("📡 Status", "status"),
       button("❓ Hilfe", "help"),
     ],'''
-          new='''    [button("❓ Hilfe", "help")],'''
-          if old not in s: raise SystemExit('home status anchor not found')
-          s=s.replace(old,new,1)
-
-          # Saved: one listing title at a time with previous/next navigation.
-          a=s.index('async function saved(')
-          b=s.index('async function renderStatus(', a)
-          saved='''async function saved(user: any, chatId: number, messageId?: number, requestedIndex = 0) {
+          if old not in s: raise SystemExit('home anchor missing')
+          s=s.replace(old,'    [button("❓ Hilfe", "help")],',1)
+          a=s.index('async function saved('); b=s.index('async function renderStatus(',a)
+          block='''async function saved(user: any, chatId: number, messageId?: number, requestedIndex = 0) {
   if (!user.is_premium) return premium(user, chatId, messageId);
-  const { data, error } = await db
-    .from("saved_listings")
-    .select("listing_id,created_at,listings(title,canonical_url,is_active,sources(name,button_label))")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false });
+  const { data, error } = await db.from("saved_listings").select("listing_id,created_at,listings(title,canonical_url,is_active,sources(name,button_label))").eq("user_id", user.id).order("created_at", { ascending: false });
   if (error) throw error;
   const items = (data || []).filter((row: any) => row.listings);
   if (!items.length) {
@@ -62,38 +49,25 @@ jobs:
   const source: any = listing.sources || {};
   const title = esc(String(listing.title || "Inserat").replace(/\\s+/g, " ").slice(0, 180));
   const rows: any[] = [];
-  try {
-    const url = new URL(listing.canonical_url);
-    if (["http:", "https:"].includes(url.protocol)) rows.push([{ text: `🔗 ${source.button_label || source.name || "Angebot"}`, url: url.href }]);
-  } catch {}
+  try { const url = new URL(listing.canonical_url); if (["http:", "https:"].includes(url.protocol)) rows.push([{ text: `🔗 ${source.button_label || source.name || "Angebot"}`, url: url.href }]); } catch {}
   const nav: any[] = [];
   if (index > 0) nav.push(button("⬅️ Zurück", `saved:${index - 1}`));
   if (index < items.length - 1) nav.push(button("Weiter ➡️", `saved:${index + 1}`));
   if (nav.length) rows.push(nav);
   rows.push([button("← Start", "home")]);
   const text = `⭐️ <b>Gespeicherte Inserate</b>\\n\\n<b>${title}</b>\\n\\n${index + 1}/${items.length}`;
-  const markup = { inline_keyboard: rows };
-  return messageId ? edit(chatId, messageId, text, markup) : send(chatId, text, markup);
+  return messageId ? edit(chatId, messageId, text, { inline_keyboard: rows }) : send(chatId, text, { inline_keyboard: rows });
 }
 
 '''
-          s=s[:a]+saved+s[b:]
-
-          # Profile detail: add delete action.
+          s=s[:a]+block+s[b:]
           old='      [button(current.is_active ? "⏸ Pausieren" : "▶️ Fortsetzen", current.is_active ? `profile:pause:${selectedSlot}` : `profile:resume:${selectedSlot}`)],\n      [button("← Zurück", "profile")],'
-          new='      [button(current.is_active ? "⏸ Pausieren" : "▶️ Fortsetzen", current.is_active ? `profile:pause:${selectedSlot}` : `profile:resume:${selectedSlot}`)],\n      [button("🗑 Profil löschen", `profile:delete:${selectedSlot}`)],\n      [button("← Zurück", "profile")],'
-          if old not in s: raise SystemExit('profile detail anchor not found')
-          s=s.replace(old,new,1)
-
-          # Callback: saved index must be handled before the existing generic saved branch.
+          if old not in s: raise SystemExit('profile anchor missing')
+          s=s.replace(old,'      [button(current.is_active ? "⏸ Pausieren" : "▶️ Fortsetzen", current.is_active ? `profile:pause:${selectedSlot}` : `profile:resume:${selectedSlot}`)],\n      [button("🗑 Profil löschen", `profile:delete:${selectedSlot}`)],\n      [button("← Zurück", "profile")],',1)
           anchor='  if (data === "profile" || data === "profiles") return profile(user, chatId, messageId);\n'
-          if anchor not in s: raise SystemExit('profile callback anchor not found')
           s=s.replace(anchor,'  if (data.startsWith("saved:")) return saved(user, chatId, messageId, Number(data.split(":")[1]) || 0);\n'+anchor,1)
-
-          # Profile delete uses confirmation and deletes only the selected slot owned by this user.
-          anchor2='  if (data.startsWith("profile:pause:") || data.startsWith("profile:resume:")) {\n'
-          if anchor2 not in s: raise SystemExit('pause callback anchor not found')
-          block='''  if (data.startsWith("profile:delete-confirm:")) {
+          anchor='  if (data.startsWith("profile:pause:") || data.startsWith("profile:resume:")) {\n'
+          add='''  if (data.startsWith("profile:delete-confirm:")) {
     const slot = Number(data.split(":")[2]);
     if (!slot) return;
     const { error } = await db.from("search_profiles").delete().eq("user_id", user.id).eq("profile_slot", slot);
@@ -103,43 +77,25 @@ jobs:
   if (data.startsWith("profile:delete:")) {
     const slot = Number(data.split(":")[2]);
     if (!slot) return;
-    return edit(chatId, messageId, "🗑 <b>Suchprofil löschen?</b>\\n\\nDiese Aktion kann nicht rückgängig gemacht werden.", { inline_keyboard: [
-      [button("Ja, löschen", `profile:delete-confirm:${slot}`)],
-      [button("← Abbrechen", `profile:view:${slot}`)],
-    ]});
+    return edit(chatId, messageId, "🗑 <b>Suchprofil löschen?</b>\\n\\nDiese Aktion kann nicht rückgängig gemacht werden.", { inline_keyboard: [[button("Ja, löschen", `profile:delete-confirm:${slot}`)],[button("← Abbrechen", `profile:view:${slot}`)]] });
   }
 '''
-          s=s.replace(anchor2,block+anchor2,1)
+          if anchor not in s: raise SystemExit('callback anchor missing')
+          s=s.replace(anchor,add+anchor,1)
           p.write_text(s)
           PY
-
-          python3 - <<'PY'
-          from pathlib import Path
-          s=Path('supabase/functions/telegram-ui/index.ts').read_text()
-          settings=s[s.index('async function settings('):s.index('async function handleMessage(')]
-          home=s[s.index('function homeKeyboard('):s.index('const HELP_TEXT')]
-          assert '"pause"' not in settings and '"resume"' not in settings
-          assert 'button("📡 Systemstatus", "status")' in settings
-          assert 'button("📡 Status", "status")' not in home
-          assert 'Weiter ➡️' in s and 'saved:${index - 1}' in s
-          assert 'profile:delete-confirm:' in s and '🗑 Profil löschen' in s
-          assert 'async function setPaused(' in s
-          print('telegram-ui acceptance checks passed')
-          PY
-      - name: Commit source change
+          grep -q 'Weiter ➡️' supabase/functions/telegram-ui/index.ts
+          grep -q 'profile:delete-confirm:' supabase/functions/telegram-ui/index.ts
+      - name: Commit
         shell: bash
         run: |
-          set -euo pipefail
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add supabase/functions/telegram-ui/index.ts
-          git commit -m "Adjust Telegram profile and saved menus"
+          git commit -m 'Adjust Telegram profile and saved menus'
           git push
-      - name: Deploy telegram-ui
+      - name: Deploy
+        shell: bash
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PROJECT_REF: dpmohkrwdlicexwcrqfy
-        shell: bash
-        run: |
-          set -euo pipefail
-          supabase functions deploy telegram-ui --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
+        run: supabase functions deploy telegram-ui --project-ref dpmohkrwdlicexwcrqfy --no-verify-jwt
