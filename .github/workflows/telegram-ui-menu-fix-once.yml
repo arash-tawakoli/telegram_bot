@@ -21,112 +21,106 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
-          import re
-
           p=Path('supabase/functions/telegram-ui/index.ts')
           s=p.read_text()
 
-          # 1) Hide global pause/resume controls in Settings. Backend callbacks remain intact.
+          # Settings: hide global pause/resume buttons. Keep callbacks/commands intact.
           ss=s.index('async function settings(')
           se=s.index('async function handleMessage(', ss)
           settings=s[ss:se]
           settings=settings.replace('    [button("⏸ Suche pausieren", "pause"), button("▶️ Suche fortsetzen", "resume")],\n','')
-          if 'button("📡 Systemstatus", "status")' not in settings:
-              settings=settings.replace('    [button("🌐 Sprachen", "language")', '    [button("🌐 Sprachen", "language"), button("📡 Systemstatus", "status")')
           s=s[:ss]+settings+s[se:]
 
-          # 4) Status belongs in Settings, not Home. Remove only a standalone Status row from Home.
-          hs=s.index('async function home(')
-          he=s.index('async function persistProfile(', hs)
-          home=s[hs:he]
-          home=re.sub(r'^\s*\[button\([^\n]*["\']status["\'][^\n]*\)\],\s*\n', '', home, flags=re.M)
-          home=re.sub(r'^\s*\[button\(["\']📡 (?:Status|Systemstatus)["\'],\s*["\']status["\']\)\],\s*\n', '', home, flags=re.M)
-          s=s[:hs]+home+s[he:]
+          # Home: move Status out, leaving Help as its own row.
+          old='''    [
+      button("📡 Status", "status"),
+      button("❓ Hilfe", "help"),
+    ],'''
+          new='''    [button("❓ Hilfe", "help")],'''
+          if old not in s: raise SystemExit('home status anchor not found')
+          s=s.replace(old,new,1)
 
-          # 2) Restore simple one-at-a-time Saved navigation: title + Back/Next.
+          # Saved: one listing title at a time with previous/next navigation.
           a=s.index('async function saved(')
           b=s.index('async function renderStatus(', a)
           saved='''async function saved(user: any, chatId: number, messageId?: number, requestedIndex = 0) {
-            const { data, error } = await db
-              .from("saved_listings")
-              .select("listing_id,created_at,listings(*,sources(name,button_label))")
-              .eq("user_id", user.id)
-              .order("created_at", { ascending: false });
-            if (error) throw error;
-            const items = (data || []).filter((row: any) => row.listings);
-            if (!items.length) {
-              const text = "⭐️ <b>Gespeicherte Inserate</b>\\n\\nNoch keine Inserate gespeichert.";
-              const markup = { inline_keyboard: [[button("← Zurück", "home")]] };
-              return messageId ? edit(chatId, messageId, text, markup) : send(chatId, text, markup);
-            }
-            const index = Math.max(0, Math.min(items.length - 1, Number(requestedIndex) || 0));
-            const listing: any = items[index].listings;
-            const source: any = listing.sources || {};
-            const title = esc(String(listing.title || "Inserat").replace(/\\s+/g, " ").slice(0, 180));
-            const rows: any[] = [];
-            if (listing.canonical_url) rows.push([{ text: `🔗 ${source.button_label || source.name || "Angebot"}`, url: listing.canonical_url }]);
-            const nav: any[] = [];
-            if (index > 0) nav.push(button("⬅️ Zurück", `saved:${index - 1}`));
-            if (index < items.length - 1) nav.push(button("Weiter ➡️", `saved:${index + 1}`));
-            if (nav.length) rows.push(nav);
-            rows.push([button("← Start", "home")]);
-            const text = `⭐️ <b>Gespeicherte Inserate</b>\\n\\n<b>${title}</b>\\n\\n${index + 1}/${items.length}`;
-            const markup = { inline_keyboard: rows };
-            return messageId ? edit(chatId, messageId, text, markup) : send(chatId, text, markup);
-          }
+  if (!user.is_premium) return premium(user, chatId, messageId);
+  const { data, error } = await db
+    .from("saved_listings")
+    .select("listing_id,created_at,listings(title,canonical_url,is_active,sources(name,button_label))")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  const items = (data || []).filter((row: any) => row.listings);
+  if (!items.length) {
+    const text = "⭐️ <b>Gespeicherte Inserate</b>\\n\\nNoch keine Inserate gespeichert.";
+    const markup = { inline_keyboard: [[button("← Zurück", "home")]] };
+    return messageId ? edit(chatId, messageId, text, markup) : send(chatId, text, markup);
+  }
+  const index = Math.max(0, Math.min(items.length - 1, Number(requestedIndex) || 0));
+  const listing: any = items[index].listings;
+  const source: any = listing.sources || {};
+  const title = esc(String(listing.title || "Inserat").replace(/\\s+/g, " ").slice(0, 180));
+  const rows: any[] = [];
+  try {
+    const url = new URL(listing.canonical_url);
+    if (["http:", "https:"].includes(url.protocol)) rows.push([{ text: `🔗 ${source.button_label || source.name || "Angebot"}`, url: url.href }]);
+  } catch {}
+  const nav: any[] = [];
+  if (index > 0) nav.push(button("⬅️ Zurück", `saved:${index - 1}`));
+  if (index < items.length - 1) nav.push(button("Weiter ➡️", `saved:${index + 1}`));
+  if (nav.length) rows.push(nav);
+  rows.push([button("← Start", "home")]);
+  const text = `⭐️ <b>Gespeicherte Inserate</b>\\n\\n<b>${title}</b>\\n\\n${index + 1}/${items.length}`;
+  const markup = { inline_keyboard: rows };
+  return messageId ? edit(chatId, messageId, text, markup) : send(chatId, text, markup);
+}
 
-          '''
+'''
           s=s[:a]+saved+s[b:]
 
-          # 3) Add delete option to each profile detail with explicit confirmation.
+          # Profile detail: add delete action.
           old='      [button(current.is_active ? "⏸ Pausieren" : "▶️ Fortsetzen", current.is_active ? `profile:pause:${selectedSlot}` : `profile:resume:${selectedSlot}`)],\n      [button("← Zurück", "profile")],'
           new='      [button(current.is_active ? "⏸ Pausieren" : "▶️ Fortsetzen", current.is_active ? `profile:pause:${selectedSlot}` : `profile:resume:${selectedSlot}`)],\n      [button("🗑 Profil löschen", `profile:delete:${selectedSlot}`)],\n      [button("← Zurück", "profile")],'
-          if old not in s:
-              raise SystemExit('profile detail anchor not found')
+          if old not in s: raise SystemExit('profile detail anchor not found')
           s=s.replace(old,new,1)
 
-          # Saved paging callback before other generic callbacks.
+          # Callback: saved index must be handled before the existing generic saved branch.
           anchor='  if (data === "profile" || data === "profiles") return profile(user, chatId, messageId);\n'
-          if anchor not in s:
-              raise SystemExit('callback anchor not found')
-          insert='''  if (data.startsWith("saved:")) return saved(user, chatId, messageId, Number(data.split(":")[1]) || 0);
-          '''
-          s=s.replace(anchor,insert+anchor,1)
+          if anchor not in s: raise SystemExit('profile callback anchor not found')
+          s=s.replace(anchor,'  if (data.startsWith("saved:")) return saved(user, chatId, messageId, Number(data.split(":")[1]) || 0);\n'+anchor,1)
 
-          # Profile deletion: first click confirms, second click deletes only that user's slot.
+          # Profile delete uses confirmation and deletes only the selected slot owned by this user.
           anchor2='  if (data.startsWith("profile:pause:") || data.startsWith("profile:resume:")) {\n'
-          if anchor2 not in s:
-              raise SystemExit('profile pause callback anchor not found')
-          delete_callbacks='''  if (data.startsWith("profile:delete-confirm:")) {
-            const slot = Number(data.split(":")[2]);
-            if (!slot) return acknowledge(query.id);
-            const { error } = await db.from("search_profiles").delete().eq("user_id", user.id).eq("profile_slot", slot);
-            if (error) throw error;
-            await acknowledge(query.id, "Profil gelöscht");
-            return profile(user, chatId, messageId);
-          }
-          if (data.startsWith("profile:delete:")) {
-            const slot = Number(data.split(":")[2]);
-            if (!slot) return acknowledge(query.id);
-            await acknowledge(query.id);
-            return edit(chatId, messageId, "🗑 <b>Suchprofil löschen?</b>\\n\\nDiese Aktion kann nicht rückgängig gemacht werden.", { inline_keyboard: [
-              [button("Ja, löschen", `profile:delete-confirm:${slot}`)],
-              [button("← Abbrechen", `profile:view:${slot}`)],
-            ]});
-          }
-          '''
-          s=s.replace(anchor2,delete_callbacks+anchor2,1)
-
+          if anchor2 not in s: raise SystemExit('pause callback anchor not found')
+          block='''  if (data.startsWith("profile:delete-confirm:")) {
+    const slot = Number(data.split(":")[2]);
+    if (!slot) return;
+    const { error } = await db.from("search_profiles").delete().eq("user_id", user.id).eq("profile_slot", slot);
+    if (error) throw error;
+    return profile(user, chatId, messageId);
+  }
+  if (data.startsWith("profile:delete:")) {
+    const slot = Number(data.split(":")[2]);
+    if (!slot) return;
+    return edit(chatId, messageId, "🗑 <b>Suchprofil löschen?</b>\\n\\nDiese Aktion kann nicht rückgängig gemacht werden.", { inline_keyboard: [
+      [button("Ja, löschen", `profile:delete-confirm:${slot}`)],
+      [button("← Abbrechen", `profile:view:${slot}`)],
+    ]});
+  }
+'''
+          s=s.replace(anchor2,block+anchor2,1)
           p.write_text(s)
           PY
 
-          # Narrow acceptance checks.
           python3 - <<'PY'
           from pathlib import Path
           s=Path('supabase/functions/telegram-ui/index.ts').read_text()
           settings=s[s.index('async function settings('):s.index('async function handleMessage(')]
+          home=s[s.index('function homeKeyboard('):s.index('const HELP_TEXT')]
           assert '"pause"' not in settings and '"resume"' not in settings
           assert 'button("📡 Systemstatus", "status")' in settings
+          assert 'button("📡 Status", "status")' not in home
           assert 'Weiter ➡️' in s and 'saved:${index - 1}' in s
           assert 'profile:delete-confirm:' in s and '🗑 Profil löschen' in s
           assert 'async function setPaused(' in s
