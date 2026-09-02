@@ -441,11 +441,12 @@ Deno.serve(async (req: Request) => {
             await telegramMessage(
               userId,
               "🎉 <b>Danke für dein Abo!</b>\n\n" +
-                "👑 Dein Traumwohnung Premium-Abo ist jetzt aktiv.\n\n" +
+                "💎 Dein Traumwohnung Premium-Abo ist jetzt aktiv.\n\n" +
                 "<b>Ab sofort profitierst du von:</b>\n" +
                 "⚡ Sofortiger Zustellung neuer passender Inserate\n" +
-                "🏢 Allen Quellen inkl. Baugenossenschaften\n" +
-                "❤️ Inserate speichern\n\n" +
+                "🔎 Bis zu 3 Suchprofile\n" +
+                "🔓 Baugenossenschafts-Angebote öffnen\n" +
+                "⭐️ Inserate speichern\n\n" +
                 "Viel Erfolg bei der Wohnungssuche! 🏠",
               {
                 inline_keyboard: [[

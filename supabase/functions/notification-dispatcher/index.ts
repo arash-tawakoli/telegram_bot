@@ -401,22 +401,20 @@ function listingKeyboard(
   listing: any,
   language: string,
   premium: boolean,
-  routeUrl?: string | null,
 ) {
   const rows: any[] = [
     [
-      {
-        text: listing.sources?.button_label
-          ? `Zu ${listing.sources.button_label}`
-          : label(language, "offer"),
-        url: listing.canonical_url,
-      },
+      !premium && String(listing.sources?.source_type || "") === "Baugenossenschaft"
+        ? { text: "🔒 Angebot öffnen · 💎 Premium", callback_data: "premium" }
+        : {
+          text: listing.sources?.button_label ? `Zu ${listing.sources.button_label}` : label(language, "offer"),
+          url: listing.canonical_url,
+        },
     ],
   ];
 
   const map = mapsUrl(listing);
   if (map) rows.push([{ text: label(language, "maps"), url: map }]);
-  if (routeUrl) rows.push([{ text: "🧭 Route zum Pendelziel", url: routeUrl }]);
   if (premium) {
     rows.push([
       { text: label(language, "save"), callback_data: `save:${listing.id}` },
@@ -444,7 +442,6 @@ async function sendListing(
   listing: any,
   language: string,
   premium: boolean,
-  routeUrl?: string | null,
 ) {
   const images = [
     listing.image_status !== "fallback" ? listing.resolved_image_url : null,
@@ -463,7 +460,7 @@ async function sendListing(
         photo: image,
         caption: listingCaption(listing, language),
         parse_mode: "HTML",
-        reply_markup: listingKeyboard(listing, language, premium, routeUrl),
+        reply_markup: listingKeyboard(listing, language, premium),
       });
       return message?.message_id || null;
     } catch (error) {
@@ -477,7 +474,7 @@ async function sendListing(
       text: listingCaption(listing, language),
       parse_mode: "HTML",
       disable_web_page_preview: true,
-      reply_markup: listingKeyboard(listing, language, premium, routeUrl),
+      reply_markup: listingKeyboard(listing, language, premium),
     });
     return message?.message_id || null;
   } catch (error) {
@@ -838,7 +835,6 @@ async function run(token: string) {
         !owner?.is_active ||
         !recipient?.is_active ||
         (!premium && Number(profile.profile_slot || 1) > 1) ||
-        (!premium && String(listing.sources?.source_type || "") === "Baugenossenschaft") ||
         !matches(profile, listing)
       ) {
         await markSkipped(
@@ -847,9 +843,6 @@ async function run(token: string) {
             ? "Recipient inactive"
             : !premium && Number(profile?.profile_slot || 1) > 1
               ? "Premium profile inactive"
-              : !premium &&
-                    String(listing.sources?.source_type || "") === "Baugenossenschaft"
-                ? "Premium source required"
                 : listing?.is_primary_listing === false
                   ? "Suppressed by higher-priority duplicate"
                   : "No longer matches profile",
@@ -1007,26 +1000,12 @@ async function run(token: string) {
       }
 
       try {
-        const { data: destination, error: destinationError } = await db
-          .from("user_destinations")
-          .select("address,transport_mode")
-          .eq("user_id", recipient.id)
-          .order("created_at")
-          .limit(1)
-          .maybeSingle();
-        if (destinationError) throw destinationError;
-        const listingAddress = address(listing);
-        const routeUrl = destination && listingAddress
-          ? `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(destination.address)}&destination=${encodeURIComponent(listingAddress)}&travelmode=${destination.transport_mode === "cycling" ? "bicycling" : destination.transport_mode}`
-          : null;
-
         const messageId = await sendListing(
           token,
           Number(recipient.chat_id),
           listing,
           recipient.ui_language || "de",
           premium,
-          routeUrl,
         );
         const { error: sentError } = await db
           .from("delivery_events")

@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.112.4";
+import { LANGS, localizeMarkup, localizeText } from "./i18n.ts";
 
 type PropertyType = "Wohnung" | "Haus" | "WG" | "Tauschwohnung";
 type LocationMode = "all_hamburg" | "boroughs" | "neighborhoods";
@@ -24,6 +25,7 @@ type Draft = {
   max_warm_rent: number | null;
   min_rooms: number | null;
   min_area_sqm: number | null;
+  profile_slot: number;
   edit_return?: boolean;
 };
 
@@ -41,6 +43,7 @@ const db = createClient(SUPABASE_URL, SERVICE_KEY, {
 });
 
 const PREMIUM_LINK = "https://buy.stripe.com/dRm9AM7DSajfgYK2qVfYY01";
+const PREMIUM_PREVIEW_B64 = "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";
 const PROPERTY_TYPES: PropertyType[] = [
   "Wohnung",
   "Haus",
@@ -56,10 +59,12 @@ const GEO_TTL_MS = 30 * 60_000;
 const ADMIN_TELEGRAM_USER_ID = 8538226539;
 
 const secretCache = new Map<string, { value: string; expiresAt: number }>();
+const chatLanguages = new Map<number, string>();
 let geoCache: { value: Geography; expiresAt: number } | null = null;
 
-function emptyDraft(): Draft {
+function emptyDraft(profileSlot = 1): Draft {
   return {
+    profile_slot: Math.max(1, Math.min(3, Number(profileSlot) || 1)),
     property_types: [],
     location_mode: null,
     borough_ids: [],
@@ -87,6 +92,7 @@ function normalizeDraft(raw: any): Draft {
     : null;
 
   return {
+    profile_slot: Math.max(1, Math.min(3, Number(raw?.profile_slot) || 1)),
     property_types: Array.from(new Set<PropertyType>(propertyTypes)),
     location_mode: ["all_hamburg", "boroughs", "neighborhoods"].includes(
         String(raw?.location_mode || ""),
@@ -190,10 +196,10 @@ async function telegram(method: string, body: any, retry = true): Promise<any> {
 function send(chatId: number, text: string, replyMarkup?: any) {
   return telegram("sendMessage", {
     chat_id: chatId,
-    text,
+    text: localizeText(text, chatLanguages.get(chatId)),
     parse_mode: "HTML",
     disable_web_page_preview: true,
-    reply_markup: replyMarkup,
+    reply_markup: localizeMarkup(replyMarkup, chatLanguages.get(chatId)),
   });
 }
 
@@ -207,14 +213,33 @@ async function edit(
     return await telegram("editMessageText", {
       chat_id: chatId,
       message_id: messageId,
-      text,
+      text: localizeText(text, chatLanguages.get(chatId)),
       parse_mode: "HTML",
       disable_web_page_preview: true,
-      reply_markup: replyMarkup,
+      reply_markup: localizeMarkup(replyMarkup, chatLanguages.get(chatId)),
     });
   } catch {
     return send(chatId, text, replyMarkup);
   }
+}
+
+
+async function sendPremiumPreview(chatId: number, caption: string, replyMarkup: any) {
+  const token = await secret("telegram_bot_token_runtime");
+  const raw = atob(PREMIUM_PREVIEW_B64);
+  const bytes = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+  const language = chatLanguages.get(chatId);
+  const form = new FormData();
+  form.set("chat_id", String(chatId));
+  form.set("photo", new Blob([bytes], { type: "image/jpeg" }), "premium.jpg");
+  form.set("caption", localizeText(caption, language));
+  form.set("parse_mode", "HTML");
+  form.set("reply_markup", JSON.stringify(localizeMarkup(replyMarkup, language)));
+  const response = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: "POST", body: form });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok || !result.ok) throw new Error(String(result?.description || `Telegram ${response.status}`));
+  return result.result;
 }
 
 async function acknowledge(id: string, text?: string) {
@@ -325,11 +350,11 @@ function homeKeyboard(user: any) {
   rows.push(
     [
       button("🔎 Suchprofil", "profile"),
-      button("❤️ Gespeichert", "saved"),
+      button("⭐️ Gespeichert", "saved"),
     ],
     [
       button(
-        user.is_premium ? "👑 Premium aktiv" : "👑 Premium",
+        user.is_premium ? "💎 Premium aktiv" : "💎 Premium",
         "premium",
       ),
       button("⚙️ Einstellungen", "settings"),
@@ -347,12 +372,12 @@ const HELP_TEXT =
   "🏠 /start – Startmenü\n" +
   "🔎 /suche – Suchprofil erstellen oder ersetzen\n" +
   "👤 /profile – Suchprofil anzeigen\n" +
-  "❤️ /gespeichert – gespeicherte Inserate\n" +
+  "⭐️ /gespeichert – gespeicherte Inserate\n" +
   "⚙️ /einstellungen – Einstellungen\n" +
   "⏸ /pause – Suche pausieren\n" +
   "▶️ /resume – Suche fortsetzen\n" +
   "📡 /status – Systemstatus\n" +
-  "👑 /premium – Premium anzeigen\n" +
+  "💎 /premium – Premium anzeigen\n" +
   "❓ /hilfe – Hilfe";
 
 function home(user: any, chatId: number, messageId?: number) {
@@ -709,116 +734,88 @@ async function persistProfile(user: any, draft: Draft) {
   const issue = validateDraft(draft);
   if (issue) throw new Error(`incomplete profile: ${issue}`);
   const places = await selectedPlaces(draft);
-
-  const { error } = await db.from("search_profiles").upsert(
-    {
-      user_id: user.id,
-      profile_slot: 1,
-      name: "Meine Suche",
-      property_types: draft.property_types,
-      location_mode: draft.location_mode,
-      districts: places.districts,
-      boroughs: places.boroughs,
-      neighborhoods: places.neighborhoods,
-      max_warm_rent: draft.max_warm_rent,
-      min_rooms: draft.min_rooms,
-      min_area_sqm: draft.min_area_sqm,
-      wbs_only: false,
-      furnished_preference: "any",
-      is_active: true,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "user_id,profile_slot" },
-  );
+  const slot = Math.max(1, Math.min(profileLimit(user), Number(draft.profile_slot) || 1));
+  const { error } = await db.from("search_profiles").upsert({
+    user_id: user.id,
+    profile_slot: slot,
+    name: slot === 1 ? "Meine Suche" : `Meine Suche ${slot}`,
+    property_types: draft.property_types,
+    location_mode: draft.location_mode,
+    districts: places.districts,
+    boroughs: places.boroughs,
+    neighborhoods: places.neighborhoods,
+    max_warm_rent: draft.max_warm_rent,
+    min_rooms: draft.min_rooms,
+    min_area_sqm: draft.min_area_sqm,
+    wbs_only: false,
+    furnished_preference: "any",
+    is_active: true,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "user_id,profile_slot" });
   if (error) throw error;
   await saveState(user.id, null, {});
 }
 
-async function profile(user: any, chatId: number, messageId?: number) {
-  const { data, error } = await db
-    .from("search_profiles")
-    .select("*")
-    .eq("user_id", user.id)
-    .eq("profile_slot", 1)
-    .maybeSingle();
+function profileLimit(user: any) { return user.is_premium ? 3 : 1; }
+
+async function startNewProfile(user: any, chatId: number, messageId?: number, requestedSlot?: number) {
+  const limit = profileLimit(user);
+  const { data, error } = await db.from("search_profiles").select("profile_slot").eq("user_id", user.id).order("profile_slot");
   if (error) throw error;
-
-  if (!data) {
-    const text = "🔎 <b>Mein Suchprofil</b>\n\nNoch kein Suchprofil angelegt.";
-    const markup = {
-      inline_keyboard: [
-        [button("➕ Erstellen", "new")],
-        [button("← Zurück", "home")],
-      ],
-    };
-    return messageId
-      ? edit(chatId, messageId, text, markup)
-      : send(chatId, text, markup);
-  }
-
-  const location = data.location_mode === "all_hamburg"
-    ? "Ganz Hamburg"
-    : data.location_mode === "boroughs"
-    ? (data.boroughs || []).join(", ") || "Hamburg"
-    : (data.neighborhoods || []).join(", ") || "Hamburg";
-  const text =
-    `🔎 <b>${esc(data.name || "Meine Suche")}</b>\n\n` +
-    `Status: ${data.is_active ? "aktiv" : "pausiert"}\n` +
-    `Typ: ${esc((data.property_types || []).join(", "))}\n` +
-    `Gebiet: ${esc(location)}\n` +
-    `Warmmiete: bis ${esc(money(data.max_warm_rent))}\n` +
-    `Zimmer: ${esc(data.min_rooms ?? "–")}+\n` +
-    `Fläche: ${esc(data.min_area_sqm ?? "–")} m²+`;
-  const markup = {
-    inline_keyboard: [
-      [button("✏️ Suchprofil ändern", "new")],
-      [
-        button(
-          data.is_active ? "⏸ Pausieren" : "▶️ Fortsetzen",
-          data.is_active ? "pause" : "resume",
-        ),
-      ],
-      [button("← Zurück", "home")],
-    ],
-  };
-  return messageId
-    ? edit(chatId, messageId, text, markup)
-    : send(chatId, text, markup);
+  const used = new Set((data || []).map((row: any) => Number(row.profile_slot)));
+  const slot = requestedSlot && requestedSlot >= 1 && requestedSlot <= limit
+    ? requestedSlot
+    : Array.from({ length: limit }, (_, i) => i + 1).find((value) => !used.has(value));
+  if (!slot) return profile(user, chatId, messageId);
+  const draft = emptyDraft(slot);
+  return renderTypes({ ...user, onboarding_state: draft }, chatId, messageId, draft);
 }
 
-async function premium(user: any, chatId: number, messageId?: number) {
+async function profile(user: any, chatId: number, messageId?: number, selectedSlot?: number) {
+  const limit = profileLimit(user);
+  const { data, error } = await db.from("search_profiles").select("*").eq("user_id", user.id).lte("profile_slot", limit).order("profile_slot");
+  if (error) throw error;
+  const profiles = data || [];
+  if (selectedSlot) {
+    const current: any = profiles.find((row: any) => Number(row.profile_slot) === selectedSlot);
+    if (!current) return profile(user, chatId, messageId);
+    const location = current.location_mode === "all_hamburg" ? "Ganz Hamburg" : current.location_mode === "boroughs" ? (current.boroughs || []).join(", ") || "Hamburg" : (current.neighborhoods || []).join(", ") || "Hamburg";
+    const text = `🔎 <b>${esc(current.name || `Meine Suche ${selectedSlot}`)}</b>\n\n` +
+      `Status: ${current.is_active ? "aktiv" : "pausiert"}\n` +
+      `Typ: ${esc((current.property_types || []).join(", "))}\n` +
+      `Gebiet: ${esc(location)}\n` +
+      `Warmmiete: bis ${esc(money(current.max_warm_rent))}\n` +
+      `Zimmer: ${esc(current.min_rooms ?? "–")}+\n` +
+      `Fläche: ${esc(current.min_area_sqm ?? "–")} m²+`;
+    const markup = { inline_keyboard: [
+      [button("✏️ Suchprofil ändern", `profile:edit:${selectedSlot}`)],
+      [button(current.is_active ? "⏸ Pausieren" : "▶️ Fortsetzen", current.is_active ? `profile:pause:${selectedSlot}` : `profile:resume:${selectedSlot}`)],
+      [button("← Zurück", "profile")],
+    ]};
+    return messageId ? edit(chatId, messageId, text, markup) : send(chatId, text, markup);
+  }
+  const rows: any[] = profiles.map((row: any) => [button(`🔎 ${row.name || `Meine Suche ${row.profile_slot}`} · ${row.is_active ? "aktiv" : "pausiert"}`, `profile:view:${row.profile_slot}`)]);
+  if (profiles.length < limit) rows.push([button("➕ Suchprofil erstellen", "new")]);
+  rows.push([button("← Zurück", "home")]);
+  const text = profiles.length
+    ? `🔎 <b>Meine Suchprofile</b>\n\n${profiles.length}/${limit} Suchprofile angelegt.`
+    : "🔎 <b>Meine Suchprofile</b>\n\nNoch kein Suchprofil angelegt.";
+  const markup = { inline_keyboard: rows };
+  return messageId ? edit(chatId, messageId, text, markup) : send(chatId, text, markup);
+}
+
+async function premium(user: any, chatId: number, _messageId?: number) {
   const rows: any[] = [];
   let text: string;
   if (user.is_premium) {
-    text =
-      "👑 <b>Traumwohnung Premium</b>\n\n" +
-      "✅ <b>Premium ist aktiv.</b>\n\n" +
-      "<b>Deine Vorteile:</b>\n" +
-      "⚡ Sofortige Zustellung\n" +
-      "🏢 Alle Quellen inkl. Baugenossenschaften\n" +
-      "❤️ Inserate speichern";
+    text = "💎 <b>Traumwohnung Premium</b>\n\n✅ <b>Premium ist aktiv.</b>\n\n<b>Deine Vorteile:</b>\n⚡ Sofortige Zustellung\n🔎 Bis zu 3 Suchprofile\n🔓 Baugenossenschafts-Angebote öffnen\n⭐️ Inserate speichern";
     rows.push([button("💳 Abo verwalten", "portal")]);
   } else {
-    text =
-      "👑 <b>Traumwohnung Premium</b>\n\n" +
-      "<b>Deine Vorteile:</b>\n" +
-      "⚡ Sofortige Zustellung\n" +
-      "🏢 Alle Quellen inkl. Baugenossenschaften\n" +
-      "❤️ Inserate speichern\n\n" +
-      "<b>0,99 € / Monat</b>\n" +
-      "Keine Mindestlaufzeit · jederzeit kündbar";
-    rows.push([
-      {
-        text: "👑 Premium freischalten",
-        url: `${PREMIUM_LINK}?client_reference_id=${encodeURIComponent(user.id)}`,
-      },
-    ]);
+    text = "💎 <b>Traumwohnung Premium</b>\n\n<b>Deine Vorteile:</b>\n⚡ Sofortige Zustellung\n🔎 Bis zu 3 Suchprofile\n🔓 Baugenossenschafts-Angebote öffnen\n⭐️ Inserate speichern\n\n<b>0,99 € / Monat</b>\nKeine Mindestlaufzeit · jederzeit kündbar";
+    rows.push([{ text: "💎 Premium freischalten", url: `${PREMIUM_LINK}?client_reference_id=${encodeURIComponent(user.id)}` }]);
   }
   rows.push([button("← Zurück", "home")]);
-  const markup = { inline_keyboard: rows };
-  return messageId
-    ? edit(chatId, messageId, text, markup)
-    : send(chatId, text, markup);
+  return sendPremiumPreview(chatId, text, { inline_keyboard: rows });
 }
 
 async function saved(user: any, chatId: number, messageId?: number) {
@@ -833,14 +830,14 @@ async function saved(user: any, chatId: number, messageId?: number) {
   if (error) throw error;
 
   if (!data?.length) {
-    const text = "❤️ <b>Gespeicherte Inserate</b>\n\nNoch keine Inserate gespeichert.";
+    const text = "⭐️ <b>Gespeicherte Inserate</b>\n\nNoch keine Inserate gespeichert.";
     const markup = { inline_keyboard: [[button("← Zurück", "home")]] };
     return messageId
       ? edit(chatId, messageId, text, markup)
       : send(chatId, text, markup);
   }
 
-  const lines = ["❤️ <b>Gespeicherte Inserate</b>", ""];
+  const lines = ["⭐️ <b>Gespeicherte Inserate</b>", ""];
   const rows: any[] = [];
   for (const [index, row] of data.entries()) {
     const listing: any = row.listings || {};
@@ -864,39 +861,27 @@ async function saved(user: any, chatId: number, messageId?: number) {
 }
 
 async function renderStatus(user: any, chatId: number, messageId?: number) {
-  const [profileResult, sourceResult] = await Promise.all([
-    db
-      .from("search_profiles")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .eq("profile_slot", 1)
-      .eq("is_active", true),
-    db
-      .from("sources")
-      .select("id", { count: "exact", head: true })
-      .eq("enabled", true)
-      .eq("runtime_mode", "live"),
+  const [profileResult, sourceResult, referralResult] = await Promise.all([
+    db.from("search_profiles").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("is_active", true).lte("profile_slot", profileLimit(user)),
+    db.from("sources").select("id", { count: "exact", head: true }),
+    db.from("referrals").select("id", { count: "exact", head: true }).eq("referrer_user_id", user.id).eq("status", "rewarded"),
   ]);
   if (profileResult.error) throw profileResult.error;
   if (sourceResult.error) throw sourceResult.error;
-
-  const text =
-    "📡 <b>Systemstatus</b>\n\n" +
-    `🔎 Suchprofil: ${profileResult.count ? "aktiv" : "inaktiv"}\n` +
-    `🌐 Aktive Quellen: ${sourceResult.count || 0}\n` +
+  if (referralResult.error) throw referralResult.error;
+  const text = "📡 <b>Systemstatus</b>\n\n" +
+    `🔎 Suchprofile aktiv: ${profileResult.count || 0}/${profileLimit(user)}\n` +
+    `🌐 Quellen im System: ${sourceResult.count || 0}\n` +
+    `🎁 Erfolgreiche Empfehlungen: ${referralResult.count || 0}\n` +
     "✅ System: online";
   const markup = { inline_keyboard: [[button("← Zurück", "home")]] };
-  return messageId
-    ? edit(chatId, messageId, text, markup)
-    : send(chatId, text, markup);
+  return messageId ? edit(chatId, messageId, text, markup) : send(chatId, text, markup);
 }
 
-async function setPaused(userId: string, paused: boolean) {
-  const { error } = await db
-    .from("search_profiles")
-    .update({ is_active: !paused, updated_at: new Date().toISOString() })
-    .eq("user_id", userId)
-    .eq("profile_slot", 1);
+async function setPaused(userId: string, paused: boolean, slot?: number) {
+  let query: any = db.from("search_profiles").update({ is_active: !paused, updated_at: new Date().toISOString() }).eq("user_id", userId);
+  if (slot) query = query.eq("profile_slot", slot);
+  const { error } = await query;
   if (error) throw error;
 }
 
@@ -1030,7 +1015,7 @@ async function adminUsers(user: any, chatId: number, messageId?: number) {
     );
     return [
       button(
-        `${premium ? "👑" : "▫️"} ${name} · ${premium ? "PREMIUM" : "FREE"}`,
+        `${premium ? "💎" : "▫️"} ${name} · ${premium ? "PREMIUM" : "FREE"}`,
         `admin:user:${entry.id}`,
       ),
     ];
@@ -1129,63 +1114,40 @@ async function setPlanOverride(userId: string, grant: AdminGrant) {
 }
 
 async function referralPage(user: any, chatId: number, messageId?: number) {
-  let { data: code, error } = await db
-    .from("referral_codes")
-    .select("code")
-    .eq("user_id", user.id)
-    .maybeSingle();
+  let { data: code, error } = await db.from("referral_codes").select("code").eq("user_id", user.id).maybeSingle();
   if (error) throw error;
-
   if (!code) {
     const value = crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase();
-    const result = await db
-      .from("referral_codes")
-      .insert({ user_id: user.id, code: value })
-      .select("code")
-      .single();
+    const result = await db.from("referral_codes").insert({ user_id: user.id, code: value }).select("code").single();
     if (result.error) throw result.error;
     code = result.data;
   }
-
-  const { count, error: countError } = await db
-    .from("referrals")
-    .select("id", { count: "exact", head: true })
-    .eq("referrer_user_id", user.id)
-    .eq("status", "rewarded");
+  const { count, error: countError } = await db.from("referrals").select("id", { count: "exact", head: true }).eq("referrer_user_id", user.id).eq("status", "rewarded");
   if (countError) throw countError;
+  const text = `🎁 <b>Freunde empfehlen</b>\n\nEmpfehle Traumwohnung Hamburg weiter und erhaltet beide 7 Tage Premium kostenlos 💎\n\nErfolgreiche Empfehlungen: ${count || 0}`;
+  const markup = { inline_keyboard: [[button("← Einstellungen", "settings")]] };
+  if (messageId) await edit(chatId, messageId, text, markup); else await send(chatId, text, markup);
+  return send(chatId, `https://t.me/traumwohnunghamburgbot?start=ref_${code.code}`);
+}
 
-  const text =
-    "🎁 <b>Freunde empfehlen</b>\n\n" +
-    "Dein persönlicher Empfehlungslink:\n" +
-    `<code>https://t.me/traumwohnunghamburgbot?start=ref_${esc(code.code)}</code>\n\n` +
-    `Erfolgreiche Empfehlungen: ${count || 0}\n` +
-    "Wer deinen Link erstmals nutzt, erhält einmalig 7 Tage Premium.";
-  const markup = {
-    inline_keyboard: [[button("← Einstellungen", "settings")]],
-  };
-  return messageId
-    ? edit(chatId, messageId, text, markup)
-    : send(chatId, text, markup);
+async function languagePage(user: any, chatId: number, messageId?: number) {
+  const codes = ["de", "en", "ckb", "ku", "prs", "fa", "ru", "tr", "ar"];
+  const rows = codes.map((code) => [button(`${user.ui_language === code ? "✅ " : ""}${LANGS[code]}`, `lang:${code}`)]);
+  rows.push([button("← Einstellungen", "settings")]);
+  const markup = { inline_keyboard: rows };
+  const text = "🌐 <b>Sprachen</b>\n\nWähle deine Sprache. Das komplette Bot-Menü wird entsprechend angezeigt.";
+  return messageId ? edit(chatId, messageId, text, markup) : send(chatId, text, markup);
 }
 
 async function settings(user: any, chatId: number, messageId?: number) {
-  const text =
-    "⚙️ <b>Einstellungen</b>\n\n" +
-    "Verwalte hier deine Suche, Premium und Empfehlungen.";
-  const markup = {
-    inline_keyboard: [
-      [
-        button("⏸ Suche pausieren", "pause"),
-        button("▶️ Suche fortsetzen", "resume"),
-      ],
-      [button("👑 Premium", "premium"), button("🎁 Freunde empfehlen", "referral")],
-      [button("📡 Systemstatus", "status")],
-      [button("← Zurück", "home")],
-    ],
-  };
-  return messageId
-    ? edit(chatId, messageId, text, markup)
-    : send(chatId, text, markup);
+  const text = "⚙️ <b>Einstellungen</b>\n\nVerwalte hier deine Suche, Premium, Sprache und Empfehlungen.";
+  const markup = { inline_keyboard: [
+    [button("⏸ Suche pausieren", "pause"), button("▶️ Suche fortsetzen", "resume")],
+    [button("💎 Premium", "premium"), button("🎁 Freunde empfehlen", "referral")],
+    [button("🌐 Sprachen", "language"), button("📡 Systemstatus", "status")],
+    [button("← Zurück", "home")],
+  ]};
+  return messageId ? edit(chatId, messageId, text, markup) : send(chatId, text, markup);
 }
 
 async function handleMessage(message: any, user: any) {
@@ -1203,11 +1165,14 @@ async function handleMessage(message: any, user: any) {
 
   if (command === "/start") {
     if (argument.startsWith("ref_")) {
-      const { error } = await db.rpc("redeem_referral_code", {
-        p_referred_user_id: user.id,
-        p_code: argument.slice(4),
-      });
+      const { data: referralResult, error } = await db.rpc("redeem_referral_code", { p_referred_user_id: user.id, p_code: argument.slice(4) });
       if (error) console.error("referral", error.message);
+      else if (referralResult?.status === "granted" && referralResult?.referrer_user_id) {
+        const referrerId = String(referralResult.referrer_user_id);
+        const { data: referrer } = await db.from("bot_users").select("referral_bonus_until,referral_bonus_days").eq("id", referrerId).maybeSingle();
+        const base = Math.max(Date.now(), referrer?.referral_bonus_until ? new Date(referrer.referral_bonus_until).getTime() : 0);
+        await db.from("bot_users").update({ referral_bonus_until: new Date(base + 7 * 86400000).toISOString(), referral_bonus_days: Number(referrer?.referral_bonus_days || 0) + 7, updated_at: new Date().toISOString() }).eq("id", referrerId);
+      }
     }
     telegram("setChatMenuButton", {
       chat_id: chatId,
@@ -1216,10 +1181,7 @@ async function handleMessage(message: any, user: any) {
     return home(user, chatId);
   }
 
-  if (command === "/suche") {
-    const draft = emptyDraft();
-    return renderTypes({ ...user, onboarding_state: draft }, chatId, undefined, draft);
-  }
+  if (command === "/suche") return startNewProfile(user, chatId);
   if (command === "/profile") return profile(user, chatId);
   if (command === "/gespeichert" || command === "/saved") {
     return saved(user, chatId);
@@ -1329,7 +1291,7 @@ async function handleCallback(query: any, user: any) {
       await acknowledge(query.id);
       return premium(user, chatId, messageId);
     }
-    return acknowledge(query.id, savedState ? "❤️ Gespeichert" : "Entfernt");
+    return acknowledge(query.id, savedState ? "⭐️ Gespeichert" : "Entfernt");
   }
 
   await acknowledge(query.id);
@@ -1339,11 +1301,11 @@ async function handleCallback(query: any, user: any) {
     await saveState(user.id, null, {});
     return home({ ...user, onboarding_step: null, onboarding_state: {} }, chatId, messageId);
   }
-  if (data === "home") return home(user, chatId, messageId);
-  if (data === "new") {
-    const draft = emptyDraft();
-    return renderTypes(user, chatId, messageId, draft);
+  if (data === "home") {
+    if (query.message?.photo) { await telegram("deleteMessage", { chat_id: chatId, message_id: messageId }).catch(() => {}); return home(user, chatId); }
+    return home(user, chatId, messageId);
   }
+  if (data === "new") return startNewProfile(user, chatId, messageId);
   if (data === "draft") {
     const draft = draftFor(user);
     const step = String(user.onboarding_step || "types") as OnboardingStep;
@@ -1367,14 +1329,29 @@ async function handleCallback(query: any, user: any) {
         : "types",
     );
   }
-  if (data === "profile" || data === "profiles" || data === "p:view:1") {
-    return profile(user, chatId, messageId);
+  if (data === "profile" || data === "profiles") return profile(user, chatId, messageId);
+  if (data === "p:view:1") return profile(user, chatId, messageId, 1);
+  if (data.startsWith("profile:view:")) return profile(user, chatId, messageId, Number(data.split(":")[2]));
+  if (data.startsWith("profile:edit:")) return startNewProfile(user, chatId, messageId, Number(data.split(":")[2]));
+  if (data.startsWith("profile:pause:") || data.startsWith("profile:resume:")) {
+    const slot = Number(data.split(":")[2]);
+    await setPaused(user.id, data.startsWith("profile:pause:"), slot);
+    return profile(user, chatId, messageId, slot);
   }
   if (data === "saved" || data.startsWith("saved:")) {
     return saved(user, chatId, messageId);
   }
   if (data === "settings") return settings(user, chatId, messageId);
   if (data === "referral") return referralPage(user, chatId, messageId);
+  if (data === "language") return languagePage(user, chatId, messageId);
+  if (data.startsWith("lang:")) {
+    const code = data.slice(5);
+    if (!["de","en","ckb","ku","prs","fa","ru","tr","ar"].includes(code)) return;
+    const { error } = await db.from("bot_users").update({ ui_language: code, updated_at: new Date().toISOString() }).eq("id", user.id);
+    if (error) throw error;
+    chatLanguages.set(chatId, code);
+    return settings({ ...user, ui_language: code }, chatId, messageId);
+  }
   if (data === "help") {
     return edit(chatId, messageId, HELP_TEXT, {
       inline_keyboard: [[button("← Zurück", "home")]],
@@ -1382,6 +1359,7 @@ async function handleCallback(query: any, user: any) {
   }
   if (data === "premium") return premium(user, chatId, messageId);
   if (data === "portal") {
+    if (query.message?.photo) await telegram("deleteMessage", { chat_id: chatId, message_id: messageId }).catch(() => {});
     const url = await secret("stripe_portal_url").catch(() => null);
     const valid = url && /^https:\/\/billing\.stripe\.com\//.test(url);
     return edit(
@@ -1634,6 +1612,7 @@ Deno.serve(async (request: Request) => {
     }
 
     const user = await withPlan(await ensureUser(from, Number(chatId)));
+    chatLanguages.set(Number(chatId), String(user.ui_language || "de"));
     if (payload.callback_query) {
       await handleCallback(payload.callback_query, user);
     } else if (
