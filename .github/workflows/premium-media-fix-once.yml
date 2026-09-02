@@ -35,7 +35,7 @@ jobs:
           raw = base64.b64decode(payload, validate=True)
           if not (raw.startswith(b'\xff\xd8') and raw.endswith(b'\xff\xd9')):
               raise SystemExit('replacement premium preview is not a valid JPEG')
-          if hashlib.sha256(raw).hexdigest() != 'c02ad8e47d2ce7f75c4a0f9ae70d15542f397f7eb76d30b936ee2aa2acf3645e':
+          if hashlib.sha256(raw).hexdigest() != '62badc150c29b3088dc27120e040f85aed2af361e9154e6304ea11e6c57d8b07':
               raise SystemExit('replacement premium preview checksum mismatch')
 
           source, count = re.subn(
@@ -139,4 +139,4 @@ jobs:
           test "$code" = '200'
           test "$(head -c 2 /tmp/premium.jpg | xxd -p)" = 'ffd8'
           test "$(tail -c 2 /tmp/premium.jpg | xxd -p)" = 'ffd9'
-          test "$(wc -c < /tmp/premium.jpg)" -eq 39844
+          test "$(wc -c < /tmp/premium.jpg)" -eq 6944
