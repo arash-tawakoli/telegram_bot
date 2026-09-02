@@ -225,21 +225,14 @@ async function edit(
 
 
 async function sendPremiumPreview(chatId: number, caption: string, replyMarkup: any) {
-  const token = await secret("telegram_bot_token_runtime");
-  const raw = atob(PREMIUM_PREVIEW_B64);
-  const bytes = new Uint8Array(raw.length);
-  for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
   const language = chatLanguages.get(chatId);
-  const form = new FormData();
-  form.set("chat_id", String(chatId));
-  form.set("photo", new Blob([bytes], { type: "image/jpeg" }), "premium.jpg");
-  form.set("caption", localizeText(caption, language));
-  form.set("parse_mode", "HTML");
-  form.set("reply_markup", JSON.stringify(localizeMarkup(replyMarkup, language)));
-  const response = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, { method: "POST", body: form });
-  const result = await response.json().catch(() => ({}));
-  if (!response.ok || !result.ok) throw new Error(String(result?.description || `Telegram ${response.status}`));
-  return result.result;
+  return telegram("sendPhoto", {
+    chat_id: chatId,
+    photo: `${SUPABASE_URL}/functions/v1/telegram-ui?asset=premium`,
+    caption: localizeText(caption, language),
+    parse_mode: "HTML",
+    reply_markup: localizeMarkup(replyMarkup, language),
+  });
 }
 
 async function acknowledge(id: string, text?: string) {
@@ -1587,6 +1580,21 @@ async function claimUpdate(payload: any) {
 
 Deno.serve(async (request: Request) => {
   try {
+    if (request.method === "GET" || request.method === "HEAD") {
+      const url = new URL(request.url);
+      if (url.searchParams.get("asset") === "premium") {
+        const raw = atob(PREMIUM_PREVIEW_B64);
+        const bytes = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+        return new Response(request.method === "HEAD" ? null : bytes, {
+          headers: {
+            "content-type": "image/jpeg",
+            "cache-control": "public, max-age=31536000, immutable",
+            "x-content-type-options": "nosniff",
+          },
+        });
+      }
+    }
     if (request.method !== "POST") {
       return new Response("method not allowed", { status: 405 });
     }
