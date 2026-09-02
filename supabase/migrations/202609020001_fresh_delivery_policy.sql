@@ -1,0 +1,11 @@
+-- Production migration applied via Supabase on 2026-09-02.
+-- Keep the repository aligned with the live delivery policy:
+--   * ImmoScout freshness is based on explicit fresh/fresh_global/fresh_borough lanes.
+--   * Coverage-only discoveries are not delivery-fresh.
+--   * Normal delivery events have no plan-based +2 hour delay.
+--   * Free users receive matching Baugenossenschaft listings; link access remains a dispatcher concern.
+--   * ImmoScout source coverage remains semantically partial.
+--
+-- The canonical function bodies are the live definitions installed by the
+-- fix_fresh_delivery_policy_v2 Supabase migration. This marker exists to
+-- prevent future schema work from assuming the old policy is still current.
