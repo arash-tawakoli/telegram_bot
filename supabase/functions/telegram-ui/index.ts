@@ -54,6 +54,7 @@ const RENT_PRESETS = new Set([800, 1000, 1250, 2000]);
 const ROOM_PRESETS = new Set([1, 2, 3, 4]);
 const AREA_PRESETS = new Set([20, 50, 70, 90]);
 const NEIGHBORHOODS_PER_PAGE = 10;
+const SAVED_PAGE_SIZE = 8;
 const SECRET_TTL_MS = 5 * 60_000;
 const GEO_TTL_MS = 30 * 60_000;
 const ADMIN_TELEGRAM_USER_ID = 8538226539;
@@ -352,10 +353,7 @@ function homeKeyboard(user: any) {
       ),
       button("⚙️ Einstellungen", "settings"),
     ],
-    [
-      button("📡 Status", "status"),
-      button("❓ Hilfe", "help"),
-    ],
+    [button("❓ Hilfe", "help")],
   );
   return { inline_keyboard: rows };
 }
@@ -783,6 +781,7 @@ async function profile(user: any, chatId: number, messageId?: number, selectedSl
     const markup = { inline_keyboard: [
       [button("✏️ Suchprofil ändern", `profile:edit:${selectedSlot}`)],
       [button(current.is_active ? "⏸ Pausieren" : "▶️ Fortsetzen", current.is_active ? `profile:pause:${selectedSlot}` : `profile:resume:${selectedSlot}`)],
+      [button("🗑 Profil löschen", `profile:delete:${selectedSlot}`)],
       [button("← Zurück", "profile")],
     ]};
     return messageId ? edit(chatId, messageId, text, markup) : send(chatId, text, markup);
@@ -811,18 +810,17 @@ async function premium(user: any, chatId: number, _messageId?: number) {
   return sendPremiumPreview(chatId, text, { inline_keyboard: rows });
 }
 
-async function saved(user: any, chatId: number, messageId?: number) {
+async function saved(user: any, chatId: number, messageId?: number, requestedPage = 0) {
   if (!user.is_premium) return premium(user, chatId, messageId);
 
-  const { data, error } = await db
+  const { count, error: countError } = await db
     .from("saved_listings")
-    .select("listing_id,created_at,listings(title,canonical_url,warm_rent,cold_rent,is_active)")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
-    .limit(10);
-  if (error) throw error;
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id);
+  if (countError) throw countError;
 
-  if (!data?.length) {
+  const total = count || 0;
+  if (!total) {
     const text = "⭐️ <b>Gespeicherte Inserate</b>\n\nNoch keine Inserate gespeichert.";
     const markup = { inline_keyboard: [[button("← Zurück", "home")]] };
     return messageId
@@ -830,27 +828,45 @@ async function saved(user: any, chatId: number, messageId?: number) {
       : send(chatId, text, markup);
   }
 
-  const lines = ["⭐️ <b>Gespeicherte Inserate</b>", ""];
+  const pages = Math.max(1, Math.ceil(total / SAVED_PAGE_SIZE));
+  const page = Math.max(0, Math.min(Number(requestedPage) || 0, pages - 1));
+  const from = page * SAVED_PAGE_SIZE;
+  const to = from + SAVED_PAGE_SIZE - 1;
+  const { data, error } = await db
+    .from("saved_listings")
+    .select("listing_id,created_at,listings(title,canonical_url,is_active)")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .range(from, to);
+  if (error) throw error;
+
   const rows: any[] = [];
-  for (const [index, row] of data.entries()) {
+  for (const [index, row] of (data || []).entries()) {
     const listing: any = row.listings || {};
-    lines.push(
-      `${index + 1}. ${esc(short(listing.title))} · ${esc(money(listing.warm_rent || listing.cold_rent))}${listing.is_active ? "" : " · inaktiv"}`,
-    );
+    const label = `🏠 ${from + index + 1}. ${short(listing.title, 42)}`;
     try {
       const url = new URL(listing.canonical_url);
       if (["http:", "https:"].includes(url.protocol)) {
-        rows.push([{ text: `${index + 1}. Inserat öffnen`, url: url.href }]);
+        rows.push([{ text: label, url: url.href }]);
+        continue;
       }
     } catch {
-      // Ignore malformed historic listing URLs.
+      // Historic listings can contain malformed URLs.
     }
+    rows.push([button(label, "noop")]);
   }
-  rows.push([button("← Zurück", "home")]);
+
+  rows.push([
+    button("← Zurück", `saved:${Math.max(0, page - 1)}`),
+    button(`${page + 1}/${pages}`, "noop"),
+    button("Weiter →", `saved:${Math.min(pages - 1, page + 1)}`),
+  ]);
+  rows.push([button("← Start", "home")]);
+  const text = `⭐️ <b>Gespeicherte Inserate</b>\n\n${total} · Seite ${page + 1}/${pages}`;
   const markup = { inline_keyboard: rows };
   return messageId
-    ? edit(chatId, messageId, lines.join("\n"), markup)
-    : send(chatId, lines.join("\n"), markup);
+    ? edit(chatId, messageId, text, markup)
+    : send(chatId, text, markup);
 }
 
 async function renderStatus(user: any, chatId: number, messageId?: number) {
@@ -867,7 +883,7 @@ async function renderStatus(user: any, chatId: number, messageId?: number) {
     `🌐 Quellen im System: ${sourceResult.count || 0}\n` +
     `🎁 Erfolgreiche Empfehlungen: ${referralResult.count || 0}\n` +
     "✅ System: online";
-  const markup = { inline_keyboard: [[button("← Zurück", "home")]] };
+  const markup = { inline_keyboard: [[button("← Einstellungen", "settings")]] };
   return messageId ? edit(chatId, messageId, text, markup) : send(chatId, text, markup);
 }
 
@@ -1135,7 +1151,6 @@ async function languagePage(user: any, chatId: number, messageId?: number) {
 async function settings(user: any, chatId: number, messageId?: number) {
   const text = "⚙️ <b>Einstellungen</b>\n\nVerwalte hier deine Suche, Premium, Sprache und Empfehlungen.";
   const markup = { inline_keyboard: [
-    [button("⏸ Suche pausieren", "pause"), button("▶️ Suche fortsetzen", "resume")],
     [button("💎 Premium", "premium"), button("🎁 Freunde empfehlen", "referral")],
     [button("🌐 Sprachen", "language"), button("📡 Systemstatus", "status")],
     [button("← Zurück", "home")],
@@ -1326,13 +1341,38 @@ async function handleCallback(query: any, user: any) {
   if (data === "p:view:1") return profile(user, chatId, messageId, 1);
   if (data.startsWith("profile:view:")) return profile(user, chatId, messageId, Number(data.split(":")[2]));
   if (data.startsWith("profile:edit:")) return startNewProfile(user, chatId, messageId, Number(data.split(":")[2]));
+  if (data.startsWith("profile:delete-confirm:")) {
+    const slot = Number(data.split(":")[2]);
+    if (!Number.isInteger(slot) || slot < 1 || slot > profileLimit(user)) return;
+    const { error } = await db
+      .from("search_profiles")
+      .delete()
+      .eq("user_id", user.id)
+      .eq("profile_slot", slot);
+    if (error) throw error;
+    return profile(user, chatId, messageId);
+  }
+  if (data.startsWith("profile:delete:")) {
+    const slot = Number(data.split(":")[2]);
+    if (!Number.isInteger(slot) || slot < 1 || slot > profileLimit(user)) return;
+    return edit(
+      chatId,
+      messageId,
+      "🗑 <b>Suchprofil löschen?</b>\n\nDiese Aktion kann nicht rückgängig gemacht werden.",
+      { inline_keyboard: [
+        [button("🗑 Ja, löschen", `profile:delete-confirm:${slot}`)],
+        [button("← Abbrechen", `profile:view:${slot}`)],
+      ] },
+    );
+  }
   if (data.startsWith("profile:pause:") || data.startsWith("profile:resume:")) {
     const slot = Number(data.split(":")[2]);
     await setPaused(user.id, data.startsWith("profile:pause:"), slot);
     return profile(user, chatId, messageId, slot);
   }
-  if (data === "saved" || data.startsWith("saved:")) {
-    return saved(user, chatId, messageId);
+  if (data === "saved") return saved(user, chatId, messageId, 0);
+  if (data.startsWith("saved:")) {
+    return saved(user, chatId, messageId, Number(data.slice(6)) || 0);
   }
   if (data === "settings") return settings(user, chatId, messageId);
   if (data === "referral") return referralPage(user, chatId, messageId);
