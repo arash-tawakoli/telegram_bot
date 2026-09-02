@@ -1,0 +1,10 @@
+name: Run minimal delivery coverage fix once
+on:
+  push:
+    paths:
+      - '.github/workflows/run-minimal-delivery-coverage-fix-once.yml'
+permissions:
+  contents: write
+jobs:
+  run:
+    uses: ./.github/workflows/minimal-delivery-coverage-fix-once.yml
