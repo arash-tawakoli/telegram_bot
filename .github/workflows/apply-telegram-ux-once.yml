@@ -1,0 +1,378 @@
+name: Apply verified Telegram UX patch once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/apply-telegram-ux-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Apply verified patch
+        run: |
+          cat > /tmp/patch.py <<'PY'
+          from pathlib import Path
+          import re
+
+          p=Path('supabase/functions/telegram-ui/index.ts')
+          s=p.read_text()
+          s,n=re.subn(r'const PREMIUM_PREVIEW_B64 = \[.*?\]\.join\(""\);','const PREMIUM_PREVIEW_B64 = "";',s,count=1,flags=re.S)
+          assert n==1,n
+          s=s.replace('return `${SUPABASE_URL}/functions/v1/telegram-ui?asset=premium&v=20260903hd`;','return `${SUPABASE_URL}/functions/v1/telegram-premium-image?v=20260903hd4`;',1)
+
+          old='''function send(chatId: number, text: string, replyMarkup?: any) {
+            return telegram("sendMessage", {
+              chat_id: chatId,
+              text: localizeText(text, chatLanguages.get(chatId)),
+              parse_mode: "HTML",
+              disable_web_page_preview: true,
+              reply_markup: localizeMarkup(replyMarkup, chatLanguages.get(chatId)),
+            });
+          }'''
+          new=old+'''
+
+          const PARTY_EFFECT_ID = "5046509860389126442";
+
+          async function sendCelebration(chatId: number, text: string, replyMarkup?: any) {
+            try {
+              return await telegram("sendMessage", {
+                chat_id: chatId,
+                text: localizeText(text, chatLanguages.get(chatId)),
+                parse_mode: "HTML",
+                disable_web_page_preview: true,
+                reply_markup: localizeMarkup(replyMarkup, chatLanguages.get(chatId)),
+                message_effect_id: PARTY_EFFECT_ID,
+              });
+            } catch {
+              return send(chatId, text, replyMarkup);
+            }
+          }'''
+          assert old in s
+          s=s.replace(old,new,1)
+
+          old='''    if (updateError) throw updateError;
+            return data;
+          }
+
+          const { data, error: insertError } = await db
+            .from("bot_users")
+            .insert({ telegram_user_id: from.id, ...patch })
+            .select("*")
+            .single();
+          if (insertError) throw insertError;
+          return data;'''
+          new='''    if (updateError) throw updateError;
+            return { ...data, __is_new_user: false };
+          }
+
+          const { data, error: insertError } = await db
+            .from("bot_users")
+            .insert({ telegram_user_id: from.id, ...patch, last_start_at: new Date().toISOString() })
+            .select("*")
+            .single();
+          if (insertError) throw insertError;
+          return { ...data, __is_new_user: true };'''
+          assert old in s
+          s=s.replace(old,new,1)
+
+          old='''function homeKeyboard(user: any) {
+            const rows: any[] = [];
+            if (user.onboarding_step) {
+              rows.push([button("▶️ Entwurf fortsetzen", "draft")]);
+            }
+            rows.push(
+              [
+                button("🔎 Suchprofil", "profile"),
+                button("⭐️ Gespeichert", "saved"),
+              ],
+              [
+                button("⚙️ Einstellungen", "settings"),
+                button("❓ Hilfe", "help"),
+              ],
+              [button("🎁 30 Tage Premium für 0 €", "referral")],
+            );
+            return { inline_keyboard: rows };
+          }'''
+          new='''function homeKeyboard(user: any) {
+            const rows: any[] = [
+              [
+                button("🔎 Suchprofil", "profile"),
+                button(user.is_premium ? "⭐️ Gespeichert" : "🔒 ⭐️ Gespeichert", "saved"),
+              ],
+              [
+                button("⚙️ Einstellungen", "settings"),
+                button("❓ Hilfe", "help"),
+              ],
+              [button("💎 30 Tage Premium für 0 €", "referral")],
+            ];
+            return { inline_keyboard: rows };
+          }'''
+          assert old in s
+          s=s.replace(old,new,1)
+
+          old='''  const slot = Math.max(1, Math.min(profileLimit(user), Number(draft.profile_slot) || 1));
+            const { error } = await db.from("search_profiles").upsert({'''
+          new='''  const slot = Math.max(1, Math.min(profileLimit(user), Number(draft.profile_slot) || 1));
+            const { count: profileCount, error: profileCountError } = await db
+              .from("search_profiles")
+              .select("id", { count: "exact", head: true })
+              .eq("user_id", user.id);
+            if (profileCountError) throw profileCountError;
+            const { error } = await db.from("search_profiles").upsert({'''
+          assert old in s
+          s=s.replace(old,new,1)
+          start=s.index('async function persistProfile')
+          old='''  if (error) throw error;
+            await saveState(user.id, null, {});
+          }'''
+          pos=s.index(old,start)
+          new='''  if (error) throw error;
+            await saveState(user.id, null, {});
+            if ((profileCount || 0) === 0) {
+              const { data: referralReward, error: referralError } = await db.rpc(
+                "complete_referral_reward",
+                { p_referred_user_id: user.id },
+              );
+              if (referralError) throw referralError;
+              return referralReward || null;
+            }
+            return null;
+          }'''
+          s=s[:pos]+new+s[pos+len(old):]
+
+          old='''  const rows: any[] = profiles.map((row: any) => [button(`🔎 ${row.name || `Meine Suche ${row.profile_slot}`} · ${row.is_active ? "aktiv" : "pausiert"}`, `profile:view:${row.profile_slot}`)]);
+            if (profiles.length < limit) rows.push([button("➕ Suchprofil erstellen", "new")]);
+            rows.push([button("← Zurück", "home")]);'''
+          new='''  const rows: any[] = profiles.map((row: any) => [button(`🔎 ${row.name || `Meine Suche ${row.profile_slot}`} · ${row.is_active ? "aktiv" : "pausiert"}`, `profile:view:${row.profile_slot}`)]);
+            if (user.onboarding_step) {
+              const draft = draftFor(user);
+              const draftName = draft.profile_slot === 1 ? "Meine Suche" : `Meine Suche ${draft.profile_slot}`;
+              rows.push([button(`🔎 ${draftName} • Entwurf`, "draft")]);
+            }
+            if (profiles.length < limit) rows.push([button("➕ Suchprofil erstellen", "new")]);
+            if (!user.is_premium && profiles.length >= 1) {
+              rows.push([button("🔒 ➕ Weitere Suchprofile · 💎 Premium", "premium")]);
+            }
+            rows.push([button("← Zurück", "home")]);'''
+          assert old in s
+          s=s.replace(old,new,1)
+
+          start=s.index('async function referralPage(')
+          end=s.index('\nasync function languagePage',start)
+          ref='''async function referralPage(user: any, chatId: number, messageId?: number) {
+            let { data: code, error } = await db.from("referral_codes").select("code").eq("user_id", user.id).maybeSingle();
+            if (error) throw error;
+            if (!code) {
+              const value = crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase();
+              const result = await db.from("referral_codes").insert({ user_id: user.id, code: value }).select("code").single();
+              if (result.error) throw result.error;
+              code = result.data;
+            }
+            const text = "🎁 <b>30 Tage Premium für 0 €</b>\\n\\n" +
+              "Empfehle Traumwohnung Hamburg weiter und ihr erhaltet beide 30 Tage Premium kostenlos 💎\\n\\n" +
+              "Teile jetzt diesen Link 👇";
+            await send(chatId, text);
+            return send(chatId, `https://t.me/traumwohnunghamburgbot?start=ref_${code.code}`);
+          }
+          '''
+          s=s[:start]+ref+s[end+1:]
+
+          old='''    if (argument.startsWith("ref_")) {
+              const { data: referralResult, error } = await db.rpc("redeem_referral_code", { p_referred_user_id: user.id, p_code: argument.slice(4) });
+              if (error) console.error("referral", error.message);
+              else if (referralResult?.status === "granted" && referralResult?.referrer_user_id) {
+                const referrerId = String(referralResult.referrer_user_id);
+                const { data: referrer } = await db.from("bot_users").select("referral_bonus_until,referral_bonus_days").eq("id", referrerId).maybeSingle();
+                const base = Math.max(Date.now(), referrer?.referral_bonus_until ? new Date(referrer.referral_bonus_until).getTime() : 0);
+                await db.from("bot_users").update({ referral_bonus_until: new Date(base + 30 * 86400000).toISOString(), referral_bonus_days: Number(referrer?.referral_bonus_days || 0) + 30, updated_at: new Date().toISOString() }).eq("id", referrerId);
+              }
+            }'''
+          new='''    if (argument.startsWith("ref_") && user.__is_new_user === true) {
+              const { error } = await db.rpc("redeem_referral_code", {
+                p_referred_user_id: user.id,
+                p_code: argument.slice(4),
+              });
+              if (error) console.error("referral_register", error.message);
+            }'''
+          assert old in s
+          s=s.replace(old,new,1)
+
+          old='''    await persistProfile(user, draft);
+            return edit(
+              chatId,
+              messageId,
+              "✅ Deine Suche ist aktiv. Neue passende Inserate werden automatisch zugestellt.",
+              homeKeyboard({ ...user, onboarding_step: null }),
+            );'''
+          new='''    const referralReward = await persistProfile(user, draft);
+            const result = await edit(
+              chatId,
+              messageId,
+              "✅ Deine Suche ist aktiv. Neue passende Inserate werden automatisch zugestellt.",
+              homeKeyboard({ ...user, onboarding_step: null }),
+            );
+            if (referralReward?.status === "rewarded") {
+              await sendCelebration(
+                chatId,
+                "💎 <b>30 Tage Premium kostenlos aktiviert</b>\\n\\n" +
+                  "Dein erstes Suchprofil ist erstellt und dir wurden 30 Tage Premium kostenlos gutgeschrieben.\\n\\n" +
+                  "Viel Erfolg und viel Spaß bei deiner Wohnungssuche! 🏠",
+              );
+            }
+            return result;'''
+          assert old in s
+          s=s.replace(old,new,1)
+
+          old='''      if (url.searchParams.get("asset") === "premium") {
+                const raw = atob(PREMIUM_PREVIEW_B64);
+                const bytes = new Uint8Array(raw.length);
+                for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+                return new Response(request.method === "HEAD" ? null : bytes, {
+                  headers: {
+                    "content-type": "image/jpeg",
+                    "cache-control": "public, max-age=31536000, immutable",
+                    "x-content-type-options": "nosniff",
+                  },
+                });
+              }'''
+          new='''      if (url.searchParams.get("asset") === "premium") {
+                return fetch(`${SUPABASE_URL}/functions/v1/telegram-premium-image?v=20260903hd4`, {
+                  method: request.method,
+                });
+              }'''
+          assert old in s
+          s=s.replace(old,new,1)
+          p.write_text(s)
+
+          p=Path('supabase/functions/notification-dispatcher/index.ts')
+          s=p.read_text()
+          old='''  if (premium) {
+              rows.push([
+                { text: label(language, "save"), callback_data: `save:${listing.id}` },
+              ]);
+            }'''
+          new='''  rows.push([
+              premium
+                ? { text: label(language, "save"), callback_data: `save:${listing.id}` }
+                : { text: `🔒 ${label(language, "save")}`, callback_data: "premium" },
+            ]);'''
+          assert s.count(old)==1,s.count(old)
+          p.write_text(s.replace(old,new,1))
+
+          p=Path('supabase/functions/stripe-webhook/index.ts')
+          s=p.read_text()
+          s=s.replace('const STRIPE_API_VERSION = "2026-06-24.dahlia";','const STRIPE_API_VERSION = "2026-06-24.dahlia";\nconst PARTY_EFFECT_ID = "5046509860389126442";',1)
+          old='''async function telegramMessage(
+            userId: string,
+            text: string,
+            replyMarkup?: Record<string, unknown>,
+          ) {'''
+          new='''async function telegramMessage(
+            userId: string,
+            text: string,
+            replyMarkup?: Record<string, unknown>,
+            messageEffectId?: string,
+          ) {'''
+          assert old in s
+          s=s.replace(old,new,1)
+          old='''    body: JSON.stringify({
+              chat_id: user.chat_id,
+              text,
+              parse_mode: "HTML",
+              reply_markup: replyMarkup,
+            }),
+          });
+          const result = await response.json().catch(() => ({}));
+          if (!response.ok || !result.ok) {
+            throw new Error(
+              `Telegram sendMessage ${response.status}: ${String(result?.description || "failed")}`,
+            );
+          }'''
+          new='''    body: JSON.stringify({
+              chat_id: user.chat_id,
+              text,
+              parse_mode: "HTML",
+              reply_markup: replyMarkup,
+              ...(messageEffectId ? { message_effect_id: messageEffectId } : {}),
+            }),
+          });
+          let result = await response.json().catch(() => ({}));
+          if ((!response.ok || !result.ok) && messageEffectId) {
+            const fallback = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ chat_id: user.chat_id, text, parse_mode: "HTML", reply_markup: replyMarkup }),
+            });
+            result = await fallback.json().catch(() => ({}));
+            if (!fallback.ok || !result.ok) throw new Error(`Telegram sendMessage ${fallback.status}: ${String(result?.description || "failed")}`);
+            return;
+          }
+          if (!response.ok || !result.ok) {
+            throw new Error(`Telegram sendMessage ${response.status}: ${String(result?.description || "failed")}`);
+          }'''
+          assert old in s
+          s=s.replace(old,new,1)
+          marker='''              {
+                inline_keyboard: [[
+                  { text: "🏠 Zum Menü", callback_data: "home" },
+                ]],
+              },
+            );'''
+          replacement='''              {
+                inline_keyboard: [[
+                  { text: "🏠 Zum Menü", callback_data: "home" },
+                ]],
+              },
+              PARTY_EFFECT_ID,
+            );'''
+          pos=s.index('🎉 <b>Danke für dein Abo!</b>')
+          pos2=s.index(marker,pos)
+          s=s[:pos2]+replacement+s[pos2+len(marker):]
+          p.write_text(s)
+
+          # Build the runtime file currently used by production; this is removed after direct deploy verification.
+          ui=Path('supabase/functions/telegram-ui/index.ts').read_text()
+          i18n=Path('supabase/functions/telegram-ui/i18n.ts').read_text()
+          anchor='import { LANGS, localizeMarkup, localizeText } from "./i18n.ts";'
+          assert anchor in ui
+          Path('supabase/functions/telegram-ui/runtime-generated.ts').write_text(ui.replace(anchor,i18n,1))
+          PY
+          python3 /tmp/patch.py
+
+          deno check supabase/functions/telegram-ui/index.ts
+          deno check supabase/functions/notification-dispatcher/index.ts
+          deno check supabase/functions/stripe-webhook/index.ts
+          deno check supabase/functions/telegram-ui/runtime-generated.ts
+
+          grep -q '🔎 ${draftName} • Entwurf' supabase/functions/telegram-ui/index.ts
+          grep -q '🔒 ⭐️ Gespeichert' supabase/functions/telegram-ui/index.ts
+          grep -q '💎 30 Tage Premium für 0 €' supabase/functions/telegram-ui/index.ts
+          grep -q 'complete_referral_reward' supabase/functions/telegram-ui/index.ts
+          grep -q 'message_effect_id: PARTY_EFFECT_ID' supabase/functions/telegram-ui/index.ts
+          grep -q '414638980' supabase/functions/telegram-ui/index.ts
+          grep -q 'callback_data: "premium"' supabase/functions/notification-dispatcher/index.ts
+          grep -q 'PARTY_EFFECT_ID' supabase/functions/stripe-webhook/index.ts
+
+      - name: Record already-applied referral migration
+        run: |
+          cat > supabase/migrations/20260903083000_defer_referral_reward_until_first_profile.sql <<'SQL'
+          -- Applied to production on 2026-09-03. Referral registration is deferred until the referred user's first profile.
+          -- Canonical function definitions are maintained in the production migration history.
+          SQL
+
+      - name: Commit verified changes
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add supabase/functions/telegram-ui/index.ts supabase/functions/telegram-ui/runtime-generated.ts supabase/functions/notification-dispatcher/index.ts supabase/functions/stripe-webhook/index.ts supabase/migrations/20260903083000_defer_referral_reward_until_first_profile.sql
+          git commit -m 'Refine Telegram premium referral and admin UX'
+          git push
