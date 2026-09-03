@@ -36,12 +36,13 @@ async function parseDetail(url:string,key:string):Promise<Candidate|null>{
   const plain=strip(r.text);
   if(/Dieses Objekt ist bereits vermietet/i.test(plain))return null;
   const title=strip(r.text.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i)?.[1]||'').slice(0,240)||'Grand City Property Wohnungsangebot';
+  if(/\b(?:Gewerbe|Gewerbeeinheit|Büro|Praxis|Laden|Lager|Stellplatz|Garage)\b/i.test(title))return null;
   const street=[...plain.matchAll(/\b([A-ZÄÖÜ][A-Za-zÄÖÜäöüß0-9.'’\- ]{2,90}\s+\d+[a-zA-Z]?)\s*,\s*Hamburg\b/g)].map(x=>x[1].trim()).find(x=>!/Straße\s*&\s*Hausnummer/i.test(x))||null;
   const zip=r.text.match(/\b(2\d{4})\s+Hamburg\b/i)?.[1]||null;
   if(zip&&!hhZip(zip))return null;
   const f=parseFields(plain);
   const loc=plain.match(/(?:Hamburger\s+)?Stadtteil\s+([A-ZÄÖÜ][A-Za-zÄÖÜäöüß.-]+)\s+im\s+Bezirk\s+([A-ZÄÖÜ][A-Za-zÄÖÜäöüß.-]+)/i);
-  const titleDistrict=title.match(/Hamburg[- ]([A-ZÄÖÜ][A-Za-zÄÖÜäöüß.-]+)/i)?.[1]||null;
+  const titleDistrict=title.match(/Hamburg\s*[-–]?\s*([A-ZÄÖÜ][A-Za-zÄÖÜäöüß.-]+)/i)?.[1]||null;
   const district=loc?.[1]||titleDistrict;
   const borough=loc?.[2]||null;
   const objectId=plain.match(/Objekt\s*ID\s+([0-9/]+)/i)?.[1]||null;
