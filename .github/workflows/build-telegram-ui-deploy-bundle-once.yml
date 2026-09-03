@@ -1,0 +1,42 @@
+name: Build Telegram UI deploy bundle once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/build-telegram-ui-deploy-bundle-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Inline i18n dependency
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          index_path = Path('supabase/functions/telegram-ui/index.ts')
+          i18n_path = Path('supabase/functions/telegram-ui/i18n.ts')
+          source = index_path.read_text()
+          i18n = i18n_path.read_text()
+          anchor = 'import { LANGS, localizeMarkup, localizeText } from "./i18n.ts";'
+          if anchor not in source:
+              raise SystemExit('i18n import anchor missing')
+          source = source.replace(anchor, i18n, 1)
+          out = Path('supabase/functions/telegram-ui/deploy-bundle.ts')
+          out.write_text(source)
+          PY
+          deno check supabase/functions/telegram-ui/deploy-bundle.ts
+      - name: Commit deploy bundle
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add supabase/functions/telegram-ui/deploy-bundle.ts
+          git commit -m 'Build Telegram UI deploy bundle'
+          git push
