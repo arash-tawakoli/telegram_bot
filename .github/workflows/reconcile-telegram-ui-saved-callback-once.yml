@@ -1,0 +1,41 @@
+name: Reconcile Telegram UI saved callback once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/reconcile-telegram-ui-saved-callback-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Match durable source to live guarded behavior
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('supabase/functions/telegram-ui/index.ts')
+          s = p.read_text()
+          old = 'user.is_premium ? button("⭐️ Gespeichert", "saved") : button("🔒 ⭐️ Gespeichert", "premium"),'
+          new = 'button(user.is_premium ? "⭐️ Gespeichert" : "🔒 ⭐️ Gespeichert", "saved"),'
+          if s.count(old) != 1:
+              raise SystemExit('saved callback anchor missing')
+          if 'if (!user.is_premium) return premium(user, chatId, messageId);' not in s:
+              raise SystemExit('server-side Premium guard missing')
+          p.write_text(s.replace(old, new, 1))
+          PY
+          deno check supabase/functions/telegram-ui/index.ts
+      - name: Commit reconciliation
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add supabase/functions/telegram-ui/index.ts
+          git commit -m 'Reconcile saved callback with live Premium guard'
+          git push
