@@ -398,7 +398,7 @@ function homeKeyboard(user: any) {
   const rows: any[] = [
     [
       button("🔎 Suchprofil", "profile"),
-      button(user.is_premium ? "⭐️ Gespeichert" : "🔒 ⭐️ Gespeichert", "saved"),
+      user.is_premium ? button("⭐️ Gespeichert", "saved") : button("🔒 ⭐️ Gespeichert", "premium"),
     ],
     [
       button("⚙️ Einstellungen", "settings"),
