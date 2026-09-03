@@ -33,9 +33,11 @@ jobs:
       - name: Upload static Premium asset
         run: |
           set -euo pipefail
-          response=$(curl --fail-with-body -sS -X POST \
+          code=$(curl -sS -o /tmp/upload-response.txt -w '%{http_code}' -X POST \
             -H 'content-type: image/jpeg' \
             --data-binary '@/tmp/premium-hd.jpg' \
             'https://dpmohkrwdlicexwcrqfy.supabase.co/functions/v1/telegram-premium-image?upload=5wBvMfcEvvZG3pbTTxgjGouOeNiwxOWc')
-          echo "$response"
-          echo "$response" | grep -q '"ok":true'
+          cat /tmp/upload-response.txt
+          echo "HTTP $code"
+          test "$code" = "200"
+          grep -q '"ok":true' /tmp/upload-response.txt
