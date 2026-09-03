@@ -1,0 +1,41 @@
+name: Upload Premium HD asset once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/upload-premium-hd-once.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract embedded HD Premium image
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import ast, base64, re
+          s = Path('supabase/functions/telegram-ui/index.ts').read_text()
+          m = re.search(r'const PREMIUM_PREVIEW_B64 = \[(.*?)\]\.join\(""\);', s, re.S)
+          if not m:
+              raise SystemExit('HD Premium payload not found')
+          chunks = re.findall(r'"([A-Za-z0-9+/=]+)"', m.group(1))
+          raw = base64.b64decode(''.join(chunks))
+          if len(raw) < 40000 or not raw.startswith(b'\xff\xd8'):
+              raise SystemExit('invalid HD Premium image')
+          Path('/tmp/premium-hd.jpg').write_bytes(raw)
+          print(f'premium-hd bytes={len(raw)}')
+          PY
+      - name: Upload static Premium asset
+        run: |
+          set -euo pipefail
+          response=$(curl --fail-with-body -sS -X POST \
+            -H 'content-type: image/jpeg' \
+            --data-binary '@/tmp/premium-hd.jpg' \
+            'https://dpmohkrwdlicexwcrqfy.supabase.co/functions/v1/telegram-premium-image?upload=5wBvMfcEvvZG3pbTTxgjGouOeNiwxOWc')
+          echo "$response"
+          echo "$response" | grep -q '"ok":true'
