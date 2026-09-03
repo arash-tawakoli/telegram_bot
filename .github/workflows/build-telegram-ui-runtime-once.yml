@@ -1,0 +1,46 @@
+name: Build Telegram UI runtime once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/build-telegram-ui-runtime-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Build self-contained runtime
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          index = Path('supabase/functions/telegram-ui/index.ts').read_text()
+          i18n = Path('supabase/functions/telegram-ui/i18n.ts').read_text()
+          anchor = 'import { LANGS, localizeMarkup, localizeText } from "./i18n.ts";'
+          if anchor not in index:
+              raise SystemExit('i18n import anchor missing')
+          index = index.replace(anchor, i18n, 1)
+          index, n = re.subn(r'const PREMIUM_PREVIEW_B64 = \[.*?\]\.join\(""\);', 'const PREMIUM_PREVIEW_B64 = "";', index, count=1, flags=re.S)
+          if n != 1:
+              raise SystemExit('premium payload anchor missing')
+          index, n = re.subn(r'function premiumPreviewUrl\(\) \{.*?\n\}', 'function premiumPreviewUrl() {\n  return `${SUPABASE_URL}/functions/v1/telegram-premium-image?v=20260903hd2`;\n}', index, count=1, flags=re.S)
+          if n != 1:
+              raise SystemExit('premium url anchor missing')
+          Path('supabase/functions/telegram-ui/runtime-generated.ts').write_text(index)
+          PY
+          deno check supabase/functions/telegram-ui/runtime-generated.ts
+      - name: Commit runtime
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add supabase/functions/telegram-ui/runtime-generated.ts
+          git commit -m 'Build temporary Telegram UI runtime'
+          git push
