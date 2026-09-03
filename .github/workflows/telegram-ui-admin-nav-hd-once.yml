@@ -23,6 +23,19 @@ jobs:
       - name: Patch telegram-ui
         run: python3 .github/scripts/telegram_ui_admin_nav_hd_once.py
 
+      - name: Normalize settings text escape
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('supabase/functions/telegram-ui/index.ts')
+          source = path.read_text()
+          bad = 'const text = "⚙️ <b>Einstellungen</b>\n\nVerwalte hier Premium, Sprache und Systemstatus.";'
+          good = 'const text = "⚙️ <b>Einstellungen</b>\\n\\nVerwalte hier Premium, Sprache und Systemstatus.";'
+          if bad not in source:
+              raise SystemExit('malformed settings text anchor missing')
+          path.write_text(source.replace(bad, good, 1))
+          PY
+
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
