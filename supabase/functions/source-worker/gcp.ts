@@ -23,6 +23,14 @@ function detailUrls(html:string,base:string){
 function moneyAfter(text:string,labels:string){return deNum(text.match(new RegExp(`(?:${labels})\\s*:?\\s*([\\d.]+(?:,\\d{1,2})?)\\s*(?:€|EUR)`,'i'))?.[1])}
 function isoDate(text:string){const m=text.match(/\b(\d{1,2})\.(\d{1,2})\.(\d{4})\b/);return m?`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`:null}
 function section(text:string,label:string,next:string){const m=text.match(new RegExp(`${label}\\s+([\\s\\S]{1,2200}?)(?=${next}|$)`,'i'));return m?.[1]?.replace(/\s+/g,' ').trim().slice(0,1800)||null}
+function pageAddress(html:string,zip:string|null){
+  for(const m of html.matchAll(/<img\b[^>]*>/gi)){
+    const alt=decode(attr(m[0],'alt')||'').replace(/\s+/g,' ').trim();
+    const a=alt.match(/\b([A-ZÄÖÜ][A-Za-zÄÖÜäöüß.'’\-]*(?:\s+[A-Za-zÄÖÜäöüß.'’\-]+){0,4}\s+\d+[a-zA-Z]?)\s*,?\s*(2\d{4})\s+Hamburg\b/i);
+    if(a&&(!zip||a[2]===zip))return `${a[1].trim()}, ${a[2]} Hamburg`;
+  }
+  return null;
+}
 function gcpImage(html:string,base:string,zip:string|null){
   for(const m of html.matchAll(/<img\b[^>]*>/gi)){
     const tag=m[0],alt=decode(attr(tag,'alt')||'');
@@ -38,23 +46,24 @@ async function parseDetail(url:string,key:string):Promise<Candidate|null>{
   if(/Dieses Objekt ist bereits vermietet/i.test(plain))return null;
   const title=strip(r.text.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i)?.[1]||'').slice(0,240)||'Grand City Property Wohnungsangebot';
   if(/\b(?:Gewerbe|Gewerbeeinheit|Büro|Praxis|Laden|Lager|Stellplatz|Garage)\b/i.test(title))return null;
-  const body=plain.replace(title,' '),zip=r.text.match(/\b(2\d{4})\s+Hamburg\b/i)?.[1]||null;
+  const zip=r.text.match(/\b(2\d{4})\s+Hamburg\b/i)?.[1]||null;
   if(zip&&!hhZip(zip))return null;
-  const street=body.match(/([A-ZÄÖÜ][A-Za-zÄÖÜäöüß.'’\-]+(?:\s+[A-Za-zÄÖÜäöüß.'’\-]+){0,5}\s+\d+[a-zA-Z]?)\s*,\s*(?:2\d{4}\s+)?Hamburg\b/i)?.[1]?.trim()||null;
+  const address=pageAddress(r.text,zip);
   const cold=moneyAfter(plain,'Kaltmiete|Nettokaltmiete|Grundmiete|Nettomiete'),warm=moneyAfter(plain,'Gesamtmiete|Warmmiete|Bruttowarmmiete|Bruttomiete'),additional=moneyAfter(plain,'Nebenkosten|Nebenkostenvorauszahlung|sonstige Kosten'),operating=moneyAfter(plain,'Betriebskosten|Betriebskostenvorauszahlung'),heating=moneyAfter(plain,'Heizkosten|Heizungskosten|Heizkostenvorauszahlung'),deposit=moneyAfter(plain,'Kaution|Mietkaution|Mietsicherheit');
   const depositText=deposit==null?(plain.match(/(?:Kaution|Mietkaution|Mietsicherheit)\s*:?\s*(.{2,100}?)(?=Wohnfläche|Fläche|Etage|Stock|Zimmer|Ausweistyp|Energieträger|Baujahr|Objektbeschreibung)/i)?.[1]?.trim().slice(0,120)||null):null;
   const rooms=deNum(plain.match(/([\d.,]+)\s*[-–]?\s*Zimmer/i)?.[1]),area=deNum(plain.match(/([\d.,]+)\s*m(?:²|2)/i)?.[1]);
-  const loc=plain.match(/(?:Hamburger\s+)?Stadtteil\s+([A-ZÄÖÜ][A-Za-zÄÖÜäöüß.-]+)\s+im\s+Bezirk\s+([A-ZÄÖÜ][A-Za-zÄÖÜäöüß.-]+)/i);
+  const locationText=section(plain,'Lage','Sonstiges|Bei uns in guten Wänden');
+  const loc=locationText?.match(/(?:Hamburger\s+)?Stadtteil\s+([A-ZÄÖÜ][A-Za-zÄÖÜäöüß.-]+)\s+im\s+Bezirk\s+([A-ZÄÖÜ][A-Za-zÄÖÜäöüß.-]+)/i);
+  const locationDistrict=locationText?.match(/\bHamburg[-–]\s*([A-ZÄÖÜ][A-Za-zÄÖÜäöüß.-]+)/i)?.[1]||locationText?.match(/\bStadtteil\s+([A-ZÄÖÜ][A-Za-zÄÖÜäöüß.-]+)/i)?.[1]||null;
   const districtMatch=title.match(/Hamburg\s*[-–]?\s*([A-ZÄÖÜ][A-Za-zÄÖÜäöüß.-]+)/i)?.[1]||null,titleDistrict=districtMatch&&!/^(?:Wohnung|Apartment|Appartement|mit|in|zu|zum)$/i.test(districtMatch)?districtMatch:null;
-  const district=loc?.[1]||titleDistrict,borough=loc?.[2]||null;
+  const district=loc?.[1]||locationDistrict||titleDistrict,borough=loc?.[2]||null;
   const objectId=plain.match(/(?:Objekt|Wohnungs)[ -]?ID\s*:?\s*([0-9/]+)/i)?.[1]||null;
   const floor=plain.match(/\b(\d+)\.\s*Stock\b/i)?.[1]||plain.match(/Etage\s*:?\s*(\d+)/i)?.[1]||null;
   const year=plain.match(/Baujahr\s*:?\s*(\d{4})/i)?.[1]||null;
   const condition=plain.match(/Zustand\s*:?\s*(.{2,80}?)(?=Wesentliche Energieträger|Gesetzliche Pflichtangaben|Energieausweis|Objektbeschreibung)/i)?.[1]?.trim()||null;
   const energyCarrier=plain.match(/(?:Wesentliche\s+)?Energieträger\s*:?\s*(.{2,80}?)(?=Gesetzliche Pflichtangaben|Energieausweis|Objektbeschreibung|Verbrauch|Bedarf|Baujahr)/i)?.[1]?.trim()||null;
   const availableText=plain.match(/Verfügbar\s+ab:\s*(.{1,80}?)(?=\d+[.,]?\d*\s*m(?:²|2)|\d+\.\s*Stock|\d+[.,]?\d*\s+Zimmer)/i)?.[1]?.trim()||null;
-  const address=street?(zip?`${street}, ${zip} Hamburg`:`${street}, Hamburg`):null;
-  return {key,url:r.url,title,address,district,zip,warm,cold,additional,operating,heating,deposit,depositText,rooms,area,available:availableText?isoDate(availableText):null,type:'Wohnung',wbs:/\bWBS\b|Wohnberechtigungsschein/i.test(plain),image:gcpImage(r.text,r.url,zip),raw:{provider:'grand_city_property',object_id:objectId,borough,floor:floor?Number(floor):null,baujahr:year?Number(year):null,zustand:condition,energietraeger:energyCarrier,available_text:availableText,description:section(plain,'Objektbeschreibung','Ausstattung|Lage|Sonstiges'),features:section(plain,'Ausstattung','Lage|Sonstiges'),location:section(plain,'Lage','Sonstiges|Bei uns in guten Wänden')}};
+  return {key,url:r.url,title,address,district,zip,warm,cold,additional,operating,heating,deposit,depositText,rooms,area,available:availableText?isoDate(availableText):null,type:'Wohnung',wbs:/\bWBS\b|Wohnberechtigungsschein/i.test(plain),image:gcpImage(r.text,r.url,zip),raw:{provider:'grand_city_property',object_id:objectId,borough,floor:floor?Number(floor):null,baujahr:year?Number(year):null,zustand:condition,energietraeger:energyCarrier,available_text:availableText,description:section(plain,'Objektbeschreibung','Ausstattung|Lage|Sonstiges'),features:section(plain,'Ausstattung','Lage|Sonstiges'),location:locationText}};
 }
 async function existingFreshness(sourceId:number,keys:string[]){
   const out=new Map<string,boolean>();
