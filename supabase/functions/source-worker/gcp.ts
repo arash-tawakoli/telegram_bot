@@ -73,8 +73,10 @@ export async function runGcp(source:Source,c:Connector){
     const keys=candidates.map(x=>String(x.key)),known=await existingFreshness(source.id,keys),hadBaseline=!!source.baseline_completed_at;
     const keepFresh=candidates.filter(x=>known.get(String(x.key))===true),keepBlocked=candidates.filter(x=>known.has(String(x.key))&&known.get(String(x.key))!==true),fresh=candidates.filter(x=>!known.has(String(x.key)));
     const a=keepFresh.length?await upsertCandidates(source,keepFresh,true):{seen:0,fresh:0},b=keepBlocked.length?await upsertCandidates(source,keepBlocked,false):{seen:0,fresh:0},n=fresh.length?await upsertCandidates(source,fresh,hadBaseline):{seen:0,fresh:0};
+    const t=iso(),requests=pages.filter(x=>x.status==='fulfilled').length+entries.length;
+    await db.from('source_coverage_state').upsert({source_id:source.id,cycle_id:crypto.randomUUID(),strategy:'gcp_official_html',status:'running',cursor:{discovery_urls:DISCOVERY_URLS},expected_count:null,seen_count:candidates.length,request_count:requests,cycle_started_at:started,cycle_finished_at:null,last_complete_at:null,consecutive_errors:0,last_error:detailErrors.length?`${detailErrors.length} detail page errors`:null,updated_at:t});
     await markSuccess(source,started,c,candidates.length,a.fresh+b.fresh+n.fresh,{strategy:'gcp_official_html',discovery_urls:DISCOVERY_URLS,discovered:urls.size,parsed:candidates.length,detail_errors:detailErrors.slice(0,10),discovery_errors:discoveryErrors,complete:false,fresh_delivery_mode:hadBaseline?'new_ids_after_baseline':'baseline_only'});
-    if(!hadBaseline){const t=iso();await db.from('sources').update({baseline_completed_at:t,warmed_up:true,coverage_status:'partial',updated_at:t}).eq('id',source.id)}
+    if(!hadBaseline)await db.from('sources').update({baseline_completed_at:t,warmed_up:true,coverage_status:'partial',updated_at:t}).eq('id',source.id);
     return{ok:true,source_id:source.id,fetched:candidates.length,new:n.fresh,complete:false,detail_errors:detailErrors.length};
   }catch(e){return markFailure(source,started,e)}
 }
