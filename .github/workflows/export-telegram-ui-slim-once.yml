@@ -1,4 +1,4 @@
-name: Export telegram-ui slim once
+name: Export telegram-ui full once
 
 on:
   push:
@@ -14,23 +14,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build deploy source
-        run: |
-          mkdir -p /tmp/telegram-ui
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-          src = Path('supabase/functions/telegram-ui/index.ts').read_text()
-          src, n = re.subn(r'const PREMIUM_PREVIEW_B64 = \[.*?\]\.join\(""\);', 'const PREMIUM_PREVIEW_B64 = "";', src, count=1, flags=re.S)
-          if n != 1:
-              raise SystemExit('premium base64 anchor not found')
-          src, n = re.subn(r'function premiumPreviewUrl\(\) \{.*?\}', 'function premiumPreviewUrl() { return `${SUPABASE_URL}/functions/v1/telegram-premium-image?v=20260903hd2`; }', src, count=1, flags=re.S)
-          if n != 1:
-              raise SystemExit('premiumPreviewUrl anchor not found')
-          Path('/tmp/telegram-ui/index.ts').write_text(src)
-          Path('/tmp/telegram-ui/i18n.ts').write_text(Path('supabase/functions/telegram-ui/i18n.ts').read_text())
-          PY
       - uses: actions/upload-artifact@v4
         with:
-          name: telegram-ui-slim-source
-          path: /tmp/telegram-ui
+          name: telegram-ui-full-source
+          path: |
+            supabase/functions/telegram-ui/index.ts
+            supabase/functions/telegram-ui/i18n.ts
