@@ -23,10 +23,11 @@ function detailUrls(html:string,base:string){
 function moneyAfter(text:string,labels:string){return deNum(text.match(new RegExp(`(?:${labels})\\s*:?\\s*([\\d.]+(?:,\\d{1,2})?)\\s*(?:€|EUR)`,'i'))?.[1])}
 function isoDate(text:string){const m=text.match(/\b(\d{1,2})\.(\d{1,2})\.(\d{4})\b/);return m?`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`:null}
 function section(text:string,label:string,next:string){const m=text.match(new RegExp(`${label}\\s+([\\s\\S]{1,2200}?)(?=${next}|$)`,'i'));return m?.[1]?.replace(/\s+/g,' ').trim().slice(0,1800)||null}
+function cleanPlace(v:string|null|undefined){return v?.trim().replace(/[.,;:]+$/,'')||null}
 function pageAddress(html:string,zip:string|null){
   for(const m of html.matchAll(/<img\b[^>]*>/gi)){
     const alt=decode(attr(m[0],'alt')||'').replace(/\s+/g,' ').trim();
-    const a=alt.match(/\b([A-ZÄÖÜ][A-Za-zÄÖÜäöüß.'’\-]*(?:\s+[A-Za-zÄÖÜäöüß.'’\-]+){0,4}\s+\d+[a-zA-Z]?)\s*,?\s*(2\d{4})\s+Hamburg\b/i);
+    const a=alt.match(/(?:^|\s)([A-ZÄÖÜ][A-Za-zÄÖÜäöüß.'’\-]*(?:\s+[A-Za-zÄÖÜäöüß.'’\-]+){0,4}\s+\d+[a-zA-Z]?)\s*,?\s*(2\d{4})\s+Hamburg\b/i);
     if(a&&(!zip||a[2]===zip))return `${a[1].trim()}, ${a[2]} Hamburg`;
   }
   return null;
@@ -56,7 +57,7 @@ async function parseDetail(url:string,key:string):Promise<Candidate|null>{
   const loc=locationText?.match(/(?:Hamburger\s+)?Stadtteil\s+([A-ZÄÖÜ][A-Za-zÄÖÜäöüß.-]+)\s+im\s+Bezirk\s+([A-ZÄÖÜ][A-Za-zÄÖÜäöüß.-]+)/i);
   const locationDistrict=locationText?.match(/\bHamburg[-–]\s*([A-ZÄÖÜ][A-Za-zÄÖÜäöüß.-]+)/i)?.[1]||locationText?.match(/\bStadtteil\s+([A-ZÄÖÜ][A-Za-zÄÖÜäöüß.-]+)/i)?.[1]||null;
   const districtMatch=title.match(/Hamburg\s*[-–]?\s*([A-ZÄÖÜ][A-Za-zÄÖÜäöüß.-]+)/i)?.[1]||null,titleDistrict=districtMatch&&!/^(?:Wohnung|Apartment|Appartement|mit|in|zu|zum)$/i.test(districtMatch)?districtMatch:null;
-  const district=loc?.[1]||locationDistrict||titleDistrict,borough=loc?.[2]||null;
+  const district=cleanPlace(loc?.[1]||locationDistrict||titleDistrict),borough=cleanPlace(loc?.[2]);
   const objectId=plain.match(/(?:Objekt|Wohnungs)[ -]?ID\s*:?\s*([0-9/]+)/i)?.[1]||null;
   const floor=plain.match(/\b(\d+)\.\s*Stock\b/i)?.[1]||plain.match(/Etage\s*:?\s*(\d+)/i)?.[1]||null;
   const year=plain.match(/Baujahr\s*:?\s*(\d{4})/i)?.[1]||null;
