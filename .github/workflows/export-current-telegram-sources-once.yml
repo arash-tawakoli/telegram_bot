@@ -1,0 +1,25 @@
+name: Export current Telegram sources once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/export-current-telegram-sources-once.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: telegram-sources
+          path: |
+            supabase/functions/telegram-ui/index.ts
+            supabase/functions/telegram-ui/i18n.ts
+            supabase/functions/notification-dispatcher/index.ts
+            supabase/functions/notification-dispatcher/labels.ts
+            supabase/functions/stripe-webhook/index.ts
