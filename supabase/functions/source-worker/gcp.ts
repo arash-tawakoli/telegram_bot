@@ -45,11 +45,11 @@ async function parseDetail(url:string,key:string):Promise<Candidate|null>{
   const titleDistrict=title.match(/Hamburg\s*[-–]?\s*([A-ZÄÖÜ][A-Za-zÄÖÜäöüß.-]+)/i)?.[1]||null;
   const district=loc?.[1]||titleDistrict;
   const borough=loc?.[2]||null;
-  const objectId=plain.match(/Objekt\s*ID\s+([0-9/]+)/i)?.[1]||null;
-  const floor=plain.match(/\b(\d+)\.\s*Stock\b/i)?.[1]||null;
+  const objectId=plain.match(/(?:Objekt|Wohnungs)[ -]?ID\s*:?\s*([0-9/]+)/i)?.[1]||null;
+  const floor=plain.match(/\b(\d+)\.\s*Stock\b/i)?.[1]||plain.match(/Etage\s*:?\s*(\d+)/i)?.[1]||null;
   const year=plain.match(/Baujahr\s+(\d{4})/i)?.[1]||null;
   const condition=plain.match(/Zustand\s+(.{2,80}?)(?=Wesentliche Energieträger|Gesetzliche Pflichtangaben|Energieausweis|Objektbeschreibung)/i)?.[1]?.trim()||null;
-  const energyCarrier=plain.match(/Wesentliche Energieträger\s+(.{2,80}?)(?=Gesetzliche Pflichtangaben|Energieausweis|Objektbeschreibung)/i)?.[1]?.trim()||null;
+  const energyCarrier=plain.match(/(?:Wesentliche\s+)?Energieträger\s*:?\s*(.{2,80}?)(?=Gesetzliche Pflichtangaben|Energieausweis|Objektbeschreibung|Verbrauch|Bedarf|Baujahr)/i)?.[1]?.trim()||null;
   const availableText=plain.match(/Verfügbar\s+ab:\s*(.{1,80}?)(?=\d+[.,]?\d*\s*m(?:²|2)|\d+\.\s*Stock|\d+[.,]?\d*\s+Zimmer)/i)?.[1]?.trim()||null;
   const address=street?(zip?`${street}, ${zip} Hamburg`:`${street}, Hamburg`):null;
   return {key,url:r.url,title,address,district,zip,warm:f.warm,cold:f.cold,additional:f.additional,operating:f.operating,heating:f.heating,deposit:f.deposit,rooms:f.rooms,area:f.area,available:availableText?isoDate(availableText):null,type:'Wohnung',image:gcpImage(r.text,r.url,zip),raw:{provider:'grand_city_property',object_id:objectId,borough,floor:floor?Number(floor):null,baujahr:year?Number(year):null,zustand:condition,energietraeger:energyCarrier,available_text:availableText,description:section(plain,'Objektbeschreibung','Ausstattung|Lage|Sonstiges'),features:section(plain,'Ausstattung','Lage|Sonstiges'),location:section(plain,'Lage','Sonstiges|Bei uns in guten Wänden')}};
