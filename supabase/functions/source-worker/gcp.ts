@@ -40,7 +40,7 @@ async function parseDetail(url:string,key:string):Promise<Candidate|null>{
   if(/\b(?:Gewerbe|Gewerbeeinheit|Büro|Praxis|Laden|Lager|Stellplatz|Garage)\b/i.test(title))return null;
   const body=plain.replace(title,' '),zip=r.text.match(/\b(2\d{4})\s+Hamburg\b/i)?.[1]||null;
   if(zip&&!hhZip(zip))return null;
-  const street=body.match(/\b([A-ZÄÖÜ][A-Za-zÄÖÜäöüß.'’\-]+(?:\s+[A-Za-zÄÖÜäöüß.'’\-]+){0,5}\s+\d+[a-zA-Z]?)\s*,\s*(?:2\d{4}\s+)?Hamburg\b/i)?.[1]?.trim()||null;
+  const street=body.match(/([A-ZÄÖÜ][A-Za-zÄÖÜäöüß.'’\-]+(?:\s+[A-Za-zÄÖÜäöüß.'’\-]+){0,5}\s+\d+[a-zA-Z]?)\s*,\s*(?:2\d{4}\s+)?Hamburg\b/i)?.[1]?.trim()||null;
   const cold=moneyAfter(plain,'Kaltmiete|Nettokaltmiete|Grundmiete|Nettomiete'),warm=moneyAfter(plain,'Gesamtmiete|Warmmiete|Bruttowarmmiete|Bruttomiete'),additional=moneyAfter(plain,'Nebenkosten|Nebenkostenvorauszahlung|sonstige Kosten'),operating=moneyAfter(plain,'Betriebskosten|Betriebskostenvorauszahlung'),heating=moneyAfter(plain,'Heizkosten|Heizungskosten|Heizkostenvorauszahlung'),deposit=moneyAfter(plain,'Kaution|Mietkaution|Mietsicherheit');
   const depositText=deposit==null?(plain.match(/(?:Kaution|Mietkaution|Mietsicherheit)\s*:?\s*(.{2,100}?)(?=Wohnfläche|Fläche|Etage|Stock|Zimmer|Ausweistyp|Energieträger|Baujahr|Objektbeschreibung)/i)?.[1]?.trim().slice(0,120)||null):null;
   const rooms=deNum(plain.match(/([\d.,]+)\s*[-–]?\s*Zimmer/i)?.[1]),area=deNum(plain.match(/([\d.,]+)\s*m(?:²|2)/i)?.[1]);
