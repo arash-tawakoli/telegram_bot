@@ -18,7 +18,7 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import ast, base64, re
+          import base64, re
           s = Path('supabase/functions/telegram-ui/index.ts').read_text()
           m = re.search(r'const PREMIUM_PREVIEW_B64 = \[(.*?)\]\.join\(""\);', s, re.S)
           if not m:
