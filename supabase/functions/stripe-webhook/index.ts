@@ -11,6 +11,7 @@ const db = createClient(SUPABASE_URL, ADMIN_KEY, {
 const PAYMENT_LINK_ID = "plink_1UAy8Z2NorDNIWqI9h5j73q0";
 const ACTIVE_STATUSES = new Set(["active", "trialing"]);
 const STRIPE_API_VERSION = "2026-06-24.dahlia";
+const PARTY_EFFECT_ID = "5046509860389126442";
 
 async function requiredSecret(name: string) {
   const { data, error } = await db.rpc("get_bot_secret", { secret_name: name });
@@ -216,6 +217,7 @@ async function telegramMessage(
   userId: string,
   text: string,
   replyMarkup?: Record<string, unknown>,
+  messageEffectId?: string,
 ) {
   const { data: user, error } = await db
     .from("bot_users")
@@ -226,17 +228,27 @@ async function telegramMessage(
   if (!user?.chat_id) return;
 
   const token = await requiredSecret("telegram_bot_token_runtime");
-  const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+  const sendBody = (effect?: string) => JSON.stringify({
+    chat_id: user.chat_id,
+    text,
+    parse_mode: "HTML",
+    reply_markup: replyMarkup,
+    ...(effect ? { message_effect_id: effect } : {}),
+  });
+  let response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      chat_id: user.chat_id,
-      text,
-      parse_mode: "HTML",
-      reply_markup: replyMarkup,
-    }),
+    body: sendBody(messageEffectId),
   });
-  const result = await response.json().catch(() => ({}));
+  let result = await response.json().catch(() => ({}));
+  if ((!response.ok || !result.ok) && messageEffectId) {
+    response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: sendBody(),
+    });
+    result = await response.json().catch(() => ({}));
+  }
   if (!response.ok || !result.ok) {
     throw new Error(
       `Telegram sendMessage ${response.status}: ${String(result?.description || "failed")}`,
@@ -325,7 +337,7 @@ async function processReferralReward(referralId: string) {
   try {
     await telegramMessage(
       referral.referrer_user_id,
-      `🎁 <b>Empfehlungsgutschrift erhalten</b>\n\nDir wurden ${(amount / 100).toFixed(2).replace(".", ",")} € in Stripe gutgeschrieben.`,
+      `💎 <b>Empfehlungsgutschrift erhalten</b>\n\nDir wurden ${(amount / 100).toFixed(2).replace(".", ",")} € in Stripe gutgeschrieben.`,
     );
   } catch (noticeError) {
     console.error("referral_reward_notice", noticeError);
@@ -453,20 +465,12 @@ Deno.serve(async (req: Request) => {
                   { text: "🏠 Zum Menü", callback_data: "home" },
                 ]],
               },
+              PARTY_EFFECT_ID,
             );
           } catch (noticeError) {
             console.error("premium_activation_notice", noticeError);
           }
         }
-        const { error: referralError } = await db
-          .from("referrals")
-          .update({
-            status: "subscribed",
-            stripe_customer_id: customerId,
-          })
-          .eq("referred_user_id", userId)
-          .eq("status", "registered");
-        if (referralError) throw referralError;
       }
     } else if (
       eventType === "customer.subscription.created" ||

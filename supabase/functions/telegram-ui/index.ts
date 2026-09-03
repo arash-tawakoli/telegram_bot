@@ -222,6 +222,24 @@ function send(chatId: number, text: string, replyMarkup?: any) {
   });
 }
 
+const PARTY_EFFECT_ID = "5046509860389126442";
+
+async function sendCelebration(chatId: number, text: string, replyMarkup?: any) {
+  const language = chatLanguages.get(chatId);
+  try {
+    return await telegram("sendMessage", {
+      chat_id: chatId,
+      text: localizeText(text, language),
+      parse_mode: "HTML",
+      disable_web_page_preview: true,
+      reply_markup: localizeMarkup(replyMarkup, language),
+      message_effect_id: PARTY_EFFECT_ID,
+    });
+  } catch {
+    return send(chatId, text, replyMarkup);
+  }
+}
+
 async function edit(
   chatId: number,
   messageId: number,
@@ -306,16 +324,20 @@ async function ensureUser(from: any, chatId: number) {
       .select("*")
       .single();
     if (updateError) throw updateError;
-    return data;
+    return { ...data, __is_new_user: false };
   }
 
   const { data, error: insertError } = await db
     .from("bot_users")
-    .insert({ telegram_user_id: from.id, ...patch })
+    .insert({
+      telegram_user_id: from.id,
+      ...patch,
+      last_start_at: new Date().toISOString(),
+    })
     .select("*")
     .single();
   if (insertError) throw insertError;
-  return data;
+  return { ...data, __is_new_user: true };
 }
 
 async function withPlan(user: any) {
@@ -373,21 +395,17 @@ async function geography(): Promise<Geography> {
 }
 
 function homeKeyboard(user: any) {
-  const rows: any[] = [];
-  if (user.onboarding_step) {
-    rows.push([button("▶️ Entwurf fortsetzen", "draft")]);
-  }
-  rows.push(
+  const rows: any[] = [
     [
       button("🔎 Suchprofil", "profile"),
-      button("⭐️ Gespeichert", "saved"),
+      button(user.is_premium ? "⭐️ Gespeichert" : "🔒 ⭐️ Gespeichert", "saved"),
     ],
     [
       button("⚙️ Einstellungen", "settings"),
       button("❓ Hilfe", "help"),
     ],
-    [button("🎁 30 Tage Premium für 0 €", "referral")],
-  );
+    [button("💎 30 Tage Premium für 0 €", "referral")],
+  ];
   return { inline_keyboard: rows };
 }
 
@@ -797,6 +815,11 @@ async function persistProfile(user: any, draft: Draft) {
   if (issue) throw new Error(`incomplete profile: ${issue}`);
   const places = await selectedPlaces(draft);
   const slot = Math.max(1, Math.min(profileLimit(user), Number(draft.profile_slot) || 1));
+  const { count: profileCount, error: profileCountError } = await db
+    .from("search_profiles")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id);
+  if (profileCountError) throw profileCountError;
   const { error } = await db.from("search_profiles").upsert({
     user_id: user.id,
     profile_slot: slot,
@@ -815,6 +838,15 @@ async function persistProfile(user: any, draft: Draft) {
   }, { onConflict: "user_id,profile_slot" });
   if (error) throw error;
   await saveState(user.id, null, {});
+  if ((profileCount || 0) === 0) {
+    const { data: referralReward, error: referralError } = await db.rpc(
+      "complete_referral_reward",
+      { p_referred_user_id: user.id },
+    );
+    if (referralError) throw referralError;
+    return referralReward || null;
+  }
+  return null;
 }
 
 function profileLimit(user: any) { return user.is_premium ? 3 : 1; }
@@ -936,7 +968,21 @@ async function profile(user: any, chatId: number, messageId?: number, selectedSl
     return messageId ? edit(chatId, messageId, text, markup) : send(chatId, text, markup);
   }
   const rows: any[] = profiles.map((row: any) => [button(`🔎 ${row.name || `Meine Suche ${row.profile_slot}`} · ${row.is_active ? "aktiv" : "pausiert"}`, `profile:view:${row.profile_slot}`)]);
+  if (user.onboarding_step) {
+    const draft = draftFor(user);
+    const draftName = draft.profile_slot === 1 ? "Meine Suche" : `Meine Suche ${draft.profile_slot}`;
+    const draftLocked = draft.profile_slot > limit;
+    rows.push([
+      button(
+        `${draftLocked ? "🔒 " : ""}🔎 ${draftName} • Entwurf`,
+        draftLocked ? "premium" : "draft",
+      ),
+    ]);
+  }
   if (profiles.length < limit) rows.push([button("➕ Suchprofil erstellen", "new")]);
+  if (!user.is_premium && profiles.length >= 1) {
+    rows.push([button("🔒 ➕ Weiteres Suchprofil · 💎 Premium", "premium")]);
+  }
   rows.push([button("← Zurück", "home")]);
   const text = profiles.length
     ? `🔎 <b>Meine Suchprofile</b>\n\n${profiles.length}/${limit} Suchprofile angelegt.`
@@ -1032,7 +1078,7 @@ async function renderStatus(user: any, chatId: number, messageId?: number) {
   const text = "📡 <b>Systemstatus</b>\n\n" +
     `🔎 Suchprofile aktiv: ${profileResult.count || 0}/${profileLimit(user)}\n` +
     `🌐 Quellen im System: ${sourceResult.count || 0}\n` +
-    `🎁 Erfolgreiche Empfehlungen: ${referralResult.count || 0}\n` +
+    `💎 Erfolgreiche Empfehlungen: ${referralResult.count || 0}\n` +
     "✅ System: online";
   const markup = { inline_keyboard: [[button("← Einstellungen", "settings")]] };
   return messageId ? edit(chatId, messageId, text, markup) : send(chatId, text, markup);
@@ -1136,8 +1182,8 @@ function adminOverrideLabel(user: any) {
 
 function adminPremiumNotice(grant: AdminGrant) {
   return grant === "life"
-    ? "🎁 <b>Kostenloses Premium aktiviert</b>\n\nDu hast kostenlos Premium auf Lebenszeit bekommen. Premium ist ab sofort aktiv."
-    : `🎁 <b>Kostenloses Premium aktiviert</b>\n\nDu hast ${adminGrantLabel(grant)} kostenlos Premium bekommen. Premium ist ab sofort aktiv.`;
+    ? "💎 <b>Kostenloses Premium aktiviert</b>\n\nDu hast kostenlos Premium auf Lebenszeit bekommen. Premium ist ab sofort aktiv."
+    : `💎 <b>Kostenloses Premium aktiviert</b>\n\nDu hast ${adminGrantLabel(grant)} kostenlos Premium bekommen. Premium ist ab sofort aktiv.`;
 }
 
 async function adminUsers(user: any, chatId: number, messageId?: number) {
@@ -1328,14 +1374,14 @@ async function referralPage(user: any, chatId: number, messageId?: number) {
     if (result.error) throw result.error;
     code = result.data;
   }
-  const { count, error: countError } = await db.from("referrals").select("id", { count: "exact", head: true }).eq("referrer_user_id", user.id).eq("status", "rewarded");
-  if (countError) throw countError;
-  const text = `🎁 <b>30 Tage Premium für 0 €</b>\n\nEmpfehle Traumwohnung Hamburg weiter und erhaltet beide 30 Tage Premium kostenlos 💎\n\nErfolgreiche Empfehlungen: ${count || 0}`;
-  const markup = { inline_keyboard: [[button("← Zurück", "home")]] };
-  if (messageId) await edit(chatId, messageId, text, markup); else await send(chatId, text, markup);
+  await send(
+    chatId,
+    "🎁 <b>30 Tage Premium für 0 €</b>\n\n" +
+      "Empfehle Traumwohnung Hamburg weiter und ihr erhaltet beide 30 Tage Premium kostenlos 💎\n\n" +
+      "Teile jetzt diesen Link 👇",
+  );
   return send(chatId, `https://t.me/traumwohnunghamburgbot?start=ref_${code.code}`);
 }
-
 async function languagePage(user: any, chatId: number, messageId?: number) {
   const codes = ["de", "en", "ckb", "ku", "prs", "fa", "ru", "tr", "ar"];
   const rows = codes.map((code) => [button(`${user.ui_language === code ? "✅ " : ""}${LANGS[code]}`, `lang:${code}`)]);
@@ -1369,15 +1415,12 @@ async function handleMessage(message: any, user: any) {
   }
 
   if (command === "/start") {
-    if (argument.startsWith("ref_")) {
-      const { data: referralResult, error } = await db.rpc("redeem_referral_code", { p_referred_user_id: user.id, p_code: argument.slice(4) });
-      if (error) console.error("referral", error.message);
-      else if (referralResult?.status === "granted" && referralResult?.referrer_user_id) {
-        const referrerId = String(referralResult.referrer_user_id);
-        const { data: referrer } = await db.from("bot_users").select("referral_bonus_until,referral_bonus_days").eq("id", referrerId).maybeSingle();
-        const base = Math.max(Date.now(), referrer?.referral_bonus_until ? new Date(referrer.referral_bonus_until).getTime() : 0);
-        await db.from("bot_users").update({ referral_bonus_until: new Date(base + 30 * 86400000).toISOString(), referral_bonus_days: Number(referrer?.referral_bonus_days || 0) + 30, updated_at: new Date().toISOString() }).eq("id", referrerId);
-      }
+    if (argument.startsWith("ref_") && user.__is_new_user === true) {
+      const { error } = await db.rpc("redeem_referral_code", {
+        p_referred_user_id: user.id,
+        p_code: argument.slice(4),
+      });
+      if (error) console.error("referral_register", error.message);
     }
     telegram("setChatMenuButton", {
       chat_id: chatId,
@@ -1858,13 +1901,22 @@ async function handleCallback(query: any, user: any) {
   if (data === "profile:save" || data === "s:save") {
     const issue = validateDraft(draft);
     if (issue) return renderStep(user, chatId, messageId, draft, issue);
-    await persistProfile(user, draft);
-    return edit(
+    const referralReward = await persistProfile(user, draft);
+    const result = await edit(
       chatId,
       messageId,
       "✅ Deine Suche ist aktiv. Neue passende Inserate werden automatisch zugestellt.",
       homeKeyboard({ ...user, onboarding_step: null }),
     );
+    if (referralReward?.status === "rewarded") {
+      await sendCelebration(
+        chatId,
+        "💎 <b>30 Tage Premium kostenlos aktiviert</b>\n\n" +
+          "Dein erstes Suchprofil ist erstellt und dir wurden 30 Tage Premium kostenlos gutgeschrieben.\n\n" +
+          "Viel Erfolg und viel Spaß bei deiner Wohnungssuche! 🏠",
+      );
+    }
+    return result;
   }
 }
 

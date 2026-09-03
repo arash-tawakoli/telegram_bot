@@ -414,11 +414,11 @@ function listingKeyboard(
 
   const map = mapsUrl(listing);
   if (map) rows.push([{ text: label(language, "maps"), url: map }]);
-  if (premium) {
-    rows.push([
-      { text: label(language, "save"), callback_data: `save:${listing.id}` },
-    ]);
-  }
+  rows.push([
+    premium
+      ? { text: label(language, "save"), callback_data: `save:${listing.id}` }
+      : { text: `🔒 ${label(language, "save")}`, callback_data: "premium" },
+  ]);
   return { inline_keyboard: rows };
 }
 
