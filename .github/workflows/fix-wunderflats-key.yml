@@ -1,0 +1,27 @@
+name: Fix Wunderflats stable listing keys
+on:
+  push:
+    paths: ['.github/workflows/fix-wunderflats-key.yml']
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('supabase/functions/source-worker/shared.ts')
+          s=p.read_text()
+          old="async function normalize(source:Source,c:Candidate,freshDeliveryEligible:boolean){const key=String(c.key||c.url.split('/').filter(Boolean).at(-1)||await sha(c.url)).slice(0,500),address=c.address||null,basis=address?`${address.toLowerCase()}|${c.warm??c.cold??''}|${c.rooms??''}|${c.area??''}`:'';return{source_id:source.id,source_listing_key:key,external_id:c.key||null,canonical_url:c.url,title:c.title||null,address,district:c.district||null,postal_code:c.zip||null,city:'Hamburg',warm_rent:c.warm??null,cold_rent:c.cold??null,additional_costs:c.additional??null,operating_costs:c.operating??null,heating_costs:c.heating??null,deposit:c.deposit??null,deposit_text:c.depositText??null,rooms:saneRooms(c.rooms),area_sqm:c.area!=null&&Number(c.area)>0?c.area:null,available_from:c.available||null,property_type:c.type||'Wohnung',furnished:c.furnished??null,wbs_required:c.wbs??false,image_url:c.image||null,cross_source_hash:basis?await sha(basis):null,raw:c.raw||{},fresh_delivery_eligible:freshDeliveryEligible,last_seen_at:iso(),is_active:true}}"
+          new="async function normalize(source:Source,c:Candidate,freshDeliveryEligible:boolean){let canonicalUrl=c.url,keySeed=c.key||null;if(source.id===10){try{const u=new URL(canonicalUrl);u.searchParams.delete('dataLayerKey');canonicalUrl=u.href;keySeed=keySeed||u.pathname.split('/').filter(Boolean).at(-1)||null}catch{}}const key=String(keySeed||canonicalUrl.split('/').filter(Boolean).at(-1)||await sha(canonicalUrl)).slice(0,500),address=c.address||null,basis=address?`${address.toLowerCase()}|${c.warm??c.cold??''}|${c.rooms??''}|${c.area??''}`:'';return{source_id:source.id,source_listing_key:key,external_id:c.key||null,canonical_url:canonicalUrl,title:c.title||null,address,district:c.district||null,postal_code:c.zip||null,city:'Hamburg',warm_rent:c.warm??null,cold_rent:c.cold??null,additional_costs:c.additional??null,operating_costs:c.operating??null,heating_costs:c.heating??null,deposit:c.deposit??null,deposit_text:c.depositText??null,rooms:saneRooms(c.rooms),area_sqm:c.area!=null&&Number(c.area)>0?c.area:null,available_from:c.available||null,property_type:c.type||'Wohnung',furnished:c.furnished??null,wbs_required:c.wbs??false,image_url:c.image||null,cross_source_hash:basis?await sha(basis):null,raw:c.raw||{},fresh_delivery_eligible:freshDeliveryEligible,last_seen_at:iso(),is_active:true}}"
+          if old not in s: raise SystemExit('normalize anchor missing')
+          p.write_text(s.replace(old,new,1))
+          PY
+          git config user.name OpenAI
+          git config user.email noreply@openai.com
+          git add supabase/functions/source-worker/shared.ts
+          git diff --cached --check
+          git commit -m 'Stabilize Wunderflats listing keys'
+          git push
