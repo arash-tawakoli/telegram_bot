@@ -32,6 +32,7 @@ jobs:
           PY
       - name: Upload static Premium asset
         run: |
+          # retry after URL constructor fix
           set -euo pipefail
           code=$(curl -sS -o /tmp/upload-response.txt -w '%{http_code}' -X POST \
             -H 'content-type: image/jpeg' \
