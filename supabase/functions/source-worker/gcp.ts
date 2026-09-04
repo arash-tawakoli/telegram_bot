@@ -45,7 +45,7 @@ async function parseDetail(url:string,key:string):Promise<Candidate|null>{
   const plain=strip(r.text);
   if(/Dieses Objekt ist bereits vermietet/i.test(plain))return null;
   const title=strip(r.text.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i)?.[1]||'').slice(0,240)||'Grand City Property Wohnungsangebot';
-  if(/\b(?:Gewerbe|Gewerbeeinheit|Büro|Praxis|Laden|Lager|Stellplatz|Garage)\b/i.test(title))return null;
+  if(/\b(?:Gewerbe|Gewerbeeinheit|Gewerbefläche|Verkaufsfläche|Einzelhandelsfläche|Büro|Praxis|Laden|Ladenfläche|Lager|Stellplatz|Garage)\b/i.test(title))return null;
   const zip=r.text.match(/\b(2\d{4})\s+Hamburg\b/i)?.[1]||null;
   if(zip&&!hhZip(zip))return null;
   const address=pageAddress(r.text,zip);
