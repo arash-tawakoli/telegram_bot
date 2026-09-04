@@ -82,10 +82,14 @@ function sameNum(a:any,b:any,tol:number){const x=n(a),y=n(b);return x!=null&&y!=
 async function scoutMirrorStatus(sourceId:number,basis:Candidate[]){
   let checked=basis;
   if(!checked.length){const{data,error}=await db.from('listings').select('source_listing_key,title,district,postal_code,cold_rent,warm_rent,rooms,area_sqm,canonical_url,raw').eq('source_id',sourceId).eq('is_active',true).neq('quality_status','rejected').eq('raw->>provider','grand_city_property').order('last_seen_at',{ascending:false}).limit(20);if(error)throw error;checked=(data||[]).map((x:any)=>({key:String(x.source_listing_key),url:String(x.canonical_url),title:x.title,district:x.district,zip:x.postal_code,cold:n(x.cold_rent),warm:n(x.warm_rent),rooms:n(x.rooms),area:n(x.area_sqm),raw:x.raw} as Candidate))}
-  const{data:scout,error}=await db.from('listings').select('source_listing_key,title,district,postal_code,cold_rent,warm_rent,rooms,area_sqm,canonical_url,last_seen_at').eq('source_id',1).eq('is_active',true).order('last_seen_at',{ascending:false}).limit(400);if(error)throw error;
+  const fields='source_listing_key,title,district,postal_code,cold_rent,warm_rent,rooms,area_sqm,canonical_url,last_seen_at';
+  const titles=[...new Set(checked.map(x=>String(x.title||'').trim()).filter(Boolean))],zips=[...new Set(checked.map(x=>String(x.zip||'').trim()).filter(Boolean))];
+  let scout:any[]=[];
+  if(titles.length){const{data,error}=await db.from('listings').select(fields).eq('source_id',1).eq('is_active',true).in('title',titles).limit(100);if(error)throw error;scout.push(...(data||[]))}
+  if(zips.length){const{data,error}=await db.from('listings').select(fields).eq('source_id',1).eq('is_active',true).in('postal_code',zips).limit(500);if(error)throw error;for(const row of data||[])if(!scout.some(x=>x.source_listing_key===row.source_listing_key))scout.push(row)}
   const matches:any[]=[];
-  for(const g of checked){const gt=String(g.title||'').trim().toLowerCase();const m=(scout||[]).find((s:any)=>String(s.title||'').trim().toLowerCase()===gt||((!g.zip||String(s.postal_code||'')===String(g.zip))&&(!g.district||String(s.district||'').toLowerCase()===String(g.district||'').toLowerCase())&&sameNum(s.rooms,g.rooms,0.25)&&sameNum(s.area_sqm,g.area,1)&&sameNum(s.cold_rent,g.cold,2)));if(m)matches.push({gcp_key:g.key,scout_key:m.source_listing_key,scout_url:m.canonical_url})}
-  return{checked:checked.length,scout_rows:(scout||[]).length,matches};
+  for(const g of checked){const gt=String(g.title||'').trim().toLowerCase();const m=scout.find((s:any)=>String(s.title||'').trim().toLowerCase()===gt||((!g.zip||String(s.postal_code||'')===String(g.zip))&&(!g.district||String(s.district||'').toLowerCase()===String(g.district||'').toLowerCase())&&sameNum(s.rooms,g.rooms,0.25)&&sameNum(s.area_sqm,g.area,1)&&sameNum(s.cold_rent,g.cold,2)));if(m)matches.push({gcp_key:g.key,scout_key:m.source_listing_key,scout_url:m.canonical_url})}
+  return{checked:checked.length,scout_rows:scout.length,matches};
 }
 
 export async function runGcp(source:Source,connectors:Connector[]){
