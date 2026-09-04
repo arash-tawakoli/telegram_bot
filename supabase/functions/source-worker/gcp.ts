@@ -1,9 +1,11 @@
 import {Candidate,Connector,Source,absolute,db,decode,deNum,fetchText,hhZip,imageFromHtml,iso,markFailure,markSuccess,strip,upsertCandidates} from './shared.ts';
 
-const DEFAULT_DISCOVERY_URL='https://www.grandcityproperty.de/wohnungssuche?city=&cityField=Hamburg&type=&price=&rooms=&size=&radius=100000&cityText=';
-const FALLBACK_DISCOVERY_URL='https://www.grandcityproperty.de/objekt-vermietet?city=hamburg';
-function discoveryUrls(c:Connector){const configured=String(c.config?.url||'').trim();return[...new Set([configured&&/cityField=Hamburg/i.test(configured)?configured:DEFAULT_DISCOVERY_URL,FALLBACK_DISCOVERY_URL])]}
+const DEFAULT_PRIMARY_URL='https://www.grandcityproperty.de/wohnungssuche?city=&cityField=Hamburg&type=&price=&rooms=&size=&radius=100000&cityText=';
+const DEFAULT_RECOMMENDATION_URL='https://www.grandcityproperty.de/objekt-vermietet?city=hamburg';
 
+function adapter(c:Connector|undefined){return String(c?.config?.adapter||'')}
+function connectorByAdapter(cs:Connector[],name:string){return cs.find(c=>adapter(c)===name)}
+function urlOf(c:Connector|undefined,fallback:string){return String(c?.config?.url||fallback).trim()||fallback}
 function attr(tag:string,name:string){return tag.match(new RegExp(`\\b${name}\\s*=\\s*["']([^"']+)["']`,'i'))?.[1]||null}
 function keyFromUrl(url:string){try{return new URL(url).pathname.split('/').filter(Boolean).at(-1)||null}catch{return null}}
 function detailUrls(html:string,base:string){
@@ -39,7 +41,7 @@ function gcpImage(html:string,base:string,zip:string|null){
   }
   return imageFromHtml(html,base);
 }
-async function parseDetail(url:string,key:string):Promise<Candidate|null>{
+async function parseDetail(url:string,key:string,lane:string):Promise<Candidate|null>{
   const r=await fetchText(url,undefined,10000);
   if(/\/objekt-vermietet(?:\?|$)/i.test(r.url))return null;
   const plain=strip(r.text);
@@ -63,32 +65,55 @@ async function parseDetail(url:string,key:string):Promise<Candidate|null>{
   const condition=plain.match(/Zustand\s*:?\s*(.{2,80}?)(?=Wesentliche Energieträger|Gesetzliche Pflichtangaben|Energieausweis|Objektbeschreibung)/i)?.[1]?.trim()||null;
   const energyCarrier=plain.match(/(?:Wesentliche\s+)?Energieträger\s*:?\s*(.{2,80}?)(?=Gesetzliche Pflichtangaben|Energieausweis|Objektbeschreibung|Verbrauch|Bedarf|Baujahr)/i)?.[1]?.trim()||null;
   const availableText=plain.match(/Verfügbar\s+ab:\s*(.{1,80}?)(?=\d+[.,]?\d*\s*m(?:²|2)|\d+\.\s*Stock|\d+[.,]?\d*\s+Zimmer)/i)?.[1]?.trim()||null;
-  return {key,url:r.url,title,address,district,zip,warm,cold,additional,operating,heating,deposit,depositText,rooms,area,available:availableText?isoDate(availableText):null,type:'Wohnung',wbs:/\bWBS\b|Wohnberechtigungsschein/i.test(plain),image:gcpImage(r.text,r.url,zip),raw:{provider:'grand_city_property',object_id:objectId,borough,floor:floor?Number(floor):null,baujahr:year?Number(year):null,zustand:condition,energietraeger:energyCarrier,available_text:availableText,description:section(plain,'Objektbeschreibung','Ausstattung|Lage|Sonstiges'),features:section(plain,'Ausstattung','Lage|Sonstiges'),location:locationText}};
+  return {key,url:r.url,title,address,district,zip,warm,cold,additional,operating,heating,deposit,depositText,rooms,area,available:availableText?isoDate(availableText):null,type:'Wohnung',wbs:/\bWBS\b|Wohnberechtigungsschein/i.test(plain),image:gcpImage(r.text,r.url,zip),raw:{provider:'grand_city_property',discovery_lane:lane,object_id:objectId,borough,floor:floor?Number(floor):null,baujahr:year?Number(year):null,zustand:condition,energietraeger:energyCarrier,available_text:availableText,description:section(plain,'Objektbeschreibung','Ausstattung|Lage|Sonstiges'),features:section(plain,'Ausstattung','Lage|Sonstiges'),location:locationText}};
+}
+async function discover(url:string,lane:string){
+  const r=await fetchText(url,undefined,10000),links=detailUrls(r.text,r.url),out:Candidate[]=[],errors:string[]=[];
+  for(let i=0;i<links.length;i+=8){const batch=links.slice(i,i+8),rs=await Promise.allSettled(batch.map(x=>parseDetail(x.url,x.key,lane)));rs.forEach((x,j)=>{if(x.status==='fulfilled'){if(x.value)out.push(x.value)}else errors.push(`${batch[j].key}: ${x.reason instanceof Error?x.reason.message:String(x.reason)}`)})}
+  return{url:r.url,discovered:links.length,candidates:out,errors};
 }
 async function existingFreshness(sourceId:number,keys:string[]){
   const out=new Map<string,boolean>();
   for(let i=0;i<keys.length;i+=300){const{data,error}=await db.from('listings').select('source_listing_key,fresh_delivery_eligible').eq('source_id',sourceId).in('source_listing_key',keys.slice(i,i+300));if(error)throw error;for(const row of data||[])out.set(String(row.source_listing_key),row.fresh_delivery_eligible===true)}
   return out;
 }
+function n(v:any){const x=Number(v);return Number.isFinite(x)?x:null}
+function sameNum(a:any,b:any,tol:number){const x=n(a),y=n(b);return x!=null&&y!=null&&Math.abs(x-y)<=tol}
+async function scoutMirrorStatus(sourceId:number,basis:Candidate[]){
+  let checked=basis;
+  if(!checked.length){const{data,error}=await db.from('listings').select('source_listing_key,title,district,postal_code,cold_rent,warm_rent,rooms,area_sqm,canonical_url,raw').eq('source_id',sourceId).eq('is_active',true).neq('quality_status','rejected').eq('raw->>provider','grand_city_property').order('last_seen_at',{ascending:false}).limit(20);if(error)throw error;checked=(data||[]).map((x:any)=>({key:String(x.source_listing_key),url:String(x.canonical_url),title:x.title,district:x.district,zip:x.postal_code,cold:n(x.cold_rent),warm:n(x.warm_rent),rooms:n(x.rooms),area:n(x.area_sqm),raw:x.raw} as Candidate))}
+  const{data:scout,error}=await db.from('listings').select('source_listing_key,title,district,postal_code,cold_rent,warm_rent,rooms,area_sqm,canonical_url,last_seen_at').eq('source_id',1).eq('is_active',true).order('last_seen_at',{ascending:false}).limit(400);if(error)throw error;
+  const matches:any[]=[];
+  for(const g of checked){const gt=String(g.title||'').trim().toLowerCase();const m=(scout||[]).find((s:any)=>String(s.title||'').trim().toLowerCase()===gt||((!g.zip||String(s.postal_code||'')===String(g.zip))&&(!g.district||String(s.district||'').toLowerCase()===String(g.district||'').toLowerCase())&&sameNum(s.rooms,g.rooms,0.25)&&sameNum(s.area_sqm,g.area,1)&&sameNum(s.cold_rent,g.cold,2)));if(m)matches.push({gcp_key:g.key,scout_key:m.source_listing_key,scout_url:m.canonical_url})}
+  return{checked:checked.length,scout_rows:(scout||[]).length,matches};
+}
 
-export async function runGcp(source:Source,c:Connector){
+export async function runGcp(source:Source,connectors:Connector[]){
   const started=iso();
   try{
-    const discovery=discoveryUrls(c);
-    const pages=await Promise.allSettled(discovery.map(u=>fetchText(u,undefined,10000)));
-    const urls=new Map<string,string>(),discoveryErrors:string[]=[];
-    pages.forEach((p,i)=>{if(p.status==='rejected'){discoveryErrors.push(`${discovery[i]}: ${p.reason instanceof Error?p.reason.message:String(p.reason)}`);return}for(const x of detailUrls(p.value.text,p.value.url))urls.set(x.key,x.url)});
-    if(!urls.size)throw new Error(`GCP discovery found 0 Hamburg listings${discoveryErrors.length?`; ${discoveryErrors.join(' | ')}`:''}`);
-    const entries=[...urls.entries()],candidates:Candidate[]=[],detailErrors:string[]=[];
-    for(let i=0;i<entries.length;i+=8){const batch=entries.slice(i,i+8),settled=await Promise.allSettled(batch.map(([key,url])=>parseDetail(url,key)));settled.forEach((r,j)=>{if(r.status==='fulfilled'){if(r.value)candidates.push(r.value)}else detailErrors.push(`${batch[j][0]}: ${r.reason instanceof Error?r.reason.message:String(r.reason)}`)})}
-    if(!candidates.length)throw new Error(`GCP detail parser accepted 0/${urls.size}${detailErrors.length?`; ${detailErrors.slice(0,3).join(' | ')}`:''}`);
+    const primaryConnector=connectorByAdapter(connectors,'source-worker/gcp-primary')||connectorByAdapter(connectors,'source-worker/gcp')||connectors.find(c=>c.priority===1)||connectors[0];
+    const scoutConnector=connectorByAdapter(connectors,'source-worker/gcp-scout-mirror');
+    const recommendationConnector=connectorByAdapter(connectors,'source-worker/gcp-recommendations');
+    const primaryUrl=urlOf(primaryConnector,DEFAULT_PRIMARY_URL),recommendationUrl=urlOf(recommendationConnector,DEFAULT_RECOMMENDATION_URL);
+    const attempts:any[]=[];
+    let primary:{url:string;discovered:number;candidates:Candidate[];errors:string[]}|null=null,recommendation:{url:string;discovered:number;candidates:Candidate[];errors:string[]}|null=null;
+    try{primary=await discover(primaryUrl,'gcp_primary');attempts.push({priority:primaryConnector?.priority||1,label:primaryConnector?.label||'GCP primary',role:'primary',status:'ok',discovered:primary.discovered,parsed:primary.candidates.length})}catch(e){attempts.push({priority:primaryConnector?.priority||1,label:primaryConnector?.label||'GCP primary',role:'primary',status:'error',error:e instanceof Error?e.message:String(e)})}
+    if(recommendationConnector||!primary||!primary.candidates.length){try{recommendation=await discover(recommendationUrl,'gcp_recommendations');attempts.push({priority:recommendationConnector?.priority||3,label:recommendationConnector?.label||'GCP recommendations',role:'fallback_2',status:'ok',discovered:recommendation.discovered,parsed:recommendation.candidates.length})}catch(e){attempts.push({priority:recommendationConnector?.priority||3,label:recommendationConnector?.label||'GCP recommendations',role:'fallback_2',status:'error',error:e instanceof Error?e.message:String(e)})}}
+    const byKey=new Map<string,Candidate>(),primaryKeys=new Set<string>();
+    for(const c of primary?.candidates||[]){const k=String(c.key);primaryKeys.add(k);byKey.set(k,c)}
+    for(const c of recommendation?.candidates||[])if(!byKey.has(String(c.key)))byKey.set(String(c.key),c);
+    const candidates=[...byKey.values()];
+    const mirror=await scoutMirrorStatus(source.id,candidates);
+    attempts.push({priority:scoutConnector?.priority||2,label:scoutConnector?.label||'ImmoScout24 GCP mirror via Source 1',role:'fallback_1',status:mirror.matches.length?'ok':'no_match',checked:mirror.checked,matches:mirror.matches.length,delivery_mode:'source1_independent'});
+    if(!candidates.length&&!mirror.matches.length)throw new Error(`GCP all lanes empty; ${attempts.map(x=>`${x.role}:${x.status}`).join(', ')}`);
     const keys=candidates.map(x=>String(x.key)),known=await existingFreshness(source.id,keys),hadBaseline=!!source.baseline_completed_at;
-    const keepFresh=candidates.filter(x=>known.get(String(x.key))===true),keepBlocked=candidates.filter(x=>known.has(String(x.key))&&known.get(String(x.key))!==true),fresh=candidates.filter(x=>!known.has(String(x.key)));
-    const a=keepFresh.length?await upsertCandidates(source,keepFresh,true):{seen:0,fresh:0},b=keepBlocked.length?await upsertCandidates(source,keepBlocked,false):{seen:0,fresh:0},n=fresh.length?await upsertCandidates(source,fresh,hadBaseline):{seen:0,fresh:0};
-    const t=iso(),requests=pages.filter(x=>x.status==='fulfilled').length+entries.length;
-    await db.from('source_coverage_state').upsert({source_id:source.id,cycle_id:crypto.randomUUID(),strategy:'gcp_hamburg_search_html',status:'running',cursor:{discovery_urls:discovery},expected_count:null,seen_count:candidates.length,request_count:requests,cycle_started_at:started,cycle_finished_at:null,last_complete_at:null,consecutive_errors:0,last_error:detailErrors.length?`${detailErrors.length} detail page errors`:null,updated_at:t});
-    await markSuccess(source,started,c,candidates.length,a.fresh+b.fresh+n.fresh,{strategy:'gcp_hamburg_search_html',discovery_urls:discovery,discovered:urls.size,parsed:candidates.length,detail_errors:detailErrors.slice(0,10),discovery_errors:discoveryErrors,complete:false,fresh_delivery_mode:hadBaseline?'new_ids_after_baseline':'baseline_only'});
+    const keepFresh=candidates.filter(x=>known.get(String(x.key))===true),keepBlocked=candidates.filter(x=>known.has(String(x.key))&&known.get(String(x.key))!==true),newPrimary=candidates.filter(x=>!known.has(String(x.key))&&primaryKeys.has(String(x.key))),newFallback=candidates.filter(x=>!known.has(String(x.key))&&!primaryKeys.has(String(x.key)));
+    const a=keepFresh.length?await upsertCandidates(source,keepFresh,true):{seen:0,fresh:0},b=keepBlocked.length?await upsertCandidates(source,keepBlocked,false):{seen:0,fresh:0},p=newPrimary.length?await upsertCandidates(source,newPrimary,hadBaseline):{seen:0,fresh:0},f=newFallback.length?await upsertCandidates(source,newFallback,false):{seen:0,fresh:0};
+    const t=iso(),freshCreated=p.fresh,requestCount=(primary?1+primary.discovered:0)+(recommendation?1+recommendation.discovered:0);
+    const activeConnector=primary?.candidates.length?primaryConnector:(recommendation?.candidates.length?recommendationConnector:(scoutConnector||primaryConnector));
+    await db.from('source_coverage_state').upsert({source_id:source.id,cycle_id:crypto.randomUUID(),strategy:'gcp_multi_lane',status:'running',cursor:{primary_url:primaryUrl,fallback_1:'source_1_immoscout_gcp_mirror',fallback_2_url:recommendationUrl,connector_attempts:attempts},expected_count:null,seen_count:candidates.length,request_count:requestCount,cycle_started_at:started,cycle_finished_at:null,last_complete_at:null,consecutive_errors:0,last_error:attempts.some(x=>x.status==='error')?'one or more GCP lanes degraded':null,updated_at:t});
+    await markSuccess(source,started,activeConnector||null,candidates.length,a.fresh+b.fresh+p.fresh+f.fresh,{strategy:'gcp_multi_lane',connector_attempts:attempts,primary_discovered:primary?.discovered||0,primary_parsed:primary?.candidates.length||0,mirror_matches:mirror.matches,mirror_delivery_mode:'source1_independent',fallback_2_discovered:recommendation?.discovered||0,fallback_2_parsed:recommendation?.candidates.length||0,complete:false,fresh_delivery_mode:hadBaseline?'primary_new_ids_only':'baseline_only',fallback_new_ids_delivery_eligible:false});
     if(!hadBaseline)await db.from('sources').update({baseline_completed_at:t,warmed_up:true,coverage_status:'partial',updated_at:t}).eq('id',source.id);
-    return{ok:true,source_id:source.id,fetched:candidates.length,new:n.fresh,complete:false,detail_errors:detailErrors.length};
+    return{ok:true,source_id:source.id,fetched:candidates.length,new:freshCreated,complete:false,primary:primary?.candidates.length||0,mirror_matches:mirror.matches.length,fallback_2:recommendation?.candidates.length||0};
   }catch(e){return markFailure(source,started,e)}
 }
