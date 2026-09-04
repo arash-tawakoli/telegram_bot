@@ -52,16 +52,6 @@ set label='Wohnungsswap public detail index (Fallback 1)',
 where source_id=22 and priority=2;
 update public.source_connectors set shadow_only=true where source_id=22 and priority>2;
 
-update public.source_connectors
-set label='meravis official current inventory (Primary)',
-    connector_kind='html_discovery', enumerable=false, enabled=true, shadow_only=false,
-    config=coalesce(config,'{}'::jsonb) || jsonb_build_object(
-      'role','primary','adapter','source-worker/meravis','freshness_mode','new_ids_after_baseline'
-    )
-where source_id=48 and priority=1;
--- The old meravis fallback was the same target, so keep it shadow-only rather than pretending it is independent.
-update public.source_connectors set shadow_only=true where source_id=48 and priority>1;
-
 create or replace function app_private.current_listing_is_delivery_fresh(
   p_source_id bigint,
   p_raw jsonb,
@@ -145,9 +135,6 @@ begin
       and lower(coalesce(p_raw->>'provider','')) = 'wohnungsswap'
       and nullif(p_raw->>'published_at','') is not null
       and (p_raw->>'published_at')::timestamptz > v_source.baseline_completed_at;
-  elsif p_source_id = 48 then
-    return v_primary_adapter = 'source-worker/meravis'
-      and lower(coalesce(p_raw->>'provider','')) = 'meravis';
   elsif p_source_id in (40,44,45,55) then
     return lower(coalesce(p_raw->'provider_index'->>'verified','false')) = 'true'
       and coalesce(p_raw->'provider_index'->>'mirror_source_id','') in ('1','3');
