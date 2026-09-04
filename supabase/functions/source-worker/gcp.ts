@@ -1,9 +1,8 @@
 import {Candidate,Connector,Source,absolute,db,decode,deNum,fetchText,hhZip,imageFromHtml,iso,markFailure,markSuccess,strip,upsertCandidates} from './shared.ts';
 
-const DISCOVERY_URLS=[
-  'https://www.grandcityproperty.de/wohnungssuche',
-  'https://www.grandcityproperty.de/objekt-vermietet?city=hamburg',
-];
+const DEFAULT_DISCOVERY_URL='https://www.grandcityproperty.de/wohnungssuche?city=&cityField=Hamburg&type=&price=&rooms=&size=&radius=100000&cityText=';
+const FALLBACK_DISCOVERY_URL='https://www.grandcityproperty.de/objekt-vermietet?city=hamburg';
+function discoveryUrls(c:Connector){const configured=String(c.config?.url||'').trim();return[...new Set([configured&&/cityField=Hamburg/i.test(configured)?configured:DEFAULT_DISCOVERY_URL,FALLBACK_DISCOVERY_URL])]}
 
 function attr(tag:string,name:string){return tag.match(new RegExp(`\\b${name}\\s*=\\s*["']([^"']+)["']`,'i'))?.[1]||null}
 function keyFromUrl(url:string){try{return new URL(url).pathname.split('/').filter(Boolean).at(-1)||null}catch{return null}}
@@ -75,9 +74,10 @@ async function existingFreshness(sourceId:number,keys:string[]){
 export async function runGcp(source:Source,c:Connector){
   const started=iso();
   try{
-    const pages=await Promise.allSettled(DISCOVERY_URLS.map(u=>fetchText(u,undefined,10000)));
+    const discovery=discoveryUrls(c);
+    const pages=await Promise.allSettled(discovery.map(u=>fetchText(u,undefined,10000)));
     const urls=new Map<string,string>(),discoveryErrors:string[]=[];
-    pages.forEach((p,i)=>{if(p.status==='rejected'){discoveryErrors.push(`${DISCOVERY_URLS[i]}: ${p.reason instanceof Error?p.reason.message:String(p.reason)}`);return}for(const x of detailUrls(p.value.text,p.value.url))urls.set(x.key,x.url)});
+    pages.forEach((p,i)=>{if(p.status==='rejected'){discoveryErrors.push(`${discovery[i]}: ${p.reason instanceof Error?p.reason.message:String(p.reason)}`);return}for(const x of detailUrls(p.value.text,p.value.url))urls.set(x.key,x.url)});
     if(!urls.size)throw new Error(`GCP discovery found 0 Hamburg listings${discoveryErrors.length?`; ${discoveryErrors.join(' | ')}`:''}`);
     const entries=[...urls.entries()],candidates:Candidate[]=[],detailErrors:string[]=[];
     for(let i=0;i<entries.length;i+=8){const batch=entries.slice(i,i+8),settled=await Promise.allSettled(batch.map(([key,url])=>parseDetail(url,key)));settled.forEach((r,j)=>{if(r.status==='fulfilled'){if(r.value)candidates.push(r.value)}else detailErrors.push(`${batch[j][0]}: ${r.reason instanceof Error?r.reason.message:String(r.reason)}`)})}
@@ -86,8 +86,8 @@ export async function runGcp(source:Source,c:Connector){
     const keepFresh=candidates.filter(x=>known.get(String(x.key))===true),keepBlocked=candidates.filter(x=>known.has(String(x.key))&&known.get(String(x.key))!==true),fresh=candidates.filter(x=>!known.has(String(x.key)));
     const a=keepFresh.length?await upsertCandidates(source,keepFresh,true):{seen:0,fresh:0},b=keepBlocked.length?await upsertCandidates(source,keepBlocked,false):{seen:0,fresh:0},n=fresh.length?await upsertCandidates(source,fresh,hadBaseline):{seen:0,fresh:0};
     const t=iso(),requests=pages.filter(x=>x.status==='fulfilled').length+entries.length;
-    await db.from('source_coverage_state').upsert({source_id:source.id,cycle_id:crypto.randomUUID(),strategy:'gcp_official_html',status:'running',cursor:{discovery_urls:DISCOVERY_URLS},expected_count:null,seen_count:candidates.length,request_count:requests,cycle_started_at:started,cycle_finished_at:null,last_complete_at:null,consecutive_errors:0,last_error:detailErrors.length?`${detailErrors.length} detail page errors`:null,updated_at:t});
-    await markSuccess(source,started,c,candidates.length,a.fresh+b.fresh+n.fresh,{strategy:'gcp_official_html',discovery_urls:DISCOVERY_URLS,discovered:urls.size,parsed:candidates.length,detail_errors:detailErrors.slice(0,10),discovery_errors:discoveryErrors,complete:false,fresh_delivery_mode:hadBaseline?'new_ids_after_baseline':'baseline_only'});
+    await db.from('source_coverage_state').upsert({source_id:source.id,cycle_id:crypto.randomUUID(),strategy:'gcp_hamburg_search_html',status:'running',cursor:{discovery_urls:discovery},expected_count:null,seen_count:candidates.length,request_count:requests,cycle_started_at:started,cycle_finished_at:null,last_complete_at:null,consecutive_errors:0,last_error:detailErrors.length?`${detailErrors.length} detail page errors`:null,updated_at:t});
+    await markSuccess(source,started,c,candidates.length,a.fresh+b.fresh+n.fresh,{strategy:'gcp_hamburg_search_html',discovery_urls:discovery,discovered:urls.size,parsed:candidates.length,detail_errors:detailErrors.slice(0,10),discovery_errors:discoveryErrors,complete:false,fresh_delivery_mode:hadBaseline?'new_ids_after_baseline':'baseline_only'});
     if(!hadBaseline)await db.from('sources').update({baseline_completed_at:t,warmed_up:true,coverage_status:'partial',updated_at:t}).eq('id',source.id);
     return{ok:true,source_id:source.id,fetched:candidates.length,new:n.fresh,complete:false,detail_errors:detailErrors.length};
   }catch(e){return markFailure(source,started,e)}
