@@ -1,5 +1,4 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "npm:@supabase/supabase-js@2.112.4";
 
 const URL = Deno.env.get("SUPABASE_URL")!;
 const KEYS = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") || "{}");
@@ -7,19 +6,35 @@ const KEY = KEYS.default || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const CORE = `${URL}/functions/v1/telegram-ui`;
 const PREMIUM = `${URL}/functions/v1/telegram-premium`;
 const ADMIN_TELEGRAM_USER_IDS = [8538226539, 414638980];
-const db = createClient(URL, KEY, {
-  auth: { persistSession: false, autoRefreshToken: false },
-});
-let cached: { value: string; expiresAt: number } | null = null;
 
-async function webhookSecret(force = false) {
-  if (!force && cached && cached.expiresAt > Date.now()) return cached.value;
-  const { data, error } = await db.rpc("get_bot_secret", {
-    secret_name: "telegram_webhook_secret",
+let cachedWebhookSecret: { value: string; expiresAt: number } | null = null;
+let cachedBotToken: { value: string; expiresAt: number } | null = null;
+
+function serviceHeaders() {
+  return {
+    apikey: KEY,
+    Authorization: `Bearer ${KEY}`,
+    "content-type": "application/json",
+  };
+}
+
+async function secret(name: string, force = false) {
+  const cache = name === "telegram_webhook_secret" ? cachedWebhookSecret : cachedBotToken;
+  if (!force && cache && cache.expiresAt > Date.now()) return cache.value;
+
+  const response = await fetch(`${URL}/rest/v1/rpc/get_bot_secret`, {
+    method: "POST",
+    headers: serviceHeaders(),
+    body: JSON.stringify({ secret_name: name }),
   });
-  if (error || !data) throw new Error("telegram webhook secret unavailable");
-  cached = { value: String(data), expiresAt: Date.now() + 300000 };
-  return cached.value;
+  const data = await response.json().catch(() => null);
+  if (!response.ok || !data) throw new Error(`${name} unavailable`);
+
+  const value = String(data);
+  const entry = { value, expiresAt: Date.now() + 300_000 };
+  if (name === "telegram_webhook_secret") cachedWebhookSecret = entry;
+  else if (name === "telegram_bot_token_runtime") cachedBotToken = entry;
+  return value;
 }
 
 function parsed(body: string) {
@@ -30,44 +45,59 @@ function parsed(body: string) {
   }
 }
 
-function target(body: string) {
-  const u = parsed(body);
-  if (!u) return CORE;
-  const cb = String(u?.callback_query?.data || "");
-  const cmd = String(u?.message?.text || "")
+function commandOf(update: any) {
+  return String(update?.message?.text || "")
     .trim()
     .split(/\s+/, 1)[0]
     .toLowerCase()
     .replace(/@traumwohnunghamburgbot$/i, "");
-  return cb === "premium" || cmd === "/premium" ? PREMIUM : CORE;
 }
 
-async function userState(body: string) {
+function target(update: any) {
+  const callback = String(update?.callback_query?.data || "");
+  const command = commandOf(update);
+  return callback === "premium" || command === "/premium" ? PREMIUM : CORE;
+}
+
+async function userState(telegramUserId: number) {
+  if (!telegramUserId) {
+    return { telegramUserId: 0, exists: false, blocked: false, lookupOk: true };
+  }
+
   try {
-    const u = parsed(body);
-    const from = u?.callback_query?.from || u?.message?.from;
-    const telegramUserId = Number(from?.id || 0);
-    if (!telegramUserId) {
-      return { telegramUserId: 0, exists: false, blocked: false, lookupOk: true };
-    }
-    const { data, error } = await db
-      .from("bot_users")
-      .select("is_active")
-      .eq("telegram_user_id", telegramUserId)
-      .maybeSingle();
-    if (error) {
-      console.error("telegram_user_check", error.message);
-      return { telegramUserId, exists: false, blocked: false, lookupOk: false };
-    }
+    const query = new URL(`${URL}/rest/v1/bot_users`);
+    query.searchParams.set("telegram_user_id", `eq.${telegramUserId}`);
+    query.searchParams.set("select", "telegram_user_id,is_active");
+    query.searchParams.set("limit", "1");
+    const response = await fetch(query, { headers: serviceHeaders() });
+    const rows = await response.json().catch(() => []);
+    if (!response.ok) throw new Error(`user lookup ${response.status}`);
+    const row = Array.isArray(rows) ? rows[0] : null;
     return {
       telegramUserId,
-      exists: !!data,
-      blocked: data?.is_active === false,
+      exists: !!row,
+      blocked: row?.is_active === false,
       lookupOk: true,
     };
-  } catch (e) {
-    console.error("telegram_user_check", e);
-    return { telegramUserId: 0, exists: false, blocked: false, lookupOk: false };
+  } catch (error) {
+    console.error("telegram_user_check", error);
+    return { telegramUserId, exists: false, blocked: false, lookupOk: false };
+  }
+}
+
+async function fetchNewUser(telegramUserId: number) {
+  try {
+    const query = new URL(`${URL}/rest/v1/bot_users`);
+    query.searchParams.set("telegram_user_id", `eq.${telegramUserId}`);
+    query.searchParams.set("select", "telegram_user_id,first_name,last_name,username");
+    query.searchParams.set("limit", "1");
+    const response = await fetch(query, { headers: serviceHeaders() });
+    const rows = await response.json().catch(() => []);
+    if (!response.ok) throw new Error(`new user lookup ${response.status}`);
+    return Array.isArray(rows) ? rows[0] || null : null;
+  } catch (error) {
+    console.error("telegram_new_user_check", error);
+    return null;
   }
 }
 
@@ -80,20 +110,14 @@ async function notifyAdminsNewUser(user: any) {
       ? ` (@${user.username})`
       : "";
     const text = `👤 Neuer Nutzer: ${name}${username}`;
-    const { data: token, error } = await db.rpc("get_bot_secret", {
-      secret_name: "telegram_bot_token_runtime",
-    });
-    if (error || !token) {
-      console.error("telegram_admin_notify", error?.message || "bot token unavailable");
-      return;
-    }
+    const token = await secret("telegram_bot_token_runtime");
 
     await Promise.all(
       ADMIN_TELEGRAM_USER_IDS
         .filter((chatId) => chatId !== Number(user.telegram_user_id))
         .map(async (chatId) => {
           const response = await fetch(
-            `https://api.telegram.org/bot${String(token)}/sendMessage`,
+            `https://api.telegram.org/bot${token}/sendMessage`,
             {
               method: "POST",
               headers: { "content-type": "application/json" },
@@ -110,8 +134,8 @@ async function notifyAdminsNewUser(user: any) {
           }
         }),
     );
-  } catch (e) {
-    console.error("telegram_admin_notify", e);
+  } catch (error) {
+    console.error("telegram_admin_notify", error);
   }
 }
 
@@ -120,19 +144,33 @@ Deno.serve(async (req: Request) => {
     if (req.method !== "POST") {
       return new Response("method not allowed", { status: 405 });
     }
+
     const supplied = req.headers.get("x-telegram-bot-api-secret-token") || "";
-    let expected = await webhookSecret();
+    let expected = await secret("telegram_webhook_secret");
     if (supplied !== expected) {
-      expected = await webhookSecret(true);
+      cachedWebhookSecret = null;
+      expected = await secret("telegram_webhook_secret", true);
       if (supplied !== expected) return new Response("unauthorized", { status: 401 });
     }
 
     const body = await req.text();
-    const state = await userState(body);
-    if (state.blocked) return Response.json({ ok: true, blocked: true });
+    const update = parsed(body);
+    const destination = target(update);
+    const command = commandOf(update);
+    const from = update?.callback_query?.from || update?.message?.from;
+    const telegramUserId = Number(from?.id || 0);
 
-    const destination = target(body);
-    const r = await fetch(destination, {
+    // The core UI already checks blocked users. Only /premium needs the gateway
+    // check because it is intentionally routed to the separate premium function.
+    // /start also checks existence so the existing new-user admin notification
+    // can be preserved without adding a lookup to every command/callback.
+    let state = { telegramUserId, exists: false, blocked: false, lookupOk: true };
+    if (destination === PREMIUM || command === "/start") {
+      state = await userState(telegramUserId);
+      if (state.blocked) return Response.json({ ok: true, blocked: true });
+    }
+
+    const upstream = await fetch(destination, {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -140,30 +178,35 @@ Deno.serve(async (req: Request) => {
       },
       body,
     });
-    const responseBody = await r.text();
+    const responseBody = await upstream.text();
 
-    if (state.lookupOk && !state.exists && state.telegramUserId) {
-      const { data: newUser, error } = await db
-        .from("bot_users")
-        .select("telegram_user_id,first_name,last_name,username")
-        .eq("telegram_user_id", state.telegramUserId)
-        .maybeSingle();
-      if (error) console.error("telegram_new_user_check", error.message);
-      else if (newUser) await notifyAdminsNewUser(newUser);
+    if (
+      upstream.ok &&
+      destination === CORE &&
+      command === "/start" &&
+      state.lookupOk &&
+      !state.exists &&
+      state.telegramUserId
+    ) {
+      EdgeRuntime.waitUntil((async () => {
+        const newUser = await fetchNewUser(state.telegramUserId);
+        if (newUser) await notifyAdminsNewUser(newUser);
+      })());
     }
 
-    if (destination === PREMIUM && !r.ok) {
-      console.error("telegram_premium_upstream", r.status, responseBody);
+    if (destination === PREMIUM && !upstream.ok) {
+      console.error("telegram_premium_upstream", upstream.status, responseBody);
       return Response.json({ ok: true, premium_failed: true });
     }
+
     return new Response(responseBody, {
-      status: r.status,
+      status: upstream.status,
       headers: {
-        "content-type": r.headers.get("content-type") || "application/json",
+        "content-type": upstream.headers.get("content-type") || "application/json",
       },
     });
-  } catch (e) {
-    console.error("telegram_gateway", e);
+  } catch (error) {
+    console.error("telegram_gateway", error);
     return Response.json({ ok: false, error: "gateway_failure" }, { status: 502 });
   }
 });
