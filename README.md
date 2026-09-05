@@ -6,6 +6,8 @@ Supabase-Backend für `@traumwohnunghamburgbot`: zentrale Wohnungssuche über 65
 - [Review vom 5. September 2026](docs/ARCHITECTURE_REVIEW_2026-09-05.md)
 - [Migrationsabgleich und Rollout](docs/MIGRATION_RECONCILIATION.md)
 - [Quellen und Connectoren](docs/source-connectors.md)
+- [Prüfung aller 65 Quellen](docs/SOURCE_AUDIT_2026-09-05.md)
+- [Rollout und Versandstörung](docs/ROLLOUT_2026-09-05.md)
 
 ## Pipeline
 
@@ -22,10 +24,10 @@ npm ci --ignore-scripts
 npm test
 ```
 
-Die Tests verwenden synthetische Daten und führen keinen Telegram-Versand aus. Die SQL-Tests prüfen die neue Migration mit einem vereinfachten PGMQ-Testmodell. Vor einem produktiven Rollout ist ein Integrationstest mit echter Supabase-/PGMQ-Umgebung erforderlich.
+Die 26 Tests verwenden synthetische Daten und führen keinen Telegram-Versand aus. Die SQL-Suite verwendet PGlite mit einem vereinfachten PGMQ-Modell. Zusätzlich wurde ein Integrationstest gegen echtes PostgreSQL/PGMQ in einer zurückgerollten Transaktion durchgeführt. `node scripts/check-runtime.mjs` prüft 22 Function-Snapshots und 142 kanonische Migrationen.
 
 ## Deployment-Status
 
-Dieser Review-Stand ist ein Änderungsvorschlag. Produktion und GitHub hatten unterschiedliche Dispatcher-Implementierungen und Migrationsnummern. Vor dem Rollout die Historie abgleichen, die additive Migration anwenden und danach die Worker deployen. Den bisherigen Dispatcher vor dem Austausch auslaufen lassen. Keine historischen Migrationen blind erneut ausführen.
+Die Sicherheits-/Lifecycle-Migrationen und Runtime-Änderungen wurden produktiv ausgerollt. Die Migrationsdateien sind nach dem tatsächlichen Produktionsregister abgeglichen; historische SQL-Inhalte wurden nicht blind erneut ausgeführt. Die Runtime-Snapshots dokumentieren die aus Supabase gelesenen Versionen.
 
-Die frühere Anforderung von fünf Minuten Polling, 15 Sekunden Versandabstand und keinem Source-Backoff entspricht derzeit nicht dem Live-Stand. Details und Folgearbeiten stehen im Review.
+Fünf Minuten Source-Polling, kein Source-Backoff und ein globaler 15-Sekunden-Versandabstand sind aktiv. Ein nach dem Rollout entdeckter Variablenfehler blockierte die Zustellung; Dispatcher v30 korrigiert ihn und wurde anhand echter Versandbestätigungen geprüft. Vollständige Abdeckung sämtlicher externer Quellen ist ausdrücklich nicht zugesichert; Zugangssperren und offene Connector-Kandidaten stehen im Quellenbericht.

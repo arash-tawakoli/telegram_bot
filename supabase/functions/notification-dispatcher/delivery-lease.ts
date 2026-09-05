@@ -49,6 +49,7 @@ export async function recoverDeliveries(db: any) {
     .from("delivery_events")
     .update({
       status: "failed",
+      delivery_outcome_unknown: true,
       next_retry_at: new Date().toISOString(),
       error_message:
         "Expired delivery lease; prior Telegram outcome may be unknown",

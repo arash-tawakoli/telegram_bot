@@ -49,6 +49,10 @@ Deno.serve(async (req) => {
     const internal = await internalSecret();
     if ((req.headers.get("x-internal-secret") || "") !== internal)
       return new Response("unauthorized", { status: 401 });
+    if ((await req.json().catch(()=>({}))).dry_run) {
+      const {error}=await db.from('sources').select('id').limit(1);
+      if(error)throw error;return Response.json({ok:true,dry_run:true});
+    }
     const started = Date.now();
     let claimed = 0;
     const results: any[] = [];

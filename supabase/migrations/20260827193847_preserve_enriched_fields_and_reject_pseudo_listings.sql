@@ -81,8 +81,10 @@ create trigger listings_quality_gate
 before insert or update of title,canonical_url,postal_code,city,is_active,enrichment_delivery_eligible
 on public.listings for each row execute function app_private.enforce_listing_quality();
 
+-- Evaluate every existing row through the same gate.
 update public.listings set title=title;
 
+-- Keep the capability matrix based on deliverable listings only.
 do $$
 declare v text;
 begin

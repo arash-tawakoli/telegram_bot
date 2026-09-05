@@ -1,6 +1,3 @@
--- Keep every Baugenossenschaft with a verified Immomio tenant connector
--- on the strict, enumerable source-immomio path.
-
 with immomio_bg as (
   select s.id
   from public.sources s

@@ -201,7 +201,7 @@ export async function fetchText(
 ) {
   let last: any = null;
   for (let attempt = 0; attempt < 2; attempt++) {
-    if (attempt) await new Promise((r) => setTimeout(r, 500));
+    
     try {
       const r = await fetch(url, {
         redirect: "follow",

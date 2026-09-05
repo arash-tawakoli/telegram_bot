@@ -10,6 +10,7 @@ declare
 begin
   if new.enrichment_status <> 'done' then return new; end if;
 
+  -- Kleinanzeigen: detail-page labeled rents.
   if new.source_id=2 then
     if new.cold_rent is null and new.enrichment_evidence->'cold_rent'->>'source'='detail:text' then
       v_cold:=(new.enrichment_evidence->'cold_rent'->>'value')::numeric;
@@ -19,6 +20,7 @@ begin
     end if;
   end if;
 
+  -- HousingAnywhere: structured room count + explicit all-inclusive monthly rent from title.
   if new.source_id=9 then
     if new.enrichment_evidence->'rooms'->>'source' like 'raw:jsonld.%'
        and coalesce((new.enrichment_evidence->'rooms'->>'confidence')::numeric,0)>=0.95 then
@@ -29,10 +31,12 @@ begin
     end if;
   end if;
 
+  -- Ohne-Makler: normalized card suffix is <rooms> <area>m² Monatsrate.
   if new.source_id=12 then
     v_rooms:=nullif(replace(substring(coalesce(new.title,'') from ' ([0-9]+[,.]?[0-9]*) [0-9]+[,.]?[0-9]*m² Monatsrate'),',','.'),'')::numeric;
   end if;
 
+  -- immobilien.de: normalized card contains Zimmer <rooms> Etage.
   if new.source_id=15 then
     v_rooms:=nullif(replace(substring(coalesce(new.title,'') from 'Zimmer ([0-9]+[,.]?[0-9]*) Etage'),',','.'),'')::numeric;
     if new.warm_rent is null and new.enrichment_evidence->'warm_rent'->>'source'='detail:text' then
@@ -40,6 +44,7 @@ begin
     end if;
   end if;
 
+  -- WG-Gesucht: only trust a room count explicitly stated by the listing title itself.
   if new.source_id=6 then
     v_rooms:=nullif(replace(coalesce(
       substring(coalesce(new.title,'') from '([0-9]+[,.]?[0-9]*)[ -]+Zimmer'),
@@ -79,6 +84,7 @@ for each row
 when (new.enrichment_status='done' and old.enrichment_status is distinct from new.enrichment_status)
 execute function app_private.apply_source_specific_field_repairs();
 
+-- Existing HousingAnywhere rows: restore explicit all-inclusive price and "No deposit" semantics.
 update public.listings
 set warm_rent=nullif(replace(substring(coalesce(title,'') from '€[[:space:]]*([0-9]+[,.]?[0-9]*)[[:space:]]*/month,[[:space:]]*incl'),',','.'),'')::numeric
 where source_id=9 and warm_rent is null

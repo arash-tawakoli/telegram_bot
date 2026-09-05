@@ -94,3 +94,4 @@ Die kanonischen Zielfelder sind: `title`, `image_url`/`resolved_image_url`, `col
 - Quellen ohne aktives Listing bleiben in dieser Matrix `—`, bis eine reale Stichprobe vorliegt.
 - Detailseiten-Crawling für jedes einzelne Listing wurde bewusst nicht neu eingeführt; das wäre ein zusätzlicher Request-/Enrichment-Workflow und nicht die minimale Änderung.
 - Scheduler, Source Queue, Coverage, Freshness, Dedupe, Matching und Telegram-Dispatcher sind von diesem Fix nicht betroffen.
+

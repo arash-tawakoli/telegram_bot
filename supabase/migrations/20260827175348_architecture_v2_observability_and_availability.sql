@@ -1,3 +1,14 @@
+-- Keep exactly one active search profile per user without deleting historical profiles.
+with ranked as (
+  select id,row_number() over(partition by user_id order by updated_at desc,created_at desc,id) rn
+  from public.search_profiles where is_active=true
+)
+update public.search_profiles p set is_active=false,updated_at=now()
+from ranked r where p.id=r.id and r.rn>1;
+create unique index if not exists search_profiles_one_active_per_user_uidx
+on public.search_profiles(user_id) where is_active=true;
+
+-- Availability is only inferred from successful full/enumerable crawls, and only after this migration.
 alter table public.crawl_runs add column if not exists availability_processed_at timestamptz;
 update public.crawl_runs set availability_processed_at=now() where availability_processed_at is null;
 
@@ -28,8 +39,6 @@ begin
 end;
 $$;
 
--- Availability can only be inferred from the exact connector used by a completed crawl,
--- and only when that connector is explicitly known to enumerate the full active result set.
 create or replace function app_private.process_availability_runs(p_limit integer default 50)
 returns integer
 language plpgsql
@@ -38,17 +47,12 @@ as $$
 declare r record; c record; v_count integer:=0;
 begin
   for r in
-    select cr.id,cr.source_id,cr.started_at,cr.connector_priority
+    select cr.id,cr.source_id,cr.started_at
     from public.crawl_runs cr
     where cr.success=true and cr.availability_processed_at is null
-      and cr.connector_priority is not null
       and exists (
         select 1 from public.source_connectors sc
-        where sc.source_id=cr.source_id
-          and sc.priority=cr.connector_priority
-          and sc.enabled=true
-          and sc.enumerable=true
-          and sc.shadow_only=false
+        where sc.source_id=cr.source_id and sc.enabled=true and sc.priority=1 and sc.enumerable=true and sc.shadow_only=false
       )
     order by cr.started_at
     limit greatest(1,least(coalesce(p_limit,50),250))
@@ -70,6 +74,7 @@ begin
 end;
 $$;
 
+-- Operational views are private and not exposed through the Data API.
 create or replace view app_private.queue_health as
 select 'source_jobs'::text queue,
        count(*) filter(where status in ('enqueued','retry')) pending,
@@ -91,8 +96,7 @@ create or replace view app_private.source_health_v2 as
 select s.id,s.name,s.source_type,s.tier as poll_tier,s.poll_interval_minutes,s.delivery_mode,s.worker_slug,
        s.enabled,s.last_checked_at,s.last_success_at,s.last_error_at,s.consecutive_failures,
        sc.connector_kind,sc.connector_role,sc.evidence_tier,sc.enumerable,sc.shadow_only,
-       cr.started_at last_run_at,cr.success last_run_success,cr.fetched_count last_fetched_count,
-       cr.inserted_count last_inserted_count,cr.error_message last_run_error,
+       cr.started_at last_run_at,cr.success last_run_success,cr.fetched_count last_fetched_count,cr.inserted_count last_inserted_count,cr.error_message last_run_error,
        (select count(*) from public.listing_occurrences o where o.source_id=s.id and o.is_active) active_occurrences,
        (select count(*) from public.source_jobs j where j.source_id=s.id and j.status in ('enqueued','processing','retry')) active_jobs
 from public.sources s

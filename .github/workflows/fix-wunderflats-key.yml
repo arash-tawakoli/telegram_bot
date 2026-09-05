@@ -25,3 +25,4 @@ jobs:
           git diff --cached --check
           git commit -m 'Stabilize Wunderflats listing keys'
           git push
+

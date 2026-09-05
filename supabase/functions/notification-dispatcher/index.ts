@@ -1,3 +1,5 @@
+import {telegramRequest,TelegramFailure} from "./telegram-request.ts";
+import {waitForDispatchSlot} from "./pacing.ts";
 import {
   claimDelivery,
   finishDelivery,
@@ -74,17 +76,7 @@ function kb(l: any, lang: string, p: boolean) {
   ]);
   return { inline_keyboard: r };
 }
-async function tg(t: string, m: string, b: any) {
-  const r = await fetch(`https://api.telegram.org/bot${t}/${m}`, {
-      method: "POST",
-      signal: AbortSignal.timeout(20000),
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(b),
-    }),
-    j = await r.json().catch(() => ({}));
-  if (!r.ok || !j.ok) throw new Error(j.description || `telegram ${r.status}`);
-  return j.result;
-}
+async function tg(t:string,m:string,b:any){return telegramRequest(`https://api.telegram.org/bot${t}/${m}`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)});}
 function absolute(base: string, v: any) {
   try {
     return v ? new URL(String(v), base).href : null;
@@ -227,78 +219,35 @@ async function multipartPhoto(
   f.set("caption", cap(l, lang));
   f.set("parse_mode", "HTML");
   f.set("reply_markup", JSON.stringify(kb(l, lang, p)));
-  const x = await fetch(`https://api.telegram.org/bot${t}/sendPhoto`, {
-      method: "POST",
-      signal: AbortSignal.timeout(20000),
-      body: f,
-    }),
-    j = await x.json().catch(() => ({}));
-  if (!x.ok || !j.ok) throw new Error(j.description || `telegram ${x.status}`);
-  return j.result;
+  return telegramRequest(`https://api.telegram.org/bot${t}/sendPhoto`,{method:'POST',body:f});
 }
-async function send(t: string, chat: number, l: any, lang: string, p: boolean) {
-  const imgs = [l.resolved_image_url, l.image_url]
-    .filter(Boolean)
-    .map(String)
-    .filter((x: string, i: number, a: string[]) => a.indexOf(x) === i);
-  let err: any = null;
-  for (const image of imgs) {
-    try {
-      const m = await tg(t, "sendPhoto", {
-        chat_id: chat,
-        photo: image,
-        caption: cap(l, lang),
-        parse_mode: "HTML",
-        reply_markup: kb(l, lang, p),
-      });
-      await db
-        .from("listings")
-        .update({
-          resolved_image_url: image,
-          image_status: "direct",
-          image_error: null,
-          image_last_checked_at: new Date().toISOString(),
-        })
-        .eq("id", l.id);
-      return m;
-    } catch (e) {
-      err = e;
-      try {
-        const m = await multipartPhoto(t, chat, image, l, lang, p);
-        await db
-          .from("listings")
-          .update({
-            resolved_image_url: image,
-            image_status: "direct",
-            image_source: "dispatcher_upload",
-            image_error: null,
-            image_last_checked_at: new Date().toISOString(),
-          })
-          .eq("id", l.id);
-        return m;
-      } catch (x) {
-        err = x;
-      }
-    }
+async function recordImage(listingId:string,patch:any){
+ try {const {error}=await db.from('listings').update(patch).eq('id',listingId);if(error)console.error('image_metadata',error.message);}
+ catch{console.error('image_metadata_unavailable');}
+}
+async function send(t:string,chat:number,l:any,lang:string,p:boolean){
+ const imgs=[l.resolved_image_url,l.image_url].filter(Boolean).map(String).filter((x,i,a)=>a.indexOf(x)===i);
+ let err:any;
+ for(const image of imgs){
+  try{
+   const message=await tg(t,'sendPhoto',{chat_id:chat,photo:image,caption:cap(l,lang),parse_mode:'HTML',reply_markup:kb(l,lang,p)});
+   await recordImage(l.id,{resolved_image_url:image,image_status:'direct',image_error:null,image_last_checked_at:new Date().toISOString()});
+   return message;
+  }catch(error){
+   if(!(error instanceof TelegramFailure)||!error.allowImageFallback)throw error;
+   err=error;
+   try{
+    const message=await multipartPhoto(t,chat,image,l,lang,p);
+    await recordImage(l.id,{resolved_image_url:image,image_status:'direct',image_source:'dispatcher_upload',image_error:null,image_last_checked_at:new Date().toISOString()});
+    return message;
+   }catch(uploadError){if(uploadError instanceof TelegramFailure&&!uploadError.allowImageFallback)throw uploadError;err=uploadError;}
   }
-  if (imgs.length)
-    await db
-      .from("listings")
-      .update({
-        image_status: "failed",
-        image_error: String(err).slice(0, 300),
-        image_last_checked_at: new Date().toISOString(),
-      })
-      .eq("id", l.id);
-  return tg(t, "sendMessage", {
-    chat_id: chat,
-    text: cap(l, lang),
-    parse_mode: "HTML",
-    disable_web_page_preview: true,
-    reply_markup: kb(l, lang, p),
-  });
+ }
+ if(imgs.length)await recordImage(l.id,{image_status:'failed',image_error:String(err).slice(0,300),image_last_checked_at:new Date().toISOString()});
+ return tg(t,'sendMessage',{chat_id:chat,text:cap(l,lang),parse_mode:'HTML',disable_web_page_preview:true,reply_markup:kb(l,lang,p)});
 }
 Deno.serve(async (req) => {
+  const owner=crypto.randomUUID();let acquired=false;
   try {
     if (req.method !== "POST")
       return new Response("method not allowed", { status: 405 });
@@ -307,6 +256,14 @@ Deno.serve(async (req) => {
       (await sec("internal_worker_secret"))
     )
       return new Response("unauthorized", { status: 401 });
+    if ((await req.json().catch(()=>({}))).dry_run) {
+      const {error}=await db.from('delivery_events').select('id').limit(1);
+      if(error)throw error;return Response.json({ok:true,dry_run:true,send_interval_seconds:15});
+    }
+    const {data:locked,error:lockError}=await db.rpc('acquire_dispatcher',{p_owner:owner});
+    if(lockError) throw lockError;
+    if(!locked) return Response.json({ok:true,busy:true});
+    acquired=true;
     const deadline = Date.now() + 50_000;
     const token = await sec("telegram_bot_token_runtime");
     const { data: subs, error: subscriptionError } = await db
@@ -330,7 +287,7 @@ Deno.serve(async (req) => {
       .select(
         "id,status,dispatch_attempts,recipient:bot_users!delivery_events_recipient_user_id_fkey(id,chat_id,is_active,ui_language),search_profiles!inner(id,profile_slot,is_active,owner:bot_users!search_profiles_user_id_fkey(id,is_active,plan_override,plan_override_expires_at,referral_bonus_until)),listings!inner(*,sources(button_label,source_type))",
       )
-      .in("status", ["pending", "failed"])
+      .in("status", ["pending", "failed"]).eq("delivery_outcome_unknown",false)
       .lt("dispatch_attempts", 5)
       .or(`next_retry_at.is.null,next_retry_at.lte.${now}`)
       .order("created_at")
@@ -341,17 +298,17 @@ Deno.serve(async (req) => {
       skipped = 0;
     const cache = new Map<string, Promise<any>>();
     for (const event of events || []) {
-      if (Date.now() >= deadline) break;
+      if (!(await waitForDispatchSlot(db,owner,deadline))) break;
       const lease = await claimDelivery(db, event);
       if (!lease) continue;
       const profile = event.search_profiles as any,
-        owner = profile?.owner,
+        profileOwner = profile?.owner,
         recipient = event.recipient as any,
         raw = event.listings as any;
-      const isPremium = premium(owner, paid.has(String(owner?.id || "")));
+      const isPremium = premium(profileOwner, paid.has(String(profileOwner?.id || "")));
       if (
         !profile?.is_active ||
-        !owner?.is_active ||
+        !profileOwner?.is_active ||
         !recipient?.is_active ||
         (!isPremium && Number(profile.profile_slot || 1) > 1)
       ) {
@@ -370,6 +327,8 @@ Deno.serve(async (req) => {
           cache.set(String(raw.id), task);
         }
         const listing = await task;
+        const {error:slotError}=await db.rpc('dispatcher_slot',{p_owner:owner,p_complete:true});
+        if(slotError) throw slotError;
         message = await send(
           token,
           Number(recipient.chat_id),
@@ -380,12 +339,15 @@ Deno.serve(async (req) => {
       } catch (error) {
         await finishDelivery(db, lease, {
           status: "failed",
-          next_retry_at: new Date(Date.now() + 120000).toISOString(),
+          delivery_outcome_unknown: error instanceof TelegramFailure && error.outcomeUnknown,
+          next_retry_at: error instanceof TelegramFailure && error.outcomeUnknown ? null : new Date(Date.now()+Math.max(120000,error instanceof TelegramFailure ? error.retryAfter*1000 : 0)).toISOString(),
           error_message: String(error),
         });
         failed++;
         continue;
       }
+      const {error:gapError}=await db.rpc('dispatcher_slot',{p_owner:owner,p_complete:true});
+      if(gapError) throw gapError;
       // A sent message and a failed DB acknowledgement are different failures.
       // Leave the lease for recovery instead of immediately sending again.
       await finishDelivery(db, lease, {
@@ -400,5 +362,7 @@ Deno.serve(async (req) => {
     return Response.json({ ok: true, totals: { sent, failed, skipped } });
   } catch (error) {
     return Response.json({ ok: false, error: String(error) }, { status: 500 });
+  } finally {
+    if(acquired){const {error}=await db.rpc('release_dispatcher',{p_owner:owner});if(error)console.error('dispatcher_release',error.message);}
   }
 });

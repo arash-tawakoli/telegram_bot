@@ -42,8 +42,8 @@ Supabase `sources` und `source_connectors` sind die Runtime-Source-of-Truth. Es 
 ## Aktueller Runtime-Split
 
 - **65 Quellen insgesamt**
-- **56 live**
-- **9 shadow**
+- **54 live**
+- **11 shadow**
 
 Shadow ist ausdrücklich keine vierte K-Kategorie. Eine Quelle behält ihren K1/K2/K3-Wert aus der Mastertabelle auch dann, wenn `runtime_mode='shadow'` gesetzt ist.
 
@@ -52,3 +52,5 @@ Shadow ist ausdrücklich keine vierte K-Kategorie. Eine Quelle behält ihren K1/
 Architekturstatus und Connector-Coverage sind getrennte Zustände. Ein sauberer v3-Cutover bedeutet nicht automatisch, dass jeder externe Anbieter jederzeit vollständige serverseitige Enumeration erlaubt. Insbesondere werden Transportfehler wie ein Kleinanzeigen-HTTP-403 nicht als erfolgreiche Coverage gewertet.
 
 Für jeden Lauf werden verwendeter Connector, Ergebnis und Fehler in `crawl_runs` protokolliert. Die aktuelle Konfiguration einer konkreten Quelle ist direkt aus `sources` und `source_connectors` zu lesen; dadurch kann GitHub nicht von der produktiven Connector-Registry abweichen.
+
+Prüfung vom 5. September: Die Registry allein bildet nicht jeden effektiven Adapterpfad ab. ImmoScout ist im Code direkt auf MCP geroutet; ImmoMio/HPM führen ihre registrierten generischen Fallbacks nicht automatisch aus. Mehrere HTML-Fallbacks werden als `duplicate_target` übersprungen. Details und Empfehlungen für alle 65 Quellen: [Quellenprüfung](SOURCE_AUDIT_2026-09-05.md). Fehler werden beim nächsten regulären Fünf-Minuten-Poll erneut geprüft; abgeschlossene Fehljobs erhalten keinen Source-Backoff.

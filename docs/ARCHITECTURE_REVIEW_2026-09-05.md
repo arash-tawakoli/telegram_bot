@@ -1,5 +1,7 @@
 # Architektur-Review: Telegram-Wohnungsbot
 
+Historischer Vor-Rollout-Befund. Aktueller Umsetzungsstand, einschließlich Versandstörung und v30-Korrektur: [Rollout](ROLLOUT_2026-09-05.md). Die nachfolgenden offenen Punkte beschreiben den ursprünglichen Review-Zeitpunkt. Die separat geprüften externen Quellen und verbleibenden Zugangsvoraussetzungen stehen in der [65-Quellen-Liste](SOURCE_AUDIT_2026-09-05.md).
+
 Stand: 5. September 2026, UTC. Repository-Basis: `36708e9e2f073d7b3835cfd28b8222446e23c0ff`. Supabase-Projekt: `dpmohkrwdlicexwcrqfy`.
 
 ## Ergebnis
