@@ -209,7 +209,7 @@
     },
     {
       "slug": "source-worker",
-      "version": 49,
+      "version": 50,
       "verify_jwt": false,
       "entrypoint": "supabase/functions/source-worker/index.ts",
       "import_map": true,
@@ -236,7 +236,7 @@
         },
         {
           "path": "supabase/functions/source-worker/gcp.ts",
-          "sha256": "f0c2aeeef6723847707c3d7f2080632507dfa3c036226f0407b7f4c5e53daaa3"
+          "sha256": "ed6b8ae5273f0a1ed9096394a9265990624da57594f907b1b6b48ae1b1a7943b"
         },
         {
           "path": "supabase/functions/source-worker/immomio.ts",
@@ -248,7 +248,7 @@
         },
         {
           "path": "supabase/functions/source-worker/generic.ts",
-          "sha256": "811417f50df60598ed2c030f37e26066c37db45dcb885aa6b9dc29040be1bdd7"
+          "sha256": "fe053d2aa99c985065cb266e315c27786cf888d1a780a14e4a94f863a3206383"
         },
         {
           "path": "supabase/functions/source-worker/job-runner.ts",
