@@ -54,7 +54,7 @@ async function rpc(name: string, body: Record<string, unknown>) {
 }
 
 async function rows(table: string, params: Record<string, string>) {
-  const url = new URL(`${URL}/rest/v1/${table}`);
+  const url = new globalThis.URL(`${URL}/rest/v1/${table}`);
   for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
   const response = await fetch(url, { headers: serviceHeaders() });
   const data = await response.json().catch(() => []);
@@ -63,7 +63,7 @@ async function rows(table: string, params: Record<string, string>) {
 }
 
 async function patchRows(table: string, params: Record<string, string>, values: Record<string, unknown>) {
-  const url = new URL(`${URL}/rest/v1/${table}`);
+  const url = new globalThis.URL(`${URL}/rest/v1/${table}`);
   for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
   const response = await fetch(url, {
     method: "PATCH",
@@ -74,7 +74,7 @@ async function patchRows(table: string, params: Record<string, string>, values: 
 }
 
 async function countRows(table: string, params: Record<string, string>) {
-  const url = new URL(`${URL}/rest/v1/${table}`);
+  const url = new globalThis.URL(`${URL}/rest/v1/${table}`);
   url.searchParams.set("select", "id");
   url.searchParams.set("limit", "1");
   for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
@@ -104,16 +104,9 @@ function argumentOf(update: any) {
 }
 
 function button(text: string, callback_data: string) { return { text, callback_data }; }
-function esc(value: unknown) {
-  return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-}
 function short(value: unknown, max = 42) {
   const text = String(value || "Inserat").replace(/\s+/g, " ").trim();
   return text.length > max ? `${text.slice(0, max - 1)}…` : text;
-}
-function money(value: unknown) {
-  const number = Number(value);
-  return Number.isFinite(number) ? `${new Intl.NumberFormat("de-DE", { maximumFractionDigits: 2 }).format(number)} €` : "–";
 }
 
 function direct(method: string, params: Record<string, unknown>) {
@@ -256,7 +249,7 @@ async function savedResponse(user: any, chatId: number) {
     const listing = row.listings || {};
     const label = `🏠 ${index + 1}. ${short(listing.title, 42)}`;
     try {
-      const url = new URL(String(listing.canonical_url || ""));
+      const url = new globalThis.URL(String(listing.canonical_url || ""));
       if (["http:", "https:"].includes(url.protocol)) { keyboard.push([{ text: label, url: url.href }]); continue; }
     } catch {}
     keyboard.push([button(label, "noop")]);
@@ -308,13 +301,18 @@ async function notifyAdminsNewUser(user: any) {
   }
 }
 
-function finishInBackground(updateId: number, attempt: number, success: boolean, error: string | null = null) {
-  EdgeRuntime.waitUntil(rpc("finish_telegram_update", {
+async function finishNow(updateId: number, attempt: number, success: boolean, error: string | null = null) {
+  return rpc("finish_telegram_update", {
     p_update_id: updateId,
     p_attempt: attempt,
     p_success: success,
     p_error: error,
-  }).catch((finishError) => console.error("telegram_finish", String(finishError))));
+  });
+}
+
+function finishInBackground(updateId: number, attempt: number, success: boolean, error: string | null = null) {
+  EdgeRuntime.waitUntil(finishNow(updateId, attempt, success, error)
+    .catch((finishError) => console.error("telegram_finish", String(finishError))));
 }
 
 async function forwardToCore(body: string, expected: string) {
@@ -366,6 +364,13 @@ Deno.serve(async (req: Request) => {
     const user = hydrateUser(prepared);
     user.request_update_id = updateId;
     const chatId = Number(update.message.chat.id);
+
+    if (String(user.ui_language || "de") !== "de") {
+      await finishNow(updateId, attempt, false, "fast_path_language_fallback");
+      updateId = null;
+      attempt = null;
+      return forwardToCore(body, expected);
+    }
 
     if (!user.is_active && !ADMIN_TELEGRAM_USER_IDS.includes(Number(user.telegram_user_id))) {
       finishInBackground(updateId, attempt, true);
