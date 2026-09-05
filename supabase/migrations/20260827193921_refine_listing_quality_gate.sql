@@ -34,6 +34,7 @@ begin
 end;
 $$;
 
+-- Restore rows rejected only by the superseded overly broad title rules and re-evaluate them.
 update public.listings
 set is_active=true,enrichment_delivery_eligible=true,quality_status='unchecked',quality_reason=null
 where quality_reason='title_postal_code_outside_hamburg_region'

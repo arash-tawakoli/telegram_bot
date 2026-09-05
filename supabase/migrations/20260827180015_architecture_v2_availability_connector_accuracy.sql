@@ -31,7 +31,9 @@ begin
       and o.last_seen_at < r.started_at;
 
     for c in select distinct canonical_listing_id from public.listing_occurrences where source_id=r.source_id
-    loop perform app_private.refresh_canonical_listing(c.canonical_listing_id); end loop;
+    loop
+      perform app_private.refresh_canonical_listing(c.canonical_listing_id);
+    end loop;
 
     update public.crawl_runs set availability_processed_at=now() where id=r.id;
     v_count:=v_count+1;
@@ -40,6 +42,7 @@ begin
 end;
 $$;
 
+-- Attach the evidence/connector actually used by a completed crawl to occurrences first seen in that crawl.
 create or replace function app_private.reconcile_occurrence_evidence(p_limit integer default 100)
 returns integer
 language plpgsql

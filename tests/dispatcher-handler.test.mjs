@@ -1,0 +1,32 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { stripTypeScriptTypes } from 'node:module';
+import vm from 'node:vm';
+
+test('dispatcher processes a queued event using its lease UUID, not the profile owner', async () => {
+  const source = readFileSync(new URL('../supabase/functions/notification-dispatcher/index.ts', import.meta.url), 'utf8');
+  const handlerSource = stripTypeScriptTypes(source.slice(source.indexOf('Deno.serve(')));
+  const leaseOwner = '00000000-0000-4000-8000-000000000001';
+  const profileOwner = { id: 'different-user', is_active: true };
+  const event = { id: 'event', search_profiles: { is_active: true, profile_slot: 1, owner: profileOwner }, recipient: { chat_id: 123, is_active: true }, listings: { id: 'listing' } };
+  const calls = [], finishes = [];
+  const query = { select() { return this; }, in() { return this; }, eq() { return this; }, lt() { return this; }, or() { return this; }, order() { return this; }, limit() { return Promise.resolve({ data: [event], error: null }); } };
+  const db = { from(name) { return name === 'user_subscriptions' ? { select: async () => ({ data: [], error: null }) } : query; }, async rpc(name, args) { calls.push({ name, args }); assert.equal(args.p_owner, leaseOwner); return { data: true, error: null }; } };
+  let handler, sends = 0;
+  vm.runInNewContext(handlerSource, {
+    Deno: { serve(fn) { handler = fn; } }, crypto: { randomUUID: () => leaseOwner }, Response, Date, Map, Set, Number, String, console,
+    db, sec: async name => name === 'internal_worker_secret' ? 'test-secret' : 'test-token',
+    recoverDeliveries: async () => {}, waitForDispatchSlot: async (_db, owner) => { assert.equal(owner, leaseOwner); return true; },
+    claimDelivery: async () => ({ id: 'event', attempt: 1 }), finishDelivery: async (_db, _lease, result) => finishes.push(result),
+    premium: owner => { assert.equal(owner, profileOwner); return false; }, enrich: async listing => listing,
+    send: async () => { sends++; return { message_id: 987 }; }, TelegramFailure: class extends Error {},
+  });
+  const response = await handler(new Request('https://test', { method: 'POST', headers: { 'x-internal-secret': 'test-secret' }, body: '{}' }));
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json()).totals, { sent: 1, failed: 0, skipped: 0 });
+  assert.equal(sends, 1);
+  assert.equal(finishes[0].status, 'sent');
+  assert.equal(finishes[0].telegram_message_id, 987);
+  assert.equal(calls.at(-1).name, 'release_dispatcher');
+});

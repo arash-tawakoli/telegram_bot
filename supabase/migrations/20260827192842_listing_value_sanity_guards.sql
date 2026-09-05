@@ -23,12 +23,14 @@ begin
   if new.deposit_text is null and new.deposit is null then m:=regexp_match(txt,'(?i)((?:Kaution|Mietkaution|Mietsicherheit)[^,;}]{0,100})'); if m is not null then new.deposit_text:=left(regexp_replace(m[1],'\s+',' ','g'),120); end if; end if;
   if new.warm_rent is null and new.cold_rent is not null and (new.heating_costs is not null or new.additional_costs is not null) then new.warm_rent:=new.cold_rent+coalesce(new.heating_costs,0)+coalesce(new.additional_costs,0); end if;
 
+  -- Sanity guards: never persist an impossible room count. Prefer an explicit N-Zimmer title value.
   if new.rooms is not null and (new.rooms<0.5 or new.rooms>20) then
     m:=regexp_match(coalesce(new.title,''),'(?i)([0-9]+(?:[.,][0-9]+)?)\s*[- ]?Zimmer');
     room_candidate:=case when m is not null then replace(m[1],',','.')::numeric else null end;
     if room_candidate between 0.5 and 20 then new.rooms:=room_candidate; else new.rooms:=null; end if;
   end if;
 
+  -- Warm rent cannot be below cold rent. Hide the less trustworthy generic cold value rather than presenting contradiction.
   if new.warm_rent is not null and new.cold_rent is not null and new.warm_rent<new.cold_rent then
     new.cold_rent:=null;
   end if;
@@ -36,6 +38,8 @@ begin
 end;
 $$;
 
+-- Repair existing invalid room counts using high-confidence structured enrichment evidence first,
+-- then explicit N-Zimmer wording in title, otherwise hide the value.
 update public.listings l
 set rooms = case
   when coalesce(l.enrichment_evidence#>>'{rooms,confidence}','0')::numeric >= 0.95

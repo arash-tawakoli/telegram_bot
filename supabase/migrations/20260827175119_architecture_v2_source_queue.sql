@@ -1,3 +1,4 @@
+-- Queue infrastructure only; connector definitions and existing workers are unchanged.
 select pgmq.create('source_jobs') where not exists (select 1 from pgmq.meta where queue_name='source_jobs');
 
 alter table public.sources add column if not exists worker_slug text;
@@ -7,7 +8,15 @@ update public.sources set worker_slug = case
   when id=3 then 'source-immowelt'
   when id in (23,28,29,30,32,34,36,39,65) then 'source-immomio'
   else 'source-engine'
+end
+where worker_slug is distinct from case
+  when id=1 then 'source-immoscout'
+  when id=2 then 'source-kleinanzeigen'
+  when id=3 then 'source-immowelt'
+  when id in (23,28,29,30,32,34,36,39,65) then 'source-immomio'
+  else 'source-engine'
 end;
+
 create index if not exists sources_worker_slug_idx on public.sources(worker_slug) where enabled=true;
 
 create or replace function app_private.enqueue_due_source_jobs(p_limit integer default 4)
@@ -43,9 +52,8 @@ begin
     for update skip locked
   loop
     v_job_id := gen_random_uuid();
-    select x into v_msg_id
-    from pgmq.send('source_jobs',jsonb_build_object('job_id',v_job_id,'source_id',r.id,'worker',r.worker_slug)) as x
-    limit 1;
+    select msg_id into v_msg_id
+    from pgmq.send('source_jobs',jsonb_build_object('job_id',v_job_id,'source_id',r.id,'worker',r.worker_slug));
     insert into public.source_jobs(id,queue_msg_id,source_id,status,worker,enqueued_at,updated_at)
     values(v_job_id,v_msg_id,r.id,'enqueued',r.worker_slug,now(),now());
     update public.sources set last_checked_at=now(),updated_at=now() where id=r.id;
@@ -125,5 +133,10 @@ revoke all on function public.finish_source_job(uuid,boolean,text) from public,a
 grant execute on function public.claim_source_jobs(text,integer) to service_role;
 grant execute on function public.finish_source_job(uuid,boolean,text) to service_role;
 
+-- Keep the existing job name for operational continuity, but its responsibility is now enqueue-only.
 select cron.unschedule('source-engine-every-minute') where exists (select 1 from cron.job where jobname='source-engine-every-minute');
 select cron.schedule('source-engine-every-minute','* * * * *',$$select app_private.enqueue_due_source_jobs(4);$$);
+
+-- Remove stale active job rows left by interrupted orchestration; queue messages, if any, are archived first.
+update public.source_jobs set status='dead',finished_at=now(),updated_at=now(),error_message=coalesce(error_message,'superseded during queue migration')
+where status in ('enqueued','processing','retry') and enqueued_at < now()-interval '2 hours';

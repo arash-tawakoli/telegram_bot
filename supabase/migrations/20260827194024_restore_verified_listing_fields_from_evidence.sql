@@ -1,3 +1,4 @@
+-- Kleinanzeigen: explicit labeled values from each listing detail page.
 update public.listings
 set cold_rent=(enrichment_evidence->'cold_rent'->>'value')::numeric
 where source_id=2 and cold_rent is null
@@ -12,6 +13,7 @@ where source_id=2 and warm_rent is null
   and (enrichment_evidence->'warm_rent'->>'confidence')::numeric>=0.8
   and (enrichment_evidence->'warm_rent'->>'value')::numeric between 1 and 100000;
 
+-- HousingAnywhere: structured JSON-LD numberOfRooms.
 update public.listings
 set rooms=(enrichment_evidence->'rooms'->>'value')::numeric,
     field_conflicts=coalesce(field_conflicts,'{}'::jsonb)-'rooms'
@@ -20,6 +22,7 @@ where source_id=9 and rooms is null
   and (enrichment_evidence->'rooms'->>'confidence')::numeric>=0.95
   and (enrichment_evidence->'rooms'->>'value')::numeric between 0.5 and 50;
 
+-- Ohne-Makler: its card title ends with "<rooms> <area>m² Monatsrate".
 with x as (
   select id,
     replace(substring(title from ' ([0-9]+[,.]?[0-9]*) [0-9]+[,.]?[0-9]*m² Monatsrate'),',','.')::numeric as v
@@ -33,6 +36,7 @@ set rooms=x.v,
     field_conflicts=coalesce(l.field_conflicts,'{}'::jsonb)-'rooms'
 from x where l.id=x.id and x.v between 0.5 and 50;
 
+-- immobilien.de: its normalized card includes "Zimmer <n> Etage".
 with x as (
   select id,replace(substring(title from 'Zimmer ([0-9]+[,.]?[0-9]*) Etage'),',','.')::numeric as v
   from public.listings
@@ -52,6 +56,7 @@ where source_id=15 and warm_rent is null
   and (enrichment_evidence->'warm_rent'->>'confidence')::numeric>=0.8
   and (enrichment_evidence->'warm_rent'->>'value')::numeric between 1 and 100000;
 
+-- WG-Gesucht: only override room count when the listing title itself explicitly states it.
 with x as (
   select id,
     replace(coalesce(

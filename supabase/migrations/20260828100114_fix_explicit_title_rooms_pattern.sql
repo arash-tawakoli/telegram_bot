@@ -1,43 +1,21 @@
--- Production migration mirror: robust explicit room extraction, including decimal room counts.
-
-create or replace function app_private.enrich_listing_rooms_from_text()
-returns trigger
-language plpgsql
-set search_path = ''
-as $$
-declare
-  txt text := coalesce(new.title, '') || ' ' || left(coalesce(new.raw::text, ''), 12000);
-  m text[];
-  w text;
-  n numeric;
+create or replace function app_private.normalize_explicit_listing_facts()
+returns trigger language plpgsql set search_path='' as $$
+declare m text[]; v_rooms numeric;
 begin
-  if new.rooms is not null then return new; end if;
-
-  m := regexp_match(txt, '(?i)([0-9]+(?:[.,][0-9]+)?)\s*[-– ]\s*Zimmer(?:\b|-Wohnung\b)');
+  m:=regexp_match(coalesce(new.title,''),'(?i)([0-9]+(?:[.,][0-9]+)?)\s*[-– ]\s*Zimmer');
   if m is not null then
-    begin n := replace(m[1], ',', '.')::numeric; exception when others then n := null; end;
-  end if;
-
-  if n is null then
-    m := regexp_match(txt, '(?i)\m(ein|eine|einen|einem|einer|zwei|drei|vier|fünf|fuenf|sechs|sieben|acht|neun|zehn)\M\s+(?:[[:alpha:]äöüÄÖÜß]+\s+){0,2}Zimmer(n)?\M');
-    if m is not null then
-      w := lower(m[1]);
-      n := case w
-        when 'ein' then 1 when 'eine' then 1 when 'einen' then 1 when 'einem' then 1 when 'einer' then 1
-        when 'zwei' then 2 when 'drei' then 3 when 'vier' then 4 when 'fünf' then 5 when 'fuenf' then 5
-        when 'sechs' then 6 when 'sieben' then 7 when 'acht' then 8 when 'neun' then 9 when 'zehn' then 10
-        else null
-      end;
+    begin v_rooms:=replace(m[1],',','.')::numeric; exception when others then v_rooms:=null; end;
+    if v_rooms between 0.5 and 20 and (new.rooms is null or abs(new.rooms-v_rooms)>0.25) then
+      new.rooms:=v_rooms;
+      new.enrichment_evidence:=jsonb_set(coalesce(new.enrichment_evidence,'{}'::jsonb),'{rooms}',jsonb_build_object('value',v_rooms,'source','title:explicit_rooms','confidence',0.995),true);
+      new.field_conflicts:=coalesce(new.field_conflicts,'{}'::jsonb)-'rooms';
     end if;
   end if;
-
-  if n between 0.5 and 20 then new.rooms := n; end if;
+  if new.address is not null then
+    new.address:=regexp_replace(new.address,'(?i)^\s*(?:Kaltmiete|Warmmiete|Gesamtmiete|Miete)\s+','','');
+    new.address:=regexp_replace(new.address,'\s+',' ','g');
+  end if;
   return new;
 end;
 $$;
-
-drop trigger if exists listings_enrich_rooms_from_text on public.listings;
-create trigger listings_enrich_rooms_from_text
-before insert or update of title, raw, rooms
-on public.listings
-for each row execute function app_private.enrich_listing_rooms_from_text();
+update public.listings set title=title where is_active=true and quality_status<>'rejected';

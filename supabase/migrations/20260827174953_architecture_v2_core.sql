@@ -1,5 +1,7 @@
 create extension if not exists pgmq;
 
+-- Connector metadata: polling cadence remains on sources.tier/poll_interval_minutes.
+-- Evidence quality, connector role and enumerability are independent dimensions.
 alter table public.source_connectors add column if not exists evidence_tier text not null default 'K2';
 alter table public.source_connectors add column if not exists connector_role text not null default 'primary';
 alter table public.source_connectors add column if not exists enumerable boolean not null default false;
@@ -28,6 +30,8 @@ set delivery_mode = case
   else 'shadow'
 end;
 
+-- Canonical entity layer. Existing public.listings remains the compatibility/occurrence write model
+-- so every working connector can continue writing without code changes.
 create table if not exists public.canonical_listings (
   id uuid primary key default gen_random_uuid(),
   dedupe_key text not null unique,
@@ -139,6 +143,7 @@ create table if not exists public.source_jobs (
 create index if not exists source_jobs_status_idx on public.source_jobs(status, enqueued_at);
 create index if not exists source_jobs_source_idx on public.source_jobs(source_id, enqueued_at desc);
 
+-- A small cache for future image preflight; no existing dispatcher behavior is changed.
 create table if not exists public.image_cache (
   image_url text primary key,
   status text not null default 'unknown',
@@ -150,6 +155,7 @@ create table if not exists public.image_cache (
   updated_at timestamptz not null default now()
 );
 
+-- RLS deny-by-default, matching the existing backend-only access model.
 alter table public.canonical_listings enable row level security;
 alter table public.listing_occurrences enable row level security;
 alter table public.matches enable row level security;
@@ -157,6 +163,7 @@ alter table public.notification_outbox enable row level security;
 alter table public.source_jobs enable row level security;
 alter table public.image_cache enable row level security;
 
+-- Internal canonical/occurrence synchronizer.
 create or replace function app_private.upsert_listing_architecture(p_listing_id uuid)
 returns uuid
 language plpgsql
@@ -230,6 +237,7 @@ begin
     updated_at=now()
   returning id into v_occurrence;
 
+  -- Prefer the highest quality currently active occurrence and copy its legacy listing fields.
   select o.id into v_occurrence
   from public.listing_occurrences o
   where o.canonical_listing_id=v_canonical and o.is_active=true
@@ -268,8 +276,10 @@ create trigger listings_00_sync_architecture
 after insert or update of source_id,source_listing_key,external_id,canonical_url,title,address,district,postal_code,city,warm_rent,cold_rent,rooms,area_sqm,available_from,property_type,furnished,wbs_required,image_url,cross_source_hash,last_seen_at,is_active
 on public.listings for each row execute function app_private.sync_listing_architecture_trigger();
 
+-- Backfill the new canonical layer without changing any connector-owned rows.
 select app_private.upsert_listing_architecture(id) from public.listings;
 
+-- New matcher/outbox path. Existing notification-dispatcher still consumes delivery_events.
 create or replace function app_private.queue_new_listing_delivery()
 returns trigger
 language plpgsql
@@ -384,6 +394,7 @@ create trigger delivery_events_sync_outbox
 after update of status,telegram_message_id,dispatch_attempts,error_message,next_retry_at,sent_at
 on public.delivery_events for each row execute function app_private.sync_outbox_from_delivery_event();
 
+-- Backfill matches/outbox from historical delivery_events for observability.
 insert into public.matches(profile_id,recipient_user_id,canonical_listing_id,listing_id,dedupe_key,status,match_snapshot,created_at,updated_at)
 select distinct on (de.profile_id,lo.canonical_listing_id)
        de.profile_id,coalesce(de.recipient_user_id,p.user_id),lo.canonical_listing_id,de.listing_id,de.dedupe_key,
@@ -408,5 +419,6 @@ where coalesce(de.recipient_user_id,p.user_id) is not null
 order by coalesce(de.recipient_user_id,p.user_id),de.dedupe_key,de.created_at desc
 on conflict (recipient_user_id,dedupe_key) do nothing;
 
+-- Default-deny function execution for future public RPCs; existing required RPCs remain explicitly granted.
 alter default privileges in schema public revoke execute on functions from public;
 alter default privileges in schema public revoke execute on functions from anon, authenticated;

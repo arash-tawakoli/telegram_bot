@@ -1,0 +1,401 @@
+{
+  "project_id": "dpmohkrwdlicexwcrqfy",
+  "functions": [
+    {
+      "slug": "billing-maintenance",
+      "version": 1,
+      "verify_jwt": false,
+      "entrypoint": "supabase/functions/billing-maintenance/index.ts",
+      "import_map": false,
+      "files": [
+        {
+          "path": "supabase/functions/billing-maintenance/index.ts",
+          "sha256": "f4c4820c3de7d5f19ee3af5cb1fee3dd5e4da4aed9cecb03df730120c27a853a"
+        }
+      ],
+      "retired": false
+    },
+    {
+      "slug": "covivio-feed",
+      "version": 1,
+      "verify_jwt": false,
+      "entrypoint": "supabase/functions/covivio-feed/index.ts",
+      "import_map": false,
+      "files": [
+        {
+          "path": "supabase/functions/covivio-feed/index.ts",
+          "sha256": "b313a352544339f4ce89a5bb30660540082f313b8eacdfb5f23f44e13fe2feb0"
+        }
+      ],
+      "retired": false
+    },
+    {
+      "slug": "immobilie1-transport",
+      "version": 1,
+      "verify_jwt": false,
+      "entrypoint": "supabase/functions/immobilie1-transport/index.ts",
+      "import_map": false,
+      "files": [
+        {
+          "path": "supabase/functions/immobilie1-transport/index.ts",
+          "sha256": "de1a97e57b3b755b7a101e25c5ea98177a92730f4aaf859409ce07d2a38b9ae5"
+        }
+      ],
+      "retired": false
+    },
+    {
+      "slug": "immobilien-de-transport",
+      "version": 12,
+      "verify_jwt": false,
+      "entrypoint": "supabase/functions/immobilien-de-transport/index.ts",
+      "import_map": false,
+      "files": [
+        {
+          "path": "supabase/functions/immobilien-de-transport/index.ts",
+          "sha256": "c5f2ad7a0f15cb62a44af9fe44235a1eb96b3a97a9465f34bf30c0117a52c0cb"
+        }
+      ],
+      "retired": false
+    },
+    {
+      "slug": "kleinanzeigen-transport",
+      "version": 2,
+      "verify_jwt": false,
+      "entrypoint": "supabase/functions/kleinanzeigen-transport/index.ts",
+      "import_map": false,
+      "files": [
+        {
+          "path": "supabase/functions/kleinanzeigen-transport/index.ts",
+          "sha256": "966ba34fa9a343eea557246bb111b85dc463ab13e8832848a48e8e3cde7f68da"
+        }
+      ],
+      "retired": false
+    },
+    {
+      "slug": "meravis-feed",
+      "version": 2,
+      "verify_jwt": false,
+      "entrypoint": "supabase/functions/meravis-feed/index.ts",
+      "import_map": false,
+      "files": [
+        {
+          "path": "supabase/functions/meravis-feed/index.ts",
+          "sha256": "7ab1bd51fea82160de252dc0af25860129103e781c17aa0b5ea2c595516a9e54"
+        }
+      ],
+      "retired": false
+    },
+    {
+      "slug": "mini-app-publisher",
+      "version": 5,
+      "verify_jwt": false,
+      "entrypoint": "supabase/deployed-support/mini-app-publisher/index.ts",
+      "import_map": false,
+      "files": [
+        {
+          "path": "supabase/deployed-support/mini-app-publisher/index.ts",
+          "sha256": "bd83554c8183b7a49d39bc3292c618b7ffac3dcbf1f54fded00b514e27f82365"
+        }
+      ],
+      "retired": true
+    },
+    {
+      "slug": "mini-app",
+      "version": 11,
+      "verify_jwt": false,
+      "entrypoint": "supabase/deployed-support/mini-app/index.ts",
+      "import_map": false,
+      "files": [
+        {
+          "path": "supabase/deployed-support/mini-app/index.ts",
+          "sha256": "bd83554c8183b7a49d39bc3292c618b7ffac3dcbf1f54fded00b514e27f82365"
+        }
+      ],
+      "retired": true
+    },
+    {
+      "slug": "noncoop-feed",
+      "version": 2,
+      "verify_jwt": false,
+      "entrypoint": "supabase/functions/noncoop-feed/index.ts",
+      "import_map": false,
+      "files": [
+        {
+          "path": "supabase/functions/noncoop-feed/index.ts",
+          "sha256": "16ca1a1f33694b33f9a0117028e06c4edb63ee7684b5af662e65bef1f7878428"
+        }
+      ],
+      "retired": false
+    },
+    {
+      "slug": "noncoop-new-feed",
+      "version": 4,
+      "verify_jwt": false,
+      "entrypoint": "supabase/functions/noncoop-new-feed/index.ts",
+      "import_map": false,
+      "files": [
+        {
+          "path": "supabase/functions/noncoop-new-feed/index.ts",
+          "sha256": "5921a84aaca6cc661a74d3775836e91f9da12d564b4975b03012cb41756d93c5"
+        }
+      ],
+      "retired": false
+    },
+    {
+      "slug": "noop",
+      "version": 3,
+      "verify_jwt": true,
+      "entrypoint": "supabase/deployed-support/noop/index.ts",
+      "import_map": false,
+      "files": [
+        {
+          "path": "supabase/deployed-support/noop/index.ts",
+          "sha256": "17ef7218fe5d108901e86dd0675c272cf2dda6db2e88d19e0130fe3dc8b41d37"
+        }
+      ],
+      "retired": false
+    },
+    {
+      "slug": "notification-dispatcher",
+      "version": 30,
+      "verify_jwt": false,
+      "entrypoint": "supabase/functions/notification-dispatcher/index.ts",
+      "import_map": false,
+      "files": [
+        {
+          "path": "supabase/functions/notification-dispatcher/index.ts",
+          "sha256": "9d41d1591a35edb637d8ae503086be9b0ac02d5528ac46842fb1d4e36bd1297e"
+        },
+        {
+          "path": "supabase/functions/notification-dispatcher/telegram-request.ts",
+          "sha256": "e033cde29f093cd30903e821a5e87a3b38ef64a90b44d3f789ff3d48c0cfa459"
+        },
+        {
+          "path": "supabase/functions/notification-dispatcher/pacing.ts",
+          "sha256": "13860c42576db9075f7de9f1148c8d5c35279071c75dae841d6b830255ceb126"
+        },
+        {
+          "path": "supabase/functions/notification-dispatcher/delivery-lease.ts",
+          "sha256": "a67eada4d11a4a8d4c77a524bbb93b8ae1b6fbbe6519b850486fe92bb6daa05c"
+        },
+        {
+          "path": "supabase/functions/notification-dispatcher/labels.ts",
+          "sha256": "8f45c5a88a4adbcba6a6b0747b738a472440b85abd4e0236c091eede606c6d2e"
+        }
+      ],
+      "retired": false
+    },
+    {
+      "slug": "source-shadow",
+      "version": 1,
+      "verify_jwt": false,
+      "entrypoint": "supabase/functions/source-shadow/index.ts",
+      "import_map": false,
+      "files": [
+        {
+          "path": "supabase/functions/source-shadow/index.ts",
+          "sha256": "c0e4f7612d7292baad3ac1fadb8888559f0422b9ad6e882d7265a3e6b2b516cf"
+        },
+        {
+          "path": "supabase/functions/source-worker/shared.ts",
+          "sha256": "426057dc694692e1b93a8af081870309ab74d294eed6d6a7da4a3d2b2d98d58a"
+        },
+        {
+          "path": "supabase/functions/source-worker/checked.ts",
+          "sha256": "420fa183d20cb6d94c23752fe7df5f03d0a42fd7e2ee1af0c9ca17da101a9e39"
+        }
+      ],
+      "retired": false
+    },
+    {
+      "slug": "source-worker",
+      "version": 49,
+      "verify_jwt": false,
+      "entrypoint": "supabase/functions/source-worker/index.ts",
+      "import_map": true,
+      "files": [
+        {
+          "path": "supabase/functions/source-worker/index.ts",
+          "sha256": "a6fb4d3e45a42013ae64715ce1e0ccf2fab61bdcaf048974576fc6bdaedb977c"
+        },
+        {
+          "path": "supabase/functions/source-worker/shared.ts",
+          "sha256": "426057dc694692e1b93a8af081870309ab74d294eed6d6a7da4a3d2b2d98d58a"
+        },
+        {
+          "path": "supabase/functions/source-worker/checked.ts",
+          "sha256": "420fa183d20cb6d94c23752fe7df5f03d0a42fd7e2ee1af0c9ca17da101a9e39"
+        },
+        {
+          "path": "supabase/functions/source-worker/scout.ts",
+          "sha256": "5c606696551663d2a9fb42d61e3921d7dc018fb3b900def47666d28676e113c0"
+        },
+        {
+          "path": "supabase/functions/source-worker/klein.ts",
+          "sha256": "f22c1b9e97a3ce50bc9257f25979d0ec80f15f98835462be671183f21f468f38"
+        },
+        {
+          "path": "supabase/functions/source-worker/gcp.ts",
+          "sha256": "f0c2aeeef6723847707c3d7f2080632507dfa3c036226f0407b7f4c5e53daaa3"
+        },
+        {
+          "path": "supabase/functions/source-worker/immomio.ts",
+          "sha256": "46de123bdc7dbd7d8938337df29c81b07c2b3882fa0363f5d6b01e114c7f7cc3"
+        },
+        {
+          "path": "supabase/functions/source-worker/hpm.ts",
+          "sha256": "fc6963cdeaf1466a40db919da20691e370717d3763026749c2bc0b7c13161e0e"
+        },
+        {
+          "path": "supabase/functions/source-worker/generic.ts",
+          "sha256": "811417f50df60598ed2c030f37e26066c37db45dcb885aa6b9dc29040be1bdd7"
+        },
+        {
+          "path": "supabase/functions/source-worker/job-runner.ts",
+          "sha256": "df86fcd10904dcef618e1205c00511c978c3971ee847ac48527c03148b9b335a"
+        },
+        {
+          "path": "supabase/functions/source-worker/deno.json",
+          "sha256": "f5a48954ebfadfc88c535c402042cd8dd8bc9a42a991b469d683a9524c8598a7"
+        }
+      ],
+      "retired": false
+    },
+    {
+      "slug": "spacest-feed",
+      "version": 2,
+      "verify_jwt": false,
+      "entrypoint": "supabase/functions/spacest-feed/index.ts",
+      "import_map": false,
+      "files": [
+        {
+          "path": "supabase/functions/spacest-feed/index.ts",
+          "sha256": "9feb7dcc8bc38c344d3c1614c539bf997343ede3049c9384e43bc8461bd50399"
+        }
+      ],
+      "retired": false
+    },
+    {
+      "slug": "stripe-webhook",
+      "version": 13,
+      "verify_jwt": false,
+      "entrypoint": "supabase/functions/stripe-webhook/index.ts",
+      "import_map": false,
+      "files": [
+        {
+          "path": "supabase/functions/stripe-webhook/index.ts",
+          "sha256": "0080670fe57852e34fa98e407da928ffa138e69befb213d1b2f00e130136a540"
+        }
+      ],
+      "retired": false
+    },
+    {
+      "slug": "telegram-fallback-logo",
+      "version": 3,
+      "verify_jwt": false,
+      "entrypoint": "supabase/functions/telegram-fallback-logo/index.ts",
+      "import_map": false,
+      "files": [
+        {
+          "path": "supabase/functions/telegram-fallback-logo/index.ts",
+          "sha256": "c7f33fd4119dd62d860076f838708ce1d53ab7e7645f9ac92a90f9b3c4a04d42"
+        }
+      ],
+      "retired": false
+    },
+    {
+      "slug": "telegram-gateway",
+      "version": 13,
+      "verify_jwt": false,
+      "entrypoint": "supabase/functions/telegram-gateway/index.ts",
+      "import_map": false,
+      "files": [
+        {
+          "path": "supabase/functions/telegram-gateway/index.ts",
+          "sha256": "40441ed157dfc43928a2552d63012067870979afb85f7f978a4414e289821bf0"
+        }
+      ],
+      "retired": false
+    },
+    {
+      "slug": "telegram-premium-image",
+      "version": 7,
+      "verify_jwt": false,
+      "entrypoint": "supabase/functions/telegram-premium-image/index.ts",
+      "import_map": false,
+      "files": [
+        {
+          "path": "supabase/functions/telegram-premium-image/index.ts",
+          "sha256": "7b82fe7351d748c1741f97eb325abca16e09739729ba5807da660871d7aacd49"
+        }
+      ],
+      "retired": false
+    },
+    {
+      "slug": "telegram-premium",
+      "version": 9,
+      "verify_jwt": false,
+      "entrypoint": "supabase/functions/telegram-premium/index.ts",
+      "import_map": false,
+      "files": [
+        {
+          "path": "supabase/functions/telegram-premium/index.ts",
+          "sha256": "37cfb259e873cad8f0641b583f45330addc56455483706b514dd5ad754d8a61d"
+        }
+      ],
+      "retired": false
+    },
+    {
+      "slug": "telegram-ui",
+      "version": 44,
+      "verify_jwt": false,
+      "entrypoint": "supabase/functions/telegram-ui/index.ts",
+      "import_map": false,
+      "files": [
+        {
+          "path": "supabase/functions/telegram-ui/index.ts",
+          "sha256": "dcc09ab2056fb2580080bd4cd6d7cd29cdcd3c519b97ad1b5b2023f1174c9c60"
+        },
+        {
+          "path": "supabase/functions/telegram-ui/admin.js",
+          "sha256": "935b639191ef41d1200cdf7fc28209f406441292121ef3588594740c6f0de0cb"
+        },
+        {
+          "path": "supabase/functions/telegram-ui/navigation.js",
+          "sha256": "93cab94428f5d461be9dd487f3d1745f47e7d74b381af833e80d223f56f0e01b"
+        },
+        {
+          "path": "supabase/functions/telegram-ui/localization.js",
+          "sha256": "70c0862589e36bc82513f3c080f44c17921c6408304fbfe326b638f8551de020"
+        },
+        {
+          "path": "supabase/functions/telegram-ui/profiles.js",
+          "sha256": "7a9c3db22715897e2e533583f825a4b312d8ae8cb3a6e4986708f80514244e90"
+        },
+        {
+          "path": "supabase/functions/telegram-ui/runtime.js",
+          "sha256": "834ceaadba3970c6f4379a3428663d9b7adef3eb91c4dc0dff43995741aff17a"
+        },
+        {
+          "path": "supabase/functions/telegram-ui/handlers.js",
+          "sha256": "6588a0134ff72c6efa7c5b3c2a576bbd14a8bb28e9c8caf710f4d5e6700893e0"
+        }
+      ],
+      "retired": false
+    },
+    {
+      "slug": "vonovia-transport",
+      "version": 1,
+      "verify_jwt": false,
+      "entrypoint": "supabase/functions/vonovia-transport/index.ts",
+      "import_map": false,
+      "files": [
+        {
+          "path": "supabase/functions/vonovia-transport/index.ts",
+          "sha256": "e7cefdf3a610d91d71238d785c42cf581eb02c45a42b7afda2de9cb5b1db6916"
+        }
+      ],
+      "retired": false
+    }
+  ]
+}

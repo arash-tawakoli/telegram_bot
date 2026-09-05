@@ -67,6 +67,7 @@ begin
 end;
 $$;
 
+-- Normalize current Kleinanzeigen CDN URLs to JPEG so Telegram can consume them reliably.
 update public.listings
 set image_url=regexp_replace(image_url,'\.AUTO([&#?]|$)','.JPG\1','i')
 where source_id=2 and image_url ~ '^https://img\.kleinanzeigen\.de/' and image_url ~ '\.AUTO([&#?]|$)';

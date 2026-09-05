@@ -1,7 +1,3 @@
--- Route Walddörfer through the strict Immomio tenant worker.
--- The worker discovers the current homepage listing token from the public,
--- cookie-protected Immomio iframe at runtime; no token is persisted here.
-
 update public.sources
 set worker_slug='source-immomio',
     last_error_at=null,

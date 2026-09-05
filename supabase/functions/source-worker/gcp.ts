@@ -121,3 +121,4 @@ export async function runGcp(source:Source,connectors:Connector[]){
     return{ok:true,source_id:source.id,fetched:candidates.length,new:freshCreated,complete:false,primary:primary?.candidates.length||0,mirror_matches:mirror.matches.length,fallback_2:recommendation?.candidates.length||0};
   }catch(e){return markFailure(source,started,e)}
 }
+

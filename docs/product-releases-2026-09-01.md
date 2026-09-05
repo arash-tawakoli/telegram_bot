@@ -30,3 +30,4 @@ No paid Google Routes or Geocoding API has been enabled. Pendelziel links use Go
 - Stripe webhook event claiming returns `busy` for a concurrent duplicate and `duplicate` after completion.
 - Telegram navigation uses the native slash-command menu.
 - Supabase security and performance advisors contain no new warning or error findings; remaining notices are informational.
+

@@ -1,2 +1,1 @@
-create index if not exists listing_dedupe_groups_preferred_listing_idx
-on public.listing_dedupe_groups(preferred_listing_id);
+create index if not exists listing_dedupe_groups_preferred_listing_idx on public.listing_dedupe_groups(preferred_listing_id);

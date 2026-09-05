@@ -14,6 +14,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Test job ownership and database permissions
+        run: |
+          npm ci --ignore-scripts
+          npm test
+          node scripts/check-runtime.mjs
+
       - name: Validate architecture files
         run: |
           set -eu
@@ -34,10 +45,6 @@ jobs:
           test -f supabase/functions/telegram-gateway/index.ts
           test ! -d supabase/functions/mini-app
           test ! -d supabase/static/mini-app
-          test -f supabase/migrations/20260829195000_architecture_v3_final_cutover.sql
-          test -f supabase/migrations/20260829204000_route_cron_to_canonical_source_worker.sql
-          test -f supabase/migrations/20260829204100_restore_master_tier_gartenstadt_wandsbek.sql
-          test -f supabase/migrations/20260829210500_require_complete_coverage_before_baseline.sql
           test ! -f .github/workflows/kleinanzeigen-public-inventory.yml
           test ! -f scripts/kleinanzeigen-public-inventory.mjs
           test ! -f data/source_catalog.json
@@ -72,7 +79,7 @@ jobs:
 
       - name: Reject legacy runtime references
         run: |
-          if grep -RInE --exclude-dir=.git --exclude-dir=migrations --exclude='*.md' \
+          if grep -RInE --exclude-dir=.git --exclude-dir=migrations --exclude='architecture-check.yml' --exclude='*.md' \
             '(source-job-runner|source-worker-v3|source-immoscout-fast|source-immoscout-rolling|source-kleinanzeigen-fast|source-kleinanzeigen-rolling|listing_enrichment)' \
             supabase/functions .github scripts 2>/dev/null; then
             echo 'Legacy runtime reference remains.' >&2
@@ -81,8 +88,9 @@ jobs:
 
       - name: Reject obvious committed secrets
         run: |
-          if grep -RInE --exclude-dir=.git --exclude='*.md' \
+          if grep -RInE --exclude-dir=.git --exclude-dir=node_modules --exclude='*.md' \
             '(sk-proj-[A-Za-z0-9_-]{20,}|sb_secret_[A-Za-z0-9_-]{20,}|[0-9]{8,12}:[A-Za-z0-9_-]{30,})' .; then
             echo 'Potential secret found in repository.' >&2
             exit 1
           fi
+

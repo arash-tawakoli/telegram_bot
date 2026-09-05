@@ -109,3 +109,4 @@ export async function runGeneric(source:Source,connectors:Connector[]){
     return{ok:true,source_id:source.id,fetched:cands.length,new:saved.fresh,complete,multi_connector:successfulLaneCount>1,connector_success_count:successfulLaneCount};
   }catch(e){return markFailure(source,started,e)}
 }
+
