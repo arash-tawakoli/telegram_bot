@@ -209,14 +209,14 @@
     },
     {
       "slug": "source-worker",
-      "version": 52,
+      "version": 53,
       "verify_jwt": false,
       "entrypoint": "supabase/functions/source-worker/index.ts",
       "import_map": true,
       "files": [
         {
           "path": "supabase/functions/source-worker/index.ts",
-          "sha256": "a6fb4d3e45a42013ae64715ce1e0ccf2fab61bdcaf048974576fc6bdaedb977c"
+          "sha256": "e47626764c9f9b20697ceb959a20dcbdbeead1c765df105838add4eac824ddbb"
         },
         {
           "path": "supabase/functions/source-worker/shared.ts",
@@ -257,6 +257,10 @@
         {
           "path": "supabase/functions/source-worker/deno.json",
           "sha256": "f5a48954ebfadfc88c535c402042cd8dd8bc9a42a991b469d683a9524c8598a7"
+        },
+        {
+          "path": "supabase/functions/source-worker/public-inventory.ts",
+          "sha256": "46befb2e5e3060b6d81b1f2b0306b3f7d4a4c50fc13dc78eec1f97be7654e50f"
         }
       ],
       "retired": false
