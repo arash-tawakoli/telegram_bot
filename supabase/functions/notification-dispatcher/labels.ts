@@ -1,6 +1,7 @@
 const de = {
   address: "Adresse",
   warm: "Warmmiete",
+  advertised: "Angebotspreis/Monat (Nebenkosten ungeklärt)",
   cold: "Kaltmiete",
   heating: "Heizkosten",
   additional: "Nebenkosten",
@@ -17,6 +18,7 @@ const en = {
   ...de,
   address: "Address",
   warm: "Warm rent",
+  advertised: "Advertised monthly price (utilities unverified)",
   cold: "Cold rent",
   rooms: "Rooms",
   area: "Living area",

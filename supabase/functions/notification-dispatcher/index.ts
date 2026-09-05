@@ -46,7 +46,8 @@ function loc(l: any) {
   return p.length ? p.join(" ") : null;
 }
 function cap(l: any, lang: string) {
-  return `🏠 <b>${esc(String(l.title || "Listing").slice(0, 180))}</b>\n\n${l.warm_rent != null ? `💶 <b>${label(lang, "warm")}:</b> ${l.warm_rent} €\n` : ""}${l.cold_rent != null ? `❄️ <b>${label(lang, "cold")}:</b> ${l.cold_rent} €\n` : ""}${l.area_sqm != null ? `📐 <b>${label(lang, "area")}:</b> ${l.area_sqm} m²\n` : ""}${l.rooms != null ? `🚪 <b>${label(lang, "rooms")}:</b> ${l.rooms}\n` : ""}${loc(l) ? `📍 <b>${label(lang, "address")}:</b> ${esc(loc(l))}` : ""}`.trim();
+  const advertised=l.raw?.provider==="nestpick_public_api" && l.raw?.price_currency==="EUR" && typeof l.raw?.advertised_monthly_price==="number" && Number.isFinite(l.raw.advertised_monthly_price) && l.raw.advertised_monthly_price>0 && l.warm_rent==null && l.cold_rent==null ? `💶 <b>${label(lang, "advertised")}:</b> ${l.raw.advertised_monthly_price} €\n` : "";
+  return `🏠 <b>${esc(String(l.title || "Listing").slice(0, 180))}</b>\n\n${advertised}${l.warm_rent != null ? `💶 <b>${label(lang, "warm")}:</b> ${l.warm_rent} €\n` : ""}${l.cold_rent != null ? `❄️ <b>${label(lang, "cold")}:</b> ${l.cold_rent} €\n` : ""}${l.area_sqm != null ? `📐 <b>${label(lang, "area")}:</b> ${l.area_sqm} m²\n` : ""}${l.rooms != null ? `🚪 <b>${label(lang, "rooms")}:</b> ${l.rooms}\n` : ""}${loc(l) ? `📍 <b>${label(lang, "address")}:</b> ${esc(loc(l))}` : ""}`.trim();
 }
 function kb(l: any, lang: string, p: boolean) {
   const r: any[] = [

@@ -1136,6 +1136,14 @@
       "registry_sql_sha256": "e10b4ad2c8023ee3edc04228b924b858a5467bf3046795762ab27970266b5257",
       "export_sql_sha256": "e10b4ad2c8023ee3edc04228b924b858a5467bf3046795762ab27970266b5257",
       "vault_substitution": false
+    },
+    {
+      "version": "20260905230750",
+      "name": "nestpick_native_freshness",
+      "file": "supabase/migrations/20260905230750_nestpick_native_freshness.sql",
+      "registry_sql_sha256": "6cca9fe090e41377a5f39852c024cc2e5dfb2077b1ad3459852da12bfb1518df",
+      "export_sql_sha256": "6cca9fe090e41377a5f39852c024cc2e5dfb2077b1ad3459852da12bfb1518df",
+      "vault_substitution": false
     }
   ],
   "historical_repository_ref": "36708e9e2f073d7b3835cfd28b8222446e23c0ff",

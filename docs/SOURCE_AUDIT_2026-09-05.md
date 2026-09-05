@@ -140,4 +140,17 @@ Nicht umgesetzt sind unbestätigte private APIs, neue Postfacheingänge und Anbi
 
 Die drei neuen Bestandsadapter ersetzen die bisherigen Parser. Umgestellte Routen beginnen mit einer eigenen Baseline; alte Erstbestände werden nicht plötzlich als neu versendet. TAG blockiert abgeschnittene Antworten, Urban blockiert unbekannte oder widersprüchliche Statuswerte, Heimstaden blockiert eine fehlende Hamburg-Eingrenzung. Ein vollständiger, validierter Bestand darf nur eigene nicht mehr vorhandene Listings deaktivieren.
 
-Nicht abgeschlossen sind insbesondere die oben ausdrücklich benannte Nestpick-Implementierung, verifizierte unabhängige Ersatzwege für zugangsbeschränkte Quellen und ein realer Telegram-Nachweis einer neu erschienenen GCP-ID. Diese Prüfung beansprucht weder Markt-Vollständigkeit noch die Erledigung dieser offenen Arbeiten.
+Der damalige Nestpick-Befund ist durch den folgenden Nachtrag überholt. Zugangsbeschränkte Anbieter und ein realer Nachweis einer neu erschienenen GCP-ID bleiben ausdrücklich externe Voraussetzungen beziehungsweise ausstehende Live-Belege.
+
+
+## Abschluss der Nestpick-Implementierung
+
+Die vom öffentlichen Nestpick-Frontend verwendete JSON-Suche `/search/api/` ersetzt die drei identischen HTML-Abrufe. Worker v54 lädt alle vom Server gemeldeten Seiten mit begrenzter Parallelität und validiert Seitennummer, Umfang und stabile Gesamtzahlen. Ein vollständiger öffentlicher Probelauf lieferte 161 Einträge auf 14 Seiten, aber nur 139 eindeutige IDs. Deshalb wird keine vollständige Abdeckung behauptet und kein fehlendes Objekt automatisch deaktiviert. Gesponserte Platzierungen werden ausgeschlossen.
+
+Der erste erfolgreiche Durchlauf dieser konkreten Route baut einen eigenen Vergleichsbestand auf. Erst danach dürfen neu eingelesene IDs mit nativem Neu-Merkmal eine Zustellung anstoßen; die Datenbank verlangt zusätzlich den verifizierten Nestpick-Adapter. Bestehende gesperrte IDs werden nicht nachträglich freigegeben. Fehlgeschlagene oder widersprüchliche Seiten verhindern den Import und das Fortschreiben des Vergleichsbestands.
+
+Angebotspreise werden ausschließlich als nicht aufgeschlüsselte Monatsangaben gespeichert. Dispatcher v35 kennzeichnet sie als „Angebotspreis/Monat (Nebenkosten ungeklärt)“. Kalt-/Warmmiete und Zimmerzahl werden nicht aus Kartenpreis beziehungsweise Schlafzimmerzahl erfunden. Profile mit Mietobergrenze oder Pflicht zur bekannten Warmmiete bleiben durch die bestehenden SQL-Filter geschützt; ohne bestätigte Mietwerte erfolgt für diese Profile keine Freigabe. Wohnungs- und WG-Typen sind getrennt.
+
+Validierung: 59 erfolgreiche Tests einschließlich echter SQL-Ausführung der Frische-Regel, Seitenduplikaten, Abbruch einer unvollständigen Abfrage, Baseline-Schutz und Telegram-Preistext. Die beiden Deployments wurden bytegenau zurückgelesen. Die Migration ist in der Produktionsregistry erfasst.
+
+Die technische Nestpick-Anbindung ist damit umgesetzt. Nicht öffentlich bereitgestellte Mietbestandteile, private Anbieterfeeds und persönliche Postfachzugänge können ohne bereitgestellten Zugang nicht ergänzt werden. Ob künftig ein passendes neues GCP-Angebot erscheint, liegt außerhalb des Bots; historische Zustellungen ersetzen keinen Nachweis des neuen Pfads.
