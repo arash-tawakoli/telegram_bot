@@ -115,3 +115,29 @@ Im gemeinsamen HTML-/JSON-Adapter werden elf zuvor ungeprüfte Datenbankzugriffe
 Kontrolle vor v50: alle 54 Live-Quellen hatten aktuelle erfolgreiche Läufe, allerdings teilweise ohne erkannte Wohnungen. Das ist keine Bestätigung vollständiger Erfassung. Im 24-Stundenfenster waren 292 Zustellereignisse als gesendet gespeichert; es gab keine offenen pending/processing/retry-Ereignisse. Diese Zahlen gelten für den gesamten Bot.
 
 Nicht umgesetzt sind unbestätigte private APIs, neue Postfacheingänge und Anbieterfeeds ohne bereitgestellten Zugang. Die Empfehlungen in der Tabelle bleiben insoweit offene Erweiterungsmöglichkeiten. Elf Shadow-Quellen bleiben außerhalb des Live-Versands. Es wäre falsch, dafür eine funktionierende Zustellung zu behaupten.
+
+## Erneute öffentliche Quellenprüfung, 5. September 2026, ab 22:35 UTC
+
+| Quelle | Erneut belegter Befund | Umsetzung / Grenze |
+|---|---|---|
+| TAG | Offizielle Website konfiguriert `https://immo.tag-wohnen.de/properties`. Anonymer Abruf ohne Zugangsdaten erfolgreich: 625 ungefilterte Treffer, null für Hamburg. | Neuer strukturierter Adapter in Worker v53; Herkunft, Antwortschema und Vollständigkeit geprüft. Keine alten Nicht-Hamburg-Angebote importiert. |
+| Heimstaden | Hamburg-Seite bettet Anbieterportal 75089905 ein; dieses meldet ausdrücklich keine Treffer für Wohnimmobilien in Hamburg. Das nationale Portal 20444232 enthält dagegen Berliner Angebote. | Hamburger Portal statt der nicht ausgelesenen Wrapper-Seite angebunden; Berliner Angebote ausgeschlossen. Nichtleere Seiten werden nicht als vollständige Enumeration ausgegeben. |
+| Urban Living | `/mieten` enthält 327 eindeutige Apartments, in Desktop/Mobil doppelt. 321 vermietet, sechs reserviert, keines frei. Banner behauptet allgemein freie Apartments. | Status-/Preisparser und eigener Baseline-Vergleich angebunden. Nur Status frei ist zustellfähig; Kaltmiete und Nebenkosten getrennt, keine erfundene Warmmiete. |
+| Nestpick | Direkte Hamburger HTML-Suche erreichbar, 161 beworbene Ergebnisse auf 14 Seiten; Seite 2 unterscheidet sich von Seite 1, enthält aber auch überlappende IDs. | Öffentliche Karten sind vorhanden; der exemplarische Partner-Detailabruf bei Spotahome (Objekt 967379) endet jedoch mit HTTP 403. Mietbestandteile lassen sich aus dem Kartenpreis allein nicht zuverlässig zuordnen. Vollständige Enumeration und verifizierte Preis-/Partnerdaten bleiben Voraussetzung; nicht als fertig angebunden ausgeben. |
+| Smartments | Direkter Abruf der konfigurierten Standortseite HTTP 403. | Keine Umgehung der Zugriffssperre. Ein erlaubter Verfügbarkeitsfeed ist nicht bereitgestellt. |
+| Schiffszimmerer | Suchanwendung enthält Anfrage- und Mitgliedervalidierungsrouten, keinen nachgewiesenen öffentlichen Inventarabruf. | Keine Mitgliederdaten eingegeben und keine Anfragen abgeschickt. Zugang allein ist kein öffentlicher Feed. |
+| Buchdrucker | Homepage enthält einen persönlichen Immomio-Registrierungslink, keinen gefundenen öffentlichen Angebots-Tenant. | Keine Registrierung im Namen des Nutzers und kein angeblicher Bestand aus dem Registrierungslink. |
+| meinestadt (14) | Aktuelle öffentliche Seite erreichbar; gefundene Angebotslinks verweisen auf Immowelt. | Ein eigenständiger Zusatzbestand ist im Abruf nicht belegt. Shadow bleibt bis zur Quellenparität und Dublettenprüfung erhalten. |
+| Studierendenwerk (18) | Wohnanlagen, Bewerbungsinformationen und Online-Bewerbung. | Kein öffentlicher verfügbarer Einzelwohnungsfeed nachgewiesen. |
+| GWG (31), Wohnwarft (59) | Erneuter Abruf HTTP 502. | Extern nicht erreichbar; keine Verfügbarkeit behauptet. |
+| Felixx (51) | Standorte und StarRez-Mieter-/Bewerberportal. | Öffentliches Einzelinventar nicht nachgewiesen. |
+| HSG (54) | Wohnanlagen, Service, Kontakt; kein nachgewiesenes Verzeichnis freier Einzelwohnungen. | Wohnanlagen nicht als aktuelle Mietangebote importieren. |
+| WHW (56) | Bewerberfragebogen führt zur persönlichen Immomio-Registrierung. | Nutzergebundene Vergabe; keine öffentliche Enumeration nachgewiesen. |
+| WGPV (57) | Website erklärt, aktuell keine externen Mitglieder aufzunehmen. | Kein zusätzlicher allgemein zugänglicher Angebotsfeed. |
+| DVG (62) | Unternehmenswebsite verlinkt ein Alco-Web-Portal; dessen öffentlicher Abruf zeigt eine Anmeldung, keinen bestätigten Angebotsbestand. | Mieter-/Verwaltungsportal nicht als freien Bestandsfeed verwenden; keine Zugangsdaten eingegeben. |
+| Wohnungsbörse (63) | Erneuter Abruf leitet zur ImmoScout-Startseite weiter. | Keine eigenständige Bestandsquelle bestätigt. |
+| Falkenried (64) | Informations- und Bewerbungsseiten. | Kein digitaler Einzelangebotsfeed nachgewiesen. |
+
+Die drei neuen Bestandsadapter ersetzen die bisherigen Parser. Umgestellte Routen beginnen mit einer eigenen Baseline; alte Erstbestände werden nicht plötzlich als neu versendet. TAG blockiert abgeschnittene Antworten, Urban blockiert unbekannte oder widersprüchliche Statuswerte, Heimstaden blockiert eine fehlende Hamburg-Eingrenzung. Ein vollständiger, validierter Bestand darf nur eigene nicht mehr vorhandene Listings deaktivieren.
+
+Nicht abgeschlossen sind insbesondere die oben ausdrücklich benannte Nestpick-Implementierung, verifizierte unabhängige Ersatzwege für zugangsbeschränkte Quellen und ein realer Telegram-Nachweis einer neu erschienenen GCP-ID. Diese Prüfung beansprucht weder Markt-Vollständigkeit noch die Erledigung dieser offenen Arbeiten.
