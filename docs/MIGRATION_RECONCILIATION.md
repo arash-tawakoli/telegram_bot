@@ -1,26 +1,21 @@
 # Migration reconciliation
 
-## Status
+## Observed on 2026-09-05
 
-Older repository migrations predate the current production migration registry and use bootstrap-style filenames. They remain as historical setup material and are not rewritten retroactively in this change.
+Before this PR, GitHub contained 125 migration files and production recorded 139 migration entries. 62 repository version prefixes had no identical version in the production registry. Matching names suggest that some changes were deployed under different timestamps; this is not proof of 62 unapplied schema changes.
 
-From production migration `20260827170557_strict_immomio_tenant_connectors.sql` onward, production migration versions are mirrored in GitHub using the exact Supabase migration version prefix.
+The previous assertion that every migration after the v2 baseline mirrored the exact production version is not supported by the current registry.
 
-## Rule going forward
+## Required procedure
 
-1. Create every schema change as a Supabase migration.
-2. Commit the exact production migration version and SQL to GitHub.
-3. Keep Edge Function runtime code in GitHub aligned with the deployed production version.
-4. Do not rename or renumber source IDs.
-5. Do not blindly replay pre-v2 bootstrap files against an existing production database.
-6. Verify migration drift before every production deployment.
+1. Compare both registries by version, name and actual SQL content.
+2. Identify genuinely missing changes separately from timestamp differences.
+3. Reconcile each entry with evidence. Do not blindly replay old bootstrap migrations or bulk-mark versions as applied.
+4. Test the new lifecycle migration against an isolated Supabase environment with real PGMQ.
+5. Apply the new additive migration before deploying the source worker that calls `finish_source_job_attempt`.
+6. Drain old dispatcher invocations before enabling the dispatcher with delivery reservations.
+7. Check advisors and operational queries after rollout. Keep source IDs and tier classifications stable.
 
-## Architecture v2 baseline
+The migration in this PR was created with `supabase migration new`. It has not been applied to production. PGlite tests validate the SQL using a minimal PGMQ interface fixture, not a full Supabase integration.
 
-Architecture v2 starts at:
-
-- `20260827174953_architecture_v2_core.sql`
-- `20260827175119_architecture_v2_source_queue.sql`
-- `20260827175348_architecture_v2_observability_and_availability.sql`
-
-All later architecture migrations use exact production version prefixes and are the canonical migration trail for the v2 runtime.
+See [the review](ARCHITECTURE_REVIEW_2026-09-05.md) for findings, current limits and rollback notes.

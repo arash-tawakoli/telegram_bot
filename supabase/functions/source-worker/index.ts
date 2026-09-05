@@ -1,12 +1,73 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import {Connector,Source,db,emsg,internalSecret} from './shared.ts';
-import {runScout} from './scout.ts';
-import {runKlein} from './klein.ts';
-import {runGcp} from './gcp.ts';
-import {runImmomio} from './immomio.ts';
-import {runHpm} from './hpm.ts';
-import {runGeneric} from './generic.ts';
+import { Connector, Source, db, emsg, internalSecret } from "./shared.ts";
+import { runScout } from "./scout.ts";
+import { runKlein } from "./klein.ts";
+import { runGcp } from "./gcp.ts";
+import { runImmomio } from "./immomio.ts";
+import { runHpm } from "./hpm.ts";
+import { runGeneric } from "./generic.ts";
+import { runClaimedJob } from "./job-runner.ts";
 
-async function processSource(id:number){const{data:source,error}=await db.from('sources').select('*').eq('id',id).eq('enabled',true).eq('runtime_mode','live').single();if(error||!source)throw new Error(error?.message||'source unavailable');const s=source as Source;const{data:cs,error:ce}=await db.from('source_connectors').select('priority,label,connector_kind,enumerable,shadow_only,config').eq('source_id',id).eq('enabled',true).order('priority');if(ce)throw ce;const connectors=(cs||[]) as Connector[];if(id===1)return runScout(s);if(id===2)return runKlein(s);const primary=connectors.find(c=>!c.shadow_only)||connectors[0];if(id===8&&connectors.length)return runGcp(s,connectors);if(primary?.connector_kind==='immomio_tenant')return runImmomio(s,primary);if(primary?.connector_kind==='immosolve_api')return runHpm(s,primary);return runGeneric(s,connectors)}
-async function one(job:any){try{const result=await processSource(Number(job.source_id)),ok=result?.ok!==false;await db.rpc('finish_source_job',{p_job_id:job.job_id,p_success:ok,p_error:ok?null:JSON.stringify(result).slice(0,1200)});return result}catch(e){await db.rpc('finish_source_job',{p_job_id:job.job_id,p_success:false,p_error:emsg(e).slice(0,1200)});return{ok:false,source_id:job.source_id,error:emsg(e)}}}
-Deno.serve(async req=>{try{if(req.method!=='POST')return new Response('method not allowed',{status:405});const internal=await internalSecret();if((req.headers.get('x-internal-secret')||'')!==internal)return new Response('unauthorized',{status:401});const started=Date.now();let claimed=0;const results:any[]=[];while(Date.now()-started<50000){const{data:jobs,error}=await db.rpc('claim_source_jobs',{p_worker:'source-worker',p_qty:3});if(error)throw error;if(!jobs?.length)break;claimed+=jobs.length;results.push(...await Promise.all(jobs.map((j:any)=>one(j))))}return Response.json({ok:true,architecture:'v3',claimed,results})}catch(e){return Response.json({ok:false,error:emsg(e)},{status:500})}});
+async function processSource(id: number) {
+  const { data: source, error } = await db
+    .from("sources")
+    .select("*")
+    .eq("id", id)
+    .eq("enabled", true)
+    .eq("runtime_mode", "live")
+    .single();
+  if (error || !source) throw new Error(error?.message || "source unavailable");
+  const s = source as Source;
+  const { data: cs, error: ce } = await db
+    .from("source_connectors")
+    .select("priority,label,connector_kind,enumerable,shadow_only,config")
+    .eq("source_id", id)
+    .eq("enabled", true)
+    .order("priority");
+  if (ce) throw ce;
+  const connectors = (cs || []) as Connector[];
+  if (id === 1) return runScout(s);
+  if (id === 2) return runKlein(s);
+  const primary = connectors.find((c) => !c.shadow_only) || connectors[0];
+  if (id === 8 && connectors.length) return runGcp(s, connectors);
+  if (primary?.connector_kind === "immomio_tenant")
+    return runImmomio(s, primary);
+  if (primary?.connector_kind === "immosolve_api") return runHpm(s, primary);
+  return runGeneric(s, connectors);
+}
+async function one(job: any) {
+  return runClaimedJob(job, processSource, async (args) => {
+    const { data, error } = await db.rpc("finish_source_job_attempt", args);
+    if (error) throw new Error(`finish_source_job_attempt: ${error.message}`);
+    return data === true;
+  });
+}
+Deno.serve(async (req) => {
+  try {
+    if (req.method !== "POST")
+      return new Response("method not allowed", { status: 405 });
+    const internal = await internalSecret();
+    if ((req.headers.get("x-internal-secret") || "") !== internal)
+      return new Response("unauthorized", { status: 401 });
+    const started = Date.now();
+    let claimed = 0;
+    const results: any[] = [];
+    while (Date.now() - started < 50000) {
+      const { data: jobs, error } = await db.rpc("claim_source_jobs", {
+        p_worker: "source-worker",
+        p_qty: 3,
+      });
+      if (error) throw error;
+      if (!jobs?.length) break;
+      claimed += jobs.length;
+      const batch = await Promise.allSettled(jobs.map((j: any) => one(j)));
+      for (const item of batch) {
+        if (item.status === "fulfilled") results.push(item.value);
+        else throw item.reason;
+      }
+    }
+    return Response.json({ ok: true, architecture: "v3", claimed, results });
+  } catch (e) {
+    return Response.json({ ok: false, error: emsg(e) }, { status: 500 });
+  }
+});

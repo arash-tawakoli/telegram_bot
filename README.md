@@ -1,133 +1,31 @@
 # Traumwohnung Hamburg Bot
 
-Backend für `@traumwohnunghamburgbot`: globale Wohnungssuche in Hamburg über 65 konfigurierte Quellen, Deduplizierung, genau ein Suchprofil pro Nutzer und Telegram-Push.
+Supabase-Backend für `@traumwohnunghamburgbot`: zentrale Wohnungssuche über 65 konfigurierte Hamburger Quellen, Dublettenprüfung, Suchprofile und Telegram-Zustellung.
 
-## Zielarchitektur v3
+- [Architektur](docs/ARCHITECTURE.md)
+- [Review vom 5. September 2026](docs/ARCHITECTURE_REVIEW_2026-09-05.md)
+- [Migrationsabgleich und Rollout](docs/MIGRATION_RECONCILIATION.md)
+- [Quellen und Connectoren](docs/source-connectors.md)
 
-```text
-pg_cron
-  -> source_jobs (PGMQ)
-  -> source-worker (max. 3 Source-Jobs parallel)
-  -> Coverage Adapter
-  -> listings
-  -> listing_dedupe_groups
-  -> SQL Matching
-  -> delivery_events
-  -> notification-dispatcher
-  -> Telegram
+## Pipeline
+
+Cron plant Source-Jobs in PGMQ ein. Der Source-Worker wählt den passenden Adapter, speichert Inserate und lässt Qualität, Aktualität, Dubletten und Matching durch SQL prüfen. Der Notification-Dispatcher verarbeitet die daraus erzeugten Delivery-Ereignisse. Telegram-Gateway, UI und Premium-Funktionen bearbeiten Nutzereingaben.
+
+Supabase `sources` und `source_connectors` sind die produktive Quellenkonfiguration. K1/K2/K3 und Live/Shadow sind getrennt. Je Quelle sind höchstens ein Primärconnector und zwei Fallbacks aktiviert.
+
+## Tests
+
+Node 24 vorausgesetzt:
+
+```sh
+npm ci --ignore-scripts
+npm test
 ```
 
-Es gibt keine userabhängigen Portal-Suchen. Eine Quelle wird global gecrawlt; neue oder geänderte Listings werden anschließend intern gegen das eine Suchprofil des Nutzers gematcht.
+Die Tests verwenden synthetische Daten und führen keinen Telegram-Versand aus. Die SQL-Tests prüfen die neue Migration mit einem vereinfachten PGMQ-Testmodell. Vor einem produktiven Rollout ist ein Integrationstest mit echter Supabase-/PGMQ-Umgebung erforderlich.
 
-## Runtime
+## Deployment-Status
 
-- **Supabase Postgres** – 14 Public-Kerntabellen für Quellen, Listings, Nutzer, Matching-/Delivery-State und Hamburg-Geografie.
-- **Supabase PGMQ** – genau eine produktive Queue: `source_jobs`.
-- **Supabase Edge Functions** – drei produktive Kernbereiche: `source-worker`, `notification-dispatcher`, `telegram-ui`.
-- **`telegram-fallback-logo`** – kleiner UI-Helfer für bestehende gespeicherte Listing-Karten; kein Source-Worker und kein eigener Scheduling-Pfad.
-- **Supabase Cron + pg_net** – Source-Scheduler jede Minute, Source-Worker jede Minute, Notification-Dispatcher jede Minute und tägliche Maintenance.
-- **Supabase Vault** – Bot-Token und interne Secrets; keine Secrets im Repository.
+Dieser Review-Stand ist ein Änderungsvorschlag. Produktion und GitHub hatten unterschiedliche Dispatcher-Implementierungen und Migrationsnummern. Vor dem Rollout die Historie abgleichen, die additive Migration anwenden und danach die Worker deployen. Den bisherigen Dispatcher vor dem Austausch auslaufen lassen. Keine historischen Migrationen blind erneut ausführen.
 
-## Quellenmodell
-
-Die fachliche Quellenkategorie und die technische Runtime sind bewusst getrennt:
-
-- `tier` = K1/K2/K3 aus der verbindlichen 65-Quellen-Mastertabelle. Diese Kategorisierung wird nicht aus Connector-Qualität abgeleitet.
-- `runtime_mode` = `live` oder `shadow`.
-- `crawl_priority` = Reihenfolge gleichzeitig fälliger Quellen.
-- `poll_interval_minutes` = tatsächliche Abruffrequenz; unabhängig von K1/K2/K3.
-- `coverage_strategy` = `adaptive_partition`, `district_pagination`, `tenant_api`, `pagination`, `full_page`, `availability` oder `generic`.
-- P1/P2/P3 in `source_connectors` = Primärconnector, Fallback 1, Fallback 2.
-
-Aktueller Betriebszustand: **65 Quellen im Katalog, davon 56 live und 9 shadow**.
-
-### Spezielle Coverage-Strategien
-
-- **ImmoScout24**: 7 Hamburger Bezirke -> adaptive Preispartitionierung über MCP -> Stadtteil-Fallback bei nicht weiter teilbaren gesättigten Preis-Leaves.
-- **Kleinanzeigen**: 7 Hamburger Bezirke -> vollständige Pagination mit persistentem Coverage-State.
-- **ImmoMio / ImmoSolve-HPM / strukturierte APIs**: vollständige Tenant-/API-Enumeration.
-- Kleine Angebotsseiten: Full-Page-Scan.
-
-Login-Schranken, CAPTCHAs und Anti-Bot-Schutz werden nicht umgangen. Ein HTTP-401/403-/Netzwerkfehler bleibt als Fehler sichtbar und verwendet kontrolliertes Backoff.
-
-## Scheduling
-
-Vier produktive Cron-Jobs:
-
-1. `source-scheduler-every-minute` – reiht alle fälligen Live-Quellen in `source_jobs` ein.
-2. `source-worker-every-minute` – ruft ausschließlich den kanonischen `source-worker` auf; dieser verarbeitet höchstens drei Source-Jobs gleichzeitig und zieht innerhalb seiner Laufzeit weitere Jobs nach.
-3. `notification-dispatcher-every-minute` – verarbeitet `delivery_events` und sendet passende Listings an Telegram.
-4. `architecture-maintenance-daily` – räumt technische Historie nach der definierten Retention auf.
-
-Fehler erhöhen das Backoff. Shadow-Quellen werden nicht in die normale Source Queue eingereiht.
-
-## Baseline und Zustellung
-
-Eine Quelle darf vorhandenen Altbestand beim ersten vollständigen Coverage-Lauf nicht als neue Telegram-Treffer ausliefern. `baseline_completed_at` trennt Baseline von Live-Zustellung.
-
-Nach erfolgreicher Baseline gilt:
-
-```text
-neues primäres Listing
-  -> SQL Matching
-  -> delivery_events
-  -> notification-dispatcher
-  -> Telegram
-```
-
-Es gibt keine separaten Runtime-Tabellen `matches`, `notification_outbox`, `canonical_listings` oder `listing_occurrences` mehr.
-
-## Suchprofil
-
-Es gilt **genau ein Suchprofil pro Nutzer**. Die Datenbank erzwingt dies über einen Unique Index auf `search_profiles(user_id)`. Ein erneutes Durchlaufen von `/suche` ersetzt das bestehende Profil beim Aktivieren, statt ein zweites Profil anzulegen.
-
-Der Telegram-Onboarding-Flow besteht aus genau fünf Fragen:
-
-1. Objekttyp
-2. Gebiet
-3. maximale Warmmiete: 800 €, 1.000 €, 1.250 €, 1.500 € oder eigener Betrag bis maximal 5.000 €
-4. Mindestzimmer: 1+, 2+, 3+ oder 4+
-5. Mindestfläche: 30, 50, 70 oder 90 m²
-
-Danach folgt direkt die Suchprofil-Vorschau. WBS, Möblierung, Profilname, „Kein Limit“, „Egal“ und freie Flächeneingabe sind kein Teil des Onboardings mehr.
-
-## Repository
-
-```text
-.github/workflows/
-  architecture-check.yml
-
-docs/
-  ARCHITECTURE.md
-  MIGRATION_RECONCILIATION.md
-  source-connectors.md
-
-supabase/
-  functions/
-    source-worker/
-    notification-dispatcher/
-    telegram-ui/
-    telegram-fallback-logo/
-  migrations/
-  seed.sql
-```
-
-Die Source-Adapter sind Module innerhalb von `source-worker`; sie sind keine eigenen deployten Source-Edge-Functions mehr. Historische Migrationen bleiben als Migrationshistorie erhalten, auch wenn sie alte Architekturgenerationen beschreiben.
-
-## GitOps
-
-- Supabase `sources` und `source_connectors` sind die Runtime-Source-of-Truth.
-- Architekturänderungen werden über Migrationen versioniert.
-- `docs/ARCHITECTURE.md` beschreibt den aktuellen Ziel- und Produktionsstand.
-- `.github/workflows/architecture-check.yml` verhindert das erneute Einführen der entfernten Legacy-Runtime-Pfade.
-
-## Telegram Commands
-
-- `/start`
-- `/suche`
-- `/gespeichert`
-- `/einstellungen`
-- `/pause`
-- `/resume`
-- `/status`
-- `/hilfe`
+Die frühere Anforderung von fünf Minuten Polling, 15 Sekunden Versandabstand und keinem Source-Backoff entspricht derzeit nicht dem Live-Stand. Details und Folgearbeiten stehen im Review.

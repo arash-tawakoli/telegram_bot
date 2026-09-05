@@ -1,97 +1,53 @@
-# Architektur v3
+# Architektur und Betriebsstand
 
-## Ziel
-
-Eine einzige Orchestrierung für alle 65 Quellen: keine userabhängigen Portal-Suchen, keine Source-spezifischen Scheduler, keine parallelen Match-/Outbox-/Enrichment-Pipelines.
+Stand: 5. September 2026. Detaillierte Befunde, Testgrenzen und Rollout: [Architektur-Review](ARCHITECTURE_REVIEW_2026-09-05.md).
 
 ```mermaid
-flowchart LR
-  C[pg_cron: jede Minute] --> E[enqueue_due_source_jobs]
-  E --> Q[(PGMQ source_jobs)]
-  Q --> W[source-worker\nmax. 3 Jobs parallel]
-  W --> A[Coverage Adapter]
-  A --> L[(listings)]
-  L --> D[listing_dedupe_groups]
-  L --> M[SQL Matching]
-  M --> DE[(delivery_events)]
-  DE --> ND[notification-dispatcher]
-  ND --> TG[Telegram]
+flowchart TD
+  C[Source-Scheduler] --> Q[(Source-Jobs / PGMQ)]
+  Q --> W[Source-Worker]
+  W --> A[Quellenadapter und Transportfunktionen]
+  A --> L[(Inserate)]
+  L --> D[Deduplizierung und SQL-Matching]
+  D --> E[(Delivery-Ereignisse)]
+  E --> N[Notification-Dispatcher]
+  N --> T[Telegram]
+  G[Telegram-Gateway] --> U[Telegram-UI und Premium]
+  U --> P[(Nutzer und Suchprofile)]
+  P --> D
 ```
 
-## Source Worker
+## Verantwortlichkeiten
 
-`source-worker` ist die einzige produktive Source-Edge-Function. Der Worker liest `sources` und `source_connectors` und wählt den Adapter innerhalb desselben Deployments.
+- `sources` und `source_connectors` bleiben die Laufzeitkonfiguration für 65 Quellen. K1/K2/K3, Live/Shadow und Polling sind separate Eigenschaften.
+- `source-worker` übernimmt zentral die Jobs und wählt Quellenadapter. Transport-/Feed-Functions unterstützen einzelne Anbieter; sie haben keine eigene generische Source-Queue.
+- `listings` und `listing_dedupe_groups` tragen Bestand und Dublettenpräferenz. SQL-Trigger prüfen Qualität, Baseline, Aktualität und Suchprofilbedingungen.
+- `delivery_events` trägt die Zustellung; es gibt keine zusätzliche Notification-Outbox.
+- Telegram- und Stripe-Eingänge authentifizieren ihre Webhooks in der Anwendung. `verify_jwt=false` allein ist deshalb kein Sicherheitsfehler.
+- Premium-Rechte, Empfehlungen und bis zu drei Premium-Suchprofile sind Bestandteil der inzwischen erweiterten Runtime. Die alte Ein-Profil-Beschreibung war überholt.
 
-Coverage-Strategien:
+## Zuverlässigkeit nach diesem PR
 
-- `adaptive_partition`: ImmoScout – 7 Bezirke, adaptive Preispartitionierung über MCP, Stadtteil nur als Fallback.
-- `district_pagination`: Kleinanzeigen – 7 Bezirke plus Pagination.
-- `tenant_api`: Immomio, ImmoSolve/HPM und strukturierte APIs.
-- `pagination`: Resultlisten mit Seiten/Cursor.
-- `full_page`: kleine vollständige Angebotsseiten.
-- `availability`: Verfügbarkeits-/Booking-Systeme.
-- `generic`: Quelle bleibt live, bis ein spezifischer Adapter erforderlich ist.
+Source-Jobs besitzen einen zehnminütigen Visibility-Zeitraum und eine Versuchsnummer. Abgelaufene processing-Jobs werden wieder übernommen. `finish_source_job_attempt` akzeptiert nur den aktuellen Versuch; nach fünf abgestürzten Versuchen wird der Job abgeschlossen/archiviert, sodass die Quelle wieder eingeplant werden kann. Source- und Crawl-Persistierungsfehler werden weitergereicht.
 
-Die Coverage-Position liegt generisch in `source_coverage_state`; es gibt keine ImmoScout-spezifischen Inventory-Tabellen mehr.
+Delivery-Ereignisse werden atomar von pending/failed nach processing übernommen. Versuchsnummer und Reservierungszeit schützen die Bestätigung vor veralteten Workern. Abgelaufene Reservierungen werden nach zehn Minuten zur Wiederholung freigegeben. Das schützt vor parallelem Versand desselben Ereignisses, garantiert aber kein Exactly-once über die externe Telegram-API.
 
-## Scheduling
+Beide Worker starten nach rund 50 Sekunden keine neue Arbeit. Bereits laufende Operationen dürfen darüber hinausgehen. Drei Source-Jobs parallel gelten pro Aufruf, nicht als globale Parallelitätsgrenze.
 
-- Master Scheduler: jede Minute.
-- Alle fälligen Live-Quellen werden in `source_jobs` eingereiht.
-- `source-worker` verarbeitet höchstens 3 Source-Jobs gleichzeitig und zieht innerhalb seiner Laufzeit weitere Jobs nach.
-- Polling: ImmoScout/Kleinanzeigen 1 min; ausgewählte große Portale 2 min; K1 typischerweise 5 min; K2 10 min; K3 30 min.
-- Fehler erhalten zusätzlichen Backoff.
+Die Prämien-RPC ist auf die Service Role beschränkt und verlangt ein vorhandenes Suchprofil.
 
-`sources.crawl_priority` steuert die Reihenfolge gleichzeitig fälliger Quellen. `sources.tier` bleibt die unabhängige K1/K2/K3-Kategorisierung aus der fachlichen Mastertabelle.
+## Verifizierter Produktionsstand vor Rollout
 
-## Live und Shadow
+54 Quellen live, 11 shadow; 23 Public-Tabellen mit RLS; 21 deployte Edge Functions. Keine Quelle hat mehr als drei aktivierte Connectoren. Es bestehen sieben aktive Cron-Jobs einschließlich der Provider-Index-Prüfungen und Premium-Ablaufprüfung.
 
-`runtime_mode` ist von K1/K2/K3 getrennt. Shadow bedeutet: keine normale Crawl-/Delivery-Ausführung. Die Quelle bleibt trotzdem im 65-Quellen-Katalog in Supabase erhalten.
+Polling ist aktuell zwischen 1 und 60 Minuten konfiguriert; der Scheduler und Source-Retry enthalten zusätzlich Backoff. Der produktive Dispatcher besitzt keinen globalen 15-Sekunden-Takt. Die früher formulierte 5-Minuten-/15-Sekunden-Anforderung ist damit nicht umgesetzt. Dieser PR ändert diese Betriebsparameter nicht.
 
-## Baseline
+## Deployment
 
-Eine Quelle darf erst nach erfolgreicher Erstinventarisierung neue Inserate zustellen. `baseline_completed_at` verhindert, dass vorhandener Altbestand beim Cutover massenhaft an Telegram gesendet wird.
+Die Dispatcher-Dateien in diesem PR basieren auf der direkt aus Supabase gelesenen Version 27, anschließend ergänzt um Reservierung und Fehlerbehandlung. Die zuvor eingecheckte Implementierung war eine andere Variante mit zusätzlichen Digest-Pfaden; deren Vorhandensein im Repository belegt keine produktive Nutzung.
 
-## Listings, Dedupe und Delivery
+Der Migrationsabgleich ist offen: 62 von 125 bisherigen Repository-Versionen fehlen als identische Schlüssel im Live-Register. Neue Migration zuerst in einer isolierten Umgebung testen, Historie abgleichen, dann Migration vor Source-Worker deployen. Den alten Dispatcher vor der Umstellung auslaufen lassen. Details im Review.
 
-`listings` ist die einzige Listing-Ingestion-Tabelle. Cross-Source-Dubletten werden über `listing_dedupe_groups` zusammengeführt; `preferred_listing_id` bestimmt das auszuliefernde Vorkommen.
+## Validierung
 
-Neue primäre Listings werden direkt gegen das eine aktive Suchprofil des Users gematcht und als `delivery_events` eingereiht. Es gibt keine separaten Tabellen `matches`, `notification_outbox`, `canonical_listings` oder `listing_occurrences` mehr.
-
-`notification-dispatcher` verarbeitet `delivery_events` sequenziell je Ereignis und sendet die Telegram-Karte. Wenn ein Bild nicht verwendbar ist, fällt die Zustellung auf eine normale Textnachricht zurück statt eine zusätzliche Bild-Edge-Function zu benötigen.
-
-## Datenbank-Kern
-
-Die produktive Architektur besteht aus 14 Public-Kerntabellen:
-
-- `sources`, `source_connectors`, `source_coverage_state`, `source_jobs`, `crawl_runs`
-- `listings`, `listing_dedupe_groups`
-- `bot_users`, `search_profiles`, `saved_listings`, `delivery_events`, `bot_events`
-- `hamburg_boroughs`, `hamburg_neighborhoods`
-
-Es gibt genau eine PGMQ-Queue: `source_jobs`.
-
-## Cron
-
-Vier produktive Jobs:
-
-1. `source-scheduler-every-minute`
-2. `source-worker-every-minute`
-3. `notification-dispatcher-every-minute`
-4. `architecture-maintenance-daily`
-
-## GitOps
-
-Supabase `sources` und `source_connectors` sind die Runtime-Source-of-Truth. Ein zweiter `data/source_catalog.json` wird bewusst nicht gepflegt, damit kein Konfigurationsdrift entsteht.
-
-Produktionsschema wird über Migrationen versioniert. Die drei produktiven Runtime-Bereiche liegen in GitHub unter:
-
-- `supabase/functions/source-worker`
-- `supabase/functions/notification-dispatcher`
-- `supabase/functions/telegram-ui`
-
-Historische Migrationen bleiben erhalten. Obsolete Runtime-Implementierungen werden nach dem Cutover aus dem aktuellen Codebaum entfernt.
-
-## Bekannte Connector-Grenzen
-
-Architektur-Cutover und Connector-Coverage sind getrennte Zustände. ImmoScout nutzt die geprüfte MCP-Coverage-Strategie und ist damit nicht gleichbedeutend mit dem vollständigen öffentlichen ImmoScout-Webbestand. Kleinanzeigen kann bei serverseitigem HTTP-Zugriff 403 liefern; ein solcher Lauf wird als Fehler/Backoff behandelt und niemals als vollständige Baseline gewertet.
+Node 24: `npm ci --ignore-scripts && npm test`. Die CI führt Verhaltenstests zusätzlich zu Strukturprüfungen aus. SQL-Tests verwenden synthetische Daten und ein vereinfachtes PGMQ-Modell; echte Supabase-Integration und Lasttests bleiben Bestandteil des Rollouts.
