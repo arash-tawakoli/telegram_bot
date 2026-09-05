@@ -11,6 +11,15 @@ async function databaseQuery(query: PromiseLike<any>) {
     );
   }
 }
+async function persistCandidates(...args: Parameters<typeof upsertCandidates>) {
+  try {
+    return await upsertCandidates(...args);
+  } catch (error) {
+    throw new CrawlDatabaseError(
+      `Listing persistence failed: ${error instanceof Error ? error.message : (error as any)?.message || String(error)}`,
+    );
+  }
+}
 import {
   Candidate,
   Connector,
@@ -306,7 +315,7 @@ async function runSagaIndex(source: Source, connectors: Connector[]) {
     throw new Error(
       "SAGA public provider index returned no verified Hamburg rental apartments",
     );
-  const saved = await upsertCandidates(source, cands, false),
+  const saved = await persistCandidates(source, cands, false),
     picked = connectors.find((c) => !c.shadow_only) || connectors[0] || null,
     started = iso();
   await markSuccess(source, started, picked, cands.length, saved.fresh, {
@@ -511,7 +520,7 @@ export async function runGeneric(source: Source, connectors: Connector[]) {
         [fresh, allowNew],
       ] as [Candidate[], boolean][]) {
         if (!rows.length) continue;
-        const r = await upsertCandidates(source, rows, eligible);
+        const r = await persistCandidates(source, rows, eligible);
         seen += r.seen;
         created += r.fresh;
       }
@@ -638,8 +647,8 @@ export async function runGeneric(source: Source, connectors: Connector[]) {
             const all = [...eligibility.values()],
               rest = all.filter((x) => !x.eligible).map((x) => x.c),
               deliverable = all.filter((x) => x.eligible).map((x) => x.c),
-              restSaved = await upsertCandidates(source, rest, false),
-              deliverableSaved = await upsertCandidates(
+              restSaved = await persistCandidates(source, rest, false),
+              deliverableSaved = await persistCandidates(
                 source,
                 deliverable,
                 true,
@@ -742,12 +751,12 @@ export async function runGeneric(source: Source, connectors: Connector[]) {
           }
           const frontFresh =
             String(c.config?.freshness_mode || "") === "newest_first";
-          const frontSaved = await upsertCandidates(
+          const frontSaved = await persistCandidates(
               source,
               front.cands,
               frontFresh,
             ),
-            deepSaved = await upsertCandidates(source, deep, false);
+            deepSaved = await persistCandidates(source, deep, false);
           savedOverride = {
             seen: frontSaved.seen + deepSaved.seen,
             fresh: frontSaved.fresh + deepSaved.fresh,
@@ -826,7 +835,7 @@ export async function runGeneric(source: Source, connectors: Connector[]) {
             const newestFirst =
                 String(c.config?.freshness_mode || "") === "newest_first",
               allowNewest = !!source.baseline_completed_at && newestFirst;
-            const r = await upsertCandidates(
+            const r = await persistCandidates(
               source,
               x.cands,
               primaryTrustedSnapshot || allowNewest,
@@ -882,6 +891,13 @@ export async function runGeneric(source: Source, connectors: Connector[]) {
     }
     if (!picked)
       throw new Error(meta.last_connector_error || "no connector succeeded");
+    // A generic parser accepting zero listings does not prove an empty inventory.
+    // Keep existing listings until a structured adapter verifies their removal.
+    if (!cands.length) {
+      complete = false;
+      primaryTrustedSnapshot = false;
+      meta.empty_result_unverified = true;
+    }
     const trustedSnapshot =
       primaryTrustedSnapshot ||
       (complete &&
@@ -889,7 +905,7 @@ export async function runGeneric(source: Source, connectors: Connector[]) {
         ["tenant_api", "full_page"].includes(source.coverage_strategy) &&
         picked.priority === effectivePrimaryPriority);
     const saved =
-      savedOverride || (await upsertCandidates(source, cands, trustedSnapshot));
+      savedOverride || (await persistCandidates(source, cands, trustedSnapshot));
     if (
       successfulLaneCount <= 1 &&
       complete &&

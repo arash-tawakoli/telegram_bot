@@ -19,11 +19,11 @@ async function upsertCoverage(source:Source,cands:Candidate[]){const saved=cands
 
 export async function runKlein(source:Source){const started=iso();try{
   const transportSecret=await internalSecret();
-  let{data:st}=await db.from('source_coverage_state').select('*').eq('source_id',2).maybeSingle();
+  let{data:st}=await db.from('source_coverage_state').select('*').eq('source_id',2).maybeSingle().throwOnError();
   const legacy=st?.status!=='running'||Number(st?.cursor?.v||0)!==2;
   const cycle=legacy?crypto.randomUUID():String(st.cycle_id);
   const cursor:any=legacy?{v:2,district:0,page:2,pages:{},totals:{},fast_checked_at:null}:st.cursor;
-  if(legacy){await db.from('source_coverage_state').upsert({source_id:2,cycle_id:cycle,strategy:'district_hybrid',status:'running',cursor,cycle_started_at:started,cycle_finished_at:null,seen_count:0,request_count:0,consecutive_errors:0,backoff_until:null,last_error:null,updated_at:started});st={...st,cycle_id:cycle,cycle_started_at:started,seen_count:0,request_count:0,status:'running',cursor}}
+  if(legacy){await db.from('source_coverage_state').upsert({source_id:2,cycle_id:cycle,strategy:'district_hybrid',status:'running',cursor,cycle_started_at:started,cycle_finished_at:null,seen_count:0,request_count:0,consecutive_errors:0,backoff_until:null,last_error:null,updated_at:started}).throwOnError();st={...st,cycle_id:cycle,cycle_started_at:started,seen_count:0,request_count:0,status:'running',cursor}}
 
   const pages:any={...(cursor.pages||{})},totals:any={...(cursor.totals||{})};
   const initializing=D.some(([s])=>!Number(pages[s]));
@@ -39,7 +39,7 @@ export async function runKlein(source:Source){const started=iso();try{
   const fastSaved=fastItems.length?await upsertCandidates(source,fastItems,true):{seen:0,fresh:0};
   const missing=D.filter(([s])=>!Number(pages[s])).map(([s])=>s);
   const fastCheckedAt=fastDue&&!fastErrors.length?iso():cursor.fast_checked_at||null;
-  if(missing.length){const msg=`missing first pages: ${missing.join(', ')}${fastErrors.length?` | ${fastErrors.join(' | ')}`:''}`.slice(0,1000);await db.from('source_coverage_state').update({status:'running',cursor:{...cursor,pages,totals,fast_checked_at:fastCheckedAt},expected_count:Object.values(totals).reduce((a:any,x:any)=>a+Number(x||0),0),request_count:Number(st?.request_count||0)+fastRequests,consecutive_errors:Number(st?.consecutive_errors||0)+1,backoff_until:null,updated_at:iso(),last_error:msg}).eq('source_id',2);throw new Error(`Kleinanzeigen first-page coverage incomplete: ${msg}`)}
+  if(missing.length){const msg=`missing first pages: ${missing.join(', ')}${fastErrors.length?` | ${fastErrors.join(' | ')}`:''}`.slice(0,1000);await db.from('source_coverage_state').update({status:'running',cursor:{...cursor,pages,totals,fast_checked_at:fastCheckedAt},expected_count:Object.values(totals).reduce((a:any,x:any)=>a+Number(x||0),0),request_count:Number(st?.request_count||0)+fastRequests,consecutive_errors:Number(st?.consecutive_errors||0)+1,backoff_until:null,updated_at:iso(),last_error:msg}).eq('source_id',2).throwOnError();throw new Error(`Kleinanzeigen first-page coverage incomplete: ${msg}`)}
 
   let district=Math.max(0,Number(cursor.district||0)),page=Math.max(2,Number(cursor.page||2));
   while(district<D.length&&page>Number(pages[D[district][0]]||1)){district++;page=2}
@@ -53,14 +53,14 @@ export async function runKlein(source:Source){const started=iso();try{
   }
   const coverageSaved=await upsertCoverage(source,coverageItems);
   const complete=district>=D.length&&!coverageError,t=iso(),cycleStarted=String(st?.cycle_started_at||started);
-  if(complete)await db.from('listings').update({is_active:false}).eq('source_id',2).eq('is_active',true).lt('last_seen_at',cycleStarted);
+  if(complete)await db.from('listings').update({is_active:false}).eq('source_id',2).eq('is_active',true).lt('last_seen_at',cycleStarted).throwOnError();
 
   const requests=fastRequests+coverageRequests;
   const seenIncrement=coverageSaved.seen+(initializing?fastSaved.seen:0);
   const nextCursor={v:2,district:complete?0:district,page:complete?2:page,pages:complete?{}:pages,totals:complete?{}:totals,fast_checked_at:fastCheckedAt};
   const partialErrors=[...(fastErrors.length?[`fast lane partial: ${fastErrors.join(' | ')}`]:[]),...(coverageError?[`coverage partial: ${coverageError}`]:[])];
-  await db.from('source_coverage_state').update({status:complete?'complete':'running',strategy:'district_hybrid',cursor:nextCursor,expected_count:Object.values(totals).reduce((a:any,x:any)=>a+Number(x||0),0),seen_count:Number(st?.seen_count||0)+seenIncrement,request_count:Number(st?.request_count||0)+requests,cycle_finished_at:complete?t:null,last_complete_at:complete?t:st?.last_complete_at||null,consecutive_errors:coverageError?Number(st?.consecutive_errors||0)+1:0,backoff_until:null,last_error:partialErrors.length?partialErrors.join(' | ').slice(0,900):null,updated_at:t}).eq('source_id',2);
+  await db.from('source_coverage_state').update({status:complete?'complete':'running',strategy:'district_hybrid',cursor:nextCursor,expected_count:Object.values(totals).reduce((a:any,x:any)=>a+Number(x||0),0),seen_count:Number(st?.seen_count||0)+seenIncrement,request_count:Number(st?.request_count||0)+requests,cycle_finished_at:complete?t:null,last_complete_at:complete?t:st?.last_complete_at||null,consecutive_errors:coverageError?Number(st?.consecutive_errors||0)+1:0,backoff_until:null,last_error:partialErrors.length?partialErrors.join(' | ').slice(0,900):null,updated_at:t}).eq('source_id',2).throwOnError();
   await markSuccess(source,started,null,fastItems.length+coverageItems.length,fastSaved.fresh+coverageSaved.fresh,{strategy:'7_borough_current_fast_lane_plus_inventory_cursor',transport:'supabase_kleinanzeigen_transport',cycle_id:cycle,fast_lane:fastDue,fast_requests:fastRequests,fast_opens:fastOpens,fast_accepted:fastItems.length,fast_rejected_stale:fastRejectedStale,fast_freshness_window_hours:24,fast_errors:fastErrors,coverage_page:coverageLabel,coverage_requests:coverageRequests,coverage_opens:coverageOpens,coverage_accepted:coverageItems.length,coverage_error:coverageError,coverage_new_eligible:0,next_district:complete?null:D[district]?.[0]||null,next_page:complete?null:page,expected_count:Object.values(totals).reduce((a:any,x:any)=>a+Number(x||0),0),complete});
   return{ok:true,source_id:2,fetched:fastItems.length+coverageItems.length,new:fastSaved.fresh,fast_lane:fastDue,fast_rejected_stale:fastRejectedStale,coverage_page:coverageLabel,coverage_accepted:coverageItems.length,coverage_new_eligible:0,next:complete?null:{district:D[district]?.[0]||null,page},complete};
-}catch(e){const t=iso(),{data:st}=await db.from('source_coverage_state').select('consecutive_errors').eq('source_id',2).maybeSingle();await db.from('source_coverage_state').update({status:'running',consecutive_errors:Number(st?.consecutive_errors||0)+1,last_error:String(e).slice(0,1000),backoff_until:null,updated_at:t}).eq('source_id',2);return markFailure(source,started,e)}}
+}catch(e){const t=iso(),{data:st}=await db.from('source_coverage_state').select('consecutive_errors').eq('source_id',2).maybeSingle().throwOnError();await db.from('source_coverage_state').update({status:'running',consecutive_errors:Number(st?.consecutive_errors||0)+1,last_error:String(e).slice(0,1000),backoff_until:null,updated_at:t}).eq('source_id',2).throwOnError();return markFailure(source,started,e)}}
 
