@@ -24,7 +24,7 @@ npm ci --ignore-scripts
 npm test
 ```
 
-Die 26 Tests verwenden synthetische Daten und führen keinen Telegram-Versand aus. Die SQL-Suite verwendet PGlite mit einem vereinfachten PGMQ-Modell. Zusätzlich wurde ein Integrationstest gegen echtes PostgreSQL/PGMQ in einer zurückgerollten Transaktion durchgeführt. `node scripts/check-runtime.mjs` prüft 22 Function-Snapshots und 142 kanonische Migrationen.
+Die 28 Tests verwenden synthetische Daten und führen keinen Telegram-Versand aus. Die SQL-Suite verwendet PGlite mit einem vereinfachten PGMQ-Modell. Zusätzlich wurde ein Integrationstest gegen echtes PostgreSQL/PGMQ in einer zurückgerollten Transaktion durchgeführt. `node scripts/check-runtime.mjs` prüft 22 Function-Snapshots und 142 kanonische Migrationen.
 
 ## Deployment-Status
 

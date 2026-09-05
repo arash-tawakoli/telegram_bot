@@ -50,4 +50,4 @@ Die Dispatcher-Dateien in diesem PR basieren auf der direkt aus Supabase gelesen
 
 ## Validierung
 
-Node 24: `npm ci --ignore-scripts && npm test && node scripts/check-runtime.mjs`. 26 Verhaltenstests einschließlich vollständigem Dispatcher-Handler. Zusätzlich reales PostgreSQL/PGMQ mit Rollback sowie authentifizierte/unauthentifizierte HTTP-Proben. Kein vollständiger Lasttest und kein Nachweis vollständiger Enumeration aller externen Anbieter. Echte Versandbestätigungen nach der v30-Korrektur sind im Rolloutbericht dokumentiert.
+Node 24: `npm ci --ignore-scripts && npm test && node scripts/check-runtime.mjs`. 28 Verhaltenstests einschließlich vollständigem Dispatcher-Handler. Zusätzlich reales PostgreSQL/PGMQ mit Rollback sowie authentifizierte/unauthentifizierte HTTP-Proben. Kein vollständiger Lasttest und kein Nachweis vollständiger Enumeration aller externen Anbieter. Echte Versandbestätigungen nach der v30-Korrektur sind im Rolloutbericht dokumentiert.
