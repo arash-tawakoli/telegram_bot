@@ -8,6 +8,7 @@ import { runHpm } from "./hpm.ts";
 import { runGeneric } from "./generic.ts";
 import { runClaimedJob } from "./job-runner.ts";
 import { runPublicInventory } from "./public-inventory.ts";
+import { runNestpick } from "./nestpick.ts";
 
 async function processSource(id: number) {
   const { data: source, error } = await db
@@ -30,6 +31,7 @@ async function processSource(id: number) {
   if (id === 1) return runScout(s);
   if (id === 2) return runKlein(s);
   const primary = connectors.find((c) => !c.shadow_only) || connectors[0];
+  if(primary?.config?.adapter==='source-worker/nestpick-public')return runNestpick(s,primary);
   if(primary && ['source-worker/tag-public','source-worker/urban-public','source-worker/heim-public'].includes(String(primary.config?.adapter)))
     return runPublicInventory(s,primary);
   if (id === 8 && connectors.length) return runGcp(s, connectors);

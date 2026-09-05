@@ -157,14 +157,14 @@
     },
     {
       "slug": "notification-dispatcher",
-      "version": 30,
+      "version": 35,
       "verify_jwt": false,
       "entrypoint": "supabase/functions/notification-dispatcher/index.ts",
       "import_map": false,
       "files": [
         {
           "path": "supabase/functions/notification-dispatcher/index.ts",
-          "sha256": "9d41d1591a35edb637d8ae503086be9b0ac02d5528ac46842fb1d4e36bd1297e"
+          "sha256": "3b66e5380307f69faa5269930ee7ad45d05fd4c3708314c7fd07d556a212f5fe"
         },
         {
           "path": "supabase/functions/notification-dispatcher/telegram-request.ts",
@@ -180,7 +180,7 @@
         },
         {
           "path": "supabase/functions/notification-dispatcher/labels.ts",
-          "sha256": "8f45c5a88a4adbcba6a6b0747b738a472440b85abd4e0236c091eede606c6d2e"
+          "sha256": "804ae2463f7cda693a8c9584096338a4b1f21583910fd4c76824a03dd44c4417"
         }
       ],
       "retired": false
@@ -209,14 +209,14 @@
     },
     {
       "slug": "source-worker",
-      "version": 53,
+      "version": 54,
       "verify_jwt": false,
       "entrypoint": "supabase/functions/source-worker/index.ts",
       "import_map": true,
       "files": [
         {
           "path": "supabase/functions/source-worker/index.ts",
-          "sha256": "e47626764c9f9b20697ceb959a20dcbdbeead1c765df105838add4eac824ddbb"
+          "sha256": "78e58eb44dc16bc4b4d262837b88b7230191dd1e4c5dde23ffbdb496b8551cbc"
         },
         {
           "path": "supabase/functions/source-worker/shared.ts",
@@ -261,6 +261,10 @@
         {
           "path": "supabase/functions/source-worker/public-inventory.ts",
           "sha256": "46befb2e5e3060b6d81b1f2b0306b3f7d4a4c50fc13dc78eec1f97be7654e50f"
+        },
+        {
+          "path": "supabase/functions/source-worker/nestpick.ts",
+          "sha256": "7e65ae24919b449d5dd9d6761fc72382d4afb16ced6c6f96ae04b6f3f899c991"
         }
       ],
       "retired": false
