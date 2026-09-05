@@ -13,7 +13,7 @@ Stand: 5. September 2026. Bestandsaufnahme ca. 07:55 UTC, Versandstörung nachge
 ## Prioritäten
 
 1. Versand wiederherstellen und echte Telegram-message_id/DB-Bestätigung prüfen (v30 umgesetzt).
-2. Registry und effektiven Codepfad angleichen: ImmoScout führt MCP statt Yahoo aus; spezielle ImmoMio/HPM-Adapter führen generische Fallbacks nicht automatisch aus.
+2. Registry und effektiven Codepfad angleichen: ImmoScout-MCP ist jetzt korrekt eingetragen, ungenutzte Portalpfade sind als Diagnose markiert. Spezielle ImmoMio/HPM-Adapter führen generische Fallbacks weiterhin nicht automatisch aus.
 3. Heimstaden, Nestpick, Smartments und Urban Living: `duplicate_target`-Fallbacks durch tatsächlich andere Transport-/Datenpfade ersetzen, sobald verifiziert.
 4. TAG, Schiffszimmerer und weitere generische Leerquellen: strukturierte Daten bzw. legitime öffentliche Tenant-Feeds prüfen; Parserleerstand nicht als bestätigten Nullbestand melden.
 5. Für SAGA/Immomio-Anbieter eine autorisierte, nutzergebundene Angebotsanbindung prüfen. Private Bewerberangebote niemals an sämtliche Bot-Nutzer verteilen.
@@ -25,7 +25,7 @@ Neu/24h = neu angelegte Datenbankzeilen in der ersten Abfrage, nicht zugesichert
 
 | ID | Quelle | Modus | Aktiver Primärpfad laut Registry | Neu/24h | Empfehlung |
 |---:|---|---|---|---:|---|
-| 1 | [ImmobilienScout24 Hamburg](https://www.immobilienscout24.de) | live | **Effektiv MCP; Registry veraltet** | 64 | MCP beibehalten; Registry auf den tatsächlich ausgeführten Adapter korrigieren. Autorisierte Search-API nur mit passender Freigabe; Yahoo/Bing sind derzeit keine ausgeführten Fallbacks. |
+| 1 | [ImmobilienScout24 Hamburg](https://www.immobilienscout24.de) | live | MCP (Registry korrigiert) | 64 | MCP beibehalten; Registry wurde auf den tatsächlich ausgeführten Adapter korrigiert. Autorisierte Search-API nur mit passender Freigabe; Yahoo/Bing sind derzeit keine ausgeführten Fallbacks. |
 | 2 | [Kleinanzeigen Hamburg](https://www.kleinanzeigen.de) | live | Kleinanzeigen 7-district hybrid coverage | 183 | Bezirksadapter beibehalten; Fehlseiten pro Bezirk sichtbar machen. Eigene Suchauftrag-E-Mails als unabhängiger Fallback möglich, mit gesonderter Postfachfreigabe. |
 | 3 | [Immowelt Hamburg](https://www.immowelt.de) | live | Public Search | 94 | Suchseiten/Sitemap beibehalten; Sättigung und Freshness zwischen Worker und SQL angleichen. Suchassistent-E-Mails als zweiter Transport, keine zusätzliche Anbieterquelle. |
 | 4 | [SAGA](https://www.saga.hamburg) | live | SAGA filtered public provider index fallback | 1 | Hohe Priorität: Index ist lückenhaft, Direktprobe HTTP 401. Offiziellen öffentlichen Feed/Immomio-Zugang anfragen; persönliche Immomio-Angebote nur nutzergebunden importieren. Kein Schutz-Bypass. |

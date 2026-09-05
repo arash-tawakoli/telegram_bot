@@ -209,7 +209,7 @@
     },
     {
       "slug": "source-worker",
-      "version": 50,
+      "version": 52,
       "verify_jwt": false,
       "entrypoint": "supabase/functions/source-worker/index.ts",
       "import_map": true,
@@ -228,11 +228,11 @@
         },
         {
           "path": "supabase/functions/source-worker/scout.ts",
-          "sha256": "5c606696551663d2a9fb42d61e3921d7dc018fb3b900def47666d28676e113c0"
+          "sha256": "c5c30513ba697bf915a4665e35aedc91701f2b2105abd3c79172b63fdb270a99"
         },
         {
           "path": "supabase/functions/source-worker/klein.ts",
-          "sha256": "f22c1b9e97a3ce50bc9257f25979d0ec80f15f98835462be671183f21f468f38"
+          "sha256": "8fe7770c3b6f149d7f1a102c56e656416acf00b64d8ea2308ae51fe913872559"
         },
         {
           "path": "supabase/functions/source-worker/gcp.ts",
@@ -240,15 +240,15 @@
         },
         {
           "path": "supabase/functions/source-worker/immomio.ts",
-          "sha256": "46de123bdc7dbd7d8938337df29c81b07c2b3882fa0363f5d6b01e114c7f7cc3"
+          "sha256": "352d38adcd5f81041602549437dd827de979b904164e403cd91c05cd0adf7eff"
         },
         {
           "path": "supabase/functions/source-worker/hpm.ts",
-          "sha256": "fc6963cdeaf1466a40db919da20691e370717d3763026749c2bc0b7c13161e0e"
+          "sha256": "9c947ce4f287f5340b41164a161aae35624cb2727dd5a30828d04f1bc9cc887f"
         },
         {
           "path": "supabase/functions/source-worker/generic.ts",
-          "sha256": "fe053d2aa99c985065cb266e315c27786cf888d1a780a14e4a94f863a3206383"
+          "sha256": "8f8320ed729ca6d3e68056f042eece72b0313a5b690d1ac9615d660a5290cb82"
         },
         {
           "path": "supabase/functions/source-worker/job-runner.ts",
