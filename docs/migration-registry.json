@@ -1249,6 +1249,36 @@
     "supabase/migrations/20260905002000_fix_noncoop_generic_routing.sql",
     "supabase/migrations/20260905013100_route_meravis_official_card_feed.sql",
     "supabase/migrations/20260905015000_route_spacest_public_api_feed.sql",
-    "supabase/migrations/20260905015200_enable_new_id_freshness_spacest_meravis.sql"
+    "supabase/migrations/20260905015200_enable_new_id_freshness_spacest_meravis.sql",
+    "supabase/migrations/20260906014500_telegram_prepare_update_low_latency.sql",
+    "supabase/migrations/20260906024100_telegram_fast_command_snapshot.sql",
+    "supabase/migrations/20260906024200_telegram_fast_request_auth.sql",
+    "supabase/migrations/20260906024300_telegram_fast_action_language_guard.sql"
+  ],
+  "reconciled_migration_aliases": [
+    {
+      "retired_file": "supabase/migrations/20260906014500_telegram_prepare_update_low_latency.sql",
+      "canonical_file": "supabase/migrations/20260905233819_telegram_prepare_update_low_latency.sql",
+      "original_repository_ref": "796eb432ce71cf98ba0b9aadd9927d4202150006",
+      "reason": "Repository filename differs from applied Supabase migration version; original retained in Git history."
+    },
+    {
+      "retired_file": "supabase/migrations/20260906024100_telegram_fast_command_snapshot.sql",
+      "canonical_file": "supabase/migrations/20260906004244_telegram_fast_command_snapshot.sql",
+      "original_repository_ref": "796eb432ce71cf98ba0b9aadd9927d4202150006",
+      "reason": "Repository filename differs from applied Supabase migration version; original retained in Git history."
+    },
+    {
+      "retired_file": "supabase/migrations/20260906024200_telegram_fast_request_auth.sql",
+      "canonical_file": "supabase/migrations/20260906004318_telegram_fast_request_auth.sql",
+      "original_repository_ref": "796eb432ce71cf98ba0b9aadd9927d4202150006",
+      "reason": "Repository filename differs from applied Supabase migration version; original retained in Git history."
+    },
+    {
+      "retired_file": "supabase/migrations/20260906024300_telegram_fast_action_language_guard.sql",
+      "canonical_file": "supabase/migrations/20260906004424_telegram_fast_action_language_guard.sql",
+      "original_repository_ref": "796eb432ce71cf98ba0b9aadd9927d4202150006",
+      "reason": "Repository filename differs from applied Supabase migration version; original retained in Git history."
+    }
   ]
 }
