@@ -3,7 +3,7 @@
   "functions": [
     {
       "slug": "billing-maintenance",
-      "version": 1,
+      "version": 7,
       "verify_jwt": false,
       "entrypoint": "supabase/functions/billing-maintenance/index.ts",
       "import_map": false,
@@ -157,7 +157,7 @@
     },
     {
       "slug": "notification-dispatcher",
-      "version": 35,
+      "version": 37,
       "verify_jwt": false,
       "entrypoint": "supabase/functions/notification-dispatcher/index.ts",
       "import_map": false,
@@ -187,14 +187,14 @@
     },
     {
       "slug": "source-shadow",
-      "version": 1,
+      "version": 6,
       "verify_jwt": false,
       "entrypoint": "supabase/functions/source-shadow/index.ts",
       "import_map": false,
       "files": [
         {
           "path": "supabase/functions/source-shadow/index.ts",
-          "sha256": "c0e4f7612d7292baad3ac1fadb8888559f0422b9ad6e882d7265a3e6b2b516cf"
+          "sha256": "30c34d8ea3fb4963b358db66aa9d1930e7869e550fdcd24fede75ac4e87953f1"
         },
         {
           "path": "supabase/functions/source-worker/shared.ts",
@@ -209,14 +209,14 @@
     },
     {
       "slug": "source-worker",
-      "version": 54,
+      "version": 55,
       "verify_jwt": false,
       "entrypoint": "supabase/functions/source-worker/index.ts",
       "import_map": true,
       "files": [
         {
           "path": "supabase/functions/source-worker/index.ts",
-          "sha256": "78e58eb44dc16bc4b4d262837b88b7230191dd1e4c5dde23ffbdb496b8551cbc"
+          "sha256": "b1802532f1790892caada63cd323f0ee34f8dfeb53cb00de26b47b7d7fe54b67"
         },
         {
           "path": "supabase/functions/source-worker/shared.ts",
@@ -240,7 +240,11 @@
         },
         {
           "path": "supabase/functions/source-worker/immomio.ts",
-          "sha256": "352d38adcd5f81041602549437dd827de979b904164e403cd91c05cd0adf7eff"
+          "sha256": "a5b88656fc84eaef6e48a64bcb13d205c42af64ebf90c5cc1cef0c12ec6f3f87"
+        },
+        {
+          "path": "supabase/functions/source-worker/immomio-inventory.ts",
+          "sha256": "252e0b07be53a2457e436aeabf57129865ca66e5f7480172697c739ef549f038"
         },
         {
           "path": "supabase/functions/source-worker/hpm.ts",
@@ -248,23 +252,31 @@
         },
         {
           "path": "supabase/functions/source-worker/generic.ts",
-          "sha256": "8f8320ed729ca6d3e68056f042eece72b0313a5b690d1ac9615d660a5290cb82"
+          "sha256": "ed3858ae0b6c546a026ea99329200163f268e92f5fef00aaeaede38293db9719"
         },
         {
           "path": "supabase/functions/source-worker/job-runner.ts",
           "sha256": "df86fcd10904dcef618e1205c00511c978c3971ee847ac48527c03148b9b335a"
         },
         {
-          "path": "supabase/functions/source-worker/deno.json",
-          "sha256": "f5a48954ebfadfc88c535c402042cd8dd8bc9a42a991b469d683a9524c8598a7"
+          "path": "supabase/functions/source-worker/public-inventory.ts",
+          "sha256": "0458f6b13c80e57906de9edd645fe63c9fb6379cb12df6be9b53f6bef5b91802"
         },
         {
-          "path": "supabase/functions/source-worker/public-inventory.ts",
-          "sha256": "46befb2e5e3060b6d81b1f2b0306b3f7d4a4c50fc13dc78eec1f97be7654e50f"
+          "path": "supabase/functions/source-worker/cooperative-inventory.ts",
+          "sha256": "14e9e171d541d0e17db181135517212305725d01ce619620aacad01af1c3ebe0"
         },
         {
           "path": "supabase/functions/source-worker/nestpick.ts",
           "sha256": "7e65ae24919b449d5dd9d6761fc72382d4afb16ced6c6f96ae04b6f3f899c991"
+        },
+        {
+          "path": "supabase/functions/source-worker/catalog.ts",
+          "sha256": "2506a49d5f4dd90957afd6cfce361da375dc0ab634f6428026bcf35b625985da"
+        },
+        {
+          "path": "supabase/functions/source-worker/deno.json",
+          "sha256": "f5a48954ebfadfc88c535c402042cd8dd8bc9a42a991b469d683a9524c8598a7"
         }
       ],
       "retired": false
@@ -285,7 +297,7 @@
     },
     {
       "slug": "stripe-webhook",
-      "version": 13,
+      "version": 19,
       "verify_jwt": false,
       "entrypoint": "supabase/functions/stripe-webhook/index.ts",
       "import_map": false,
@@ -313,14 +325,14 @@
     },
     {
       "slug": "telegram-gateway",
-      "version": 13,
+      "version": 22,
       "verify_jwt": false,
       "entrypoint": "supabase/functions/telegram-gateway/index.ts",
       "import_map": false,
       "files": [
         {
           "path": "supabase/functions/telegram-gateway/index.ts",
-          "sha256": "40441ed157dfc43928a2552d63012067870979afb85f7f978a4414e289821bf0"
+          "sha256": "320c6b8ea869d75c4d1eb68726dfcb55e4d51ff4a3f56cbc10f0e46b573ab680"
         }
       ],
       "retired": false
@@ -355,7 +367,7 @@
     },
     {
       "slug": "telegram-ui",
-      "version": 44,
+      "version": 50,
       "verify_jwt": false,
       "entrypoint": "supabase/functions/telegram-ui/index.ts",
       "import_map": false,
@@ -404,6 +416,20 @@
         }
       ],
       "retired": false
+    },
+    {
+      "slug": "telegram-fast",
+      "retired": false,
+      "version": 1,
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint": "supabase/functions/telegram-fast/index.ts",
+      "files": [
+        {
+          "path": "supabase/functions/telegram-fast/index.ts",
+          "sha256": "1e3bf63c4ae0c37987e6be34813bc3baa7dcf4724e318d5f4b79ce73cad811b3"
+        }
+      ]
     }
   ]
 }

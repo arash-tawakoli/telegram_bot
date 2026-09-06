@@ -1144,6 +1144,46 @@
       "registry_sql_sha256": "6cca9fe090e41377a5f39852c024cc2e5dfb2077b1ad3459852da12bfb1518df",
       "export_sql_sha256": "6cca9fe090e41377a5f39852c024cc2e5dfb2077b1ad3459852da12bfb1518df",
       "vault_substitution": false
+    },
+    {
+      "version": "20260905233819",
+      "name": "telegram_prepare_update_low_latency",
+      "file": "supabase/migrations/20260905233819_telegram_prepare_update_low_latency.sql",
+      "registry_sql_sha256": "dd388552c58fe8933cc02ad7df143989b4972b8ecf89a79f20082611c84b53b7",
+      "export_sql_sha256": "dd388552c58fe8933cc02ad7df143989b4972b8ecf89a79f20082611c84b53b7",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260906004244",
+      "name": "telegram_fast_command_snapshot",
+      "file": "supabase/migrations/20260906004244_telegram_fast_command_snapshot.sql",
+      "registry_sql_sha256": "75f311aa3623d5e81f418742fdb34252d65e54c0d9f7c96bf7cf99be12ca6814",
+      "export_sql_sha256": "75f311aa3623d5e81f418742fdb34252d65e54c0d9f7c96bf7cf99be12ca6814",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260906004318",
+      "name": "telegram_fast_request_auth",
+      "file": "supabase/migrations/20260906004318_telegram_fast_request_auth.sql",
+      "registry_sql_sha256": "09bdc8b17d1501bc2a6e9f03318621e98f0268d3bbd4ef42e3becff5329a3b9d",
+      "export_sql_sha256": "09bdc8b17d1501bc2a6e9f03318621e98f0268d3bbd4ef42e3becff5329a3b9d",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260906004424",
+      "name": "telegram_fast_action_language_guard",
+      "file": "supabase/migrations/20260906004424_telegram_fast_action_language_guard.sql",
+      "registry_sql_sha256": "aabc9572033aa0c709c522ad2ae00a20545d4f4c18f66ba1576e6b56799122e0",
+      "export_sql_sha256": "aabc9572033aa0c709c522ad2ae00a20545d4f4c18f66ba1576e6b56799122e0",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260906050500",
+      "name": "verified_catalog_freshness",
+      "file": "supabase/migrations/20260906050500_verified_catalog_freshness.sql",
+      "registry_sql_sha256": "7c62b4567343125b66f1c7e6bfd899396c9445a38370de84398441e2244c8e2d",
+      "export_sql_sha256": "7c62b4567343125b66f1c7e6bfd899396c9445a38370de84398441e2244c8e2d",
+      "vault_substitution": false
     }
   ],
   "historical_repository_ref": "36708e9e2f073d7b3835cfd28b8222446e23c0ff",
@@ -1209,6 +1249,36 @@
     "supabase/migrations/20260905002000_fix_noncoop_generic_routing.sql",
     "supabase/migrations/20260905013100_route_meravis_official_card_feed.sql",
     "supabase/migrations/20260905015000_route_spacest_public_api_feed.sql",
-    "supabase/migrations/20260905015200_enable_new_id_freshness_spacest_meravis.sql"
+    "supabase/migrations/20260905015200_enable_new_id_freshness_spacest_meravis.sql",
+    "supabase/migrations/20260906014500_telegram_prepare_update_low_latency.sql",
+    "supabase/migrations/20260906024100_telegram_fast_command_snapshot.sql",
+    "supabase/migrations/20260906024200_telegram_fast_request_auth.sql",
+    "supabase/migrations/20260906024300_telegram_fast_action_language_guard.sql"
+  ],
+  "reconciled_migration_aliases": [
+    {
+      "retired_file": "supabase/migrations/20260906014500_telegram_prepare_update_low_latency.sql",
+      "canonical_file": "supabase/migrations/20260905233819_telegram_prepare_update_low_latency.sql",
+      "original_repository_ref": "796eb432ce71cf98ba0b9aadd9927d4202150006",
+      "reason": "Repository filename differs from applied Supabase migration version; original retained in Git history."
+    },
+    {
+      "retired_file": "supabase/migrations/20260906024100_telegram_fast_command_snapshot.sql",
+      "canonical_file": "supabase/migrations/20260906004244_telegram_fast_command_snapshot.sql",
+      "original_repository_ref": "796eb432ce71cf98ba0b9aadd9927d4202150006",
+      "reason": "Repository filename differs from applied Supabase migration version; original retained in Git history."
+    },
+    {
+      "retired_file": "supabase/migrations/20260906024200_telegram_fast_request_auth.sql",
+      "canonical_file": "supabase/migrations/20260906004318_telegram_fast_request_auth.sql",
+      "original_repository_ref": "796eb432ce71cf98ba0b9aadd9927d4202150006",
+      "reason": "Repository filename differs from applied Supabase migration version; original retained in Git history."
+    },
+    {
+      "retired_file": "supabase/migrations/20260906024300_telegram_fast_action_language_guard.sql",
+      "canonical_file": "supabase/migrations/20260906004424_telegram_fast_action_language_guard.sql",
+      "original_repository_ref": "796eb432ce71cf98ba0b9aadd9927d4202150006",
+      "reason": "Repository filename differs from applied Supabase migration version; original retained in Git history."
+    }
   ]
 }

@@ -185,8 +185,9 @@ async function parseOne(source: Source, c: Connector, url: string) {
     return { cands: [] as Candidate[], url: r.url, total: null };
   if (isJson) {
     const out: Candidate[] = [];
-    collectJson(JSON.parse(r.text), r.url, out);
-    return { cands: refine(source, out), url: r.url, total: null };
+    const json=JSON.parse(r.text);
+    collectJson(json, r.url, out);
+    return { cands: refine(source, out), url: r.url, total: null, verifiedEmpty:c.config?.empty_array_is_complete===true&&Array.isArray(json)&&json.length===0 };
   }
   if (c.connector_kind === "sitemap") {
     const out = [...r.text.matchAll(/<loc>\s*([^<]+)\s*<\/loc>/gi)]
@@ -792,6 +793,7 @@ export async function runGeneric(source: Source, connectors: Connector[]) {
         }
         const x = await parseOne(source, c, target),
           isFallbackLane = c.priority !== effectivePrimaryPriority;
+        if(!isFallbackLane&&(x as any).verifiedEmpty===true)meta.verified_empty=true;
         if (!picked) {
           if (isFallbackLane) {
             const warmed = await laneWasWarmed(c),
@@ -893,7 +895,7 @@ export async function runGeneric(source: Source, connectors: Connector[]) {
       throw new Error(meta.last_connector_error || "no connector succeeded");
     // A generic parser accepting zero listings does not prove an empty inventory.
     // Keep existing listings until a structured adapter verifies their removal.
-    if (!cands.length) {
+    if (!cands.length && meta.verified_empty!==true) {
       complete = false;
       primaryTrustedSnapshot = false;
       meta.empty_result_unverified = true;

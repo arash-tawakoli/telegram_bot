@@ -39,34 +39,35 @@ begin
   v_limit := case when v_is_premium then 3 else 1 end;
 
   if coalesce(v_user->>'ui_language','de') <> 'de' then
-    return v_base || jsonb_build_object('is_premium',v_is_premium,'fast_eligible',false,'action_data',v_data);
+    return v_base || jsonb_build_object('is_premium', v_is_premium, 'fast_eligible', false, 'action_data', v_data);
   end if;
 
   if p_action in ('profile','new') then
-    select coalesce(jsonb_agg(jsonb_build_object('profile_slot',sp.profile_slot,'name',sp.name,'is_active',sp.is_active) order by sp.profile_slot),'[]'::jsonb)
-      into v_profiles
-      from public.search_profiles sp
-     where sp.user_id=v_user_id and sp.profile_slot<=v_limit;
-    v_data := v_data || jsonb_build_object('profiles',v_profiles,'profile_limit',v_limit);
+    select coalesce(jsonb_agg(jsonb_build_object('profile_slot',sp.profile_slot,'name',sp.name,'is_active',sp.is_active) order by sp.profile_slot), '[]'::jsonb)
+    into v_profiles
+    from public.search_profiles sp
+    where sp.user_id = v_user_id and sp.profile_slot <= v_limit;
+    v_data := v_data || jsonb_build_object('profiles', v_profiles, 'profile_limit', v_limit);
   end if;
 
-  if p_action='new' then
+  if p_action = 'new' then
     select s into v_slot
-      from generate_series(1,v_limit) s
-     where not exists (select 1 from public.search_profiles sp where sp.user_id=v_user_id and sp.profile_slot=s)
-     order by s limit 1;
+    from generate_series(1, v_limit) s
+    where not exists (select 1 from public.search_profiles sp where sp.user_id = v_user_id and sp.profile_slot = s)
+    order by s limit 1;
     if v_slot is not null then
       update public.bot_users
-         set onboarding_step='types',
-             onboarding_state=jsonb_build_object('profile_slot',v_slot,'property_types',jsonb_build_array(),'location_mode',null,'borough_ids',jsonb_build_array(),'neighborhood_ids',jsonb_build_array(),'neighborhood_page',0,'max_warm_rent',null,'min_rooms',null,'min_area_sqm',null),
-             updated_at=now()
-       where id=v_user_id;
+      set onboarding_step='types', onboarding_state=jsonb_build_object(
+        'profile_slot',v_slot,'property_types',jsonb_build_array(),'location_mode',null,
+        'borough_ids',jsonb_build_array(),'neighborhood_ids',jsonb_build_array(),'neighborhood_page',0,
+        'max_warm_rent',null,'min_rooms',null,'min_area_sqm',null), updated_at=now()
+      where id=v_user_id;
       v_data := v_data || jsonb_build_object('new_slot',v_slot);
     else
       v_data := v_data || jsonb_build_object('new_slot',null);
     end if;
   elsif p_action in ('pause','resume') then
-    update public.search_profiles set is_active=(p_action='resume'),updated_at=now() where user_id=v_user_id;
+    update public.search_profiles set is_active=(p_action='resume'), updated_at=now() where user_id=v_user_id;
     v_data := v_data || jsonb_build_object('paused',p_action='pause');
   elsif p_action='status' then
     v_data := v_data || jsonb_build_object(
@@ -77,15 +78,13 @@ begin
   elsif p_action='saved' and v_is_premium then
     select count(*) into v_saved_count from public.saved_listings sl where sl.user_id=v_user_id;
     select coalesce(jsonb_agg(x.row_data order by x.created_at desc),'[]'::jsonb) into v_saved
-      from (
-        select sl.created_at,
-               jsonb_build_object('listing_id',sl.listing_id,'created_at',sl.created_at,'listing',jsonb_build_object('title',l.title,'canonical_url',l.canonical_url,'is_active',l.is_active)) row_data
-          from public.saved_listings sl
-          join public.listings l on l.id=sl.listing_id
-         where sl.user_id=v_user_id
-         order by sl.created_at desc
-         limit 8
-      ) x;
+    from (
+      select sl.created_at, jsonb_build_object(
+        'listing_id',sl.listing_id,'created_at',sl.created_at,
+        'listing',jsonb_build_object('title',l.title,'canonical_url',l.canonical_url,'is_active',l.is_active)) row_data
+      from public.saved_listings sl join public.listings l on l.id=sl.listing_id
+      where sl.user_id=v_user_id order by sl.created_at desc limit 8
+    ) x;
     v_data := v_data || jsonb_build_object('saved_count',v_saved_count,'saved',v_saved);
   end if;
 
