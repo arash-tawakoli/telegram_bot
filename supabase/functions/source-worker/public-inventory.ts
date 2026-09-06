@@ -1,4 +1,5 @@
 import {Candidate, Connector, Source, db, decode, deNum, fetchText, iso, markFailure, markSuccess, strip, upsertCandidates} from './shared.ts';
+import {parseKaifuInventory,parseFinkenInventory} from './cooperative-inventory.ts';
 
 const number = (v: unknown) => v == null || String(v).trim() === '' ? null : deNum(String(v));
 function attr(tag: string, name: string) {
@@ -62,14 +63,16 @@ export async function runPublicInventory(source:Source,connector:Connector) {
   try {
     const adapter=String(connector.config?.adapter||'');
     const response=await fetchText(String(connector.config?.url||''));
-    const parsed=adapter==='source-worker/tag-public'?parseTagInventory(response.text):adapter==='source-worker/urban-public'?parseUrbanInventory(response.text):parseHeimInventory(response.text);
+    const parser=({'source-worker/tag-public':parseTagInventory,'source-worker/urban-public':parseUrbanInventory,'source-worker/heim-public':parseHeimInventory,'source-worker/kaifu-public':parseKaifuInventory,'source-worker/finken-public':parseFinkenInventory} as Record<string,(text:string)=>{candidates:Candidate[];enumerated:number;complete:boolean}>)[adapter];
+    if(!parser)throw new Error('Unsupported public inventory adapter');
+    const parsed=parser(response.text);
     const {data:state}=await db.from('source_coverage_state').select('cursor').eq('source_id',source.id).maybeSingle().throwOnError();
     const warmed=!!source.baseline_completed_at&&state?.cursor?.adapter===adapter&&state?.cursor?.url===connector.config.url;
     const fresh=parsed.candidates.filter(c=>warmed&&(source.id!==11||c.raw?.native_new===true));
     const blocked=parsed.candidates.filter(c=>!fresh.includes(c));
     const a=await upsertCandidates(source,fresh,true),b=await upsertCandidates(source,blocked,false);
     if(parsed.complete) {
-      const provider=source.id===7?'tag_public_api':source.id===50?'urban_living':'heimstaden_portal';
+      const provider=({'source-worker/tag-public':'tag_public_api','source-worker/urban-public':'urban_living','source-worker/heim-public':'heimstaden_portal','source-worker/kaifu-public':'kaifu_public_api','source-worker/finken-public':'finkenwaerder_public_api'} as Record<string,string>)[adapter];
       const {data:active}=await db.from('listings').select('id,source_listing_key').eq('source_id',source.id).eq('is_active',true).eq('raw->>provider',provider).throwOnError();
       const keys=new Set(parsed.candidates.map(c=>String(c.key)));
       const stale=(active||[]).filter((r:any)=>!keys.has(String(r.source_listing_key))).map((r:any)=>r.id);

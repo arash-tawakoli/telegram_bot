@@ -7,8 +7,9 @@ import {webcrypto} from 'node:crypto';
 const root=new URL('../supabase/functions/source-worker/',import.meta.url);
 const shared=readFileSync(new URL('shared.ts',root),'utf8');
 const helpers=shared.slice(shared.indexOf('export function deNum'),shared.indexOf('export function absolute')).replaceAll('export ','');
-const source=readFileSync(new URL('public-inventory.ts',root),'utf8').replace(/import[^;]+;/,'').replaceAll('export ','');
-export const parsers=vm.runInNewContext(stripTypeScriptTypes(helpers+'\n'+source)+';({parseTagInventory,parseUrbanInventory,parseHeimInventory})',{URL});
+const cooperative=readFileSync(new URL('cooperative-inventory.ts',root),'utf8').replace(/import[^;]+;/g,'').replaceAll('export ','');
+const source=cooperative+'\n'+readFileSync(new URL('public-inventory.ts',root),'utf8').replace(/import[^;]+;/g,'').replaceAll('export ','');
+export const parsers=vm.runInNewContext(stripTypeScriptTypes(helpers+'\n'+source)+';({parseTagInventory,parseUrbanInventory,parseHeimInventory,parseKaifuInventory,parseFinkenInventory})',{URL,hhZip:z=>/^2\d{4}$/.test(String(z))});
 test('TAG validates zero hits and rejects truncated or malformed inventory',()=>{
  assert.equal(parsers.parseTagInventory(JSON.stringify({response:{results:[],meta:{hits:0}}})).complete,true);
  assert.throws(()=>parsers.parseTagInventory('{}'),/schema/);
@@ -40,4 +41,11 @@ test('public inventory warms a changed route before releasing new apartments',as
   const result=await run({id:50,baseline_completed_at:'2026-09-01'},{config:{adapter,url}});
   assert.equal(result.ok,true);assert.deepEqual(writes,[warmed]);
  }
+});
+
+test('cooperative APIs reject non-inventory and exclude parking/outside Hamburg',()=>{
+ assert.throws(()=>parsers.parseKaifuInventory('{}'),/schema/);assert.throws(()=>parsers.parseFinkenInventory('{}'),/schema/);
+ assert.equal(parsers.parseKaifuInventory(JSON.stringify([{address:{town:'Hamburg'},category:[{value:'Stellplatz'}],obj_details:{},expenses:{}}])).candidates.length,0);
+ assert.equal(parsers.parseFinkenInventory(JSON.stringify([{id:'1',city:'Seevetal',postalcode:'21217',numberOfRooms:2}])).candidates.length,0);
+ const row=parsers.parseKaifuInventory(JSON.stringify([{refId:'a',url:'/wohnen/wohnungsangebote/a',address:{town:'Hamburg',postcode:'20095'},category:[{value:'Wohnung'}],obj_details:{rooms:2,size:50},expenses:{netto:600,total:800}}])).candidates[0];assert.equal(row.cold,600);assert.equal(row.warm,800);assert.equal(row.rooms,2);
 });
