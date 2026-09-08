@@ -48,7 +48,7 @@
     },
     {
       "slug": "immobilien-de-transport",
-      "version": 12,
+      "version": 13,
       "verify_jwt": false,
       "entrypoint": "supabase/functions/immobilien-de-transport/index.ts",
       "import_map": false,
@@ -56,8 +56,8 @@
       "files": [
         {
           "path": "supabase/functions/immobilien-de-transport/index.ts",
-          "sha256": "c5f2ad7a0f15cb62a44af9fe44235a1eb96b3a97a9465f34bf30c0117a52c0cb",
-          "deployed_sha256": "c5f2ad7a0f15cb62a44af9fe44235a1eb96b3a97a9465f34bf30c0117a52c0cb"
+          "sha256": "51696a273f07ee22ab9418c94f3760719f04bfcb80dd5284f568b4bfc8dda8a7",
+          "deployed_sha256": "51696a273f07ee22ab9418c94f3760719f04bfcb80dd5284f568b4bfc8dda8a7"
         }
       ]
     },
@@ -168,7 +168,7 @@
     },
     {
       "slug": "notification-dispatcher",
-      "version": 60,
+      "version": 65,
       "verify_jwt": false,
       "entrypoint": "supabase/functions/notification-dispatcher/index.ts",
       "import_map": false,
@@ -176,8 +176,8 @@
       "files": [
         {
           "path": "supabase/functions/notification-dispatcher/index.ts",
-          "sha256": "4d60ac6524a33cce204c09e0e54bf1765d4d5d974e31447015c8bf34a4d4c8f3",
-          "deployed_sha256": "562628666ab60697645c0bae80745c2c97f0a2bf909f024e7daac2654d171c48"
+          "sha256": "4d562052cb0b4f0bcfd7f109215b1cbbba9776d1c69d7549404cd04bad747fba",
+          "deployed_sha256": "4d562052cb0b4f0bcfd7f109215b1cbbba9776d1c69d7549404cd04bad747fba"
         },
         {
           "path": "supabase/functions/notification-dispatcher/preview-delivery.ts",
@@ -191,8 +191,8 @@
         },
         {
           "path": "supabase/functions/notification-dispatcher/source-facts.ts",
-          "sha256": "61d4d034a3d3d50e314f4b9bc30a10a88935de14608bf9d7fb226053c7dc6be9",
-          "deployed_sha256": "b2816ca5995444e55848d9b79fa6ac6db27569e5ea2fb1f5e541bd564b39f9d6"
+          "sha256": "98788b727625db3adaba301bc0e8769878f9470309fdae19ded8cf5f713f743d",
+          "deployed_sha256": "98788b727625db3adaba301bc0e8769878f9470309fdae19ded8cf5f713f743d"
         },
         {
           "path": "supabase/functions/notification-dispatcher/pacing.ts",
@@ -202,7 +202,7 @@
         {
           "path": "supabase/functions/notification-dispatcher/delivery-lease.ts",
           "sha256": "a67eada4d11a4a8d4c77a524bbb93b8ae1b6fbbe6519b850486fe92bb6daa05c",
-          "deployed_sha256": "ef4b106298b621258601743a376870d509588524a02195be30657f60a56faddf"
+          "deployed_sha256": "a67eada4d11a4a8d4c77a524bbb93b8ae1b6fbbe6519b850486fe92bb6daa05c"
         },
         {
           "path": "supabase/functions/notification-dispatcher/labels.ts",
@@ -226,7 +226,7 @@
         },
         {
           "path": "supabase/functions/source-worker/shared.ts",
-          "sha256": "426057dc694692e1b93a8af081870309ab74d294eed6d6a7da4a3d2b2d98d58a",
+          "sha256": "138cf944a0e00910e9c27e6754842cc596135782286a0e07027d4dc99eaf8271",
           "deployed_sha256": "426057dc694692e1b93a8af081870309ab74d294eed6d6a7da4a3d2b2d98d58a"
         },
         {
@@ -238,7 +238,7 @@
     },
     {
       "slug": "source-worker",
-      "version": 60,
+      "version": 61,
       "verify_jwt": false,
       "entrypoint": "supabase/functions/source-worker/index.ts",
       "import_map": true,
@@ -251,8 +251,8 @@
         },
         {
           "path": "supabase/functions/source-worker/shared.ts",
-          "sha256": "426057dc694692e1b93a8af081870309ab74d294eed6d6a7da4a3d2b2d98d58a",
-          "deployed_sha256": "0bfc0ede268a5bed82cc91a71f3306ff8b2707cb1cda0e9f62c1040174a8a263"
+          "sha256": "138cf944a0e00910e9c27e6754842cc596135782286a0e07027d4dc99eaf8271",
+          "deployed_sha256": "8e8c57850a9b79198ab1cd4bc784decfeeea44555ff32b30406874b09dd1c7a9"
         },
         {
           "path": "supabase/functions/source-worker/checked.ts",
@@ -306,8 +306,8 @@
         },
         {
           "path": "supabase/functions/source-worker/cooperative-inventory.ts",
-          "sha256": "14e9e171d541d0e17db181135517212305725d01ce619620aacad01af1c3ebe0",
-          "deployed_sha256": "9485d493adb201230399f8a1e23aaa7599ac6fb633b75e5fa7f3f7de3bf11171"
+          "sha256": "d95a3cc50cc10de670ca92a5273ee0a527521ef2e5f24f5b9fe6e47e1ae55a76",
+          "deployed_sha256": "d95a3cc50cc10de670ca92a5273ee0a527521ef2e5f24f5b9fe6e47e1ae55a76"
         },
         {
           "path": "supabase/functions/source-worker/nestpick.ts",
@@ -316,8 +316,8 @@
         },
         {
           "path": "supabase/functions/source-worker/catalog.ts",
-          "sha256": "2506a49d5f4dd90957afd6cfce361da375dc0ab634f6428026bcf35b625985da",
-          "deployed_sha256": "14d3ce9b174b18ffb28dc3d3ffb3497791e22c48ab7baf97657cce95a01d0ef4"
+          "sha256": "6a2b729b0bcda012732ee797f28d962b4b41993c7bac67761b351ee6074c3a1f",
+          "deployed_sha256": "6a2b729b0bcda012732ee797f28d962b4b41993c7bac67761b351ee6074c3a1f"
         },
         {
           "path": "supabase/functions/source-worker/deno.json",

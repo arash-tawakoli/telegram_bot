@@ -1,3 +1,4 @@
+import {inflateRawSync} from 'node:zlib';
 import {Candidate,Connector,Source,db,deNum,fetchText,hhZip,iso,markFailure,markSuccess,strip,upsertCandidates} from './shared.ts';
 const positive=(v:any)=>{const n=deNum(v);return n!=null&&n>0?n:null};
 type Page={candidates:Candidate[];keys:string[];page:number;pages:number;total:number};
@@ -37,37 +38,60 @@ export function parseWunderCatalog(html:string,page:number):Page{
   return {candidates,keys,page,pages:Math.max(1,Math.ceil(r.total/r.itemsPerPage)),total:r.total};
 }
 export function parseSwapCatalog(html:string,page:number):Page{
-  if(!/<link[^>]+href=["']https:\/\/www\.tauschwohnung\.com\/hamburg(?:\?[^"']*)?["'][^>]*rel=["']canonical["']|<link[^>]+rel=["']canonical["'][^>]*href=["']https:\/\/www\.tauschwohnung\.com\/hamburg(?:\?[^"']*)?["']/i.test(html))throw new Error('Tauschwohnung Hamburg scope missing');
+  const canonicalTag=html.match(/<link\b[^>]*\brel=["']canonical["'][^>]*>/i)?.[0];
+  const canonical=canonicalTag?.match(/\bhref=["']([^"']+)["']/i)?.[1];
+  if(canonical&&!/^https:\/\/www\.tauschwohnung\.com\/hamburg(?:\?[^#]*)?$/.test(canonical))throw new Error('Tauschwohnung Hamburg scope missing');
   const encoded=html.match(/<script[^>]+id=["']__NUXT_DATA__["'][^>]*>([\s\S]*?)<\/script>/)?.[1];if(!encoded)throw new Error('Tauschwohnung inventory missing');
   const t=JSON.parse(encoded),v=(ref:any)=>Number.isInteger(ref)&&ref>=0?t[ref]:null;
   const records=t.filter((x:any)=>x&&typeof x==='object'&&!Array.isArray(x)&&'offers'in x&&'totalCount'in x&&'perPage'in x);
   if(records.length!==1)throw new Error('Tauschwohnung ambiguous inventory');
   const r=records[0],offers=v(r.offers),total=v(r.totalCount),size=v(r.perPage);
+  if(!canonical&&v(r.canonicalPath)!=='/hamburg')throw new Error('Tauschwohnung Hamburg scope missing');
   if(v(r.page)!==page||!Number.isInteger(total)||total<0||!Number.isInteger(size)||size<1||!Array.isArray(offers)||offers.length!==Math.min(size,Math.max(0,total-(page-1)*size)))throw new Error('Tauschwohnung pagination invalid');
   const candidates:Candidate[]=[],keys:string[]=[];
   for(const ref of offers){const h=v(v(ref)?.housing);if(!h||!Number.isInteger(v(h.id)))throw new Error('Tauschwohnung housing missing');const id=String(v(h.id));keys.push(id);const a=v(h.address),geo=v(h.geo),url=v(h.fullURL);
-    if(v(h.isActive)!==true||v(geo?.cityName)!=='Hamburg'||!/^https:\/\/www\.tauschwohnung\.com\/wohnung-mieten\/hamburg\//.test(url))continue;
+    if(v(h.isActive)!==true||v(geo?.cityName)!=='Hamburg'||!(new RegExp('^https://www\\.tauschwohnung\\.com/(?:wohnung-mieten/hamburg/[^?#]+|expose/'+id+')$')).test(url))continue;
     const zip=v(a?.postalCode);if(!hhZip(zip))continue;
     candidates.push({key:id,url,title:v(h.title),address:[v(a?.street),v(a?.houseNumber),zip,'Hamburg'].filter(Boolean).join(' '),zip,district:v(geo?.directDescendantNameOfCity),cold:v(h.currency)==='€'?positive(v(h.rent)):null,additional:positive(v(h.sideCosts)),rooms:positive(v(h.rooms)),area:positive(v(h.size)),type:'Tauschwohnung',raw:{provider:'tauschwohnung_catalog',is_swap:true}});
   }
   return {candidates,keys,page,pages:Math.max(1,Math.ceil(total/size)),total};
 }
+// This endpoint sends raw DEFLATE even when identity encoding is requested.
+// Accept already-decoded JSON first; never try to interpret arbitrary HTML as inventory.
+export async function decodeCityResponse(bytes:Uint8Array){
+  try{return JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes))}catch{}
+  return JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(inflateRawSync(bytes,{maxOutputLength:5000000})));
+}
+export function parseCityAjax(data:any,page:number,expectedTotal:number,size:number):Page{
+  if(!data||!Number.isInteger(data.total)||data.total!==expectedTotal||typeof data.results!=='string'||typeof data.pager!=='string')throw new Error('City-Wohnen AJAX inventory invalid');
+  const current=Number(data.pager.match(/<li>\s*<span>(\d+)<\/span>\s*<\/li>/)?.[1]);
+  if(current!==page)throw new Error('City-Wohnen AJAX page mismatch');
+  const parsed=parseCityCatalog(`<span id="ciwo_result_count">${data.total}</span><div id="object_list">${data.results}</div>`);
+  if(parsed.keys.length!==Math.min(size,Math.max(0,data.total-(page-1)*size)))throw new Error('City-Wohnen truncated AJAX page');
+  return {...parsed,page,pages:Math.max(1,Math.ceil(data.total/size))};
+}
 export async function runCatalog(source:Source,c:Connector){
   const started=iso(),adapter=String(c.config?.adapter),base=String(c.config?.url||'');
   try{
-    const load=async(page:number)=>{const u=new URL(base);if(source.id===10&&page>1)u.pathname=u.pathname.replace(/\/$/,'')+'/'+page;if(source.id===21&&page>1)u.searchParams.set('page',String(page));const r=await fetchText(u.href);return source.id===10?parseWunderCatalog(r.text,page):source.id===21?parseSwapCatalog(r.text,page):parseCityCatalog(r.text)};
+    const load=async(page:number):Promise<Page>=>{const u=new URL(base);if(source.id===10&&page>1)u.pathname=u.pathname.replace(/\/$/,'')+'/'+page;if(source.id===21&&page>1)u.searchParams.set('page',String(page));
+      if(source.id===17&&page>1){
+        const ajax=new URL('/rpc.php',base);ajax.search=new URLSearchParams({service:'ciwo',cmd:'search',action:'objectlist',pageid:'9',pagenr:String(page),pagesize:String(front.keys.length),lang:'deu'}).toString();
+        const response=await fetch(ajax.href,{headers:{accept:'application/json','accept-encoding':'identity'},signal:AbortSignal.timeout(12000)});
+        if(!response.ok)throw new Error(`City-Wohnen HTTP ${response.status}`);
+        return parseCityAjax(await decodeCityResponse(new Uint8Array(await response.arrayBuffer())),page,front.total,front.keys.length);
+      }
+      const r=await fetchText(u.href);return source.id===10?parseWunderCatalog(r.text,page):source.id===21?parseSwapCatalog(r.text,page):parseCityCatalog(r.text)};
     const deadline=Date.now()+25000;const front=await load(1);if(front.pages>1000)throw new Error('Catalog page count exceeds verified budget');
     const {data:st}=await db.from('source_coverage_state').select('cursor').eq('source_id',source.id).maybeSingle().throwOnError();
     const same=st?.cursor?.adapter===adapter&&st?.cursor?.url===base,old=same?st.cursor:{},warmed=old.baseline_done===true;
     let next=Number(old.next_page||2);const seen=new Set<string>(Array.isArray(old.seen_ids)?old.seen_ids:[]),pages=[front],errors:any[]=[];front.keys.forEach(k=>seen.add(k));
-    // City-Wohnen's AJAX paging has not passed transport verification yet.
-    const firstNext=next;if(source.id!==17)for(let start=next;start<=Math.min(front.pages,firstNext+31)&&Date.now()<deadline;start+=4){
+    const firstNext=next;for(let start=next;start<=Math.min(front.pages,firstNext+31)&&Date.now()<deadline;start+=4){
       const batch=Array.from({length:Math.min(4,front.pages-start+1,firstNext+32-start)},(_,i)=>start+i);
       const results=await Promise.allSettled(batch.map(load));
       for(let i=0;i<results.length;i++){const result=results[i];if(result.status==='fulfilled'&&result.value.total===front.total&&result.value.pages===front.pages){pages.push(result.value);result.value.keys.forEach(k=>seen.add(k))}else errors.push({page:batch[i],error:String(result.status==='rejected'?result.reason:'inventory total changed').slice(0,250)})}
       if(errors.length)break;next=batch.at(-1)!+1;
     }
-    const traversed=source.id===17?front.pages===1:next>front.pages,complete=traversed&&!errors.length&&seen.size===front.total;
+    const traversed=next>front.pages,complete=traversed&&!errors.length&&seen.size===front.total;
     const rows=new Map<string,Candidate>();for(const page of pages)for(const row of page.candidates)rows.set(String(row.key),{...row,raw:{...row.raw,catalog_baseline_verified:warmed}});
     const saved=await upsertCandidates(source,[...rows.values()],warmed&&!!source.baseline_completed_at);
     await db.from('source_coverage_state').upsert({source_id:source.id,cycle_id:crypto.randomUUID(),strategy:'public_catalog',status:complete?'complete':'running',cursor:{adapter,url:base,next_page:traversed?2:next,seen_ids:traversed?[]:[...seen],baseline_done:warmed||complete},seen_count:seen.size,request_count:pages.length+errors.length,cycle_started_at:started,cycle_finished_at:complete?iso():null,last_complete_at:complete?iso():null,updated_at:iso(),last_error:errors.length?JSON.stringify(errors):null}).throwOnError();

@@ -45,7 +45,7 @@ function imageUrl(v: any, base: string): string | null {
   if (typeof v !== 'string' || !v.trim()) return null;
   try {
     const u = new URL(v.replace(/&amp;/g, '&').replace(/%WIDTH%/g,'1200').replace(/%HEIGHT%/g,'800'), base);
-    if (!/^https?:$/.test(u.protocol) || /\.(?:svg|pdf)(?:[?#]|$)|(?:logo|favicon|sprite|spinner|placeholder|avatar)(?:[_.\/-]|$)/i.test(u.href)) return null;
+    if ((u.pathname === '/' && !u.search) || u.href === new URL(base).href || !/^https?:$/.test(u.protocol) || /\.(?:svg|pdf)(?:[?#]|$)|(?:logo|favicon|sprite|spinner|placeholder|avatar)(?:[_.\/-]|$)/i.test(u.href)) return null;
     return u.href;
   } catch { return null; }
 }

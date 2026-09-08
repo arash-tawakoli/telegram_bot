@@ -84,7 +84,7 @@ function knownFacts(l: any) {
   out.property_type = detail.property_type ?? direct.property_type ?? null;
   out.deposit_text = detail.deposit_text ?? direct.deposit_text ?? null;
   if (l.warm_rent_is_calculated && direct.warm_rent == null && detail.warm_rent == null) out.warm_rent = null;
-  out.images = [...new Set([...(detail.images || []), ...(direct.images || []), ...collectImages({image_urls:[l.resolved_image_url,l.image_url].filter(Boolean)},l.canonical_url)])];
+  out.images = collectImages({images:[...(detail.images || []), ...(direct.images || []), l.resolved_image_url, l.image_url]},l.canonical_url);
   return out;
 }
 function cap(l: any, lang: string) {

@@ -1,8 +1,9 @@
+import {inflateRawSync,deflateRawSync} from 'node:zlib';
 import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync}from'node:fs';import{stripTypeScriptTypes}from'node:module';import vm from'node:vm';import{webcrypto}from'node:crypto';
 const root=new URL('../supabase/functions/source-worker/',import.meta.url),shared=readFileSync(new URL('shared.ts',root),'utf8');
 const helpers=shared.slice(shared.indexOf('export function deNum'),shared.indexOf('export function absolute')).replaceAll('export ','');
 const code=readFileSync(new URL('catalog.ts',root),'utf8').replace(/import[^;]+;/g,'').replaceAll('export ','');
-const load=(extra={})=>vm.runInNewContext(stripTypeScriptTypes(helpers+code)+';({parseCityCatalog,parseWunderCatalog,parseSwapCatalog,runCatalog})',{URL,crypto:webcrypto,hhZip:z=>/^2\d{4}$/.test(String(z)),...extra});
+const load=(extra={})=>vm.runInNewContext(stripTypeScriptTypes(helpers+code)+';({parseCityCatalog,parseCityAjax,decodeCityResponse,parseWunderCatalog,parseSwapCatalog,runCatalog})',{URL,URLSearchParams,TextDecoder,inflateRawSync,crypto:webcrypto,hhZip:z=>/^2\d{4}$/.test(String(z)),...extra});
 const city=(id,rooms,area,rent)=>`<script type="application/ld+json">${JSON.stringify({'@type':'Apartment',url:`https://www.city-wohnen.de/hamburg/${id}-wohnung`,name:'Wohnung',address:{addressLocality:'Hamburg',postalCode:'20095',streetAddress:'Testweg 1'},numberOfRooms:rooms,floorSize:{value:area}})}</script><div class="object_full" data-anr="${id}"><div class="object_meta"><table><td>${rent} €</td><td>${area}</td><td>${rooms}</td><td>${id}</td></table></div></div>`;
 const cityPage=(total,body)=>`<span id="ciwo_result_count">${total}</span><div id="object_list">${body}</div>`;
 test('City-Wohnen keeps each apartment’s own fields and distinguishes partial pages',()=>{const r=load().parseCityCatalog(cityPage(84,city(1,2,43,1590)+city(2,3,100,3000)));assert.equal(r.candidates[0].rooms,2);assert.equal(r.candidates[0].area,43);assert.equal(r.candidates[0].raw.advertised_monthly_price,1590);assert.equal(r.candidates[0].warm,undefined);assert.equal(r.total,84);assert.equal(r.keys.length,2);assert.throws(()=>load().parseCityCatalog('<html>homepage</html>'),/schema/);assert.throws(()=>load().parseCityCatalog(cityPage(2,city(1,2,43,1590)+city(1,2,43,1590))),/duplicate/);});
@@ -19,4 +20,21 @@ test('Tauschwohnung reads referenced native fields and rejects a nationwide redi
  const html=`<link rel="canonical" href="https://www.tauschwohnung.com/hamburg"><script id="__NUXT_DATA__">${JSON.stringify(t)}</script>`;
  const r=load().parseSwapCatalog(html,1).candidates[0];assert.equal(r.cold,555);assert.equal(r.additional,205);assert.equal(r.rooms,2);assert.equal(r.area,58);assert.equal(r.type,'Tauschwohnung');assert.equal(r.warm,undefined);
  assert.throws(()=>load().parseSwapCatalog(html.replace('href="https://www.tauschwohnung.com/hamburg"','href="https://www.tauschwohnung.com/suche"'),1),/scope/);
+});
+
+test('City-Wohnen decodes raw deflate with trailing server bytes and checks AJAX page identity',async()=>{
+ const payload={total:3,pager:'<ul><li><span>2</span></li></ul>',results:city(3,2,50,1400)};
+ const bytes=Buffer.concat([deflateRawSync(JSON.stringify(payload)),Buffer.from([0,0,0,0])]);
+ const api=load(),decoded=await api.decodeCityResponse(bytes);assert.equal(decoded.total,3);
+ assert.equal(api.parseCityAjax(decoded,2,3,2).candidates[0].key,'3');
+ assert.throws(()=>api.parseCityAjax(decoded,3,3,2),/page mismatch/);
+ assert.throws(()=>api.parseCityAjax(decoded,2,4,2),/invalid/);
+ assert.throws(()=>api.parseCityAjax({...decoded,results:''},2,3,2),/missing/);
+});
+test('Tauschwohnung accepts native Hamburg scope on deep pages and exact new expose identity',()=>{
+ const t=[];function ref(v){const n=t.length;t.push(null);t[n]=Array.isArray(v)?v.map(ref):v&&typeof v==='object'?Object.fromEntries(Object.entries(v).map(([k,x])=>[k,ref(x)])):v;return n}
+ ref({canonicalPath:'/hamburg',page:2,totalCount:2,perPage:1,offers:[{housing:{id:123,isActive:true,geo:{cityName:'Hamburg'},address:{postalCode:'20095'},fullURL:'https://www.tauschwohnung.com/expose/123',title:'Wohnung',currency:'€',rent:555,rooms:2,size:58}}]});
+ const html=()=>`<script id="__NUXT_DATA__">${JSON.stringify(t)}</script>`;
+ assert.equal(load().parseSwapCatalog(html(),2).candidates.length,1);
+ t[t.indexOf('/hamburg')]='/berlin';assert.throws(()=>load().parseSwapCatalog(html(),2),/scope/);
 });

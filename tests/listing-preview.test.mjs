@@ -91,3 +91,14 @@ test('tenant destination prefers concrete offers and validates registration fall
   assert.equal(scope.kb(l,'de',true).inline_keyboard[0][0].url,base);
  }
 });
+
+test('homepage and listing URLs cannot displace a real listing image',()=>{
+ const images=facts.collectImages({images:['https://example.test/',base,'https://example.test/photo.jpg']},base);
+ assert.deepEqual(images,['https://example.test/photo.jpg']);
+ assert.equal(previewOperations(images,'caption',{} )[0].body.photo,'https://example.test/photo.jpg');
+});
+
+test('cached detail images are validated before choosing a Telegram photo',()=>{
+ const l=listing({}, {enrichment_evidence:{preview:{canonical_url:base,facts:{images:['https://example.test/','https://example.test/photo.jpg']}}}});
+ assert.deepEqual(Array.from(scope.knownFacts(l).images),['https://example.test/photo.jpg']);
+});

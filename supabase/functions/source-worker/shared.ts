@@ -493,7 +493,7 @@ export function collectJson(v: any, base: string, out: Candidate[], depth = 0) {
         ) || undefined,
       url: u,
       title: (title || fallbackTitle)?.slice(0, 240) || null,
-      address: address
+      address: typeof v.address === 'string' && v.address.trim() ? v.address : address
         ? zip
           ? `${address}, ${zip} ${city && /hamburg/i.test(city) ? city : "Hamburg"}`
           : address
@@ -525,8 +525,9 @@ function validCandidate(source: Source, c: Candidate) {
   if (!c.url || BAD_CANONICAL_URL.test(c.url)) return false;
   if (source.id === 8 && !/\/wohnungssuche\/hamburg\//i.test(c.url))
     return false;
-  if (source.id === 21 && !/\/wohnung-mieten\/hamburg\//i.test(c.url))
+  if (source.id === 21 && !/^https:\/\/www\.tauschwohnung\.com\/wohnung-mieten\/hamburg\//i.test(c.url) && !(c.raw?.provider === 'tauschwohnung_catalog' && c.key && c.url === `https://www.tauschwohnung.com/expose/${c.key}` && c.zip && hhZip(c.zip)))
     return false;
+  if (source.id === 52 && /stellplatz|garage|parkplatz/i.test(c.url)) return false;
   if (c.zip && !hhZip(c.zip)) return false;
   const text = `${c.title || ""} ${c.type || ""} ${c.raw?.text || ""}`;
   if (NON_RESIDENTIAL.test(text) && !RESIDENTIAL.test(text)) return false;
