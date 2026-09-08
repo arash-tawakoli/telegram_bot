@@ -1,8 +1,8 @@
 import {TelegramFailure} from './telegram-request.ts';
-export function previewOperations(images:string[],caption:string,keyboard:any,maxImages:number=1) {
+export function previewOperations(images:string[],caption:string,keyboard:any,maxImages:number=Infinity) {
   const selectedImages=images.slice(0,Math.max(0,maxImages));
   const operations:any[]=[];
-  // Listing previews default to one image; callers must explicitly opt in to galleries.
+  // Preserve every validated source image; Telegram albums accept at most ten items.
   // Conservative HTML-source length also covers decoded Telegram caption length.
   if(selectedImages.length===1 && caption.length<=1000) return [{method:'sendPhoto',body:{photo:selectedImages[0],caption,parse_mode:'HTML',reply_markup:keyboard}}];
   for(let i=0;i<selectedImages.length;i+=10) {

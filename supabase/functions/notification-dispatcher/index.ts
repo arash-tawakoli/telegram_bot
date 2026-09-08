@@ -1,3 +1,4 @@
+import {pageAvailability,recentInventory} from './availability.ts';
 import {previewOperations,deliverPreview} from "./preview-delivery.ts";
 import {present, textValue, exactAddress, structuredFacts, collectImages, htmlFacts} from "./source-facts.ts";
 import { telegramRequest, TelegramFailure } from "./telegram-request.ts";
@@ -148,6 +149,10 @@ function cap(l: any, lang: string) {
   const available = availableText(l);
   if (available)
     lines.push(`📅 <b>${label(lang, "available")}:</b> ${esc(available)}`);
+  if (present(l.district)) lines.push(`📍 <b>Stadtteil:</b> ${esc(l.district)}`);
+  if (present(l.published_text)) lines.push(`<b>Veröffentlicht laut Quelle:</b> ${esc(l.published_text)}`);
+  if (l.features?.length) lines.push(`<b>Ausstattung:</b> ${l.features.map(esc).join(', ')}`);
+  for(const [key,value] of Object.entries(l.extra_facts||{}))if(present(value))lines.push(`<b>${esc(key)}:</b> ${esc(value)}`);
   if (loc(l)) lines.push(`📍 <b>${label(lang, "address")}:</b> ${esc(loc(l))}`);
   return lines.join("\n").trim();
 }
@@ -229,6 +234,7 @@ function walk(v: any, out: any, target: string, parentScoped = false) {
     types.some((t: any) =>
       [
         "Apartment",
+        "RealEstateListing",
         "House",
         "Residence",
         "Accommodation",
@@ -239,6 +245,7 @@ function walk(v: any, out: any, target: string, parentScoped = false) {
   ) {
     const address = exactAddress(v.address);
     if (address) out.address = address;
+    if(/(?:OutOfStock|SoldOut|Discontinued)$/.test(String(v.offers?.availability||'')))out.source_unavailable=true;
     Object.assign(out, Object.fromEntries(Object.entries(structuredFacts(v, target)).filter(([k,val]) => k !== 'address' && k !== 'images' && val != null)));
     out.images = [...new Set([...(out.images || []), ...collectImages(v, target)])];
     const names: any = {
@@ -277,32 +284,38 @@ function walk(v: any, out: any, target: string, parentScoped = false) {
   if (v.itemOffered) walk(v.itemOffered, out, target, ownScope);
 }
 async function enrich(l: any, persist = true) {
-  if (!l.canonical_url || l.raw?.provider === 'immosolve_hpm_rest') return l;
-  const out = { ...l };
+  if (!l.canonical_url) return {...l,_availability:'unknown'};
+  if (l.raw?.provider === 'immosolve_hpm_rest') return {...l,_availability:recentInventory(l)?'recent_inventory':'unknown'};
+  const out = { ...l, _availability:recentInventory(l)?'recent_inventory':'unknown' };
   const previous = l.enrichment_evidence?.preview;
   // Reuse detail evidence only when the source snapshot has not changed.
-  if (previous?.version === 3 && previous.canonical_url === l.canonical_url && previous.source_seen_at === l.last_seen_at && Date.now()-Date.parse(previous.checked_at)<3600000) return l;
+  // Always recheck availability; a cached preview alone is not availability evidence.
   try {
     let facts:any;
     const immomioId=String(l.canonical_url).match(/^https:\/\/tenant\.immomio\.com\/(?:de\/)?apply\/([0-9a-f-]{36})$/i)?.[1];
     if(immomioId){
       // Same anonymous property query used by the public application page.
       const response=await fetch('https://gql-ps.immomio.com/tenant/graphql',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({query:'query property($id: ID!) { property(id:$id) { id type totalRentGross titleImage {url type encrypted} data {name showAddress address {street houseNumber zipCode city} basePrice totalRentGross serviceCharge heatingCost heatingCostIncluded bailment rooms halfRooms size floor flatType availableFrom{dateAvailable stringAvailable} attachments{url title type encrypted extension} } } }',variables:{id:immomioId}}),signal:AbortSignal.timeout(6500)});
-      if(!response.ok)return l;
+      if(response.status===404||response.status===410)return {...out,_availability:'unavailable'};
+      if(!response.ok)return out;
       const j=await response.json();
-      if(j.errors?.length || j.data?.property?.id!==immomioId)return l;
+      if(j.errors?.length || j.data?.property?.id!==immomioId)return out;
+      out._availability='online';
       facts=structuredFacts({property:j.data.property},l.canonical_url);
       facts.images=[...new Set([...facts.images,...collectImages(j.data.property,l.canonical_url)])];
     }else{
     const r = await fetch(String(l.canonical_url), {redirect:'follow',headers:{'user-agent':UA,accept:'text/html,application/xhtml+xml,application/json','accept-language':'de-DE,de;q=0.9'},signal:AbortSignal.timeout(6500)});
-    if (!r.ok || !sameListing(r.url,l.canonical_url)) return l;
     const h = await r.text();
-    if (/captcha|cf-chl-|access denied|verify you are human/i.test(h.slice(0,12000))) return l;
+    const state=pageAvailability(r.status,sameListing(r.url,l.canonical_url),h);
+    if(state==='unavailable')return {...out,_availability:state};
+    if(state==='unknown')return out;
+    out._availability='online';
     facts = htmlFacts(h,l.canonical_url);
     for (const m of h.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
       try { walk(JSON.parse(m[1]),facts,l.canonical_url); } catch {}
     }
     }
+    if(facts.source_unavailable)return {...out,_availability:'unavailable'};
     const evidence={...l.enrichment_evidence,preview:{version:3,canonical_url:l.canonical_url,checked_at:new Date().toISOString(),source_seen_at:l.last_seen_at,facts}};
     out.enrichment_evidence=evidence;
     if (persist) {
@@ -349,7 +362,7 @@ Deno.serve(async (req) => {
       const {data,error}=await db.from('listings').select('*,sources(button_label,source_type,source_connectors(config,enabled,priority))').eq('id',input.listing_id).single();
       if(error)throw error;
       const listing=await enrich(data,false),facts=knownFacts(listing);
-      return Response.json({ok:true,dry_run:true,caption:cap(listing,'de'),keyboard:kb(listing,'de',true),images:facts.images,address:loc(listing),operations:previewOperations(facts.images,cap(listing,'de'),kb(listing,'de',true)).map(x=>x.method)});
+      return Response.json({ok:true,dry_run:true,caption:cap(listing,'de'),keyboard:kb(listing,'de',true),images:facts.images,availability:listing._availability,address:loc(listing),operations:previewOperations(facts.images,cap(listing,'de'),kb(listing,'de',true)).map(x=>x.method)});
     }
     if (input.dry_run) {
       const { error } = await db.from("delivery_events").select("id").limit(1);
@@ -435,6 +448,15 @@ Deno.serve(async (req) => {
           cache.set(String(raw.id), task);
         }
         const listing = await task;
+        if(listing.source_id===21 || listing._availability==='unavailable') {
+          if(listing._availability==='unavailable') {
+            const {error}=await db.from('listings').update({is_active:false}).eq('id',listing.id);
+            if(error)throw error;
+          }
+          await finishDelivery(db,lease,{status:'skipped',next_retry_at:null,error_message:listing.source_id===21?'Publication freshness unverified':'Source confirms listing unavailable'});
+          skipped++;continue;
+        }
+        if(!['online','recent_inventory'].includes(listing._availability))throw new TelegramFailure('Listing availability could not be verified; retry later',false,false,300);
         const { error: slotError } = await db.rpc("dispatcher_slot", {
           p_owner: owner,
           p_complete: true,

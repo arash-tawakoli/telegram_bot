@@ -42,9 +42,9 @@ test('JSON-LD scopes facts to exact listing and ignores publisher and related ob
  const out={};scope.walk({'@graph':[{'@type':'Organization',address:'wrong',image:'/logo.jpg'},{'@type':'Apartment',url:base,address:'right',image:['/1.jpg','/2.jpg'],numberOfRooms:3,floorSize:{value:75}},{'@type':'Apartment',url:'https://example.test/expose/43',address:'other',image:'/3.jpg'}]},out,base);
  assert.equal(out.address,'right');assert.equal(out.images.length,2);assert.equal(out.rooms,3);
 });
-test('listing previews use only the first image and keep full text with buttons',()=>{
+test('listing previews include all images in bounded albums and keep full text with buttons',()=>{
  const ops=previewOperations(Array.from({length:23},(_,i)=>`https://example.test/${i}.jpg`),'x'.repeat(1200),{inline_keyboard:[]});
- assert.equal(ops.length,2);assert.equal(ops[0].method,'sendPhoto');assert.equal(ops[0].body.photo,'https://example.test/0.jpg');assert.equal(ops[1].body.text.length,1200);assert.ok(ops[1].body.reply_markup);
+ assert.equal(ops.length,4);assert.deepEqual(ops.slice(0,3).map(x=>x.body.media.length),[10,10,3]);assert.equal(ops[3].body.text.length,1200);assert.ok(ops[3].body.reply_markup);
 });
 test('confirmed album failure retries from confirmed checkpoint, not first image',async()=>{
  const ops=previewOperations(Array.from({length:11},(_,i)=>`${i}.jpg`),'facts',{},Infinity);let saved,calls=[];
@@ -101,4 +101,18 @@ test('homepage and listing URLs cannot displace a real listing image',()=>{
 test('cached detail images are validated before choosing a Telegram photo',()=>{
  const l=listing({}, {enrichment_evidence:{preview:{canonical_url:base,facts:{images:['https://example.test/','https://example.test/photo.jpg']}}}});
  assert.deepEqual(Array.from(scope.knownFacts(l).images),['https://example.test/photo.jpg']);
+});
+
+test('Scout gallery, exact address, deposit, publication and extra fields survive detail extraction',()=>{
+ const url='https://www.immobilienscout24.de/expose/42';
+ const f=facts.htmlFacts('<script>var config={galleryData: {"images":[{"fullSizePictureUrl":"https://pictures.immobilienscout24.de/listings/a.jpg/ORIG/large"},{"fullSizePictureUrl":"https://pictures.immobilienscout24.de/listings/b.jpg/ORIG/large"}]}};</script><div class="is24qa-kaution-o-genossenschaftsanteile">3.000 €</div><dl><dt>Baujahr</dt><dd>1999</dd></dl>',url);
+ assert.equal(f.deposit,3000);assert.equal(f.images.length,2);assert.equal(f.extra_facts.Baujahr,'1999');
+ scope.walk({'@type':'RealEstateListing',url,address:{streetAddress:'Str. 17 a',postalCode:'20095',addressLocality:'Hamburg'},datePosted:'27-08-2026',offers:{availability:'https://schema.org/InStock'}},f,url);
+ assert.equal(f.address,'Str. 17 a, 20095 Hamburg');assert.equal(f.published_text,'27-08-2026');
+ assert.equal(facts.collectImages({images:[...f.images,'https://pictures.immobilienscout24.de/listings/a.jpg/ORIG/thumb']},url).length,2);
+});
+test('Kleinanzeigen thumbnails without image classes and explicit equipment are retained',()=>{
+ const f=facts.htmlFacts('<img data-imgsrc="https://img.kleinanzeigen.de/api/v1/prod-ads/images/a?rule=large"><img data-imgsrc="https://img.kleinanzeigen.de/api/v1/prod-ads/images/b?rule=large"><li class="checktag">Balkon</li>','https://www.kleinanzeigen.de/s-anzeige/42');
+ assert.equal(f.images.length,2);assert.deepEqual(f.features,['Balkon']);
+ assert.match(scope.cap(listing({features:['Balkon'],address:{city:'Hamburg',quarter:'Schnelsen'}}),'de'),/Balkon/);
 });

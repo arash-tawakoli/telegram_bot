@@ -83,8 +83,8 @@ export async function runCatalog(source:Source,c:Connector){
       const r=await fetchText(u.href);return source.id===10?parseWunderCatalog(r.text,page):source.id===21?parseSwapCatalog(r.text,page):parseCityCatalog(r.text)};
     const deadline=Date.now()+25000;const front=await load(1);if(front.pages>1000)throw new Error('Catalog page count exceeds verified budget');
     const {data:st}=await db.from('source_coverage_state').select('cursor').eq('source_id',source.id).maybeSingle().throwOnError();
-    const same=st?.cursor?.adapter===adapter&&st?.cursor?.url===base,old=same?st.cursor:{},warmed=old.baseline_done===true;
-    let next=Number(old.next_page||2);const seen=new Set<string>(Array.isArray(old.seen_ids)?old.seen_ids:[]),pages=[front],errors:any[]=[];front.keys.forEach(k=>seen.add(k));
+    const same=st?.cursor?.adapter===adapter&&st?.cursor?.url===base,old=same?st.cursor:{},warmed=old.baseline_done===true&&old.parser_revision==='2026-09-08-v2';
+    let next=Number(warmed?old.next_page||2:old.parser_revision==='2026-09-08-v2'?old.next_page||2:2);const seen=new Set<string>(old.parser_revision==='2026-09-08-v2'&&Array.isArray(old.seen_ids)?old.seen_ids:[]),pages=[front],errors:any[]=[];front.keys.forEach(k=>seen.add(k));
     const firstNext=next;for(let start=next;start<=Math.min(front.pages,firstNext+31)&&Date.now()<deadline;start+=4){
       const batch=Array.from({length:Math.min(4,front.pages-start+1,firstNext+32-start)},(_,i)=>start+i);
       const results=await Promise.allSettled(batch.map(load));
@@ -92,10 +92,10 @@ export async function runCatalog(source:Source,c:Connector){
       if(errors.length)break;next=batch.at(-1)!+1;
     }
     const traversed=next>front.pages,complete=traversed&&!errors.length&&seen.size===front.total;
-    const rows=new Map<string,Candidate>();for(const page of pages)for(const row of page.candidates)rows.set(String(row.key),{...row,raw:{...row.raw,catalog_baseline_verified:warmed}});
-    const saved=await upsertCandidates(source,[...rows.values()],warmed&&!!source.baseline_completed_at);
-    await db.from('source_coverage_state').upsert({source_id:source.id,cycle_id:crypto.randomUUID(),strategy:'public_catalog',status:complete?'complete':'running',cursor:{adapter,url:base,next_page:traversed?2:next,seen_ids:traversed?[]:[...seen],baseline_done:warmed||complete},seen_count:seen.size,request_count:pages.length+errors.length,cycle_started_at:started,cycle_finished_at:complete?iso():null,last_complete_at:complete?iso():null,updated_at:iso(),last_error:errors.length?JSON.stringify(errors):null}).throwOnError();
-    await markSuccess(source,started,c,rows.size,saved.fresh,{adapter,complete,reported_total:front.total,enumerated:seen.size,pages_total:front.pages,pages_checked:pages.length,coverage_errors:errors,baseline_verified:warmed,freshness_mode:'new_id_after_complete_route_baseline',outcome:complete?'success_with_listing':'partial_inventory'});
+    const rows=new Map<string,Candidate>();for(const page of pages)for(const row of page.candidates)rows.set(String(row.key),{...row,raw:{...row.raw,catalog_baseline_verified:warmed&&source.id!==21}});
+    const saved=await upsertCandidates(source,[...rows.values()],warmed&&source.id!==21&&!!source.baseline_completed_at);
+    await db.from('source_coverage_state').upsert({source_id:source.id,cycle_id:crypto.randomUUID(),strategy:'public_catalog',status:complete?'complete':'running',cursor:{adapter,url:base,parser_revision:'2026-09-08-v2',next_page:traversed?2:next,seen_ids:traversed?[]:[...seen],baseline_done:warmed||complete},seen_count:seen.size,request_count:pages.length+errors.length,cycle_started_at:started,cycle_finished_at:complete?iso():null,last_complete_at:complete?iso():null,updated_at:iso(),last_error:errors.length?JSON.stringify(errors):null}).throwOnError();
+    await markSuccess(source,started,c,rows.size,saved.fresh,{adapter,complete,reported_total:front.total,enumerated:seen.size,pages_total:front.pages,pages_checked:pages.length,coverage_errors:errors,baseline_verified:warmed,freshness_mode:source.id===21?'publication_time_unverified_no_delivery':'new_id_after_complete_route_baseline',outcome:complete?'success_with_listing':'partial_inventory'});
     return {ok:true,source_id:source.id,fetched:rows.size,new:saved.fresh,complete};
   }catch(e){return markFailure(source,started,e)}
 }

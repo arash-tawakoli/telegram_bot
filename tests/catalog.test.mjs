@@ -38,3 +38,10 @@ test('Tauschwohnung accepts native Hamburg scope on deep pages and exact new exp
  assert.equal(load().parseSwapCatalog(html(),2).candidates.length,1);
  t[t.indexOf('/hamburg')]='/berlin';assert.throws(()=>load().parseSwapCatalog(html(),2),/scope/);
 });
+
+test('old parser baselines cannot turn newly recovered deep-page inventory into fresh deliveries',async()=>{
+ let savedState,fresh;
+ const db={from(){const q={select(){return q},eq(){return q},maybeSingle(){return q},upsert(s){savedState=s;return q},throwOnError:async()=>({data:{cursor:{adapter:'source-worker/wunder-catalog',url:'https://wunderflats.com/de/moeblierte-wohnungen/hamburg',baseline_done:true,next_page:999,seen_ids:['old']}}})};return q}};
+ await load({db,iso:()=>new Date().toISOString(),fetchText:async url=>({text:url.endsWith('/2')?wunder(2,[c]):wunder(1,[a,b])}),upsertCandidates:async(_,rows,flag)=>{fresh=flag;assert.ok(rows.every(r=>!r.raw.catalog_baseline_verified));return{fresh:0}},markSuccess:async()=>{},markFailure:async(_,__,e)=>{throw e}}).runCatalog({id:10,baseline_completed_at:'2026-09-01'},{config:{adapter:'source-worker/wunder-catalog',url:'https://wunderflats.com/de/moeblierte-wohnungen/hamburg'}});
+ assert.equal(fresh,false);assert.equal(savedState.cursor.parser_revision,'2026-09-08-v2');assert.equal(savedState.cursor.baseline_done,true);
+});

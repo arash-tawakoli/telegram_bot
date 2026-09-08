@@ -1,5 +1,7 @@
 # Quellen-Coverage und Admin-Shadow-Test — 08.09.2026
 
+> Korrektur nach Zustellvorfall: Die beibehaltene Tauschwohnung-Baseline führte zu einer unzulässigen Freigabe nacherfasster Inserate. Zustellung inzwischen gesperrt; siehe [Vorfall und Korrektur](LISTING_FRESHNESS_INCIDENT_2026-09-08.md). Die nachfolgenden ursprünglichen Aussagen zur Frische dieser Quelle sind dadurch überholt.
+
 ## Umfang und Minimalplan
 
 Ziel: belegte Verluste zwischen Quelle, Parser, Datenbank und Telegram korrigieren. Alle 65 registrierten Quellen einzeln bewerten; funktionierende Anbindungen und Geschäftsregeln erhalten. Keine Massen-Nachzustellung von Altbestand, keine Lockerung von Hamburg-/Objekttyp-/Frischefiltern und kein zusätzlicher Queue-Dienst.

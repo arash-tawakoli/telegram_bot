@@ -168,7 +168,7 @@
     },
     {
       "slug": "notification-dispatcher",
-      "version": 65,
+      "version": 67,
       "verify_jwt": false,
       "entrypoint": "supabase/functions/notification-dispatcher/index.ts",
       "import_map": false,
@@ -176,13 +176,13 @@
       "files": [
         {
           "path": "supabase/functions/notification-dispatcher/index.ts",
-          "sha256": "4d562052cb0b4f0bcfd7f109215b1cbbba9776d1c69d7549404cd04bad747fba",
-          "deployed_sha256": "4d562052cb0b4f0bcfd7f109215b1cbbba9776d1c69d7549404cd04bad747fba"
+          "sha256": "a80c1301133b359ada44e44091ca68ed8a552c8a48c3d00394faa7ce10921cff",
+          "deployed_sha256": "a80c1301133b359ada44e44091ca68ed8a552c8a48c3d00394faa7ce10921cff"
         },
         {
           "path": "supabase/functions/notification-dispatcher/preview-delivery.ts",
-          "sha256": "9aaa2e5c5bd79b3953c9b700549306bbfb5f8a571d46dd2aca614793d56afb9c",
-          "deployed_sha256": "9aaa2e5c5bd79b3953c9b700549306bbfb5f8a571d46dd2aca614793d56afb9c"
+          "sha256": "02ccc10eb379482fe3d3521cb32342aa8d9f5ccdc6dae4ef22053a7bce7d3c6f",
+          "deployed_sha256": "02ccc10eb379482fe3d3521cb32342aa8d9f5ccdc6dae4ef22053a7bce7d3c6f"
         },
         {
           "path": "supabase/functions/notification-dispatcher/telegram-request.ts",
@@ -191,8 +191,8 @@
         },
         {
           "path": "supabase/functions/notification-dispatcher/source-facts.ts",
-          "sha256": "98788b727625db3adaba301bc0e8769878f9470309fdae19ded8cf5f713f743d",
-          "deployed_sha256": "98788b727625db3adaba301bc0e8769878f9470309fdae19ded8cf5f713f743d"
+          "sha256": "4f3dc84212fe0c79de5db4bbbd5b96ca3088c8ddb1e99d3fcdc032552fd4fa1c",
+          "deployed_sha256": "4f3dc84212fe0c79de5db4bbbd5b96ca3088c8ddb1e99d3fcdc032552fd4fa1c"
         },
         {
           "path": "supabase/functions/notification-dispatcher/pacing.ts",
@@ -208,6 +208,11 @@
           "path": "supabase/functions/notification-dispatcher/labels.ts",
           "sha256": "57941786c112538c42bce26dace768c0b8d4b47e18a5da84d7e19d6b8acfe162",
           "deployed_sha256": "57941786c112538c42bce26dace768c0b8d4b47e18a5da84d7e19d6b8acfe162"
+        },
+        {
+          "path": "supabase/functions/notification-dispatcher/availability.ts",
+          "sha256": "71bbd67da308db61a40f3ed601cdcdf58a7f7db1df07ed25253eeee690116598",
+          "deployed_sha256": "71bbd67da308db61a40f3ed601cdcdf58a7f7db1df07ed25253eeee690116598"
         }
       ]
     },
@@ -238,7 +243,7 @@
     },
     {
       "slug": "source-worker",
-      "version": 61,
+      "version": 62,
       "verify_jwt": false,
       "entrypoint": "supabase/functions/source-worker/index.ts",
       "import_map": true,
@@ -316,8 +321,8 @@
         },
         {
           "path": "supabase/functions/source-worker/catalog.ts",
-          "sha256": "6a2b729b0bcda012732ee797f28d962b4b41993c7bac67761b351ee6074c3a1f",
-          "deployed_sha256": "6a2b729b0bcda012732ee797f28d962b4b41993c7bac67761b351ee6074c3a1f"
+          "sha256": "f86d23150a7975f994ba970b9dc6e12093c3faa0fc8cc428ab4baea51c8e9f59",
+          "deployed_sha256": "f86d23150a7975f994ba970b9dc6e12093c3faa0fc8cc428ab4baea51c8e9f59"
         },
         {
           "path": "supabase/functions/source-worker/deno.json",
