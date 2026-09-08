@@ -88,6 +88,25 @@ export function structuredFacts(raw: any, base: string): any {
   if (!out.deposit_text && typeof node.deposit === 'string' && amount(node.deposit)==null) out.deposit_text=textValue(node.deposit);
   out.address = node.showAddress === false ? null : exactAddress(h || node.address || (r.provider === 'kleinanzeigen' ? r.location : null));
   if(node.heatingCostIncluded === true)out.heating_text = 'in den Nebenkosten enthalten';
+  if (r.provider === 'immowelt') {
+    const card = [textValue(r.title), textValue(r.alt)].filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
+    const rawAlt = String(r.alt || '').replace(/\s+/g,' ').trim();
+    const type = card.match(/\b(Studio|Wohnung|Apartment|Maisonette|Penthouse|Loft|Dachgeschosswohnung|Erdgeschosswohnung)\s+zur Miete\b/i)?.[1];
+    if (!out.property_type && type) out.property_type = type;
+    const floorForward = card.match(/\bGeschoss\s+(\d+(?:\/\d+)?)\b/i)?.[1];
+    const floorOrdinal = card.match(/\b(\d+\.)\s*Geschoss\b/i)?.[1];
+    if (!out.floor && (floorForward || floorOrdinal)) out.floor = floorForward || `${floorOrdinal} Geschoss`;
+    const available = card.match(/\bfrei ab\s+(sofort|\d{2}\.\d{2}\.\d{4}|nach Vereinbarung)\b/i)?.[1];
+    if (!out.available_text && available) out.available_text = available;
+    if (!out.address && rawAlt) {
+      const location = rawAlt.match(/\b\d+(?:[.,]\d+)?\s*m²(?:\s+(?:Geschoss\s+\d+(?:\/\d+)?|\d+\.\s*Geschoss))?(?:\s+frei ab\s+(?:sofort|\d{2}\.\d{2}\.\d{4}|nach Vereinbarung))?\s+(.+?)\s+(2\d{4})$/i);
+      if (location) out.address = `${location[1].trim()} (${location[2]})`;
+      else {
+        const zip = rawAlt.match(/\b(2\d{4})\s*$/)?.[1];
+        if (zip) out.address = zip;
+      }
+    }
+  }
   const images = [...collectImages(node,base),...collectImages(r,base)];
   if (h) {
     for (const im of r.detail?.images || []) {
@@ -124,8 +143,33 @@ export function htmlFacts(html: string, base: string): any {
     const names:any={'warmmiete':'Warmmiete','kaltmiete':'Kaltmiete','heizkosten':'Heizkosten','nebenkosten':'Nebenkosten','kaution':'Kaution','zimmer':'Zimmer','wohnflaeche-ca':'Wohnfläche','etage':'Etage','wohnungstyp':'Wohnungstyp','bezugsfrei-ab':'Verfügbar ab'};
     if(names[m[2]])apply(names[m[2]],m[3]);
   }
+  const hostname = new URL(base).hostname;
+  if (/(^|\.)immowelt\.de$/i.test(hostname)) {
+    const text = decode(clean.replace(/<[^>]+>/g,' ')).replace(/\s+/g,' ').trim();
+    const rentSection = text.match(/\bMietkosten\b([\s\S]*?)(?=\bLage\b|\bWeitere Services\b|$)/i)?.[1] || '';
+    const rentLabels = ['Warmmiete','Kaltmiete','Nebenkosten','Betriebskosten','Heizkosten','Kaution'];
+    const stop = `${rentLabels.join('|')}|Miete pro Stellplatz`;
+    for (const labelText of rentLabels) {
+      const part = rentSection.match(new RegExp(`${labelText}\\s+([\\s\\S]*?)(?=${stop}|$)`,'i'))?.[1];
+      if (!part) continue;
+      const values = [...part.matchAll(/([\d.]+(?:,\d{1,2})?)\s*€(?!\s*\/\s*m²)/gi)];
+      const value = values.at(-1)?.[1];
+      if (value) apply(labelText, `${value} €`);
+    }
+    const floorForward = text.match(/\bGeschoss\s+(\d+(?:\/\d+)?)\b/i)?.[1];
+    const floorOrdinal = text.match(/\b(\d+)\.\s*Geschoss(?:\/(\d+)\s*Geschossen)?\b/i);
+    if (!out.floor && floorForward) out.floor = floorForward;
+    else if (!out.floor && floorOrdinal) out.floor = `${floorOrdinal[1]}. Geschoss${floorOrdinal[2] ? `/${floorOrdinal[2]}` : ''}`;
+    const available = text.match(/\bfrei ab\s+(sofort|\d{2}\.\d{2}\.\d{4}|nach Vereinbarung)\b/i)?.[1];
+    if (!out.available_text && available) out.available_text = available;
+    const propertyType = text.match(/\b(Studio|Wohnung|Apartment|Maisonette|Penthouse|Loft|Dachgeschosswohnung|Erdgeschosswohnung)\s+zur Miete\b/i)?.[1];
+    if (!out.property_type && propertyType) out.property_type = propertyType;
+    const locationSection = text.match(/\bLage\b([\s\S]*?)(?=\bWeitere Services\b|$)/i)?.[1] || '';
+    const location = locationSection.match(/([A-ZÄÖÜ][A-Za-zÄÖÜäöüß0-9 .,'’\/-]{1,80}?)\s*\((2\d{4})\)/);
+    if (!out.address && location) out.address = `${location[1].trim()} (${location[2]})`;
+  }
   const address=clean.match(/<([a-z][a-z0-9]*)\b[^>]*id=["']viewad-locality["'][^>]*>([\s\S]*?)<\/\1>/i);
-  if(address && /kleinanzeigen\.de/.test(new URL(base).hostname))out.address=decode(address[2]);
+  if(address && /kleinanzeigen\.de/.test(hostname))out.address=decode(address[2]);
   for(const m of clean.matchAll(/<(?:img|meta|div)\b[^>]*>/gi)) {
     const tag=m[0], attr=(name:string)=>tag.match(new RegExp(`(?:^|\\s)${name}\\s*=\\s*["']([^"']+)["']`,'i'))?.[1];
     // Only listing gallery/itemprop images and the page's explicit preview image.
