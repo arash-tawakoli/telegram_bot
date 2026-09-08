@@ -287,10 +287,8 @@ async function enrich(l: any, persist = true) {
   if (!l.canonical_url || l.raw?.provider === 'immosolve_hpm_rest') return l;
   const out = { ...l };
   const previous = l.enrichment_evidence?.preview;
-  const isImmowelt = l.raw?.provider === 'immowelt';
-  const evidenceVersion = isImmowelt ? 4 : 3;
   // Reuse detail evidence only when the source snapshot has not changed.
-  if (previous?.version === evidenceVersion && previous.canonical_url === l.canonical_url && previous.source_seen_at === l.last_seen_at && Date.now()-Date.parse(previous.checked_at)<3600000) return l;
+  if (previous?.version === 3 && previous.canonical_url === l.canonical_url && previous.source_seen_at === l.last_seen_at && Date.now()-Date.parse(previous.checked_at)<3600000) return l;
   try {
     let facts:any;
     const immomioId=String(l.canonical_url).match(/^https:\/\/tenant\.immomio\.com\/(?:de\/)?apply\/([0-9a-f-]{36})$/i)?.[1];
@@ -303,40 +301,16 @@ async function enrich(l: any, persist = true) {
       facts=structuredFacts({property:j.data.property},l.canonical_url);
       facts.images=[...new Set([...facts.images,...collectImages(j.data.property,l.canonical_url)])];
     }else{
-      const directWarm = factNumber(knownFacts(l).warm_rent);
-      const useImmoweltMobile = isImmowelt && directWarm == null;
-      const detailUrl = new URL(String(l.canonical_url));
-      if (useImmoweltMobile) detailUrl.searchParams.set('app','1');
-      const headers: Record<string,string> = useImmoweltMobile
-        ? {
-            'user-agent':'Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.6 Mobile/15E148 Safari/604.1',
-            accept:'text/html,application/xhtml+xml,application/json',
-            'accept-language':'de-DE,de;q=0.9',
-            cookie:'aviv_client=ios',
-          }
-        : {
-            'user-agent':UA,
-            accept:'text/html,application/xhtml+xml,application/json',
-            'accept-language':'de-DE,de;q=0.9',
-          };
-      const r = await fetch(detailUrl.href, {redirect:'follow',headers,signal:AbortSignal.timeout(6500)});
-      let resolvedUrl = r.url;
-      if (useImmoweltMobile) {
-        try {
-          const u = new URL(resolvedUrl);
-          u.searchParams.delete('app');
-          resolvedUrl = u.href;
-        } catch {}
-      }
-      if (!r.ok || !sameListing(resolvedUrl,l.canonical_url)) return l;
-      const h = await r.text();
-      if (/captcha|cf-chl-|access denied|verify you are human|please enable js/i.test(h.slice(0,12000))) return l;
-      facts = htmlFacts(h,l.canonical_url);
-      for (const m of h.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
-        try { walk(JSON.parse(m[1]),facts,l.canonical_url); } catch {}
-      }
+    const r = await fetch(String(l.canonical_url), {redirect:'follow',headers:{'user-agent':UA,accept:'text/html,application/xhtml+xml,application/json','accept-language':'de-DE,de;q=0.9'},signal:AbortSignal.timeout(6500)});
+    if (!r.ok || !sameListing(r.url,l.canonical_url)) return l;
+    const h = await r.text();
+    if (/captcha|cf-chl-|access denied|verify you are human/i.test(h.slice(0,12000))) return l;
+    facts = htmlFacts(h,l.canonical_url);
+    for (const m of h.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
+      try { walk(JSON.parse(m[1]),facts,l.canonical_url); } catch {}
     }
-    const evidence={...l.enrichment_evidence,preview:{version:evidenceVersion,canonical_url:l.canonical_url,checked_at:new Date().toISOString(),source_seen_at:l.last_seen_at,facts}};
+    }
+    const evidence={...l.enrichment_evidence,preview:{version:3,canonical_url:l.canonical_url,checked_at:new Date().toISOString(),source_seen_at:l.last_seen_at,facts}};
     out.enrichment_evidence=evidence;
     if (persist) {
       const {error}=await db.from('listings').update({enrichment_evidence:evidence}).eq('id',l.id);
