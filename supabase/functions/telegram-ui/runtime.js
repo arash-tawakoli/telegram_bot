@@ -247,14 +247,17 @@ export async function ensureUser(from, chatId) {
     return { ...data, __is_new_user: true };
 }
 
-export async function withPlan(user) {
-    const { data: subscription, error } = await db
+export async function withPlan(user, subscription = undefined) {
+    if (subscription === undefined) {
+    const { data, error } = await db
         .from("user_subscriptions")
         .select("status,current_period_end,cancel_at_period_end")
         .eq("user_id", user.id)
         .maybeSingle();
     if (error)
         throw error;
+    subscription = data;
+    }
     const now = Date.now();
     const premium = user.plan_override === "free"
         ? false

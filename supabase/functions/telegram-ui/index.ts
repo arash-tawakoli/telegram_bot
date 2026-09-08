@@ -2,7 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { isAdmin } from "./admin.js";
 import { handleMessage, handleCallback } from "./handlers.js";
 import { premium } from "./navigation.js";
-import { SUPABASE_URL, db, secretCache, chatLanguages, secret, telegram, ensureUser, withPlan, finishUpdate } from "./runtime.js";
+import { SUPABASE_URL, db, secretCache, chatLanguages, secret, telegram, withPlan, finishUpdate } from "./runtime.js";
 Deno.serve(async (request) => {
     let updateId=null,attempt=null;
     try {
@@ -29,12 +29,13 @@ Deno.serve(async (request) => {
         const chatId = payload.callback_query?.message?.chat?.id || payload.message?.chat?.id;
         if (!from?.id || !chatId)
             return Response.json({ ok: true, ignored: true });
-        const {data:claim,error:claimError}=await db.rpc('claim_telegram_update',{p_payload:payload});
+        const {data:prepared,error:claimError}=await db.rpc('prepare_telegram_update',{p_payload:payload});
+        const claim=prepared?.claim;
         if(claimError) throw claimError;
         if(claim===0) return Response.json({ok:true,duplicate:true});
         if(claim<0) return Response.json({ok:false,busy:true},{status:503});
         updateId=payload.update_id;attempt=claim;
-        const user = await withPlan(await ensureUser(from, Number(chatId)));
+        const user = await withPlan({...prepared.user, __is_new_user:prepared.is_new_user === true}, prepared.subscription ?? null);
         user.request_update_id=updateId;
         if (!user.is_active && !isAdmin(user)) {
             await finishUpdate(updateId,attempt,true);
