@@ -47,6 +47,13 @@ function loc(l: any) {
   if (evidence && evidence.canonical_url === l.canonical_url && Object.hasOwn(evidence.facts || {},'address')) return textValue(evidence.facts.address);
   return structuredFacts(l.raw, l.canonical_url).address;
 }
+function mapLoc(l: any) {
+  const exact = loc(l);
+  if (exact) return exact;
+  if (l.raw?.provider !== 'immowelt') return null;
+  const coarse = [l.postal_code, l.city].filter(present).map((x:any)=>String(x).trim()).join(' ');
+  return coarse || null;
+}
 function factNumber(value: any) {
   if (value == null || !present(value) || typeof value === "boolean") return null;
   const n = Number(value);
@@ -178,7 +185,7 @@ function kb(l: any, lang: string, p: boolean) {
             },
       ],
     ],
-    q = loc(l);
+    q = mapLoc(l);
   if (q)
     r.push([
       {
@@ -497,4 +504,3 @@ Deno.serve(async (req) => {
     }
   }
 });
-
