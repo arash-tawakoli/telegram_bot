@@ -51,8 +51,7 @@ function mapLoc(l: any) {
   const exact = loc(l);
   if (exact) return exact;
   if (l.raw?.provider !== 'immowelt') return null;
-  const coarse = [l.postal_code, l.city].filter(present).map((x:any)=>String(x).trim()).join(' ');
-  return coarse || null;
+  return textValue(l.postal_code) ?? textValue(l.city);
 }
 function factNumber(value: any) {
   if (value == null || !present(value) || typeof value === "boolean") return null;
