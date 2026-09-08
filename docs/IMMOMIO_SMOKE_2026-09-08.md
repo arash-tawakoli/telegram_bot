@@ -324,3 +324,13 @@ Fehler einzelner Webseiten sind keine Aussage über die Verfügbarkeit des gesam
 ## Konfigurationskontrolle
 
 Nach Abschluss der Abfragen wurden Aktivierung, Laufzeitmodus, Connector-Typ und Prioritäten erneut aus Supabase gelesen. Die zehn erfolgreichen ImmoMio-Connectoren bleiben live auf Priorität 1. Es wurden keine Bestandsanbindungen ersetzt.
+
+## Ergänzung: direkte Telegram-Ziellinks
+
+Auf nachfolgenden Nutzerwunsch wurden am 08.09.2026 bei den sieben Quellen 37, 42, 44, 45, 55, 56 und 60 die öffentlich verlinkten Tenant-Registrierungsziele erneut aus den offiziellen Anbieterwebsites übernommen. Alle sieben Quellseiten und alle sieben Registrierungsziele antworteten aus Supabase mit HTTP 200 (Quell-Requests 163845–163851; Portal-Requests 163854–163860).
+
+Die bestehende Connector-Konfiguration wurde um `tenant_registration_url`, `tenant_registration_source_url` und `tenant_registration_verified_at` ergänzt. Abrufadapter, Prioritäten und Aktivierungszustände bleiben erhalten. Die Registrierung ersetzt keine öffentliche Inventarschnittstelle und erzeugt keine künstlichen Listings.
+
+Der Telegram-Angebotsbutton bevorzugt bei Baugenossenschaften einen konkreten `tenant.immomio.com/.../apply/<UUID>`-Link aus dem Listing. Andernfalls verwendet er das geprüfte Portal mit der Beschriftung „ImmoMio-Registrierung“. Fehlt beides, bleibt der bisherige Angebotslink. Canonical URLs und Listing-Identitäten bleiben erhalten; die Premium-Zugangsregel bleibt wirksam. Bereits gesendete Nachrichten werden nicht nachträglich verändert.
+
+Validierung: 14 Tests zur Vorschau einschließlich Ziellink-Reihenfolge, Hostvalidierung und Premium-Regel erfolgreich. Ausgerollt als `notification-dispatcher` Version 44. Die sieben Konfigurationseinträge wurden nach dem Schreiben erneut geprüft.

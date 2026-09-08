@@ -145,16 +145,36 @@ function cap(l: any, lang: string) {
   if (loc(l)) lines.push(`📍 <b>${label(lang, "address")}:</b> ${esc(loc(l))}`);
   return lines.join("\n").trim();
 }
+function offerTarget(l: any, lang: string) {
+  const fallback = {url:l.canonical_url, text:l.sources?.button_label ? `Zu ${l.sources.button_label}` : label(lang,"offer")};
+  if (l.sources?.source_type !== "Baugenossenschaft") return fallback;
+  const tenant = (value:any, registration=false) => {
+    if (typeof value !== "string") return null;
+    try {
+      const u=new URL(value);
+      if(u.protocol!=="https:" || u.hostname!=="tenant.immomio.com" || u.port || u.username || u.password) return null;
+      const valid=registration
+        ? /^\/(?:de\/)?auth\/register\/propertyLocation\/?$/.test(u.pathname) && !!u.searchParams.get("token")
+        : /^\/(?:de\/)?apply\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/?$/i.test(u.pathname);
+      return valid ? value : null;
+    } catch { return null; }
+  };
+  const direct=tenant(l.canonical_url) || tenant(l.raw?.applicationLink);
+  if(direct) return {url:direct,text:label(lang,"offer")};
+  const connectors=[...(l.sources?.source_connectors || [])].filter((c:any)=>c.enabled).sort((a:any,b:any)=>a.priority-b.priority);
+  for(const c of connectors) {
+    const portal=tenant(c.config?.tenant_registration_url,true);
+    if(portal) return {url:portal,text:"ImmoMio-Registrierung"};
+  }
+  return fallback;
+}
 function kb(l: any, lang: string, p: boolean) {
   const r: any[] = [
       [
         !p && String(l.sources?.source_type || "") === "Baugenossenschaft"
           ? { text: "🔒 Angebot öffnen · 💎 Premium", callback_data: "premium" }
           : {
-              text: l.sources?.button_label
-                ? `Zu ${l.sources.button_label}`
-                : label(lang, "offer"),
-              url: l.canonical_url,
+              ...offerTarget(l,lang),
             },
       ],
     ],
@@ -327,10 +347,10 @@ Deno.serve(async (req) => {
       return new Response("unauthorized", { status: 401 });
     const input = await req.json().catch(() => ({}));
     if (input.dry_run && input.listing_id) {
-      const {data,error}=await db.from('listings').select('*,sources(button_label,source_type)').eq('id',input.listing_id).single();
+      const {data,error}=await db.from('listings').select('*,sources(button_label,source_type,source_connectors(config,enabled,priority))').eq('id',input.listing_id).single();
       if(error)throw error;
       const listing=await enrich(data,false),facts=knownFacts(listing);
-      return Response.json({ok:true,dry_run:true,caption:cap(listing,'de'),images:facts.images,address:loc(listing),operations:previewOperations(facts.images,cap(listing,'de'),kb(listing,'de',true)).map(x=>x.method)});
+      return Response.json({ok:true,dry_run:true,caption:cap(listing,'de'),keyboard:kb(listing,'de',true),images:facts.images,address:loc(listing),operations:previewOperations(facts.images,cap(listing,'de'),kb(listing,'de',true)).map(x=>x.method)});
     }
     if (input.dry_run) {
       const { error } = await db.from("delivery_events").select("id").limit(1);
@@ -369,7 +389,7 @@ Deno.serve(async (req) => {
     const { data: events, error } = await db
       .from("delivery_events")
       .select(
-        "id,status,dispatch_attempts,preview_progress,recipient:bot_users!delivery_events_recipient_user_id_fkey(id,chat_id,is_active,ui_language),search_profiles!inner(id,profile_slot,is_active,owner:bot_users!search_profiles_user_id_fkey(id,is_active,plan_override,plan_override_expires_at,referral_bonus_until)),listings!inner(*,sources(button_label,source_type))",
+        "id,status,dispatch_attempts,preview_progress,recipient:bot_users!delivery_events_recipient_user_id_fkey(id,chat_id,is_active,ui_language),search_profiles!inner(id,profile_slot,is_active,owner:bot_users!search_profiles_user_id_fkey(id,is_active,plan_override,plan_override_expires_at,referral_bonus_until)),listings!inner(*,sources(button_label,source_type,source_connectors(config,enabled,priority)))",
       )
       .in("status", ["pending", "failed"])
       .eq("delivery_outcome_unknown", false)

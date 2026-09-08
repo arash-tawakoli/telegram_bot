@@ -74,3 +74,20 @@ test('HPM presentation translation templates cannot override its actual API fiel
  const l=listing({provider:'immosolve_hpm_rest',detail:{immoObject:{labels:{etage:'4. Etage',availableStart:'01.11.2026',kaution:'3.780,00'}}}},{deposit_text:'Bond Bond type',enrichment_evidence:{preview:{canonical_url:base,facts:{floor:'Floor',available_text:'Availability start',deposit_text:'Bond Bond type'}}}});
  const c=scope.cap(l,'de');assert.match(c,/4. Etage/);assert.match(c,/01.11.2026/);assert.doesNotMatch(c,/Floor|Availability|Bond/);
 });
+
+test('tenant destination prefers concrete offers and validates registration fallback without bypassing premium',()=>{
+ const direct='https://tenant.immomio.com/de/apply/12345678-1234-1234-1234-123456789012';
+ const portal='https://tenant.immomio.com/de/auth/register/propertyLocation?token=public';
+ const sources={source_type:'Baugenossenschaft',source_connectors:[{enabled:true,priority:1,config:{tenant_registration_url:portal}}]};
+ const l=listing({}, {sources});
+ assert.equal(scope.kb(l,'de',true).inline_keyboard[0][0].url,portal);
+ assert.equal(scope.kb(l,'de',true).inline_keyboard[0][0].text,'ImmoMio-Registrierung');
+ assert.equal(scope.kb({...l,canonical_url:direct},'de',true).inline_keyboard[0][0].url,direct);
+ assert.equal(scope.kb({...l,raw:{applicationLink:direct}},'de',true).inline_keyboard[0][0].url,direct);
+ assert.equal(scope.kb(l,'de',false).inline_keyboard[0][0].callback_data,'premium');
+ assert.equal(scope.kb({...l,sources:{source_type:'Portal'}},'de',true).inline_keyboard[0][0].url,base);
+ for(const bad of ['https://tenant.immomio.com.evil.test/de/auth/register/propertyLocation?token=x','http://tenant.immomio.com/de/auth/register/propertyLocation?token=x','https://tenant.immomio.com/de/auth/register/propertyLocation']) {
+  sources.source_connectors[0].config.tenant_registration_url=bad;
+  assert.equal(scope.kb(l,'de',true).inline_keyboard[0][0].url,base);
+ }
+});
