@@ -1,10 +1,12 @@
 import {TelegramFailure} from './telegram-request.ts';
-export function previewOperations(images:string[],caption:string,keyboard:any) {
+export function previewOperations(images:string[],caption:string,keyboard:any,maxImages:number=1) {
+  const selectedImages=images.slice(0,Math.max(0,maxImages));
   const operations:any[]=[];
+  // Listing previews default to one image; callers must explicitly opt in to galleries.
   // Conservative HTML-source length also covers decoded Telegram caption length.
-  if(images.length===1 && caption.length<=1000) return [{method:'sendPhoto',body:{photo:images[0],caption,parse_mode:'HTML',reply_markup:keyboard}}];
-  for(let i=0;i<images.length;i+=10) {
-    const batch=images.slice(i,i+10);
+  if(selectedImages.length===1 && caption.length<=1000) return [{method:'sendPhoto',body:{photo:selectedImages[0],caption,parse_mode:'HTML',reply_markup:keyboard}}];
+  for(let i=0;i<selectedImages.length;i+=10) {
+    const batch=selectedImages.slice(i,i+10);
     operations.push(batch.length===1 ? {method:'sendPhoto',body:{photo:batch[0]}} : {method:'sendMediaGroup',body:{media:batch.map(media=>({type:'photo',media}))}});
   }
   const chunks:string[]=[]; let chunk='';
