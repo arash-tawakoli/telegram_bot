@@ -1,3 +1,4 @@
+import * as previewFacts from '../supabase/functions/notification-dispatcher/source-facts.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -37,7 +38,7 @@ test('Nestpick only requests fresh delivery after warming the exact route',async
 test('Telegram labels unverified Nestpick prices and ignores invalid raw values',()=>{
  const index=readFileSync(new URL('../supabase/functions/notification-dispatcher/index.ts',import.meta.url),'utf8');
  const labels=readFileSync(new URL('../supabase/functions/notification-dispatcher/labels.ts',import.meta.url),'utf8').replaceAll('export ','');
- const cap=vm.runInNewContext(stripTypeScriptTypes(labels+'\n'+index.slice(index.indexOf('function esc('),index.indexOf('function kb(')))+';cap');
+ const cap=vm.runInNewContext(stripTypeScriptTypes(labels+'\n'+index.slice(index.indexOf('function esc('),index.indexOf('function kb(')))+';cap', {...previewFacts});
  const l={title:'Example',raw:{provider:'nestpick_public_api',price_currency:'EUR',advertised_monthly_price:1000}};
  assert.match(cap(l,'de'),/Nebenkosten ungeklärt/);assert.doesNotMatch(cap(l,'de'),/Warmmiete/);
  assert.doesNotMatch(cap({...l,warm_rent:1200},'de'),/ungeklärt/);
@@ -54,3 +55,4 @@ test('database freshness requires the native Nestpick lane, baseline and explici
   await db.exec('update sources set baseline_completed_at=null');assert.equal(await fresh(raw),false);
  }finally{await db.close();}
 });
+

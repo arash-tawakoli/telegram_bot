@@ -1,5 +1,7 @@
-import {telegramRequest,TelegramFailure} from "./telegram-request.ts";
-import {waitForDispatchSlot} from "./pacing.ts";
+import {previewOperations,deliverPreview} from "./preview-delivery.ts";
+import {present, textValue, exactAddress, structuredFacts, collectImages, htmlFacts} from "./source-facts.ts";
+import { telegramRequest, TelegramFailure } from "./telegram-request.ts";
+import { waitForDispatchSlot } from "./pacing.ts";
 import {
   claimDelivery,
   finishDelivery,
@@ -41,13 +43,107 @@ function esc(v: any) {
     .replace(/>/g, "&gt;");
 }
 function loc(l: any) {
-  if (l.address && String(l.address).trim()) return String(l.address).trim();
-  const p = [l.postal_code, l.district, l.city || "Hamburg"].filter(Boolean);
-  return p.length ? p.join(" ") : null;
+  const evidence = l.raw?.provider === 'immosolve_hpm_rest' ? null : l.enrichment_evidence?.preview;
+  if (evidence && evidence.canonical_url === l.canonical_url && Object.hasOwn(evidence.facts || {},'address')) return textValue(evidence.facts.address);
+  return structuredFacts(l.raw, l.canonical_url).address;
+}
+function factNumber(value: any) {
+  if (value == null || !present(value) || typeof value === "boolean") return null;
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+function availableText(l: any) {
+  return textValue(l.available_text) ?? textValue(l.raw?.available_text) ?? textValue(l.raw?.availableFrom?.stringAvailable) ?? textValue(l.raw?.availableFrom?.dateAvailable) ?? textValue(l.available_from);
+}
+function sourceMoney(v: any) {
+  if (typeof v === "number") return factNumber(v);
+  if (typeof v !== "string") return null;
+  const t = v.trim().replace(/\s*(?:€|EUR)\s*$/i, "");
+  if (!/^\d+(?:[.,]\d+)*$/.test(t)) return null;
+  return factNumber(
+    t.includes(",")
+      ? t.replace(/\./g, "").replace(",", ".")
+      : /^\d{1,3}(?:\.\d{3})+$/.test(t)
+        ? t.replace(/\./g, "")
+        : t,
+  );
+}
+function knownFacts(l: any) {
+  const direct = structuredFacts(l.raw, l.canonical_url);
+  const evidence = l.raw?.provider === 'immosolve_hpm_rest' ? null : l.enrichment_evidence?.preview;
+  const detail = evidence && evidence.canonical_url === l.canonical_url ? evidence.facts || {} : {};
+  const out = {...l, ...direct, ...detail};
+  // Old DB values can include inferred addresses, default types and calculated rents.
+  out.address = loc(l);
+  out.property_type = detail.property_type ?? direct.property_type ?? null;
+  out.deposit_text = detail.deposit_text ?? direct.deposit_text ?? null;
+  if (l.warm_rent_is_calculated && direct.warm_rent == null && detail.warm_rent == null) out.warm_rent = null;
+  out.images = [...new Set([...(detail.images || []), ...(direct.images || []), ...collectImages({image_urls:[l.resolved_image_url,l.image_url].filter(Boolean)},l.canonical_url)])];
+  return out;
 }
 function cap(l: any, lang: string) {
-  const advertised=l.raw?.provider==="nestpick_public_api" && l.raw?.price_currency==="EUR" && typeof l.raw?.advertised_monthly_price==="number" && Number.isFinite(l.raw.advertised_monthly_price) && l.raw.advertised_monthly_price>0 && l.warm_rent==null && l.cold_rent==null ? `💶 <b>${label(lang, "advertised")}:</b> ${l.raw.advertised_monthly_price} €\n` : "";
-  return `🏠 <b>${esc(String(l.title || "Listing").slice(0, 180))}</b>\n\n${advertised}${l.warm_rent != null ? `💶 <b>${label(lang, "warm")}:</b> ${l.warm_rent} €\n` : ""}${l.cold_rent != null ? `❄️ <b>${label(lang, "cold")}:</b> ${l.cold_rent} €\n` : ""}${l.area_sqm != null ? `📐 <b>${label(lang, "area")}:</b> ${l.area_sqm} m²\n` : ""}${l.rooms != null ? `🚪 <b>${label(lang, "rooms")}:</b> ${l.rooms}\n` : ""}${loc(l) ? `📍 <b>${label(lang, "address")}:</b> ${esc(loc(l))}` : ""}`.trim();
+  l = knownFacts(l);
+  const lines = [
+    `🏠 <b>${esc(String(l.title || "Listing").slice(0, 180))}</b>`,
+    "",
+  ];
+  const number = (emoji: string, key: string, value: any, unit = " €") => {
+    const n = factNumber(value);
+    if (n != null)
+      lines.push(`${emoji} <b>${label(lang, key)}:</b> ${n}${unit}`);
+  };
+  number(
+    "💶",
+    l.total_rent != null && factNumber(l.total_rent) === factNumber(l.warm_rent)
+      ? "warm_total"
+      : "warm",
+    l.warm_rent,
+  );
+  if (
+    l.total_rent != null &&
+    factNumber(l.total_rent) !== factNumber(l.warm_rent)
+  )
+    number("💶", "total", l.total_rent);
+  number("❄️", "cold", l.cold_rent);
+  number("🧾", "additional", l.additional_costs);
+  number("🏢", "operating", l.operating_costs);
+  if (l.raw?.entry?.heatingCostsInServiceCharge === "YES")
+    lines.push(
+      `🔥 <b>${label(lang, "heating")}:</b> ${factNumber(l.heating_costs) != null ? factNumber(l.heating_costs) + " € · " : ""}${label(lang, "included")}`,
+    );
+  else if (present(l.heating_text)) lines.push(`🔥 <b>${label(lang, "heating")}:</b> ${esc(l.heating_text)}`);
+  else number("🔥", "heating", l.heating_costs);
+  const deposit = factNumber(l.deposit),
+    depositText =
+      textValue(l.deposit_text) || "";
+  if (deposit != null || depositText)
+    lines.push(
+      `🔐 <b>${label(lang, "deposit")}:</b> ${deposit != null ? deposit + " €" : ""}${deposit != null && depositText ? " · " : ""}${esc(depositText)}`,
+    );
+  if (
+    [
+      "nestpick_public_api",
+      "city_wohnen_catalog",
+      "wunderflats_catalog",
+    ].includes(l.raw?.provider) &&
+    l.raw?.price_currency === "EUR" &&
+    typeof l.raw.advertised_monthly_price === "number" &&
+    l.raw.advertised_monthly_price > 0 &&
+    factNumber(l.raw.advertised_monthly_price) != null &&
+    l.warm_rent == null &&
+    l.cold_rent == null
+  )
+    number("💶", "advertised", l.raw.advertised_monthly_price);
+  number("🚪", "rooms", l.rooms, "");
+  number("📐", "area", l.area_sqm, " m²");
+  for (const [key, value] of [["floor", l.floor], ["property_type", l.property_type], ["move_in_date", l.move_in_date]]) {
+    if (present(value)) lines.push(`<b>${label(lang, key)}:</b> ${esc(value)}`);
+  }
+  const available = availableText(l);
+  if (available)
+    lines.push(`📅 <b>${label(lang, "available")}:</b> ${esc(available)}`);
+  if (loc(l)) lines.push(`📍 <b>${label(lang, "address")}:</b> ${esc(loc(l))}`);
+  return lines.join("\n").trim();
 }
 function kb(l: any, lang: string, p: boolean) {
   const r: any[] = [
@@ -77,7 +173,13 @@ function kb(l: any, lang: string, p: boolean) {
   ]);
   return { inline_keyboard: r };
 }
-async function tg(t:string,m:string,b:any){return telegramRequest(`https://api.telegram.org/bot${t}/${m}`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(b)});}
+async function tg(t: string, m: string, b: any) {
+  return telegramRequest(`https://api.telegram.org/bot${t}/${m}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(b),
+  });
+}
 function absolute(base: string, v: any) {
   try {
     return v ? new URL(String(v), base).href : null;
@@ -85,170 +187,136 @@ function absolute(base: string, v: any) {
     return null;
   }
 }
-function walk(v: any, out: any) {
+function sameListing(a: any, b: any) {
+  try {
+    const x = new URL(a),
+      y = new URL(b);
+    for (const u of [x, y])
+      for (const k of [...u.searchParams.keys()])
+        if (k.startsWith("utm_")) u.searchParams.delete(k);
+    return x.href.replace(/\/$/, "") === y.href.replace(/\/$/, "");
+  } catch {
+    return false;
+  }
+}
+function walk(v: any, out: any, target: string, parentScoped = false) {
   if (!v || typeof v !== "object") return;
   if (Array.isArray(v)) {
-    for (const x of v) walk(x, out);
+    for (const x of v) walk(x, out, target, parentScoped);
     return;
   }
-  const a = v.address && typeof v.address === "object" ? v.address : null;
-  if (a) {
-    out.address ||=
-      a.streetAddress ||
-      [a.street, a.houseNumber].filter(Boolean).join(" ") ||
-      null;
-    out.postal_code ||= a.postalCode || a.zipCode || null;
-    out.district ||= a.district || null;
-  }
-  if (!out.image) {
-    const im = v.image;
-    if (typeof im === "string") out.image = im;
-    else if (Array.isArray(im)) {
-      const x = im[0];
-      out.image = typeof x === "string" ? x : x?.url || x?.contentUrl;
-    } else if (im && typeof im === "object")
-      out.image = im.url || im.contentUrl;
-  }
-  for (const x of Object.values(v)) walk(x, out);
-}
-async function enrich(l: any) {
+  const types = Array.isArray(v["@type"]) ? v["@type"] : [v["@type"]];
   if (
-    !l.canonical_url ||
-    ((l.address || l.enrichment_checked_at) &&
-      (l.resolved_image_url || l.image_status === "failed"))
-  )
-    return l;
-  const out = { ...l },
-    patch: any = { enrichment_checked_at: new Date().toISOString() };
-  try {
-    const r = await fetch(String(l.canonical_url), {
-      redirect: "follow",
-      headers: {
-        "user-agent": UA,
-        accept: "text/html,application/xhtml+xml,*/*",
-        "accept-language": "de-DE,de;q=0.9",
-      },
-      signal: AbortSignal.timeout(6500),
-    });
-    if (r.ok) {
-      const h = await r.text(),
-        facts: any = {};
-      for (const m of h.matchAll(
-        /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi,
-      ))
-        try {
-          walk(JSON.parse(m[1]), facts);
-        } catch {}
-      facts.image ||=
-        h.match(
-          /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)/i,
-        )?.[1] ||
-        h.match(
-          /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i,
-        )?.[1];
-      if (!facts.address) {
-        const text = h
-          .replace(/<script\b[\s\S]*?<\/script>/gi, " ")
-          .replace(/<style\b[\s\S]*?<\/style>/gi, " ")
-          .replace(/<[^>]+>/g, " ")
-          .replace(/\s+/g, " ");
-        facts.address =
-          text.match(
-            /([A-ZÄÖÜ][A-Za-zÄÖÜäöüß .'-]{1,60}(?:straße|strasse|str\.|weg|allee|ring|platz|chaussee|damm|kamp|stieg|ufer|twiete|gasse)\s+[0-9]{1,4}[a-zA-Z]?)/i,
-          )?.[1] || null;
-      }
-      if (facts.address && !out.address) {
-        out.address = String(facts.address).trim();
-        patch.address = out.address;
-      }
-      if (facts.postal_code && !out.postal_code) {
-        out.postal_code = String(facts.postal_code);
-        patch.postal_code = out.postal_code;
-      }
-      if (facts.district && !out.district) {
-        out.district = String(facts.district);
-        patch.district = out.district;
-      }
-      if (facts.image && !out.resolved_image_url) {
-        const u = absolute(r.url, facts.image);
-        if (u) {
-          out.resolved_image_url = u;
-          out.image_url ||= u;
-          patch.resolved_image_url = u;
-          if (!l.image_url) patch.image_url = u;
-          patch.image_status = "direct";
-          patch.image_source = "detail_page";
-          patch.image_error = null;
-          patch.image_last_checked_at = new Date().toISOString();
-        }
-      }
+    types.some((t: any) =>
+      [
+        "Apartment",
+        "House",
+        "Residence",
+        "Accommodation",
+        "SingleFamilyResidence",
+      ].includes(t),
+    ) &&
+    (v.url || v["@id"] ? sameListing(v.url || v["@id"], target) : parentScoped)
+  ) {
+    const address = exactAddress(v.address);
+    if (address) out.address = address;
+    Object.assign(out, Object.fromEntries(Object.entries(structuredFacts(v, target)).filter(([k,val]) => k !== 'address' && k !== 'images' && val != null)));
+    out.images = [...new Set([...(out.images || []), ...collectImages(v, target)])];
+    const names: any = {
+      warmmiete: "warm_rent",
+      gesamtmiete: "total_rent",
+      kaltmiete: "cold_rent",
+      heizkosten: "heating_costs",
+      nebenkosten: "additional_costs",
+      betriebskosten: "operating_costs",
+      kaution: "deposit",
+    };
+    for (const p of Array.isArray(v.additionalProperty)
+      ? v.additionalProperty
+      : []) {
+      const key =
+        names[
+          String(p.name || "")
+            .toLowerCase()
+            .trim()
+        ];
+      const n = sourceMoney(p.value);
+      if (key && n != null) out[key] = n;
     }
-  } catch {}
-  if (Object.keys(patch).length)
-    await db.from("listings").update(patch).eq("id", l.id);
+    const area = sourceMoney(v.floorSize?.value),
+      rooms = sourceMoney(v.numberOfRooms);
+    if (area != null) out.area_sqm = area;
+    if (rooms != null) out.rooms = rooms;
+  }
+  // Linked-data graphs may contain unrelated organization and related-offer nodes.
+  if (v["@graph"]) walk(v["@graph"], out, target);
+  const ownScope =
+    parentScoped ||
+    (types.some((t: any) => ["RealEstateListing", "Offer"].includes(t)) &&
+      sameListing(v.url || v["@id"], target));
+  if (v.mainEntity) walk(v.mainEntity, out, target, ownScope);
+  if (v.itemOffered) walk(v.itemOffered, out, target, ownScope);
+}
+async function enrich(l: any, persist = true) {
+  if (!l.canonical_url || l.raw?.provider === 'immosolve_hpm_rest') return l;
+  const out = { ...l };
+  const previous = l.enrichment_evidence?.preview;
+  // Reuse detail evidence only when the source snapshot has not changed.
+  if (previous?.version === 3 && previous.canonical_url === l.canonical_url && previous.source_seen_at === l.last_seen_at && Date.now()-Date.parse(previous.checked_at)<3600000) return l;
+  try {
+    let facts:any;
+    const immomioId=String(l.canonical_url).match(/^https:\/\/tenant\.immomio\.com\/(?:de\/)?apply\/([0-9a-f-]{36})$/i)?.[1];
+    if(immomioId){
+      // Same anonymous property query used by the public application page.
+      const response=await fetch('https://gql-ps.immomio.com/tenant/graphql',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({query:'query property($id: ID!) { property(id:$id) { id type totalRentGross titleImage {url type encrypted} data {name showAddress address {street houseNumber zipCode city} basePrice totalRentGross serviceCharge heatingCost heatingCostIncluded bailment rooms halfRooms size floor flatType availableFrom{dateAvailable stringAvailable} attachments{url title type encrypted extension} } } }',variables:{id:immomioId}}),signal:AbortSignal.timeout(6500)});
+      if(!response.ok)return l;
+      const j=await response.json();
+      if(j.errors?.length || j.data?.property?.id!==immomioId)return l;
+      facts=structuredFacts({property:j.data.property},l.canonical_url);
+      facts.images=[...new Set([...facts.images,...collectImages(j.data.property,l.canonical_url)])];
+    }else{
+    const r = await fetch(String(l.canonical_url), {redirect:'follow',headers:{'user-agent':UA,accept:'text/html,application/xhtml+xml,application/json','accept-language':'de-DE,de;q=0.9'},signal:AbortSignal.timeout(6500)});
+    if (!r.ok || !sameListing(r.url,l.canonical_url)) return l;
+    const h = await r.text();
+    if (/captcha|cf-chl-|access denied|verify you are human/i.test(h.slice(0,12000))) return l;
+    facts = htmlFacts(h,l.canonical_url);
+    for (const m of h.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
+      try { walk(JSON.parse(m[1]),facts,l.canonical_url); } catch {}
+    }
+    }
+    const evidence={...l.enrichment_evidence,preview:{version:3,canonical_url:l.canonical_url,checked_at:new Date().toISOString(),source_seen_at:l.last_seen_at,facts}};
+    out.enrichment_evidence=evidence;
+    if (persist) {
+      const {error}=await db.from('listings').update({enrichment_evidence:evidence}).eq('id',l.id);
+      if(error)console.error('preview_persist_failed',error.message);
+    }
+  } catch(error) {console.error('listing_detail_fetch_failed',String(error).slice(0,200));}
   return out;
 }
-async function multipartPhoto(
-  t: string,
-  chat: number,
-  image: string,
-  l: any,
-  lang: string,
-  p: boolean,
-) {
-  const r = await fetch(image, {
-    redirect: "follow",
-    headers: { "user-agent": UA, accept: "image/*,*/*" },
-    signal: AbortSignal.timeout(6500),
-  });
-  if (!r.ok) throw new Error(`image HTTP ${r.status}`);
-  const ct = r.headers.get("content-type") || "image/jpeg";
-  if (!ct.startsWith("image/") || ct.includes("avif"))
-    throw new Error(`unsupported image ${ct}`);
-  const blob = await r.blob(),
-    f = new FormData();
-  f.set("chat_id", String(chat));
-  f.set(
-    "photo",
-    blob,
-    ct.includes("png")
-      ? "listing.png"
-      : ct.includes("webp")
-        ? "listing.webp"
-        : "listing.jpg",
-  );
-  f.set("caption", cap(l, lang));
-  f.set("parse_mode", "HTML");
-  f.set("reply_markup", JSON.stringify(kb(l, lang, p)));
-  return telegramRequest(`https://api.telegram.org/bot${t}/sendPhoto`,{method:'POST',body:f});
-}
-async function recordImage(listingId:string,patch:any){
- try {const {error}=await db.from('listings').update(patch).eq('id',listingId);if(error)console.error('image_metadata',error.message);}
- catch{console.error('image_metadata_unavailable');}
-}
-async function send(t:string,chat:number,l:any,lang:string,p:boolean){
- const imgs=[l.resolved_image_url,l.image_url].filter(Boolean).map(String).filter((x,i,a)=>a.indexOf(x)===i);
- let err:any;
- for(const image of imgs){
-  try{
-   const message=await tg(t,'sendPhoto',{chat_id:chat,photo:image,caption:cap(l,lang),parse_mode:'HTML',reply_markup:kb(l,lang,p)});
-   await recordImage(l.id,{resolved_image_url:image,image_status:'direct',image_error:null,image_last_checked_at:new Date().toISOString()});
-   return message;
-  }catch(error){
-   if(!(error instanceof TelegramFailure)||!error.allowImageFallback)throw error;
-   err=error;
-   try{
-    const message=await multipartPhoto(t,chat,image,l,lang,p);
-    await recordImage(l.id,{resolved_image_url:image,image_status:'direct',image_source:'dispatcher_upload',image_error:null,image_last_checked_at:new Date().toISOString()});
-    return message;
-   }catch(uploadError){if(uploadError instanceof TelegramFailure&&!uploadError.allowImageFallback)throw uploadError;err=uploadError;}
+async function uploadOperation(t:string,chat:number,op:any) {
+  const f=new FormData(); f.set('chat_id',String(chat));
+  const media=op.method==='sendMediaGroup'?op.body.media:[{type:'photo',media:op.body.photo}];
+  for(let i=0;i<media.length;i++) {
+    const r=await fetch(media[i].media,{headers:{'user-agent':UA,accept:'image/*'},signal:AbortSignal.timeout(6500)});
+    if(!r.ok)throw new Error(`Source image HTTP ${r.status}`);
+    const ct=r.headers.get('content-type')||'';
+    if(!ct.startsWith('image/'))throw new Error('Source image returned non-image content');
+    f.set(op.method==='sendPhoto'?'photo':`image${i}`,await r.blob(),ct.includes('png')?`image${i}.png`:`image${i}.jpg`);
   }
- }
- if(imgs.length)await recordImage(l.id,{image_status:'failed',image_error:String(err).slice(0,300),image_last_checked_at:new Date().toISOString()});
- return tg(t,'sendMessage',{chat_id:chat,text:cap(l,lang),parse_mode:'HTML',disable_web_page_preview:true,reply_markup:kb(l,lang,p)});
+  if(op.method==='sendMediaGroup')f.set('media',JSON.stringify(media.map((m:any,i:number)=>({...m,media:`attach://image${i}`}))));
+  else for(const [k,v] of Object.entries(op.body))if(k!=='photo')f.set(k,typeof v==='string'?v:JSON.stringify(v));
+  return telegramRequest(`https://api.telegram.org/bot${t}/${op.method}`,{method:'POST',body:f});
+}
+async function send(t:string,chat:number,l:any,lang:string,p:boolean,lease:any,previous:any) {
+  const facts=knownFacts(l),operations=previewOperations(facts.images,cap(l,lang),kb(l,lang,p));
+  return deliverPreview(operations,previous,async state=>{
+    const {data,error}=await db.from('delivery_events').update({preview_progress:state}).eq('id',lease.id).eq('status','processing').eq('dispatch_attempts',lease.attempt).eq('last_attempt_at',lease.claimedAt).select('id').maybeSingle();
+    if(error||!data)throw new Error('Gallery checkpoint could not be saved');
+  },(op,upload)=>upload?uploadOperation(t,chat,op):tg(t,op.method,{chat_id:chat,...op.body}));
 }
 Deno.serve(async (req) => {
-  const owner=crypto.randomUUID();let acquired=false;
+  const owner = crypto.randomUUID();
+  let acquired = false;
   try {
     if (req.method !== "POST")
       return new Response("method not allowed", { status: 405 });
@@ -257,14 +325,29 @@ Deno.serve(async (req) => {
       (await sec("internal_worker_secret"))
     )
       return new Response("unauthorized", { status: 401 });
-    if ((await req.json().catch(()=>({}))).dry_run) {
-      const {error}=await db.from('delivery_events').select('id').limit(1);
-      if(error)throw error;return Response.json({ok:true,dry_run:true,send_interval_seconds:15});
+    const input = await req.json().catch(() => ({}));
+    if (input.dry_run && input.listing_id) {
+      const {data,error}=await db.from('listings').select('*,sources(button_label,source_type)').eq('id',input.listing_id).single();
+      if(error)throw error;
+      const listing=await enrich(data,false),facts=knownFacts(listing);
+      return Response.json({ok:true,dry_run:true,caption:cap(listing,'de'),images:facts.images,address:loc(listing),operations:previewOperations(facts.images,cap(listing,'de'),kb(listing,'de',true)).map(x=>x.method)});
     }
-    const {data:locked,error:lockError}=await db.rpc('acquire_dispatcher',{p_owner:owner});
-    if(lockError) throw lockError;
-    if(!locked) return Response.json({ok:true,busy:true});
-    acquired=true;
+    if (input.dry_run) {
+      const { error } = await db.from("delivery_events").select("id").limit(1);
+      if (error) throw error;
+      return Response.json({
+        ok: true,
+        dry_run: true,
+        send_interval_seconds: 15,
+      });
+    }
+    const { data: locked, error: lockError } = await db.rpc(
+      "acquire_dispatcher",
+      { p_owner: owner },
+    );
+    if (lockError) throw lockError;
+    if (!locked) return Response.json({ ok: true, busy: true });
+    acquired = true;
     const deadline = Date.now() + 50_000;
     const token = await sec("telegram_bot_token_runtime");
     const { data: subs, error: subscriptionError } = await db
@@ -286,9 +369,10 @@ Deno.serve(async (req) => {
     const { data: events, error } = await db
       .from("delivery_events")
       .select(
-        "id,status,dispatch_attempts,recipient:bot_users!delivery_events_recipient_user_id_fkey(id,chat_id,is_active,ui_language),search_profiles!inner(id,profile_slot,is_active,owner:bot_users!search_profiles_user_id_fkey(id,is_active,plan_override,plan_override_expires_at,referral_bonus_until)),listings!inner(*,sources(button_label,source_type))",
+        "id,status,dispatch_attempts,preview_progress,recipient:bot_users!delivery_events_recipient_user_id_fkey(id,chat_id,is_active,ui_language),search_profiles!inner(id,profile_slot,is_active,owner:bot_users!search_profiles_user_id_fkey(id,is_active,plan_override,plan_override_expires_at,referral_bonus_until)),listings!inner(*,sources(button_label,source_type))",
       )
-      .in("status", ["pending", "failed"]).eq("delivery_outcome_unknown",false)
+      .in("status", ["pending", "failed"])
+      .eq("delivery_outcome_unknown", false)
       .lt("dispatch_attempts", 5)
       .or(`next_retry_at.is.null,next_retry_at.lte.${now}`)
       .order("created_at")
@@ -299,14 +383,17 @@ Deno.serve(async (req) => {
       skipped = 0;
     const cache = new Map<string, Promise<any>>();
     for (const event of events || []) {
-      if (!(await waitForDispatchSlot(db,owner,deadline))) break;
+      if (!(await waitForDispatchSlot(db, owner, deadline))) break;
       const lease = await claimDelivery(db, event);
       if (!lease) continue;
       const profile = event.search_profiles as any,
         profileOwner = profile?.owner,
         recipient = event.recipient as any,
         raw = event.listings as any;
-      const isPremium = premium(profileOwner, paid.has(String(profileOwner?.id || "")));
+      const isPremium = premium(
+        profileOwner,
+        paid.has(String(profileOwner?.id || "")),
+      );
       if (
         !profile?.is_active ||
         !profileOwner?.is_active ||
@@ -328,27 +415,47 @@ Deno.serve(async (req) => {
           cache.set(String(raw.id), task);
         }
         const listing = await task;
-        const {error:slotError}=await db.rpc('dispatcher_slot',{p_owner:owner,p_complete:true});
-        if(slotError) throw slotError;
+        const { error: slotError } = await db.rpc("dispatcher_slot", {
+          p_owner: owner,
+          p_complete: true,
+        });
+        if (slotError) throw slotError;
         message = await send(
           token,
           Number(recipient.chat_id),
           listing,
           recipient.ui_language || "de",
           isPremium,
+          lease,
+          event.preview_progress,
         );
       } catch (error) {
         await finishDelivery(db, lease, {
           status: "failed",
-          delivery_outcome_unknown: error instanceof TelegramFailure && error.outcomeUnknown,
-          next_retry_at: error instanceof TelegramFailure && error.outcomeUnknown ? null : new Date(Date.now()+Math.max(120000,error instanceof TelegramFailure ? error.retryAfter*1000 : 0)).toISOString(),
+          delivery_outcome_unknown:
+            error instanceof TelegramFailure && error.outcomeUnknown,
+          next_retry_at:
+            error instanceof TelegramFailure && error.outcomeUnknown
+              ? null
+              : new Date(
+                  Date.now() +
+                    Math.max(
+                      120000,
+                      error instanceof TelegramFailure
+                        ? error.retryAfter * 1000
+                        : 0,
+                    ),
+                ).toISOString(),
           error_message: String(error),
         });
         failed++;
         continue;
       }
-      const {error:gapError}=await db.rpc('dispatcher_slot',{p_owner:owner,p_complete:true});
-      if(gapError) throw gapError;
+      const { error: gapError } = await db.rpc("dispatcher_slot", {
+        p_owner: owner,
+        p_complete: true,
+      });
+      if (gapError) throw gapError;
       // A sent message and a failed DB acknowledgement are different failures.
       // Leave the lease for recovery instead of immediately sending again.
       await finishDelivery(db, lease, {
@@ -364,6 +471,10 @@ Deno.serve(async (req) => {
   } catch (error) {
     return Response.json({ ok: false, error: String(error) }, { status: 500 });
   } finally {
-    if(acquired){const {error}=await db.rpc('release_dispatcher',{p_owner:owner});if(error)console.error('dispatcher_release',error.message);}
+    if (acquired) {
+      const { error } = await db.rpc("release_dispatcher", { p_owner: owner });
+      if (error) console.error("dispatcher_release", error.message);
+    }
   }
 });
+

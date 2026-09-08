@@ -1,0 +1,2 @@
+ALTER TABLE public.delivery_events ADD COLUMN IF NOT EXISTS preview_progress jsonb;
+COMMENT ON COLUMN public.delivery_events.preview_progress IS 'Frozen listing preview operations and confirmed progress; written only by the existing dispatcher lease owner.';

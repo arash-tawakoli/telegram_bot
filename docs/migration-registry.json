@@ -1184,6 +1184,14 @@
       "registry_sql_sha256": "7c62b4567343125b66f1c7e6bfd899396c9445a38370de84398441e2244c8e2d",
       "export_sql_sha256": "7c62b4567343125b66f1c7e6bfd899396c9445a38370de84398441e2244c8e2d",
       "vault_substitution": false
+    },
+    {
+      "version": "20260908045835",
+      "name": "listing_preview_delivery_progress",
+      "file": "supabase/migrations/20260908045835_listing_preview_delivery_progress.sql",
+      "registry_sql_sha256": "ec70815723277345868fc83328ad885cc790874bc3ab59961de70579c3ef6646",
+      "export_sql_sha256": "ec70815723277345868fc83328ad885cc790874bc3ab59961de70579c3ef6646",
+      "vault_substitution": false
     }
   ],
   "historical_repository_ref": "36708e9e2f073d7b3835cfd28b8222446e23c0ff",
