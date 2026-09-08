@@ -106,6 +106,20 @@ function immoweltCardImage(card: string, base: string) {
   )?.[1];
   return (raw ? absolute(base, raw) : null) || imageFromHtml(card, base);
 }
+function immoweltCardWarm(text: string) {
+  const raw = text.match(
+    /\b(?:Warmmiete|Bruttowarmmiete|Gesamtmiete|warm\s*rent|gross\s*rent|total\s*rent)\b\s*(?:(?:[:=]|beträgt|ist|von|is|of)\s*)?(?:€|EUR)?\s*(\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?)\s*(?:€|EUR)?/i,
+  )?.[1];
+  if (!raw) return null;
+  let value = raw.replace(/\s/g, "");
+  if (/^\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?$/.test(value))
+    value = value.replace(/,/g, "");
+  else if (/^\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?$/.test(value))
+    value = value.replace(/\./g, "").replace(",", ".");
+  else return deNum(value);
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
 function immoweltCards(html: string, base: string) {
   const out: Candidate[] = [];
   for (const v of html.split('<div id="classified-card-').slice(1)) {
@@ -131,7 +145,7 @@ function immoweltCards(html: string, base: string) {
       url: href,
       title,
       zip: f.zip,
-      warm: f.warm,
+      warm: f.warm ?? immoweltCardWarm(text),
       cold: f.cold,
       additional: f.additional,
       operating: f.operating,
