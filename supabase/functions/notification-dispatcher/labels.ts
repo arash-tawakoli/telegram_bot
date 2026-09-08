@@ -1,8 +1,8 @@
 const de = {
   address: "Adresse",
-  floor: "Etage",
-  property_type: "Wohnungstyp",
-  move_in_date: "Einzugsdatum",
+  floor: "🛗 Etage",
+  property_type: "🏘️ Wohnungstyp",
+  move_in_date: "🔑 Einzugsdatum",
   available: "Verfügbar ab",
   included: "in den Nebenkosten enthalten",
   warm: "Warmmiete",
@@ -24,9 +24,9 @@ const de = {
 const en = {
   ...de,
   address: "Address",
-  floor: "Floor",
-  property_type: "Property type",
-  move_in_date: "Move-in date",
+  floor: "🛗 Floor",
+  property_type: "🏘️ Property type",
+  move_in_date: "🔑 Move-in date",
   available: "Available from",
   included: "included in utilities",
   heating: "Heating costs",
@@ -59,4 +59,3 @@ export function label(language: string | null | undefined, key: string) {
   const l = language && LABELS[language] ? language : "de";
   return LABELS[l]?.[key] || de[key as keyof typeof de] || key;
 }
-
