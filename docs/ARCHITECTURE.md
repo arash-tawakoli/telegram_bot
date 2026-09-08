@@ -1,5 +1,7 @@
 # Architektur und Betriebsstand
 
+Aktuelle Prüfung vom 08.09.2026: [Befunde, Änderungen und offene Grenzen](ARCHITECTURE_AUDIT_2026-09-08.md). Die nachfolgenden Zahlen beschreiben den historischen Stand vom 05.09.2026.
+
 Stand: 5. September 2026. Aktueller Rollout und Betriebsnachweis: [Rollout](ROLLOUT_2026-09-05.md). Der [ursprüngliche Review](ARCHITECTURE_REVIEW_2026-09-05.md) dokumentiert den Vorzustand, nicht den aktuellen Deployment-Status.
 
 ```mermaid

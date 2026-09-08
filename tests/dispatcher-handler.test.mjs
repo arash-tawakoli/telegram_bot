@@ -5,7 +5,7 @@ import { stripTypeScriptTypes } from 'node:module';
 import vm from 'node:vm';
 
 test('dispatcher processes a queued event using its lease UUID, not the profile owner', async () => {
-  const source = readFileSync(new URL('../supabase/functions/notification-dispatcher/index.ts', import.meta.url), 'utf8');
+  const source = readFileSync(process.env.DISPATCHER_SOURCE || new URL('../supabase/functions/notification-dispatcher/index.ts', import.meta.url), 'utf8');
   const handlerSource = stripTypeScriptTypes(source.slice(source.indexOf('Deno.serve(')));
   const leaseOwner = '00000000-0000-4000-8000-000000000001';
   const profileOwner = { id: 'different-user', is_active: true };
@@ -29,4 +29,19 @@ test('dispatcher processes a queued event using its lease UUID, not the profile 
   assert.equal(finishes[0].status, 'sent');
   assert.equal(finishes[0].telegram_message_id, 987);
   assert.equal(calls.at(-1).name, 'release_dispatcher');
+});
+
+test('idle dispatcher skips token and subscription reads but still recovers leases and releases its lock',async()=>{
+ const source=readFileSync(process.env.DISPATCHER_SOURCE || new URL('../supabase/functions/notification-dispatcher/index.ts',import.meta.url),'utf8');
+ const calls=[];let handler;
+ const query={select(){return this},in(){return this},eq(){return this},lt(){return this},or(){return this},order(){return this},limit:async()=>({data:[],error:null})};
+ const db={from(name){calls.push(name);return name==='user_subscriptions'?{select:async()=>({data:[],error:null})}:query},rpc:async name=>{calls.push(name);return {data:true,error:null}}};
+ vm.runInNewContext(stripTypeScriptTypes(source.slice(source.indexOf('Deno.serve('))),{
+ Deno:{serve(fn){handler=fn}},crypto:{randomUUID:()=> 'lease'},Response,Date,Map,Set,Number,String,console,db,
+ sec:async name=>{calls.push(name);return 'test'},recoverDeliveries:async()=>{calls.push('recover')}
+ });
+ const response=await handler(new Request('https://test',{method:'POST',headers:{'x-internal-secret':'test'},body:'{}'}));
+ assert.equal(response.status,200);assert.deepEqual((await response.json()).totals,{sent:0,failed:0,skipped:0});
+ assert.ok(calls.includes('recover'));assert.equal(calls.at(-1),'release_dispatcher');
+ assert.equal(calls.filter(x=>['telegram_bot_token_runtime','user_subscriptions'].includes(x)).length,0,JSON.stringify(calls));
 });

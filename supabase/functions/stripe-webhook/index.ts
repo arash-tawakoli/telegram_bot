@@ -10,18 +10,11 @@ const db = createClient(SUPABASE_URL, ADMIN_KEY, {
 
 const PAYMENT_LINK_ID = "plink_1UAy8Z2NorDNIWqI9h5j73q0";
 const ACTIVE_STATUSES = new Set(["active", "trialing"]);
-const STRIPE_API_VERSION = "2026-06-24.dahlia";
 const PARTY_EFFECT_ID = "5046509860389126442";
 
 async function requiredSecret(name: string) {
   const { data, error } = await db.rpc("get_bot_secret", { secret_name: name });
   if (error || !data) throw new Error(`secret ${name} unavailable`);
-  return String(data);
-}
-
-async function optionalSecret(name: string) {
-  const { data, error } = await db.rpc("get_bot_secret", { secret_name: name });
-  if (error || !data) return null;
   return String(data);
 }
 
@@ -253,107 +246,6 @@ async function telegramMessage(
     throw new Error(
       `Telegram sendMessage ${response.status}: ${String(result?.description || "failed")}`,
     );
-  }
-}
-
-async function stripePost(
-  apiKey: string,
-  path: string,
-  params: URLSearchParams,
-  idempotencyKey: string,
-) {
-  const response = await fetch(`https://api.stripe.com/v1/${path}`, {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${apiKey}`,
-      "content-type": "application/x-www-form-urlencoded",
-      "stripe-version": STRIPE_API_VERSION,
-      "idempotency-key": idempotencyKey,
-    },
-    body: params,
-  });
-  const result = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(
-      `Stripe ${response.status}: ${String(result?.error?.message || "request failed")}`,
-    );
-  }
-  return result;
-}
-
-async function processReferralReward(referralId: string) {
-  const apiKey = await optionalSecret("stripe_restricted_api_key");
-  if (!apiKey) return { processed: false, reason: "stripe_key_missing" };
-
-  const { data: referral, error } = await db
-    .from("referrals")
-    .select(
-      "id,referrer_user_id,referred_user_id,status,rewarded_at,reward_amount_cents,stripe_credit_transaction_id",
-    )
-    .eq("id", referralId)
-    .maybeSingle();
-  if (error) throw error;
-  if (!referral || referral.rewarded_at || referral.status !== "qualified") {
-    return { processed: false, reason: "not_qualified" };
-  }
-
-  const { data: referrerSubscription, error: subscriptionError } = await db
-    .from("user_subscriptions")
-    .select("stripe_customer_id")
-    .eq("user_id", referral.referrer_user_id)
-    .maybeSingle();
-  if (subscriptionError) throw subscriptionError;
-  if (!referrerSubscription?.stripe_customer_id) {
-    return { processed: false, reason: "referrer_customer_missing" };
-  }
-
-  const amount = Math.max(1, Number(referral.reward_amount_cents || 499));
-  const params = new URLSearchParams();
-  params.set("amount", String(-amount));
-  params.set("currency", "eur");
-  params.set("description", "Empfehlungsgutschrift Traumwohnung Premium");
-  params.set("metadata[referral_id]", referral.id);
-  params.set("metadata[referred_user_id]", referral.referred_user_id);
-
-  const transaction = await stripePost(
-    apiKey,
-    `customers/${encodeURIComponent(referrerSubscription.stripe_customer_id)}/balance_transactions`,
-    params,
-    `referral-reward-${referral.id}`,
-  );
-
-  const { error: updateError } = await db
-    .from("referrals")
-    .update({
-      status: "rewarded",
-      rewarded_at: new Date().toISOString(),
-      stripe_credit_transaction_id: String(transaction.id || "") || null,
-    })
-    .eq("id", referral.id)
-    .eq("status", "qualified")
-    .is("rewarded_at", null);
-  if (updateError) throw updateError;
-
-  try {
-    await telegramMessage(
-      referral.referrer_user_id,
-      `💎 <b>Empfehlungsgutschrift erhalten</b>\n\nDir wurden ${(amount / 100).toFixed(2).replace(".", ",")} € in Stripe gutgeschrieben.`,
-    );
-  } catch (noticeError) {
-    console.error("referral_reward_notice", noticeError);
-  }
-  return { processed: true, transaction_id: transaction.id };
-}
-
-async function qualifyReferral(referredUserId: string) {
-  const { data: referralId, error } = await db.rpc("qualify_referral_reward", {
-    p_referred_user_id: referredUserId,
-  });
-  if (error) throw error;
-  if (!referralId) return;
-  const result = await processReferralReward(String(referralId));
-  if (!result.processed) {
-    console.log(JSON.stringify({ event: "referral_reward_deferred", referralId, ...result }));
   }
 }
 

@@ -1192,6 +1192,22 @@
       "registry_sql_sha256": "ec70815723277345868fc83328ad885cc790874bc3ab59961de70579c3ef6646",
       "export_sql_sha256": "ec70815723277345868fc83328ad885cc790874bc3ab59961de70579c3ef6646",
       "vault_substitution": false
+    },
+    {
+      "version": "20260908110928",
+      "name": "preserve_verified_portal_warm_rent",
+      "file": "supabase/migrations/20260908110928_preserve_verified_portal_warm_rent.sql",
+      "registry_sql_sha256": "3852265f0523ccaf069982830a30d5b98fe1c8ad498211432e9585ccdb704109",
+      "export_sql_sha256": "ebdbd70fd1341de081d6650dbf2744e90c16d80b2c4191f87dbf28fb51d009b7",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260908111004",
+      "name": "prioritize_verified_portal_warm_rent",
+      "file": "supabase/migrations/20260908111004_prioritize_verified_portal_warm_rent.sql",
+      "registry_sql_sha256": "0aa9587f5344928e7271ca1f6e4ef99907d2f7ca8014a320096b16000071a877",
+      "export_sql_sha256": "0935927fbd2703198633ff2c1f17e50c2d6c0c7ddd0a82ab538f21bb73940779",
+      "vault_substitution": false
     }
   ],
   "historical_repository_ref": "36708e9e2f073d7b3835cfd28b8222446e23c0ff",

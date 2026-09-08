@@ -6,4 +6,7 @@ const registry=JSON.parse(await readFile('docs/migration-registry.json','utf8'))
 const files=await readdir('supabase/migrations');
 if(files.filter(x=>x.endsWith('.sql')).length!==registry.migrations.length)throw new Error('Migration registry length mismatch');
 for(const m of registry.migrations)if(hash(await readFile(m.file))!==m.export_sql_sha256)throw new Error(`Migration content drift: ${m.file}`);
-console.log(`${runtime.functions.length} function snapshots and ${registry.migrations.length} migrations verified`);
+console.log(`${runtime.functions.length} repository function manifests and ${registry.migrations.length} migrations verified`);
+
+const drift=runtime.functions.flatMap(fn=>fn.files.filter(f=>f.deployed_sha256 && f.deployed_sha256!==f.sha256).map(f=>`${fn.slug}: ${f.path}`));
+if(drift.length) console.warn(`${drift.length} repository files differ from their recorded deployment snapshots; see docs/ARCHITECTURE_AUDIT_2026-09-08.md`);

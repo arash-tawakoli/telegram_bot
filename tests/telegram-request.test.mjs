@@ -15,3 +15,10 @@ test('pacing waits until the persistent slot and refuses slots beyond the run bu
  assert.equal(await waitForDispatchSlot(db,'owner',20000,()=>now,async ms=>{now+=ms}),true);assert.equal(now,16000);
  assert.equal(await waitForDispatchSlot(db,'owner',15000,()=>now,async()=>{}),false);
 });
+
+test('production URL download failures permit binary upload only after a confirmed rejection',async()=>{
+ for(const description of ['Bad Request: failed to get HTTP URL content','Bad Request: failed to send message #2 with the error message "WEBPAGE_CURL_FAILED"']) {
+  await assert.rejects(telegramRequest('https://test',{},async()=>Response.json({ok:false,description},{status:400})),e=>e.allowImageFallback&&!e.outcomeUnknown);
+  await assert.rejects(telegramRequest('https://test',{},async()=>Response.json({ok:false,description},{status:500})),e=>!e.allowImageFallback);
+ }
+});

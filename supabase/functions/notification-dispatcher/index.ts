@@ -206,13 +206,6 @@ async function tg(t: string, m: string, b: any) {
     body: JSON.stringify(b),
   });
 }
-function absolute(base: string, v: any) {
-  try {
-    return v ? new URL(String(v), base).href : null;
-  } catch {
-    return null;
-  }
-}
 function sameListing(a: any, b: any) {
   try {
     const x = new URL(a),
@@ -375,6 +368,21 @@ Deno.serve(async (req) => {
     if (!locked) return Response.json({ ok: true, busy: true });
     acquired = true;
     const deadline = Date.now() + 50_000;
+    await recoverDeliveries(db);
+    const now = new Date().toISOString();
+    const { data: events, error } = await db
+      .from("delivery_events")
+      .select(
+        "id,status,dispatch_attempts,preview_progress,recipient:bot_users!delivery_events_recipient_user_id_fkey(id,chat_id,is_active,ui_language),search_profiles!inner(id,profile_slot,is_active,owner:bot_users!search_profiles_user_id_fkey(id,is_active,plan_override,plan_override_expires_at,referral_bonus_until)),listings!inner(*,sources(button_label,source_type,source_connectors(config,enabled,priority)))",
+      )
+      .in("status", ["pending", "failed"])
+      .eq("delivery_outcome_unknown", false)
+      .lt("dispatch_attempts", 5)
+      .or(`next_retry_at.is.null,next_retry_at.lte.${now}`)
+      .order("created_at")
+      .limit(200);
+    if (error) throw error;
+    if (!events?.length) return Response.json({ok:true,totals:{sent:0,failed:0,skipped:0}});
     const token = await sec("telegram_bot_token_runtime");
     const { data: subs, error: subscriptionError } = await db
       .from("user_subscriptions")
@@ -390,20 +398,6 @@ Deno.serve(async (req) => {
         )
         .map((s: any) => String(s.user_id)),
     );
-    await recoverDeliveries(db);
-    const now = new Date().toISOString();
-    const { data: events, error } = await db
-      .from("delivery_events")
-      .select(
-        "id,status,dispatch_attempts,preview_progress,recipient:bot_users!delivery_events_recipient_user_id_fkey(id,chat_id,is_active,ui_language),search_profiles!inner(id,profile_slot,is_active,owner:bot_users!search_profiles_user_id_fkey(id,is_active,plan_override,plan_override_expires_at,referral_bonus_until)),listings!inner(*,sources(button_label,source_type,source_connectors(config,enabled,priority)))",
-      )
-      .in("status", ["pending", "failed"])
-      .eq("delivery_outcome_unknown", false)
-      .lt("dispatch_attempts", 5)
-      .or(`next_retry_at.is.null,next_retry_at.lte.${now}`)
-      .order("created_at")
-      .limit(200);
-    if (error) throw error;
     let sent = 0,
       failed = 0,
       skipped = 0;
