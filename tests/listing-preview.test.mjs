@@ -42,12 +42,12 @@ test('JSON-LD scopes facts to exact listing and ignores publisher and related ob
  const out={};scope.walk({'@graph':[{'@type':'Organization',address:'wrong',image:'/logo.jpg'},{'@type':'Apartment',url:base,address:'right',image:['/1.jpg','/2.jpg'],numberOfRooms:3,floorSize:{value:75}},{'@type':'Apartment',url:'https://example.test/expose/43',address:'other',image:'/3.jpg'}]},out,base);
  assert.equal(out.address,'right');assert.equal(out.images.length,2);assert.equal(out.rooms,3);
 });
-test('23 images use 10/10/3 albums and full text with buttons; long captions do not drop images',()=>{
+test('listing previews use only the first image and keep full text with buttons',()=>{
  const ops=previewOperations(Array.from({length:23},(_,i)=>`https://example.test/${i}.jpg`),'x'.repeat(1200),{inline_keyboard:[]});
- assert.deepEqual(ops.slice(0,3).map(x=>x.body.media.length),[10,10,3]);assert.equal(ops[3].body.text.length,1200);assert.ok(ops[3].body.reply_markup);
+ assert.equal(ops.length,2);assert.equal(ops[0].method,'sendPhoto');assert.equal(ops[0].body.photo,'https://example.test/0.jpg');assert.equal(ops[1].body.text.length,1200);assert.ok(ops[1].body.reply_markup);
 });
 test('confirmed album failure retries from confirmed checkpoint, not first image',async()=>{
- const ops=previewOperations(Array.from({length:11},(_,i)=>`${i}.jpg`),'facts',{});let saved,calls=[];
+ const ops=previewOperations(Array.from({length:11},(_,i)=>`${i}.jpg`),'facts',{},Infinity);let saved,calls=[];
  const save=async s=>{saved=structuredClone(s)};
  await assert.rejects(deliverPreview(ops,null,save,async op=>{calls.push(op.method);if(calls.length===2)throw new TelegramFailure('rate limited',false,false,30);return [{message_id:12}];},async()=>{}));
  assert.equal(saved.next,1);assert.equal(saved.in_flight,false);
