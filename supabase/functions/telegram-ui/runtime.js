@@ -311,6 +311,7 @@ export const HELP_TEXT = "❓ <b>Hilfe & Befehle</b>\n\n" +
     "👤 /profile – Suchprofil anzeigen\n" +
     "⭐️ /gespeichert – gespeicherte Inserate\n" +
     "⚙️ /einstellungen – Einstellungen\n" +
+    "🗂 /planer – Status, Notizen, Vergleich, Kontakttexte und Kosten\n" +
     "⏸ /pause – Suche pausieren\n" +
     "▶️ /resume – Suche fortsetzen\n" +
     "📡 /status – Systemstatus\n" +

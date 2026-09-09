@@ -11,6 +11,7 @@ export function homeKeyboard(user) {
             button("⚙️ Einstellungen", "settings"),
             button("❓ Hilfe", "help"),
         ],
+        [button("🗂 Wohnungsplaner", "org:list:0")],
         [button("💎 30 Tage Premium für 0 €", "referral")],
     ];
     return { inline_keyboard: rows };
@@ -87,6 +88,7 @@ export async function saved(user, chatId, messageId, requestedPage = 0) {
         }
         rows.push([button(label, "noop")]);
     }
+    rows.push([button("🗂 Wohnungen organisieren", "org:list:0")]);
     rows.push([
         button("← Zurück", `saved:${Math.max(0, page - 1)}`),
         button(`${page + 1}/${pages}`, "noop"),

@@ -379,15 +379,15 @@
     {
       "slug": "telegram-fast",
       "retired": false,
-      "version": 1,
+      "version": 2,
       "verify_jwt": false,
       "import_map": false,
       "entrypoint": "supabase/functions/telegram-fast/index.ts",
       "files": [
         {
           "path": "supabase/functions/telegram-fast/index.ts",
-          "sha256": "1e3bf63c4ae0c37987e6be34813bc3baa7dcf4724e318d5f4b79ce73cad811b3",
-          "deployed_sha256": "1e3bf63c4ae0c37987e6be34813bc3baa7dcf4724e318d5f4b79ce73cad811b3"
+          "sha256": "4a112189bd48884f5d84c10c835c9b9de102606952d037eff93320595ca6dc60",
+          "deployed_sha256": "4a112189bd48884f5d84c10c835c9b9de102606952d037eff93320595ca6dc60"
         }
       ]
     },
@@ -438,7 +438,7 @@
     },
     {
       "slug": "telegram-ui",
-      "version": 62,
+      "version": 67,
       "verify_jwt": false,
       "entrypoint": "supabase/functions/telegram-ui/index.ts",
       "import_map": false,
@@ -456,8 +456,8 @@
         },
         {
           "path": "supabase/functions/telegram-ui/navigation.js",
-          "sha256": "93cab94428f5d461be9dd487f3d1745f47e7d74b381af833e80d223f56f0e01b",
-          "deployed_sha256": "93cab94428f5d461be9dd487f3d1745f47e7d74b381af833e80d223f56f0e01b"
+          "sha256": "0abb6819901a8e6089f1d15472516bad4fd5a6c9177c44f16afdef64036b3afa",
+          "deployed_sha256": "0abb6819901a8e6089f1d15472516bad4fd5a6c9177c44f16afdef64036b3afa"
         },
         {
           "path": "supabase/functions/telegram-ui/localization.js",
@@ -471,13 +471,23 @@
         },
         {
           "path": "supabase/functions/telegram-ui/runtime.js",
-          "sha256": "ee2a94398d5dc273afc76cb70d94915998125ca3569ad3e738d3468f3eb4d25c",
-          "deployed_sha256": "ee2a94398d5dc273afc76cb70d94915998125ca3569ad3e738d3468f3eb4d25c"
+          "sha256": "b42a1d41eae81f277a64586f1ebf8d3cdaadfd540fe0b8b268e2585e8a8c35b0",
+          "deployed_sha256": "b42a1d41eae81f277a64586f1ebf8d3cdaadfd540fe0b8b268e2585e8a8c35b0"
         },
         {
           "path": "supabase/functions/telegram-ui/handlers.js",
-          "sha256": "c5bf8bf3bd6e428f69718997b35db42aaaff8228dcbd17c9881548622ce1a3c6",
-          "deployed_sha256": "c5bf8bf3bd6e428f69718997b35db42aaaff8228dcbd17c9881548622ce1a3c6"
+          "sha256": "95f110cf01d56746d55c317dd47eca9d21b7b21ddf3c83046b69d9821c8d576c",
+          "deployed_sha256": "95f110cf01d56746d55c317dd47eca9d21b7b21ddf3c83046b69d9821c8d576c"
+        },
+        {
+          "path": "supabase/functions/telegram-ui/organizer.js",
+          "sha256": "5c064e57a0bfaf8bba8edf05a56e2649a8c5e2f17f939ed93996cf6b0af9a93c",
+          "deployed_sha256": "5c064e57a0bfaf8bba8edf05a56e2649a8c5e2f17f939ed93996cf6b0af9a93c"
+        },
+        {
+          "path": "supabase/functions/notification-dispatcher/source-facts.ts",
+          "sha256": "4f3dc84212fe0c79de5db4bbbd5b96ca3088c8ddb1e99d3fcdc032552fd4fa1c",
+          "deployed_sha256": "4f3dc84212fe0c79de5db4bbbd5b96ca3088c8ddb1e99d3fcdc032552fd4fa1c"
         }
       ]
     },

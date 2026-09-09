@@ -9,6 +9,10 @@ Supabase-Backend für `@traumwohnunghamburgbot`: zentrale Wohnungssuche über 65
 - [Prüfung aller 65 Quellen](docs/SOURCE_AUDIT_2026-09-05.md)
 - [Rollout und Versandstörung](docs/ROLLOUT_2026-09-05.md)
 
+## Wohnungsplaner
+
+Neu: Bewerbungsstatus, private Notizen, Wohnungsvergleich, Kontaktentwürfe und Kostenübersicht für gespeicherte Wohnungen. Einstieg über `/planer` oder das Startmenü; Bestandteil der Premium-Merkliste. [Bedienung und Prüfungen](docs/WOHNUNGSPLANER_2026-09-09.md).
+
 ## Pipeline
 
 Cron plant Source-Jobs in PGMQ ein. Der Source-Worker wählt den passenden Adapter, speichert Inserate und lässt Qualität, Aktualität, Dubletten und Matching durch SQL prüfen. Der Notification-Dispatcher verarbeitet die daraus erzeugten Delivery-Ereignisse. Telegram-Gateway, UI und Premium-Funktionen bearbeiten Nutzereingaben.

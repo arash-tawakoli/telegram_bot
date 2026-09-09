@@ -1,14 +1,17 @@
+import {organizer,organizerMessage,clearOrganizerNote} from './organizer.js';
 import { isAdmin, adminGrantLabel, adminPremiumNotice, adminUsers, adminUser, setUserBlocked, deleteUser, setPlanOverride } from "./admin.js";
 import { homeKeyboard, home, premium, saved, setPaused, toggleSave, referralPage, languagePage, settings } from "./navigation.js";
 import { draftFor, validateDraft, renderTypes, renderLocation, renderBoroughs, renderNeighborhoods, renderRent, renderCustomRent, renderRooms, renderArea, renderReview, renderStep, afterSelection, persistProfile, profileLimit, draftFromProfile, startNewProfile, profileEditMenu, profile, renderStatus } from "./profiles.js";
 import { db, PROPERTY_TYPES, RENT_PRESETS, ROOM_PRESETS, AREA_PRESETS, NEIGHBORHOODS_PER_PAGE, chatLanguages, button, cancelRow, backRow, secret, telegram, send, sendCelebration, edit, acknowledge, saveState, geography, HELP_TEXT } from "./runtime.js";
 export async function handleMessage(message, user) {
     const chatId = Number(message.chat.id);
+    if (await organizerMessage(message,user)) return;
     const text = String(message.text || "").trim();
     const [rawCommand, argument = ""] = text.split(/\s+/, 2);
     const command = rawCommand
         .toLowerCase()
         .replace(/@traumwohnunghamburgbot$/i, "");
+    if (command === "/planer") return organizer(user,chatId);
     if (command === "/admin") {
         if (!isAdmin(user))
             return;
@@ -179,6 +182,8 @@ export async function handleCallback(query, user) {
         return acknowledge(query.id, savedState ? "⭐️ Gespeichert" : "Entfernt");
     }
     EdgeRuntime.waitUntil(acknowledge(query.id));
+    if (user.onboarding_state?.organizer_note) await clearOrganizerNote(user);
+    if (data.startsWith('org:')) return organizer(user,chatId,query.message?.photo?undefined:messageId,data);
     if (data === "noop")
         return;
     if (data === "cancel") {
