@@ -1,5 +1,6 @@
 import {db,button,send,edit,esc,short,money,saveState} from './runtime.js';
 import {premium} from './navigation.js';
+import {quickApplyButton} from './application-message.js';
 import {structuredFacts,present} from '../notification-dispatcher/source-facts.ts';
 
 export const APPLICATION_STATUS={saved:'⭐ Gemerkt',contacted:'📨 Angefragt',viewing:'📅 Besichtigung',applied:'📄 Beworben',rejected:'❌ Absage',accepted:'✅ Zusage'};
@@ -118,6 +119,7 @@ export async function organizer(user,chat,messageId,data='org:list:0'){
   }
   const text=['🏠 <b>'+esc(short(l.title,140))+'</b>',l.is_active===false?'⚠️ Von der Quelle als inaktiv markiert.':null,'',`<b>Dein Status:</b> ${APPLICATION_STATUS[row.status]||APPLICATION_STATUS.saved}`,row.note?`\n<b>Deine Notiz:</b>\n${esc(row.note)}`:null].filter(x=>x!==null).join('\n');
   const rows=[[button('📋 Status',`org:status:${token}`),button('📝 Notiz',`org:note:${token}`)],[button('⚖️ Vergleichen',`org:pick:${token}:0`),button('💶 Kosten',`org:cost:${token}`)],[button('✉️ Kontaktentwurf',`org:draft:${token}:inquiry`)]];
+  const apply=quickApplyButton(l);if(apply)rows.push([apply]);
   try{const url=new URL(l.canonical_url);if(['https:','http:'].includes(url.protocol))rows.push([{text:'Angebot öffnen',url:url.href}]);}catch{}
   rows.push([button('← Wohnungsplaner','org:list:0')]);return render(chat,messageId,text,rows);
 }

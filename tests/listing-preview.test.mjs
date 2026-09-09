@@ -7,9 +7,10 @@ import * as facts from '../supabase/functions/notification-dispatcher/source-fac
 import {previewOperations,deliverPreview,sourcePhoto} from '../supabase/functions/notification-dispatcher/preview-delivery.ts';
 import {TelegramFailure} from '../supabase/functions/notification-dispatcher/telegram-request.ts';
 import {label} from '../supabase/functions/notification-dispatcher/labels.ts';
+import {quickApplyButton} from '../supabase/functions/telegram-ui/application-message.js';
 const base='https://example.test/expose/42';
 const source=readFileSync(new URL('../supabase/functions/notification-dispatcher/index.ts',import.meta.url),'utf8');
-const scope={...facts,label,URL,Date,console};
+const scope={...facts,label,quickApplyButton,URL,Date,console};
 vm.runInNewContext(stripTypeScriptTypes(source.slice(source.indexOf('function esc('),source.indexOf('async function enrich('))),scope);
 const listing=(raw={},rest={})=>({id:'l',title:'Wohnung',canonical_url:base,raw,...rest});
 test('binary image signatures accept real octet-stream photos, not HTML or spoofed MIME',async()=>{

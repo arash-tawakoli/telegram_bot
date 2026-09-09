@@ -1,4 +1,5 @@
 import {pageAvailability,recentInventory} from './availability.ts';
+import {quickApplyButton} from '../telegram-ui/application-message.js';
 import {previewOperations,deliverPreview,sourcePhoto} from "./preview-delivery.ts";
 import {present, textValue, exactAddress, structuredFacts, collectImages, htmlFacts} from "./source-facts.ts";
 import { telegramRequest, TelegramFailure } from "./telegram-request.ts";
@@ -198,6 +199,8 @@ function kb(l: any, lang: string, p: boolean) {
         url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`,
       },
     ]);
+  const apply = quickApplyButton(l);
+  if (apply) r.push([apply]);
   r.push([
     p
       ? { text: label(lang, "save"), callback_data: `save:${l.id}` }

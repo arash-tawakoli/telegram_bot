@@ -1,4 +1,5 @@
 import {organizer,organizerMessage,clearOrganizerNote} from './organizer.js';
+import { quickApplication } from './application.js';
 import { isAdmin, adminGrantLabel, adminPremiumNotice, adminUsers, adminUser, setUserBlocked, deleteUser, setPlanOverride } from "./admin.js";
 import { homeKeyboard, home, premium, saved, setPaused, toggleSave, referralPage, languagePage, settings } from "./navigation.js";
 import { draftFor, validateDraft, renderTypes, renderLocation, renderBoroughs, renderNeighborhoods, renderRent, renderCustomRent, renderRooms, renderArea, renderReview, renderStep, afterSelection, persistProfile, profileLimit, draftFromProfile, startNewProfile, profileEditMenu, profile, renderStatus } from "./profiles.js";
@@ -182,6 +183,7 @@ export async function handleCallback(query, user) {
         return acknowledge(query.id, savedState ? "⭐️ Gespeichert" : "Entfernt");
     }
     EdgeRuntime.waitUntil(acknowledge(query.id));
+    if (data.startsWith('apply:')) return quickApplication(user, query);
     if (user.onboarding_state?.organizer_note) await clearOrganizerNote(user);
     if (data.startsWith('org:')) return organizer(user,chatId,query.message?.photo?undefined:messageId,data);
     if (data === "noop")

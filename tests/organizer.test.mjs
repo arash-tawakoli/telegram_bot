@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import {structuredFacts,present} from '../supabase/functions/notification-dispatcher/source-facts.ts';
+import {quickApplyButton} from '../supabase/functions/telegram-ui/application-message.js';
 const code=readFileSync(new URL('../supabase/functions/telegram-ui/organizer.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replaceAll('export ','');
 const ID1='00000000-0000-4000-8000-000000000001',ID2='00000000-0000-4000-8000-000000000002',ID3='00000000-0000-4000-8000-000000000003';
 const owner={id:'owner',is_premium:true,onboarding_step:'rent',onboarding_state:{max_warm_rent:1500}};
@@ -11,7 +12,7 @@ function harness(extra=[]){
  const records=[{user_id:'owner',listing_id:ID1,status:'saved',note:null,listings:listing(ID1)},{user_id:'owner',listing_id:ID2,status:'saved',note:null,listings:listing(ID2,1200)},{user_id:'other',listing_id:ID3,status:'saved',note:'private',listings:listing(ID3)},...extra];const calls=[],states=[];
  const db={from(table){assert.equal(table,'saved_listings');const filters=[];let patch;const q={select(){return q},eq(k,v){filters.push([k,v]);return q},order(){return q},update(x){patch=x;return q},async maybeSingle(){return {data:records.find(r=>filters.every(([k,v])=>r[k]===v))||null,error:null}},async range(a,b){const rows=records.filter(r=>filters.every(([k,v])=>r[k]===v));return{data:rows.slice(a,b+1),count:rows.length,error:null}},then(resolve){assert.ok(filters.some(([k,v])=>k==='user_id'&&v==='owner'),'every write is owner scoped');assert.ok(filters.some(([k])=>k==='listing_id'));for(const r of records.filter(r=>filters.every(([k,v])=>r[k]===v)))Object.assign(r,patch);return Promise.resolve({error:null}).then(resolve)}};return q}};
  const out={db,structuredFacts,present,Date,Number,Object,Array,String,URL,Intl,btoa,atob,console,button:(text,callback_data)=>({text,callback_data}),esc:x=>String(x??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'),short:(v,n)=>String(v||'Inserat').slice(0,n),money:x=>new Intl.NumberFormat('de-DE',{maximumFractionDigits:2}).format(x)+' €',send:async(c,t,m)=>calls.push({c,t,m}),edit:async(c,id,t,m)=>calls.push({c,id,t,m}),premium:async()=>calls.push({premium:true}),saveState:async(user,step,state)=>states.push({user,step,state})};
- vm.runInNewContext(code,out);return {...out,calls,states,records};
+ out.quickApplyButton=quickApplyButton;vm.runInNewContext(code,out);return {...out,calls,states,records};
 }
 test('status tracking persists, private records and forged IDs cannot be accessed or changed',async()=>{
  const h=harness(),token=h.packId(ID1);await h.organizer(owner,1,2,`org:status:${token}:contacted`);assert.equal(h.records[0].status,'contacted');assert.match(h.calls.at(-1).t,/Angefragt/);
