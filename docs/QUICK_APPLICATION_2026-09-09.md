@@ -80,9 +80,12 @@ the user must check current availability on the platform.
 - `node scripts/check-runtime.mjs` — 23 function bundles and 151 unchanged
   migrations verified after deployment.
 - Live predeployment bundle contents matched the repository baseline exactly.
-  Postdeployment retrieval matched all 11 files of `telegram-ui` version 72 and
+  Postdeployment retrieval matched all 11 files of `telegram-ui` version 73 and
   all 9 files of `notification-dispatcher` version 75 exactly.
 - Unauthenticated POST to live `telegram-ui` returned HTTP 401.
+- After preserving cancellation of pending organizer notes on the new callback,
+  `node --test tests/application.test.mjs tests/organizer.test.mjs tests/telegram-buttons.test.mjs`
+  passed all 21 affected tests.
 - Read-only SQL inspection: all 1,944 active Scout and 3,067 active Kleinanzeigen
   listing URLs matched the supported URL formats at verification time.
 

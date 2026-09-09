@@ -443,7 +443,7 @@
     },
     {
       "slug": "telegram-ui",
-      "version": 72,
+      "version": 73,
       "verify_jwt": false,
       "entrypoint": "supabase/functions/telegram-ui/index.ts",
       "import_map": false,
@@ -481,8 +481,8 @@
         },
         {
           "path": "supabase/functions/telegram-ui/handlers.js",
-          "sha256": "b782c97ece946985405cb9748f53602efe6a9886cd4f284d69607f66df88c14f",
-          "deployed_sha256": "b782c97ece946985405cb9748f53602efe6a9886cd4f284d69607f66df88c14f"
+          "sha256": "cedd801b18505ca93a5072688e8e22f5c502e421926e7897893235de02c2d922",
+          "deployed_sha256": "cedd801b18505ca93a5072688e8e22f5c502e421926e7897893235de02c2d922"
         },
         {
           "path": "supabase/functions/telegram-ui/organizer.js",

@@ -88,10 +88,12 @@ test('draft stays within copy limits, includes only known identity, and handles 
 
 test('new callbacks are acknowledged and routed through the existing core',async()=>{
  const source=readFileSync(new URL('../supabase/functions/telegram-ui/handlers.js',import.meta.url),'utf8');
- const calls=[];const scope={EdgeRuntime:{waitUntil:()=>calls.push('ack')},acknowledge:async()=>{},quickApplication:async(u,q)=>calls.push([u,q])};
+ const calls=[];const scope={EdgeRuntime:{waitUntil:()=>calls.push('ack')},acknowledge:async()=>{},clearOrganizerNote:async()=>calls.push('clear'),quickApplication:async(u,q)=>calls.push([u,q])};
  vm.runInNewContext(source.slice(source.indexOf('export async function handleCallback')).replace('export ',''),scope);
  const q={...query,id:'callback',message:{...query.message,message_id:42}};
  await scope.handleCallback(q,user);assert.equal(calls[0],'ack');assert.equal(calls[1][0],user);assert.equal(calls[1][1],q);
+ calls.length=0;await scope.handleCallback(q,{...user,onboarding_state:{organizer_note:{}}});
+ assert.deepEqual(calls.slice(0,2),['ack','clear']);assert.equal(calls.length,3);
 });
 
 test('delivery keyboard adds quick apply for both platforms without changing other source buttons',()=>{

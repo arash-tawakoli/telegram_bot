@@ -183,8 +183,8 @@ export async function handleCallback(query, user) {
         return acknowledge(query.id, savedState ? "⭐️ Gespeichert" : "Entfernt");
     }
     EdgeRuntime.waitUntil(acknowledge(query.id));
-    if (data.startsWith('apply:')) return quickApplication(user, query);
     if (user.onboarding_state?.organizer_note) await clearOrganizerNote(user);
+    if (data.startsWith('apply:')) return quickApplication(user, query);
     if (data.startsWith('org:')) return organizer(user,chatId,query.message?.photo?undefined:messageId,data);
     if (data === "noop")
         return;
