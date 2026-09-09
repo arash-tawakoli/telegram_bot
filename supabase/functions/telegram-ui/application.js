@@ -28,7 +28,7 @@ export async function quickApplication(user, query) {
         return send(chat.id, 'Dieses Angebot ist inaktiv oder unterstützt keine Schnellbewerbung.');
     }
     const target = applicationTarget(listing);
-    const message = generateApplicationMessage(user, listing);
+    const message = generateApplicationMessage(user.is_premium ? {...user, ...user.applicant_profile} : user, listing);
     return telegram('sendMessage', {
         chat_id: chat.id,
         parse_mode: 'HTML',
@@ -36,7 +36,7 @@ export async function quickApplication(user, query) {
         text: '⚡ <b>Schnell bewerben</b>\n\nNoch nicht versendet. Bitte Text und Namen prüfen. Dann Text kopieren, das Angebot öffnen und im Kontaktformular einfügen und absenden. Falls nötig, direkt bei der Plattform anmelden.\n\n'
         + `<pre>${esc(message)}</pre>\n\nDer Bot erhält keine Plattform-Passwörter und kann den manuellen Versand nicht bestätigen.`,
         reply_markup: { inline_keyboard: [
-            [{ text: '📋 Bewerbungstext kopieren', copy_text: { text: message } }],
+            ...(message.length <= 256 ? [[{ text: '📋 Bewerbungstext kopieren', copy_text: { text: message } }]] : []),
             [{ text: `${target.platform} öffnen`, url: target.url }],
         ] },
     });

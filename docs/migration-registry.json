@@ -1208,6 +1208,14 @@
       "registry_sql_sha256": "0aa9587f5344928e7271ca1f6e4ef99907d2f7ca8014a320096b16000071a877",
       "export_sql_sha256": "0935927fbd2703198633ff2c1f17e50c2d6c0c7ddd0a82ab538f21bb73940779",
       "vault_substitution": false
+    },
+    {
+      "version": "20260909223100",
+      "name": "premium_applications",
+      "file": "supabase/migrations/20260909223100_premium_applications.sql",
+      "registry_sql_sha256": "bb04e2e1239e157b100a36a821dc475d5f1fe1bead0719fe6e641ddf9c505072",
+      "export_sql_sha256": "bb04e2e1239e157b100a36a821dc475d5f1fe1bead0719fe6e641ddf9c505072",
+      "vault_substitution": false
     }
   ],
   "historical_repository_ref": "36708e9e2f073d7b3835cfd28b8222446e23c0ff",

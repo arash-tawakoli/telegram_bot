@@ -1,11 +1,13 @@
 import {organizer,organizerMessage,clearOrganizerNote} from './organizer.js';
 import { quickApplication } from './application.js';
+import { dossier, dossierMessage, clearDossierInput } from './dossier.js';
 import { isAdmin, adminGrantLabel, adminPremiumNotice, adminUsers, adminUser, setUserBlocked, deleteUser, setPlanOverride } from "./admin.js";
 import { homeKeyboard, home, premium, saved, setPaused, toggleSave, referralPage, languagePage, settings } from "./navigation.js";
 import { draftFor, validateDraft, renderTypes, renderLocation, renderBoroughs, renderNeighborhoods, renderRent, renderCustomRent, renderRooms, renderArea, renderReview, renderStep, afterSelection, persistProfile, profileLimit, draftFromProfile, startNewProfile, profileEditMenu, profile, renderStatus } from "./profiles.js";
 import { db, PROPERTY_TYPES, RENT_PRESETS, ROOM_PRESETS, AREA_PRESETS, NEIGHBORHOODS_PER_PAGE, chatLanguages, button, cancelRow, backRow, secret, telegram, send, sendCelebration, edit, acknowledge, saveState, geography, HELP_TEXT } from "./runtime.js";
 export async function handleMessage(message, user) {
     const chatId = Number(message.chat.id);
+    if (user.onboarding_state?.dossier_input && await dossierMessage(message,user)) return;
     if (await organizerMessage(message,user)) return;
     const text = String(message.text || "").trim();
     const [rawCommand, argument = ""] = text.split(/\s+/, 2);
@@ -13,6 +15,7 @@ export async function handleMessage(message, user) {
         .toLowerCase()
         .replace(/@traumwohnunghamburgbot$/i, "");
     if (command === "/planer") return organizer(user,chatId);
+    if (command === "/mappe") return dossier(user,message.chat);
     if (command === "/admin") {
         if (!isAdmin(user))
             return;
@@ -184,6 +187,8 @@ export async function handleCallback(query, user) {
     }
     EdgeRuntime.waitUntil(acknowledge(query.id));
     if (user.onboarding_state?.organizer_note) await clearOrganizerNote(user);
+    if (user.onboarding_state?.dossier_input) await clearDossierInput(user);
+    if (data === 'dossier' || data.startsWith('dossier:')) return dossier(user,query.message.chat,query.message?.photo?undefined:messageId,data);
     if (data.startsWith('apply:')) return quickApplication(user, query);
     if (data.startsWith('org:')) return organizer(user,chatId,query.message?.photo?undefined:messageId,data);
     if (data === "noop")

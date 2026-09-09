@@ -45,6 +45,17 @@ test('both platforms produce copyable drafts and their exact listing link; no ap
  }
 });
 
+test('Premium drafts use saved names and templates without exceeding Telegram copy-button limits',async()=>{
+ const applicant_profile={full_name:'Anna Beispiel',custom_application_text:'Mein individuelles Anschreiben. '.repeat(20)};
+ const h=harness();await h.quickApplication({...user,is_premium:true,applicant_profile},query);
+ assert.match(h.calls[0].text,/Mein individuelles Anschreiben/);
+ assert.match(h.calls[0].text,/Bezug: Wohnung &lt;Hamburg&gt;/);
+ assert.ok(h.calls[0].reply_markup.inline_keyboard.every(row=>!row[0].copy_text));
+ const free=harness();await free.quickApplication({...user,is_premium:false,applicant_profile},query);
+ assert.doesNotMatch(free.calls[0].text,/Mein individuelles/);
+ assert.match(generateApplicationMessage({full_name:'Anna Beispiel'},scout),/Anna Beispiel/);
+});
+
 test('forged, foreign, group and forwarded callbacks disclose no draft',async()=>{
  for(const q of [{...query,data:'apply:not-an-id'},{...query,message:{chat:{id:999,type:'private'}}},{...query,message:{chat:{id:123,type:'group'}}}]){
   const h=harness();await h.quickApplication(user,q);assert.equal(h.reads.length,0);assert.ok(h.calls.every(c=>!c.reply_markup));

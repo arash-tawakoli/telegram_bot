@@ -46,7 +46,7 @@ Deno.serve(async (request) => {
             await handleCallback(payload.callback_query, user);
         }
         else if (payload.message?.chat?.type === "private" &&
-            payload.message?.text) {
+            (payload.message?.text || payload.message?.document || payload.message?.photo)) {
             await handleMessage(payload.message, user);
         }
         await finishUpdate(updateId,attempt,true);
