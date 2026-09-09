@@ -1,55 +1,57 @@
-# Architektur und Betriebsstand
+# Architektur und Betrieb
+Stand: 09.09.2026. [Bereinigung und Prüfnachweise](ARCHITECTURE_CLEANUP_2026-09-09.md) · [Einzelaudit aller Quellen](SOURCE_DELIVERY_AUDIT_2026-09-09.md)
 
-Aktuelle Prüfung vom 08.09.2026: [Befunde, Änderungen und offene Grenzen](ARCHITECTURE_AUDIT_2026-09-08.md). Die nachfolgenden Zahlen beschreiben den historischen Stand vom 05.09.2026.
+## Datenfluss und Verantwortlichkeiten
 
-Stand: 5. September 2026. Aktueller Rollout und Betriebsnachweis: [Rollout](ROLLOUT_2026-09-05.md). Der [ursprüngliche Review](ARCHITECTURE_REVIEW_2026-09-05.md) dokumentiert den Vorzustand, nicht den aktuellen Deployment-Status.
+Cron plant fällige Quellen in `source_jobs`/PGMQ ein. Ein zentraler `source-worker` reserviert Jobs und ruft spezialisierte Adapter auf. Anbieterabhängige Transport- und Feed-Funktionen liefern Daten; sie betreiben keine zweite generische Queue. `sources` und `source_connectors` in Supabase sind die produktive Konfiguration.
 
-```mermaid
-flowchart TD
-  C[Source-Scheduler] --> Q[(Source-Jobs / PGMQ)]
-  Q --> W[Source-Worker]
-  W --> A[Quellenadapter und Transportfunktionen]
-  A --> L[(Inserate)]
-  L --> D[Deduplizierung und SQL-Matching]
-  D --> E[(Delivery-Ereignisse)]
-  E --> N[Notification-Dispatcher]
-  N --> T[Telegram]
-  G[Telegram-Gateway] --> U[Telegram-UI und Premium]
-  U --> P[(Nutzer und Suchprofile)]
-  P --> D
+SQL übernimmt Qualitätsprüfung, Frischefreigabe, Dubletten und Profil-Matching. Daraus entstehen `delivery_events`. Der Dispatcher prüft die aktuelle Verfügbarkeit, ergänzt belegte Quelldaten und stellt über Telegram zu. Wiedergefundener Bestand ist nicht automatisch frisch.
+
+Telegram-Eingaben laufen über Gateway/Fast-Pfad zur UI beziehungsweise Premium-Verarbeitung. Inbox-Claims und Versuchsnummern schützen vor doppelter Verarbeitung. Der Wohnungsplaner verwendet vorhandene Merkliste und Nutzerdaten. Stripe-Webhooks und Billing-Maintenance verwalten Abonnements getrennt von der Wohnungszustellung.
+
+## Zuverlässigkeitsgrenzen
+
+- Source-Jobs und Delivery-Events haben atomare Claims und versuchsgebundene Bestätigungen. Ein alter Worker darf einen neueren Versuch nicht abschließen.
+- Mehrdeutige Telegram-Ausgänge werden nicht automatisch erneut gesendet. Exactly-once kann über einen externen Telegram-Aufruf nicht garantiert werden.
+- Ein persistierter Versandabstand begrenzt reguläre Listing-Zustellungen. Button-Bestätigungen verwenden ihren eigenen schnellen Pfad.
+- Quellen bleiben bei fehlendem Frischenachweis, nicht belegtem Inventar oder deaktiviertem Live-Modus vom Versand ausgeschlossen.
+- Vorschauen enthalten höchstens ein Foto und alle verfügbaren Textdaten. Bilddaten werden unabhängig vom MIME-Header erkannt; bestätigte unbrauchbare Fotos erlauben Textfallback. Bezirk/Stadtteil nur aus expliziten Quellfeldern.
+- GCP nutzt den tatsächlich betriebenen Primärconnector. Detailfehler erscheinen in den Crawl-Metadaten; scheitern alle Details, gilt der Lauf als Fehler. Vollständigkeit wird nicht vorgetäuscht.
+
+## Aktueller Bestand
+
+23 versionierte Function-Bundles einschließlich zweier stillgelegter HTTP-410-Mini-App-Endpunkte und eines separaten `noop`-Support-Endpunkts. Aktuelle Codepfade sind unter `supabase/functions`, erhaltene Support-Endpunkte unter `supabase/deployed-support` abgelegt.
+
+65 registrierte Quellen: beim Audit 51 aktiviert/live, 2 aktiviert/shadow und 12 deaktiviert/shadow. Historische Quellen bleiben für Zuordnung, Diagnose und spätere verifizierte Reparaturen erhalten. Registrierungspfade beweisen kein Wohnungsinventar.
+
+Zehn aktive Cron-Jobs: Scheduler, Source-Worker, Dispatcher, tägliche Wartung, Ablauf von Admin-Premium-Ausnahmen, zwei Provider-Index-Aufgaben, Inbox-Recovery, Shadow-Probes und Shadow-Historienbereinigung. Keine zusätzliche Scheduler-Schicht eingeführt.
+
+## Sicherheit und Datenpflege
+
+Bot-/Listing-Tabellen sind für anon/authenticated nicht direkt freigegeben. Die geprüften öffentlichen SECURITY-DEFINER-Routinen sind für diese Rollen nicht ausführbar. `verify_jwt=false` bei Webhooks/internal Functions verlangt die vorhandene anwendungsseitige Authentifizierung; diese bleibt erhalten.
+
+Service-only-Tabellen haben absichtlich RLS ohne Benutzer-Policies. Die vier vom Advisor gemeldeten ungenutzten Indizes unterstützen Fremdschlüssel; kein Index wurde allein wegen `idx_scan=0` entfernt.
+
+Bestehende tägliche Retention bleibt zuständig: erfolgreiche Jobs/Crawls 7 Tage, fehlgeschlagene 30 Tage, Queue-Archiv 14 Tage, versandte/übersprungene Events 90 Tage; Shadow-Historie 30 Tage. Keine zusätzlichen Löschjobs und keine pauschale Datenbereinigung.
+
+## Entwicklung, Deployment und Wiederherstellung
+
+```sh
+npm ci --ignore-scripts
+npm test
+node scripts/check-runtime.mjs
 ```
 
-## Verantwortlichkeiten
+Node 24, gepinnte Abhängigkeiten und Lockfile. Ein CI-Workflow führt Tests und Architekturprüfungen aus. Das Runtime-Manifest erfasst pro Bundle sämtliche Dateien einschließlich gemeinsam importierter Module sowie deren beobachtete Deployment-Hashes.
 
-- `sources` und `source_connectors` bleiben die Laufzeitkonfiguration für 65 Quellen. K1/K2/K3, Live/Shadow und Polling sind separate Eigenschaften.
-- `source-worker` übernimmt zentral die Jobs und wählt Quellenadapter. Transport-/Feed-Functions unterstützen einzelne Anbieter; sie haben keine eigene generische Source-Queue.
-- `listings` und `listing_dedupe_groups` tragen Bestand und Dublettenpräferenz. SQL-Trigger prüfen Qualität, Baseline, Aktualität und Suchprofilbedingungen.
-- `delivery_events` trägt die Zustellung; es gibt keine zusätzliche Notification-Outbox.
-- Telegram- und Stripe-Eingänge authentifizieren ihre Webhooks in der Anwendung. `verify_jwt=false` allein ist deshalb kein Sicherheitsfehler.
-- Premium-Rechte, Empfehlungen und bis zu drei Premium-Suchprofile sind Bestandteil der inzwischen erweiterten Runtime. Die alte Ein-Profil-Beschreibung war überholt.
+Die Prüfung lehnt fehlende relative Abhängigkeiten, doppelte Bundle-Namen, abweichenden Dateicode und Abweichungen vom **zuletzt aufgezeichneten** Deployment ab. Sie fragt Supabase nicht online ab. Nach jedem Deployment muss das Bundle aus Supabase zurückgelesen, verglichen und das Manifest aktualisiert werden; bloßes Ändern eines Hashes ist kein Deployment-Nachweis.
 
-## Zuverlässigkeit nach diesem PR
+`seed.sql` ist ausschließlich für ein leeres Register. Es lehnt vorhandene Quellen/Connectoren vor Schreibzugriffen ab. Bootstrap-URLs starten deaktiviert/shadow und müssen gegen ihre tatsächlichen Schnittstellen getestet werden, bevor ein neuer Standort live gehen kann. Historische Reparatur-SQLs unter `scripts` sind keine Replay-Reihenfolge; nie pauschal auf Produktion anwenden.
 
-Source-Jobs besitzen einen zehnminütigen Visibility-Zeitraum und eine Versuchsnummer. Abgelaufene processing-Jobs werden wieder übernommen. `finish_source_job_attempt` akzeptiert nur den aktuellen Versuch; nach fünf abgestürzten Versuchen wird der Job abgeschlossen/archiviert, sodass die Quelle wieder eingeplant werden kann. Source- und Crawl-Persistierungsfehler werden weitergereicht.
+151 Migrationen bleiben als abgeglichene Historie erhalten. Historische Reviews und Quellenberichte sind zeitbezogene Belege, keine aktive Konfiguration. Rücknahme über den vorherigen Commit und erneutes Deployment der betroffenen Bundles; keine Nutzerdatenmigration für diese Bereinigung erforderlich.
 
-Delivery-Ereignisse werden atomar von pending/failed nach processing übernommen. Versuchsnummer und Reservierungszeit schützen die Bestätigung vor veralteten Workern. Ein globaler Besitznachweis und ein persistierter 15-Sekunden-Sendezeitpunkt koordinieren mehrere Aufrufe. Abgelaufene Reservierungen und mehrdeutige Telegram-Antworten werden als `delivery_outcome_unknown` markiert und nicht automatisch erneut gesendet. Das vermeidet riskante Wiederholungen, garantiert aber kein Exactly-once über Telegram.
+## Bekannte offene Grenzen
 
-Beide Worker starten nach rund 50 Sekunden keine neue Arbeit. Bereits laufende Operationen dürfen darüber hinausgehen. Drei Source-Jobs parallel gelten pro Aufruf, nicht als globale Parallelitätsgrenze.
+Vollständige externe Coverage und permanente Erreichbarkeit aller Anbieter sind nicht belegt. Unter anderem bleiben Vonovia-/WG-Gesucht-Verifikation, SAGA-Indexstabilität, Wunderflats-Zugriff und City-Wohnen-Preiszuordnung im Quellenbericht offen. Diese Probleme werden nicht durch Lockerung der Frische- oder Budgetfilter überdeckt.
 
-Die Prämien-RPC ist auf die Service Role beschränkt und verlangt ein vorhandenes Suchprofil.
-
-## Verifizierter Produktionsstand nach Rollout
-
-54 Quellen live, 11 shadow; 22 Function-Snapshots einschließlich zweier stillgelegter Mini-App-Endpunkte mit HTTP 410. Keine Quelle hat mehr als drei aktivierte Connectoren. Zehn Cron-Jobs sind aktiv, einschließlich Inbox-Recovery und Shadow-Prüfungen. UI-Code liegt als lesbare Module vor; Inbox-Claims und idempotente Saved-Toggles erlauben kontrollierte Wiederaufnahme.
-
-Alle 65 Quellen sind auf fünf Minuten Polling konfiguriert; nur aktivierte Live-Quellen werden regulär abgearbeitet. Source-Backoff entfällt. Der Dispatcher wartet global mindestens 15 Sekunden zwischen regulären Zustellungen. Bei großem Rückstau dauert das Abarbeiten entsprechend länger.
-
-## Deployment
-
-Die Dispatcher-Dateien in diesem PR basieren auf der direkt aus Supabase gelesenen Version 27, anschließend ergänzt um Reservierung und Fehlerbehandlung. Die zuvor eingecheckte Implementierung war eine andere Variante mit zusätzlichen Digest-Pfaden; deren Vorhandensein im Repository belegt keine produktive Nutzung.
-
-142 Migrationen sind mit den tatsächlichen Produktionsversionen exportiert und per Hash nachweisbar. 62 historische Dateinamen wurden ersetzt, ohne die Live-Historie umzuschreiben. Zwei historische SQL-Exporte referenzieren erforderliche Zugangsdaten über Vault statt sie erneut einzuchecken. Dispatcher v30 enthält die Korrektur der am Rollouttag erkannten `owner`-Überschattung.
-
-## Validierung
-
-Node 24: `npm ci --ignore-scripts && npm test && node scripts/check-runtime.mjs`. 28 Verhaltenstests einschließlich vollständigem Dispatcher-Handler. Zusätzlich reales PostgreSQL/PGMQ mit Rollback sowie authentifizierte/unauthentifizierte HTTP-Proben. Kein vollständiger Lasttest und kein Nachweis vollständiger Enumeration aller externen Anbieter. Echte Versandbestätigungen nach der v30-Korrektur sind im Rolloutbericht dokumentiert.
+Kein vollständiger Lasttest, keine gemessene Verbesserung der Telegram-Latenz und kein Restore-Test des gesamten Supabase-Projekts in dieser Bereinigung. Der Nachweis umfasst Codegleichheit, Verhaltenstests, Zugriffsprüfungen und begrenzte Liveproben.

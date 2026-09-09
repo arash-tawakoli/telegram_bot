@@ -14,8 +14,6 @@ export const db = createClient(SUPABASE_URL, SERVICE_KEY, {
 
 export const PREMIUM_LINK = "https://buy.stripe.com/dRm9AM7DSajfgYK2qVfYY01";
 
-export const PREMIUM_PREVIEW_B64 = "";
-
 export const PROPERTY_TYPES = [
     "Wohnung",
     "Haus",
@@ -203,48 +201,6 @@ export async function acknowledge(id, text) {
     }
     catch {
     }
-}
-
-export async function ensureUser(from, chatId) {
-    const { data: existing, error } = await db
-        .from("bot_users")
-        .select("*")
-        .eq("telegram_user_id", from.id)
-        .maybeSingle();
-    if (error)
-        throw error;
-    const patch = {
-        chat_id: chatId,
-        username: from.username || null,
-        first_name: from.first_name || null,
-        last_name: from.last_name || null,
-        language_code: from.language_code || null,
-        is_active: existing?.is_active ?? true,
-        updated_at: new Date().toISOString(),
-    };
-    if (existing) {
-        const { data, error: updateError } = await db
-            .from("bot_users")
-            .update(patch)
-            .eq("id", existing.id)
-            .select("*")
-            .single();
-        if (updateError)
-            throw updateError;
-        return { ...data, __is_new_user: false };
-    }
-    const { data, error: insertError } = await db
-        .from("bot_users")
-        .insert({
-        telegram_user_id: from.id,
-        ...patch,
-        last_start_at: new Date().toISOString(),
-    })
-        .select("*")
-        .single();
-    if (insertError)
-        throw insertError;
-    return { ...data, __is_new_user: true };
 }
 
 export async function withPlan(user, subscription = undefined) {

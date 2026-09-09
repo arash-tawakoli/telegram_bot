@@ -3,10 +3,10 @@
 Supabase-Backend für `@traumwohnunghamburgbot`: zentrale Wohnungssuche über 65 konfigurierte Hamburger Quellen, Dublettenprüfung, Suchprofile und Telegram-Zustellung.
 
 - [Architektur](docs/ARCHITECTURE.md)
-- [Review vom 5. September 2026](docs/ARCHITECTURE_REVIEW_2026-09-05.md)
+- [Bereinigung und Prüfnachweise vom 9. September 2026](docs/ARCHITECTURE_CLEANUP_2026-09-09.md)
 - [Migrationsabgleich und Rollout](docs/MIGRATION_RECONCILIATION.md)
 - [Quellen und Connectoren](docs/source-connectors.md)
-- [Prüfung aller 65 Quellen](docs/SOURCE_AUDIT_2026-09-05.md)
+- [Aktuelle Prüfung aller 65 Quellen](docs/SOURCE_DELIVERY_AUDIT_2026-09-09.md)
 - [Rollout und Versandstörung](docs/ROLLOUT_2026-09-05.md)
 
 ## Wohnungsplaner
@@ -28,10 +28,12 @@ npm ci --ignore-scripts
 npm test
 ```
 
-Die 28 Tests verwenden synthetische Daten und führen keinen Telegram-Versand aus. Die SQL-Suite verwendet PGlite mit einem vereinfachten PGMQ-Modell. Zusätzlich wurde ein Integrationstest gegen echtes PostgreSQL/PGMQ in einer zurückgerollten Transaktion durchgeführt. `node scripts/check-runtime.mjs` prüft 22 Function-Snapshots und 142 kanonische Migrationen.
+Die Tests verwenden synthetische Daten und führen keinen Telegram-Versand aus. Die SQL-Suite verwendet PGlite mit einem vereinfachten PGMQ-Modell. `node scripts/check-runtime.mjs` prüft die vollständigen Function-Bundles gegen die aufgezeichneten Deployment-Hashes sowie die kanonischen Migrationen. Aktuelle Ergebnisse und Grenzen stehen im Architekturbericht.
 
 ## Deployment-Status
 
 Die Sicherheits-/Lifecycle-Migrationen und Runtime-Änderungen wurden produktiv ausgerollt. Die Migrationsdateien sind nach dem tatsächlichen Produktionsregister abgeglichen; historische SQL-Inhalte wurden nicht blind erneut ausgeführt. Die Runtime-Snapshots dokumentieren die aus Supabase gelesenen Versionen.
 
-Fünf Minuten Source-Polling, kein Source-Backoff und ein globaler 15-Sekunden-Versandabstand sind aktiv. Ein nach dem Rollout entdeckter Variablenfehler blockierte die Zustellung; Dispatcher v30 korrigiert ihn und wurde anhand echter Versandbestätigungen geprüft. Vollständige Abdeckung sämtlicher externer Quellen ist ausdrücklich nicht zugesichert; Zugangssperren und offene Connector-Kandidaten stehen im Quellenbericht.
+Nur aktivierte Live-Quellen werden regulär abgearbeitet. Vorschauen enthalten höchstens ein Bild; Bezirk und Stadtteil erscheinen nur bei vorhandenen expliziten Quelldaten. Vollständige externe Coverage ist nicht zugesichert; konkrete offene Blocker stehen im Quellenbericht.
+
+`supabase/seed.sql` dient nur einem leeren Register und bricht bei vorhandener Konfiguration ab. Neue Quellen starten deaktiviert/shadow. Historische Reparatur-SQLs sind keine automatische Deployment-Reihenfolge.

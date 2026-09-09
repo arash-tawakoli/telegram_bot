@@ -1,4 +1,13 @@
 -- Architecture-v3 bootstrap registry for all 65 Hamburg sources.
+-- Bootstrap only: never overwrite a configured environment or reset its baselines.
+begin;
+do $bootstrap$
+begin
+  if exists(select 1 from public.sources) or exists(select 1 from public.source_connectors) then
+    raise exception 'Bootstrap refused: source registry already exists';
+  end if;
+end
+$bootstrap$;
 -- K1/K2/K3 is the user-authored source category. It is independent of
 -- runtime_mode, connector health, coverage_strategy and crawl scheduling.
 -- P1/P2 below are technical connector priorities; a third fallback is optional.
@@ -69,11 +78,7 @@ insert into public.sources (id,source_type,name,tier,homepage_url,search_url,pol
 (63,'Immobilienportal','Wohnungsbörse.net Hamburg','K3','https://www.wohnungsboerse.net','https://www.wohnungsboerse.net/Hamburg/mieten/wohnungen',60,false,null),
 (64,'Baugenossenschaft','Falkenried-Terrassen','K3','https://www.falkenried-terrassen.de','https://www.falkenried-terrassen.de/',60,false,'Kein bestätigter digitaler Wohnungslisting-Connector'),
 (65,'Baugenossenschaft','BDS Dennerstraße-Selbsthilfe','K2','https://www.bds-hamburg.de','https://www.bds-hamburg.de/unser-angebot/interessentenportal-immomio/',10,true,null)
-on conflict (id) do update set
-  source_type=excluded.source_type,name=excluded.name,tier=excluded.tier,
-  homepage_url=excluded.homepage_url,search_url=excluded.search_url,
-  poll_interval_minutes=excluded.poll_interval_minutes,enabled=excluded.enabled,
-  notes=excluded.notes,updated_at=now();
+;
 
 -- Runtime metadata is applied after all migrations, because seed.sql executes after migrations.
 update public.sources set
@@ -109,8 +114,7 @@ with p(source_id,crawl_priority) as (values
 (62,61),(57,62),(64,63),(58,64),(59,65))
 update public.sources s set crawl_priority=p.crawl_priority from p where s.id=p.source_id;
 
--- Rebuild a compact connector registry. Primary is the search endpoint; homepage is a generic fallback.
-delete from public.source_connectors;
+-- Create the initial registry. Existing registries were rejected before any writes.
 insert into public.source_connectors(source_id,priority,label,connector_kind,config,enabled,enumerable,shadow_only)
 select id,1,'Primary source','html_discovery',jsonb_build_object('url',search_url),true,false,(runtime_mode='shadow')
 from public.sources;
@@ -136,3 +140,9 @@ update public.source_connectors set label='Finkenwaerder REST API',connector_kin
 update public.source_connectors c set enumerable=true
 from public.sources s
 where c.source_id=s.id and c.priority=1 and s.coverage_strategy in ('pagination','full_page','district_pagination','district_hybrid','adaptive_partition');
+
+-- These URLs are bootstrap candidates, not smoke-tested production configuration.
+-- Activate a source only after its connector, baseline and delivery path are verified.
+update public.sources set enabled=false,runtime_mode='shadow',delivery_mode='shadow',poll_interval_minutes=5;
+update public.source_connectors set shadow_only=true;
+commit;

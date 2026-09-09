@@ -94,10 +94,6 @@ export const TXT = {
     },
 };
 
-export function textFor(language, key) {
-    const lang = language && TXT[language] ? language : "de";
-    return TXT[lang]?.[key] || TXT.de[key] || key;
-}
 LANGS.ru = "🇷🇺 Русский";
 TXT.ru = {
     welcome: "🏠 <b>Traumwohnung Hamburg</b>\n\nАвтоматически находите подходящую аренду по всему Гамбургу.",
