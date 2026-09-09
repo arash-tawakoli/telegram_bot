@@ -1,5 +1,5 @@
 import {pageAvailability,recentInventory} from './availability.ts';
-import {previewOperations,deliverPreview} from "./preview-delivery.ts";
+import {previewOperations,deliverPreview,sourcePhoto} from "./preview-delivery.ts";
 import {present, textValue, exactAddress, structuredFacts, collectImages, htmlFacts} from "./source-facts.ts";
 import { telegramRequest, TelegramFailure } from "./telegram-request.ts";
 import { waitForDispatchSlot } from "./pacing.ts";
@@ -149,6 +149,7 @@ function cap(l: any, lang: string) {
   const available = availableText(l);
   if (available)
     lines.push(`📅 <b>${label(lang, "available")}:</b> ${esc(available)}`);
+  if (present(l.borough)) lines.push(`📍 <b>Bezirk:</b> ${esc(l.borough)}`);
   if (present(l.district)) lines.push(`📍 <b>Stadtteil:</b> ${esc(l.district)}`);
   if (present(l.published_text)) lines.push(`<b>Veröffentlicht laut Quelle:</b> ${esc(l.published_text)}`);
   if (l.features?.length) lines.push(`<b>Ausstattung:</b> ${l.features.map(esc).join(', ')}`);
@@ -330,10 +331,8 @@ async function uploadOperation(t:string,chat:number,op:any) {
   const media=op.method==='sendMediaGroup'?op.body.media:[{type:'photo',media:op.body.photo}];
   for(let i=0;i<media.length;i++) {
     const r=await fetch(media[i].media,{headers:{'user-agent':UA,accept:'image/*'},signal:AbortSignal.timeout(6500)});
-    if(!r.ok)throw new Error(`Source image HTTP ${r.status}`);
-    const ct=r.headers.get('content-type')||'';
-    if(!ct.startsWith('image/'))throw new Error('Source image returned non-image content');
-    f.set(op.method==='sendPhoto'?'photo':`image${i}`,await r.blob(),ct.includes('png')?`image${i}.png`:`image${i}.jpg`);
+    const photo=await sourcePhoto(r);
+    f.set(op.method==='sendPhoto'?'photo':`image${i}`,photo,`image${i}.${photo.type.split('/')[1]}`);
   }
   if(op.method==='sendMediaGroup')f.set('media',JSON.stringify(media.map((m:any,i:number)=>({...m,media:`attach://image${i}`}))));
   else for(const [k,v] of Object.entries(op.body))if(k!=='photo')f.set(k,typeof v==='string'?v:JSON.stringify(v));
@@ -362,6 +361,12 @@ Deno.serve(async (req) => {
       const {data,error}=await db.from('listings').select('*,sources(button_label,source_type,source_connectors(config,enabled,priority))').eq('id',input.listing_id).single();
       if(error)throw error;
       const listing=await enrich(data,false),facts=knownFacts(listing);
+      if(input.probe_image && facts.images.length){
+        const response=await fetch(facts.images[0],{headers:{'user-agent':UA,accept:'image/*'},signal:AbortSignal.timeout(6500)});
+        const declared_type=response.headers.get('content-type');
+        try{const photo=await sourcePhoto(response);return Response.json({ok:true,dry_run:true,availability:listing._availability,image_probe:{declared_type,validated_type:photo.type,bytes:photo.size},operations:previewOperations(facts.images,cap(listing,'de'),kb(listing,'de',true)).map(x=>x.method)});}
+        catch(e){return Response.json({ok:false,dry_run:true,image_probe:{declared_type,error:String(e)}});}
+      }
       return Response.json({ok:true,dry_run:true,caption:cap(listing,'de'),keyboard:kb(listing,'de',true),images:facts.images,availability:listing._availability,address:loc(listing),operations:previewOperations(facts.images,cap(listing,'de'),kb(listing,'de',true)).map(x=>x.method)});
     }
     if (input.dry_run) {

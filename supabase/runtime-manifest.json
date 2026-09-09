@@ -168,7 +168,7 @@
     },
     {
       "slug": "notification-dispatcher",
-      "version": 67,
+      "version": 72,
       "verify_jwt": false,
       "entrypoint": "supabase/functions/notification-dispatcher/index.ts",
       "import_map": false,
@@ -176,13 +176,13 @@
       "files": [
         {
           "path": "supabase/functions/notification-dispatcher/index.ts",
-          "sha256": "a80c1301133b359ada44e44091ca68ed8a552c8a48c3d00394faa7ce10921cff",
-          "deployed_sha256": "a80c1301133b359ada44e44091ca68ed8a552c8a48c3d00394faa7ce10921cff"
+          "sha256": "c307bb89d5931e4c9052a76b56989090c700334b287e314c1df85f7254bb6e87",
+          "deployed_sha256": "c307bb89d5931e4c9052a76b56989090c700334b287e314c1df85f7254bb6e87"
         },
         {
           "path": "supabase/functions/notification-dispatcher/preview-delivery.ts",
-          "sha256": "02ccc10eb379482fe3d3521cb32342aa8d9f5ccdc6dae4ef22053a7bce7d3c6f",
-          "deployed_sha256": "02ccc10eb379482fe3d3521cb32342aa8d9f5ccdc6dae4ef22053a7bce7d3c6f"
+          "sha256": "b827782ea74dac05b8209e1b5eec430a819ae6ea7feecbfd7f6080e4991bca39",
+          "deployed_sha256": "b827782ea74dac05b8209e1b5eec430a819ae6ea7feecbfd7f6080e4991bca39"
         },
         {
           "path": "supabase/functions/notification-dispatcher/telegram-request.ts",
@@ -191,8 +191,8 @@
         },
         {
           "path": "supabase/functions/notification-dispatcher/source-facts.ts",
-          "sha256": "4f3dc84212fe0c79de5db4bbbd5b96ca3088c8ddb1e99d3fcdc032552fd4fa1c",
-          "deployed_sha256": "4f3dc84212fe0c79de5db4bbbd5b96ca3088c8ddb1e99d3fcdc032552fd4fa1c"
+          "sha256": "47653573929feef64b645aae5a4f90896953451e3d777791e9b997b9a30002f9",
+          "deployed_sha256": "47653573929feef64b645aae5a4f90896953451e3d777791e9b997b9a30002f9"
         },
         {
           "path": "supabase/functions/notification-dispatcher/pacing.ts",
@@ -486,7 +486,7 @@
         },
         {
           "path": "supabase/functions/notification-dispatcher/source-facts.ts",
-          "sha256": "4f3dc84212fe0c79de5db4bbbd5b96ca3088c8ddb1e99d3fcdc032552fd4fa1c",
+          "sha256": "47653573929feef64b645aae5a4f90896953451e3d777791e9b997b9a30002f9",
           "deployed_sha256": "4f3dc84212fe0c79de5db4bbbd5b96ca3088c8ddb1e99d3fcdc032552fd4fa1c"
         }
       ]
@@ -508,5 +508,5 @@
     }
   ],
   "snapshot_kind": "repository_with_observed_deployment_hashes",
-  "observed_at": "2026-09-08"
+  "observed_at": "2026-09-09"
 }

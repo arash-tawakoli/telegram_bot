@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 import {stripTypeScriptTypes} from 'node:module';
 import vm from 'node:vm';
 import * as facts from '../supabase/functions/notification-dispatcher/source-facts.ts';
-import {previewOperations,deliverPreview} from '../supabase/functions/notification-dispatcher/preview-delivery.ts';
+import {previewOperations,deliverPreview,sourcePhoto} from '../supabase/functions/notification-dispatcher/preview-delivery.ts';
 import {TelegramFailure} from '../supabase/functions/notification-dispatcher/telegram-request.ts';
 import {label} from '../supabase/functions/notification-dispatcher/labels.ts';
 const base='https://example.test/expose/42';
@@ -12,6 +12,39 @@ const source=readFileSync(new URL('../supabase/functions/notification-dispatcher
 const scope={...facts,label,URL,Date,console};
 vm.runInNewContext(stripTypeScriptTypes(source.slice(source.indexOf('function esc('),source.indexOf('async function enrich('))),scope);
 const listing=(raw={},rest={})=>({id:'l',title:'Wohnung',canonical_url:base,raw,...rest});
+test('binary image signatures accept real octet-stream photos, not HTML or spoofed MIME',async()=>{
+ const photo=await sourcePhoto(new Response(new Uint8Array([255,216,255,224,0,16]),{headers:{'content-type':'application/octet-stream'}}));
+ assert.equal(photo.type,'image/jpeg');
+ await assert.rejects(sourcePhoto(new Response('<html>denied</html>',{headers:{'content-type':'image/jpeg'}})));
+ await assert.rejects(sourcePhoto(new Response('missing',{status:404})));
+});
+
+test('source borough and neighborhood are independent, escaped, and never inferred from prose',()=>{
+ const c=scope.cap(listing({address:{borough:'Hamburg-Nord',quarter:'Barmbek <Nord>'}}),'de');
+ assert.match(c,/Bezirk:<\/b> Hamburg-Nord/);assert.match(c,/Stadtteil:<\/b> Barmbek &lt;Nord&gt;/);
+ assert.doesNotMatch(scope.cap(listing({description:'Bezirk Altona, Stadtteil Ottensen'}),'de'),/Bezirk:|Stadtteil:/);
+ const f=facts.htmlFacts('<dl><dt>Bezirk</dt><dd>Altona</dd><dt>Stadtteil</dt><dd>Ottensen</dd></dl>',base);
+ assert.equal(f.borough,'Altona');assert.equal(f.district,'Ottensen');
+ assert.doesNotMatch(scope.cap(listing({borough:'Altona'}),'de'),/Stadtteil:/);
+});
+test('confirmed broken source image cannot block the text and offer buttons',async()=>{
+ for(const caption of ['facts','facts '.repeat(250)]){
+  const calls=[],keyboard={inline_keyboard:[[{text:'Angebot',url:base}]]};
+  await deliverPreview(previewOperations(['broken.jpg','second.jpg'],caption,keyboard),null,async()=>{},async(op,upload)=>{
+   calls.push({method:op.method,upload,body:op.body});
+   if(op.method==='sendPhoto')throw new TelegramFailure(upload?'Source image returned non-image content':'wrong file',false,true);
+   return{message_id:42};
+  },async()=>{});
+  assert.equal(calls.filter(x=>x.method==='sendMessage').length,1);
+  assert.equal(calls.at(-1).body.text,caption);assert.deepEqual(calls.at(-1).body.reply_markup,keyboard);
+ }
+});
+test('ambiguous upload outcome never degrades to another Telegram message',async()=>{
+ const calls=[];
+ await assert.rejects(deliverPreview(previewOperations(['a.jpg'],'facts',{}),null,async()=>{},async(op,upload)=>{
+  calls.push(op.method);throw new TelegramFailure('failure',!!upload,!upload);
+ },async()=>{}));assert.deepEqual(calls,['sendPhoto','sendPhoto']);
+});
 
 test('all explicit facts including zero costs and floor, flexible dates and deposit text are rendered',()=>{
  const caption=scope.cap(listing({warmRent:'1.250,50',coldRent:900,heatingCosts:0,additionalCosts:100,deposit:'3 Kaltmieten',rooms:2.5,size:72.1,floor:0,apartmentType:'Maisonette',moveInDate:'nach Vereinbarung',availableFrom:'01.11.2026',address:'Straße 1 a, 20095 Hamburg'}),'de');
@@ -42,17 +75,17 @@ test('JSON-LD scopes facts to exact listing and ignores publisher and related ob
  const out={};scope.walk({'@graph':[{'@type':'Organization',address:'wrong',image:'/logo.jpg'},{'@type':'Apartment',url:base,address:'right',image:['/1.jpg','/2.jpg'],numberOfRooms:3,floorSize:{value:75}},{'@type':'Apartment',url:'https://example.test/expose/43',address:'other',image:'/3.jpg'}]},out,base);
  assert.equal(out.address,'right');assert.equal(out.images.length,2);assert.equal(out.rooms,3);
 });
-test('listing previews include all images in bounded albums and keep full text with buttons',()=>{
+test('listing previews use one photo and retain full text with buttons',()=>{
  const ops=previewOperations(Array.from({length:23},(_,i)=>`https://example.test/${i}.jpg`),'x'.repeat(1200),{inline_keyboard:[]});
- assert.equal(ops.length,4);assert.deepEqual(ops.slice(0,3).map(x=>x.body.media.length),[10,10,3]);assert.equal(ops[3].body.text.length,1200);assert.ok(ops[3].body.reply_markup);
+ assert.equal(ops.length,2);assert.equal(ops[0].method,'sendPhoto');assert.equal(ops[0].body.photo,'https://example.test/0.jpg');assert.equal(ops[1].body.text.length,1200);assert.ok(ops[1].body.reply_markup);
 });
 test('confirmed album failure retries from confirmed checkpoint, not first image',async()=>{
- const ops=previewOperations(Array.from({length:11},(_,i)=>`${i}.jpg`),'facts',{},Infinity);let saved,calls=[];
+ const ops=[{method:'sendMediaGroup',body:{media:[{type:'photo',media:'a.jpg'},{type:'photo',media:'b.jpg'}]}},{method:'sendPhoto',body:{photo:'c.jpg'}},{method:'sendMessage',body:{text:'facts'}}];let saved,calls=[];
  const save=async s=>{saved=structuredClone(s)};
  await assert.rejects(deliverPreview(ops,null,save,async op=>{calls.push(op.method);if(calls.length===2)throw new TelegramFailure('rate limited',false,false,30);return [{message_id:12}];},async()=>{}));
  assert.equal(saved.next,1);assert.equal(saved.in_flight,false);
  calls=[];await deliverPreview([],saved,save,async op=>{calls.push(op.method);return {message_id:14}},async()=>{});
- assert.deepEqual(calls,['sendPhoto','sendMessage']);assert.equal(saved.next,3);
+ assert.deepEqual(calls,['sendMessage']);assert.equal(saved.next,2);
 });
 test('unknown send outcome or checkpoint failure never automatically duplicates images',async()=>{
  let saved;await assert.rejects(deliverPreview([{method:'sendPhoto',body:{photo:'a'}}],null,async s=>{saved=structuredClone(s)},async()=>{throw new TelegramFailure('timeout',true)},async()=>{}));
@@ -116,3 +149,5 @@ test('Kleinanzeigen thumbnails without image classes and explicit equipment are 
  assert.equal(f.images.length,2);assert.deepEqual(f.features,['Balkon']);
  assert.match(scope.cap(listing({features:['Balkon'],address:{city:'Hamburg',quarter:'Schnelsen'}}),'de'),/Balkon/);
 });
+
+test('unstarted legacy galleries adopt the single-photo policy on retry',async()=>{const ops=previewOperations(['a.jpg','b.jpg'],'facts',{});let saved,calls=[];await deliverPreview(ops,{version:1,operations:[{method:'sendMediaGroup',body:{media:[]}}],next:0,in_flight:false},async s=>saved=structuredClone(s),async op=>{calls.push(op.method);return{message_id:1}},async()=>{});assert.deepEqual(calls,['sendPhoto']);assert.equal(saved.next,1);});

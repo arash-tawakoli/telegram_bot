@@ -91,7 +91,8 @@ export function structuredFacts(raw: any, base: string): any {
   if (typeof av === 'string') out.available_text = textValue(av);
   else if (av) out.available_text = textValue(av.stringAvailable) ?? textValue(av.dateAvailable);
   out.available_text ??= textValue(r.available_text);
-  out.district=textValue(node.address?.quarter ?? node.address?.district ?? node.district ?? node.quarter);
+  out.district=textValue(node.address?.quarter ?? node.address?.neighborhood ?? node.address?.stadtteil ?? node.address?.district ?? node.neighborhood ?? node.stadtteil ?? node.district ?? node.quarter);
+  out.borough=textValue(node.address?.borough ?? node.address?.bezirk ?? node.borough ?? node.bezirk);
   out.published_text=textValue(node.datePosted ?? node.datePublished ?? node.publishedAt);
   const features=node.features ?? node.amenities ?? node.equipment;
   if(Array.isArray(features))out.features=features.map(x=>textValue(typeof x==='object'?x?.name:x)).filter(Boolean);
@@ -131,6 +132,7 @@ function decode(s: string): string {
   return s.replace(/<br\s*\/?\s*>/gi,'\n').replace(/<[^>]*>/g,'').replace(/&#(x[0-9a-f]+|\d+);/gi,(_,x)=>String.fromCodePoint(x[0].toLowerCase()==='x'?parseInt(x.slice(1),16):Number(x))).replace(/&(amp|lt|gt|quot|apos|nbsp|auml|ouml|uuml|szlig);/gi,(m,x)=>({amp:'&',lt:'<',gt:'>',quot:'"',apos:"'",nbsp:' ',auml:'ä',ouml:'ö',uuml:'ü',szlig:'ß'}[x.toLowerCase()] || m)).trim();
 }
 const fieldLabels: Record<string,string> = {
+  bezirk:'borough',stadtteil:'district',
   warmmiete:'warm_rent',bruttowarmmiete:'warm_rent',gesamtmiete:'warm_rent',kaltmiete:'cold_rent',nettokaltmiete:'cold_rent',grundmiete:'cold_rent',
   heizkosten:'heating_costs',nebenkosten:'additional_costs',betriebskosten:'operating_costs',kaution:'deposit',mietsicherheit:'deposit',
   zimmer:'rooms',zimmeranzahl:'rooms',wohnfläche:'area_sqm',fläche:'area_sqm',etage:'floor',geschoss:'floor',wohnungstyp:'property_type',wohnungsart:'property_type',
