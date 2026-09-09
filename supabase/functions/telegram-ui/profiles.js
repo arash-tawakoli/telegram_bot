@@ -1,4 +1,3 @@
-import { home, premium, settings } from "./navigation.js";
 import { db, PROPERTY_TYPES, RENT_PRESETS, ROOM_PRESETS, AREA_PRESETS, NEIGHBORHOODS_PER_PAGE, finiteOrNull, esc, money, button, cancelRow, backRow, send, edit, saveState, geography } from "./runtime.js";
 export function emptyDraft(profileSlot = 1) {
     return {

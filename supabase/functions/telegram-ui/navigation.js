@@ -1,5 +1,4 @@
 import { LANGS } from "./localization.js";
-import { profile } from "./profiles.js";
 import { db, PREMIUM_LINK, SAVED_PAGE_SIZE, short, button, send, edit, sendPremiumPreview, editPremiumPreview } from "./runtime.js";
 export function homeKeyboard(user) {
     const rows = [

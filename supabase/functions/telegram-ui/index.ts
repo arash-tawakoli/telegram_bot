@@ -1,8 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { isAdmin } from "./admin.js";
 import { handleMessage, handleCallback } from "./handlers.js";
-import { premium } from "./navigation.js";
-import { SUPABASE_URL, db, secretCache, chatLanguages, secret, telegram, withPlan, finishUpdate } from "./runtime.js";
+import { SUPABASE_URL, db, secretCache, chatLanguages, secret, withPlan, finishUpdate } from "./runtime.js";
 Deno.serve(async (request) => {
     let updateId=null,attempt=null;
     try {

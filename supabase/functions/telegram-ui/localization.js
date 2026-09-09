@@ -1,5 +1,3 @@
-import { saved, settings } from "./navigation.js";
-import { profile } from "./profiles.js";
 export const LANGS = {
     de: "🇩🇪 Deutsch",
     en: "🇬🇧 English",
@@ -94,10 +92,6 @@ export const TXT = {
     },
 };
 
-export function textFor(language, key) {
-    const lang = language && TXT[language] ? language : "de";
-    return TXT[lang]?.[key] || TXT.de[key] || key;
-}
 LANGS.ru = "🇷🇺 Русский";
 TXT.ru = {
     welcome: "🏠 <b>Traumwohnung Hamburg</b>\n\nАвтоматически находите подходящую аренду по всему Гамбургу.",
@@ -154,17 +148,23 @@ export const CURRENT_ALIASES = [
     ["✅ Suche aktivieren", "activate"],
     ["← Zurück", "back"], ["Alle auswählen", "all"], ["Auswahl löschen", "clear"],
     ["✏️ Eigener Betrag", "custom"], ["⭐️ Gespeicherte Inserate", "saved"], ["⭐️ Gespeichert", "savedState"], ["⭐️ Speichern", "save"], ["📍 Google Maps", "maps"],
-];
+].sort((a, b) => b[0].length - a[0].length);
+
+const EXTRA_KEYS = Object.fromEntries(
+    Object.entries(EXTRA).map(([language, entries]) => [
+        language, Object.keys(entries).sort((a, b) => b.length - a.length),
+    ]),
+);
 
 export function localizeText(text, language) {
     const lang = language && TXT[language] ? language : "de";
     if (lang === "de")
         return text;
     let out = text;
-    for (const [from, key] of CURRENT_ALIASES.sort((a, b) => b[0].length - a[0].length))
+    for (const [from, key] of CURRENT_ALIASES)
         out = out.split(from).join(TXT[lang]?.[key] || from);
     const extra = EXTRA[lang] || {};
-    for (const from of Object.keys(extra).sort((a, b) => b.length - a.length))
+    for (const from of EXTRA_KEYS[lang] || [])
         out = out.split(from).join(extra[from]);
     return out;
 }

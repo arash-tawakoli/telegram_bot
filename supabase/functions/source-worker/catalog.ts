@@ -27,10 +27,11 @@ export function parseWunderCatalog(html:string,page:number):Page{
   if(r?.region?.slug!=='hamburg'||r.page!==page-1||!Number.isInteger(r.total)||r.total<0||!Number.isInteger(r.itemsPerPage)||r.itemsPerPage<1||!Array.isArray(r.items))throw new Error('Wunderflats pagination schema invalid');
   if(r.items.length!==Math.min(r.itemsPerPage,Math.max(0,r.total-r.page*r.itemsPerPage)))throw new Error('Wunderflats truncated page');
   const candidates:Candidate[]=[],keys:string[]=[];
+  const links=[...html.matchAll(/href=["']([^"']+)["']/g)].map(m=>m[1]);
   for(const x of r.items){
     if(!/^[a-f0-9]{24}$/.test(x._id))throw new Error('Wunderflats listing identity missing');keys.push(x._id);
     if(x.address?.city!=='Hamburg')continue;
-    const href=[...html.matchAll(/href=["']([^"']+)["']/g)].map(m=>m[1]).find(u=>u.includes(`/de/moebliertes-apartment/`)&&u.split('?')[0].endsWith('/'+x._id));
+    const href=links.find(u=>u.includes(`/de/moebliertes-apartment/`)&&u.split('?')[0].endsWith('/'+x._id));
     if(!href)throw new Error('Wunderflats canonical URL missing');
     const u=new URL(href,'https://wunderflats.com');u.search='';
     candidates.push({key:x._id,url:u.href,title:x.title?.de||x.title?.en,address:x.address.street?`${x.address.street}, Hamburg`:'Hamburg',rooms:positive(x.rooms),area:positive(x.area),furnished:true,image:x.images?.[0]?.urls?.original,raw:{provider:'wunderflats_catalog',advertised_monthly_price:x.currency==='EUR'&&Number.isInteger(x.price)&&x.price>0?x.price/100:null,price_currency:x.currency,price_components_verified:false}});

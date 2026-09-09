@@ -6,6 +6,3 @@ node_modules/
 .supabase/
 supabase/.temp/
 *.log
-
-
-node_modules/

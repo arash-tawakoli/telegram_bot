@@ -4,6 +4,7 @@ import {structuredFacts,present} from '../notification-dispatcher/source-facts.t
 
 export const APPLICATION_STATUS={saved:'⭐ Gemerkt',contacted:'📨 Angefragt',viewing:'📅 Besichtigung',applied:'📄 Beworben',rejected:'❌ Absage',accepted:'✅ Zusage'};
 const PAGE_SIZE=6;
+const numberFormat=new Intl.NumberFormat('de-DE',{maximumFractionDigits:2});
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // Two UUIDs fit inside Telegram's 64-byte callback limit without mutable comparison state.
 export function packId(id){if(!UUID.test(id))throw Error('Invalid listing ID');return btoa(String.fromCharCode(...id.replaceAll('-','').match(/../g).map(x=>parseInt(x,16)))).replaceAll('+','-').replaceAll('/','_').replace(/=+$/,'');}
@@ -18,7 +19,7 @@ export function organizerFacts(l){
   return f;
 }
 const validNumber=x=>x!==null&&x!==undefined&&x!==''&&Number.isFinite(Number(x))&&Number(x)>=0;
-const amountLine=(title,value,unit=' €')=>validNumber(value)?`${title}: ${new Intl.NumberFormat('de-DE',{maximumFractionDigits:2}).format(Number(value))}${unit}`:null;
+const amountLine=(title,value,unit=' €')=>validNumber(value)?`${title}: ${numberFormat.format(Number(value))}${unit}`:null;
 function knownLines(f){return [amountLine('Warmmiete',f.warm_rent),amountLine('Kaltmiete',f.cold_rent),amountLine('Nebenkosten',f.additional_costs),amountLine('Heizkosten',f.heating_costs),amountLine('Kaution',f.deposit),amountLine('Wohnfläche',f.area_sqm,' m²'),amountLine('Zimmer',f.rooms,''),present(f.address)?`Adresse: ${esc(f.address)}`:null,present(f.floor)?`Etage: ${esc(f.floor)}`:null,present(f.available_text)?`Verfügbar ab: ${esc(f.available_text)}`:null].filter(Boolean);}
 export function comparisonText(a,b){
   const x=organizerFacts(a),y=organizerFacts(b);
@@ -28,7 +29,7 @@ export function comparisonText(a,b){
     const d=Number(x.warm_rent)-Number(y.warm_rent);
     lines.push('',d===0?'Beide haben dieselbe ausgewiesene Warmmiete.':`${d<0?'A':'B'} hat ${money(Math.abs(d))} weniger Warmmiete pro Monat.`);
   }
-  if(validNumber(x.area_sqm)&&validNumber(y.area_sqm)&&Number(x.area_sqm)!==Number(y.area_sqm))lines.push(`${Number(x.area_sqm)>Number(y.area_sqm)?'A':'B'} bietet ${new Intl.NumberFormat('de-DE',{maximumFractionDigits:2}).format(Math.abs(Number(x.area_sqm)-Number(y.area_sqm)))} m² mehr Wohnfläche.`);
+  if(validNumber(x.area_sqm)&&validNumber(y.area_sqm)&&Number(x.area_sqm)!==Number(y.area_sqm))lines.push(`${Number(x.area_sqm)>Number(y.area_sqm)?'A':'B'} bietet ${numberFormat.format(Math.abs(Number(x.area_sqm)-Number(y.area_sqm)))} m² mehr Wohnfläche.`);
   lines.push('','Datenstand der gespeicherten Quelle; Verfügbarkeit bitte beim Anbieter bestätigen.');
   return lines.join('\n');
 }

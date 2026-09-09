@@ -1,5 +1,3 @@
-import { premium } from "./navigation.js";
-import { profile } from "./profiles.js";
 import { db, ADMIN_TELEGRAM_USER_IDS, esc, short, button, send, edit } from "./runtime.js";
 export function isAdmin(user) {
     return ADMIN_TELEGRAM_USER_IDS.has(Number(user?.telegram_user_id));
