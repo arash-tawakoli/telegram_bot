@@ -3,7 +3,8 @@ export function recentInventory(l:any, now=Date.now()) {
   const age=now-Date.parse(l.last_seen_at);
   if(!l.is_active || !l.fresh_delivery_eligible || !Number.isFinite(age) || age<0 || age>10*60*1000)return false;
   const r=l.raw||{};
-  return (r.provider==='immoscout_mcp' && /^fresh/.test(r.delivery_lane||'')) ||
+  return Number(l.source_id)===6 ||
+    (r.provider==='immoscout_mcp' && /^fresh/.test(r.delivery_lane||'')) ||
     (r.provider==='kleinanzeigen' && r.native_offer===true && r.lane==='fast') ||
     (r.provider==='immowelt' && r.is_new===true) ||
     r.provider==='immosolve_hpm_rest';
