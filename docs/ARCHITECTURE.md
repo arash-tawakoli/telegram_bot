@@ -9,7 +9,7 @@ Ein gemeinsamer minutengenauer Scheduler plant Jobs und ruft den Worker nur bei 
 
 SQL übernimmt Qualitätsprüfung, Frischefreigabe, Dubletten und Profil-Matching. Daraus entstehen `delivery_events`. Der Dispatcher prüft die aktuelle Verfügbarkeit, ergänzt belegte Quelldaten und stellt über Telegram zu. Wiedergefundener Bestand ist nicht automatisch frisch.
 
-Telegram-Eingaben laufen über Gateway/Fast-Pfad zur UI beziehungsweise Premium-Verarbeitung. Inbox-Claims und Versuchsnummern schützen vor doppelter Verarbeitung. Der Wohnungsplaner verwendet vorhandene Merkliste und Nutzerdaten. Stripe-Webhooks und Billing-Maintenance verwalten Abonnements getrennt von der Wohnungszustellung.
+Telegram-Eingaben laufen über Gateway/Fast-Pfad zur UI beziehungsweise Premium-Verarbeitung. Inbox-Claims und Versuchsnummern schützen vor doppelter Verarbeitung. Stripe-Webhooks und Billing-Maintenance verwalten Abonnements getrennt von der Wohnungszustellung.
 
 Der bestehende Bewerbungsbereich bleibt erhalten: private Dokumente und Plattform-Sessions, eigene Claims und ein bedarfsgesteuerter `application-worker`. Seine Browser-Integration wurde bei diesem Audit nicht mit echten Bewerbungen getestet oder verändert.
 
