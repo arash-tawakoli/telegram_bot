@@ -15,6 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: main
           fetch-depth: 0
 
       - uses: actions/setup-node@v4
@@ -24,6 +25,7 @@ jobs:
 
       - name: Reconcile deployed platform bundles
         run: |
+          git pull --ff-only origin main
           node --input-type=module <<'NODE'
           import {readFile, writeFile} from 'node:fs/promises';
           import {createHash} from 'node:crypto';
