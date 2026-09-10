@@ -1,6 +1,7 @@
 import {organizer,organizerMessage,clearOrganizerNote} from './organizer.js';
 import { quickApplication } from './application.js';
 import { dossier, dossierMessage, clearDossierInput } from './dossier.js';
+import { platformSessions } from './platform-sessions.js';
 import { isAdmin, adminGrantLabel, adminPremiumNotice, adminUsers, adminUser, setUserBlocked, deleteUser, setPlanOverride } from "./admin.js";
 import { homeKeyboard, home, premium, saved, setPaused, toggleSave, referralPage, languagePage, settings } from "./navigation.js";
 import { draftFor, validateDraft, renderTypes, renderLocation, renderBoroughs, renderNeighborhoods, renderRent, renderCustomRent, renderRooms, renderArea, renderReview, renderStep, afterSelection, persistProfile, profileLimit, draftFromProfile, startNewProfile, profileEditMenu, profile, renderStatus } from "./profiles.js";
@@ -189,6 +190,7 @@ export async function handleCallback(query, user) {
     if (user.onboarding_state?.organizer_note) await clearOrganizerNote(user);
     if (user.onboarding_state?.dossier_input) await clearDossierInput(user);
     if (data === 'dossier' || data.startsWith('dossier:')) return dossier(user,query.message.chat,query.message?.photo?undefined:messageId,data);
+    if (data === 'platforms' || data.startsWith('platforms:')) return platformSessions(user,query.message.chat,query.message?.photo?undefined:messageId,data);
     if (data.startsWith('apply:')) return quickApplication(user, query);
     if (data.startsWith('org:')) return organizer(user,chatId,query.message?.photo?undefined:messageId,data);
     if (data === "noop")

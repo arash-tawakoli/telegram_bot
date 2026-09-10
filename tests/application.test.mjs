@@ -12,7 +12,7 @@ const klein={...scout,source_id:2,canonical_url:'https://www.kleinanzeigen.de/s-
 const query={data:`apply:${id}`,message:{chat:{id:123,type:'private'}}};
 const code=readFileSync(new URL('../supabase/functions/telegram-ui/application.js',import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replaceAll('export ','');
 
-function harness({listing=scout,delivered=true,saved=false,errorTable=null}={}) {
+function harness({listing=scout,delivered=true,saved=false,errorTable=null,application=null}={}) {
  const reads=[],calls=[];
  const db={from(table){
   const filters={}; const q={select(){return q},eq(k,v){filters[k]=v;return q},
@@ -24,7 +24,7 @@ function harness({listing=scout,delivered=true,saved=false,errorTable=null}={}) 
     const present=table==='delivery_events'?delivered:saved;
     return {data:present?[{id:'record'}]:[],error:table===errorTable?new Error('database unavailable'):null};
    },
-   async maybeSingle(){reads.push({table,filters});assert.equal(table,'listings');assert.equal(filters.id,id);return {data:listing,error:table===errorTable?new Error('database unavailable'):null};}
+   async maybeSingle(){reads.push({table,filters});if(table==='applications'){assert.equal(filters.user_id,user.id);assert.equal(filters.listing_id,id);return {data:application,error:table===errorTable?new Error('database unavailable'):null};}assert.equal(table,'listings');assert.equal(filters.id,id);return {data:listing,error:table===errorTable?new Error('database unavailable'):null};}
   };return q;
  }};
  const scope={db,send:async(chat,text)=>calls.push({chat,text}),telegram:async(method,body)=>calls.push({method,...body}),esc:s=>s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;'),applicationTarget,quickApplyButton,generateApplicationMessage};
@@ -41,7 +41,7 @@ test('both platforms produce copyable drafts and their exact listing link; no ap
   const rows=response.reply_markup.inline_keyboard;
   assert.equal(rows[0][0].copy_text.text,generateApplicationMessage(user,listing));
   assert.equal(rows[1][0].url,listing.canonical_url.split('?')[0]);
-  assert.equal(h.reads.length,2);
+  assert.equal(h.reads.length,3);
  }
 });
 
@@ -66,7 +66,7 @@ test('forged, foreign, group and forwarded callbacks disclose no draft',async()=
 
 test('retained saved listings work after delivery retention only for their premium owner',async()=>{
  const h=harness({delivered:false,saved:true});await h.quickApplication({...user,is_premium:true},query);
- assert.equal(h.calls[0].method,'sendMessage');assert.deepEqual(h.reads.map(r=>r.table),['delivery_events','saved_listings','listings']);
+ assert.equal(h.calls[0].method,'sendMessage');assert.deepEqual(h.reads.map(r=>r.table),['delivery_events','saved_listings','listings','applications']);
  const missing=harness({delivered:false,saved:false});await missing.quickApplication({...user,is_premium:true},query);assert.equal(missing.reads.length,2);assert.ok(!missing.calls[0].reply_markup);
 });
 
@@ -74,9 +74,17 @@ test('inactive or unsupported offers and database failures fail closed',async()=
  for(const listing of [null,{...scout,is_active:false},{...scout,canonical_url:'https://evil.test/expose/12345'}]){
   const h=harness({listing});await h.quickApplication(user,query);assert.ok(!h.calls[0].reply_markup);
  }
- for(const errorTable of ['delivery_events','saved_listings','listings']){
+ for(const errorTable of ['delivery_events','saved_listings','listings','applications']){
   const h=harness({errorTable,delivered:errorTable!=='saved_listings'});
   await assert.rejects(h.quickApplication({...user,is_premium:true},query),/database unavailable/);assert.equal(h.calls.length,0);
+ }
+});
+
+test('sent and uncertain submissions show a verification link instead of another copy-and-send draft',async()=>{
+ for(const application of [{status:'sent',submission_started_at:'now'},{status:'manual_required',submission_started_at:'now'}]){
+  const h=harness({application});await h.quickApplication(user,query);
+  assert.ok(h.calls[0].reply_markup.inline_keyboard.every(row=>!row[0].copy_text));
+  assert.match(h.calls[0].text,/bereits gesendet|Prüfe zuerst/);
  }
 });
 

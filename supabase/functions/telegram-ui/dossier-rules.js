@@ -1,5 +1,5 @@
 export const DOCUMENT_KINDS = {wbs:'WBS',schufa:'SCHUFA',rent_clearance:'Mietschuldenfreiheitsbescheinigung',guarantee:'Bürgschaft',income:'Einkommensnachweise',other:'Weitere Unterlagen'};
-export const PROFILE_FIELDS = {full_name:'Vollständiger Name',email:'E-Mail',phone:'Telefon',occupation:'Beruf',income:'Monatliches Nettoeinkommen',household_size:'Haushaltsgröße',custom_application_text:'Bewerbungstext'};
+export const PROFILE_FIELDS = {full_name:'Vollständiger Name',email:'E-Mail',phone:'Telefon',street:'Straße',house_number:'Hausnummer',postcode:'Postleitzahl',city:'Wohnort',occupation:'Beruf',income:'Monatliches Nettoeinkommen',household_size:'Haushaltsgröße',custom_application_text:'Bewerbungstext'};
 export const FILE_LIMIT = 5 * 1024 * 1024;
 export const validId = value => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value || '');
 export function privateApplicant(user, chat) {

@@ -1216,6 +1216,14 @@
       "registry_sql_sha256": "bb04e2e1239e157b100a36a821dc475d5f1fe1bead0719fe6e641ddf9c505072",
       "export_sql_sha256": "bb04e2e1239e157b100a36a821dc475d5f1fe1bead0719fe6e641ddf9c505072",
       "vault_substitution": false
+    },
+    {
+      "version": "20260910085141",
+      "name": "platform_application_sessions",
+      "file": "supabase/migrations/20260910085141_platform_application_sessions.sql",
+      "registry_sql_sha256": "70572f344f2cb68a30d1398456d15214e45234747a596448d12cff53066d8240",
+      "export_sql_sha256": "70572f344f2cb68a30d1398456d15214e45234747a596448d12cff53066d8240",
+      "vault_substitution": false
     }
   ],
   "historical_repository_ref": "36708e9e2f073d7b3835cfd28b8222446e23c0ff",

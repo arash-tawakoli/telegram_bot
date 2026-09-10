@@ -28,6 +28,15 @@ export async function quickApplication(user, query) {
         return send(chat.id, 'Dieses Angebot ist inaktiv oder unterstützt keine Schnellbewerbung.');
     }
     const target = applicationTarget(listing);
+    const {data:application,error:applicationError}=await db.from('applications')
+        .select('status,submission_started_at').eq('user_id',user.id).eq('listing_id',id).maybeSingle();
+    if(applicationError)throw applicationError;
+    if(application?.status==='sent' || application?.submission_started_at) {
+        return telegram('sendMessage',{chat_id:chat.id,text:application.status==='sent'
+            ? '✅ Diese Bewerbung wurde bereits gesendet. Bitte nicht erneut bewerben.'
+            : '⚠️ Der Versand wurde gestartet, aber möglicherweise noch nicht bestätigt. Prüfe zuerst deine Plattformnachrichten, bevor du erneut absendest.',
+            reply_markup:{inline_keyboard:[[{text:`${target.platform} prüfen`,url:target.url}]]}});
+    }
     const message = generateApplicationMessage(user.is_premium ? {...user, ...user.applicant_profile} : user, listing);
     return telegram('sendMessage', {
         chat_id: chat.id,

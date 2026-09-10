@@ -12,9 +12,9 @@ The migration adds applicant fields to existing `bot_users`, document metadata, 
 
 ## Not delivered; required next
 
-No Browserbase account/project or API credential is connected. No platform sessions, browser worker, login flow, automatic submission adapters, enqueue trigger or automatic attachment forwarding have been deployed. Gmail OAuth and aliases were not added: they cannot contact listings without recipient addresses.
+Update 2026-09-10: Browserbase is connected through Vault and the session/queue implementation is deployed. See [the current implementation report](PLATFORM_APPLICATIONS_2026-09-10.md). Automatic submission and document forwarding are still not approved for production: authenticated platform send/upload tests remain outstanding. Gmail OAuth and aliases were not added: they cannot contact listings without recipient addresses.
 
-To complete platform submission, connect the browser service with credentials stored server-side, then implement isolated per-user/per-platform sessions and test the two actual contact forms with owned accounts and consenting test recipients. Do not mark a platform verified based on mocks. Do not retry after an ambiguous remote-send result. Security challenges require user interaction; a discovery connector does not grant messaging capability or remove those challenges.
+To complete platform submission, sign in through the new personal platform connection flow and test the two contact forms with consenting test recipients. Do not mark a platform verified based on mocks. Do not retry after an ambiguous remote-send result. Security challenges require user interaction; a discovery connector does not grant messaging capability or remove those challenges.
 
 ## Scope reviewed and reused
 

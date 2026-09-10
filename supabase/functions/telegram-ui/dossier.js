@@ -106,7 +106,7 @@ export async function dossier(user,chat,messageId,data='dossier') {
     const keyboard=[...(user.is_premium?[
         ...Object.entries(PROFILE_FIELDS).map(([key,label])=>[button(`✏️ ${label}`,`dossier:field:${key}`)]),
         ...Object.entries(DOCUMENT_KINDS).map(([key,label])=>[button(`📎 ${label}`,`dossier:kind:${key}`)])]:[[button('💎 Premium','premium')]]),
-        ...(rows||[]).map(row=>[button(`📄 ${row.filename.slice(0,40)}`,`dossier:file:${row.id}`)]),[button('Bewerberangaben löschen','dossier:clear-profile')],[button('← Startmenü','home')]];
+        ...(rows||[]).map(row=>[button(`📄 ${row.filename.slice(0,40)}`,`dossier:file:${row.id}`)]),[button('🔐 Plattformkonten / Auto-Bewerbung','platforms')],[button('Bewerberangaben löschen','dossier:clear-profile')],[button('← Startmenü','home')]];
     return render(chat.id,messageId,text,keyboard);
 }
 
