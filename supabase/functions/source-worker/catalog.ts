@@ -1,6 +1,11 @@
 import {inflateRawSync} from 'node:zlib';
 import {Candidate,Connector,Source,db,deNum,fetchText,hhZip,iso,markFailure,markSuccess,strip,upsertCandidates} from './shared.ts';
 const positive=(v:any)=>{const n=deNum(v);return n!=null&&n>0?n:null};
+const WUNDER_HEADERS={
+  'user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
+  accept:'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+  'accept-language':'de-DE,de;q=0.9,en;q=0.7',
+};
 type Page={candidates:Candidate[];keys:string[];page:number;pages:number;total:number};
 export function parseCityCatalog(html:string):Page{
   const total=Number(html.match(/id=["']ciwo_result_count["'][^>]*>\s*(\d+)/)?.[1]);
@@ -80,7 +85,12 @@ export async function runCatalog(source:Source,c:Connector){
         if(!response.ok)throw new Error(`City-Wohnen HTTP ${response.status}`);
         return parseCityAjax(await decodeCityResponse(new Uint8Array(await response.arrayBuffer())),page,front.total,front.keys.length);
       }
-      const r=await fetchText(u.href);return source.id===10?parseWunderCatalog(r.text,page):source.id===21?parseSwapCatalog(r.text,page):parseCityCatalog(r.text)};
+      if(source.id===10){
+        const response=await fetch(u.href,{redirect:'follow',headers:{...WUNDER_HEADERS,referer:base},signal:AbortSignal.timeout(12000)});
+        if(!response.ok)throw new Error(`Wunderflats HTTP ${response.status} ${response.statusText}`);
+        return parseWunderCatalog(await response.text(),page);
+      }
+      const r=await fetchText(u.href);return source.id===21?parseSwapCatalog(r.text,page):parseCityCatalog(r.text)};
     const deadline=Date.now()+25000;const front=await load(1);if(front.pages>1000)throw new Error('Catalog page count exceeds verified budget');
     const {data:st}=await db.from('source_coverage_state').select('cursor').eq('source_id',source.id).maybeSingle().throwOnError();
     const same=st?.cursor?.adapter===adapter&&st?.cursor?.url===base,old=same?st.cursor:{},warmed=old.baseline_done===true&&old.parser_revision==='2026-09-08-v2';
