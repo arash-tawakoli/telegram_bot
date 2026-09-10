@@ -94,27 +94,28 @@ export async function handleCallback(query, user) {
     const chatId = Number(query.message?.chat.id);
     const messageId = Number(query.message?.message_id);
     const data = String(query.data || "");
+    const ack = (text) => user.__callback_acked ? Promise.resolve() : acknowledge(query.id, text);
     if (!chatId || !messageId)
-        return acknowledge(query.id);
+        return ack();
     if (data.startsWith("admin:")) {
         if (!isAdmin(user))
-            return acknowledge(query.id);
+            return ack();
         if (data === "admin:list") {
-            EdgeRuntime.waitUntil(acknowledge(query.id));
+            EdgeRuntime.waitUntil(ack());
             return adminUsers(user, chatId, messageId);
         }
         if (data.startsWith("admin:user:")) {
-            EdgeRuntime.waitUntil(acknowledge(query.id));
+            EdgeRuntime.waitUntil(ack());
             return adminUser(user, chatId, messageId, data.slice("admin:user:".length));
         }
         if (data.startsWith("admin:block:")) {
             const userId = data.slice("admin:block:".length);
             try {
                 await setUserBlocked(userId, true);
-                await acknowledge(query.id, "Nutzer gesperrt");
+                await ack("Nutzer gesperrt");
             }
             catch (error) {
-                await acknowledge(query.id, String(error).includes("admin accounts") ? "Admin-Konto geschützt" : "Sperren fehlgeschlagen");
+                await ack(String(error).includes("admin accounts") ? "Admin-Konto geschützt" : "Sperren fehlgeschlagen");
             }
             return adminUser(user, chatId, messageId, userId);
         }
@@ -122,10 +123,10 @@ export async function handleCallback(query, user) {
             const userId = data.slice("admin:unblock:".length);
             try {
                 await setUserBlocked(userId, false);
-                await acknowledge(query.id, "Nutzer entsperrt");
+                await ack("Nutzer entsperrt");
             }
             catch (error) {
-                await acknowledge(query.id, String(error).includes("admin accounts") ? "Admin-Konto geschützt" : "Entsperren fehlgeschlagen");
+                await ack(String(error).includes("admin accounts") ? "Admin-Konto geschützt" : "Entsperren fehlgeschlagen");
             }
             return adminUser(user, chatId, messageId, userId);
         }
@@ -133,16 +134,16 @@ export async function handleCallback(query, user) {
             const userId = data.slice("admin:delete-confirm:".length);
             try {
                 await deleteUser(userId);
-                await acknowledge(query.id, "Nutzer gelöscht");
+                await ack("Nutzer gelöscht");
             }
             catch (error) {
-                await acknowledge(query.id, String(error).includes("admin accounts") ? "Admin-Konto geschützt" : "Löschen fehlgeschlagen");
+                await ack(String(error).includes("admin accounts") ? "Admin-Konto geschützt" : "Löschen fehlgeschlagen");
             }
             return adminUsers(user, chatId, messageId);
         }
         if (data.startsWith("admin:delete:")) {
             const userId = data.slice("admin:delete:".length);
-            EdgeRuntime.waitUntil(acknowledge(query.id));
+            EdgeRuntime.waitUntil(ack());
             return edit(chatId, messageId, "🗑 <b>Nutzer wirklich löschen?</b>\n\nSuchprofile, gespeicherte Inserate, Referral- und Abo-Zuordnungen werden dauerhaft gelöscht.", { inline_keyboard: [
                     [button("🗑 Ja, endgültig löschen", `admin:delete-confirm:${userId}`)],
                     [button("← Abbrechen", `admin:user:${userId}`)],
@@ -153,7 +154,7 @@ export async function handleCallback(query, user) {
             const userId = parts[2];
             const grant = parts[3];
             if (!userId || !["free", "7d", "30d", "3m", "life"].includes(grant)) {
-                return acknowledge(query.id);
+                return ack();
             }
             const target = await setPlanOverride(userId, grant);
             let noticeFailed = false;
@@ -166,24 +167,37 @@ export async function handleCallback(query, user) {
                     console.error("admin_premium_notice", error);
                 }
             }
-            await acknowledge(query.id, grant === "free"
+            await ack(grant === "free"
                 ? "Free gesetzt"
                 : noticeFailed
                     ? "Premium gesetzt · Nachricht fehlgeschlagen"
                     : `${adminGrantLabel(grant)} Premium gesetzt`);
             return adminUser(user, chatId, messageId, userId);
         }
-        return acknowledge(query.id);
+        return ack();
     }
     if (data.startsWith("save:")) {
         const savedState = await toggleSave(user, data.slice(5));
+        if (savedState !== null && user.__callback_acked) {
+            try {
+                const markup = structuredClone(query.message?.reply_markup || {});
+                let changed = false;
+                for (const row of markup.inline_keyboard || []) for (const item of row || []) {
+                    if (item?.callback_data === data) {
+                        item.text = savedState ? "⭐️ Gespeichert" : "⭐️ Speichern";
+                        changed = true;
+                    }
+                }
+                if (changed) await telegram("editMessageReplyMarkup", { chat_id: chatId, message_id: messageId, reply_markup: markup });
+            } catch (error) { console.error("save_button_refresh", String(error)); }
+        }
         if (savedState === null) {
-            EdgeRuntime.waitUntil(acknowledge(query.id));
+            EdgeRuntime.waitUntil(ack());
             return premium(user, chatId, messageId);
         }
-        return acknowledge(query.id, savedState ? "⭐️ Gespeichert" : "Entfernt");
+        return ack(savedState ? "⭐️ Gespeichert" : "Entfernt");
     }
-    EdgeRuntime.waitUntil(acknowledge(query.id));
+    EdgeRuntime.waitUntil(ack());
     if (user.onboarding_state?.dossier_input) await clearDossierInput(user);
     if (data === 'dossier' || data.startsWith('dossier:')) return dossier(user,query.message.chat,query.message?.photo?undefined:messageId,data);
     if (data === 'platforms' || data.startsWith('platforms:')) return platformSessions(user,query.message.chat,query.message?.photo?undefined:messageId,data);

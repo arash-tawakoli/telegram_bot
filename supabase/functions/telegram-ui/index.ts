@@ -37,6 +37,7 @@ Deno.serve(async (request) => {
         updateId=payload.update_id;attempt=claim;
         const user = await withPlan({...prepared.user, __is_new_user:prepared.is_new_user === true}, prepared.subscription ?? null);
         user.request_update_id=updateId;
+        user.__callback_acked=request.headers.get("x-callback-acked")==="1";
         if (!user.is_active && !isAdmin(user)) {
             await finishUpdate(updateId,attempt,true);
             return Response.json({ ok: true, blocked: true });

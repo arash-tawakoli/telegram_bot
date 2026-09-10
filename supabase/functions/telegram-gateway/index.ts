@@ -316,13 +316,14 @@ function finishInBackground(updateId: number, attempt: number, success: boolean,
     .catch((finishError) => console.error("telegram_finish", String(finishError))));
 }
 
-async function forwardToCore(body: string, expected: string) {
+async function forwardToCore(body: string, expected: string, callbackAcked = false) {
   const upstream = await fetch(CORE, {
     method: "POST",
     headers: {
       "content-type": "application/json",
       "x-telegram-bot-api-secret-token": expected,
       "x-region": "eu-west-1",
+      "x-callback-acked": callbackAcked ? "1" : "0",
     },
     body,
   });
@@ -349,6 +350,14 @@ Deno.serve(async (req: Request) => {
 
     const body = await req.text();
     const update = parsed(body);
+    if (update?.callback_query?.id) {
+      EdgeRuntime.waitUntil(
+        forwardToCore(body, expected, true)
+          .then((response) => { if (!response.ok) console.error("telegram_callback_core", response.status); })
+          .catch((error) => console.error("telegram_callback_core", String(error)))
+      );
+      return direct("answerCallbackQuery", { callback_query_id: String(update.callback_query.id) });
+    }
     const command = commandOf(update);
 
     if (!update?.message?.from?.id || !update?.message?.chat?.id || !FAST_COMMANDS.has(command)) {
