@@ -85,8 +85,8 @@ export async function runCatalog(source:Source,c:Connector){
     const {data:st}=await db.from('source_coverage_state').select('cursor').eq('source_id',source.id).maybeSingle().throwOnError();
     const same=st?.cursor?.adapter===adapter&&st?.cursor?.url===base,old=same?st.cursor:{},warmed=old.baseline_done===true&&old.parser_revision==='2026-09-08-v2';
     let next=Number(warmed?old.next_page||2:old.parser_revision==='2026-09-08-v2'?old.next_page||2:2);const seen=new Set<string>(old.parser_revision==='2026-09-08-v2'&&Array.isArray(old.seen_ids)?old.seen_ids:[]),pages=[front],errors:any[]=[];front.keys.forEach(k=>seen.add(k));
-    const firstNext=next;for(let start=next;start<=Math.min(front.pages,firstNext+31)&&Date.now()<deadline;start+=4){
-      const batch=Array.from({length:Math.min(4,front.pages-start+1,firstNext+32-start)},(_,i)=>start+i);
+    const width=source.id===10?1:4,firstNext=next;for(let start=next;start<=Math.min(front.pages,firstNext+31)&&Date.now()<deadline;start+=width){
+      const batch=Array.from({length:Math.min(width,front.pages-start+1,firstNext+32-start)},(_,i)=>start+i);
       const results=await Promise.allSettled(batch.map(load));
       for(let i=0;i<results.length;i++){const result=results[i];if(result.status==='fulfilled'&&result.value.total===front.total&&result.value.pages===front.pages){pages.push(result.value);result.value.keys.forEach(k=>seen.add(k))}else errors.push({page:batch[i],error:String(result.status==='rejected'?result.reason:'inventory total changed').slice(0,250)})}
       if(errors.length)break;next=batch.at(-1)!+1;
