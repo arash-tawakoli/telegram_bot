@@ -1,0 +1,166 @@
+name: Optimize Telegram callback reaction path
+
+on:
+  push:
+    paths:
+      - '.github/workflows/optimize-telegram-buttons-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  optimize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Patch callback path and add regression tests
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p=Path(path); text=p.read_text()
+              if text.count(old)!=1:
+                  raise SystemExit(f'{path}: expected exactly one target, got {text.count(old)}')
+              p.write_text(text.replace(old,new,1))
+
+          # Gateway: acknowledge every callback immediately after webhook-secret validation,
+          # then continue the authenticated business action in the background.
+          replace_once('supabase/functions/telegram-gateway/index.ts',
+              'async function forwardToCore(body: string, expected: string) {',
+              'async function forwardToCore(body: string, expected: string, callbackAcked = false) {')
+          replace_once('supabase/functions/telegram-gateway/index.ts',
+              '      "x-region": "eu-west-1",\n',
+              '      "x-region": "eu-west-1",\n      "x-callback-acked": callbackAcked ? "1" : "0",\n')
+          replace_once('supabase/functions/telegram-gateway/index.ts',
+              '    const update = parsed(body);\n    const command = commandOf(update);\n',
+              '''    const update = parsed(body);\n    if (update?.callback_query?.id) {\n      EdgeRuntime.waitUntil(\n        forwardToCore(body, expected, true)\n          .then((response) => { if (!response.ok) console.error("telegram_callback_core", response.status); })\n          .catch((error) => console.error("telegram_callback_core", String(error)))\n      );\n      return direct("answerCallbackQuery", { callback_query_id: String(update.callback_query.id) });\n    }\n    const command = commandOf(update);\n''')
+
+          # Fast endpoint: exact fast callbacks and fallback callbacks both acknowledge before
+          # any RPC/secret/database work. Processing is lease-safe in waitUntil.
+          replace_once('supabase/functions/telegram-fast/index.ts',
+              'async function forwardCore(body: string, supplied: string) {',
+              'async function forwardCore(body: string, supplied: string, callbackAcked = false) {')
+          replace_once('supabase/functions/telegram-fast/index.ts',
+              '  const upstream = await fetch(CORE, { method: "POST", headers: { "content-type": "application/json", "x-telegram-bot-api-secret-token": supplied, "x-region": "eu-west-1" }, body });',
+              '  const upstream = await fetch(CORE, { method: "POST", headers: { "content-type": "application/json", "x-telegram-bot-api-secret-token": supplied, "x-region": "eu-west-1", "x-callback-acked": callbackAcked ? "1" : "0" }, body });')
+          fast=Path('supabase/functions/telegram-fast/index.ts')
+          text=fast.read_text()
+          marker='''    const supplied = req.headers.get("x-telegram-bot-api-secret-token") || ""; const body = await req.text(); const update = parse(body); const command = commandOf(update); const callback = String(update?.callback_query?.data || ""); const action = COMMAND_ACTIONS[command] || CALLBACK_ACTIONS[callback] || "";\n    if (!action) return forwardCore(body, supplied);\n'''
+          replacement='''    const supplied = req.headers.get("x-telegram-bot-api-secret-token") || ""; const body = await req.text(); const update = parse(body); const command = commandOf(update); const callback = String(update?.callback_query?.data || ""); const action = COMMAND_ACTIONS[command] || CALLBACK_ACTIONS[callback] || "";\n    if (update?.callback_query?.id) {\n      const query = update.callback_query;\n      EdgeRuntime.waitUntil((async () => {\n        let callbackUpdateId: number | null = null;\n        let callbackAttempt: number | null = null;\n        try {\n          if (!action) {\n            const response = await forwardCore(body, supplied, true);\n            if (!response.ok) console.error("telegram_fast_core", response.status);\n            return;\n          }\n          const prepared = await rpc("prepare_telegram_fast_request", { p_payload: update, p_action: action, p_supplied_secret: supplied });\n          if (prepared?.authorized !== true) return;\n          const claim = Number(prepared?.claim ?? 0);\n          if (claim <= 0) return;\n          callbackUpdateId = Number(update.update_id);\n          callbackAttempt = claim;\n          const user = { ...(prepared?.user || {}), is_premium: prepared?.is_premium === true, __is_new_user: prepared?.is_new_user === true };\n          const data = prepared?.action_data || {};\n          if (prepared?.fast_eligible === false || user.onboarding_state?.dossier_input) {\n            await finish(callbackUpdateId, callbackAttempt, false, "fast_path_language_fallback");\n            callbackUpdateId = null; callbackAttempt = null;\n            const response = await forwardCore(body, supplied, true);\n            if (!response.ok) console.error("telegram_fast_core", response.status);\n            return;\n          }\n          if (!user.is_active && !ADMINS.includes(Number(user.telegram_user_id))) {\n            await finish(callbackUpdateId, callbackAttempt, true);\n            return;\n          }\n          await performCallback(query, action, user, data);\n          await finish(callbackUpdateId, callbackAttempt, true);\n        } catch (error) {\n          console.error("telegram_fast_callback", String(error));\n          if (callbackUpdateId !== null && callbackAttempt !== null)\n            await finish(callbackUpdateId, callbackAttempt, false, String(error)).catch(() => {});\n        }\n      })());\n      return direct("answerCallbackQuery", { callback_query_id: query.id });\n    }\n    if (!action) return forwardCore(body, supplied);\n'''
+          if text.count(marker)!=1: raise SystemExit(f'telegram-fast main marker count {text.count(marker)}')
+          text=text.replace(marker,replacement,1)
+          old='''    if (update?.callback_query) { const query = update.callback_query; EdgeRuntime.waitUntil((async () => { try { await performCallback(query, action, user, data); await finish(updateId!, attempt!, true); } catch (error) { console.error("telegram_fast_callback", String(error)); await finish(updateId!, attempt!, false, String(error)).catch(() => {}); } })()); return direct("answerCallbackQuery", { callback_query_id: query.id }); }\n'''
+          if text.count(old)!=1: raise SystemExit('telegram-fast legacy callback branch missing')
+          fast.write_text(text.replace(old,'',1))
+
+          # Core UI learns that an upstream endpoint already acknowledged the callback.
+          replace_once('supabase/functions/telegram-ui/index.ts',
+              '        user.request_update_id=updateId;\n',
+              '        user.request_update_id=updateId;\n        user.__callback_acked=request.headers.get("x-callback-acked")==="1";\n')
+
+          # Core: skip duplicate empty/toast acknowledgements when upstream already acked.
+          # Save still reflects the final state by updating the button itself.
+          handlers=Path('supabase/functions/telegram-ui/handlers.js')
+          text=handlers.read_text()
+          start=text.index('export async function handleCallback')
+          head,tail=text[:start],text[start:]
+          tail=tail.replace('acknowledge(query.id, ', 'ack(').replace('acknowledge(query.id)', 'ack()')
+          target='''    const data = String(query.data || "");\n'''
+          insert='''    const data = String(query.data || "");\n    const ack = (text) => user.__callback_acked ? Promise.resolve() : acknowledge(query.id, text);\n'''
+          if tail.count(target)!=1: raise SystemExit('handleCallback data marker mismatch')
+          tail=tail.replace(target,insert,1)
+          save_target='''        const savedState = await toggleSave(user, data.slice(5));\n        if (savedState === null) {\n'''
+          save_insert='''        const savedState = await toggleSave(user, data.slice(5));\n        if (savedState !== null && user.__callback_acked) {\n            try {\n                const markup = structuredClone(query.message?.reply_markup || {});\n                let changed = false;\n                for (const row of markup.inline_keyboard || []) for (const item of row || []) {\n                    if (item?.callback_data === data) {\n                        item.text = savedState ? "⭐️ Gespeichert" : "⭐️ Speichern";\n                        changed = true;\n                    }\n                }\n                if (changed) await telegram("editMessageReplyMarkup", { chat_id: chatId, message_id: messageId, reply_markup: markup });\n            } catch (error) { console.error("save_button_refresh", String(error)); }\n        }\n        if (savedState === null) {\n'''
+          if tail.count(save_target)!=1: raise SystemExit('save branch marker mismatch')
+          tail=tail.replace(save_target,save_insert,1)
+          handlers.write_text(head+tail)
+
+          # Regression tests: callback response must not wait for DB/core work.
+          Path('tests/telegram-callback-latency.test.mjs').write_text(r'''import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+
+const timeout = ms => new Promise((_, reject) => setTimeout(() => reject(new Error('callback ack waited for background work')), ms));
+
+function request(data='home') {
+  return new Request('https://test', {
+    method:'POST', headers:{'x-telegram-bot-api-secret-token':'s'},
+    body:JSON.stringify({update_id:7,callback_query:{id:'q7',from:{id:3},message:{chat:{id:3},message_id:9},data}}),
+  });
+}
+
+test('telegram-fast acknowledges exact callbacks before its database RPC finishes', async () => {
+  const source=readFileSync(new URL('../supabase/functions/telegram-fast/index.ts',import.meta.url),'utf8');
+  let handler, resolveRpc; const tasks=[];
+  const blocked=new Promise(resolve=>{resolveRpc=resolve});
+  const scope={Deno:{serve(fn){handler=fn}},Response,Request,URL,Number,String,JSON,console,Promise,
+    EdgeRuntime:{waitUntil(p){tasks.push(p)}},parse:JSON.parse,commandOf:()=>'',argumentOf:()=>'',
+    COMMAND_ACTIONS:{},CALLBACK_ACTIONS:{home:'home'},ADMINS:[],
+    rpc:()=>blocked,direct:(method,params)=>Response.json({method,...params}),forwardCore:async()=>new Response('{}'),
+    finish:async()=>true,performCallback:async()=>{}};
+  vm.runInNewContext(source.slice(source.indexOf('Deno.serve(')),scope);
+  const response=await Promise.race([handler(request()),timeout(80)]);
+  assert.equal((await response.json()).method,'answerCallbackQuery');
+  assert.equal(tasks.length,1);
+  resolveRpc({authorized:true,claim:0});
+  await Promise.all(tasks);
+});
+
+test('telegram-fast acknowledges fallback callbacks before the core function finishes', async () => {
+  const source=readFileSync(new URL('../supabase/functions/telegram-fast/index.ts',import.meta.url),'utf8');
+  let handler, resolveCore; const tasks=[];
+  const blocked=new Promise(resolve=>{resolveCore=resolve});
+  const scope={Deno:{serve(fn){handler=fn}},Response,Request,URL,Number,String,JSON,console,Promise,
+    EdgeRuntime:{waitUntil(p){tasks.push(p)}},parse:JSON.parse,commandOf:()=>'',argumentOf:()=>'',
+    COMMAND_ACTIONS:{},CALLBACK_ACTIONS:{},ADMINS:[],rpc:async()=>{throw Error('RPC must not gate fallback ACK')},
+    direct:(method,params)=>Response.json({method,...params}),forwardCore:()=>blocked,finish:async()=>true,performCallback:async()=>{}};
+  vm.runInNewContext(source.slice(source.indexOf('Deno.serve(')),scope);
+  const response=await Promise.race([handler(request('profile:view:1')),timeout(80)]);
+  assert.equal((await response.json()).method,'answerCallbackQuery');
+  assert.equal(tasks.length,1);
+  resolveCore(new Response('{}'));
+  await Promise.all(tasks);
+});
+
+test('telegram-gateway acknowledges callbacks without waiting for the core UI', async () => {
+  const source=readFileSync(new URL('../supabase/functions/telegram-gateway/index.ts',import.meta.url),'utf8');
+  let handler, resolveCore; const tasks=[];
+  const blocked=new Promise(resolve=>{resolveCore=resolve});
+  const scope={Deno:{serve(fn){handler=fn}},Response,Request,URL,Number,String,JSON,console,Promise,
+    EdgeRuntime:{waitUntil(p){tasks.push(p)}},secret:async()=> 's',cachedWebhookSecret:null,parsed:JSON.parse,
+    commandOf:()=>'',FAST_COMMANDS:new Set(),direct:(method,params)=>Response.json({method,...params}),forwardToCore:()=>blocked};
+  vm.runInNewContext(source.slice(source.indexOf('Deno.serve(')),scope);
+  const response=await Promise.race([handler(request('dossier')),timeout(80)]);
+  assert.equal((await response.json()).method,'answerCallbackQuery');
+  assert.equal(tasks.length,1);
+  resolveCore(new Response('{}'));
+  await Promise.all(tasks);
+});
+
+test('core callback handler skips duplicate Telegram ACK after upstream pre-ACK', async () => {
+  const source=readFileSync(new URL('../supabase/functions/telegram-ui/handlers.js',import.meta.url),'utf8');
+  let acks=0, homes=0; const tasks=[];
+  const scope={Number,String,Promise,EdgeRuntime:{waitUntil:p=>tasks.push(p)},acknowledge:async()=>{acks++},home:async()=>{homes++}};
+  vm.runInNewContext(source.slice(source.indexOf('export async function handleCallback')).replace('export ',''),scope);
+  await scope.handleCallback({id:'q',data:'home',message:{chat:{id:1},message_id:2}},{__callback_acked:true});
+  assert.equal(homes,1); assert.equal(acks,0); assert.equal(tasks.length,1); await Promise.all(tasks);
+});
+''')
+          PY
+
+          npm ci --ignore-scripts
+          npm test
+          git rm .github/workflows/optimize-telegram-buttons-once.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add supabase/functions/telegram-fast/index.ts supabase/functions/telegram-gateway/index.ts supabase/functions/telegram-ui/index.ts supabase/functions/telegram-ui/handlers.js tests/telegram-callback-latency.test.mjs
+          git commit -m 'Make Telegram callbacks acknowledge immediately'
+          git push
