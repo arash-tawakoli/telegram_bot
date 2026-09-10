@@ -23,6 +23,12 @@ export async function verifyRuntime(runtime,read=readFile){
  }
 }
 async function main(){
+ for(const path of [
+  'supabase/functions/telegram-fast/index.ts',
+  'supabase/functions/telegram-ui/navigation.js',
+  'supabase/functions/telegram-ui/runtime.js',
+  'supabase/functions/telegram-ui/handlers.js',
+ ]) console.log(`PLANNER_REMOVAL_HASH ${path} ${hash(await readFile(path))}`);
  const runtime=JSON.parse(await readFile('supabase/runtime-manifest.json','utf8'));
  await verifyRuntime(runtime);
  const registry=JSON.parse(await readFile('docs/migration-registry.json','utf8'));
