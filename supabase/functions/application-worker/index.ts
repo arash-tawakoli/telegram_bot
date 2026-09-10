@@ -3,8 +3,6 @@ import puppeteer from 'npm:puppeteer-core@24.31.0';
 import {browserbase,browserUrl,identifier,platformSources} from './browserbase.js';
 import {adapters,authenticationState} from './adapters.js';
 import {generateApplicationMessage} from '../telegram-ui/application-message.js';
-import {detectDocument,FILE_LIMIT} from '../telegram-ui/dossier-rules.js';
-import {Buffer} from 'node:buffer';
 
 const keys=JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')||'{}');
 const db=createClient(Deno.env.get('SUPABASE_URL')!,keys.default||Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false,autoRefreshToken:false}});
@@ -110,11 +108,10 @@ async function processApplication(){
  };
  try{
   await eligible(application.user_id);
-  const [{data:user,error:userError},{data:listing,error:listingError},{data:documents,error:documentError}]=await Promise.all([
-   db.from('bot_users').select('id,is_active,auto_apply_enabled,applicant_profile,first_name,last_name').eq('id',application.user_id).single(),
-   db.from('listings').select('id,source_id,canonical_url,title,is_active').eq('id',application.listing_id).single(),
-   db.from('application_documents').select('id,mime_type,bytes,filename').eq('user_id',application.user_id).eq('ready',true).eq('share_enabled',true)]);
-  if(userError||listingError||documentError)throw Error('application_read_failed');
+  const [{data:user,error:userError},{data:listing,error:listingError}]=await Promise.all([
+   db.from('bot_users').select('id,is_active,auto_apply_enabled,first_name,last_name').eq('id',application.user_id).single(),
+   db.from('listings').select('id,source_id,canonical_url,title,is_active').eq('id',application.listing_id).single()]);
+  if(userError||listingError)throw Error('application_read_failed');
   if(!user.auto_apply_enabled||!listing.is_active){await patch({status:'failed',last_error:'not_eligible'});return {status:'failed'};}
   const {data:sessionRows,error}=await db.rpc('claim_platform_session',{p_user:user.id,p_source:listing.source_id});
   if(error)throw Error('application_read_failed');
@@ -124,25 +121,11 @@ async function processApplication(){
   session=await provider.start(row.context_id);await sessionPatch(row,{session_id:identifier(session.id)});
   browser=await connect(session.connectUrl);
   const pages=await browser.pages(),page=pages[0]||await browser.newPage();
-  const message=generateApplicationMessage({...user,...user.applicant_profile},listing);
+  const message=generateApplicationMessage(user,listing);
   await patch({application_text:message});
-  const result=await adapters[Number(listing.source_id)].applyToListing({page,user,listing,message,documents,
-   loadDocument:async document=>{
-    await eligible(user.id);
-    const {data:current,error}=await db.from('application_documents').select('id,mime_type,bytes,filename').eq('id',document.id).eq('user_id',user.id).eq('ready',true).eq('share_enabled',true).maybeSingle();
-    if(error||!current||current.bytes!==document.bytes||current.mime_type!==document.mime_type)throw Error('document_permission_changed');
-    const {data:file,error:downloadError}=await db.storage.from('application-documents').download(`${user.id}/${document.id}`);
-    if(downloadError||!file||file.size>FILE_LIMIT||file.size!==document.bytes)throw Error('document_unavailable');
-    const bytes=new Uint8Array(await file.arrayBuffer());if(detectDocument(bytes)!==document.mime_type)throw Error('document_invalid');
-    return {filename:current.filename,mime_type:current.mime_type,base64:Buffer.from(bytes).toString('base64')};
-   },
+  const result=await adapters[Number(listing.source_id)].applyToListing({page,user,listing,message,
    authorize:async()=>{
-    // Reload grants before crossing the disclosure boundary; never silently omit
-    // a newly approved file or disclose one whose permission was revoked.
-    const {data:current,error}=await db.from('application_documents').select('id').eq('user_id',user.id).eq('ready',true).eq('share_enabled',true);
-    if(error||current?.length!==documents.length||current.some(d=>!documents.some(old=>old.id===d.id)))return false;
     const {data,error:authorizeError}=await db.rpc('authorize_application_send',{p_id:application.id,p_token:application.lease_token});
-    // An RPC timeout could mean the checkpoint committed. Treat it as uncertain.
     if(authorizeError){started=true;throw Error('authorization_unconfirmed');}
     started=data===true;return started;
    }});

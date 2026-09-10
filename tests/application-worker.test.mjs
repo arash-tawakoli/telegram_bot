@@ -15,13 +15,13 @@ function worker({authorized=true,failAfterAuthorization=false,premium=true}={}){
   if(name==='authorize_application_send')return authorized==='uncertain'?{error:Error('timeout')}:{data:authorized};
  },from(table){let write;
   const q={select(){return q},eq(){return q},update(value){write=value;return q},
-   single:async()=>({data:table==='bot_users'?{id:'u',auto_apply_enabled:true,applicant_profile:{}}:{id:'l',source_id:1,is_active:true,title:'Wohnung'}}),
+   single:async()=>({data:table==='bot_users'?{id:'u',auto_apply_enabled:true,first_name:'Test',last_name:'User'}:{id:'l',source_id:1,is_active:true,title:'Wohnung'}}),
    then(resolve){if(write)writes.push({table,write});return Promise.resolve({data:write?[{id:'a',user_id:'u'}]:[],error:null}).then(resolve)}
   };return q;
  }};
  const browser={pages:async()=>[{}],disconnect:()=>events.push('disconnect')};
  const scope={createClient:()=>db,Deno:{env:{get:()=>undefined},serve:()=>{}},browserbase:()=>({start:async()=>({id:'session',connectUrl:'url'}),stop:async()=>events.push('stop')}),
-  puppeteer:{connect:async()=>browser},browserUrl:x=>x,identifier:x=>x,generateApplicationMessage:()=> 'Bewerbung',detectDocument:()=> 'application/pdf',FILE_LIMIT:5*1024*1024,Buffer,
+  puppeteer:{connect:async()=>browser},browserUrl:x=>x,identifier:x=>x,generateApplicationMessage:()=> 'Bewerbung',
   adapters:{1:{applyToListing:async({authorize})=>{
    const permitted=await authorize();if(!permitted)return {success:false,status:'failed',error:'not_eligible'};
    events.push('send');if(failAfterAuthorization)throw Object.assign(Error('timeout'),{name:'TimeoutError'});

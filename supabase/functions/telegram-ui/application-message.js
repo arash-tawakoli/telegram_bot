@@ -27,11 +27,12 @@ export function quickApplyButton(listing) {
 const singleLine = (value, max) => String(value || '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max).replace(/[\uD800-\uDBFF]$/, '');
 
 export function generateApplicationMessage(user, listing) {
-    if (user.custom_application_text) {
-        return `${String(user.custom_application_text).slice(0, 1500)}\n\nBezug: ${singleLine(listing.title, 80) || 'Ihre Wohnung'}`;
-    }
-    // The default draft fits Telegram's 256-character copy button limit.
     const title = singleLine(listing.title, 50) || 'Ihre Wohnung';
-    const name = singleLine(user.full_name || [user.first_name, user.last_name].filter(Boolean).join(' '), 40) || '[Dein Name]';
-    return `Guten Tag,\n\nich interessiere mich für „${title}“ und würde die Wohnung gerne besichtigen. Über eine Rückmeldung freue ich mich.\n\nFreundliche Grüße\n${name}`;
+    const name = singleLine([user.first_name, user.last_name].filter(Boolean).join(' '), 40) || '[Dein Name]';
+    return `Guten Tag,
+
+ich interessiere mich für „${title}“ und würde die Wohnung gerne besichtigen. Über eine Rückmeldung freue ich mich.
+
+Freundliche Grüße
+${name}`;
 }

@@ -9,25 +9,11 @@ export async function authenticationState(page){
   return null;
  });
 }
-export function documentUploadPlan(documents,input){
- if(!documents.length)return {ok:true};
- if(!input||input.disabled||(!input.multiple&&documents.length>1))return {error:'attachments_unsupported'};
- if(documents.reduce((n,d)=>n+d.bytes,0)>10*1024*1024)return {error:'attachments_too_large'};
- const accepted=String(input.accept||'').toLowerCase().split(',').map(s=>s.trim());
- const extension={'application/pdf':'.pdf','image/jpeg':'.jpg','image/png':'.png'};
- if(documents.some(d=>!extension[d.mime_type]||!Number.isInteger(d.bytes)||d.bytes<=0||d.bytes>5*1024*1024
-  ||!accepted.some(a=>a===d.mime_type||a===extension[d.mime_type]||(a==='image/*'&&d.mime_type.startsWith('image/')))))return {error:'attachments_unsupported'};
- return {ok:true};
-}
-export function submissionPlan(source,profile,fields,documents,input){
- // Do not infer a surname from a display name. Explicit platform values may already exist.
- const values={message:null,emailAddress:profile.email,phoneNumber:profile.phone,street:profile.street,
-  houseNumber:profile.house_number,postcode:profile.postcode,city:profile.city};
+export function submissionPlan(source,fields){
  const required=source===1?['firstName','lastName','emailAddress','street','houseNumber','postcode','city']:[];
- if(fields.some(f=>(f.required||required.includes(f.name))&&!f.value&&!values[f.name]))return {error:'required_fields_missing'};
+ if(fields.some(f=>(f.required||required.includes(f.name))&&!f.value))return {error:'required_fields_missing'};
  if(fields.some(f=>f.type==='checkbox'&&f.required&&!f.checked))return {error:'platform_consent_required'};
- const upload=documentUploadPlan(documents,input);if(upload.error)return upload;
- return {values};
+ return {ok:true};
 }
 
 async function visibleText(page){return page.evaluate(()=>document.body.innerText);}
@@ -36,7 +22,7 @@ async function clickText(page,text){
  const element=handle.asElement();if(!element){await handle.dispose();return false;}
  try{await element.click();return true;}finally{await handle.dispose();}
 }
-async function submit(source,{page,user,listing,message,documents,authorize,loadDocument}){
+async function submit(source,{page,listing,message,authorize}){
  const target=applicationTarget(listing);
  if(!target||Number(listing.source_id)!==source)return manual('invalid_listing_url');
  await page.goto(target.url,{waitUntil:'domcontentloaded',timeout:25000});
@@ -53,29 +39,11 @@ async function submit(source,{page,user,listing,message,documents,authorize,load
  const fields=await page.$eval(selector,textarea=>Array.from(textarea.closest('form')?.querySelectorAll('input,select')||[])
   .filter(e=>e.type!=='hidden'&&e.getBoundingClientRect().width>0)
   .map(e=>({name:e.name,type:e.type,value:e.value,required:e.required,checked:e.checked})));
- const fileInput=await page.$eval(selector,textarea=>{
-  const inputs=textarea.closest('form')?.querySelectorAll('input[type="file"]');
-  if(inputs?.length!==1)return null;const input=inputs[0];return {accept:input.getAttribute('accept'),multiple:input.hasAttribute('multiple'),disabled:input.hasAttribute('disabled')};
- });
- const plan=submissionPlan(source,user.applicant_profile||{},fields,documents,fileInput);
+ const plan=submissionPlan(source,fields);
  if(plan.error)return manual(plan.error);
  // This is the first operation that may disclose applicant data to the platform.
  // A crash after this checkpoint must never cause an automatic repeat.
  if(!await authorize())return {success:false,status:'failed',error:'not_eligible'};
- if(documents.length){
-  const files=[];for(const document of documents)files.push(await loadDocument(document));
-  await page.$eval(selector,(textarea,files)=>{
-   const inputs=textarea.closest('form')?.querySelectorAll('input[type="file"]');if(inputs?.length!==1)throw Error('attachment_input_changed');
-   const input=inputs[0],transfer=new DataTransfer();
-   for(const file of files){const raw=atob(file.base64),bytes=Uint8Array.from(raw,c=>c.charCodeAt(0));transfer.items.add(new File([bytes],file.filename,{type:file.mime_type}));}
-   input.files=transfer.files;input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));
-  },files);
- }
- for(const [name,value] of Object.entries(plan.values)){
-  if(!value||!fields.some(f=>f.name===name))continue;
-  const handle=await page.$(`[name="${name}"]`);
-  try{await handle.click({clickCount:3});await handle.type(String(value));}finally{await handle.dispose();}
- }
  const textarea=await page.$(selector);try{await textarea.click({clickCount:3});await textarea.type(message);}finally{await textarea.dispose();}
  const valid=await page.$eval(selector,e=>e.closest('form')?.checkValidity()===true);
  if(!valid)return manual('required_fields_missing');

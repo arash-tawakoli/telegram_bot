@@ -1,60 +1,6 @@
--- Backend-only tables: Telegram users are not Supabase Auth users.
+-- Backend-only automatic application tables.
 alter table public.bot_users
-  add column applicant_profile jsonb not null default '{}'::jsonb,
   add column auto_apply_enabled boolean not null default false;
-alter table public.bot_users add constraint applicant_profile_object
-  check (jsonb_typeof(applicant_profile)='object' and octet_length(applicant_profile::text)<=12000);
-
-create table public.application_documents (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references public.bot_users(id) on delete restrict,
-  kind text not null check (kind in ('wbs','schufa','rent_clearance','guarantee','income','other')),
-  telegram_message_id bigint not null,
-  filename text not null check (length(filename) between 1 and 120),
-  mime_type text not null check (mime_type in ('application/pdf','image/jpeg','image/png')),
-  bytes integer not null check (bytes between 1 and 5242880),
-  ready boolean not null default false,
-  share_enabled boolean not null default false,
-  created_at timestamptz not null default now(),
-  unique (user_id,telegram_message_id),
-  check (not share_enabled or ready)
-);
-alter table public.application_documents enable row level security;
-revoke all on public.application_documents from public,anon,authenticated;
-grant select,insert,update,delete on public.application_documents to service_role;
-
-create function app_private.guard_applicant_write() returns trigger
-language plpgsql set search_path='' as $$
-begin
-  if tg_table_name='bot_users' then
-    if new.applicant_profile is distinct from old.applicant_profile and new.applicant_profile<>'{}'::jsonb
-      and (not new.is_active or not app_private.user_is_premium(new.id)) then
-      raise exception 'premium required';
-    end if;
-  else
-    perform 1 from public.bot_users where id=new.user_id for update;
-    if tg_op='UPDATE' then
-      if new.user_id<>old.user_id or new.telegram_message_id<>old.telegram_message_id then raise exception 'immutable owner'; end if;
-      if not new.share_enabled and (to_jsonb(new)-'share_enabled')=(to_jsonb(old)-'share_enabled') then return new; end if;
-    end if;
-    if not exists(select 1 from public.bot_users where id=new.user_id and is_active)
-      or not app_private.user_is_premium(new.user_id) then raise exception 'premium required'; end if;
-    if tg_op='INSERT' and not exists(select 1 from public.application_documents where user_id=new.user_id and telegram_message_id=new.telegram_message_id)
-      and (select count(*) from public.application_documents where user_id=new.user_id)>=20 then
-      raise exception 'maximum 20 documents';
-    end if;
-  end if;
-  return new;
-end $$;
-create trigger guard_applicant_profile before update of applicant_profile on public.bot_users
-for each row execute function app_private.guard_applicant_write();
-create trigger guard_applicant_document before insert or update on public.application_documents
-for each row execute function app_private.guard_applicant_write();
-revoke all on function app_private.guard_applicant_write() from public,anon,authenticated;
-
-insert into storage.buckets(id,name,public,file_size_limit,allowed_mime_types)
-values ('application-documents','application-documents',false,5242880,
-  array['application/pdf','image/jpeg','image/png']);
 
 create table public.applications (
   id uuid primary key default gen_random_uuid(),

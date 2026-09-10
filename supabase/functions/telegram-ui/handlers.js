@@ -1,5 +1,4 @@
 import { quickApplication } from './application.js';
-import { dossier, dossierMessage, clearDossierInput } from './dossier.js';
 import { platformSessions } from './platform-sessions.js';
 import { isAdmin, adminGrantLabel, adminPremiumNotice, adminUsers, adminUser, setUserBlocked, deleteUser, setPlanOverride } from "./admin.js";
 import { homeKeyboard, home, premium, saved, setPaused, toggleSave, referralPage, languagePage, settings } from "./navigation.js";
@@ -7,13 +6,11 @@ import { draftFor, validateDraft, renderTypes, renderLocation, renderBoroughs, r
 import { db, PROPERTY_TYPES, RENT_PRESETS, ROOM_PRESETS, AREA_PRESETS, NEIGHBORHOODS_PER_PAGE, chatLanguages, button, cancelRow, backRow, secret, telegram, send, sendCelebration, edit, acknowledge, saveState, geography, HELP_TEXT } from "./runtime.js";
 export async function handleMessage(message, user) {
     const chatId = Number(message.chat.id);
-    if (user.onboarding_state?.dossier_input && await dossierMessage(message,user)) return;
     const text = String(message.text || "").trim();
     const [rawCommand, argument = ""] = text.split(/\s+/, 2);
     const command = rawCommand
         .toLowerCase()
         .replace(/@traumwohnunghamburgbot$/i, "");
-    if (command === "/mappe") return dossier(user,message.chat);
     if (command === "/admin") {
         if (!isAdmin(user))
             return;
@@ -198,8 +195,6 @@ export async function handleCallback(query, user) {
         return ack(savedState ? "⭐️ Gespeichert" : "Entfernt");
     }
     EdgeRuntime.waitUntil(ack());
-    if (user.onboarding_state?.dossier_input) await clearDossierInput(user);
-    if (data === 'dossier' || data.startsWith('dossier:')) return dossier(user,query.message.chat,query.message?.photo?undefined:messageId,data);
     if (data === 'platforms' || data.startsWith('platforms:')) return platformSessions(user,query.message.chat,query.message?.photo?undefined:messageId,data);
     if (data.startsWith('apply:')) return quickApplication(user, query);
     if (data === "noop")

@@ -160,7 +160,7 @@ function homeResponse(user: any, chatId: number) {
 function settingsResponse(user: any, chatId: number) {
   return sendText(chatId, "⚙️ <b>Einstellungen</b>\n\nVerwalte hier Premium, Sprache und Systemstatus.", {
     inline_keyboard: [
-      [button("📂 Bewerbermappe", "dossier")],
+      [button("🔐 Plattformkonten / Auto-Bewerbung", "platforms")],
       [button(user.is_premium ? "💎 Premium aktiv" : "💎 Premium", "premium")],
       [button("🌐 Sprachen", "language"), button("📡 Systemstatus", "status")],
       [button("← Zurück", "home")],
@@ -375,7 +375,7 @@ Deno.serve(async (req: Request) => {
     user.request_update_id = updateId;
     const chatId = Number(update.message.chat.id);
 
-    if (String(user.ui_language || "de") !== "de" || user.onboarding_state?.dossier_input) {
+    if (String(user.ui_language || "de") !== "de") {
       await finishNow(updateId, attempt, false, "fast_path_language_fallback");
       updateId = null;
       attempt = null;

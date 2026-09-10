@@ -1214,7 +1214,7 @@
       "name": "premium_applications",
       "registry_sql_sha256": "ef92946525f017f94014d94bc22d40125ffa5581a8481f74467d50d30184ba3e",
       "file": "supabase/migrations/20260909223100_premium_applications.sql",
-      "export_sql_sha256": "f7f1787289936800643df1789b44374d6a5f04197c69c8cc77f5d78ab41d92fa",
+      "export_sql_sha256": "82ec2467c8ec989f21c422c2c8d34084a0afefa2949da345127f74ea94aaec8a",
       "vault_substitution": false
     },
     {

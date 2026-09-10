@@ -37,7 +37,7 @@ export async function quickApplication(user, query) {
             : '⚠️ Der Versand wurde gestartet, aber möglicherweise noch nicht bestätigt. Prüfe zuerst deine Plattformnachrichten, bevor du erneut absendest.',
             reply_markup:{inline_keyboard:[[{text:`${target.platform} prüfen`,url:target.url}]]}});
     }
-    const message = generateApplicationMessage(user.is_premium ? {...user, ...user.applicant_profile} : user, listing);
+    const message = generateApplicationMessage(user, listing);
     return telegram('sendMessage', {
         chat_id: chat.id,
         parse_mode: 'HTML',

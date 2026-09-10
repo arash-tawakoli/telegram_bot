@@ -1,5 +1,7 @@
 import {db,SUPABASE_URL,secret,send,edit,button} from './runtime.js';
-import {privateApplicant} from './dossier-rules.js';
+
+const privateSessionOwner=(user,chat)=>chat?.type==='private'&&user.is_active
+ && Number(chat.id)===Number(user.telegram_user_id)&&Number(chat.id)===Number(user.chat_id);
 
 export async function applicationWorker(action,userId,source){
  let response;try{response=await fetch(`${SUPABASE_URL}/functions/v1/application-worker`,{method:'POST',
@@ -15,7 +17,7 @@ export async function purgePlatformSessions(userId){
  for(const row of data||[]){const result=await applicationWorker('disconnect',userId,row.source_id);if(result.status!=='disconnected')throw Error('Die Plattformsitzung wird noch verwendet. Bitte später erneut löschen.');}
 }
 export async function platformSessions(user,chat,messageId,data='platforms'){
- if(!privateApplicant(user,chat))return;
+ if(!privateSessionOwner(user,chat))return;
  const [,action,rawSource]=data.split(':'),source=Number(rawSource);
  const render=(text,rows)=>messageId?edit(chat.id,messageId,text,{inline_keyboard:rows}):send(chat.id,text,{inline_keyboard:rows});
  /** @type {Array<Array<{text:string,callback_data?:string,url?:string}>>} */
@@ -55,5 +57,5 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   ...[1,2].flatMap(id=>[...(user.is_premium?[[button(`${names[id]} anmelden`,`platforms:login:${id}`)],[button(`${names[id]} prüfen`,`platforms:check:${id}`)]]:[]),...(rows?.some(r=>r.source_id===id)?[[button(`${names[id]} trennen`,`platforms:disconnect:${id}`)]]:[])]),
   [button(profile.auto_apply_enabled?'Auto-Bewerbung deaktivieren':'⚡ Auto-Bewerbung aktivieren',`platforms:${profile.auto_apply_enabled?'off':'on'}`)],
   ...(applications||[]).map((a,i)=>[button(`${{sent:'✅ Gesendet',failed:'❌ Fehlgeschlagen',manual_required:'⚡ Manueller Schritt',pending:'⏳ Vorgemerkt',processing:'⏳ Wird verarbeitet'}[a.status]} · ${i+1}`,`apply:${a.listing_id}`)]),
-  [button('← Bewerbermappe','dossier')]]);
+  [button('← Einstellungen','settings')]]);
 }

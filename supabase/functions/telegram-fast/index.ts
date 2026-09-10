@@ -60,7 +60,7 @@ function premiumContent(user: any) {
   rows.push([button("← Zurück", "home")]); return { caption, reply_markup: { inline_keyboard: rows } };
 }
 function homeContent(user: any) { return { text: "🏠 <b>Traumwohnung Hamburg</b>\n\nFinde passende Mietangebote in Hamburg – automatisch und direkt per Telegram.\n\nWähle unten, was du machen möchtest.", reply_markup: { inline_keyboard: [[button("🔎 Suchprofil", "profile"), button(user.is_premium ? "⭐️ Gespeichert" : "🔒 ⭐️ Gespeichert", "saved")],[button("⚙️ Einstellungen", "settings"), button("❓ Hilfe", "help")],[button("💎 30 Tage Premium für 0 €", "referral")]] } }; }
-function settingsContent(user: any) { return { text: "⚙️ <b>Einstellungen</b>\n\nVerwalte hier Premium, Sprache und Systemstatus.", reply_markup: { inline_keyboard: [[button("📂 Bewerbermappe", "dossier")],[button(user.is_premium ? "💎 Premium aktiv" : "💎 Premium", "premium")],[button("🌐 Sprachen", "language"), button("📡 Systemstatus", "status")],[button("← Zurück", "home")]] } }; }
+function settingsContent(user: any) { return { text: "⚙️ <b>Einstellungen</b>\n\nVerwalte hier Premium, Sprache und Systemstatus.", reply_markup: { inline_keyboard: [[button("🔐 Plattformkonten / Auto-Bewerbung", "platforms")],[button(user.is_premium ? "💎 Premium aktiv" : "💎 Premium", "premium")],[button("🌐 Sprachen", "language"), button("📡 Systemstatus", "status")],[button("← Zurück", "home")]] } }; }
 function helpContent() { return { text: "❓ <b>Hilfe & Befehle</b>\n\n🏠 /start – Startmenü\n🔎 /suche – Suchprofil erstellen oder ersetzen\n👤 /profile – Suchprofil anzeigen\n⭐️ /gespeichert – gespeicherte Inserate\n⚙️ /einstellungen – Einstellungen\n⏸ /pause – Suche pausieren\n▶️ /resume – Suche fortsetzen\n📡 /status – Systemstatus\n💎 /premium – Premium anzeigen\n❓ /hilfe – Hilfe", reply_markup: { inline_keyboard: [[button("← Zurück", "home")]] } }; }
 function profileContent(user: any, data: any) {
   const profiles = Array.isArray(data?.profiles) ? data.profiles : []; const limit = Number(data?.profile_limit || (user.is_premium ? 3 : 1));
@@ -120,7 +120,7 @@ Deno.serve(async (req: Request) => {
           callbackAttempt = claim;
           const user = { ...(prepared?.user || {}), is_premium: prepared?.is_premium === true, __is_new_user: prepared?.is_new_user === true };
           const data = prepared?.action_data || {};
-          if (prepared?.fast_eligible === false || user.onboarding_state?.dossier_input) {
+          if (prepared?.fast_eligible === false) {
             await finish(callbackUpdateId, callbackAttempt, false, "fast_path_language_fallback");
             callbackUpdateId = null; callbackAttempt = null;
             const response = await forwardCore(body, supplied, true);
@@ -146,7 +146,7 @@ Deno.serve(async (req: Request) => {
     if (prepared?.authorized !== true) return new Response("unauthorized", { status: 401 });
     const claim = Number(prepared?.claim ?? 0); if (claim === 0) return Response.json({ ok: true, duplicate: true }); if (claim < 0) return Response.json({ ok: false, busy: true }, { status: 503 });
     updateId = Number(update.update_id); attempt = claim; const user = { ...(prepared?.user || {}), is_premium: prepared?.is_premium === true, __is_new_user: prepared?.is_new_user === true }; const data = prepared?.action_data || {};
-    if (prepared?.fast_eligible === false || user.onboarding_state?.dossier_input) { await finish(updateId, attempt, false, "fast_path_language_fallback"); updateId = null; attempt = null; return forwardCore(body, supplied); }
+    if (prepared?.fast_eligible === false) { await finish(updateId, attempt, false, "fast_path_language_fallback"); updateId = null; attempt = null; return forwardCore(body, supplied); }
     if (!user.is_active && !ADMINS.includes(Number(user.telegram_user_id))) { finishBackground(updateId, attempt, true); return Response.json({ ok: true, blocked: true }); }
     const chatId = Number(update?.message?.chat?.id); if (!chatId) throw new Error("missing chat id");
     if (action === "home") { const argument = argumentOf(update); if (argument.startsWith("ref_") && user.__is_new_user) await rpc("redeem_referral_code", { p_referred_user_id: user.id, p_code: argument.slice(4) }).catch((e) => console.error("referral_register", String(e))); EdgeRuntime.waitUntil(telegram("setChatMenuButton", { chat_id: chatId, menu_button: { type: "commands" } }).catch(() => {})); if (user.__is_new_user) EdgeRuntime.waitUntil(notifyAdminsNewUser(user)); }

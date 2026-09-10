@@ -145,7 +145,7 @@ export async function languagePage(user, chatId, messageId) {
 export async function settings(user, chatId, messageId) {
     const text = "⚙️ <b>Einstellungen</b>\n\nVerwalte hier Premium, Sprache und Systemstatus.";
     const markup = { inline_keyboard: [
-            [button("📂 Bewerbermappe", "dossier")],
+            [button("🔐 Plattformkonten / Auto-Bewerbung", "platforms")],
             [button(user.is_premium ? "💎 Premium aktiv" : "💎 Premium", "premium")],
             [button("🌐 Sprachen", "language"), button("📡 Systemstatus", "status")],
             [button("← Zurück", "home")],

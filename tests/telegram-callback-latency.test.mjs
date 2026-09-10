@@ -54,7 +54,7 @@ test('telegram-gateway acknowledges callbacks without waiting for the core UI', 
     EdgeRuntime:{waitUntil(p){tasks.push(p)}},secret:async()=> 's',cachedWebhookSecret:null,parsed:JSON.parse,
     commandOf:()=>'',FAST_COMMANDS:new Set(),direct:(method,params)=>Response.json({method,...params}),forwardToCore:()=>blocked};
   vm.runInNewContext(stripTypeScriptTypes(source.slice(source.indexOf('Deno.serve(')),{mode:'strip'}),scope);
-  const response=await Promise.race([handler(request('dossier')),timeout(80)]);
+  const response=await Promise.race([handler(request('platforms')),timeout(80)]);
   assert.equal((await response.json()).method,'answerCallbackQuery');
   assert.equal(tasks.length,1);
   resolveCore(new Response('{}'));
