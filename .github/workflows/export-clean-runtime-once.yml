@@ -1,0 +1,35 @@
+name: Export clean Supabase runtime
+
+on:
+  push:
+    paths:
+      - '.github/workflows/export-clean-runtime-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: clean-supabase-runtime
+          path: |
+            supabase/functions/telegram-ui
+            supabase/functions/telegram-fast
+            supabase/functions/telegram-gateway
+            supabase/functions/application-worker
+          if-no-files-found: error
+          retention-days: 1
+      - name: Self-clean
+        shell: bash
+        run: |
+          git rm .github/workflows/export-clean-runtime-once.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Remove one-time clean runtime exporter'
+          git push
