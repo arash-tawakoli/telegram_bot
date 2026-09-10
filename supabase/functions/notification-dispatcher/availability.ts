@@ -1,7 +1,8 @@
 // Online is evidence of an advertised offer, never a landlord's availability guarantee.
 export function recentInventory(l:any, now=Date.now()) {
   const age=now-Date.parse(l.last_seen_at);
-  if(!l.is_active || !l.fresh_delivery_eligible || !Number.isFinite(age) || age<0 || age>10*60*1000)return false;
+  const maxAge=Number(l.source_id)===6 ? 60*60*1000 : 10*60*1000;
+  if(!l.is_active || !l.fresh_delivery_eligible || !Number.isFinite(age) || age<0 || age>maxAge)return false;
   const r=l.raw||{};
   return Number(l.source_id)===6 ||
     (r.provider==='immoscout_mcp' && /^fresh/.test(r.delivery_lane||'')) ||
