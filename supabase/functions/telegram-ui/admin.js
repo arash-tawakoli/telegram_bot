@@ -1,4 +1,6 @@
 import { premium } from "./navigation.js";
+import { purgeApplicantDocuments } from './dossier.js';
+import { purgePlatformSessions } from './platform-sessions.js';
 import { profile } from "./profiles.js";
 import { db, ADMIN_TELEGRAM_USER_IDS, esc, short, button, send, edit } from "./runtime.js";
 export function isAdmin(user) {
@@ -198,6 +200,8 @@ export async function deleteUser(userId) {
         return;
     if (isAdmin(target))
         throw new Error("admin accounts cannot be deleted");
+    await purgePlatformSessions(userId);
+    await purgeApplicantDocuments(userId);
     const { error } = await db.from("bot_users").delete().eq("id", userId);
     if (error)
         throw error;

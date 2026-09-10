@@ -1,0 +1,82 @@
+{
+  "before": [
+    {
+      "active": true,
+      "command": "select app_private.prepare_current_delivery_queue();select net.http_post(url:='https://dpmohkrwdlicexwcrqfy.supabase.co/functions/v1/notification-dispatcher',headers:=jsonb_build_object('Content-Type','application/json','x-internal-secret',public.get_bot_secret('internal_worker_secret')),body:='{}'::jsonb,timeout_milliseconds:=145000);",
+      "jobid": 4,
+      "jobname": "notification-dispatcher-every-minute",
+      "schedule": "* * * * *"
+    },
+    {
+      "active": true,
+      "command": "select app_private.maintenance_cleanup();",
+      "jobid": 13,
+      "jobname": "architecture-maintenance-daily",
+      "schedule": "17 4 * * *"
+    },
+    {
+      "active": true,
+      "command": "select app_private.enqueue_due_source_jobs(65);",
+      "jobid": 23,
+      "jobname": "source-scheduler-every-minute",
+      "schedule": "* * * * *"
+    },
+    {
+      "active": true,
+      "command": "\n  select net.http_post(\n    url:='https://dpmohkrwdlicexwcrqfy.supabase.co/functions/v1/source-worker',\n    headers:=jsonb_build_object('Content-Type','application/json','x-internal-secret',public.get_bot_secret('internal_worker_secret')),\n    body:='{}'::jsonb,\n    timeout_milliseconds:=55000\n  );\n  ",
+      "jobid": 26,
+      "jobname": "source-worker-every-minute",
+      "schedule": "* * * * *"
+    },
+    {
+      "active": true,
+      "command": "\n    update public.bot_users\n    set plan_override = null,\n        plan_override_expires_at = null,\n        updated_at = now()\n    where plan_override = 'premium'\n      and plan_override_expires_at is not null\n      and plan_override_expires_at <= now();\n  ",
+      "jobid": 27,
+      "jobname": "expire-admin-premium-overrides",
+      "schedule": "* * * * *"
+    },
+    {
+      "active": true,
+      "command": "select app_private.enqueue_partial_coop_provider_checks();",
+      "jobid": 29,
+      "jobname": "coop-provider-index-enqueue",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "active": true,
+      "command": "select app_private.process_partial_coop_provider_checks();",
+      "jobid": 30,
+      "jobname": "coop-provider-index-process",
+      "schedule": "* * * * *"
+    },
+    {
+      "active": true,
+      "command": "select app_private.retry_telegram_updates();",
+      "jobid": 31,
+      "jobname": "telegram-inbox-recovery",
+      "schedule": "* * * * *"
+    },
+    {
+      "active": true,
+      "command": "select net.http_post(url:='https://dpmohkrwdlicexwcrqfy.supabase.co/functions/v1/source-shadow',headers:=jsonb_build_object('Content-Type','application/json','x-internal-secret',public.get_bot_secret('internal_worker_secret')),body:='{}'::jsonb,timeout_milliseconds:=55000);",
+      "jobid": 32,
+      "jobname": "source-shadow-probes",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "active": true,
+      "command": "delete from app_private.source_shadow_runs where checked_at<now()-interval '30 days';delete from app_private.telegram_effects where update_id in(select telegram_update_id from public.bot_events where created_at<now()-interval '30 days' and processing_status='done');",
+      "jobid": 33,
+      "jobname": "shadow-history-cleanup",
+      "schedule": "27 4 * * *"
+    },
+    {
+      "active": true,
+      "command": "\n   select net.http_post(\n    url:='https://dpmohkrwdlicexwcrqfy.supabase.co/functions/v1/application-worker',\n    headers:=jsonb_build_object('Content-Type','application/json','x-internal-secret',public.get_bot_secret('internal_worker_secret')),\n    body:='{\"action\":\"process\"}'::jsonb,timeout_milliseconds:=55000)\n   where exists(select 1 from public.applications where\n    (status='pending' and next_attempt_at<=now() and (lease_until is null or lease_until<now()))\n    or (status='processing' and (lease_until is null or lease_until<now())));\n  ",
+      "jobid": 34,
+      "jobname": "platform-applications",
+      "schedule": "* * * * *"
+    }
+  ],
+  "after_migration": "-- Preserve minute-level readiness/recovery checks and five-minute source eligibility.\n-- pg_net starts requests after the SQL transaction commits.\nSELECT cron.schedule('source-scheduler-every-minute','* * * * *',$cron$\nselect app_private.enqueue_due_source_jobs(65);\nselect net.http_post(\n    url:='https://dpmohkrwdlicexwcrqfy.supabase.co/functions/v1/source-worker',\n    headers:=jsonb_build_object('Content-Type','application/json','x-internal-secret',public.get_bot_secret('internal_worker_secret')),\n    body:='{}'::jsonb,\n    timeout_milliseconds:=55000\n  )\nwhere exists (select 1 from pgmq.q_source_jobs where vt <= now());\n$cron$);\nSELECT cron.unschedule(jobid) FROM cron.job WHERE jobname='source-worker-every-minute';\nSELECT cron.schedule('notification-dispatcher-every-minute','* * * * *',$cron$\nselect app_private.prepare_current_delivery_queue();select net.http_post(url:='https://dpmohkrwdlicexwcrqfy.supabase.co/functions/v1/notification-dispatcher',headers:=jsonb_build_object('Content-Type','application/json','x-internal-secret',public.get_bot_secret('internal_worker_secret')),body:='{}'::jsonb,timeout_milliseconds:=145000)\nwhere exists (\n  select 1 from public.delivery_events\n  where (status in ('pending','failed') and delivery_outcome_unknown=false\n         and dispatch_attempts<5 and (next_retry_at is null or next_retry_at<=now()))\n     or (status='processing' and last_attempt_at<now()-interval '10 minutes')\n);\n$cron$);\n-- Diagnostics only: source-shadow does not ingest listings or send notifications.\nSELECT cron.schedule('source-shadow-probes','12 * * * *',$cron$\nselect net.http_post(url:='https://dpmohkrwdlicexwcrqfy.supabase.co/functions/v1/source-shadow',headers:=jsonb_build_object('Content-Type','application/json','x-internal-secret',public.get_bot_secret('internal_worker_secret')),body:='{}'::jsonb,timeout_milliseconds:=55000);\n$cron$);\n-- Bound operational log growth; preserve failures longer. Business records untouched.\nSELECT cron.schedule('architecture-maintenance-daily','17 4 * * *',$cron$\nselect app_private.maintenance_cleanup();\ndelete from cron.job_run_details where runid in (\n select runid from cron.job_run_details\n where (status='succeeded' and end_time<now()-interval '7 days')\n    or (status='failed' and end_time<now()-interval '30 days')\n order by runid limit 20000\n);\n$cron$);\n"
+}

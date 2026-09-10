@@ -13,4 +13,7 @@ verify_jwt = false
 [functions.billing-maintenance]
 verify_jwt = false
 
+# Internal-secret authenticated; preserve the already-deployed application runtime.
+[functions.application-worker]
+verify_jwt = false
 

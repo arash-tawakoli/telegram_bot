@@ -1,4 +1,5 @@
 import {pageAvailability,recentInventory} from './availability.ts';
+import {quickApplyButton} from '../telegram-ui/application-message.js';
 import {previewOperations,deliverPreview,sourcePhoto} from "./preview-delivery.ts";
 import {present, textValue, exactAddress, structuredFacts, collectImages, htmlFacts} from "./source-facts.ts";
 import { telegramRequest, TelegramFailure } from "./telegram-request.ts";
@@ -198,6 +199,8 @@ function kb(l: any, lang: string, p: boolean) {
         url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`,
       },
     ]);
+  const apply = quickApplyButton(l);
+  if (apply) r.push([apply]);
   r.push([
     p
       ? { text: label(lang, "save"), callback_data: `save:${l.id}` }
@@ -402,9 +405,12 @@ Deno.serve(async (req) => {
     if (error) throw error;
     if (!events?.length) return Response.json({ok:true,totals:{sent:0,failed:0,skipped:0}});
     const token = await sec("telegram_bot_token_runtime");
-    const { data: subs, error: subscriptionError } = await db
-      .from("user_subscriptions")
-      .select("user_id,status,current_period_end");
+    const ownerIds = [...new Set(events.map((event: any) => event.search_profiles?.owner?.id).filter(Boolean))];
+    const { data: subs, error: subscriptionError } = ownerIds.length
+      ? await db.from("user_subscriptions")
+        .select("user_id,status,current_period_end")
+        .in("user_id", ownerIds)
+      : { data: [], error: null };
     if (subscriptionError) throw subscriptionError;
     const paid = new Set(
       (subs || [])

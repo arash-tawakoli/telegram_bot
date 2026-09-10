@@ -1208,6 +1208,46 @@
       "registry_sql_sha256": "0aa9587f5344928e7271ca1f6e4ef99907d2f7ca8014a320096b16000071a877",
       "export_sql_sha256": "0935927fbd2703198633ff2c1f17e50c2d6c0c7ddd0a82ab538f21bb73940779",
       "vault_substitution": false
+    },
+    {
+      "version": "20260909223100",
+      "name": "premium_applications",
+      "registry_sql_sha256": "ef92946525f017f94014d94bc22d40125ffa5581a8481f74467d50d30184ba3e",
+      "file": "supabase/migrations/20260909223100_premium_applications.sql",
+      "export_sql_sha256": "f7f1787289936800643df1789b44374d6a5f04197c69c8cc77f5d78ab41d92fa",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260910085141",
+      "name": "platform_application_sessions",
+      "registry_sql_sha256": "6a5915ac0ceb36ada1398f6f6e6e90d56b3ddc147f0f1a7de550a29e399f0428",
+      "file": "supabase/migrations/20260910085141_platform_application_sessions.sql",
+      "export_sql_sha256": "b22626ef771b9d383be54c65d5d22bee277d518124bc351096fa2297a288f3f6",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260910095851",
+      "name": "ingestion_fingerprint_fast_path",
+      "registry_sql_sha256": "00a7d12b8684f79da8cc1802902856d4ec60a89db837ad1439798a1508b50cdb",
+      "file": "supabase/migrations/20260910095851_ingestion_fingerprint_fast_path.sql",
+      "export_sql_sha256": "c59d3e7441826a1e60689b5584e6327f5f0759a0e60edf0e3af9357250030696",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260910100251",
+      "name": "work_aware_scheduling_and_log_retention",
+      "registry_sql_sha256": "96e4d1aff509e24f941fefa423d319bd4045167965e8c5f802c95185fb650261",
+      "file": "supabase/migrations/20260910100251_work_aware_scheduling_and_log_retention.sql",
+      "export_sql_sha256": "8d27a47f099e2cc350bd0c6844db6a635ff2fe1edb871c09f1db6a4967659d2a",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260910100818",
+      "name": "backend_internal_least_privilege",
+      "registry_sql_sha256": "ba44a30a38bd34ebf6c58db47f36c7cd9b3809942e6d63d3b9515ec2a169a790",
+      "file": "supabase/migrations/20260910100818_backend_internal_least_privilege.sql",
+      "export_sql_sha256": "27a63bf0a39eeed5d6e2dea89eb3449baf152071ab39542b4ae617b863a5f231",
+      "vault_substitution": false
     }
   ],
   "historical_repository_ref": "36708e9e2f073d7b3835cfd28b8222446e23c0ff",

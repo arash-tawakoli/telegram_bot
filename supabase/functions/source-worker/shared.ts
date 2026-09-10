@@ -603,28 +603,18 @@ export async function upsertCandidates(
   }
   const rows = [...map.values()];
   if (!rows.length) return { seen: 0, fresh: 0 };
-  const keys = rows.map((r) => r.source_listing_key),
-    old = new Set<string>();
-  for (let i = 0; i < keys.length; i += 300) {
-    const data = checked(
-      await db
-        .from("listings")
-        .select("source_listing_key")
-        .eq("source_id", source.id)
-        .in("source_listing_key", keys.slice(i, i + 300)),
-      "read existing listings",
-    );
-    for (const x of data || []) old.add(String(x.source_listing_key));
-  }
+  let fresh = 0;
   for (let i = 0; i < rows.length; i += 100) {
-    const { error } = await db
-      .from("listings")
-      .upsert(rows.slice(i, i + 100), {
-        onConflict: "source_id,source_listing_key",
-      });
-    if (error) throw error;
+    const result = checked(
+      await db.rpc("ingest_listing_batch", {
+        p_source_id: source.id,
+        p_rows: rows.slice(i, i + 100),
+      }),
+      "ingest listing batch",
+    );
+    fresh += Number(result.fresh);
   }
-  return { seen: rows.length, fresh: keys.filter((k) => !old.has(k)).length };
+  return { seen: rows.length, fresh };
 }
 export async function markSuccess(
   source: Source,
