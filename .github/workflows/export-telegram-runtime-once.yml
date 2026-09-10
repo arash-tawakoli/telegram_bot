@@ -1,0 +1,36 @@
+name: Export tested Telegram runtime bundle
+
+on:
+  push:
+    paths:
+      - '.github/workflows/export-telegram-runtime-once.yml'
+
+permissions:
+  contents: write
+
+actions:
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: telegram-runtime-tested
+          path: |
+            supabase/functions/telegram-fast
+            supabase/functions/telegram-gateway
+            supabase/functions/telegram-ui
+          if-no-files-found: error
+          retention-days: 1
+      - name: Remove one-time exporter
+        shell: bash
+        run: |
+          git rm .github/workflows/export-telegram-runtime-once.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Remove one-time Telegram runtime exporter'
+          git push
