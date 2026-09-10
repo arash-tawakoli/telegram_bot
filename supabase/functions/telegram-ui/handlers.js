@@ -1,4 +1,3 @@
-import {organizer,organizerMessage,clearOrganizerNote} from './organizer.js';
 import { quickApplication } from './application.js';
 import { dossier, dossierMessage, clearDossierInput } from './dossier.js';
 import { platformSessions } from './platform-sessions.js';
@@ -9,13 +8,11 @@ import { db, PROPERTY_TYPES, RENT_PRESETS, ROOM_PRESETS, AREA_PRESETS, NEIGHBORH
 export async function handleMessage(message, user) {
     const chatId = Number(message.chat.id);
     if (user.onboarding_state?.dossier_input && await dossierMessage(message,user)) return;
-    if (await organizerMessage(message,user)) return;
     const text = String(message.text || "").trim();
     const [rawCommand, argument = ""] = text.split(/\s+/, 2);
     const command = rawCommand
         .toLowerCase()
         .replace(/@traumwohnunghamburgbot$/i, "");
-    if (command === "/planer") return organizer(user,chatId);
     if (command === "/mappe") return dossier(user,message.chat);
     if (command === "/admin") {
         if (!isAdmin(user))
@@ -187,12 +184,10 @@ export async function handleCallback(query, user) {
         return acknowledge(query.id, savedState ? "⭐️ Gespeichert" : "Entfernt");
     }
     EdgeRuntime.waitUntil(acknowledge(query.id));
-    if (user.onboarding_state?.organizer_note) await clearOrganizerNote(user);
     if (user.onboarding_state?.dossier_input) await clearDossierInput(user);
     if (data === 'dossier' || data.startsWith('dossier:')) return dossier(user,query.message.chat,query.message?.photo?undefined:messageId,data);
     if (data === 'platforms' || data.startsWith('platforms:')) return platformSessions(user,query.message.chat,query.message?.photo?undefined:messageId,data);
     if (data.startsWith('apply:')) return quickApplication(user, query);
-    if (data.startsWith('org:')) return organizer(user,chatId,query.message?.photo?undefined:messageId,data);
     if (data === "noop")
         return;
     if (data === "cancel") {
