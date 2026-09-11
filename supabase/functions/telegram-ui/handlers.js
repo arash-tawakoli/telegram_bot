@@ -181,7 +181,7 @@ export async function handleCallback(query, user) {
                 let changed = false;
                 for (const row of markup.inline_keyboard || []) for (const item of row || []) {
                     if (item?.callback_data === data) {
-                        item.text = savedState ? "⭐️ Gespeichert" : "⭐️ Speichern";
+                        item.text = savedState ? "❤️ Gespeichert" : "❤️ Speichern";
                         changed = true;
                     }
                 }
@@ -192,7 +192,7 @@ export async function handleCallback(query, user) {
             EdgeRuntime.waitUntil(ack());
             return premium(user, chatId, messageId);
         }
-        return ack(savedState ? "⭐️ Gespeichert" : "Entfernt");
+        return ack(savedState ? "❤️ Gespeichert" : "Entfernt");
     }
     EdgeRuntime.waitUntil(ack());
     if (data === 'platforms' || data.startsWith('platforms:')) return platformSessions(user,query.message.chat,query.message?.photo?undefined:messageId,data);

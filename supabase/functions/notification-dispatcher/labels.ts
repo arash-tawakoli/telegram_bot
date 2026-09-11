@@ -17,8 +17,8 @@ const de = {
   rooms: "Zimmer",
   area: "Wohnfläche",
   offer: "Angebot",
-  save: "⭐️ Speichern",
-  saved: "⭐️ Gespeichert",
+  save: "❤️ Speichern",
+  saved: "❤️ Gespeichert",
   maps: "📍 Google Maps",
 };
 const en = {
@@ -41,8 +41,8 @@ const en = {
   rooms: "Rooms",
   area: "Living area",
   offer: "Listing",
-  save: "⭐️ Save",
-  saved: "⭐️ Saved",
+  save: "❤️ Save",
+  saved: "❤️ Saved",
 };
 export const LABELS: any = {
   de,

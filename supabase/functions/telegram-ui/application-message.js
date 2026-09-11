@@ -20,8 +20,8 @@ export function applicationTarget(listing) {
 }
 
 export function quickApplyButton(listing) {
-    if (!UUID.test(listing.id || '') || listing.is_active === false || !applicationTarget(listing)) return null;
-    return { text: '⚡ Schnell bewerben', callback_data: `apply:${listing.id}` };
+    if (!UUID.test(listing.id || '') || listing.is_active === false) return null;
+    return { text: '⚡ Schnellbewerbung', callback_data: `apply:${listing.id}` };
 }
 
 const singleLine = (value, max) => String(value || '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max).replace(/[\uD800-\uDBFF]$/, '');

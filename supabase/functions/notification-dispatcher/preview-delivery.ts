@@ -11,7 +11,24 @@ export async function sourcePhoto(response:Response):Promise<Blob> {
   if(!type||bytes.length>10*1024*1024)throw new TelegramFailure('Source image returned unsupported or oversized image data',false,true);
   return new Blob([bytes],{type});
 }
+function listingKeyboard(keyboard:any,caption:string) {
+  const rows=Array.isArray(keyboard?.inline_keyboard)?keyboard.inline_keyboard:[];
+  if(!rows.length)return keyboard;
+  const offer=rows[0];
+  const save=rows.find((row:any[])=>row.some((button:any)=>String(button?.callback_data||'').startsWith('save:')||String(button?.text||'').includes('❤️')));
+  if(!save)return keyboard;
+  const middle=rows.filter((row:any[])=>row!==offer&&row!==save);
+  const mapRow=middle.find((row:any[])=>row.some((button:any)=>String(button?.text||'').includes('Google Maps')));
+  const applyRow=middle.find((row:any[])=>row.some((button:any)=>String(button?.callback_data||'').startsWith('apply:')));
+  const clean=(value:string)=>value.replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').trim();
+  const locationLine=caption.split('\n').map(clean).reverse().find(line=>line.startsWith('📍'));
+  const location=(locationLine||'').replace(/^📍\s*(?:[^:]+:\s*)?/,'').trim()||'Hamburg';
+  const maps=mapRow||[{text:'📍 Google Maps',url:`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`}];
+  const extras=middle.filter((row:any[])=>row!==mapRow&&row!==applyRow);
+  return {...keyboard,inline_keyboard:[offer,maps,save,...(applyRow?[applyRow]:[]),...extras]};
+}
 export function previewOperations(images:string[],caption:string,keyboard:any) {
+  keyboard=listingKeyboard(keyboard,caption);
   const selectedImages=images.slice(0,1);
   const operations:any[]=[];
   // The preview deliberately sends one validated source photo; retain all text facts.
@@ -32,7 +49,7 @@ export async function deliverPreview(operations:any[],previous:any,save:(state:a
   // Freeze the source snapshot per delivery, including ordering, through retries.
   let state:any = previous?.version===1 ? structuredClone(previous) : {version:1,operations,next:0,in_flight:false,message_id:null};
   if(state.in_flight)throw new TelegramFailure('Previous gallery request has an unknown outcome',true);
-  // Unstarted legacy galleries can adopt the new single-photo preview safely.
+  // Unstarted legacy galleries can adopt the new single-photo policy on retry.
   // After any confirmed photo step, keep remaining text but send no further photos.
   if(previous?.version===1){
     if(state.next===0)state.operations=operations;

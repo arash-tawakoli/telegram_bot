@@ -1304,6 +1304,14 @@
       "file": "supabase/migrations/20260911032650_retire_orphaned_inventory_routines.sql",
       "export_sql_sha256": "9b72aa89aa25a0740f4ab5a8409f1f434a3c97a8b4fe442f7ee824b7f363d467",
       "vault_substitution": false
+    },
+    {
+      "version": "20260911093449",
+      "name": "conservative_cross_source_dedupe_guard",
+      "registry_sql_sha256": "76ed5211476e778719cdf53c25634c5335bd39a5521d84020f634a7905255f2b",
+      "file": "supabase/migrations/20260911113000_conservative_cross_source_dedupe_guard.sql",
+      "export_sql_sha256": "76ed5211476e778719cdf53c25634c5335bd39a5521d84020f634a7905255f2b",
+      "vault_substitution": false
     }
   ],
   "historical_repository_ref": "36708e9e2f073d7b3835cfd28b8222446e23c0ff",
