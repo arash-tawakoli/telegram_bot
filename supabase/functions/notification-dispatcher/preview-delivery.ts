@@ -15,7 +15,7 @@ function listingKeyboard(keyboard:any,caption:string) {
   const rows=Array.isArray(keyboard?.inline_keyboard)?keyboard.inline_keyboard:[];
   if(!rows.length)return keyboard;
   const offer=rows[0];
-  const save=rows.find((row:any[])=>row.some((button:any)=>String(button?.callback_data||'').startsWith('save:')||String(button?.text||'').includes('Speichern')));
+  const save=rows.find((row:any[])=>row.some((button:any)=>String(button?.callback_data||'').startsWith('save:')||String(button?.text||'').includes('❤️')));
   if(!save)return keyboard;
   const middle=rows.filter((row:any[])=>row!==offer&&row!==save);
   const mapRow=middle.find((row:any[])=>row.some((button:any)=>String(button?.text||'').includes('Google Maps')));
@@ -49,7 +49,7 @@ export async function deliverPreview(operations:any[],previous:any,save:(state:a
   // Freeze the source snapshot per delivery, including ordering, through retries.
   let state:any = previous?.version===1 ? structuredClone(previous) : {version:1,operations,next:0,in_flight:false,message_id:null};
   if(state.in_flight)throw new TelegramFailure('Previous gallery request has an unknown outcome',true);
-  // Unstarted legacy galleries can adopt the new single-photo preview safely.
+  // Unstarted legacy galleries can adopt the new single-photo policy on retry.
   // After any confirmed photo step, keep remaining text but send no further photos.
   if(previous?.version===1){
     if(state.next===0)state.operations=operations;
