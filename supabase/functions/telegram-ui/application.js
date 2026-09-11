@@ -28,6 +28,9 @@ export async function quickApplication(user, query) {
         return send(chat.id, 'Dieses Angebot ist inaktiv oder unterstützt keine Schnellbewerbung.');
     }
     const target = applicationTarget(listing);
+    if (!target) {
+        return send(chat.id, '⚡ Schnellbewerbung ist für diese Quelle noch nicht automatisiert. Bitte öffne das Angebot über den Button „Angebot“.');
+    }
     const {data:application,error:applicationError}=await db.from('applications')
         .select('status,submission_started_at').eq('user_id',user.id).eq('listing_id',id).maybeSingle();
     if(applicationError)throw applicationError;
