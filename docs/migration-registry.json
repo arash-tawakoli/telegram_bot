@@ -85,7 +85,7 @@
       "version": "20260827170557",
       "name": "strict_immomio_tenant_connectors",
       "file": "supabase/migrations/20260827170557_strict_immomio_tenant_connectors.sql",
-      "registry_sql_sha256": "2d66fa7b4e87817f11df3485cb60cb1d9c4f3d287106b7a73da0cf279d5c72a5",
+      "registry_sql_sha256": "2d66fa6b4e87817f11df3485cb60cb1d9c4f3d287106b7a73da0cf279d5c72a5",
       "export_sql_sha256": "b3230665a1912e2f0ffb9612e3aaa1c98f2659e4a62447e90f0ab461b66b04fa",
       "vault_substitution": true
     },
@@ -549,8 +549,8 @@
       "version": "20260829184422",
       "name": "architecture_v3_cutover_foundation",
       "file": "supabase/migrations/20260829184422_architecture_v3_cutover_foundation.sql",
-      "registry_sql_sha256": "77d98769bbdb539df6c5d8929b29d9029231d193a2ea885b88c6e919085f76d7",
-      "export_sql_sha256": "77d98769bbdb539df6c5d8929b29d9029231d193a2ea885b88c6e919085f76d7",
+      "registry_sql_sha256": "77d98769db539df6c5d8929b29d9029231d193a2ea885b88c6e919085f76d7",
+      "export_sql_sha256": "77d98769db539df6c5d8929b29d9029231d193a2ea885b88c6e919085f76d7",
       "vault_substitution": false
     },
     {
@@ -1303,6 +1303,14 @@
       "registry_sql_sha256": "9b72aa89aa25a0740f4ab5a8409f1f434a3c97a8b4fe442f7ee824b7f363d467",
       "file": "supabase/migrations/20260911032650_retire_orphaned_inventory_routines.sql",
       "export_sql_sha256": "9b72aa89aa25a0740f4ab5a8409f1f434a3c97a8b4fe442f7ee824b7f363d467",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260911093449",
+      "name": "conservative_cross_source_dedupe_guard",
+      "registry_sql_sha256": "76ed5211476e778719cdf53c25634c5335bd39a5521d84020f634a7905255f2b",
+      "file": "supabase/migrations/20260911113000_conservative_cross_source_dedupe_guard.sql",
+      "export_sql_sha256": "76ed5211476e778719cdf53c25634c5335bd39a5521d84020f634a7905255f2b",
       "vault_substitution": false
     }
   ],
