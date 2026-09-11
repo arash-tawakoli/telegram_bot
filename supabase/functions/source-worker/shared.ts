@@ -1,3 +1,4 @@
+import { fetchProvider } from "./provider-fetch.ts";
 import { checked } from "./checked.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.112.4";
 
@@ -203,7 +204,7 @@ export async function fetchText(
   for (let attempt = 0; attempt < 2; attempt++) {
     
     try {
-      const r = await fetch(url, {
+      const r = await fetchProvider(url, {
         redirect: "follow",
         headers: {
           "user-agent": UA,
@@ -212,7 +213,7 @@ export async function fetchText(
           "cache-control": "no-cache",
         },
         signal: AbortSignal.timeout(timeout),
-      });
+      }, SUPABASE_URL);
       if (!r.ok) {
         const e = new Error(`HTTP ${r.status} ${r.statusText}`);
         if (r.status >= 400 && r.status < 500 && r.status !== 429) throw e;
@@ -221,7 +222,7 @@ export async function fetchText(
       }
       return {
         text: await r.text(),
-        url: r.url,
+        url: r.url || url,
         ct: r.headers.get("content-type") || "",
       };
     } catch (e) {
@@ -233,7 +234,7 @@ export async function fetchText(
   throw last instanceof Error ? last : new Error(String(last));
 }
 export async function fetchJson(url: string, init: RequestInit = {}) {
-  const r = await fetch(url, {
+  const r = await fetchProvider(url, {
     redirect: "follow",
     ...init,
     headers: {
@@ -242,7 +243,7 @@ export async function fetchJson(url: string, init: RequestInit = {}) {
       ...(init.headers || {}),
     },
     signal: AbortSignal.timeout(12000),
-  });
+  }, SUPABASE_URL);
   if (!r.ok) throw new Error(`HTTP ${r.status} ${url}`);
   return r.json();
 }

@@ -22,6 +22,10 @@ export async function verifyRuntime(runtime,read=readFile,options={}){
    const text=String(await read(file.path));
    if(hash(text)!==file.sha256)drift(`Runtime drift: ${fn.slug}/${file.path}`);
    if(file.deployed_sha256!==file.sha256)drift(`Recorded deployment drift: ${fn.slug}/${file.path}`);
+   for(const match of text.matchAll(/\b(?:from\s*|import\s*\(\s*|import\s*)["'](https?:[^"']+)["']/g)){
+    const url=new URL(match[1]);
+    if([...url.searchParams.keys()].some(key=>/^(token|access_token|auth|apikey|api_key)$/i.test(key)))throw new Error(`Credential-bearing runtime import: ${fn.slug}/${file.path}`);
+   }
    for(const match of text.matchAll(/\b(?:from\s*|import\s*\(\s*|import\s*)["'](\.[^"']+)["']/g)){
     const dependency=posix.normalize(posix.join(posix.dirname(file.path),match[1]));
     if(!paths.has(dependency))throw new Error(`Missing bundled dependency: ${fn.slug}/${dependency}`);

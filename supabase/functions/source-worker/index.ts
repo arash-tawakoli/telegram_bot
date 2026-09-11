@@ -14,21 +14,16 @@ import { runCatalog } from "./catalog.ts";
 async function processSource(id: number) {
   const { data: source, error } = await db
     .from("sources")
-    .select("*")
+    .select("*,source_connectors(priority,label,connector_kind,enumerable,shadow_only,config,enabled)")
     .eq("id", id)
     .eq("enabled", true)
     .eq("runtime_mode", "live")
     .single();
   if (error || !source) throw new Error(error?.message || "source unavailable");
   const s = source as Source;
-  const { data: cs, error: ce } = await db
-    .from("source_connectors")
-    .select("priority,label,connector_kind,enumerable,shadow_only,config")
-    .eq("source_id", id)
-    .eq("enabled", true)
-    .order("priority");
-  if (ce) throw ce;
-  const connectors = (cs || []) as Connector[];
+  const connectors = (source.source_connectors || [])
+    .filter((c: any) => c.enabled)
+    .sort((a: any, b: any) => a.priority - b.priority) as Connector[];
   if (id === 1) return runScout(s);
   if (id === 2) return runKlein(s);
   const primary = connectors.find((c) => !c.shadow_only) || connectors[0];

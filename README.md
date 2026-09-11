@@ -3,6 +3,7 @@
 Supabase-Backend für `@traumwohnunghamburgbot`: zentrale Wohnungssuche über 65 konfigurierte Hamburger Quellen, Dublettenprüfung, Suchprofile und Telegram-Zustellung.
 
 - [Architektur](docs/ARCHITECTURE.md)
+- [Produktive Optimierung und Verifikation vom 11. September 2026](docs/SUPABASE_OPTIMIZATION_2026-09-11.md)
 - [Bereinigung und Prüfnachweise vom 9. September 2026](docs/ARCHITECTURE_CLEANUP_2026-09-09.md)
 - [Migrationsabgleich und Rollout](docs/MIGRATION_RECONCILIATION.md)
 - [Quellen und Connectoren](docs/source-connectors.md)

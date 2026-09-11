@@ -1,0 +1,65 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFile,readdir} from 'node:fs/promises';
+import {PGlite} from '@electric-sql/pglite';
+const db=new PGlite();
+const root=new URL('../',import.meta.url);
+const read=p=>readFile(new URL(p,root),'utf8');
+await db.exec(await read('tests/fixtures/schema.sql'));
+await db.exec(await read('tests/fixtures/production-functions.sql'));
+const lifecycle=(await readdir(new URL('supabase/migrations/',root))).find(x=>x.endsWith('_harden_referral_and_source_job_lifecycle.sql'));
+await db.exec(await read('supabase/migrations/'+lifecycle));
+await db.exec(`
+ CREATE SCHEMA app_private;CREATE SCHEMA cron;
+ CREATE TABLE crawl_runs(id serial,success boolean,finished_at timestamptz);
+ CREATE TABLE delivery_events(id serial,status text,created_at timestamptz);
+ CREATE TABLE app_private.source_shadow_runs(id serial,checked_at timestamptz);
+ CREATE TABLE app_private.telegram_effects(update_id bigint);
+ CREATE TABLE bot_events(telegram_update_id bigint,created_at timestamptz,processing_status text);
+ CREATE TABLE pgmq.a_source_jobs(msg_id bigint,archived_at timestamptz);
+ CREATE FUNCTION pgmq.delete(text,bigint) RETURNS boolean LANGUAGE sql AS $$DELETE FROM pgmq.messages WHERE msg_id=$2 RETURNING true$$;
+ CREATE TABLE cron.job(jobid serial PRIMARY KEY,jobname text UNIQUE,schedule text,command text);
+ CREATE TABLE cron.job_run_details(runid serial,status text,end_time timestamptz);
+ CREATE FUNCTION cron.unschedule(integer) RETURNS boolean LANGUAGE sql AS $$DELETE FROM cron.job WHERE jobid=$1 RETURNING true$$;
+ CREATE FUNCTION cron.schedule(text,text,text) RETURNS bigint LANGUAGE sql AS $$INSERT INTO cron.job(jobname,schedule,command) VALUES($1,$2,$3) RETURNING jobid::bigint$$;
+ SELECT cron.schedule('architecture-maintenance-daily','daily','old');SELECT cron.schedule('shadow-history-cleanup','daily','old');
+`);
+await db.exec(await read('supabase/migrations/20260911031814_bounded_operational_retention.sql'));
+const count=async t=>(await db.query('select count(*)::int n from '+t)).rows[0].n;
+const cleanup=async()=>(await db.query('select app_private.maintenance_cleanup() r')).rows[0].r;
+await test('cleanup preserves retention boundaries, failures, pending work and running inbox effects',async()=>{
+ await db.exec(`
+  INSERT INTO source_jobs(status,finished_at) VALUES('done',now()-interval '8 days'),('done',now()-interval '6 days'),('dead',now()-interval '20 days'),('dead',now()-interval '31 days'),('processing',now()-interval '40 days');
+  INSERT INTO crawl_runs(success,finished_at) VALUES(true,now()-interval '8 days'),(false,now()-interval '20 days'),(false,now()-interval '31 days'),(null,null);
+  INSERT INTO delivery_events(status,created_at) VALUES('sent',now()-interval '91 days'),('pending',now()-interval '100 days'),('sent',now()-interval '89 days');
+  INSERT INTO pgmq.a_source_jobs VALUES(1,now()-interval '15 days'),(2,now()-interval '13 days');
+  INSERT INTO app_private.source_shadow_runs(checked_at) VALUES(now()-interval '31 days'),(now()-interval '29 days');
+  INSERT INTO bot_events VALUES(1,now()-interval '31 days','done'),(2,now()-interval '31 days','processing'),(3,now()-interval '29 days','done');
+  INSERT INTO app_private.telegram_effects VALUES(1),(2),(3);
+  INSERT INTO cron.job_run_details(status,end_time) VALUES('succeeded',now()-interval '8 days'),('failed',now()-interval '20 days'),('failed',now()-interval '31 days'),('running',now()-interval '40 days');
+ `);
+ assert.deepEqual(await cleanup(),{source_jobs_deleted:2,queue_archive_deleted:1,crawl_runs_deleted:2,delivery_events_deleted:1,shadow_runs_deleted:1,telegram_effects_deleted:1,cron_runs_deleted:2});
+ assert.equal(await count('source_jobs'),3);assert.equal(await count('bot_events'),3);
+ assert.deepEqual((await db.query('select update_id from app_private.telegram_effects order by 1')).rows.map(r=>r.update_id),[2,3]);
+});
+await test('each cleanup is bounded and the hourly schedule has no duplicate daily timers',async()=>{
+ await db.exec("INSERT INTO crawl_runs(success,finished_at) SELECT true,now()-interval '8 days' FROM generate_series(1,5001)");
+ assert.equal((await cleanup()).crawl_runs_deleted,5000);
+ assert.equal((await cleanup()).crawl_runs_deleted,1);
+ assert.deepEqual((await db.query('select jobname,schedule from cron.job')).rows,[{jobname:'backend-maintenance-hourly',schedule:'17 * * * *'}]);
+});
+await test('successful queue payloads are deleted, failures retained, stale attempts rejected',async()=>{
+ const id='00000000-0000-4000-8000-000000000090';
+ await db.query("INSERT INTO source_jobs(id,queue_msg_id,status,attempts) VALUES($1,90,'processing',2)",[id]);
+ await db.exec("INSERT INTO pgmq.messages(msg_id,message) VALUES(90,'{}')");
+ assert.equal((await db.query('select finish_source_job_attempt($1,1,true,null) ok',[id])).rows[0].ok,false);
+ assert.equal(await count('pgmq.messages'),1);
+ assert.equal((await db.query('select finish_source_job_attempt($1,2,true,null) ok',[id])).rows[0].ok,true);
+ assert.equal(await count('pgmq.messages'),0);
+ assert.equal((await db.query('select finish_source_job_attempt($1,2,true,null) ok',[id])).rows[0].ok,true);
+ await db.query("UPDATE source_jobs SET status='processing',attempts=3 WHERE id=$1",[id]);
+ await db.exec("INSERT INTO pgmq.messages(msg_id,message) VALUES(90,'{}')");
+ assert.equal((await db.query("select finish_source_job_attempt($1,3,false,'provider failed') ok",[id])).rows[0].ok,true);
+ assert.equal((await db.query('select archived from pgmq.messages where msg_id=90')).rows[0].archived,true);
+});
+await db.close();

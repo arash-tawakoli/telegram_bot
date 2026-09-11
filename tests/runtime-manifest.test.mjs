@@ -20,3 +20,7 @@ test('runtime gate rejects ambiguous duplicate functions',async()=>{
  const text='export const ok=true;',m=fixture(text);m.functions.push(structuredClone(m.functions[0]));
  await assert.rejects(verifyRuntime(m,async()=>text),/Duplicate function/);
 });
+test('runtime gate rejects temporary credential-bearing code imports',async()=>{
+ const text="import 'https://raw.githubusercontent.com/example/repo/commit/runtime.ts?token=fixture-only';";
+ await assert.rejects(verifyRuntime(fixture(text),async()=>text),/Credential-bearing runtime import/);
+});

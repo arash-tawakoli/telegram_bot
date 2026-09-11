@@ -1,0 +1,988 @@
+{
+  "project": "dpmohkrwdlicexwcrqfy",
+  "date": "2026-09-11",
+  "listing_indexes": {
+    "before_bytes": 75456512,
+    "after_bytes": 8323072,
+    "reduction_percent": 88.96971012919336
+  },
+  "heartbeat_probe": {
+    "rows": 99,
+    "source_id": 13,
+    "transactions": "rolled back",
+    "before": [
+      {
+        "WAL Bytes": 1282652,
+        "WAL Records": 1449,
+        "WAL FPI": 353,
+        "Shared Hit Blocks": 4299,
+        "Execution Time": 313.907
+      },
+      {
+        "WAL Bytes": 371037,
+        "WAL Records": 1504,
+        "WAL FPI": 42,
+        "Shared Hit Blocks": 4474,
+        "Execution Time": 15.556
+      },
+      {
+        "WAL Bytes": 358054,
+        "WAL Records": 1505,
+        "WAL FPI": 38,
+        "Shared Hit Blocks": 4441,
+        "Execution Time": 14.806
+      }
+    ],
+    "immediate_after": [
+      {
+        "WAL Bytes": 902944,
+        "WAL Records": 646,
+        "WAL FPI": 251,
+        "Shared Hit Blocks": 2088,
+        "Execution Time": 219.262
+      },
+      {
+        "WAL Bytes": 306790,
+        "WAL Records": 666,
+        "WAL FPI": 51,
+        "Shared Hit Blocks": 2185,
+        "Execution Time": 20.167
+      },
+      {
+        "WAL Bytes": 304038,
+        "WAL Records": 664,
+        "WAL FPI": 48,
+        "Shared Hit Blocks": 2163,
+        "Execution Time": 18.944
+      }
+    ],
+    "steady_after": [
+      {
+        "WAL Bytes": 504863,
+        "WAL Records": 414,
+        "WAL FPI": 138,
+        "Shared Hit Blocks": 1071,
+        "Execution Time": 63.81
+      },
+      {
+        "WAL Bytes": 156716,
+        "WAL Records": 324,
+        "WAL FPI": 5,
+        "Shared Hit Blocks": 1043,
+        "Execution Time": 6.074
+      },
+      {
+        "WAL Bytes": 157905,
+        "WAL Records": 326,
+        "WAL FPI": 6,
+        "Shared Hit Blocks": 1069,
+        "Execution Time": 12.474
+      }
+    ],
+    "before_median": {
+      "WAL Bytes": 371037,
+      "WAL Records": 1504,
+      "WAL FPI": 42,
+      "Shared Hit Blocks": 4441,
+      "Execution Time": 15.556
+    },
+    "steady_after_median": {
+      "WAL Bytes": 157905,
+      "WAL Records": 326,
+      "WAL FPI": 6,
+      "Shared Hit Blocks": 1069,
+      "Execution Time": 12.474
+    },
+    "limits": "Three samples per stage, different checkpoints/heap layout; ordinary VACUUM and production traffic occurred between stages. Not a project-wide CPU/WAL/billing measurement."
+  },
+  "listing_update_window": {
+    "updates": 104111,
+    "hot_updates": 94786,
+    "hot_percent": 91.04321349329082,
+    "limits": "Cumulative-counter difference from the first 2026-09-10 audit snapshot to 2026-09-11 03:27 UTC, including pre-cutover traffic and rolled-back probes."
+  },
+  "runtime": {
+    "bundles": 28,
+    "migrations": 163,
+    "tests_passed": 153,
+    "changed_deployment_bundles": 16,
+    "provider_handlers": 10,
+    "configured_sources": 11,
+    "cron_jobs": 9
+  },
+  "post_cutover_sources": [
+    {
+      "source_id": 1,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 2,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 3,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 4,
+      "successes": 0,
+      "failures": 1,
+      "last_error": "SAGA public provider index returned no verified Hamburg rental apartments"
+    },
+    {
+      "source_id": 5,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 6,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 7,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 8,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 9,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 10,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 11,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 12,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 13,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 15,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 16,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 17,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 19,
+      "successes": 0,
+      "failures": 1,
+      "last_error": "Nestpick inventory changed during pagination"
+    },
+    {
+      "source_id": 20,
+      "successes": 2,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 22,
+      "successes": 2,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 23,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 24,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 25,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 26,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 27,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 28,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 29,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 30,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 32,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 33,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 34,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 35,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 36,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 37,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 38,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 39,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 40,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 41,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 42,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 43,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 44,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 45,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 46,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 47,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 48,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 50,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 52,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 53,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 55,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 58,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 61,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    },
+    {
+      "source_id": 65,
+      "successes": 1,
+      "failures": 0,
+      "last_error": null
+    }
+  ],
+  "cron": [
+    {
+      "jobname": "backend-maintenance-hourly",
+      "schedule": "17 * * * *",
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "jobname": "coop-provider-index-enqueue",
+      "schedule": "*/5 * * * *",
+      "successes": 2,
+      "failures": 0
+    },
+    {
+      "jobname": "coop-provider-index-process",
+      "schedule": "* * * * *",
+      "successes": 9,
+      "failures": 0
+    },
+    {
+      "jobname": "expire-admin-premium-overrides",
+      "schedule": "* * * * *",
+      "successes": 9,
+      "failures": 0
+    },
+    {
+      "jobname": "notification-dispatcher-every-minute",
+      "schedule": "* * * * *",
+      "successes": 9,
+      "failures": 0
+    },
+    {
+      "jobname": "platform-applications",
+      "schedule": "* * * * *",
+      "successes": 9,
+      "failures": 0
+    },
+    {
+      "jobname": "source-scheduler-every-minute",
+      "schedule": "* * * * *",
+      "successes": 9,
+      "failures": 0
+    },
+    {
+      "jobname": "source-shadow-probes",
+      "schedule": "12 * * * *",
+      "successes": 0,
+      "failures": 0
+    },
+    {
+      "jobname": "telegram-inbox-recovery",
+      "schedule": "* * * * *",
+      "successes": 9,
+      "failures": 0
+    }
+  ],
+  "rpc_access": [
+    {
+      "routine": "finish_source_job(uuid,boolean,text)",
+      "anon": false,
+      "authenticated": false,
+      "service": true
+    },
+    {
+      "routine": "finish_source_job_attempt(uuid,integer,boolean,text)",
+      "anon": false,
+      "authenticated": false,
+      "service": true
+    },
+    {
+      "routine": "ingest_listing_batch(smallint,jsonb)",
+      "anon": false,
+      "authenticated": false,
+      "service": true
+    }
+  ],
+  "platform": [
+    {
+      "audit": {
+        "buckets": [
+          {
+            "name": "telegram-assets",
+            "public": true,
+            "objects": 1
+          }
+        ],
+        "auth_users": 0,
+        "extensions": [
+          {
+            "name": "plpgsql",
+            "version": "1.0"
+          },
+          {
+            "name": "pg_stat_statements",
+            "version": "1.11"
+          },
+          {
+            "name": "uuid-ossp",
+            "version": "1.1"
+          },
+          {
+            "name": "pgcrypto",
+            "version": "1.3"
+          },
+          {
+            "name": "supabase_vault",
+            "version": "0.3.1"
+          },
+          {
+            "name": "pg_net",
+            "version": "0.20.4"
+          },
+          {
+            "name": "pg_cron",
+            "version": "1.6.4"
+          },
+          {
+            "name": "pg_trgm",
+            "version": "1.6"
+          },
+          {
+            "name": "pgmq",
+            "version": "1.5.1"
+          }
+        ],
+        "realtime_tables": [],
+        "replication_slots": []
+      }
+    }
+  ],
+  "http_smoke": [
+    {
+      "function": "source-worker",
+      "status": 405,
+      "body": "method not allowed"
+    },
+    {
+      "function": "telegram-ui",
+      "status": 405,
+      "body": "method not allowed"
+    },
+    {
+      "function": "application-worker",
+      "status": 405,
+      "body": "method not allowed"
+    },
+    {
+      "function": "notification-dispatcher",
+      "status": 405,
+      "body": "method not allowed"
+    },
+    {
+      "function": "wunder-probe",
+      "status": 410,
+      "body": "diagnostic endpoint retired"
+    }
+  ],
+  "later_live_verification": [
+    {
+      "verification": {
+        "probes": [
+          {
+            "id": 178790,
+            "body": "invalid target",
+            "status": 400,
+            "timed_out": false
+          },
+          {
+            "id": 178789,
+            "body": "{\"ok\":true,\"dry_run\":true}",
+            "status": 200,
+            "timed_out": false
+          }
+        ],
+        "hourly_jobs": [
+          {
+            "jobname": "backend-maintenance-hourly",
+            "failures": 0,
+            "successes": 5
+          },
+          {
+            "jobname": "source-shadow-probes",
+            "failures": 0,
+            "successes": 5
+          }
+        ],
+        "observed_at": "2026-09-11T08:21:41.82097+00:00",
+        "overdue_source_jobs": 0,
+        "klein_since_final_deploy": null,
+        "orphan_functions_remaining": 0
+      }
+    }
+  ],
+  "final_klein_run": {
+    "started_at": "2026-09-11 08:22:03.835+00",
+    "finished_at": "2026-09-11 08:22:12.12+00",
+    "success": true,
+    "fetched_count": 158,
+    "inserted_count": 2,
+    "error": null
+  },
+  "advisors": {
+    "security": {
+      "result": {
+        "lints": [
+          {
+            "name": "rls_enabled_no_policy",
+            "title": "RLS Enabled No Policy",
+            "level": "INFO",
+            "facing": "EXTERNAL",
+            "categories": [
+              "SECURITY"
+            ],
+            "description": "Detects cases where row level security (RLS) has been enabled on a table but no RLS policies have been created.",
+            "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy",
+            "count": 30,
+            "findings": [
+              {
+                "detail": "Table \\`app_private.application_platforms\\` has RLS enabled, but no policies exist",
+                "metadata": {
+                  "name": "application_platforms",
+                  "type": "table",
+                  "schema": "app_private"
+                },
+                "observed_at": "2026-09-11T03:28:43.011Z"
+              },
+              {
+                "detail": "Table \\`app_private.coop_provider_index_requests\\` has RLS enabled, but no policies exist",
+                "metadata": {
+                  "name": "coop_provider_index_requests",
+                  "type": "table",
+                  "schema": "app_private"
+                },
+                "observed_at": "2026-09-11T03:28:43.011Z"
+              },
+              {
+                "detail": "Table \\`app_private.dispatch_control\\` has RLS enabled, but no policies exist",
+                "metadata": {
+                  "name": "dispatch_control",
+                  "type": "table",
+                  "schema": "app_private"
+                },
+                "observed_at": "2026-09-11T03:28:43.011Z"
+              },
+              {
+                "detail": "Table \\`app_private.source_shadow_runs\\` has RLS enabled, but no policies exist",
+                "metadata": {
+                  "name": "source_shadow_runs",
+                  "type": "table",
+                  "schema": "app_private"
+                },
+                "observed_at": "2026-09-11T03:28:43.011Z"
+              },
+              {
+                "detail": "Table \\`app_private.telegram_effects\\` has RLS enabled, but no policies exist",
+                "metadata": {
+                  "name": "telegram_effects",
+                  "type": "table",
+                  "schema": "app_private"
+                },
+                "observed_at": "2026-09-11T03:28:43.011Z"
+              },
+              {
+                "detail": "Table \\`public.applications\\` has RLS enabled, but no policies exist",
+                "metadata": {
+                  "name": "applications",
+                  "type": "table",
+                  "schema": "public"
+                },
+                "observed_at": "2026-09-11T03:28:43.011Z"
+              },
+              {
+                "detail": "Table \\`public.bot_events\\` has RLS enabled, but no policies exist",
+                "metadata": {
+                  "name": "bot_events",
+                  "type": "table",
+                  "schema": "public"
+                },
+                "observed_at": "2026-09-11T03:28:43.011Z"
+              },
+              {
+                "detail": "Table \\`public.bot_users\\` has RLS enabled, but no policies exist",
+                "metadata": {
+                  "name": "bot_users",
+                  "type": "table",
+                  "schema": "public"
+                },
+                "observed_at": "2026-09-11T03:28:43.011Z"
+              },
+              {
+                "detail": "Table \\`public.crawl_runs\\` has RLS enabled, but no policies exist",
+                "metadata": {
+                  "name": "crawl_runs",
+                  "type": "table",
+                  "schema": "public"
+                },
+                "observed_at": "2026-09-11T03:28:43.011Z"
+              },
+              {
+                "detail": "Table \\`public.delivery_events\\` has RLS enabled, but no policies exist",
+                "metadata": {
+                  "name": "delivery_events",
+                  "type": "table",
+                  "schema": "public"
+                },
+                "observed_at": "2026-09-11T03:28:43.011Z"
+              },
+              {
+                "detail": "Table \\`public.hamburg_boroughs\\` has RLS enabled, but no policies exist",
+                "metadata": {
+                  "name": "hamburg_boroughs",
+                  "type": "table",
+                  "schema": "public"
+                },
+                "observed_at": "2026-09-11T03:28:43.011Z"
+              },
+              {
+                "detail": "Table \\`public.hamburg_neighborhoods\\` has RLS enabled, but no policies exist",
+                "metadata": {
+                  "name": "hamburg_neighborhoods",
+                  "type": "table",
+                  "schema": "public"
+                },
+                "observed_at": "2026-09-11T03:28:43.011Z"
+              },
+              {
+                "detail": "Table \\`public.listing_changes\\` has RLS enabled, but no policies exist",
+                "metadata": {
+                  "name": "listing_changes",
+                  "type": "table",
+                  "schema": "public"
+                },
+                "observed_at": "2026-09-11T03:28:43.011Z"
+              },
+              {
+                "detail": "Table \\`public.listing_dedupe_groups\\` has RLS enabled, but no policies exist",
+                "metadata": {
+                  "name": "listing_dedupe_groups",
+                  "type": "table",
+                  "schema": "public"
+                },
+                "observed_at": "2026-09-11T03:28:43.011Z"
+              },
+              {
+                "detail": "Table \\`public.listings\\` has RLS enabled, but no policies exist",
+                "metadata": {
+                  "name": "listings",
+                  "type": "table",
+                  "schema": "public"
+                },
+                "observed_at": "2026-09-11T03:28:43.011Z"
+              },
+              {
+                "detail": "Table \\`public.neighborhood_facts\\` has RLS enabled, but no policies exist",
+                "metadata": {
+                  "name": "neighborhood_facts",
+                  "type": "table",
+                  "schema": "public"
+                },
+                "observed_at": "2026-09-11T03:28:43.011Z"
+              },
+              {
+                "detail": "Table \\`public.notification_preferences\\` has RLS enabled, but no policies exist",
+                "metadata": {
+                  "name": "notification_preferences",
+                  "type": "table",
+                  "schema": "public"
+                },
+                "observed_at": "2026-09-11T03:28:43.011Z"
+              },
+              {
+                "detail": "Table \\`public.platform_sessions\\` has RLS enabled, but no policies exist",
+                "metadata": {
+                  "name": "platform_sessions",
+                  "type": "table",
+                  "schema": "public"
+                },
+                "observed_at": "2026-09-11T03:28:43.011Z"
+              },
+              {
+                "detail": "Table \\`public.referral_codes\\` has RLS enabled, but no policies exist",
+                "metadata": {
+                  "name": "referral_codes",
+                  "type": "table",
+                  "schema": "public"
+                },
+                "observed_at": "2026-09-11T03:28:43.011Z"
+              },
+              {
+                "detail": "Table \\`public.referrals\\` has RLS enabled, but no policies exist",
+                "metadata": {
+                  "name": "referrals",
+                  "type": "table",
+                  "schema": "public"
+                },
+                "observed_at": "2026-09-11T03:28:43.011Z"
+              },
+              {
+                "detail": "Table \\`public.route_cache\\` has RLS enabled, but no policies exist",
+                "metadata": {
+                  "name": "route_cache",
+                  "type": "table",
+                  "schema": "public"
+                },
+                "observed_at": "2026-09-11T03:28:43.011Z"
+              },
+              {
+                "detail": "Table \\`public.saved_listings\\` has RLS enabled, but no policies exist",
+                "metadata": {
+                  "name": "saved_listings",
+                  "type": "table",
+                  "schema": "public"
+                },
+                "observed_at": "2026-09-11T03:28:43.011Z"
+              },
+              {
+                "detail": "Table \\`public.search_profiles\\` has RLS enabled, but no policies exist",
+                "metadata": {
+                  "name": "search_profiles",
+                  "type": "table",
+                  "schema": "public"
+                },
+                "observed_at": "2026-09-11T03:28:43.011Z"
+              },
+              {
+                "detail": "Table \\`public.source_connectors\\` has RLS enabled, but no policies exist",
+                "metadata": {
+                  "name": "source_connectors",
+                  "type": "table",
+                  "schema": "public"
+                },
+                "observed_at": "2026-09-11T03:28:43.011Z"
+              },
+              {
+                "detail": "Table \\`public.source_coverage_state\\` has RLS enabled, but no policies exist",
+                "metadata": {
+                  "name": "source_coverage_state",
+                  "type": "table",
+                  "schema": "public"
+                },
+                "observed_at": "2026-09-11T03:28:43.011Z"
+              },
+              {
+                "detail": "Table \\`public.source_jobs\\` has RLS enabled, but no policies exist",
+                "metadata": {
+                  "name": "source_jobs",
+                  "type": "table",
+                  "schema": "public"
+                },
+                "observed_at": "2026-09-11T03:28:43.011Z"
+              },
+              {
+                "detail": "Table \\`public.sources\\` has RLS enabled, but no policies exist",
+                "metadata": {
+                  "name": "sources",
+                  "type": "table",
+                  "schema": "public"
+                },
+                "observed_at": "2026-09-11T03:28:43.011Z"
+              },
+              {
+                "detail": "Table \\`public.stripe_webhook_events\\` has RLS enabled, but no policies exist",
+                "metadata": {
+                  "name": "stripe_webhook_events",
+                  "type": "table",
+                  "schema": "public"
+                },
+                "observed_at": "2026-09-11T03:28:43.011Z"
+              },
+              {
+                "detail": "Table \\`public.user_destinations\\` has RLS enabled, but no policies exist",
+                "metadata": {
+                  "name": "user_destinations",
+                  "type": "table",
+                  "schema": "public"
+                },
+                "observed_at": "2026-09-11T03:28:43.011Z"
+              },
+              {
+                "detail": "Table \\`public.user_subscriptions\\` has RLS enabled, but no policies exist",
+                "metadata": {
+                  "name": "user_subscriptions",
+                  "type": "table",
+                  "schema": "public"
+                },
+                "observed_at": "2026-09-11T03:28:43.011Z"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "performance": {
+      "result": {
+        "lints": [
+          {
+            "name": "unused_index",
+            "title": "Unused Index",
+            "level": "INFO",
+            "facing": "EXTERNAL",
+            "categories": [
+              "PERFORMANCE"
+            ],
+            "description": "Detects if an index has never been used and may be a candidate for removal.",
+            "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index",
+            "count": 6,
+            "findings": [
+              {
+                "detail": "Index \\`hamburg_neighborhoods_borough_idx\\` on table \\`public.hamburg_neighborhoods\\` has not been used",
+                "metadata": {
+                  "name": "hamburg_neighborhoods",
+                  "type": "table",
+                  "schema": "public"
+                },
+                "observed_at": "2026-09-11T03:28:44.352Z"
+              },
+              {
+                "detail": "Index \\`delivery_events_change_id_idx\\` on table \\`public.delivery_events\\` has not been used",
+                "metadata": {
+                  "name": "delivery_events",
+                  "type": "table",
+                  "schema": "public"
+                },
+                "observed_at": "2026-09-11T03:28:44.352Z"
+              },
+              {
+                "detail": "Index \\`coop_provider_index_requests_source_id_idx\\` on table \\`app_private.coop_provider_index_requests\\` has not been used",
+                "metadata": {
+                  "name": "coop_provider_index_requests",
+                  "type": "table",
+                  "schema": "app_private"
+                },
+                "observed_at": "2026-09-11T03:28:44.352Z"
+              },
+              {
+                "detail": "Index \\`route_cache_destination_id_idx\\` on table \\`public.route_cache\\` has not been used",
+                "metadata": {
+                  "name": "route_cache",
+                  "type": "table",
+                  "schema": "public"
+                },
+                "observed_at": "2026-09-11T03:28:44.352Z"
+              },
+              {
+                "detail": "Index \\`applications_listing_idx\\` on table \\`public.applications\\` has not been used",
+                "metadata": {
+                  "name": "applications",
+                  "type": "table",
+                  "schema": "public"
+                },
+                "observed_at": "2026-09-11T03:28:44.352Z"
+              },
+              {
+                "detail": "Index \\`applications_source_idx\\` on table \\`public.applications\\` has not been used",
+                "metadata": {
+                  "name": "applications",
+                  "type": "table",
+                  "schema": "public"
+                },
+                "observed_at": "2026-09-11T03:28:44.352Z"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

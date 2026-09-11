@@ -1,11 +1,11 @@
 # Architektur und Betrieb
-Stand: 10.09.2026. [Effizienz-Audit und Messwerte](SUPABASE_EFFICIENCY_2026-09-10.md) · [Vorherige Bereinigung](ARCHITECTURE_CLEANUP_2026-09-09.md) · [Einzelaudit aller Quellen](SOURCE_DELIVERY_AUDIT_2026-09-09.md)
+Stand: 11.09.2026. [Produktive Optimierung und Messwerte](SUPABASE_OPTIMIZATION_2026-09-11.md) · [Effizienz-Audit und Messwerte](SUPABASE_EFFICIENCY_2026-09-10.md) · [Vorherige Bereinigung](ARCHITECTURE_CLEANUP_2026-09-09.md) · [Einzelaudit aller Quellen](SOURCE_DELIVERY_AUDIT_2026-09-09.md)
 
 ## Datenfluss und Verantwortlichkeiten
 
-Cron plant fällige Quellen in `source_jobs`/PGMQ ein. Ein zentraler `source-worker` reserviert Jobs und ruft spezialisierte Adapter auf. Anbieterabhängige Transport- und Feed-Funktionen liefern Daten; sie betreiben keine zweite generische Queue. `sources` und `source_connectors` in Supabase sind die produktive Konfiguration.
+Cron plant fällige Quellen in `source_jobs`/PGMQ ein. Ein zentraler `source-worker` reserviert Jobs und ruft spezialisierte Adapter auf. Zehn anbieterabhängige Transport-/Feed-Handler werden direkt im Worker aufgerufen; ihre HTTP-Endpunkte bleiben kompatible Wrapper. Auch der Noncoop-Feed ruft seinen Basis-Handler direkt auf. Kleinanzeigen verwendet denselben URL-geprüften Fetch-Helper wie sein authentifizierter HTTP-Endpunkt; interne Seitenabrufe benötigen keinen weiteren Secret-RPC. Quelle und Connector-Konfiguration werden pro Job gemeinsam geladen. `sources` und `source_connectors` in Supabase sind die produktive Konfiguration.
 
-Ein gemeinsamer minutengenauer Scheduler plant Jobs und ruft den Worker nur bei sichtbaren Queue-Nachrichten auf. `ingest_listing_batch` verarbeitet höchstens 100 Angebote atomar pro RPC. Unveränderte normalisierte Quelldaten aktualisieren nur `last_seen_at`; neue/geänderte Daten durchlaufen weiterhin die vorhandenen Trigger. Ein separater Fingerprint beschreibt den Connector-Input, nicht nachträglich angereicherte Daten. Externe Änderungen an Quellfeldern invalidieren diesen Cache. Änderungen an Enrichment-Regeln müssen ebenfalls eine gezielte Cache-Invalidierung vorsehen.
+Ein gemeinsamer minutengenauer Scheduler plant Jobs und ruft den Worker nur bei sichtbaren Queue-Nachrichten auf. `ingest_listing_batch` verarbeitet höchstens 100 Angebote atomar pro RPC. Unveränderte normalisierte Quelldaten aktualisieren nur einen neueren `last_seen_at`-Wert; identische/ältere Beobachtungen schreiben keine neue Row-Version. Kein B-Tree indiziert diesen Zeitstempel; drei gezielte Teilindizes unterstützen aktive Quellen und Dubletten.  Neue/geänderte Daten durchlaufen weiterhin die vorhandenen Trigger. Ein separater Fingerprint beschreibt den Connector-Input, nicht nachträglich angereicherte Daten. Externe Änderungen an Quellfeldern invalidieren diesen Cache. Änderungen an Enrichment-Regeln müssen ebenfalls eine gezielte Cache-Invalidierung vorsehen.
 
 SQL übernimmt Qualitätsprüfung, Frischefreigabe, Dubletten und Profil-Matching. Daraus entstehen `delivery_events`. Der Dispatcher prüft die aktuelle Verfügbarkeit, ergänzt belegte Quelldaten und stellt über Telegram zu. Wiedergefundener Bestand ist nicht automatisch frisch.
 
@@ -24,19 +24,19 @@ Der bestehende Bewerbungsbereich bleibt erhalten: private Dokumente und Plattfor
 
 ## Aktueller Bestand
 
-24 versionierte Function-Bundles einschließlich zweier stillgelegter HTTP-410-Mini-App-Endpunkte und eines separaten `noop`-Support-Endpunkts. Aktuelle Codepfade sind unter `supabase/functions`, erhaltene Support-Endpunkte unter `supabase/deployed-support` abgelegt.
+28 versionierte Function-Bundles einschließlich sechs stillgelegter Diagnose-/Kompatibilitäts-Endpunkte. Die Telegram-UI enthält sämtliche Module direkt im Deployment; credential-behaftete Remote-Codeimporte werden von der Runtime-Prüfung abgewiesen. Aktuelle Codepfade sind unter `supabase/functions`, erhaltene Support-Endpunkte unter `supabase/deployed-support` abgelegt.
 
 65 registrierte Quellen: beim Audit 51 aktiviert/live, 2 aktiviert/shadow und 12 deaktiviert/shadow. Historische Quellen bleiben für Zuordnung, Diagnose und spätere verifizierte Reparaturen erhalten. Registrierungspfade beweisen kein Wohnungsinventar.
 
-Zehn aktive Cron-Jobs: gemeinsamer Source-Scheduler/Worker-Start, Dispatcher, tägliche Wartung, Ablauf von Admin-Premium-Ausnahmen, zwei Provider-Index-Aufgaben, Inbox-Recovery, stündliche Shadow-Probes, Shadow-Historienbereinigung und Bewerbungs-Worker. Der separate Source-Worker-Timer wurde entfernt. Dispatcher-Aufrufe erfordern fällige Events oder abgelaufene Leases; der Frische-Guard läuft vorher weiterhin jede Minute.
+Neun aktive Cron-Jobs: gemeinsamer Source-Scheduler/Worker-Start, Dispatcher, stündliche gemeinsame Wartung, Ablauf von Admin-Premium-Ausnahmen, zwei Provider-Index-Aufgaben, Inbox-Recovery, stündliche Shadow-Probes und Bewerbungs-Worker. Der separate Source-Worker-Timer wurde entfernt. Dispatcher-Aufrufe erfordern fällige Events oder abgelaufene Leases; der Frische-Guard läuft vorher weiterhin jede Minute.
 
 ## Sicherheit und Datenpflege
 
 Bot-/Listing-Tabellen sind für anon/authenticated nicht direkt freigegeben. Die geprüften öffentlichen SECURITY-DEFINER-Routinen sind für diese Rollen nicht ausführbar. `verify_jwt=false` bei Webhooks/internal Functions verlangt die vorhandene anwendungsseitige Authentifizierung; diese bleibt erhalten.
 
-Service-only-Tabellen haben absichtlich RLS ohne Benutzer-Policies. Alle 49 privaten Routinen bleiben für den Backend-Service ausführbar, nicht für anon/authenticated. Auch die private Provider-Index-Queue hat RLS. Die sieben vom Advisor gemeldeten ungenutzten Indizes unterstützen Fremdschlüssel; kein Index wurde allein wegen `idx_scan=0` entfernt.
+Service-only-Tabellen haben absichtlich RLS ohne Benutzer-Policies. Alle 42 privaten Routinen bleiben für den Backend-Service ausführbar, nicht für anon/authenticated. Auch die private Provider-Index-Queue hat RLS. Die sechs vom Advisor gemeldeten ungenutzten Indizes unterstützen Fremdschlüssel; kein Index wurde allein wegen `idx_scan=0` entfernt.
 
-Bestehende tägliche Retention bleibt zuständig: erfolgreiche Jobs/Crawls 7 Tage, fehlgeschlagene 30 Tage, Queue-Archiv 14 Tage, versandte/übersprungene Events 90 Tage; Shadow-Historie 30 Tage. Derselbe Wartungsjob begrenzt jetzt auch Cron-Ausführungshistorie auf 7 Tage Erfolg/30 Tage Fehler, höchstens 20.000 Löschungen je Lauf. Fachliche Daten und Dokumente sind von dieser zusätzlichen Retention ausgenommen.
+Die stündliche Wartung entfernt höchstens 5.000 abgelaufene Datensätze je Tabelle und Lauf: erfolgreiche Jobs/Crawls 7 Tage, fehlgeschlagene 30 Tage, Queue-Archiv 14 Tage, versandte/übersprungene Events 90 Tage, Shadow-Historie und abgeschlossene Telegram-Effekte 30 Tage, Cron-Erfolg 7 Tage und Cron-Fehler 30 Tage. Erfolgreiche Queue-Payloads werden nach versuchsgebundener Bestätigung gelöscht; die Job-Metadaten bleiben erhalten. Fehler-Payloads werden weiter archiviert. Fachliche Daten und Dokumente fallen nicht unter die neue Log-Bereinigung. Elf unerreichbare Routinen mit bereits gelöschten Tabellen wurden ohne CASCADE entfernt.
 
 ## Entwicklung, Deployment und Wiederherstellung
 
@@ -52,7 +52,7 @@ Die Prüfung lehnt fehlende relative Abhängigkeiten, doppelte Bundle-Namen, abw
 
 `seed.sql` ist ausschließlich für ein leeres Register. Es lehnt vorhandene Quellen/Connectoren vor Schreibzugriffen ab. Bootstrap-URLs starten deaktiviert/shadow und müssen gegen ihre tatsächlichen Schnittstellen getestet werden, bevor ein neuer Standort live gehen kann. Historische Reparatur-SQLs unter `scripts` sind keine Replay-Reihenfolge; nie pauschal auf Produktion anwenden.
 
-156 Migrationen bleiben als abgeglichene Historie erhalten. Historische Reviews und Quellenberichte sind zeitbezogene Belege, keine aktive Konfiguration. Den spezifischen Rücknahmeweg der Effizienzänderungen beschreibt der aktuelle Auditbericht; ein pauschales Deployment des alten Commits würde neuere Bewerbungsfunktionen überschreiben.
+163 Migrationen bleiben als abgeglichene Historie erhalten. Historische Reviews und Quellenberichte sind zeitbezogene Belege, keine aktive Konfiguration. Den spezifischen Rücknahmeweg der Effizienzänderungen beschreibt der aktuelle Auditbericht; ein pauschales Deployment des alten Commits würde neuere Bewerbungsfunktionen überschreiben.
 
 ## Bekannte offene Grenzen
 

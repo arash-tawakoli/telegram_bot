@@ -1,35 +1,3 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import * as cheerio from "npm:cheerio@1.0.0";
-
-const UA="Mozilla/5.0 (compatible; TraumwohnungHamburgBot/13.0; +https://traumwohnung-hamburg.de)";
-const BASE="https://www.immobilien.de/mieten/wohnung/hamburg/";
-const HH_ZIPS=new Set("20095,20097,20099,20144,20146,20148,20149,20249,20251,20253,20255,20257,20259,20354,20355,20357,20359,20457,20459,20535,20537,20539,21029,21031,21033,21035,21037,21039,21073,21075,21077,21079,21107,21109,21129,21147,21149,22041,22043,22045,22047,22049,22081,22083,22085,22087,22089,22111,22113,22115,22117,22119,22143,22145,22147,22149,22159,22175,22177,22179,22297,22299,22301,22303,22305,22307,22309,22335,22337,22339,22359,22391,22393,22395,22397,22399,22415,22417,22419,22453,22455,22457,22459,22523,22525,22527,22529,22547,22549,22559,22587,22589,22605,22609,22761,22763,22765,22767,22769,27499".split(','));
-function num(v:string|undefined){if(!v)return null;let s=v.trim().replace(/\s/g,'').replace(/[^\d.,-]/g,'');if(!s)return null;if(s.includes(','))s=s.replace(/\./g,'').replace(',','.');else if(/^\d{1,3}\.\d{3}$/.test(s))s=s.replace('.','');const n=Number(s);return Number.isFinite(n)?n:null}
-function pageUrl(page:number){return `${BASE}?page=${page}`}
-async function load(page:number,cookie:string|null=null){const headers:any={'user-agent':UA,'accept':'text/html,application/xhtml+xml,*/*','accept-language':'de-DE,de;q=0.9','cache-control':'no-cache'};if(cookie)headers.cookie=cookie;const r=await fetch(pageUrl(page),{redirect:'follow',headers,signal:AbortSignal.timeout(15000)});if(!r.ok)throw new Error(`HTTP ${r.status} block ${page}`);const setCookie=r.headers.get('set-cookie')||'';return{text:await r.text(),url:r.url,cookie:(setCookie.split(';')[0]||cookie||null)}}
-async function loadWithRetry(page:number,cookie:string|null=null){let last:any=null;for(let attempt=0;attempt<2;attempt++){try{return await load(page,cookie)}catch(e){last=e}}throw last}
-async function loadRemaining(pages:number,cookie:string|null){const out:any[]=[];for(let start=2;start<=pages;start+=3){const batch=Array.from({length:Math.min(3,pages-start+1)},(_,i)=>start+i);out.push(...await Promise.all(batch.map(page=>loadWithRetry(page,cookie))))}return out}
-export function parseNative(html:string,page:number){
- const chunks:string[]=[];
- for(const m of html.matchAll(/self\.__next_f\.push\((\[.*?\])\)<\/script>/gs)){
-  const a=JSON.parse(m[1]);if(a[0]===1&&typeof a[1]==='string')chunks.push(a[1]);
- }
- const inventories:any[]=[];
- const walk=(x:any)=>{if(!x||typeof x!=='object')return;if(Array.isArray(x.results)&&'totalCount'in x&&'currentPage'in x)inventories.push(x);else for(const value of Object.values(x))walk(value)};
- for(const line of chunks.join('').split('\n')){const colon=line.indexOf(':');if(colon<0)continue;try{walk(JSON.parse(line.slice(colon+1)))}catch{}}
- if(inventories.length!==1)throw new Error('immobilien.de native inventory missing or ambiguous');
- const r=inventories[0];
- if(r.resultsFailed||r.totalCapped||r.currentPage!==page||!Number.isInteger(r.totalCount)||r.totalCount<0||!Number.isInteger(r.totalPages)||r.totalPages<1||r.totalPages>100||r.results.length!==Math.min(24,Math.max(0,r.totalCount-(page-1)*24))||r.totalPages!==Math.max(1,Math.ceil(r.totalCount/24)))throw new Error('immobilien.de native pagination incomplete');
- const raw:any[]=[],hamburg:any[]=[],seen=new Set<string>();
- for(const x of r.results){
-  const id=String(x.legacyId||'');if(!/^\d+$/.test(id)||seen.has(id)||typeof x.title!=='string'||typeof x.address!=='string')throw new Error('immobilien.de native listing identity invalid');seen.add(id);
-  const zipCode=x.address.match(/\b(\d{5})\b/)?.[1]||null;
-  const price=typeof x.price==='number'&&Number.isFinite(x.price)&&x.price>0&&!x.priceOnRequest?x.price:null;
-  const images=Array.isArray(x.images)?x.images.filter((u:any)=>typeof u==='string'&&/^https:\/\//.test(u)):[];
-  const item={id,url:`https://www.immobilien.de/expose/${id}`,title:x.title,address:x.address,zipCode,coldRent:x.priceLabel==='Kaltmiete'?price:null,warmRent:x.priceLabel==='Warmmiete'?price:null,rooms:typeof x.rooms==='number'?x.rooms:null,size:typeof x.area==='number'?x.area:null,imageUrl:images[0]||null,images,provider:'immobilien.de'};
-  raw.push(item);if(zipCode&&HH_ZIPS.has(zipCode)&&/\bHamburg\b/.test(x.address))hamburg.push(item);
- }
- return {raw,hamburg,total:r.totalCount,pages:r.totalPages};
-}
-function parse(html:string,base:string){if(html.includes('self.__next_f.push'))return parseNative(html,Number(new URL(base).searchParams.get('page')||1));const $=cheerio.load(html),raw:any[]=[],hamburg:any[]=[];$('a.lr-card[href*="/wohnen/"]').each((_,el)=>{const a=$(el),href=a.attr('href')||'',id=href.match(/\/wohnen\/(\d+)/)?.[1];if(!id)return;let url:string;try{url=new URL(href,base).href.replace(/#.*$/,'')}catch{return}const title=a.find('.lr-card__title').first().text().replace(/\s+/g,' ').trim()||'Wohnungsangebot',address=a.find('.lr-card__address').first().text().replace(/\s+/g,' ').trim(),zipCode=address.match(/\b(\d{5})\b/)?.[1]||null,priceText=a.find('.lr-card__price').first().text().replace(/\s+/g,' ').trim(),coldRent=/Kaltmiete/i.test(priceText)?num(priceText):null,warmRent=/Warmmiete/i.test(priceText)?num(priceText):null;let rooms:number|null=null,size:number|null=null;a.find('.lr-card__fact').each((__,fact)=>{const f=$(fact),label=f.find('.lr-card__fact-label').text().trim(),value=f.find('.lr-card__fact-value').text().trim();if(/Zimmer/i.test(label))rooms=num(value);if(/Fläche/i.test(label))size=num(value)});const image=a.find('img').first(),rawImage=image.attr('data-src')||image.attr('src')||null;let imageUrl:string|null=null;if(rawImage)try{imageUrl=new URL(rawImage,base).href}catch{}const item={id,url,title,address:address||null,zipCode,coldRent,warmRent,rooms,size,imageUrl,provider:'immobilien.de'};raw.push(item);if(zipCode&&HH_ZIPS.has(zipCode))hamburg.push(item)});const text=$('body').text().replace(/\s+/g,' '),total=Number(text.match(/Hamburg:\s*([\d.]+)\s+aktuelle Angebote/i)?.[1]?.replace(/\./g,'')||0);return{raw,hamburg,total}}
-Deno.serve(async(req:Request)=>{if(req.method!=='GET')return new Response('method not allowed',{status:405});try{const first=await loadWithRetry(1),p1=parse(first.text,first.url);if(!p1.total||!p1.raw.length)throw new Error('immobilien.de first page incomplete');const pages=Math.max(1,Math.ceil(p1.total/p1.raw.length)),rest=pages>1?await loadRemaining(pages,first.cookie):[],rawMap=new Map<string,any>(),hhMap=new Map<string,any>();for(const page of [first,...rest]){const parsed=parse(page.text,page.url);for(const x of parsed.raw)rawMap.set(x.id,x);for(const x of parsed.hamburg)hhMap.set(x.id,x)}if(rawMap.size!==p1.total)throw new Error(`immobilien.de incomplete snapshot ${rawMap.size}/${p1.total}`);const items=[...hhMap.values()];return Response.json({ok:true,provider:'immobilien.de',mode:'full_snapshot',count:items.length,totalPublic:p1.total,pages,rawCount:rawMap.size,items},{headers:{'cache-control':'no-store'}})}catch(e){return Response.json({ok:false,error:e instanceof Error?e.message:String(e)},{status:502})}});
+import { handle } from "./handler.ts";
+Deno.serve(handle);

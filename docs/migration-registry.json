@@ -1248,6 +1248,62 @@
       "file": "supabase/migrations/20260910100818_backend_internal_least_privilege.sql",
       "export_sql_sha256": "27a63bf0a39eeed5d6e2dea89eb3449baf152071ab39542b4ae617b863a5f231",
       "vault_substitution": false
+    },
+    {
+      "version": "20260910163424",
+      "name": "noop_probe_marker",
+      "registry_sql_sha256": "354b7196c9ba5fb4b21cf615bb6ec4cd5c07503c34229feef033fc081a8c03f4",
+      "file": "supabase/migrations/20260910163424_noop_probe_marker.sql",
+      "export_sql_sha256": "4a45092ccf992ea92250053a80b931b787924ba61648f420555511b84f10ab6c",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260910163430",
+      "name": "noop_probe_marker_cleanup",
+      "registry_sql_sha256": "354b7196c9ba5fb4b21cf615bb6ec4cd5c07503c34229feef033fc081a8c03f4",
+      "file": "supabase/migrations/20260910163430_noop_probe_marker_cleanup.sql",
+      "export_sql_sha256": "4a45092ccf992ea92250053a80b931b787924ba61648f420555511b84f10ab6c",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260910170820",
+      "name": "remove_saved_listing_workflow_metadata",
+      "registry_sql_sha256": "23b9518ab9def9700cfe573cc187a1694235243fb15c59f25b50a3bc7e329642",
+      "file": "supabase/migrations/20260910170820_remove_saved_listing_workflow_metadata.sql",
+      "export_sql_sha256": "83764be59299763a02177d8b089ec29493d8abbac1d5d96116141f3b481f3032",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260910193034",
+      "name": "remove_applicant_dossier_feature",
+      "registry_sql_sha256": "2c1e883f3f211ee5f11349fd059e7e10420bf3aef77405dd9695fe79ce6d463c",
+      "file": "supabase/migrations/20260910193034_remove_applicant_dossier_feature.sql",
+      "export_sql_sha256": "4ff7bacd4f59e628f5559c0e3b6066dc363747ff5961f06af9a692bc24f79c46",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260910202123",
+      "name": "listing_hot_updates_and_bounded_maintenance",
+      "registry_sql_sha256": "7127a157080a47ae0cc689d10b80feecd93cecc11dfa96007bd1bfb3707429b4",
+      "file": "supabase/migrations/20260910202123_listing_hot_updates_and_bounded_maintenance.sql",
+      "export_sql_sha256": "7127a157080a47ae0cc689d10b80feecd93cecc11dfa96007bd1bfb3707429b4",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260911031814",
+      "name": "bounded_operational_retention",
+      "registry_sql_sha256": "45280fc44f43d49c05620a446bb1ecee5621e44b2694205abb606c2ba5d4a56b",
+      "file": "supabase/migrations/20260911031814_bounded_operational_retention.sql",
+      "export_sql_sha256": "45280fc44f43d49c05620a446bb1ecee5621e44b2694205abb606c2ba5d4a56b",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260911032650",
+      "name": "retire_orphaned_inventory_routines",
+      "registry_sql_sha256": "9b72aa89aa25a0740f4ab5a8409f1f434a3c97a8b4fe442f7ee824b7f363d467",
+      "file": "supabase/migrations/20260911032650_retire_orphaned_inventory_routines.sql",
+      "export_sql_sha256": "9b72aa89aa25a0740f4ab5a8409f1f434a3c97a8b4fe442f7ee824b7f363d467",
+      "vault_substitution": false
     }
   ],
   "historical_repository_ref": "36708e9e2f073d7b3835cfd28b8222446e23c0ff",
