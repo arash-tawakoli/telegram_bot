@@ -14,7 +14,10 @@ export async function sourcePhoto(response:Response):Promise<Blob> {
 function listingKeyboard(keyboard:any,caption:string) {
   const rows=Array.isArray(keyboard?.inline_keyboard)?keyboard.inline_keyboard:[];
   if(!rows.length)return keyboard;
-  const offer=rows[0],save=rows[rows.length-1],middle=rows.slice(1,-1);
+  const offer=rows[0];
+  const save=rows.find((row:any[])=>row.some((button:any)=>String(button?.callback_data||'').startsWith('save:')||String(button?.text||'').includes('Speichern')));
+  if(!save)return keyboard;
+  const middle=rows.filter((row:any[])=>row!==offer&&row!==save);
   const mapRow=middle.find((row:any[])=>row.some((button:any)=>String(button?.text||'').includes('Google Maps')));
   const applyRow=middle.find((row:any[])=>row.some((button:any)=>String(button?.callback_data||'').startsWith('apply:')));
   const clean=(value:string)=>value.replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').trim();
