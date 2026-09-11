@@ -29,5 +29,10 @@ const singleLine = (value, max) => String(value || '').replace(/[\u0000-\u001f\u
 export function generateApplicationMessage(user, listing) {
     const title = singleLine(listing.title, 50) || 'Ihre Wohnung';
     const name = singleLine([user.first_name, user.last_name].filter(Boolean).join(' '), 40) || '[Dein Name]';
-    return `Guten Tag,\n\nich interessiere mich für „${title}“ und würde die Wohnung gerne besichtigen. Über eine Rückmeldung freue ich mich.\n\nFreundliche Grüße\n${name}`;
+    return `Guten Tag,
+
+ich interessiere mich für „${title}“ und würde die Wohnung gerne besichtigen. Über eine Rückmeldung freue ich mich.
+
+Freundliche Grüße
+${name}`;
 }
