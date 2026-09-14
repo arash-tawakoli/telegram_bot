@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';import{readFileSync}from'node:fs';import{stripTypeScriptTypes}from'node:module';import vm from'node:vm';
 const root=new URL('../supabase/functions/',import.meta.url);
 const text=readFileSync(new URL('immobilien-de-transport/handler.ts',root),'utf8');
-const code=text.slice(text.indexOf('const HH_ZIPS='),text.indexOf('function num('))+text.slice(text.indexOf('function parseNative'),text.indexOf('function parse(html:')).replace('export ','');
+const zips=readFileSync(new URL('_shared/hamburg.ts',root),'utf8').replace('export ','');const code=zips+text.slice(text.indexOf('function parseNative'),text.indexOf('function parse(html:')).replace('export ','');
 const parse=vm.runInNewContext(stripTypeScriptTypes(code)+';parseNative',{});
 const html=r=>`<script>self.__next_f.push(${JSON.stringify([1,'1:'+JSON.stringify(['$',null,null,{results:r.results,totalCount:r.totalCount,currentPage:r.currentPage,totalPages:r.totalPages}])+'\n'])})</script>`;
 const row=(id,priceLabel='Kaltmiete')=>({legacyId:id,title:'Wohnung',address:'20095 Hamburg',price:800,priceLabel,rooms:2,area:50,images:['https://example.test/photo.jpg']});
