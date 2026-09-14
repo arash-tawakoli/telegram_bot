@@ -1,3 +1,5 @@
+export { HH_ZIPS } from "../_shared/hamburg.ts";
+import { HH_ZIPS } from "../_shared/hamburg.ts";
 import { fetchProvider } from "./provider-fetch.ts";
 import { checked } from "./checked.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.112.4";
@@ -11,11 +13,7 @@ export const db = createClient(SUPABASE_URL, KEY, {
 });
 export const UA =
   "Mozilla/5.0 (compatible; TraumwohnungHamburgBot/13.0; +https://traumwohnunghamburg.de)";
-export const HH_ZIPS = new Set(
-  "20095,20097,20099,20144,20146,20148,20149,20249,20251,20253,20255,20257,20259,20354,20355,20357,20359,20457,20459,20535,20537,20539,21029,21031,21033,21035,21037,21039,21073,21075,21077,21079,21107,21109,21129,21147,21149,22041,22043,22045,22047,22049,22081,22083,22085,22087,22089,22111,22113,22115,22117,22119,22143,22145,22147,22149,22159,22175,22177,22179,22297,22299,22301,22303,22305,22307,22309,22335,22337,22339,22359,22391,22393,22395,22397,22399,22415,22417,22419,22453,22455,22457,22459,22523,22525,22527,22529,22547,22549,22559,22587,22589,22605,22609,22761,22763,22765,22767,22769,27499".split(
-    ",",
-  ),
-);
+
 export type Source = {
   id: number;
   name: string;
@@ -625,74 +623,25 @@ export async function markSuccess(
   fresh: number,
   metadata: any = {},
 ) {
-  const t = iso(),
-    complete = metadata.complete !== false,
-    baselineWasMissing = !source.baseline_completed_at,
-    baselineNow = source.baseline_completed_at || (complete ? t : null),
-    coverage = source.id === 1 ? "partial" : complete ? "complete" : "partial",
-    outcome = fetched > 0 ? "success_with_listing" : "success_no_inventory";
-  checked(
-    await db
-      .from("sources")
-      .update({
-        last_success_at: t,
-        last_error_at: null,
-        consecutive_failures: 0,
-        baseline_completed_at: baselineNow,
-        coverage_status: coverage,
-        updated_at: t,
-      })
-      .eq("id", source.id),
-    "record source success",
-  );
-  checked(
-    await db
-      .from("crawl_runs")
-      .insert({
-        source_id: source.id,
-        started_at: started,
-        finished_at: t,
-        success: true,
-        connector_priority: connector?.priority || 1,
-        connector_label: connector?.label || source.coverage_strategy,
-        fetched_count: fetched,
-        inserted_count: fresh,
-        metadata: {
-          architecture: "v3",
-          outcome,
-          baseline_initialized: baselineWasMissing && complete,
-          ...metadata,
-        },
-      }),
-    "record successful crawl",
-  );
+  const t = iso(), complete = metadata.complete !== false;
+  checked(await db.rpc("record_crawl_result", {
+    p_source_id: source.id, p_started_at: started, p_finished_at: t, p_success: true,
+    p_connector_priority: connector?.priority || 1,
+    p_connector_label: connector?.label || source.coverage_strategy,
+    p_fetched_count: fetched, p_inserted_count: fresh, p_error: null,
+    p_metadata: {
+      architecture: "v3", outcome: fetched > 0 ? "success_with_listing" : "success_no_inventory",
+      baseline_initialized: !source.baseline_completed_at && complete, ...metadata,
+    },
+  }), "record successful crawl");
 }
 export async function markFailure(source: Source, started: string, e: any) {
-  const t = iso(),
-    s = emsg(e);
-  checked(
-    await db
-      .from("sources")
-      .update({
-        last_error_at: t,
-        consecutive_failures: Number(source.consecutive_failures || 0) + 1,
-        updated_at: t,
-      })
-      .eq("id", source.id),
-    "record source failure",
-  );
-  checked(
-    await db
-      .from("crawl_runs")
-      .insert({
-        source_id: source.id,
-        started_at: started,
-        finished_at: t,
-        success: false,
-        error_message: s.slice(0, 1500),
-        metadata: { architecture: "v3", outcome: "connector_error" },
-      }),
-    "record failed crawl",
-  );
+  const s = emsg(e);
+  checked(await db.rpc("record_crawl_result", {
+    p_source_id: source.id, p_started_at: started, p_finished_at: iso(), p_success: false,
+    p_connector_priority: null, p_connector_label: null,
+    p_fetched_count: 0, p_inserted_count: 0, p_error: s.slice(0, 1500),
+    p_metadata: { architecture: "v3", outcome: "connector_error" },
+  }), "record failed crawl");
   return { ok: false, source_id: source.id, error: s };
 }

@@ -1312,6 +1312,30 @@
       "file": "supabase/migrations/20260911113000_conservative_cross_source_dedupe_guard.sql",
       "export_sql_sha256": "76ed5211476e778719cdf53c25634c5335bd39a5521d84020f634a7905255f2b",
       "vault_substitution": false
+    },
+    {
+      "version": "20260913103527",
+      "name": "indexed_operational_retention",
+      "file": "supabase/migrations/20260913103527_indexed_operational_retention.sql",
+      "registry_sql_sha256": "a6fc9c063fa6ee209290bd3605fec6dbec177257a8bef133df10b650e5b761ad",
+      "export_sql_sha256": "a6fc9c063fa6ee209290bd3605fec6dbec177257a8bef133df10b650e5b761ad",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260913103533",
+      "name": "atomic_crawl_recording",
+      "file": "supabase/migrations/20260913103533_atomic_crawl_recording.sql",
+      "registry_sql_sha256": "8a14ef05b90c3a9b3a6f3dd14d3de2744dd10b04ad435eeaad680e4b912156a2",
+      "export_sql_sha256": "8a14ef05b90c3a9b3a6f3dd14d3de2744dd10b04ad435eeaad680e4b912156a2",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260913103703",
+      "name": "selective_crawl_retention",
+      "file": "supabase/migrations/20260913103703_selective_crawl_retention.sql",
+      "registry_sql_sha256": "20297e7155a85ed19da7a7a6f3f361da5d47c94cea0096ca25ca98b85c813e55",
+      "export_sql_sha256": "20297e7155a85ed19da7a7a6f3f361da5d47c94cea0096ca25ca98b85c813e55",
+      "vault_substitution": false
     }
   ],
   "historical_repository_ref": "36708e9e2f073d7b3835cfd28b8222446e23c0ff",

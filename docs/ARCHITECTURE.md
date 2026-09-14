@@ -1,5 +1,5 @@
 # Architektur und Betrieb
-Stand: 11.09.2026. [Produktive Optimierung und Messwerte](SUPABASE_OPTIMIZATION_2026-09-11.md) · [Effizienz-Audit und Messwerte](SUPABASE_EFFICIENCY_2026-09-10.md) · [Vorherige Bereinigung](ARCHITECTURE_CLEANUP_2026-09-09.md) · [Einzelaudit aller Quellen](SOURCE_DELIVERY_AUDIT_2026-09-09.md)
+Stand: 14.09.2026. [Produktive Optimierung und Messwerte](SUPABASE_OPTIMIZATION_2026-09-11.md) · [Effizienz-Audit und Messwerte](SUPABASE_EFFICIENCY_2026-09-10.md) · [Vorherige Bereinigung](ARCHITECTURE_CLEANUP_2026-09-09.md) · [Einzelaudit aller Quellen](SOURCE_DELIVERY_AUDIT_2026-09-09.md)
 
 ## Datenfluss und Verantwortlichkeiten
 
@@ -52,7 +52,7 @@ Die Prüfung lehnt fehlende relative Abhängigkeiten, doppelte Bundle-Namen, abw
 
 `seed.sql` ist ausschließlich für ein leeres Register. Es lehnt vorhandene Quellen/Connectoren vor Schreibzugriffen ab. Bootstrap-URLs starten deaktiviert/shadow und müssen gegen ihre tatsächlichen Schnittstellen getestet werden, bevor ein neuer Standort live gehen kann. Historische Reparatur-SQLs unter `scripts` sind keine Replay-Reihenfolge; nie pauschal auf Produktion anwenden.
 
-163 Migrationen bleiben als abgeglichene Historie erhalten. Historische Reviews und Quellenberichte sind zeitbezogene Belege, keine aktive Konfiguration. Den spezifischen Rücknahmeweg der Effizienzänderungen beschreibt der aktuelle Auditbericht; ein pauschales Deployment des alten Commits würde neuere Bewerbungsfunktionen überschreiben.
+167 Migrationen bleiben als abgeglichene Historie erhalten. Historische Reviews und Quellenberichte sind zeitbezogene Belege, keine aktive Konfiguration. Den spezifischen Rücknahmeweg der Effizienzänderungen beschreibt der aktuelle Auditbericht; ein pauschales Deployment des alten Commits würde neuere Bewerbungsfunktionen überschreiben.
 
 ## Bekannte offene Grenzen
 

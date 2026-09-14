@@ -42,8 +42,8 @@ Supabase `sources` und `source_connectors` sind die Runtime-Source-of-Truth. Es 
 ## Aktueller Runtime-Split
 
 - **65 Quellen insgesamt**
-- **54 live**
-- **11 shadow**
+- **51 live**
+- **14 shadow** (davon 2 aktiviert, 12 deaktiviert)
 
 Shadow ist ausdrücklich keine vierte K-Kategorie. Eine Quelle behält ihren K1/K2/K3-Wert aus der Mastertabelle auch dann, wenn `runtime_mode='shadow'` gesetzt ist.
 
