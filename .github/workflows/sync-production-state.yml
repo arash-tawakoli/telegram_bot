@@ -1,0 +1,124 @@
+name: Sync production state
+
+on:
+  push:
+    branches: [sync-production-2026-09-14]
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Reconcile production metadata
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import crypto from 'node:crypto';
+          import path from 'node:path';
+          const hashFile = file => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+          const versions = {
+            'application-worker':37,
+            'billing-maintenance':48,
+            'covivio-feed':3,
+            'immobilie1-transport':3,
+            'immobilien-de-transport':15,
+            'immomio-probe':4,
+            'immomio-tenant-inspect':6,
+            'kleinanzeigen-transport':3,
+            'meravis-feed':5,
+            'mini-app-publisher':5,
+            'mini-app':11,
+            'noncoop-feed':4,
+            'noncoop-new-feed':6,
+            'noop':9,
+            'notification-dispatcher':105,
+            'source-shadow':11,
+            'source-worker':68,
+            'spacest-feed':4,
+            'stripe-webhook':61,
+            'telegram-fallback-logo':3,
+            'telegram-fast':6,
+            'telegram-gateway':28,
+            'telegram-premium-image':7,
+            'telegram-premium':9,
+            'telegram-ui':107,
+            'vonovia-transport':2,
+            'wunder-probe':8,
+            'wunderflats-transport':4,
+          };
+          const runtimePath='supabase/runtime-manifest.json';
+          const runtime=JSON.parse(fs.readFileSync(runtimePath,'utf8'));
+          runtime.observed_at='2026-09-14';
+          for (const fn of runtime.functions) {
+            if (!(fn.slug in versions)) throw new Error(`Missing production version for ${fn.slug}`);
+            fn.version=versions[fn.slug];
+            const paths=[...fn.files.map(file=>file.path)];
+            const present=new Set(paths);
+            for(let i=0;i<paths.length;i++){
+              const file=paths[i];
+              const text=fs.readFileSync(file,'utf8');
+              for(const match of text.matchAll(/\b(?:from\s*|import\s*\(\s*|import\s*)["'](\.[^"']+)["']/g)){
+                const dep=path.posix.normalize(path.posix.join(path.posix.dirname(file),match[1]));
+                if(!fs.existsSync(dep)) throw new Error(`Missing runtime dependency ${fn.slug}/${dep}`);
+                if(!present.has(dep)){present.add(dep);paths.push(dep);}
+              }
+            }
+            fn.files=paths.map(file=>{const sha256=hashFile(file);return {path:file,sha256,deployed_sha256:sha256};});
+          }
+          const extraSlugs=Object.keys(versions).filter(slug=>!runtime.functions.some(fn=>fn.slug===slug));
+          if(extraSlugs.length)throw new Error(`Manifest missing functions: ${extraSlugs.join(', ')}`);
+          fs.writeFileSync(runtimePath,JSON.stringify(runtime,null,2)+'\n');
+
+          const registryPath='docs/migration-registry.json';
+          const registry=JSON.parse(fs.readFileSync(registryPath,'utf8'));
+          const additions=[
+            ['20260913103527','indexed_operational_retention','supabase/migrations/20260913103527_indexed_operational_retention.sql'],
+            ['20260913103533','atomic_crawl_recording','supabase/migrations/20260913103533_atomic_crawl_recording.sql'],
+            ['20260913103703','selective_crawl_retention','supabase/migrations/20260913103703_selective_crawl_retention.sql'],
+          ];
+          for(const [version,name,file] of additions){
+            if(registry.migrations.some(m=>m.version===version))continue;
+            const sha=hashFile(file);
+            registry.migrations.push({version,name,file,registry_sql_sha256:sha,export_sql_sha256:sha,vault_substitution:false});
+          }
+          fs.writeFileSync(registryPath,JSON.stringify(registry,null,2)+'\n');
+
+          const architecturePath='docs/ARCHITECTURE.md';
+          let architecture=fs.readFileSync(architecturePath,'utf8');
+          architecture=architecture.replace(/^Stand: 11\.09\.2026\./m,'Stand: 14.09.2026.');
+          architecture=architecture.replace(/163 Migrationen/g,'167 Migrationen');
+          fs.writeFileSync(architecturePath,architecture);
+
+          const connectorsPath='docs/source-connectors.md';
+          let connectors=fs.readFileSync(connectorsPath,'utf8');
+          connectors=connectors.replace('- **54 live**\n- **11 shadow**','- **51 live**\n- **14 shadow** (davon 2 aktiviert, 12 deaktiviert)');
+          fs.writeFileSync(connectorsPath,connectors);
+          NODE
+
+      - name: Verify repository state
+        run: |
+          npm ci --ignore-scripts
+          npm test
+          RUNTIME_HASH_STRICT=1 node scripts/check-runtime.mjs
+
+      - name: Commit reconciled metadata
+        run: |
+          rm .github/workflows/sync-production-state.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --exit-code && exit 0
+          git commit -m 'Reconcile production runtime metadata'
+          git push origin HEAD:sync-production-2026-09-14
