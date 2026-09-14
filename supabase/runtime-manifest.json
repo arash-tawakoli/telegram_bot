@@ -1,5 +1,5 @@
 {
-  "observed_at": "2026-09-11",
+  "observed_at": "2026-09-14",
   "project_id": "dpmohkrwdlicexwcrqfy",
   "snapshot_kind": "repository_with_observed_deployment_hashes",
   "functions": [
@@ -23,15 +23,15 @@
         },
         {
           "path": "supabase/functions/telegram-ui/application-message.js",
-          "sha256": "63888e26bf62f95c8ad0cae719fb506c126422064dfb35078e91c264f07638f0",
-          "deployed_sha256": "63888e26bf62f95c8ad0cae719fb506c126422064dfb35078e91c264f07638f0"
+          "sha256": "ed9bdf442c42fed5321834a9c84c594b645c84cb38d973f28950b8d2c8076f02",
+          "deployed_sha256": "ed9bdf442c42fed5321834a9c84c594b645c84cb38d973f28950b8d2c8076f02"
         }
       ],
       "import_map": false,
       "retired": false,
       "slug": "application-worker",
       "verify_jwt": false,
-      "version": 35
+      "version": 37
     },
     {
       "entrypoint": "supabase/functions/billing-maintenance/index.ts",
@@ -46,7 +46,7 @@
       "retired": false,
       "slug": "billing-maintenance",
       "verify_jwt": false,
-      "version": 47
+      "version": 48
     },
     {
       "entrypoint": "supabase/functions/covivio-feed/index.ts",
@@ -58,15 +58,20 @@
         },
         {
           "path": "supabase/functions/covivio-feed/handler.ts",
-          "sha256": "4268413dce5df93a867f1967bd11198ab8aa869d9e1d50afe7fa23d944ffb13c",
-          "deployed_sha256": "4268413dce5df93a867f1967bd11198ab8aa869d9e1d50afe7fa23d944ffb13c"
+          "sha256": "5493c1b303f9230fdf51e7c93ba7af3cef2c94bdb70b9a9fc14029a2144f0330",
+          "deployed_sha256": "5493c1b303f9230fdf51e7c93ba7af3cef2c94bdb70b9a9fc14029a2144f0330"
+        },
+        {
+          "path": "supabase/functions/_shared/hamburg.ts",
+          "sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a",
+          "deployed_sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a"
         }
       ],
       "import_map": false,
       "retired": false,
       "slug": "covivio-feed",
       "verify_jwt": false,
-      "version": 2
+      "version": 3
     },
     {
       "entrypoint": "supabase/functions/immobilie1-transport/index.ts",
@@ -78,15 +83,20 @@
         },
         {
           "path": "supabase/functions/immobilie1-transport/handler.ts",
-          "sha256": "71f9e427994c8453f6e1e07e0ab8a757a56c0552324389fcc6626bf5f5348ed0",
-          "deployed_sha256": "71f9e427994c8453f6e1e07e0ab8a757a56c0552324389fcc6626bf5f5348ed0"
+          "sha256": "6f3ea2d4adfc5528bf3629562579b84b663a23042faf616ae9471a4a703083c5",
+          "deployed_sha256": "6f3ea2d4adfc5528bf3629562579b84b663a23042faf616ae9471a4a703083c5"
+        },
+        {
+          "path": "supabase/functions/_shared/hamburg.ts",
+          "sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a",
+          "deployed_sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a"
         }
       ],
       "import_map": false,
       "retired": false,
       "slug": "immobilie1-transport",
       "verify_jwt": false,
-      "version": 2
+      "version": 3
     },
     {
       "entrypoint": "supabase/functions/immobilien-de-transport/index.ts",
@@ -98,15 +108,20 @@
         },
         {
           "path": "supabase/functions/immobilien-de-transport/handler.ts",
-          "sha256": "74137a1a3c8db8e7d4f87a9d56f076983c9979cbfc491d25a37bde9fda0693ac",
-          "deployed_sha256": "74137a1a3c8db8e7d4f87a9d56f076983c9979cbfc491d25a37bde9fda0693ac"
+          "sha256": "eedd2ca0adfcb7b0a1b9fec2f3c9c87edc03df6e53c1764fc6362b7b81336b92",
+          "deployed_sha256": "eedd2ca0adfcb7b0a1b9fec2f3c9c87edc03df6e53c1764fc6362b7b81336b92"
+        },
+        {
+          "path": "supabase/functions/_shared/hamburg.ts",
+          "sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a",
+          "deployed_sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a"
         }
       ],
       "import_map": false,
       "retired": false,
       "slug": "immobilien-de-transport",
       "verify_jwt": false,
-      "version": 14
+      "version": 15
     },
     {
       "entrypoint": "supabase/deployed-support/immomio-probe/index.ts",
@@ -168,15 +183,20 @@
         },
         {
           "path": "supabase/functions/meravis-feed/handler.ts",
-          "sha256": "06c5ec2949cc590dff13155d0903a570ed04cbb04a7fb75a04a8855fa24fd6cf",
-          "deployed_sha256": "06c5ec2949cc590dff13155d0903a570ed04cbb04a7fb75a04a8855fa24fd6cf"
+          "sha256": "15c2515c3fc09e75a97d94eb822ecac09cb0991bc97645a4b1eda86c418ab46c",
+          "deployed_sha256": "15c2515c3fc09e75a97d94eb822ecac09cb0991bc97645a4b1eda86c418ab46c"
+        },
+        {
+          "path": "supabase/functions/_shared/hamburg.ts",
+          "sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a",
+          "deployed_sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a"
         }
       ],
       "import_map": false,
       "retired": false,
       "slug": "meravis-feed",
       "verify_jwt": false,
-      "version": 4
+      "version": 5
     },
     {
       "entrypoint": "supabase/deployed-support/mini-app-publisher/index.ts",
@@ -218,15 +238,20 @@
         },
         {
           "path": "supabase/functions/noncoop-feed/handler.ts",
-          "sha256": "e9c8689446c80ea0b9221af453e656e4ca7b43f97cb011bd2cffb0f9ff97bb7b",
-          "deployed_sha256": "e9c8689446c80ea0b9221af453e656e4ca7b43f97cb011bd2cffb0f9ff97bb7b"
+          "sha256": "1068acdddb2097b063cf0f23aff97356b22a13154656c9637ee884418d990962",
+          "deployed_sha256": "1068acdddb2097b063cf0f23aff97356b22a13154656c9637ee884418d990962"
+        },
+        {
+          "path": "supabase/functions/_shared/hamburg.ts",
+          "sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a",
+          "deployed_sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a"
         }
       ],
       "import_map": false,
       "retired": false,
       "slug": "noncoop-feed",
       "verify_jwt": false,
-      "version": 3
+      "version": 4
     },
     {
       "entrypoint": "supabase/functions/noncoop-new-feed/index.ts",
@@ -243,15 +268,20 @@
         },
         {
           "path": "supabase/functions/noncoop-feed/handler.ts",
-          "sha256": "e9c8689446c80ea0b9221af453e656e4ca7b43f97cb011bd2cffb0f9ff97bb7b",
-          "deployed_sha256": "e9c8689446c80ea0b9221af453e656e4ca7b43f97cb011bd2cffb0f9ff97bb7b"
+          "sha256": "1068acdddb2097b063cf0f23aff97356b22a13154656c9637ee884418d990962",
+          "deployed_sha256": "1068acdddb2097b063cf0f23aff97356b22a13154656c9637ee884418d990962"
+        },
+        {
+          "path": "supabase/functions/_shared/hamburg.ts",
+          "sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a",
+          "deployed_sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a"
         }
       ],
       "import_map": false,
       "retired": false,
       "slug": "noncoop-new-feed",
       "verify_jwt": false,
-      "version": 5
+      "version": 6
     },
     {
       "entrypoint": "supabase/deployed-support/noop/index.ts",
@@ -283,13 +313,13 @@
         },
         {
           "path": "supabase/functions/telegram-ui/application-message.js",
-          "sha256": "63888e26bf62f95c8ad0cae719fb506c126422064dfb35078e91c264f07638f0",
-          "deployed_sha256": "63888e26bf62f95c8ad0cae719fb506c126422064dfb35078e91c264f07638f0"
+          "sha256": "ed9bdf442c42fed5321834a9c84c594b645c84cb38d973f28950b8d2c8076f02",
+          "deployed_sha256": "ed9bdf442c42fed5321834a9c84c594b645c84cb38d973f28950b8d2c8076f02"
         },
         {
           "path": "supabase/functions/notification-dispatcher/preview-delivery.ts",
-          "sha256": "b827782ea74dac05b8209e1b5eec430a819ae6ea7feecbfd7f6080e4991bca39",
-          "deployed_sha256": "b827782ea74dac05b8209e1b5eec430a819ae6ea7feecbfd7f6080e4991bca39"
+          "sha256": "f2c1c103003be7d0260258bc2bbc7030c67ed9532f58fb497494a30646ddb5a1",
+          "deployed_sha256": "f2c1c103003be7d0260258bc2bbc7030c67ed9532f58fb497494a30646ddb5a1"
         },
         {
           "path": "supabase/functions/notification-dispatcher/telegram-request.ts",
@@ -313,15 +343,15 @@
         },
         {
           "path": "supabase/functions/notification-dispatcher/labels.ts",
-          "sha256": "57941786c112538c42bce26dace768c0b8d4b47e18a5da84d7e19d6b8acfe162",
-          "deployed_sha256": "57941786c112538c42bce26dace768c0b8d4b47e18a5da84d7e19d6b8acfe162"
+          "sha256": "43ad0fc0ddce4be57a2da4a76f72b3e76a8c197ec6603472dc09e6cfaf63889b",
+          "deployed_sha256": "43ad0fc0ddce4be57a2da4a76f72b3e76a8c197ec6603472dc09e6cfaf63889b"
         }
       ],
       "import_map": false,
       "retired": false,
       "slug": "notification-dispatcher",
       "verify_jwt": false,
-      "version": 102
+      "version": 105
     },
     {
       "entrypoint": "supabase/functions/source-shadow/index.ts",
@@ -333,8 +363,8 @@
         },
         {
           "path": "supabase/functions/source-worker/shared.ts",
-          "sha256": "7a91ac161a61cba8fe597ecd8d7bb713bb580a7a7af577bec0cae191b788a523",
-          "deployed_sha256": "7a91ac161a61cba8fe597ecd8d7bb713bb580a7a7af577bec0cae191b788a523"
+          "sha256": "36ee9017df1f663a79319ef3b72f0b140311876fcfaf2996bbb1f93c4b892592",
+          "deployed_sha256": "36ee9017df1f663a79319ef3b72f0b140311876fcfaf2996bbb1f93c4b892592"
         },
         {
           "path": "supabase/functions/source-worker/provider-fetch.ts",
@@ -348,28 +378,28 @@
         },
         {
           "path": "supabase/functions/covivio-feed/handler.ts",
-          "sha256": "4268413dce5df93a867f1967bd11198ab8aa869d9e1d50afe7fa23d944ffb13c",
-          "deployed_sha256": "4268413dce5df93a867f1967bd11198ab8aa869d9e1d50afe7fa23d944ffb13c"
+          "sha256": "5493c1b303f9230fdf51e7c93ba7af3cef2c94bdb70b9a9fc14029a2144f0330",
+          "deployed_sha256": "5493c1b303f9230fdf51e7c93ba7af3cef2c94bdb70b9a9fc14029a2144f0330"
         },
         {
           "path": "supabase/functions/immobilie1-transport/handler.ts",
-          "sha256": "71f9e427994c8453f6e1e07e0ab8a757a56c0552324389fcc6626bf5f5348ed0",
-          "deployed_sha256": "71f9e427994c8453f6e1e07e0ab8a757a56c0552324389fcc6626bf5f5348ed0"
+          "sha256": "6f3ea2d4adfc5528bf3629562579b84b663a23042faf616ae9471a4a703083c5",
+          "deployed_sha256": "6f3ea2d4adfc5528bf3629562579b84b663a23042faf616ae9471a4a703083c5"
         },
         {
           "path": "supabase/functions/immobilien-de-transport/handler.ts",
-          "sha256": "74137a1a3c8db8e7d4f87a9d56f076983c9979cbfc491d25a37bde9fda0693ac",
-          "deployed_sha256": "74137a1a3c8db8e7d4f87a9d56f076983c9979cbfc491d25a37bde9fda0693ac"
+          "sha256": "eedd2ca0adfcb7b0a1b9fec2f3c9c87edc03df6e53c1764fc6362b7b81336b92",
+          "deployed_sha256": "eedd2ca0adfcb7b0a1b9fec2f3c9c87edc03df6e53c1764fc6362b7b81336b92"
         },
         {
           "path": "supabase/functions/meravis-feed/handler.ts",
-          "sha256": "06c5ec2949cc590dff13155d0903a570ed04cbb04a7fb75a04a8855fa24fd6cf",
-          "deployed_sha256": "06c5ec2949cc590dff13155d0903a570ed04cbb04a7fb75a04a8855fa24fd6cf"
+          "sha256": "15c2515c3fc09e75a97d94eb822ecac09cb0991bc97645a4b1eda86c418ab46c",
+          "deployed_sha256": "15c2515c3fc09e75a97d94eb822ecac09cb0991bc97645a4b1eda86c418ab46c"
         },
         {
           "path": "supabase/functions/noncoop-feed/handler.ts",
-          "sha256": "e9c8689446c80ea0b9221af453e656e4ca7b43f97cb011bd2cffb0f9ff97bb7b",
-          "deployed_sha256": "e9c8689446c80ea0b9221af453e656e4ca7b43f97cb011bd2cffb0f9ff97bb7b"
+          "sha256": "1068acdddb2097b063cf0f23aff97356b22a13154656c9637ee884418d990962",
+          "deployed_sha256": "1068acdddb2097b063cf0f23aff97356b22a13154656c9637ee884418d990962"
         },
         {
           "path": "supabase/functions/noncoop-new-feed/handler.ts",
@@ -378,8 +408,8 @@
         },
         {
           "path": "supabase/functions/spacest-feed/handler.ts",
-          "sha256": "631dbc25d2182899522a67a01418e843eb5544748e6e15adcd1a60f47329d60f",
-          "deployed_sha256": "631dbc25d2182899522a67a01418e843eb5544748e6e15adcd1a60f47329d60f"
+          "sha256": "60b0ff738e64f228c323392e7f22a0b23c23dff430f03f602cb780c4591c3211",
+          "deployed_sha256": "60b0ff738e64f228c323392e7f22a0b23c23dff430f03f602cb780c4591c3211"
         },
         {
           "path": "supabase/functions/vonovia-transport/handler.ts",
@@ -390,13 +420,18 @@
           "path": "supabase/functions/wunderflats-transport/handler.ts",
           "sha256": "e498a6b452fbd172fc01cc13d65a723d64552c1b72501212311417f23e559b31",
           "deployed_sha256": "e498a6b452fbd172fc01cc13d65a723d64552c1b72501212311417f23e559b31"
+        },
+        {
+          "path": "supabase/functions/_shared/hamburg.ts",
+          "sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a",
+          "deployed_sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a"
         }
       ],
       "import_map": false,
       "retired": false,
       "slug": "source-shadow",
       "verify_jwt": false,
-      "version": 10
+      "version": 11
     },
     {
       "entrypoint": "supabase/functions/source-worker/index.ts",
@@ -408,8 +443,8 @@
         },
         {
           "path": "supabase/functions/source-worker/shared.ts",
-          "sha256": "7a91ac161a61cba8fe597ecd8d7bb713bb580a7a7af577bec0cae191b788a523",
-          "deployed_sha256": "7a91ac161a61cba8fe597ecd8d7bb713bb580a7a7af577bec0cae191b788a523"
+          "sha256": "36ee9017df1f663a79319ef3b72f0b140311876fcfaf2996bbb1f93c4b892592",
+          "deployed_sha256": "36ee9017df1f663a79319ef3b72f0b140311876fcfaf2996bbb1f93c4b892592"
         },
         {
           "path": "supabase/functions/source-worker/provider-fetch.ts",
@@ -488,28 +523,28 @@
         },
         {
           "path": "supabase/functions/covivio-feed/handler.ts",
-          "sha256": "4268413dce5df93a867f1967bd11198ab8aa869d9e1d50afe7fa23d944ffb13c",
-          "deployed_sha256": "4268413dce5df93a867f1967bd11198ab8aa869d9e1d50afe7fa23d944ffb13c"
+          "sha256": "5493c1b303f9230fdf51e7c93ba7af3cef2c94bdb70b9a9fc14029a2144f0330",
+          "deployed_sha256": "5493c1b303f9230fdf51e7c93ba7af3cef2c94bdb70b9a9fc14029a2144f0330"
         },
         {
           "path": "supabase/functions/immobilie1-transport/handler.ts",
-          "sha256": "71f9e427994c8453f6e1e07e0ab8a757a56c0552324389fcc6626bf5f5348ed0",
-          "deployed_sha256": "71f9e427994c8453f6e1e07e0ab8a757a56c0552324389fcc6626bf5f5348ed0"
+          "sha256": "6f3ea2d4adfc5528bf3629562579b84b663a23042faf616ae9471a4a703083c5",
+          "deployed_sha256": "6f3ea2d4adfc5528bf3629562579b84b663a23042faf616ae9471a4a703083c5"
         },
         {
           "path": "supabase/functions/immobilien-de-transport/handler.ts",
-          "sha256": "74137a1a3c8db8e7d4f87a9d56f076983c9979cbfc491d25a37bde9fda0693ac",
-          "deployed_sha256": "74137a1a3c8db8e7d4f87a9d56f076983c9979cbfc491d25a37bde9fda0693ac"
+          "sha256": "eedd2ca0adfcb7b0a1b9fec2f3c9c87edc03df6e53c1764fc6362b7b81336b92",
+          "deployed_sha256": "eedd2ca0adfcb7b0a1b9fec2f3c9c87edc03df6e53c1764fc6362b7b81336b92"
         },
         {
           "path": "supabase/functions/meravis-feed/handler.ts",
-          "sha256": "06c5ec2949cc590dff13155d0903a570ed04cbb04a7fb75a04a8855fa24fd6cf",
-          "deployed_sha256": "06c5ec2949cc590dff13155d0903a570ed04cbb04a7fb75a04a8855fa24fd6cf"
+          "sha256": "15c2515c3fc09e75a97d94eb822ecac09cb0991bc97645a4b1eda86c418ab46c",
+          "deployed_sha256": "15c2515c3fc09e75a97d94eb822ecac09cb0991bc97645a4b1eda86c418ab46c"
         },
         {
           "path": "supabase/functions/noncoop-feed/handler.ts",
-          "sha256": "e9c8689446c80ea0b9221af453e656e4ca7b43f97cb011bd2cffb0f9ff97bb7b",
-          "deployed_sha256": "e9c8689446c80ea0b9221af453e656e4ca7b43f97cb011bd2cffb0f9ff97bb7b"
+          "sha256": "1068acdddb2097b063cf0f23aff97356b22a13154656c9637ee884418d990962",
+          "deployed_sha256": "1068acdddb2097b063cf0f23aff97356b22a13154656c9637ee884418d990962"
         },
         {
           "path": "supabase/functions/noncoop-new-feed/handler.ts",
@@ -518,8 +553,8 @@
         },
         {
           "path": "supabase/functions/spacest-feed/handler.ts",
-          "sha256": "631dbc25d2182899522a67a01418e843eb5544748e6e15adcd1a60f47329d60f",
-          "deployed_sha256": "631dbc25d2182899522a67a01418e843eb5544748e6e15adcd1a60f47329d60f"
+          "sha256": "60b0ff738e64f228c323392e7f22a0b23c23dff430f03f602cb780c4591c3211",
+          "deployed_sha256": "60b0ff738e64f228c323392e7f22a0b23c23dff430f03f602cb780c4591c3211"
         },
         {
           "path": "supabase/functions/vonovia-transport/handler.ts",
@@ -535,13 +570,18 @@
           "path": "supabase/functions/source-worker/deno.json",
           "sha256": "f5a48954ebfadfc88c535c402042cd8dd8bc9a42a991b469d683a9524c8598a7",
           "deployed_sha256": "f5a48954ebfadfc88c535c402042cd8dd8bc9a42a991b469d683a9524c8598a7"
+        },
+        {
+          "path": "supabase/functions/_shared/hamburg.ts",
+          "sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a",
+          "deployed_sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a"
         }
       ],
       "import_map": true,
       "retired": false,
       "slug": "source-worker",
       "verify_jwt": false,
-      "version": 67
+      "version": 68
     },
     {
       "entrypoint": "supabase/functions/spacest-feed/index.ts",
@@ -553,15 +593,20 @@
         },
         {
           "path": "supabase/functions/spacest-feed/handler.ts",
-          "sha256": "631dbc25d2182899522a67a01418e843eb5544748e6e15adcd1a60f47329d60f",
-          "deployed_sha256": "631dbc25d2182899522a67a01418e843eb5544748e6e15adcd1a60f47329d60f"
+          "sha256": "60b0ff738e64f228c323392e7f22a0b23c23dff430f03f602cb780c4591c3211",
+          "deployed_sha256": "60b0ff738e64f228c323392e7f22a0b23c23dff430f03f602cb780c4591c3211"
+        },
+        {
+          "path": "supabase/functions/_shared/hamburg.ts",
+          "sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a",
+          "deployed_sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a"
         }
       ],
       "import_map": false,
       "retired": false,
       "slug": "spacest-feed",
       "verify_jwt": false,
-      "version": 3
+      "version": 4
     },
     {
       "entrypoint": "supabase/functions/stripe-webhook/index.ts",
@@ -576,7 +621,7 @@
       "retired": false,
       "slug": "stripe-webhook",
       "verify_jwt": false,
-      "version": 60
+      "version": 61
     },
     {
       "entrypoint": "supabase/functions/telegram-fallback-logo/index.ts",
@@ -621,7 +666,7 @@
       "retired": false,
       "slug": "telegram-gateway",
       "verify_jwt": false,
-      "version": 27
+      "version": 28
     },
     {
       "entrypoint": "supabase/functions/telegram-premium-image/index.ts",
@@ -693,25 +738,25 @@
         },
         {
           "path": "supabase/functions/telegram-ui/handlers.js",
-          "sha256": "f323bb263634f9c79292e9298e5ed2fd83c45e1c5209db94ea46987b6c3857c5",
-          "deployed_sha256": "f323bb263634f9c79292e9298e5ed2fd83c45e1c5209db94ea46987b6c3857c5"
+          "sha256": "8ea40cd623c02f7f129d633aa3d316d07df337743949362e90faec42a6b347b5",
+          "deployed_sha256": "8ea40cd623c02f7f129d633aa3d316d07df337743949362e90faec42a6b347b5"
         },
         {
           "path": "supabase/functions/telegram-ui/application.js",
-          "sha256": "ee8e5b1fb3371ea575cc6b5d7fabc88fe6af4185e9040ac63ede967b4d877d1f",
-          "deployed_sha256": "ee8e5b1fb3371ea575cc6b5d7fabc88fe6af4185e9040ac63ede967b4d877d1f"
+          "sha256": "397a5f4033a26b5e39ac6bea8e9fb8ed0e2d8f10f342827279ca40e6e4415f74",
+          "deployed_sha256": "397a5f4033a26b5e39ac6bea8e9fb8ed0e2d8f10f342827279ca40e6e4415f74"
         },
         {
           "path": "supabase/functions/telegram-ui/application-message.js",
-          "sha256": "63888e26bf62f95c8ad0cae719fb506c126422064dfb35078e91c264f07638f0",
-          "deployed_sha256": "63888e26bf62f95c8ad0cae719fb506c126422064dfb35078e91c264f07638f0"
+          "sha256": "ed9bdf442c42fed5321834a9c84c594b645c84cb38d973f28950b8d2c8076f02",
+          "deployed_sha256": "ed9bdf442c42fed5321834a9c84c594b645c84cb38d973f28950b8d2c8076f02"
         }
       ],
       "import_map": false,
       "retired": false,
       "slug": "telegram-ui",
       "verify_jwt": false,
-      "version": 105
+      "version": 107
     },
     {
       "entrypoint": "supabase/functions/vonovia-transport/index.ts",
