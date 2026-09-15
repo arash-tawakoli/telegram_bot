@@ -5,19 +5,21 @@ import {readFileSync} from 'node:fs';
 const worker=readFileSync(new URL('../supabase/functions/application-worker/index.ts',import.meta.url),'utf8');
 const provider=readFileSync(new URL('../supabase/functions/application-worker/providers/kleinanzeigen.ts',import.meta.url),'utf8');
 const manifest=JSON.parse(readFileSync(new URL('../clients/safari-kleinanzeigen-bridge/extension/manifest.json',import.meta.url),'utf8'));
-const background=readFileSync(new URL('../clients/safari-kleinanzeigen-bridge/extension/background.js',import.meta.url),'utf8');
+const callbackScript=readFileSync(new URL('../clients/safari-kleinanzeigen-bridge/extension/callback.js',import.meta.url),'utf8');
 
 const callback='https://login.kleinanzeigen.de/android/com.ebay.kleinanzeigen/callback';
 
 test('Safari bridge is narrow-scope and never receives user credentials',()=>{
  assert.equal(manifest.manifest_version,3);
  assert.deepEqual(manifest.permissions,[]);
+ assert.equal(manifest.background,undefined);
  assert.ok(manifest.host_permissions.includes(`${callback}*`));
  assert.ok(manifest.host_permissions.includes('https://dpmohkrwdlicexwcrqfy.supabase.co/functions/v1/application-worker*'));
  assert.ok(!JSON.stringify(manifest).includes('<all_urls>'));
- assert.doesNotMatch(background,/document\.cookie|cookie_header|password\s*[:=]|authorization\s*[:=]|localStorage|sessionStorage/i);
- assert.match(background,/credentials:\s*'omit'/);
- assert.match(background,/callbackUrl/);
+ assert.doesNotMatch(callbackScript,/document\.cookie|cookie_header|password\s*[:=]|authorization\s*[:=]|localStorage|sessionStorage/i);
+ assert.match(callbackScript,/credentials:\s*'omit'/);
+ assert.match(callbackScript,/callbackUrl/);
+ assert.match(callbackScript,/fetch\(BRIDGE_ENDPOINT/);
 });
 
 test('bridge callback stays PKCE-bound and exact-target validated',()=>{
