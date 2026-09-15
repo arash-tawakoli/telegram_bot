@@ -9,14 +9,21 @@ async function challenge(verifier:string){return b64url(new Uint8Array(await cry
 const random=()=>b64url(crypto.getRandomValues(new Uint8Array(32)));
 
 export type KleinanzeigenOAuthConfig={clientId:string,redirectUri:string};
+export const legacyKleinanzeigenOAuthConfig=():KleinanzeigenOAuthConfig=>({clientId:LEGACY_CLIENT_ID,redirectUri:LEGACY_REDIRECT_URI});
 
 function oauthConfig(value?:KleinanzeigenOAuthConfig|null):KleinanzeigenOAuthConfig{
- if(!value)return {clientId:LEGACY_CLIENT_ID,redirectUri:LEGACY_REDIRECT_URI};
+ if(!value)return legacyKleinanzeigenOAuthConfig();
  const clientId=String(value.clientId||'').trim(),redirectUri=String(value.redirectUri||'').trim();
  if(!clientId||clientId.length>512)throw Error('oauth_client_invalid');
  let parsed:URL;try{parsed=new URL(redirectUri)}catch{throw Error('oauth_redirect_invalid')}
  if(parsed.protocol!=='https:'||parsed.username||parsed.password)throw Error('oauth_redirect_invalid');
  return {clientId,redirectUri:parsed.href};
+}
+
+function validateCallbackTarget(actual:URL,redirectUri:string){
+ let expected:URL;try{expected=new URL(redirectUri)}catch{throw Error('oauth_redirect_invalid')}
+ if(actual.protocol!==expected.protocol||actual.hostname!==expected.hostname||actual.port!==expected.port||actual.pathname!==expected.pathname)throw Error('invalid_callback_url');
+ for(const [key,value] of expected.searchParams.entries())if(actual.searchParams.get(key)!==value)throw Error('invalid_callback_url');
 }
 
 async function optionalSecret(db:any,name:string){
@@ -46,12 +53,13 @@ export async function beginKleinanzeigenLogin(db:any,userId:string,config?:Klein
  for(const [k,v] of Object.entries({client_id:oauth.clientId,response_type:'code',redirect_uri:oauth.redirectUri,scope:SCOPE,code_challenge:codeChallenge,code_challenge_method:'S256',state,prompt:'login'}))url.searchParams.set(k,String(v));
  await markConnection(db,userId,'kleinanzeigen','pending');
  const legacy=oauth.redirectUri===LEGACY_REDIRECT_URI;
- return {status:'login',url:url.href,requiresCallback:legacy,automaticCallback:!legacy,transport:legacy?'legacy-android-callback':'direct-oauth'};
+ return {status:'login',url:url.href,requiresCallback:legacy,automaticCallback:!legacy,bridgeRequired:legacy,transport:legacy?'safari-extension-bridge':'direct-oauth'};
 }
 
 async function finishKleinanzeigenLogin(db:any,flow:any,redirectUrl:string,config?:KleinanzeigenOAuthConfig|null){
  const oauth=oauthConfig(config);
  let url:URL;try{url=new URL(redirectUrl.trim())}catch{throw Error('invalid_callback_url')}
+ validateCallbackTarget(url,oauth.redirectUri);
  const code=url.searchParams.get('code'),state=url.searchParams.get('state');
  if(!code||!state||state!==String(flow.state))throw Error('invalid_callback_url');
  const {response,token}=await tokenRequest(db,oauth.clientId,{grant_type:'authorization_code',code,code_verifier:flow.code_verifier,redirect_uri:oauth.redirectUri});
@@ -78,8 +86,10 @@ export async function completeKleinanzeigenLogin(db:any,userId:string,redirectUr
  return finishKleinanzeigenLogin(db,flow,url.href,config);
 }
 
-export async function completeKleinanzeigenCallback(db:any,redirectUrl:string,config:KleinanzeigenOAuthConfig){
+export async function completeKleinanzeigenCallback(db:any,redirectUrl:string,config?:KleinanzeigenOAuthConfig|null){
  let url:URL;try{url=new URL(redirectUrl.trim())}catch{throw Error('invalid_callback_url')}
+ const oauth=oauthConfig(config);
+ validateCallbackTarget(url,oauth.redirectUri);
  const state=url.searchParams.get('state');
  if(!state)throw Error('invalid_callback_url');
  const {data:flow,error}=await db.from('platform_auth_flows').select('*').eq('provider','kleinanzeigen').eq('state',state).is('consumed_at',null).gt('expires_at',new Date().toISOString()).maybeSingle();
@@ -88,7 +98,7 @@ export async function completeKleinanzeigenCallback(db:any,redirectUrl:string,co
   await markConnection(db,String(flow.user_id),'kleinanzeigen','needs_login',String(url.searchParams.get('error')).slice(0,120)).catch(()=>{});
   throw Error('oauth_login_failed');
  }
- return finishKleinanzeigenLogin(db,flow,url.href,config);
+ return finishKleinanzeigenLogin(db,flow,url.href,oauth);
 }
 
 async function refresh(db:any,userId:string,connection:any){
