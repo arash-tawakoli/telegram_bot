@@ -6,7 +6,7 @@ const GATEWAY_HOST='https://gateway.kleinanzeigen.de';
 const LEGACY_CLIENT_ID='uV5j90myVPc2XzEOFuWUD2At17OACEGQ';
 const LEGACY_REDIRECT_URI='https://login.kleinanzeigen.de/android/com.ebay.kleinanzeigen/callback';
 const SCOPE='openid email profile offline_access';
-const APP_VERSION='2026.31.2';
+const APP_VERSION='2026.37.1';
 const APP_BASIC='Basic '+btoa('android:TaR60pEttY');
 const AD_FIELDS='id,user-id,category,contact-name,phone,displayoptions,attributes,status,title,description,link';
 
@@ -155,7 +155,7 @@ async function account(db:any,userId:string){
 
 export async function checkKleinanzeigenConnection(db:any,userId:string){
  const c=await getConnection(db,userId,'kleinanzeigen');if(!c)return{authenticated:false};
- try{await account(db,userId);return{authenticated:true}}catch{return{authenticated:false}}
+ try{const a=await account(db,userId);return{authenticated:true,authMode:a.authMode,clientVersion:APP_VERSION}}catch{return{authenticated:false}}
 }
 
 function conversationRows(body:any){let rows=body?.conversations??body?.data?.conversations??body?.data??[];if(rows&&typeof rows==='object'&&!Array.isArray(rows))rows=rows.conversations??rows.items??[];return Array.isArray(rows)?rows:[]}
@@ -170,48 +170,56 @@ async function findConversationWithRetry(uid:string,token:string,adId:string){fo
 async function verifyOutboundWithRetry(uid:string,cid:string,token:string,adId:string,message:string){const wanted=norm(message);for(const d of[700,1400,2600,4200]){await wait(d);const opened=await openConversation(uid,cid,token);if(opened&&outboundMessageExists(opened,message))return true;const c=conversationForAd(await listConversations(uid,token),adId);if(c&&norm(c?.textShortTrimmed??c?.textShort??c?.preview)===wanted)return true}return false}
 
 function contactAction(body:any){const a=unwrapPayload(body);return norm(scalar(a?.displayoptions?.['contact-button-on-vip']?.action?.type??a?.displayoptions?.contactButtonOnVip?.action?.type));}
+function contactConfig(body:any){const a=unwrapPayload(body);return a?.displayoptions?.['contact-button-on-vip']?.action?.data??a?.displayoptions?.contactButtonOnVip?.action?.data??a?.contactForm??a?.inquiryForm??a?.requestForm??null;}
 
 type InquiryRequirement={id:string,label:string,type:string,source:string,path:string};
 function requirementKey(v:any,path:string[]){return norm(scalar(v?.id??v?.name??v?.key??v?.field??v?.attribute??path[path.length-1]));}
 function requirementLabel(v:any){return norm(scalar(v?.label??v?.title??v?.localizedLabel??v?.['localized-label']??v?.displayName));}
-function isContactDescriptor(text:string){return/(contact|message|inquir|request|question|reply|lead|tenant|bewerb|anfrag|phone|telefon|email|mail|income|einkommen|household|haushalt|move|einzug|employment|beruf|pets?|haustier|wbs|wohnungsberechtigung|profile.?name|profilname)/i.test(text)}
-function collectRequirements(root:any,source:string){
+function isApplicantDescriptor(text:string){return/(message|nachricht|phone|telefon|email|mail|income|einkommen|household|haushalt|move|einzug|employment|beruf|job|pets?|haustier|wbs|wohnungsberechtigung|address|adresse|street|strasse|straße|postcode|postal|plz|city|stadt|first.?name|vorname|last.?name|nachname|salutation|anrede)/i.test(text)}
+function collectExplicitRequirements(root:any,source:string){
  const out:InquiryRequirement[]=[];const seen=new Set<string>();
  function walk(v:any,path:string[],depth:number){
   if(!v||typeof v!=='object'||depth>9)return;
   if(Array.isArray(v)){for(let i=0;i<Math.min(v.length,80);i++)walk(v[i],[...path,String(i)],depth+1);return}
   const id=requirementKey(v,path),label=requirementLabel(v),type=norm(scalar(v?.type??v?.inputType??v?.input_type));
-  const write=norm(scalar(v?.write)).toLowerCase();const required=v?.required===true||v?.mandatory===true||v?.isRequired===true||write==='required';
+  const required=v?.required===true||v?.mandatory===true||v?.isRequired===true||norm(scalar(v?.requirement)).toLowerCase()==='required';
   const descriptor=[path.join('.'),id,label,type].join(' ');
-  if(required&&isContactDescriptor(descriptor)){const key=`${source}:${path.join('.')}:${id}`;if(!seen.has(key)){seen.add(key);out.push({id:id||path[path.length-1]||'field',label,type,source,path:path.join('.')})}}
+  if(required&&isApplicantDescriptor(descriptor)){const key=`${source}:${path.join('.')}:${id}`;if(!seen.has(key)){seen.add(key);out.push({id:id||path[path.length-1]||'field',label,type,source,path:path.join('.')})}}
   for(const[k,x]of Object.entries(v))walk(x,[...path,k],depth+1);
  }
  walk(root,[],0);return out;
 }
 
+function valueForRequirement(f:InquiryRequirement,profile:any,acct:any,message:string){
+ const key=`${f.id} ${f.label} ${f.path}`.toLowerCase();
+ if(/message|nachricht/.test(key))return message;
+ if(/phone|telefon/.test(key))return profile?.phone??null;
+ if(/email|e-mail|mail/.test(key))return profile?.email||acct.email||null;
+ if(/household|haushalt/.test(key))return profile?.household_size??null;
+ if(/income|einkommen/.test(key))return profile?.monthly_net_income??null;
+ if(/move|einzug/.test(key))return profile?.move_in_date??null;
+ if(/employment|beruf|job/.test(key))return profile?.employment_status??null;
+ if(/pet|haustier/.test(key))return profile?.pets??null;
+ if(/\bwbs\b|wohnungsberechtigung/.test(key))return profile?.wbs_status??null;
+ if(/salutation|anrede/.test(key))return profile?.salutation??null;
+ if(/first.?name|vorname/.test(key))return profile?.first_name??null;
+ if(/last.?name|nachname/.test(key))return profile?.last_name??null;
+ if(/house.?number|hausnummer/.test(key))return profile?.house_number??null;
+ if(/street|strasse|straße/.test(key))return profile?.street??null;
+ if(/postcode|postal|\bplz\b/.test(key))return profile?.postcode??null;
+ if(/city|stadt/.test(key))return profile?.city??null;
+ if(/address|adresse/.test(key)){const parts=[profile?.street,profile?.house_number,profile?.postcode,profile?.city].filter(Boolean);return parts.length>=3?parts.join(' '):null}
+ return undefined;
+}
+
 async function inquiryPreflight(adResponse:any,message:string,profile:any,acct:any){
- const ad=unwrapPayload(adResponse.json),cat=categoryId(adResponse.json),action=contactAction(adResponse.json);
- let metadata:any={};
- if(cat){const r=await apiRequest(`${API_HOST}/api/ads/metadata/${encodeURIComponent(cat)}.json`,{method:'GET',headers:publicApiHeaders()});if(r.response.ok)metadata=unwrapPayload(r.json)}
- const required=[...collectRequirements(ad,'ad'),...collectRequirements(metadata,'category_metadata')];
- const dedup=new Map<string,InquiryRequirement>();for(const f of required)dedup.set(`${f.id}|${f.label}`.toLowerCase(),f);
- const fields=[...dedup.values()];
- const unsupported:InquiryRequirement[]=[];const missing:InquiryRequirement[]=[];const answers:any={message};
- for(const f of fields){const key=`${f.id} ${f.label} ${f.path}`.toLowerCase();let value:any=null;
-  if(/message|nachricht/.test(key))value=message;
-  else if(/profilname|profile.?name|contact.?name|\bname\b/.test(key))value=acct.profileName||null;
-  else if(/phone|telefon/.test(key))value=profile?.phone||null;
-  else if(/email|e-mail|mail/.test(key))value=profile?.email||acct.email||null;
-  else if(/household|haushalt/.test(key))value=profile?.household_size??null;
-  else if(/income|einkommen/.test(key))value=profile?.monthly_net_income??null;
-  else if(/move|einzug/.test(key))value=profile?.move_in_date??null;
-  else if(/employment|beruf|job/.test(key))value=profile?.employment_status??null;
-  else if(/pet|haustier/.test(key))value=profile?.pets??null;
-  else if(/\bwbs\b|wohnungsberechtigung/.test(key))value=profile?.wbs_status??null;
-  else unsupported.push(f);
-  if(value!==null&&String(value).trim()!=='')answers[f.id]=value;else if(!unsupported.includes(f))missing.push(f);
- }
- return{action,categoryId:cat,requiredFields:fields,answers,unsupported,missing};
+ const action=contactAction(adResponse.json),cat=categoryId(adResponse.json),cfg=contactConfig(adResponse.json);
+ const explicit=cfg?collectExplicitRequirements(cfg,'contact_config'):[];
+ const required:InquiryRequirement[]=[{id:'message',label:'Nachricht',type:'TEXT',source:'builtin',path:'message'}];
+ const dedup=new Map<string,InquiryRequirement>();for(const f of [...required,...explicit])dedup.set(`${f.id}|${f.label}`.toLowerCase(),f);
+ const fields=[...dedup.values()],answers:any={},missing:InquiryRequirement[]=[],unsupported:InquiryRequirement[]=[];
+ for(const f of fields){const value=valueForRequirement(f,profile,acct,message);if(value===undefined){unsupported.push(f);continue}if(value===null||String(value).trim()===''){missing.push(f);continue}answers[f.id]=value}
+ return{action,categoryId:cat,requiredFields:fields,answers,missing,unsupported,dynamicConfigDetected:!!cfg};
 }
 
 export async function inspectKleinanzeigenInquiry(input:any){
@@ -219,8 +227,8 @@ export async function inspectKleinanzeigenInquiry(input:any){
  if(!userId||!adId||!message)return{ok:false,error:'provider_contract_unverified'};
  const ad=await apiRequest(`${API_HOST}/api/ads/${encodeURIComponent(adId)}.json`,{method:'GET',headers:publicApiHeaders(AD_FIELDS)});
  if(!ad.response.ok)return{ok:false,error:`ad_lookup_${ad.response.status}`};
- const acct=await account(db,userId);const preflight=await inquiryPreflight(ad,message,profile,acct);
- return{ok:!preflight.unsupported.length&&!preflight.missing.length,authMode:acct.authMode,accountProfileNamePresent:!!acct.profileName,...preflight};
+ const acct=await account(db,userId),preflight=await inquiryPreflight(ad,message,profile,acct);
+ return{ok:!preflight.unsupported.length&&!preflight.missing.length,clientVersion:APP_VERSION,authMode:acct.authMode,accountProfileNamePresent:!!acct.profileName,...preflight};
 }
 
 export async function sendKleinanzeigenApplication(input:any){
@@ -249,7 +257,7 @@ export async function sendKleinanzeigenApplication(input:any){
   if(!cid)return{success:false,status:'manual_required',error:'create_conversation_unconfirmed'};
  }
  await wait(1500);const sendUrl=new URL(`${GATEWAY_HOST}/messagebox/api/users/${encodeURIComponent(acct.id)}/conversations/${encodeURIComponent(cid)}`);
- sendUrl.searchParams.set('warnPhoneNumber','false');sendUrl.searchParams.set('warnEmail','false');sendUrl.searchParams.set('warnBankDetails','false');
+ sendUrl.searchParams.set('warnPhoneNumber','true');sendUrl.searchParams.set('warnEmail','true');sendUrl.searchParams.set('warnBankDetails','true');
  const sent=await apiRequest(sendUrl.href,{method:'POST',headers:gatewayHeaders(acct.token,true),body:JSON.stringify({message})});
  if(sent.response.status===401||sent.response.status===403){await markConnection(db,userId,'kleinanzeigen','needs_login','message_auth_failed').catch(()=>{});return{success:false,status:'manual_required',error:'needs_login'}}
  if(!sent.response.ok)return{success:false,status:'manual_required',error:`message_send_${sent.response.status}`};
