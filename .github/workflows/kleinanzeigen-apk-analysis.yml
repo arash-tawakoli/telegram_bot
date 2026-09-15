@@ -17,7 +17,7 @@ env:
 jobs:
   analyze:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
 
@@ -49,54 +49,22 @@ jobs:
           KA_BUNDLE_PATH: tmp/ka-analysis/kleinanzeigen-2026.37.1.apkm
         run: python scripts/analyze_kleinanzeigen_apk.py
 
-      - name: Upload raw DEX scan
+      - name: Upload base APK and raw scan
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: kleinanzeigen-2026.37.1-raw-scan
-          path: tmp/ka-analysis/analysis.txt
-          if-no-files-found: error
-          retention-days: 3
-
-      - name: Decompile base APK with JADX
-        if: success()
-        continue-on-error: true
-        run: |
-          set -e
-          mkdir -p tmp/jadx-bin tmp/ka-analysis/jadx
-          URL="$(curl -fsSL https://api.github.com/repos/skylot/jadx/releases/latest | jq -r '.assets[] | select(.name | test("jadx-[0-9.]+\\.zip$")) | .browser_download_url' | head -n1)"
-          test -n "$URL"
-          curl -fL "$URL" -o tmp/jadx.zip
-          unzip -q tmp/jadx.zip -d tmp/jadx-bin
-          tmp/jadx-bin/bin/jadx --deobf --show-bad-code -d tmp/ka-analysis/jadx tmp/ka-analysis/base.apk
-
-      - name: Extract decompiled First Contact references
-        if: always()
-        run: |
-          mkdir -p tmp/ka-analysis
-          if [ -d tmp/ka-analysis/jadx ]; then
-            rg -n -i --hidden --no-messages \
-              'create-conversation|messagebox/api/users|warnPhoneNumber|contentWarnings|contactName|inquiry|first.?contact|contact.?form|lead.?generation|household|monthlyNetIncome|income|realestate|requiredFields|mandatory|X-EBAYK-APP|X-ECG-IN|send.?message|request.?quality|anfrage' \
-              tmp/ka-analysis/jadx > tmp/ka-analysis/jadx_hits.txt || true
-          else
-            : > tmp/ka-analysis/jadx_hits.txt
-          fi
-          head -n 2500 tmp/ka-analysis/jadx_hits.txt > tmp/ka-analysis/jadx_hits_top.txt || true
-          if [ -f tmp/ka-analysis/apkmirror-debug.txt ]; then
-            echo '--- APKMirror debug ---'
-            head -n 100 tmp/ka-analysis/apkmirror-debug.txt
-          fi
-
-      - name: Upload text analysis
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: kleinanzeigen-2026.37.1-analysis
+          name: kleinanzeigen-2026.37.1-base-and-scan
           path: |
+            tmp/ka-analysis/base.apk
             tmp/ka-analysis/analysis.txt
-            tmp/ka-analysis/jadx_hits_top.txt
-            tmp/ka-analysis/apkmirror-debug.txt
-            tmp/ka-analysis/playwright-*-links.json
-            tmp/ka-analysis/playwright-*-ranked.json
-          if-no-files-found: warn
-          retention-days: 3
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
+      - name: Confirm analysis
+        if: success()
+        run: |
+          test -s tmp/ka-analysis/base.apk
+          test -s tmp/ka-analysis/analysis.txt
+          sha256sum tmp/ka-analysis/base.apk
+          grep -n -i -E 'user-contactdetails|real-estate-seeker-profile|create-conversation|messagebox/api/users' tmp/ka-analysis/analysis.txt | head -n 80 || true
