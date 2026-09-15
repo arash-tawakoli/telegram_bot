@@ -15,16 +15,12 @@ export async function applicationWorker(action,userId,source,extra={}){
  return result;
 }
 
-// Kept under the old export name so admin cleanup remains compatible.
+// Export name retained for admin.js compatibility while Browserbase state is retired.
 export async function purgePlatformSessions(userId){
  const {data,error}=await db.from('platform_connections').select('provider').eq('user_id',userId);
  if(error)throw Error('Plattformverbindungen konnten nicht geladen werden.');
  const sourceFor={immoscout:1,kleinanzeigen:2};
- for(const row of data||[]){
-  const source=sourceFor[row.provider];
-  if(source)await applicationWorker('disconnect',userId,source).catch(()=>{});
- }
- // Remove token-less providers and obsolete Browserbase state during user deletion.
+ for(const row of data||[]){const source=sourceFor[row.provider];if(source)await applicationWorker('disconnect',userId,source).catch(()=>{});}
  await db.from('platform_connections').delete().eq('user_id',userId);
  await db.from('platform_auth_flows').delete().eq('user_id',userId);
  await db.from('platform_sessions').delete().eq('user_id',userId).catch(()=>{});
@@ -76,19 +72,16 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   if(error)return render('Auto-Bewerbungen sind noch nicht freigegeben. Hinterlege zuerst dein Bewerberprofil; mindestens eine Plattform muss technisch verifiziert sein.',back);
  }
 
- const [{data:connections,error},{data:state,error:stateError},{data:applicant,error:applicantError},{data:verified,error:verifiedError}]=await Promise.all([
+ const [{data:connections,error},{data:state,error:stateError},{data:applicant,error:applicantError}]=await Promise.all([
   db.from('platform_connections').select('provider,status,account_hint,last_verified_at,last_error').eq('user_id',user.id),
   db.from('bot_users').select('auto_apply_enabled').eq('id',user.id).single(),
-  db.from('applicant_profiles').select('user_id').eq('user_id',user.id).maybeSingle(),
-  db.schema('app_private').from('application_platforms').select('source_id,verified_at').not('verified_at','is',null)
+  db.from('applicant_profiles').select('user_id').eq('user_id',user.id).maybeSingle()
  ]);
- if(error||stateError||applicantError||verifiedError)throw Error('Auto-Bewerbung konnte nicht geladen werden.');
+ if(error||stateError||applicantError)throw Error('Auto-Bewerbung konnte nicht geladen werden.');
  const scout=connections?.find(r=>r.provider==='immoscout'),klein=connections?.find(r=>r.provider==='kleinanzeigen');
- const verifiedIds=new Set((verified||[]).map(r=>Number(r.source_id)));
- const readiness=id=>verifiedIds.has(id)?'✅ Versand freigegeben':'🧪 Sendetest ausstehend';
- const text=`⚡ <b>Automatische Bewerbung</b>\n\n👤 Bewerberprofil: ${applicant?'✅ vorhanden':'⚠️ fehlt'}\n\nImmoScout24: ${connectionLabel(scout)} · ${readiness(1)}\nKleinanzeigen: ${connectionLabel(klein)} · ${readiness(2)}\nImmomio: 🟢 kein Login erforderlich · ${verifiedIds.size&&[...verifiedIds].some(id=>![1,2].includes(id))?'✅ Versand teilweise freigegeben':'🧪 Sendetest ausstehend'}\n\nAuto-Bewerbung: ${state.auto_apply_enabled?'✅ aktiv':'aus'}\n\nNach Freigabe einer Quelle werden passende Wohnungen ohne weiteres Ausfüllen oder Absenden automatisch beworben.`;
+ const text=`⚡ <b>Automatische Bewerbung</b>\n\n👤 Bewerberprofil: ${applicant?'✅ vorhanden':'⚠️ fehlt'}\n\nImmoScout24: ${connectionLabel(scout)} · 🧪 Sendetest ausstehend\nKleinanzeigen: ${connectionLabel(klein)} · 🧪 New-Conversation-Test ausstehend\nImmomio: 🟢 kein Login erforderlich · 🧪 Guest-Submit-Test ausstehend\n\nAuto-Bewerbung: ${state.auto_apply_enabled?'✅ aktiv':'aus'}\n\nEine Quelle wird erst produktiv freigeschaltet, wenn ihr automatischer Sendetest erfolgreich war. Danach musst du nichts ausfüllen oder absenden.`;
  const rows=[
-  [button('👤 Bewerberprofil', 'platforms:profile')],
+  [button('👤 Bewerberprofil','platforms:profile')],
   ...(user.is_premium?[[button('🔐 Kleinanzeigen verbinden','platforms:login:2')],[button('Kleinanzeigen prüfen','platforms:check:2')]]:[]),
   ...(klein?[[button('Kleinanzeigen trennen','platforms:disconnect:2')]]:[]),
   [button('ImmoScout24 Status','platforms:check:1')],
