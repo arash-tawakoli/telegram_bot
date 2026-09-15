@@ -6,7 +6,7 @@ const root=new URL('../supabase/functions/telegram-ui/',import.meta.url);
 const source=readFileSync(new URL('index.ts',root),'utf8');
 async function invoke({claim=1,secretValue='s',fail=false}={}) {
  const calls=[];let handler;
- const scope={Deno:{serve(fn){handler=fn}},Response,URL,Number,String,console,secret:async()=> 's',secretCache:new Map(),chatLanguages:new Map(),isAdmin:()=>false,
+ const scope={Deno:{serve(fn){handler=fn}},Response,URL,Number,String,console,setTimeout,secret:async()=> 's',secretCache:new Map(),chatLanguages:new Map(),isAdmin:()=>false,
  db:{rpc:async(name)=>{calls.push(name);return {data:{claim,user:{id:'u',is_active:true,ui_language:'de'},subscription:null},error:null}}},
  withPlan:async(user,subscription)=>{assert.equal(subscription,null);return user},
  handleCallback:async()=>{calls.push('handle');if(fail)throw Error('render failed')},finishUpdate:async(id,attempt,ok)=>calls.push(['finish',id,attempt,ok])};
