@@ -1338,17 +1338,17 @@
       "vault_substitution": false
     },
     {
-      "version": "20260915091500",
+      "version": "20260915074142",
       "name": "auto_apply_v2_foundation",
-      "file": "supabase/migrations/20260915091500_auto_apply_v2_foundation.sql",
+      "file": "supabase/migrations/20260915074142_auto_apply_v2_foundation.sql",
       "registry_sql_sha256": "3dd62c89d5b2d6dac5cee8a791d005a4bd3d6b2880cac982cb1d988284f5cd12",
       "export_sql_sha256": "3dd62c89d5b2d6dac5cee8a791d005a4bd3d6b2880cac982cb1d988284f5cd12",
       "vault_substitution": false
     },
     {
-      "version": "20260915093000",
+      "version": "20260915074154",
       "name": "auto_apply_queue_controls",
-      "file": "supabase/migrations/20260915093000_auto_apply_queue_controls.sql",
+      "file": "supabase/migrations/20260915074154_auto_apply_queue_controls.sql",
       "registry_sql_sha256": "4c362891158ec7ae2409de678dc2d1e386bf09ef229d9dac3fb0aa1c64ed8a27",
       "export_sql_sha256": "4c362891158ec7ae2409de678dc2d1e386bf09ef229d9dac3fb0aa1c64ed8a27",
       "vault_substitution": false
