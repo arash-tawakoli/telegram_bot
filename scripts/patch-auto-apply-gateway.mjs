@@ -1,4 +1,5 @@
 import {readFile,writeFile} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
 const path='supabase/functions/telegram-gateway/index.ts';
 let source=await readFile(path,'utf8');
 const importLine='import { handleAutoApplyCallback, isAutoApplyCallback } from "./auto-apply.ts";\n';
@@ -8,3 +9,17 @@ const newBlock=`    if (update?.callback_query?.id) {\n      const callbackData 
 if(!source.includes(oldBlock)&&!source.includes(newBlock))throw new Error('gateway callback block not found');
 source=source.replace(oldBlock,newBlock);
 await writeFile(path,source);
+
+const manifestPath='supabase/runtime-manifest.json';
+const manifest=JSON.parse(await readFile(manifestPath,'utf8'));
+const fn=manifest.functions.find(item=>item.slug==='telegram-gateway');
+if(!fn)throw new Error('telegram-gateway missing from runtime manifest');
+const prior=new Map(fn.files.map(file=>[file.path,file]));
+const filePaths=['supabase/functions/telegram-gateway/index.ts','supabase/functions/telegram-gateway/auto-apply.ts'];
+fn.files=[];
+for(const filePath of filePaths){
+  const content=await readFile(filePath,'utf8');
+  const hash=createHash('sha256').update(content).digest('hex');
+  fn.files.push({path:filePath,sha256:hash,deployed_sha256:prior.get(filePath)?.deployed_sha256??'pending'});
+}
+await writeFile(manifestPath,JSON.stringify(manifest,null,2)+'\n');
