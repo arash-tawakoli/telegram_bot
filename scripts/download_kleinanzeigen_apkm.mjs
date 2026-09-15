@@ -66,6 +66,23 @@ async function saveWithRequest(url, referer) {
   return true;
 }
 
+async function saveBrowserDownload(url) {
+  const cleanUrl = url.split('#')[0];
+  console.log(`browser-download=${cleanUrl}`);
+  const downloadPromise = page.waitForEvent('download', { timeout: 120000 });
+  try {
+    await page.goto(cleanUrl, { waitUntil: 'commit', timeout: 120000 });
+  } catch (e) {
+    const message = String(e?.message || e);
+    if (!message.includes('Download is starting') && !message.includes('net::ERR_ABORTED')) throw e;
+  }
+  const download = await downloadPromise;
+  const failure = await download.failure();
+  if (failure) throw new Error(`browser download failed: ${failure}`);
+  await download.saveAs(OUT);
+  return true;
+}
+
 try {
   await page.goto(VARIANT, { waitUntil: 'domcontentloaded', timeout: 60000 });
   await page.waitForTimeout(17000);
@@ -75,7 +92,11 @@ try {
   let saved = false;
   for (let hop = 0; hop < 6 && !saved; hop++) {
     console.log(`hop=${hop} candidate=${candidate.href} text=${candidate.text}`);
-    if (/\/wp-content\/themes\/apkmirror\/download\.php|downloadr\d*\.apkmirror\.com|\/wp-content\/uploads\/|\.(?:apkm|apk|xapk)(?:\?|$)/i.test(candidate.href)) {
+    if (/\/wp-content\/themes\/apkmirror\/download\.php/i.test(candidate.href)) {
+      saved = await saveBrowserDownload(candidate.href);
+      break;
+    }
+    if (/downloadr\d*\.apkmirror\.com|\/wp-content\/uploads\/|\.(?:apkm|apk|xapk)(?:\?|$)/i.test(candidate.href)) {
       saved = await saveWithRequest(candidate.href, page.url());
       if (saved) break;
     }
