@@ -21,7 +21,7 @@ export function applicationTarget(listing) {
 
 export function quickApplyButton(listing) {
     if (!UUID.test(listing.id || '') || listing.is_active === false) return null;
-    return { text: '⚡ Schnellbewerbung', callback_data: `apply:${listing.id}` };
+    return { text: '⚡ Automatisch bewerben', callback_data: `apply:${listing.id}` };
 }
 
 const singleLine = (value, max) => String(value || '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max).replace(/[\uD800-\uDBFF]$/, '');
