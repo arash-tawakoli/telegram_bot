@@ -1,0 +1,29 @@
+name: Sync auto-apply migration versions
+on:
+  push:
+    branches: [feature/auto-apply-v2]
+    paths:
+      - 'scripts/sync-auto-apply-migration-versions.mjs'
+      - '.github/workflows/sync-auto-apply-migration-versions.yml'
+permissions:
+  contents: write
+jobs:
+  sync:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/auto-apply-v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node scripts/sync-auto-apply-migration-versions.mjs
+      - run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add docs/migration-registry.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Sync live auto-apply migration versions"
+            git push origin HEAD:feature/auto-apply-v2
+          fi
