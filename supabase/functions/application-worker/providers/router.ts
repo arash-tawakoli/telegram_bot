@@ -1,5 +1,5 @@
 import {sendImmoScoutApplication} from './immoscout.ts';
-import {sendKleinanzeigenApplication} from './kleinanzeigen.ts';
+import {sendKleinanzeigenFirstContact} from './kleinanzeigen-first-contact.ts';
 import {immomioApplicationLink,sendImmomioApplication} from './immomio.ts';
 
 export function providerForListing(listing:any){
@@ -11,7 +11,7 @@ export function providerForListing(listing:any){
 
 export async function sendApplication(provider:string,input:any){
  if(provider==='immoscout')return sendImmoScoutApplication(input);
- if(provider==='kleinanzeigen')return sendKleinanzeigenApplication(input);
+ if(provider==='kleinanzeigen')return sendKleinanzeigenFirstContact(input);
  if(provider==='immomio')return sendImmomioApplication(input);
  return {success:false,status:'failed',error:'provider_unsupported'};
 }
