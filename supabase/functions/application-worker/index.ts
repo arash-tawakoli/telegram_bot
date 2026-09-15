@@ -1,7 +1,6 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.112.4';
-import puppeteer from 'npm:puppeteer-core@24.31.0';
 import {createProfileToken,handleProfilePage} from './profile-page.ts';
-import {beginKleinanzeigenLogin,completeKleinanzeigenLogin,checkKleinanzeigenConnection,disconnectKleinanzeigen} from './providers/kleinanzeigen.ts';
+import {beginKleinanzeigenLogin,completeKleinanzeigenLogin,completeKleinanzeigenCallback,checkKleinanzeigenConnection,disconnectKleinanzeigen,type KleinanzeigenOAuthConfig} from './providers/kleinanzeigen.ts';
 import {checkImmoScoutConnection,disconnectImmoScout} from './providers/immoscout.ts';
 import {probeImmomioApplication} from './providers/immomio.ts';
 import {providerForListing,sendApplication} from './providers/router.ts';
@@ -10,134 +9,48 @@ import {markConnection} from './credentials.ts';
 const keys=JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')||'{}');
 const db=createClient(Deno.env.get('SUPABASE_URL')!,keys.default||Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false,autoRefreshToken:false}});
 const base=Deno.env.get('SUPABASE_URL')!;
+const KLEIN_OAUTH_REDIRECT=`${base}/functions/v1/application-worker?oauth=kleinanzeigen`;
+const TELEGRAM_CONNECTED='https://t.me/traumwohnunghamburgbot?start=ka_connected';
+const TELEGRAM_FAILED='https://t.me/traumwohnunghamburgbot?start=ka_failed';
+const TELEGRAM_PENDING='https://t.me/traumwohnunghamburgbot?start=ka_oauth_pending';
+
 async function secret(name:string){const {data,error}=await db.rpc('get_bot_secret',{secret_name:name});if(error||!data)throw Error('configuration_unavailable');return String(data);}
+async function optionalSecret(name:string){try{const {data,error}=await db.rpc('get_bot_secret',{secret_name:name});if(error||!data)return null;return String(data);}catch{return null;}}
 async function eligible(userId:string){const {data,error}=await db.rpc('application_user_eligible',{p_user:userId});if(error||data!==true)throw Error('premium_required');}
 const uuid=(v:any)=>{const s=String(v||'');if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s))throw Error('invalid_user');return s;};
 const clean=(v:any,max=4000)=>String(v||'').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
-const delay=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
-const KLEIN_CALLBACK='https://login.kleinanzeigen.de/android/com.ebay.kleinanzeigen/callback';
-const BROWSERLESS_HOST='production-ams.browserless.io';
-const LOGIN_WINDOW_MS=110000;
 
-async function browserlessSocket(){
- const token=await secret('browserless_api_key');
- if(!token||token.length>1000)throw Error('browser_auth_rejected');
- return `wss://${BROWSERLESS_HOST}?token=${encodeURIComponent(token)}`;
+async function kleinanzeigenOAuthConfig():Promise<KleinanzeigenOAuthConfig|null>{
+ const clientId=await optionalSecret('kleinanzeigen_oauth_client_id');
+ if(!clientId)return null;
+ return {clientId,redirectUri:KLEIN_OAUTH_REDIRECT};
 }
-function safeLiveUrl(value:any){
- const url=new URL(String(value||''));
- if(url.protocol!=='https:'||url.username||url.password||url.port||!(url.hostname==='browserless.io'||url.hostname.endsWith('.browserless.io')))throw Error('invalid_browser_url');
- return url.href;
-}
-async function closeBrowser(browser:any){try{await browser?.close();}catch{try{browser?.disconnect();}catch{}}}
 
 function messageFor(profile:any,listing:any){if(clean(profile.default_message))return clean(profile.default_message,4000);const name=clean([profile.first_name,profile.last_name].filter(Boolean).join(' '),120),title=clean(listing.title,100)||'Ihre Wohnung';return `Guten Tag,\n\nich interessiere mich für „${title}“ und würde die Wohnung gerne besichtigen. Über eine Rückmeldung freue ich mich.\n\nFreundliche Grüße\n${name}`;}
 async function notify(chatId:any,text:string){if(!chatId)return;try{const token=await secret('telegram_bot_token_runtime');await fetch(`https://api.telegram.org/bot${token}/sendMessage`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({chat_id:chatId,text})});}catch{}}
 async function notifyUser(userId:string,text:string){const {data}=await db.from('bot_users').select('chat_id').eq('id',userId).maybeSingle();if(data?.chat_id)await notify(data.chat_id,text);}
 
-async function waitForKleinanzeigenCallback(page:any,expectedState:string,timeoutMs=LOGIN_WINDOW_MS){
- const deadline=Date.now()+timeoutMs;
- while(Date.now()<deadline){
-  const current=String(page.url()||'');
-  if(current.startsWith(KLEIN_CALLBACK)){
-   let url:URL;try{url=new URL(current);}catch{throw Error('invalid_callback_url');}
-   if(url.searchParams.get('state')!==expectedState)throw Error('oauth_state_mismatch');
-   if(url.searchParams.get('error'))throw Error('oauth_login_failed');
-   if(url.searchParams.get('code'))return url.href;
-  }
-  await delay(350);
- }
- throw Error('login_timeout');
-}
-
-async function activeKleinanzeigenFlow(userId:string,state:string){
- const {data}=await db.from('platform_auth_flows').select('id').eq('user_id',userId).eq('provider','kleinanzeigen').eq('state',state).is('consumed_at',null).maybeSingle();
- return !!data;
-}
-
-async function createBrowserlessLogin(oauthUrl:string){
- let browser:any=null;
+async function notifyCallbackFailure(callbackUrl:string,errorCode:string){
  try{
-  browser=await puppeteer.connect({browserWSEndpoint:await browserlessSocket(),protocolTimeout:15000,defaultViewport:null});
-  const pages=await browser.pages(),page=pages[0]||await browser.newPage();
-  await page.goto(oauthUrl,{waitUntil:'domcontentloaded',timeout:25000});
-  const cdp:any=await page.createCDPSession();
-  const live=await cdp.send('Browserless.liveURL',{
-   timeout:LOGIN_WINDOW_MS,
-   interactable:true,
-   resizable:true,
-   emulateComponents:true,
-   showBrowserInterface:false,
-   compressed:true,
-   type:'jpeg',
-   quality:72
-  });
-  if(live?.error||!live?.liveURL)throw Error('browser_live_url_failed');
-  return {browser,page,cdp,liveURL:safeLiveUrl(live.liveURL),liveURLId:String(live.liveURLId||'')};
+  const state=new URL(callbackUrl).searchParams.get('state');if(!state)return;
+  const {data:flow}=await db.from('platform_auth_flows').select('user_id').eq('provider','kleinanzeigen').eq('state',state).is('consumed_at',null).maybeSingle();
+  if(!flow?.user_id)return;
+  await markConnection(db,String(flow.user_id),'kleinanzeigen','needs_login',errorCode.slice(0,120)).catch(()=>{});
+  await notifyUser(String(flow.user_id),'⚠️ Kleinanzeigen konnte nicht verbunden werden. Bitte den Login erneut starten.');
+ }catch{}
+}
+
+async function handleKleinanzeigenOAuthCallback(request:Request){
+ const config=await kleinanzeigenOAuthConfig();
+ if(!config)return Response.redirect(TELEGRAM_PENDING,303);
+ try{
+  const result=await completeKleinanzeigenCallback(db,request.url,config);
+  await notifyUser(result.userId,'✅ Kleinanzeigen verbunden. Die Anmeldung ist gespeichert; du musst nichts kopieren oder einfügen.');
+  return Response.redirect(TELEGRAM_CONNECTED,303);
  }catch(error:any){
-  await closeBrowser(browser);
-  const message=String(error?.message||'');
-  if(/401|403|unauthorized|forbidden|token/i.test(message))throw Error('browser_auth_rejected');
-  if(/429|capacity|concurr/i.test(message))throw Error('browser_capacity_exceeded');
-  if(/timeout|timed out|ETIMEDOUT/i.test(message))throw Error('browser_temporary_error');
-  if(['browser_live_url_failed','invalid_browser_url'].includes(message))throw error;
-  throw Error('browser_network_error');
- }
-}
-
-async function probeBrowserless(){
- let browser:any=null,cdp:any=null,liveId='';
- try{
-  browser=await puppeteer.connect({browserWSEndpoint:await browserlessSocket(),protocolTimeout:15000,defaultViewport:null});
-  const pages=await browser.pages(),page=pages[0]||await browser.newPage();
-  await page.goto('about:blank',{waitUntil:'domcontentloaded',timeout:10000});
-  cdp=await page.createCDPSession();
-  const live=await cdp.send('Browserless.liveURL',{timeout:5000,interactable:true,resizable:true,emulateComponents:true,showBrowserInterface:false});
-  if(live?.error||!live?.liveURL)throw Error('browser_live_url_failed');
-  safeLiveUrl(live.liveURL);liveId=String(live.liveURLId||'');
-  if(liveId)await cdp.send('Browserless.closeLiveURL',{liveURLId:liveId}).catch(()=>{});
-  return {status:'ok',transport:'browserless',region:'ams',interactive:true,virtualKeyboard:true};
- }finally{await closeBrowser(browser);}
-}
-
-async function beginKleinanzeigenBrowserLogin(userId:string){
- const oauth=await beginKleinanzeigenLogin(db,userId);
- const expectedState=new URL(oauth.url).searchParams.get('state');
- if(!expectedState)throw Error('auth_flow_create_failed');
- let login:any=null;
- try{
-  login=await createBrowserlessLogin(oauth.url);
-  const {browser,page,cdp,liveURL,liveURLId}=login;
-  login=null;
-  EdgeRuntime.waitUntil((async()=>{
-   let connected=false;
-   try{
-    const callbackUrl=await waitForKleinanzeigenCallback(page,expectedState);
-    const result=await completeKleinanzeigenLogin(db,userId,callbackUrl);
-    connected=result.authenticated===true;
-    if(liveURLId)await cdp.send('Browserless.closeLiveURL',{liveURLId}).catch(()=>{});
-    if(connected)await notifyUser(userId,'✅ Kleinanzeigen verbunden. Die Anmeldung ist gespeichert; du musst nichts kopieren oder einfügen.');
-   }catch(error:any){
-    const code=String(error?.message||'login_failed').slice(0,120);
-    if(await activeKleinanzeigenFlow(userId,expectedState)){
-     await markConnection(db,userId,'kleinanzeigen','needs_login',code).catch(()=>{});
-     await notifyUser(userId,code==='login_timeout'?'⚠️ Kleinanzeigen-Anmeldung abgelaufen. Bitte erneut auf „Kleinanzeigen verbinden“ tippen.':'⚠️ Kleinanzeigen konnte nicht verbunden werden. Bitte den Login erneut starten.');
-    }
-   }finally{
-    if(liveURLId)await cdp.send('Browserless.closeLiveURL',{liveURLId}).catch(()=>{});
-    await closeBrowser(browser);
-    if(!connected)await db.from('platform_auth_flows').delete().eq('user_id',userId).eq('provider','kleinanzeigen').eq('state',expectedState).is('consumed_at',null).catch(()=>{});
-   }
-  })());
-  return {status:'login',url:liveURL,automaticCallback:true,transport:'browserless',expiresIn:Math.floor(LOGIN_WINDOW_MS/1000)};
- }catch(error:any){
-  await closeBrowser(login?.browser);
-  const flowStillActive=await activeKleinanzeigenFlow(userId,expectedState).catch(()=>false);
-  if(flowStillActive){
-   await db.from('platform_auth_flows').delete().eq('user_id',userId).eq('provider','kleinanzeigen').eq('state',expectedState).is('consumed_at',null).catch(()=>{});
-   await markConnection(db,userId,'kleinanzeigen','needs_login',String(error?.message||'login_unavailable').slice(0,120)).catch(()=>{});
-  }
-  throw Error(['browser_network_error','browser_capacity_exceeded','browser_temporary_error','browser_auth_rejected','browser_live_url_failed'].includes(error?.message)?error.message:'login_unavailable');
+  const code=String(error?.message||'oauth_callback_failed');
+  await notifyCallbackFailure(request.url,code);
+  return Response.redirect(TELEGRAM_FAILED,303);
  }
 }
 
@@ -174,10 +87,15 @@ async function action(body:any){
  if(body.action==='profile_link'){const token=await createProfileToken(db,userId);return {url:`${base}/functions/v1/application-worker?token=${encodeURIComponent(token)}`};}
  const source=Number(body.source);
  if(body.action==='login'){
-  if(source===2)return beginKleinanzeigenBrowserLogin(userId);
+  if(source===2){
+   const config=await kleinanzeigenOAuthConfig();
+   if(!config)throw Error('oauth_client_not_provisioned');
+   return beginKleinanzeigenLogin(db,userId,config);
+  }
   if(source===1)return {status:'blocked',error:'provider_contract_unverified',officialApiRequired:false};
  }
  if(body.action==='complete_login'){
+  // Legacy completion remains available only for already-started Android callback flows.
   if(source===2)return completeKleinanzeigenLogin(db,userId,clean(body.callbackUrl,8000));
  }
  if(body.action==='check'){
@@ -196,16 +114,20 @@ async function action(body:any){
 
 Deno.serve(async request=>{
  try{
-  if((request.method==='GET'||request.method==='POST')&&new URL(request.url).searchParams.has('token'))return handleProfilePage(db,request);
+  const requestUrl=new URL(request.url);
+  if(request.method==='GET'&&requestUrl.searchParams.get('oauth')==='kleinanzeigen')return handleKleinanzeigenOAuthCallback(request);
+  if((request.method==='GET'||request.method==='POST')&&requestUrl.searchParams.has('token'))return handleProfilePage(db,request);
   if(request.method!=='POST')return new Response('method not allowed',{status:405});
   if(request.headers.get('x-internal-secret')!==await secret('internal_worker_secret'))return new Response('unauthorized',{status:401});
   const body=await request.json();
-  if(body.action==='health')return Response.json({status:'ok',mode:'provider-router',loginTransport:'browserless',kleinanzeigenAutomaticCallback:true});
-  if(body.action==='probe_auth_transport')return Response.json(await probeBrowserless());
+  if(body.action==='health'){
+   const configured=!!(await kleinanzeigenOAuthConfig());
+   return Response.json({status:'ok',mode:'provider-router',loginTransport:'direct-oauth-callback',kleinanzeigenAutomaticCallback:true,kleinanzeigenOAuthClientProvisioned:configured,kleinanzeigenRedirectUri:KLEIN_OAUTH_REDIRECT});
+  }
   if(body.action==='process')return Response.json(await processApplication());
   return Response.json(await action(body));
  }catch(error:any){
-  const safe=new Set(['configuration_unavailable','premium_required','invalid_user','invalid_action','provider_contract_unverified','connection_read_failed','disconnect_failed','auth_flow_create_failed','invalid_callback_url','auth_flow_expired','token_exchange_failed','listing_unavailable','login_unavailable','browser_network_error','browser_capacity_exceeded','browser_temporary_error','browser_auth_rejected','browser_live_url_failed']);
+  const safe=new Set(['configuration_unavailable','premium_required','invalid_user','invalid_action','provider_contract_unverified','connection_read_failed','disconnect_failed','auth_flow_create_failed','invalid_callback_url','auth_flow_expired','token_exchange_failed','listing_unavailable','oauth_client_not_provisioned','oauth_client_invalid','oauth_redirect_invalid','oauth_login_failed']);
   return Response.json({error:safe.has(error?.message)?error.message:'application_operation_failed'},{status:503});
  }
 });
