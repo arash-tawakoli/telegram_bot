@@ -67,15 +67,16 @@ async function handleApply(user:any,chatId:number,listingId:string){
 }
 
 export async function handleAutoApplyCallback(update:any){
- const query=update?.callback_query,chatId=Number(query?.message?.chat?.id),messageId=Number(query?.message?.message_id),data=String(query?.data||'');
- if(!query?.from?.id||!chatId||!messageId||!isAutoApplyCallback(data))return;
+ const query=update?.callback_query,chat=query?.message?.chat,chatId=Number(chat?.id),messageId=Number(query?.message?.message_id),fromId=Number(query?.from?.id),data=String(query?.data||'');
+ if(!fromId||!chatId||!messageId||chat?.type!=='private'||fromId!==chatId||!isAutoApplyCallback(data))return;
  let updateId:number|null=null,attempt:number|null=null;
  try{
   const prepared=await rpc('prepare_telegram_update',{p_payload:update}),claim=Number(prepared?.claim??0);
   if(claim<=0)return;
   updateId=Number(update.update_id);attempt=claim;
   const user={...(prepared.user||{}),is_premium:premium(prepared.user,prepared.subscription)};
-  if(!user.is_active)return;
+  const ownsPrivateChat=user.is_active&&Number(user.telegram_user_id)===fromId&&Number(user.chat_id)===chatId;
+  if(!ownsPrivateChat){await rpc('finish_telegram_update',{p_update_id:updateId,p_attempt:attempt,p_success:true,p_error:null});updateId=null;attempt=null;return;}
   if(data==='platforms'||data.startsWith('platforms:'))await handlePlatforms(user,chatId,messageId,data);
   else if(data.startsWith('apply:'))await handleApply(user,chatId,data.slice(6));
   await rpc('finish_telegram_update',{p_update_id:updateId,p_attempt:attempt,p_success:true,p_error:null});updateId=null;attempt=null;
