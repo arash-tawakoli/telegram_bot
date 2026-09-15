@@ -49,6 +49,15 @@ jobs:
           KA_BUNDLE_PATH: tmp/ka-analysis/kleinanzeigen-2026.37.1.apkm
         run: python scripts/analyze_kleinanzeigen_apk.py
 
+      - name: Upload raw DEX scan
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kleinanzeigen-2026.37.1-raw-scan
+          path: tmp/ka-analysis/analysis.txt
+          if-no-files-found: error
+          retention-days: 3
+
       - name: Decompile base APK with JADX
         if: success()
         continue-on-error: true
