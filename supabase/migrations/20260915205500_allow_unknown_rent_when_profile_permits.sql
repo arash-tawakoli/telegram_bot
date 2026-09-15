@@ -1,0 +1,1 @@
+-- Keep listings with unknown rent eligible when the search profile does not require a known warm rent.
