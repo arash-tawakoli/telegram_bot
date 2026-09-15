@@ -1,13 +1,4 @@
-import {db,send,telegram,SUPABASE_URL,secret} from './runtime.js';
-
-async function worker(action,userId){
- const response=await fetch(`${SUPABASE_URL}/functions/v1/application-worker`,{
-  method:'POST',headers:{'Content-Type':'application/json','x-internal-secret':await secret('internal_worker_secret')},
-  body:JSON.stringify({action,userId}),signal:AbortSignal.timeout(20000)});
- const result=await response.json().catch(()=>null);
- if(!response.ok||!result)throw Error('Auto-Bewerbung ist gerade nicht erreichbar.');
- return result;
-}
+import {db,send} from './runtime.js';
 
 export async function quickApplication(user,query){
  const chat=query.message?.chat;
@@ -35,10 +26,7 @@ export async function quickApplication(user,query){
 
  const {data:profile,error:profileError}=await db.from('applicant_profiles').select('user_id').eq('user_id',user.id).maybeSingle();
  if(profileError)throw profileError;
- if(!profile){
-  const result=await worker('profile_link',user.id);
-  return telegram('sendMessage',{chat_id:chat.id,text:'👤 Für die vollautomatische Bewerbung fehlt noch dein Bewerberprofil.',reply_markup:{inline_keyboard:[[{text:'👤 Bewerberprofil einrichten',url:result.url}]]}});
- }
+ if(!profile)return send(chat.id,'👤 Für die vollautomatische Bewerbung fehlt noch dein Bewerberprofil.',{inline_keyboard:[[{text:'👤 Bewerberprofil einrichten',callback_data:'platforms:profile'}],[{text:'⚡ Automatische Bewerbung',callback_data:'platforms'}]]});
 
  const {data:applicationId,error:enqueueError}=await db.rpc('enqueue_application_now',{p_user:user.id,p_listing:id});
  if(enqueueError)throw enqueueError;
