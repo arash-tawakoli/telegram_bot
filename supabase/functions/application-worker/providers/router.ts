@@ -1,5 +1,5 @@
 import {sendImmoScoutApplication} from './immoscout.ts';
-import {sendKleinanzeigenApplication} from './kleinanzeigen.ts';
+import {sendKleinanzeigenApplication} from './kleinanzeigen-send.ts';
 import {immomioApplicationLink,sendImmomioApplication} from './immomio.ts';
 
 export function providerForListing(listing:any){
