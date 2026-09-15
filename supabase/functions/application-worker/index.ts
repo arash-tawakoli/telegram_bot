@@ -10,9 +10,12 @@ const keys=JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')||'{}');
 const db=createClient(Deno.env.get('SUPABASE_URL')!,keys.default||Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false,autoRefreshToken:false}});
 const base=Deno.env.get('SUPABASE_URL')!;
 const KLEIN_OAUTH_REDIRECT=`${base}/functions/v1/application-worker?oauth=kleinanzeigen`;
+const KLEIN_BRIDGE_ENDPOINT=`${base}/functions/v1/application-worker?oauth_bridge=kleinanzeigen`;
+const KLEIN_LEGACY_CALLBACK='https://login.kleinanzeigen.de/android/com.ebay.kleinanzeigen/callback';
 const TELEGRAM_CONNECTED='https://t.me/traumwohnunghamburgbot?start=ka_connected';
 const TELEGRAM_FAILED='https://t.me/traumwohnunghamburgbot?start=ka_failed';
 const TELEGRAM_PENDING='https://t.me/traumwohnunghamburgbot?start=ka_oauth_pending';
+const BRIDGE_HEADERS={'content-type':'application/json','access-control-allow-origin':'*','access-control-allow-methods':'POST, OPTIONS','access-control-allow-headers':'content-type','cache-control':'no-store'};
 
 async function secret(name:string){const {data,error}=await db.rpc('get_bot_secret',{secret_name:name});if(error||!data)throw Error('configuration_unavailable');return String(data);}
 async function optionalSecret(name:string){try{const {data,error}=await db.rpc('get_bot_secret',{secret_name:name});if(error||!data)return null;return String(data);}catch{return null;}}
@@ -54,6 +57,28 @@ async function handleKleinanzeigenOAuthCallback(request:Request){
  }
 }
 
+async function handleKleinanzeigenBridge(request:Request){
+ if(request.method==='OPTIONS')return new Response(null,{status:204,headers:BRIDGE_HEADERS});
+ if(request.method!=='POST')return new Response(JSON.stringify({ok:false,error:'method_not_allowed'}),{status:405,headers:BRIDGE_HEADERS});
+ const declared=Number(request.headers.get('content-length')||0);if(Number.isFinite(declared)&&declared>12000)return new Response(JSON.stringify({ok:false,error:'request_too_large'}),{status:413,headers:BRIDGE_HEADERS});
+ let body:any;try{body=await request.json()}catch{return new Response(JSON.stringify({ok:false,error:'invalid_request'}),{status:400,headers:BRIDGE_HEADERS});}
+ const callbackUrl=String(body?.callbackUrl||'').trim();
+ if(!callbackUrl||callbackUrl.length>8000)return new Response(JSON.stringify({ok:false,error:'invalid_callback_url'}),{status:400,headers:BRIDGE_HEADERS});
+ try{
+  const parsed=new URL(callbackUrl),expected=new URL(KLEIN_LEGACY_CALLBACK);
+  if(parsed.protocol!==expected.protocol||parsed.hostname!==expected.hostname||parsed.pathname!==expected.pathname||parsed.username||parsed.password||parsed.port)return new Response(JSON.stringify({ok:false,error:'invalid_callback_url'}),{status:400,headers:BRIDGE_HEADERS});
+  if(!parsed.searchParams.get('state')||(!parsed.searchParams.get('code')&&!parsed.searchParams.get('error')))return new Response(JSON.stringify({ok:false,error:'invalid_callback_url'}),{status:400,headers:BRIDGE_HEADERS});
+  const result=await completeKleinanzeigenCallback(db,callbackUrl);
+  await notifyUser(result.userId,'✅ Kleinanzeigen verbunden. Die Safari-Bridge hat die Anmeldung automatisch abgeschlossen.');
+  return new Response(JSON.stringify({ok:true,status:'connected'}),{status:200,headers:BRIDGE_HEADERS});
+ }catch(error:any){
+  const code=String(error?.message||'bridge_callback_failed');
+  await notifyCallbackFailure(callbackUrl,code);
+  const exposed=['invalid_callback_url','auth_flow_expired','token_exchange_failed','oauth_login_failed'].includes(code)?code:'bridge_callback_failed';
+  return new Response(JSON.stringify({ok:false,error:exposed}),{status:400,headers:BRIDGE_HEADERS});
+ }
+}
+
 async function processApplication(){
  const {data:claimed,error:claimError}=await db.rpc('claim_application');if(claimError)throw Error('application_claim_failed');if(!claimed?.length)return {status:'idle'};
  const application=claimed[0];let started=false;
@@ -89,13 +114,13 @@ async function action(body:any){
  if(body.action==='login'){
   if(source===2){
    const config=await kleinanzeigenOAuthConfig();
-   if(!config)throw Error('oauth_client_not_provisioned');
-   return beginKleinanzeigenLogin(db,userId,config);
+   const result=await beginKleinanzeigenLogin(db,userId,config);
+   return config?result:{...result,requiresCallback:false,automaticCallback:true,bridgeRequired:true,transport:'safari-extension-bridge'};
   }
   if(source===1)return {status:'blocked',error:'provider_contract_unverified',officialApiRequired:false};
  }
  if(body.action==='complete_login'){
-  // Legacy completion remains available only for already-started Android callback flows.
+  // Legacy manual completion remains as an emergency/debug fallback only.
   if(source===2)return completeKleinanzeigenLogin(db,userId,clean(body.callbackUrl,8000));
  }
  if(body.action==='check'){
@@ -115,6 +140,7 @@ async function action(body:any){
 Deno.serve(async request=>{
  try{
   const requestUrl=new URL(request.url);
+  if(requestUrl.searchParams.get('oauth_bridge')==='kleinanzeigen'&&(request.method==='POST'||request.method==='OPTIONS'))return handleKleinanzeigenBridge(request);
   if(request.method==='GET'&&requestUrl.searchParams.get('oauth')==='kleinanzeigen')return handleKleinanzeigenOAuthCallback(request);
   if((request.method==='GET'||request.method==='POST')&&requestUrl.searchParams.has('token'))return handleProfilePage(db,request);
   if(request.method!=='POST')return new Response('method not allowed',{status:405});
@@ -122,12 +148,12 @@ Deno.serve(async request=>{
   const body=await request.json();
   if(body.action==='health'){
    const configured=!!(await kleinanzeigenOAuthConfig());
-   return Response.json({status:'ok',mode:'provider-router',loginTransport:'direct-oauth-callback',kleinanzeigenAutomaticCallback:true,kleinanzeigenOAuthClientProvisioned:configured,kleinanzeigenRedirectUri:KLEIN_OAUTH_REDIRECT});
+   return Response.json({status:'ok',mode:'provider-router',loginTransport:configured?'direct-oauth-callback':'safari-extension-bridge',kleinanzeigenAutomaticCallback:true,kleinanzeigenOAuthClientProvisioned:configured,kleinanzeigenRedirectUri:configured?KLEIN_OAUTH_REDIRECT:null,kleinanzeigenBridgeEndpoint:KLEIN_BRIDGE_ENDPOINT});
   }
   if(body.action==='process')return Response.json(await processApplication());
   return Response.json(await action(body));
  }catch(error:any){
-  const safe=new Set(['configuration_unavailable','premium_required','invalid_user','invalid_action','provider_contract_unverified','connection_read_failed','disconnect_failed','auth_flow_create_failed','invalid_callback_url','auth_flow_expired','token_exchange_failed','listing_unavailable','oauth_client_not_provisioned','oauth_client_invalid','oauth_redirect_invalid','oauth_login_failed']);
+  const safe=new Set(['configuration_unavailable','premium_required','invalid_user','invalid_action','provider_contract_unverified','connection_read_failed','disconnect_failed','auth_flow_create_failed','invalid_callback_url','auth_flow_expired','token_exchange_failed','listing_unavailable','oauth_client_invalid','oauth_redirect_invalid','oauth_login_failed']);
   return Response.json({error:safe.has(error?.message)?error.message:'application_operation_failed'},{status:503});
  }
 });
