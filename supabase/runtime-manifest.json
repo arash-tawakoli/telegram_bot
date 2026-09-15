@@ -1,5 +1,5 @@
 {
-  "observed_at": "2026-09-14",
+  "observed_at": "2026-09-15",
   "project_id": "dpmohkrwdlicexwcrqfy",
   "snapshot_kind": "repository_with_observed_deployment_hashes",
   "functions": [
@@ -9,59 +9,44 @@
         {
           "path": "supabase/functions/application-worker/index.ts",
           "sha256": "a30fe4bac16c4adf125c53a0d1e5322b1a99de117beaccf5b0762888b3b5f3e4",
-          "deployed_sha256": "22804f41f99e7227854a03e4ed4a05cb7ce35481d0ced55349776ea27cc2df2d"
-        },
-        {
-          "path": "supabase/functions/application-worker/adapters.js",
-          "sha256": "f94b4a435104d44a376dda5006cad503df735ec03999d08be0087f6e835b0d1f",
-          "deployed_sha256": "f94b4a435104d44a376dda5006cad503df735ec03999d08be0087f6e835b0d1f"
-        },
-        {
-          "path": "supabase/functions/application-worker/browserbase.js",
-          "sha256": "07e74c7d1b4e582d3e6461977b17899a4f293f865e87d88969d4113601ff1817",
-          "deployed_sha256": "07e74c7d1b4e582d3e6461977b17899a4f293f865e87d88969d4113601ff1817"
+          "deployed_sha256": "a30fe4bac16c4adf125c53a0d1e5322b1a99de117beaccf5b0762888b3b5f3e4"
         },
         {
           "path": "supabase/functions/application-worker/credentials.ts",
           "sha256": "dc0c52883eb45f47f7fc354c877469a358799923414e6abb9551da9c1fa803a4",
-          "deployed_sha256": "pending"
+          "deployed_sha256": "dc0c52883eb45f47f7fc354c877469a358799923414e6abb9551da9c1fa803a4"
         },
         {
           "path": "supabase/functions/application-worker/profile-page.ts",
           "sha256": "f022313ddb05d40298dd79b1db0c58e90ca2e843081bd3cfa912d26f2d64ce7b",
-          "deployed_sha256": "pending"
-        },
-        {
-          "path": "supabase/functions/application-worker/providers/immomio.ts",
-          "sha256": "46d65fecbebe171abeecae5cb14b5e75b05e85bb33542f399389c311096c7c69",
-          "deployed_sha256": "pending"
-        },
-        {
-          "path": "supabase/functions/application-worker/providers/immoscout.ts",
-          "sha256": "8ee029687c77bc790c6893dc5fe4ae58aaf010983137ce713f390dab11285a67",
-          "deployed_sha256": "pending"
+          "deployed_sha256": "f022313ddb05d40298dd79b1db0c58e90ca2e843081bd3cfa912d26f2d64ce7b"
         },
         {
           "path": "supabase/functions/application-worker/providers/kleinanzeigen.ts",
           "sha256": "fe7421fcade45e703adb312b9b0b7a07f94d0fb8b57158aa11d8793f979c39a6",
-          "deployed_sha256": "pending"
+          "deployed_sha256": "fe7421fcade45e703adb312b9b0b7a07f94d0fb8b57158aa11d8793f979c39a6"
+        },
+        {
+          "path": "supabase/functions/application-worker/providers/immomio.ts",
+          "sha256": "46d65fecbebe171abeecae5cb14b5e75b05e85bb33542f399389c311096c7c69",
+          "deployed_sha256": "46d65fecbebe171abeecae5cb14b5e75b05e85bb33542f399389c311096c7c69"
+        },
+        {
+          "path": "supabase/functions/application-worker/providers/immoscout.ts",
+          "sha256": "8ee029687c77bc790c6893dc5fe4ae58aaf010983137ce713f390dab11285a67",
+          "deployed_sha256": "8ee029687c77bc790c6893dc5fe4ae58aaf010983137ce713f390dab11285a67"
         },
         {
           "path": "supabase/functions/application-worker/providers/router.ts",
           "sha256": "64df2147e7dae783efeefcf0f161ad23a7dbcae75a65353e83af19fbce583464",
-          "deployed_sha256": "pending"
-        },
-        {
-          "path": "supabase/functions/telegram-ui/application-message.js",
-          "sha256": "ed9bdf442c42fed5321834a9c84c594b645c84cb38d973f28950b8d2c8076f02",
-          "deployed_sha256": "ed9bdf442c42fed5321834a9c84c594b645c84cb38d973f28950b8d2c8076f02"
+          "deployed_sha256": "64df2147e7dae783efeefcf0f161ad23a7dbcae75a65353e83af19fbce583464"
         }
       ],
       "import_map": false,
       "retired": false,
       "slug": "application-worker",
       "verify_jwt": false,
-      "version": 37
+      "version": 38
     },
     {
       "entrypoint": "supabase/functions/billing-maintenance/index.ts",
@@ -689,19 +674,19 @@
         {
           "path": "supabase/functions/telegram-gateway/index.ts",
           "sha256": "ff51112f8859bfc346a0653c1f00ce20eca826b0d994676b00d8ec90fcd15d3c",
-          "deployed_sha256": "7de9c8841546ae04f99b40151611d72c036d615d92cdb65f755b8bcb751ca762"
+          "deployed_sha256": "ff51112f8859bfc346a0653c1f00ce20eca826b0d994676b00d8ec90fcd15d3c"
         },
         {
           "path": "supabase/functions/telegram-gateway/auto-apply.ts",
           "sha256": "08dded4407e57a965bb70fb1570fb7e8d0cf043ea514f396308771785bf55036",
-          "deployed_sha256": "pending"
+          "deployed_sha256": "08dded4407e57a965bb70fb1570fb7e8d0cf043ea514f396308771785bf55036"
         }
       ],
       "import_map": false,
       "retired": false,
       "slug": "telegram-gateway",
       "verify_jwt": false,
-      "version": 28
+      "version": 29
     },
     {
       "entrypoint": "supabase/functions/telegram-premium-image/index.ts",
