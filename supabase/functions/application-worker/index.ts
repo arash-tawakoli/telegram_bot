@@ -16,33 +16,26 @@ const uuid=(v:any)=>{const s=String(v||'');if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f
 const clean=(v:any,max=4000)=>String(v||'').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
 const delay=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
 const KLEIN_CALLBACK='https://login.kleinanzeigen.de/android/com.ebay.kleinanzeigen/callback';
-const BB_ID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const bbId=(value:any)=>{const s=String(value||'');if(!BB_ID.test(s))throw Error('invalid_identifier');return s;};
-const browserSocket=(value:string)=>{const url=new URL(value);if(url.protocol!=='wss:'||url.username||url.password||url.port||!(url.hostname==='browserbase.com'||url.hostname.endsWith('.browserbase.com')))throw Error('invalid_browser_url');return url.href;};
-const browserPage=(value:string)=>{const url=new URL(value);if(url.protocol!=='https:'||url.username||url.password||url.port||!(url.hostname==='browserbase.com'||url.hostname.endsWith('.browserbase.com')))throw Error('invalid_browser_url');url.searchParams.set('navbar','false');return url.href;};
+const BROWSERLESS_HOST='production-ams.browserless.io';
+const LOGIN_WINDOW_MS=110000;
 
-function browserbaseAuth(request:typeof fetch=fetch){
- async function call(path:string,method='GET',body?:unknown){
-  const key=await secret('browserbase_api_key');
-  let response:Response;
-  try{response=await request(`https://api.browserbase.com/v1/${path}`,{method,headers:{'X-BB-API-Key':key,...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(15000),redirect:'error'});}catch{throw Error('browser_network_error');}
-  if(!response.ok){const code=response.status===429?'browser_capacity_exceeded':response.status>=500?'browser_temporary_error':response.status===401?'browser_auth_rejected':response.status===403?'browser_access_rejected':'browser_request_rejected';throw Object.assign(Error(code),{status:response.status});}
-  if(response.status===204)return null;
-  return response.json();
- }
- return {
-  start:async()=>call('sessions','POST',{projectId:bbId(await secret('browserbase_project_id')),timeout:180,region:'eu-central-1',browserSettings:{viewport:{width:390,height:844},recordSession:false,logSession:false,solveCaptchas:false,advancedStealth:false,ignoreCertificateErrors:false},userMetadata:{purpose:'kleinanzeigen-login'}}),
-  live:async(id:string)=>{const data:any=await call(`sessions/${bbId(id)}/debug`);return browserPage(String(data.debuggerFullscreenUrl));},
-  stop:async(id:string)=>{try{return await call(`sessions/${bbId(id)}`,'POST',{status:'REQUEST_RELEASE'});}catch(error:any){if(error?.status===400)return null;throw error;}}
- };
+async function browserlessSocket(){
+ const token=await secret('browserless_api_key');
+ if(!token||token.length>1000)throw Error('browser_auth_rejected');
+ return `wss://${BROWSERLESS_HOST}?token=${encodeURIComponent(token)}`;
 }
-const authBrowser=browserbaseAuth();
+function safeLiveUrl(value:any){
+ const url=new URL(String(value||''));
+ if(url.protocol!=='https:'||url.username||url.password||url.port||!(url.hostname==='browserless.io'||url.hostname.endsWith('.browserless.io')))throw Error('invalid_browser_url');
+ return url.href;
+}
+async function closeBrowser(browser:any){try{await browser?.close();}catch{try{browser?.disconnect();}catch{}}}
 
 function messageFor(profile:any,listing:any){if(clean(profile.default_message))return clean(profile.default_message,4000);const name=clean([profile.first_name,profile.last_name].filter(Boolean).join(' '),120),title=clean(listing.title,100)||'Ihre Wohnung';return `Guten Tag,\n\nich interessiere mich für „${title}“ und würde die Wohnung gerne besichtigen. Über eine Rückmeldung freue ich mich.\n\nFreundliche Grüße\n${name}`;}
 async function notify(chatId:any,text:string){if(!chatId)return;try{const token=await secret('telegram_bot_token_runtime');await fetch(`https://api.telegram.org/bot${token}/sendMessage`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({chat_id:chatId,text})});}catch{}}
 async function notifyUser(userId:string,text:string){const {data}=await db.from('bot_users').select('chat_id').eq('id',userId).maybeSingle();if(data?.chat_id)await notify(data.chat_id,text);}
 
-async function waitForKleinanzeigenCallback(page:any,expectedState:string,timeoutMs=150000){
+async function waitForKleinanzeigenCallback(page:any,expectedState:string,timeoutMs=LOGIN_WINDOW_MS){
  const deadline=Date.now()+timeoutMs;
  while(Date.now()<deadline){
   const current=String(page.url()||'');
@@ -52,7 +45,7 @@ async function waitForKleinanzeigenCallback(page:any,expectedState:string,timeou
    if(url.searchParams.get('error'))throw Error('oauth_login_failed');
    if(url.searchParams.get('code'))return url.href;
   }
-  await delay(400);
+  await delay(350);
  }
  throw Error('login_timeout');
 }
@@ -62,24 +55,67 @@ async function activeKleinanzeigenFlow(userId:string,state:string){
  return !!data;
 }
 
+async function createBrowserlessLogin(oauthUrl:string){
+ let browser:any=null;
+ try{
+  browser=await puppeteer.connect({browserWSEndpoint:await browserlessSocket(),protocolTimeout:15000,defaultViewport:null});
+  const pages=await browser.pages(),page=pages[0]||await browser.newPage();
+  await page.goto(oauthUrl,{waitUntil:'domcontentloaded',timeout:25000});
+  const cdp:any=await page.createCDPSession();
+  const live=await cdp.send('Browserless.liveURL',{
+   timeout:LOGIN_WINDOW_MS,
+   interactable:true,
+   resizable:true,
+   emulateComponents:true,
+   showBrowserInterface:false,
+   compressed:true,
+   type:'jpeg',
+   quality:72
+  });
+  if(live?.error||!live?.liveURL)throw Error('browser_live_url_failed');
+  return {browser,page,cdp,liveURL:safeLiveUrl(live.liveURL),liveURLId:String(live.liveURLId||'')};
+ }catch(error:any){
+  await closeBrowser(browser);
+  const message=String(error?.message||'');
+  if(/401|403|unauthorized|forbidden|token/i.test(message))throw Error('browser_auth_rejected');
+  if(/429|capacity|concurr/i.test(message))throw Error('browser_capacity_exceeded');
+  if(/timeout|timed out|ETIMEDOUT/i.test(message))throw Error('browser_temporary_error');
+  if(['browser_live_url_failed','invalid_browser_url'].includes(message))throw error;
+  throw Error('browser_network_error');
+ }
+}
+
+async function probeBrowserless(){
+ let browser:any=null,cdp:any=null,liveId='';
+ try{
+  browser=await puppeteer.connect({browserWSEndpoint:await browserlessSocket(),protocolTimeout:15000,defaultViewport:null});
+  const pages=await browser.pages(),page=pages[0]||await browser.newPage();
+  await page.goto('about:blank',{waitUntil:'domcontentloaded',timeout:10000});
+  cdp=await page.createCDPSession();
+  const live=await cdp.send('Browserless.liveURL',{timeout:5000,interactable:true,resizable:true,emulateComponents:true,showBrowserInterface:false});
+  if(live?.error||!live?.liveURL)throw Error('browser_live_url_failed');
+  safeLiveUrl(live.liveURL);liveId=String(live.liveURLId||'');
+  if(liveId)await cdp.send('Browserless.closeLiveURL',{liveURLId:liveId}).catch(()=>{});
+  return {status:'ok',transport:'browserless',region:'ams',interactive:true,virtualKeyboard:true};
+ }finally{await closeBrowser(browser);}
+}
+
 async function beginKleinanzeigenBrowserLogin(userId:string){
  const oauth=await beginKleinanzeigenLogin(db,userId);
  const expectedState=new URL(oauth.url).searchParams.get('state');
  if(!expectedState)throw Error('auth_flow_create_failed');
- let session:any=null,browser:any=null;
+ let login:any=null;
  try{
-  session=await authBrowser.start();
-  browser=await puppeteer.connect({browserWSEndpoint:browserSocket(String(session.connectUrl)),protocolTimeout:15000,defaultViewport:null});
-  const pages=await browser.pages(),page=pages[0]||await browser.newPage();
-  await page.goto(oauth.url,{waitUntil:'domcontentloaded',timeout:25000});
-  const liveUrl=await authBrowser.live(String(session.id));
-  const heldBrowser=browser;browser=null;
+  login=await createBrowserlessLogin(oauth.url);
+  const {browser,page,cdp,liveURL,liveURLId}=login;
+  login=null;
   EdgeRuntime.waitUntil((async()=>{
    let connected=false;
    try{
     const callbackUrl=await waitForKleinanzeigenCallback(page,expectedState);
     const result=await completeKleinanzeigenLogin(db,userId,callbackUrl);
     connected=result.authenticated===true;
+    if(liveURLId)await cdp.send('Browserless.closeLiveURL',{liveURLId}).catch(()=>{});
     if(connected)await notifyUser(userId,'✅ Kleinanzeigen verbunden. Die Anmeldung ist gespeichert; du musst nichts kopieren oder einfügen.');
    }catch(error:any){
     const code=String(error?.message||'login_failed').slice(0,120);
@@ -88,21 +124,20 @@ async function beginKleinanzeigenBrowserLogin(userId:string){
      await notifyUser(userId,code==='login_timeout'?'⚠️ Kleinanzeigen-Anmeldung abgelaufen. Bitte erneut auf „Kleinanzeigen verbinden“ tippen.':'⚠️ Kleinanzeigen konnte nicht verbunden werden. Bitte den Login erneut starten.');
     }
    }finally{
-    heldBrowser.disconnect();
-    if(session?.id)await authBrowser.stop(String(session.id)).catch(()=>{});
+    if(liveURLId)await cdp.send('Browserless.closeLiveURL',{liveURLId}).catch(()=>{});
+    await closeBrowser(browser);
     if(!connected)await db.from('platform_auth_flows').delete().eq('user_id',userId).eq('provider','kleinanzeigen').eq('state',expectedState).is('consumed_at',null).catch(()=>{});
    }
   })());
-  return {status:'login',url:liveUrl,automaticCallback:true,expiresIn:150};
+  return {status:'login',url:liveURL,automaticCallback:true,transport:'browserless',expiresIn:Math.floor(LOGIN_WINDOW_MS/1000)};
  }catch(error:any){
-  browser?.disconnect();
-  if(session?.id)await authBrowser.stop(String(session.id)).catch(()=>{});
+  await closeBrowser(login?.browser);
   const flowStillActive=await activeKleinanzeigenFlow(userId,expectedState).catch(()=>false);
   if(flowStillActive){
    await db.from('platform_auth_flows').delete().eq('user_id',userId).eq('provider','kleinanzeigen').eq('state',expectedState).is('consumed_at',null).catch(()=>{});
    await markConnection(db,userId,'kleinanzeigen','needs_login',String(error?.message||'login_unavailable').slice(0,120)).catch(()=>{});
   }
-  throw Error(['browser_network_error','browser_capacity_exceeded','browser_temporary_error','browser_auth_rejected','browser_access_rejected','browser_request_rejected'].includes(error?.message)?error.message:'login_unavailable');
+  throw Error(['browser_network_error','browser_capacity_exceeded','browser_temporary_error','browser_auth_rejected','browser_live_url_failed'].includes(error?.message)?error.message:'login_unavailable');
  }
 }
 
@@ -165,11 +200,12 @@ Deno.serve(async request=>{
   if(request.method!=='POST')return new Response('method not allowed',{status:405});
   if(request.headers.get('x-internal-secret')!==await secret('internal_worker_secret'))return new Response('unauthorized',{status:401});
   const body=await request.json();
-  if(body.action==='health')return Response.json({status:'ok',mode:'provider-router',browserbaseUserFlow:'auth-only',kleinanzeigenAutomaticCallback:true});
+  if(body.action==='health')return Response.json({status:'ok',mode:'provider-router',loginTransport:'browserless',kleinanzeigenAutomaticCallback:true});
+  if(body.action==='probe_auth_transport')return Response.json(await probeBrowserless());
   if(body.action==='process')return Response.json(await processApplication());
   return Response.json(await action(body));
  }catch(error:any){
-  const safe=new Set(['configuration_unavailable','premium_required','invalid_user','invalid_action','provider_contract_unverified','connection_read_failed','disconnect_failed','auth_flow_create_failed','invalid_callback_url','auth_flow_expired','token_exchange_failed','listing_unavailable','login_unavailable','browser_network_error','browser_capacity_exceeded','browser_temporary_error','browser_auth_rejected','browser_access_rejected','browser_request_rejected']);
+  const safe=new Set(['configuration_unavailable','premium_required','invalid_user','invalid_action','provider_contract_unverified','connection_read_failed','disconnect_failed','auth_flow_create_failed','invalid_callback_url','auth_flow_expired','token_exchange_failed','listing_unavailable','login_unavailable','browser_network_error','browser_capacity_exceeded','browser_temporary_error','browser_auth_rejected','browser_live_url_failed']);
   return Response.json({error:safe.has(error?.message)?error.message:'application_operation_failed'},{status:503});
  }
 });
