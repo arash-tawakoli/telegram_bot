@@ -688,8 +688,13 @@
       "files": [
         {
           "path": "supabase/functions/telegram-gateway/index.ts",
-          "sha256": "7de9c8841546ae04f99b40151611d72c036d615d92cdb65f755b8bcb751ca762",
+          "sha256": "ff51112f8859bfc346a0653c1f00ce20eca826b0d994676b00d8ec90fcd15d3c",
           "deployed_sha256": "7de9c8841546ae04f99b40151611d72c036d615d92cdb65f755b8bcb751ca762"
+        },
+        {
+          "path": "supabase/functions/telegram-gateway/auto-apply.ts",
+          "sha256": "a701a6b803cf960c7f7e78fb0a04e9a71b3d6fe23fd8e26ac2c97b09712024d0",
+          "deployed_sha256": "pending"
         }
       ],
       "import_map": false,

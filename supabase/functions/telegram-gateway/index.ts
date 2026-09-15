@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { handleAutoApplyCallback, isAutoApplyCallback } from "./auto-apply.ts";
 
 const URL = Deno.env.get("SUPABASE_URL")!;
 const KEYS = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") || "{}");
@@ -351,11 +352,19 @@ Deno.serve(async (req: Request) => {
     const body = await req.text();
     const update = parsed(body);
     if (update?.callback_query?.id) {
-      EdgeRuntime.waitUntil(
-        forwardToCore(body, expected, true)
-          .then((response) => { if (!response.ok) console.error("telegram_callback_core", response.status); })
-          .catch((error) => console.error("telegram_callback_core", String(error)))
-      );
+      const callbackData = String(update.callback_query?.data || "");
+      if (isAutoApplyCallback(callbackData)) {
+        EdgeRuntime.waitUntil(
+          handleAutoApplyCallback(update)
+            .catch((error) => console.error("telegram_auto_apply", String(error)))
+        );
+      } else {
+        EdgeRuntime.waitUntil(
+          forwardToCore(body, expected, true)
+            .then((response) => { if (!response.ok) console.error("telegram_callback_core", response.status); })
+            .catch((error) => console.error("telegram_callback_core", String(error)))
+        );
+      }
       return direct("answerCallbackQuery", { callback_query_id: String(update.callback_query.id) });
     }
     const command = commandOf(update);
