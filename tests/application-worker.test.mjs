@@ -19,7 +19,7 @@ function worker({authorized=true,failAfterAuthorization=false,premium=true}={}){
    then(resolve){if(write)writes.push({table,write});return Promise.resolve({data:write?[{id:'a'}]:[],error:null}).then(resolve)}
   };return q;
  }};
- const scope={createClient:()=>db,Deno:{env:{get:()=>undefined},serve:()=>{}},createProfileToken:async()=>'',handleProfilePage:async()=>{},beginKleinanzeigenLogin:async()=>{},checkKleinanzeigenConnection:async()=>{},disconnectKleinanzeigen:async()=>{},checkImmoScoutConnection:async()=>{},disconnectImmoScout:async()=>{},probeImmomioApplication:async()=>{},
+ const scope={createClient:()=>db,Deno:{env:{get:()=>undefined},serve:()=>{}},createProfileToken:async()=>'',handleProfilePage:async()=>{},beginKleinanzeigenLogin:async()=>{},completeKleinanzeigenLogin:async()=>{},checkKleinanzeigenConnection:async()=>{},disconnectKleinanzeigen:async()=>{},checkImmoScoutConnection:async()=>{},disconnectImmoScout:async()=>{},probeImmomioApplication:async()=>{},browserbaseAuth:()=>({}),browserSocket:v=>v,markConnection:async()=>{},puppeteer:{},EdgeRuntime:{waitUntil:()=>{}},
   providerForListing:()=> 'immoscout',sendApplication:async(_provider,{authorize})=>{events.push('provider_prepare');const permitted=await authorize();if(!permitted)return {success:false,status:'failed',error:'not_eligible'};events.push('send');if(failAfterAuthorization)throw Object.assign(Error('timeout'),{name:'TimeoutError'});return {success:true,status:'sent'};},fetch:async()=>({}),AbortSignal,URL,Response,JSON,crypto,Date,setTimeout,clearTimeout,console};
  vm.runInNewContext(source,scope);return {...scope,writes,events};
 }
