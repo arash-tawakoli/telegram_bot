@@ -29,7 +29,7 @@ export async function purgePlatformSessions(userId){
 const connectionLabel=row=>{
  if(!row)return '⚪ nicht verbunden';
  if(row.status==='connected')return '🟢 verbunden';
- if(row.status==='pending')return '🟡 Anmeldung offen';
+ if(row.status==='pending')return '🟡 Anmeldung noch nicht abgeschlossen';
  if(row.status==='needs_login')return '🟠 erneut anmelden';
  return '🔴 Fehler';
 };
@@ -38,12 +38,12 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  if(!privateOwner(user,chat))return;
  const [,action,rawSource]=data.split(':'),source=Number(rawSource);
  const render=(text,rows)=>messageId?edit(chat.id,messageId,text,{inline_keyboard:rows}):send(chat.id,text,{inline_keyboard:rows});
- const back=[[button('← Plattformkonten','platforms')]];
+ const back=[[button('← Automatische Bewerbung','platforms')]];
 
  if(action==='profile'){
   if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
   const result=await applicationWorker('profile_link',user.id,0);
-  return render('👤 <b>Bewerberprofil</b>\n\nHinterlege deine Angaben einmalig. Unterstützte Plattformen verwenden diese Daten danach automatisch.',[[{text:'👤 Bewerberprofil öffnen',url:result.url}],...back]);
+  return render('👤 <b>Bewerberprofil</b>\n\nHinterlege deine Bewerberdaten einmalig. Danach werden diese Angaben bei unterstützten Plattformen automatisch verwendet.',[[{text:'👤 Bewerberprofil öffnen',url:result.url}],...back]);
  }
 
  if(action==='login'||action==='disconnect'||action==='check'){
@@ -55,8 +55,10 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
    const result=await applicationWorker(action,user.id,source);
    if(action==='disconnect')return render(`${name}: Verbindung gelöscht.`,back);
    if(action==='login'&&result.url){
-    const note=result.requiresCallback?'Nach dem Login führst du die Verbindung einmalig auf der Bewerberprofil-Seite zu Ende. Danach erneuert der Server den Token automatisch.':'Melde dich einmalig an.';
-    return render(`${name}: ${note}`,[[{text:`🔐 ${name} verbinden`,url:result.url}],...back]);
+    const note=result.requiresCallback
+     ? 'Melde dich einmalig bei Kleinanzeigen an. Falls danach auf dem iPhone die Seite „Die Anmeldung konnte nicht abgeschlossen werden“ erscheint, kopiere dort über das Teilen-Symbol die vollständige URL. Öffne anschließend dein Bewerberprofil, füge diese URL im Feld „Callback-URL“ ein und tippe auf „Verbindung abschließen“. Danach bleibt die Verbindung gespeichert.'
+     : 'Melde dich einmalig an. Danach bleibt die Verbindung gespeichert.';
+    return render(`${name}: ${note}`,[[{text:`🔐 ${name} jetzt verbinden`,url:result.url}],...back]);
    }
    return render(result.authenticated===true?`${name}: ✅ Verbindung bestätigt.`:result.authenticated===false?`${name}: Anmeldung erforderlich.`:`${name}: Verbindung gespeichert, aber noch nicht vollständig verifiziert.`,back);
   }catch(error){return render(error.message,back);}
@@ -79,12 +81,11 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  ]);
  if(error||stateError||applicantError)throw Error('Auto-Bewerbung konnte nicht geladen werden.');
  const scout=connections?.find(r=>r.provider==='immoscout'),klein=connections?.find(r=>r.provider==='kleinanzeigen');
- const text=`⚡ <b>Automatische Bewerbung</b>\n\n👤 Bewerberprofil: ${applicant?'✅ vorhanden':'⚠️ fehlt'}\n\nImmoScout24: ${connectionLabel(scout)} · 🧪 Sendetest ausstehend\nKleinanzeigen: ${connectionLabel(klein)} · 🧪 New-Conversation-Test ausstehend\nImmomio: 🟢 kein Login erforderlich · 🧪 Guest-Submit-Test ausstehend\n\nAuto-Bewerbung: ${state.auto_apply_enabled?'✅ aktiv':'aus'}\n\nEine Quelle wird erst produktiv freigeschaltet, wenn ihr automatischer Sendetest erfolgreich war. Danach musst du nichts ausfüllen oder absenden.`;
+ const text=`⚡ <b>Automatische Bewerbung</b>\n\n👤 Bewerberprofil: ${applicant?'✅ vorhanden':'⚠️ fehlt'}\n\n<b>Plattformen</b>\nKleinanzeigen: ${connectionLabel(klein)} · 🧪 Sendetest ausstehend\nImmoScout24: ${connectionLabel(scout)} · 🧪 Sendetest ausstehend\nImmomio: 🟢 kein Login erforderlich · 🧪 Sendetest ausstehend\n\nAuto-Bewerbung: ${state.auto_apply_enabled?'✅ aktiv':'aus'}\n\nFür Kleinanzeigen meldest du dich nur einmal an. Danach soll der Versand vollständig automatisch im Hintergrund laufen; du musst keine Nachricht selbst schreiben oder absenden.`;
  const rows=[
   [button('👤 Bewerberprofil','platforms:profile')],
-  ...(user.is_premium?[[button('🔐 Kleinanzeigen verbinden','platforms:login:2')],[button('Kleinanzeigen prüfen','platforms:check:2')]]:[]),
+  ...(user.is_premium?[[button('🔐 Kleinanzeigen einmalig verbinden','platforms:login:2')],[button('✅ Kleinanzeigen-Verbindung prüfen','platforms:check:2')]]:[]),
   ...(klein?[[button('Kleinanzeigen trennen','platforms:disconnect:2')]]:[]),
-  [button('ImmoScout24 Status','platforms:check:1')],
   [button(state.auto_apply_enabled?'Auto-Bewerbung deaktivieren':'⚡ Auto-Bewerbung aktivieren',`platforms:${state.auto_apply_enabled?'off':'on'}`)],
   [button('← Einstellungen','settings')]
  ];
