@@ -2,15 +2,12 @@
   "manifest_version": 3,
   "name": "Traumwohnung Kleinanzeigen Bridge",
   "description": "Schließt die einmalige Kleinanzeigen-Anmeldung für Traumwohnung Hamburg automatisch ab.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "permissions": [],
   "host_permissions": [
     "https://login.kleinanzeigen.de/android/com.ebay.kleinanzeigen/callback*",
     "https://dpmohkrwdlicexwcrqfy.supabase.co/functions/v1/application-worker*"
   ],
-  "background": {
-    "service_worker": "background.js"
-  },
   "content_scripts": [
     {
       "matches": [
