@@ -1,6 +1,6 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.112.4';
 import {createProfileToken,handleProfilePage} from './profile-page.ts';
-import {beginKleinanzeigenLogin,checkKleinanzeigenConnection,disconnectKleinanzeigen} from './providers/kleinanzeigen.ts';
+import {beginKleinanzeigenLogin,completeKleinanzeigenLogin,checkKleinanzeigenConnection,disconnectKleinanzeigen} from './providers/kleinanzeigen.ts';
 import {checkImmoScoutConnection,disconnectImmoScout} from './providers/immoscout.ts';
 import {probeImmomioApplication} from './providers/immomio.ts';
 import {providerForListing,sendApplication} from './providers/router.ts';
@@ -51,6 +51,9 @@ async function action(body:any){
   if(source===2)return beginKleinanzeigenLogin(db,userId);
   if(source===1)return {status:'blocked',error:'provider_contract_unverified',officialApiRequired:false};
  }
+ if(body.action==='complete_login'){
+  if(source===2)return completeKleinanzeigenLogin(db,userId,clean(body.callbackUrl,8000));
+ }
  if(body.action==='check'){
   if(source===2)return checkKleinanzeigenConnection(db,userId);
   if(source===1)return checkImmoScoutConnection(db,userId);
@@ -75,7 +78,7 @@ Deno.serve(async request=>{
   if(body.action==='process')return Response.json(await processApplication());
   return Response.json(await action(body));
  }catch(error:any){
-  const safe=new Set(['configuration_unavailable','premium_required','invalid_user','invalid_action','provider_contract_unverified','connection_read_failed','disconnect_failed','auth_flow_create_failed','listing_unavailable']);
+  const safe=new Set(['configuration_unavailable','premium_required','invalid_user','invalid_action','provider_contract_unverified','connection_read_failed','disconnect_failed','auth_flow_create_failed','invalid_callback_url','auth_flow_expired','token_exchange_failed','listing_unavailable']);
   return Response.json({error:safe.has(error?.message)?error.message:'application_operation_failed'},{status:503});
  }
 });
