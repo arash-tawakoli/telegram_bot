@@ -1,55 +1,50 @@
-import { db, send, esc, telegram } from './runtime.js';
-import { applicationTarget, quickApplyButton, generateApplicationMessage } from './application-message.js';
+import {db,send,telegram,SUPABASE_URL,secret} from './runtime.js';
 
-export async function quickApplication(user, query) {
-    const chat = query.message?.chat;
-    // Never disclose a user's draft in a forwarded card or group conversation.
-    if (chat?.type !== 'private' || Number(chat.id) !== Number(user.telegram_user_id)
-        || Number(chat.id) !== Number(user.chat_id) || !user.is_active) return;
-    const id = String(query.data || '').slice('apply:'.length);
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
-        return send(chat.id, 'Dieses Angebot ist nicht verfügbar.');
-    }
-    const { data: deliveries, error: deliveryError } = await db.from('delivery_events')
-        .select('id').eq('recipient_user_id', user.id).eq('listing_id', id).eq('status', 'sent').limit(1);
-    if (deliveryError) throw deliveryError;
-    let owned = !!deliveries?.length;
-    if (!owned && user.is_premium) {
-        const { data: saved, error } = await db.from('saved_listings')
-            .select('id').eq('user_id', user.id).eq('listing_id', id).limit(1);
-        if (error) throw error;
-        owned = !!saved?.length;
-    }
-    if (!owned) return send(chat.id, 'Bitte wähle eine dir zugestellte oder gespeicherte Wohnung.');
-    const { data: listing, error } = await db.from('listings')
-        .select('id,source_id,canonical_url,title,is_active').eq('id', id).maybeSingle();
-    if (error) throw error;
-    if (!listing || !quickApplyButton(listing)) {
-        return send(chat.id, 'Dieses Angebot ist inaktiv oder unterstützt keine Schnellbewerbung.');
-    }
-    const target = applicationTarget(listing);
-    if (!target) {
-        return send(chat.id, '⚡ Schnellbewerbung ist für diese Quelle noch nicht automatisiert. Bitte öffne das Angebot über den Button „Angebot“.');
-    }
-    const {data:application,error:applicationError}=await db.from('applications')
-        .select('status,submission_started_at').eq('user_id',user.id).eq('listing_id',id).maybeSingle();
-    if(applicationError)throw applicationError;
-    if(application?.status==='sent' || application?.submission_started_at) {
-        return telegram('sendMessage',{chat_id:chat.id,text:application.status==='sent'
-            ? '✅ Diese Bewerbung wurde bereits gesendet. Bitte nicht erneut bewerben.'
-            : '⚠️ Der Versand wurde gestartet, aber möglicherweise noch nicht bestätigt. Prüfe zuerst deine Plattformnachrichten, bevor du erneut absendest.',
-            reply_markup:{inline_keyboard:[[{text:`${target.platform} prüfen`,url:target.url}]]}});
-    }
-    const message = generateApplicationMessage(user, listing);
-    return telegram('sendMessage', {
-        chat_id: chat.id,
-        parse_mode: 'HTML',
-        link_preview_options: { is_disabled: true },
-        text: '⚡ <b>Schnell bewerben</b>\n\nNoch nicht versendet. Bitte Text und Namen prüfen. Dann Text kopieren, das Angebot öffnen und im Kontaktformular einfügen und absenden. Falls nötig, direkt bei der Plattform anmelden.\n\n'
-        + `<pre>${esc(message)}</pre>\n\nDer Bot erhält keine Plattform-Passwörter und kann den manuellen Versand nicht bestätigen.`,
-        reply_markup: { inline_keyboard: [
-            ...(message.length <= 256 ? [[{ text: '📋 Bewerbungstext kopieren', copy_text: { text: message } }]] : []),
-            [{ text: `${target.platform} öffnen`, url: target.url }],
-        ] },
-    });
+async function worker(action,userId){
+ const response=await fetch(`${SUPABASE_URL}/functions/v1/application-worker`,{
+  method:'POST',headers:{'Content-Type':'application/json','x-internal-secret':await secret('internal_worker_secret')},
+  body:JSON.stringify({action,userId}),signal:AbortSignal.timeout(20000)});
+ const result=await response.json().catch(()=>null);
+ if(!response.ok||!result)throw Error('Auto-Bewerbung ist gerade nicht erreichbar.');
+ return result;
+}
+
+export async function quickApplication(user,query){
+ const chat=query.message?.chat;
+ if(chat?.type!=='private'||Number(chat.id)!==Number(user.telegram_user_id)||Number(chat.id)!==Number(user.chat_id)||!user.is_active)return;
+ const id=String(query.data||'').slice('apply:'.length);
+ if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))return send(chat.id,'Dieses Angebot ist nicht verfügbar.');
+ if(!user.is_premium)return send(chat.id,'⚡ Vollautomatische Bewerbungen benötigen Premium.');
+
+ const [{data:deliveries,error:deliveryError},{data:saved,error:savedError}]=await Promise.all([
+  db.from('delivery_events').select('id').eq('recipient_user_id',user.id).eq('listing_id',id).limit(1),
+  db.from('saved_listings').select('id').eq('user_id',user.id).eq('listing_id',id).limit(1)
+ ]);
+ if(deliveryError||savedError)throw deliveryError||savedError;
+ if(!deliveries?.length&&!saved?.length)return send(chat.id,'Bitte wähle eine dir zugestellte oder gespeicherte Wohnung.');
+
+ const {data:listing,error:listingError}=await db.from('listings').select('id,source_id,title,is_active,raw').eq('id',id).maybeSingle();
+ if(listingError)throw listingError;
+ if(!listing?.is_active)return send(chat.id,'Dieses Angebot ist nicht mehr aktiv.');
+
+ const {data:existing,error:applicationError}=await db.from('applications').select('id,status,submission_started_at,last_error').eq('user_id',user.id).eq('listing_id',id).maybeSingle();
+ if(applicationError)throw applicationError;
+ if(existing?.status==='sent')return send(chat.id,'✅ Diese Bewerbung wurde bereits automatisch versendet.');
+ if(existing?.submission_started_at)return send(chat.id,'⚠️ Der Versand wurde bereits gestartet. Zur Sicherheit wird keine zweite Bewerbung ausgelöst.');
+ if(existing?.status==='pending'||existing?.status==='processing')return send(chat.id,'⏳ Diese Bewerbung ist bereits zur automatischen Verarbeitung vorgemerkt.');
+
+ const {data:profile,error:profileError}=await db.from('applicant_profiles').select('user_id').eq('user_id',user.id).maybeSingle();
+ if(profileError)throw profileError;
+ if(!profile){
+  const result=await worker('profile_link',user.id);
+  return telegram('sendMessage',{chat_id:chat.id,text:'👤 Für die vollautomatische Bewerbung fehlt noch dein Bewerberprofil.',reply_markup:{inline_keyboard:[[{text:'👤 Bewerberprofil einrichten',url:result.url}]]}});
+ }
+
+ const {data:applicationId,error:enqueueError}=await db.rpc('enqueue_application_now',{p_user:user.id,p_listing:id});
+ if(enqueueError)throw enqueueError;
+ if(!applicationId){
+  const provider=Number(listing.source_id)===1?'ImmoScout24':Number(listing.source_id)===2?'Kleinanzeigen':String(listing.raw?.applicationLink||'').includes('tenant.immomio.com')?'Immomio':'diese Quelle';
+  return send(chat.id,`🧪 Der vollautomatische Versand für ${provider} ist noch nicht produktiv freigegeben. Es wird keine manuelle Bewerbung ausgelöst.`);
+ }
+ return send(chat.id,'⚡ Bewerbung vorgemerkt. Sie wird vollständig automatisch verarbeitet; du musst nichts ausfüllen oder absenden.');
 }
