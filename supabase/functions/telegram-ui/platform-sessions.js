@@ -25,17 +25,13 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  const [,action,rawSource]=data.split(':'),source=Number(rawSource);
  const render=(text,rows)=>messageId?edit(chat.id,messageId,text,{inline_keyboard:rows}):send(chat.id,text,{inline_keyboard:rows});
  const back=[[button('← Plattformkonten','platforms')]];
- if(action==='login'||action==='disconnect'||action==='check'){
+ if(action==='disconnect'||action==='check'){
   if(![1,2].includes(source))return;
-  if(action!=='disconnect'&&!user.is_premium)return render('Zum Verbinden ist Premium erforderlich.',back);
+  if(action!=='disconnect'&&!user.is_premium)return render('Zum Prüfen ist Premium erforderlich.',back);
   const name=source===1?'ImmoScout24':'Kleinanzeigen';
-  if(source===1&&action==='login')return render('ImmoScout24 wird ohne offizielle API über eine wiederverwendbare Web-Session angebunden. Der Login-/Send-Vertrag bleibt bis zum kontrollierten Plattformtest gesperrt; es wird kein unsicherer oder geratener Login aktiviert.',back);
   let result;try{result=await applicationWorker(action,user.id,source);}catch(error){return render(error.message,back);}
   if(action==='disconnect')return render(`${name}: Verbindung gelöscht.`,back);
-  if(action==='login'&&result.url){
-   return render(`${name}: Öffne den normalen Login. Nach erfolgreicher Anmeldung wird der Refresh-Token einmalig verschlüsselt gespeichert.`,[[{text:`🔐 ${name} Login öffnen`,url:result.url}],...back]);
-  }
-  return render(result.authenticated===true?`${name}: ✅ Verbindung bestätigt.`:result.authenticated===null?`${name}: Verbindung gespeichert; der private Sendepfad ist noch nicht freigegeben.`:`${name}: Bitte erneut verbinden.`,back);
+  return render(result.authenticated===true?`${name}: ✅ Verbindung bestätigt.`:result.authenticated===null?`${name}: Verbindung gespeichert; der private Sendepfad ist noch nicht freigegeben.`:`${name}: Bitte über „Bewerberprofil & Plattformen“ erneut verbinden.`,back);
  }
  if(action==='off'){
   const {error}=await db.from('bot_users').update({auto_apply_enabled:false}).eq('id',user.id);
@@ -59,11 +55,12 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  const applicantReady=!!(applicant.data?.first_name&&applicant.data?.last_name&&applicant.data?.email&&applicant.data?.phone&&applicant.data?.city&&applicant.data?.household_size);
  const row=provider=>connections?.find(item=>item.provider===provider),label=provider=>row(provider)?.status==='connected'?'🟢 verbunden':row(provider)?.status==='pending'?'🟡 Anmeldung offen':row(provider)?.status==='needs_login'?'🟠 erneut anmelden':'⚪ nicht verbunden';
  const rows=[];
- if(profileLink?.url)rows.push([{text:applicantReady?'👤 Bewerberprofil bearbeiten':'👤 Bewerberprofil einrichten',url:profileLink.url}]);
- if(user.is_premium){rows.push([button('Kleinanzeigen verbinden','platforms:login:2')],[button('Kleinanzeigen prüfen','platforms:check:2')]);}
+ if(profileLink?.url)rows.push([{text:applicantReady?'👤 Bewerberprofil & Plattformen':'👤 Bewerberprofil & Plattformen einrichten',url:profileLink.url}]);
+ if(user.is_premium&&row('kleinanzeigen'))rows.push([button('Kleinanzeigen prüfen','platforms:check:2')]);
  if(row('kleinanzeigen'))rows.push([button('Kleinanzeigen trennen','platforms:disconnect:2')]);
+ if(row('immoscout'))rows.push([button('ImmoScout24 prüfen','platforms:check:1')],[button('ImmoScout24 trennen','platforms:disconnect:1')]);
  rows.push([button(profile.auto_apply_enabled?'Auto-Bewerbung deaktivieren':'⚡ Auto-Bewerbung aktivieren',`platforms:${profile.auto_apply_enabled?'off':'on'}`)]);
  for(const [i,a] of (applications||[]).entries())rows.push([button(`${{sent:'✅ Gesendet',failed:'❌ Fehlgeschlagen',manual_required:'⚠️ Prüfung nötig',pending:'⏳ Vorgemerkt',processing:'⏳ Wird verarbeitet'}[a.status]||a.status} · ${i+1}`,`apply:${a.listing_id}`)]);
  rows.push([button('← Einstellungen','settings')]);
- return render(`⚡ <b>Automatische Bewerbung</b>\n\nBewerberprofil: ${applicantReady?'✅ vollständig':'⚠️ unvollständig'}\n\nImmoScout24: ${label('immoscout')}\nKleinanzeigen: ${label('kleinanzeigen')}\nImmomio: 🟢 kein Login erforderlich\n\nAuto-Bewerbung: ${profile.auto_apply_enabled?'✅ aktiv':'aus'}\n\nNach der einmaligen Einrichtung werden freigegebene Plattformen vollständig automatisch ausgefüllt und abgesendet. Plattformen werden erst nach einem kontrollierten Sendetest freigeschaltet.`,rows);
+ return render(`⚡ <b>Automatische Bewerbung</b>\n\nBewerberprofil: ${applicantReady?'✅ vollständig':'⚠️ unvollständig'}\n\nImmoScout24: ${label('immoscout')}\nKleinanzeigen: ${label('kleinanzeigen')}\nImmomio: 🟢 kein Login erforderlich\n\nAuto-Bewerbung: ${profile.auto_apply_enabled?'✅ aktiv':'aus'}\n\nEinrichtung und Plattform-Login laufen über die mobile Setup-Seite. Danach werden freigegebene Plattformen vollständig automatisch ausgefüllt und abgesendet.`,rows);
 }
