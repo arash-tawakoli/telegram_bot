@@ -39,6 +39,7 @@ export async function applicationWorker(action,userId,source,extra={}){
   if(code==='auth_flow_expired')throw Error('Die Kleinanzeigen-Anmeldung ist abgelaufen. Bitte erneut verbinden.');
   if(code==='invalid_callback_url')throw Error('Der Kleinanzeigen-Rücksprung ist unvollständig. Bitte den Login erneut starten.');
   if(code==='token_exchange_failed')throw Error('Kleinanzeigen konnte die Anmeldung nicht abschließen. Bitte erneut versuchen.');
+  if(code==='oauth_client_not_provisioned')throw Error('Der direkte Kleinanzeigen-Login ist technisch vorbereitet. Kleinanzeigen muss unseren OAuth-Client für den Callback noch freischalten.');
   throw Error('Plattformverbindung momentan nicht verfügbar.');
  }
  return result;
@@ -125,31 +126,9 @@ function validateField(name,input){
  return raw;
 }
 
-function kleinCallbackFromText(text){
- const match=String(text||'').match(/https:\/\/login\.kleinanzeigen\.de\/android\/com\.ebay\.kleinanzeigen\/callback[^\s<>]*/i);
- if(!match)return null;
- try{
-  const url=new URL(match[0].replace(/&amp;/g,'&'));
-  if(url.hostname!=='login.kleinanzeigen.de'||url.pathname!=='/android/com.ebay.kleinanzeigen/callback')return null;
-  return url.href;
- }catch{return null;}
-}
-
 export async function handleAutoApplyMessage(user,message){
  const chat=message?.chat;if(!privateOwner(user,chat))return null;
  const text=String(message?.text||'').trim();
- const callbackUrl=kleinCallbackFromText(text);
- if(callbackUrl){
-  try{
-   if(!user.is_premium)return send(chat.id,'💎 Kleinanzeigen-Verbindungen benötigen Premium.');
-   const result=await applicationWorker('complete_login',user.id,2,{callbackUrl});
-   await telegram('deleteMessage',{chat_id:chat.id,message_id:message.message_id}).catch(()=>{});
-   return send(chat.id,result.authenticated===true?'✅ <b>Kleinanzeigen verbunden</b>\n\nDie Anmeldung ist gespeichert. Für spätere Bewerbungen ist kein erneutes Kopieren oder Einfügen nötig.':'⚠️ Kleinanzeigen konnte nicht verbunden werden.',{inline_keyboard:[[button('⚡ Automatische Bewerbung','platforms')]]});
-  }catch(error){
-   await telegram('deleteMessage',{chat_id:chat.id,message_id:message.message_id}).catch(()=>{});
-   return send(chat.id,`⚠️ ${esc(error.message||'Kleinanzeigen-Verbindung fehlgeschlagen.')}`,{inline_keyboard:[[button('🔐 Kleinanzeigen erneut verbinden','platforms:login:2')],[button('← Automatische Bewerbung','platforms')]]});
-  }
- }
  const replied=String(message?.reply_to_message?.text||'');
  if(replied.startsWith(SETUP_PROMPT)){
   const parts=text.split('|').map(v=>v.trim());
@@ -209,8 +188,8 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
    const result=await applicationWorker(action,user.id,source);
    if(action==='disconnect')return render(`${name}: Verbindung gelöscht.`,back);
    if(action==='login'&&result.url){
-    const note=result.requiresCallback
-     ? 'Melde dich einmalig bei Kleinanzeigen an. Wenn danach auf dem iPhone „Die Anmeldung konnte nicht abgeschlossen werden“ erscheint: <b>Teilen → Telegram → Traumwohnung – Hamburg → Senden</b>. Der Bot übernimmt den Rücksprung automatisch und löscht die sensible URL wieder. Kein Kopieren oder Einfügen nötig.'
+    const note=result.automaticCallback
+     ? 'Öffne Kleinanzeigen und melde dich ganz normal im Browser an. Nach erfolgreichem Login wird die Verbindung automatisch abgeschlossen und du wirst zurück zu Telegram geführt. Kein Kopieren, Teilen oder Remote-Browser.'
      : 'Melde dich einmalig an. Danach bleibt die Verbindung gespeichert.';
     return render(`${name}: ${note}`,[[{text:`🔐 ${name} jetzt verbinden`,url:result.url}],...back]);
    }
