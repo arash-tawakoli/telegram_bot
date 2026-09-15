@@ -17,7 +17,7 @@ env:
 jobs:
   analyze:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -49,22 +49,53 @@ jobs:
           KA_BUNDLE_PATH: tmp/ka-analysis/kleinanzeigen-2026.37.1.apkm
         run: python scripts/analyze_kleinanzeigen_apk.py
 
-      - name: Upload base APK and raw scan
+      - name: Decompile base APK with JADX
         if: success()
+        continue-on-error: true
+        run: |
+          set -e
+          mkdir -p tmp/jadx-bin tmp/ka-analysis/jadx
+          URL="$(curl -fsSL https://api.github.com/repos/skylot/jadx/releases/latest | jq -r '.assets[] | select(.name | test("jadx-[0-9.]+\\.zip$")) | .browser_download_url' | head -n1)"
+          test -n "$URL"
+          curl -fL "$URL" -o tmp/jadx.zip
+          unzip -q tmp/jadx.zip -d tmp/jadx-bin
+          tmp/jadx-bin/bin/jadx --deobf --show-bad-code -d tmp/ka-analysis/jadx tmp/ka-analysis/base.apk || true
+
+      - name: Collect targeted First Contact source
+        if: always()
+        run: |
+          set -e
+          mkdir -p tmp/ka-analysis/relevant
+          PATTERN='user-contactdetails|real-estate-seeker-profile|create-conversation|messagebox/api/users|warnPhoneNumber|contentWarnings|contactName|contact-form|seeker-profile|request.?quality|anfrage|isRequired|contactFields'
+          if [ -d tmp/ka-analysis/jadx/sources ]; then
+            grep -RInE "$PATTERN" tmp/ka-analysis/jadx/sources > tmp/ka-analysis/jadx_hits.txt || true
+            grep -RIlE "$PATTERN" tmp/ka-analysis/jadx/sources > tmp/ka-analysis/relevant_files.txt || true
+            while IFS= read -r f; do
+              [ -n "$f" ] || continue
+              rel="${f#tmp/ka-analysis/jadx/sources/}"
+              mkdir -p "tmp/ka-analysis/relevant/$(dirname "$rel")"
+              cp "$f" "tmp/ka-analysis/relevant/$rel"
+            done < tmp/ka-analysis/relevant_files.txt
+          else
+            : > tmp/ka-analysis/jadx_hits.txt
+            : > tmp/ka-analysis/relevant_files.txt
+          fi
+          head -n 5000 tmp/ka-analysis/jadx_hits.txt > tmp/ka-analysis/jadx_hits_top.txt || true
+          tar -czf tmp/ka-analysis/relevant-sources.tgz -C tmp/ka-analysis/relevant . || true
+          echo '--- targeted source files ---'
+          cat tmp/ka-analysis/relevant_files.txt || true
+          echo '--- targeted hits ---'
+          head -n 240 tmp/ka-analysis/jadx_hits_top.txt || true
+
+      - name: Upload targeted reverse engineering result
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: kleinanzeigen-2026.37.1-base-and-scan
+          name: kleinanzeigen-2026.37.1-targeted-source
           path: |
-            tmp/ka-analysis/base.apk
             tmp/ka-analysis/analysis.txt
-          if-no-files-found: error
-          retention-days: 1
-          compression-level: 0
-
-      - name: Confirm analysis
-        if: success()
-        run: |
-          test -s tmp/ka-analysis/base.apk
-          test -s tmp/ka-analysis/analysis.txt
-          sha256sum tmp/ka-analysis/base.apk
-          grep -n -i -E 'user-contactdetails|real-estate-seeker-profile|create-conversation|messagebox/api/users' tmp/ka-analysis/analysis.txt | head -n 80 || true
+            tmp/ka-analysis/jadx_hits_top.txt
+            tmp/ka-analysis/relevant_files.txt
+            tmp/ka-analysis/relevant-sources.tgz
+          if-no-files-found: warn
+          retention-days: 2
