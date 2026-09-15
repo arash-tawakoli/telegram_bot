@@ -1,6 +1,18 @@
-const api = globalThis.browser ?? globalThis.chrome;
+const BRIDGE_ENDPOINT = 'https://dpmohkrwdlicexwcrqfy.supabase.co/functions/v1/application-worker?oauth_bridge=kleinanzeigen';
 const TELEGRAM_CONNECTED = 'https://t.me/traumwohnunghamburgbot?start=ka_connected';
 const TELEGRAM_FAILED = 'https://t.me/traumwohnunghamburgbot?start=ka_failed';
+const CALLBACK_ORIGIN = 'https://login.kleinanzeigen.de';
+const CALLBACK_PATH = '/android/com.ebay.kleinanzeigen/callback';
+
+function validCallback(value) {
+  let url;
+  try { url = new URL(String(value || '')); } catch { return null; }
+  if (url.origin !== CALLBACK_ORIGIN || url.pathname !== CALLBACK_PATH) return null;
+  if (url.username || url.password || url.port) return null;
+  if (!url.searchParams.get('state')) return null;
+  if (!url.searchParams.get('code') && !url.searchParams.get('error')) return null;
+  return url.href;
+}
 
 function renderStatus(title, detail) {
   const draw = () => {
@@ -32,34 +44,27 @@ function renderStatus(title, detail) {
   if (document.body) draw(); else document.addEventListener('DOMContentLoaded', draw, { once: true });
 }
 
-function sendRuntimeMessage(message) {
-  return new Promise(resolve => {
-    let settled = false;
-    const finish = value => {
-      if (settled) return;
-      settled = true;
-      resolve(value || { ok: false, error: 'bridge_failed' });
-    };
-    try {
-      const result = api.runtime.sendMessage(message, finish);
-      if (result && typeof result.then === 'function') result.then(finish).catch(() => finish({ ok: false, error: 'bridge_failed' }));
-    } catch {
-      finish({ ok: false, error: 'bridge_failed' });
-    }
-  });
-}
-
-renderStatus('Kleinanzeigen wird verbunden …', 'Die Anmeldung wird sicher abgeschlossen. Du musst nichts kopieren oder teilen.');
-
-sendRuntimeMessage({
-  type: 'complete-kleinanzeigen-login',
-  callbackUrl: location.href
-}).then(response => {
-  if (response?.ok !== true) {
+async function complete() {
+  const callbackUrl = validCallback(location.href);
+  if (!callbackUrl) return;
+  renderStatus('Kleinanzeigen wird verbunden …', 'Die Anmeldung wird sicher abgeschlossen. Du musst nichts kopieren oder teilen.');
+  try {
+    const response = await fetch(BRIDGE_ENDPOINT, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ callbackUrl }),
+      credentials: 'omit',
+      cache: 'no-store',
+      redirect: 'error'
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok || body?.ok !== true) throw new Error(String(body?.error || 'bridge_failed'));
+    renderStatus('Kleinanzeigen verbunden', 'Die Verbindung wurde gespeichert. Du wirst zurück zu Telegram geführt.');
+    setTimeout(() => location.replace(TELEGRAM_CONNECTED), 600);
+  } catch {
     renderStatus('Verbindung fehlgeschlagen', 'Bitte kehre zu Traumwohnung Hamburg zurück und starte die Kleinanzeigen-Verbindung erneut.');
     setTimeout(() => location.replace(TELEGRAM_FAILED), 900);
-    return;
   }
-  renderStatus('Kleinanzeigen verbunden', 'Die Verbindung wurde gespeichert. Du wirst zurück zu Telegram geführt.');
-  setTimeout(() => location.replace(TELEGRAM_CONNECTED), 600);
-});
+}
+
+void complete();
