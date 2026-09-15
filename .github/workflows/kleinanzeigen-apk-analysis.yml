@@ -1,0 +1,66 @@
+name: Kleinanzeigen APK Analysis
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - scripts/analyze_kleinanzeigen_apk.py
+      - .github/workflows/kleinanzeigen-apk-analysis.yml
+
+permissions:
+  contents: read
+
+env:
+  KA_ANALYSIS_DIR: tmp/ka-analysis
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python dependency
+        run: python -m pip install --disable-pip-version-check requests
+
+      - name: Download and scan Kleinanzeigen 2026.37.1
+        run: python scripts/analyze_kleinanzeigen_apk.py
+
+      - name: Decompile base APK with JADX
+        continue-on-error: true
+        run: |
+          set -e
+          mkdir -p tmp/jadx-bin tmp/ka-analysis/jadx
+          URL="$(curl -fsSL https://api.github.com/repos/skylot/jadx/releases/latest | jq -r '.assets[] | select(.name | test("jadx-[0-9.]+\\.zip$")) | .browser_download_url' | head -n1)"
+          test -n "$URL"
+          curl -fL "$URL" -o tmp/jadx.zip
+          unzip -q tmp/jadx.zip -d tmp/jadx-bin
+          tmp/jadx-bin/bin/jadx --deobf --show-bad-code -d tmp/ka-analysis/jadx tmp/ka-analysis/base.apk
+
+      - name: Extract decompiled First Contact references
+        if: always()
+        run: |
+          mkdir -p tmp/ka-analysis
+          if [ -d tmp/ka-analysis/jadx ]; then
+            rg -n -i --hidden --no-messages \
+              'create-conversation|messagebox/api/users|warnPhoneNumber|contentWarnings|contactName|inquiry|first.?contact|contact.?form|lead.?generation|household|monthlyNetIncome|income|realestate|requiredFields|mandatory|X-EBAYK-APP|X-ECG-IN|send.?message' \
+              tmp/ka-analysis/jadx > tmp/ka-analysis/jadx_hits.txt || true
+          else
+            : > tmp/ka-analysis/jadx_hits.txt
+          fi
+          head -n 1500 tmp/ka-analysis/jadx_hits.txt > tmp/ka-analysis/jadx_hits_top.txt || true
+
+      - name: Upload analysis
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kleinanzeigen-2026.37.1-analysis
+          path: |
+            tmp/ka-analysis/analysis.txt
+            tmp/ka-analysis/jadx_hits_top.txt
+          if-no-files-found: warn
+          retention-days: 3
