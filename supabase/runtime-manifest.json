@@ -693,7 +693,7 @@
         },
         {
           "path": "supabase/functions/telegram-gateway/auto-apply.ts",
-          "sha256": "a701a6b803cf960c7f7e78fb0a04e9a71b3d6fe23fd8e26ac2c97b09712024d0",
+          "sha256": "08dded4407e57a965bb70fb1570fb7e8d0cf043ea514f396308771785bf55036",
           "deployed_sha256": "pending"
         }
       ],
