@@ -8,7 +8,6 @@ const manifest=JSON.parse(readFileSync(new URL('../clients/safari-kleinanzeigen-
 const background=readFileSync(new URL('../clients/safari-kleinanzeigen-bridge/extension/background.js',import.meta.url),'utf8');
 
 const callback='https://login.kleinanzeigen.de/android/com.ebay.kleinanzeigen/callback';
-const bridge='https://dpmohkrwdlicexwcrqfy.supabase.co/functions/v1/application-worker?oauth_bridge=kleinanzeigen';
 
 test('Safari bridge is narrow-scope and never receives credentials',()=>{
  assert.equal(manifest.manifest_version,3);
@@ -31,11 +30,10 @@ test('bridge callback stays PKCE-bound and exact-target validated',()=>{
 
 test('public bridge endpoint is limited to the legacy Kleinanzeigen callback',()=>{
  assert.match(worker,/KLEIN_LEGACY_CALLBACK='https:\/\/login\.kleinanzeigen\.de\/android\/com\.ebay\.kleinanzeigen\/callback'/);
- assert.match(worker,/oauth_bridge.*kleinanzeigen/);
+ assert.match(worker,/KLEIN_BRIDGE_ENDPOINT=`\$\{base\}\/functions\/v1\/application-worker\?oauth_bridge=kleinanzeigen`/);
  assert.match(worker,/completeKleinanzeigenCallback\(db,callbackUrl\)/);
  assert.match(worker,/cache-control':'no-store'/);
  assert.ok(worker.indexOf("oauth_bridge')==='kleinanzeigen'") < worker.indexOf("x-internal-secret"));
- assert.ok(worker.includes(bridge.split('?')[0]));
 });
 
 test('remote Browserless login is not part of application-worker anymore',()=>{
