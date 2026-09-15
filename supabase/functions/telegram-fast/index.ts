@@ -3,7 +3,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 const BASE_URL = Deno.env.get("SUPABASE_URL")!;
 const KEYS = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") || "{}");
 const SERVICE_KEY = KEYS.default || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const CORE = `${BASE_URL}/functions/v1/telegram-ui`;
+const CORE = `${BASE_URL}/functions/v1/telegram-gateway`;
 const PREMIUM_LINK = "https://buy.stripe.com/dRm9AM7DSajfgYK2qVfYY01";
 const PREMIUM_IMAGE = `${BASE_URL}/storage/v1/object/public/telegram-assets/premium/50-off-hd.jpg?v=20260903hd4`;
 const ADMINS = [8538226539, 414638980];
