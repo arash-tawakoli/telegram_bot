@@ -109,7 +109,10 @@ def resolve_apkmirror(session: requests.Session):
         nxt = next_download_candidate(text, r.url)
         if not nxt or nxt == current:
             snippets = [line.strip()[:500] for line in text.splitlines() if "download" in line.lower() or "wp-content/uploads" in line.lower()]
-            (ROOT / "apkmirror-debug.txt").write_text("\n".join(snippets[:200]), encoding="utf-8")
+            debug = "\n".join(snippets[:200])
+            (ROOT / "apkmirror-debug.txt").write_text(debug, encoding="utf-8")
+            print("APKMirror debug snippets:", file=sys.stderr)
+            print(debug[:12000], file=sys.stderr)
             raise RuntimeError(f"APKMirror binary link not found at hop {hop}")
         referer, current = r.url, nxt
         if "apkmirror.com" in current:
@@ -129,6 +132,16 @@ def download_bundle(session: requests.Session, url: str, referer: str, dst: Path
                 f.write(chunk)
                 h.update(chunk)
                 total += len(chunk)
+    return total, h.hexdigest()
+
+
+def hash_file(path: Path):
+    h = hashlib.sha256()
+    total = 0
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(chunk)
+            total += len(chunk)
     return total, h.hexdigest()
 
 
@@ -160,9 +173,15 @@ def scan_binary(path: Path):
 
 def main():
     s = requests.Session()
-    direct, referer = resolve_apkmirror(s)
-    bundle = ROOT / "kleinanzeigen-2026.37.1.apkm"
-    size, sha = download_bundle(s, direct, referer, bundle)
+    bundle_override = os.environ.get("KA_BUNDLE_PATH", "").strip()
+    bundle = Path(bundle_override) if bundle_override else ROOT / "kleinanzeigen-2026.37.1.apkm"
+    if bundle_override:
+        if not bundle.exists():
+            raise RuntimeError(f"bundle override not found: {bundle}")
+        size, sha = hash_file(bundle)
+    else:
+        direct, referer = resolve_apkmirror(s)
+        size, sha = download_bundle(s, direct, referer, bundle)
     print(f"bundle_size={size}")
     print(f"bundle_sha256={sha}")
     if sha != EXPECTED_SHA256:
