@@ -11,27 +11,21 @@ function worker({authorized=true,failAfterAuthorization=false,premium=true}={}){
   events.push(name);
   if(name==='claim_application')return {data:[application]};
   if(name==='application_user_eligible')return {data:premium};
-  if(name==='claim_platform_session')return {data:[{user_id:'u',source_id:1,lease_token:'session',status:'saved',context_id:'context'}]};
   if(name==='authorize_application_send')return authorized==='uncertain'?{error:Error('timeout')}:{data:authorized};
+  if(name==='get_bot_secret')return {error:Error('not configured')};
  },from(table){let write;
   const q={select(){return q},eq(){return q},update(value){write=value;return q},
-   single:async()=>({data:table==='bot_users'?{id:'u',auto_apply_enabled:true,first_name:'Test',last_name:'User'}:{id:'l',source_id:1,is_active:true,title:'Wohnung'}}),
-   then(resolve){if(write)writes.push({table,write});return Promise.resolve({data:write?[{id:'a',user_id:'u'}]:[],error:null}).then(resolve)}
+   single:async()=>({data:table==='bot_users'?{id:'u',chat_id:null,is_active:true,auto_apply_enabled:true}:table==='applicant_profiles'?{user_id:'u',first_name:'Test',last_name:'User',email:'test@example.com',phone:'123',city:'Hamburg',household_size:1}:{id:'l',source_id:1,is_active:true,title:'Wohnung',raw:{},external_id:'1',source_listing_key:'1'}}),
+   then(resolve){if(write)writes.push({table,write});return Promise.resolve({data:write?[{id:'a'}]:[],error:null}).then(resolve)}
   };return q;
  }};
- const browser={pages:async()=>[{}],disconnect:()=>events.push('disconnect')};
- const scope={createClient:()=>db,Deno:{env:{get:()=>undefined},serve:()=>{}},browserbase:()=>({start:async()=>({id:'session',connectUrl:'url'}),stop:async()=>events.push('stop')}),
-  puppeteer:{connect:async()=>browser},browserUrl:x=>x,identifier:x=>x,generateApplicationMessage:()=> 'Bewerbung',
-  adapters:{1:{applyToListing:async({authorize})=>{
-   const permitted=await authorize();if(!permitted)return {success:false,status:'failed',error:'not_eligible'};
-   events.push('send');if(failAfterAuthorization)throw Object.assign(Error('timeout'),{name:'TimeoutError'});
-   return {success:true,status:'sent'};
-  }}}};
+ const scope={createClient:()=>db,Deno:{env:{get:()=>undefined},serve:()=>{}},createProfileToken:async()=>'',handleProfilePage:async()=>{},beginKleinanzeigenLogin:async()=>{},checkKleinanzeigenConnection:async()=>{},disconnectKleinanzeigen:async()=>{},checkImmoScoutConnection:async()=>{},disconnectImmoScout:async()=>{},probeImmomioApplication:async()=>{},
+  providerForListing:()=> 'immoscout',sendApplication:async(_provider,{authorize})=>{events.push('provider_prepare');const permitted=await authorize();if(!permitted)return {success:false,status:'failed',error:'not_eligible'};events.push('send');if(failAfterAuthorization)throw Object.assign(Error('timeout'),{name:'TimeoutError'});return {success:true,status:'sent'};},fetch:async()=>({}),AbortSignal,URL,Response,JSON,crypto,Date,setTimeout,clearTimeout,console};
  vm.runInNewContext(source,scope);return {...scope,writes,events};
 }
-test('Premium is rechecked before browser I/O',async()=>{
+test('Premium is rechecked before provider I/O',async()=>{
  const w=worker({premium:false});assert.equal((await w.processApplication()).status,'failed');
- assert.ok(!w.events.includes('claim_platform_session'));assert.ok(!w.events.includes('send'));
+ assert.ok(!w.events.includes('provider_prepare'));assert.ok(!w.events.includes('send'));
 });
 test('successful send follows durable authorization; uncertain sends are never queued again',async()=>{
  for(const scenario of [{},{failAfterAuthorization:true},{authorized:'uncertain'}]){
@@ -40,6 +34,5 @@ test('successful send follows durable authorization; uncertain sends are never q
   const final=w.writes.filter(x=>x.table==='applications').at(-1).write;
   assert.notEqual(final.status,'pending');assert.equal(final.attempts,undefined);
   if(w.events.includes('send'))assert.ok(w.events.indexOf('authorize_application_send')<w.events.indexOf('send'));
-  assert.ok(w.events.includes('stop'));assert.ok(w.events.includes('disconnect'));
  }
 });
