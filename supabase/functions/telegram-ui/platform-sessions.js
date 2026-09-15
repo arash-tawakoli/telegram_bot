@@ -24,6 +24,8 @@ const PROFILE_FIELDS={
 };
 const SETUP_PROMPT='👤 Bewerberprofil · Grundeinrichtung';
 const FIELD_PROMPT_PREFIX='👤 Bewerberprofil · ';
+const KLEIN_CALLBACK_ORIGIN='https://login.kleinanzeigen.de';
+const KLEIN_CALLBACK_PATH='/android/com.ebay.kleinanzeigen/callback';
 
 export async function applicationWorker(action,userId,source,extra={}){
  let response;
@@ -63,6 +65,30 @@ const connectionLabel=row=>{
 };
 const profileReady=p=>!!p&&REQUIRED.every(k=>String(p[k]??'').trim());
 const shown=(v,fallback='–')=>v==null||String(v).trim()===''?fallback:esc(v);
+
+function normalizeKleinCallback(value){
+ let url;try{url=new URL(String(value||'').trim().replace(/[\])},.;!?]+$/g,''));}catch{return null;}
+ if(url.origin!==KLEIN_CALLBACK_ORIGIN||url.pathname!==KLEIN_CALLBACK_PATH||url.username||url.password||url.port)return null;
+ if(!url.searchParams.get('state'))return null;
+ if(!url.searchParams.get('code')&&!url.searchParams.get('error'))return null;
+ return url.href;
+}
+
+export function kleinCallbackFromMessage(message){
+ const candidates=[];
+ for(const [textKey,entitiesKey] of [['text','entities'],['caption','caption_entities']]){
+  const text=String(message?.[textKey]||'');
+  if(!text)continue;
+  candidates.push(text);
+  for(const match of text.matchAll(/https:\/\/login\.kleinanzeigen\.de\/android\/com\.ebay\.kleinanzeigen\/callback[^\s<>"']*/gi))candidates.push(match[0]);
+  for(const entity of message?.[entitiesKey]||[]){
+   if(entity?.type==='text_link'&&entity.url)candidates.push(String(entity.url));
+   if(entity?.type==='url'&&Number.isInteger(entity.offset)&&Number.isInteger(entity.length))candidates.push(text.slice(entity.offset,entity.offset+entity.length));
+  }
+ }
+ for(const candidate of candidates){const parsed=normalizeKleinCallback(candidate);if(parsed)return parsed;}
+ return null;
+}
 
 async function readProfile(userId){
  const {data,error}=await db.from('applicant_profiles').select('*').eq('user_id',userId).maybeSingle();
@@ -129,6 +155,18 @@ export async function handleAutoApplyMessage(user,message){
  const chat=message?.chat;if(!privateOwner(user,chat))return null;
  const text=String(message?.text||'').trim();
  const replied=String(message?.reply_to_message?.text||'');
+ const callbackUrl=kleinCallbackFromMessage(message);
+ if(callbackUrl){
+  await telegram('deleteMessage',{chat_id:chat.id,message_id:message.message_id}).catch(()=>{});
+  if(!user.is_premium)return send(chat.id,'💎 Die Kleinanzeigen-Verbindung benötigt Premium.',{inline_keyboard:[[button('← Automatische Bewerbung','platforms')]]});
+  try{
+   const result=await applicationWorker('complete_login',user.id,2,{callbackUrl});
+   if(result?.authenticated!==true&&result?.status!=='connected')throw Error('Kleinanzeigen konnte nicht verbunden werden.');
+   return send(chat.id,'✅ <b>Kleinanzeigen verbunden</b>\n\nDie Anmeldung ist gespeichert. Du musst nichts kopieren oder einfügen. Künftige Anmeldungen werden nur nötig, wenn Kleinanzeigen die Verbindung widerruft.',{inline_keyboard:[[button('← Automatische Bewerbung','platforms')]]});
+  }catch(error){
+   return send(chat.id,`⚠️ ${esc(error.message)}`,{inline_keyboard:[[button('🔐 Erneut verbinden','platforms:login:2')],[button('← Automatische Bewerbung','platforms')]]});
+  }
+ }
  if(replied.startsWith(SETUP_PROMPT)){
   const parts=text.split('|').map(v=>v.trim());
   if(parts.length!==6)return send(chat.id,'Bitte genau 6 Werte mit <code>|</code> trennen:\nVorname | Nachname | E-Mail | Telefon | Ort | Haushaltsgröße');
@@ -188,12 +226,11 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
    if(action==='disconnect')return render(`${name}: Verbindung gelöscht.`,back);
    if(action==='login'&&result.url){
     const note=result.bridgeRequired
-     ? 'Öffne den Login in <b>Safari</b>. Die installierte Traumwohnung Safari-Erweiterung erkennt den Kleinanzeigen-Rücksprung und verbindet dein Konto automatisch. Kein Kopieren oder Teilen. Falls Telegram den Link zunächst intern öffnet, tippe unten rechts einmal auf das Safari-Symbol.'
+     ? '<b>1.</b> Öffne Kleinanzeigen und melde dich normal an.\n<b>2.</b> Auf der Abschlussseite tippe auf <b>Teilen</b>.\n<b>3.</b> Wähle <b>Telegram → Traumwohnung Hamburg</b>.\n\nDas war’s. Der Bot erkennt den Rücksprung automatisch und löscht die geteilte Login-URL direkt wieder. Du musst nichts kopieren, einfügen oder zusätzlich installieren. Falls Telegram den Login intern öffnet, kannst du ihn über das Menü in Safari öffnen.'
      : result.automaticCallback
       ? 'Öffne Kleinanzeigen und melde dich ganz normal im Browser an. Nach erfolgreichem Login wird die Verbindung automatisch abgeschlossen und du wirst zurück zu Telegram geführt. Kein Kopieren, Teilen oder Remote-Browser.'
       : 'Melde dich einmalig an. Danach bleibt die Verbindung gespeichert.';
-    const label=result.bridgeRequired?'🌐 Kleinanzeigen in Safari öffnen':`🔐 ${name} jetzt verbinden`;
-    return render(`${name}: ${note}`,[[{text:label,url:result.url}],...back]);
+    return render(`🔐 <b>${name} verbinden</b>\n\n${note}`,[[{text:`🌐 ${name}-Login öffnen`,url:result.url}],...back]);
    }
    return render(result.authenticated===true?`${name}: ✅ Verbindung bestätigt.`:result.authenticated===false?`${name}: Anmeldung erforderlich.`:`${name}: Verbindung gespeichert, aber noch nicht vollständig verifiziert.`,back);
   }catch(error){return render(error.message,back);}
