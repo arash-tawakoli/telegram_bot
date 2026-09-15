@@ -29,7 +29,12 @@ Deno.serve(async (request) => {
         const chatId = payload.callback_query?.message?.chat?.id || payload.message?.chat?.id;
         if (!from?.id || !chatId)
             return Response.json({ ok: true, ignored: true });
-        const {data:prepared,error:claimError}=await db.rpc('prepare_telegram_update',{p_payload:payload});
+        let {data:prepared,error:claimError}=await db.rpc('prepare_telegram_update',{p_payload:payload});
+        const retryUntil = Date.now() + 2000;
+        while (!claimError && prepared?.claim < 0 && payload.callback_query && Date.now() < retryUntil) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            ({data:prepared,error:claimError}=await db.rpc('prepare_telegram_update',{p_payload:payload}));
+        }
         const claim=prepared?.claim;
         if(claimError) throw claimError;
         if(claim===0) return Response.json({ok:true,duplicate:true});
