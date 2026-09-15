@@ -39,7 +39,6 @@ export async function applicationWorker(action,userId,source,extra={}){
   if(code==='auth_flow_expired')throw Error('Die Kleinanzeigen-Anmeldung ist abgelaufen. Bitte erneut verbinden.');
   if(code==='invalid_callback_url')throw Error('Der Kleinanzeigen-Rücksprung ist unvollständig. Bitte den Login erneut starten.');
   if(code==='token_exchange_failed')throw Error('Kleinanzeigen konnte die Anmeldung nicht abschließen. Bitte erneut versuchen.');
-  if(code==='oauth_client_not_provisioned')throw Error('Der direkte Kleinanzeigen-Login ist technisch vorbereitet. Kleinanzeigen muss unseren OAuth-Client für den Callback noch freischalten.');
   throw Error('Plattformverbindung momentan nicht verfügbar.');
  }
  return result;
@@ -188,10 +187,13 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
    const result=await applicationWorker(action,user.id,source);
    if(action==='disconnect')return render(`${name}: Verbindung gelöscht.`,back);
    if(action==='login'&&result.url){
-    const note=result.automaticCallback
-     ? 'Öffne Kleinanzeigen und melde dich ganz normal im Browser an. Nach erfolgreichem Login wird die Verbindung automatisch abgeschlossen und du wirst zurück zu Telegram geführt. Kein Kopieren, Teilen oder Remote-Browser.'
-     : 'Melde dich einmalig an. Danach bleibt die Verbindung gespeichert.';
-    return render(`${name}: ${note}`,[[{text:`🔐 ${name} jetzt verbinden`,url:result.url}],...back]);
+    const note=result.bridgeRequired
+     ? 'Öffne den Login in <b>Safari</b>. Die installierte Traumwohnung Safari-Erweiterung erkennt den Kleinanzeigen-Rücksprung und verbindet dein Konto automatisch. Kein Kopieren oder Teilen. Falls Telegram den Link zunächst intern öffnet, tippe unten rechts einmal auf das Safari-Symbol.'
+     : result.automaticCallback
+      ? 'Öffne Kleinanzeigen und melde dich ganz normal im Browser an. Nach erfolgreichem Login wird die Verbindung automatisch abgeschlossen und du wirst zurück zu Telegram geführt. Kein Kopieren, Teilen oder Remote-Browser.'
+      : 'Melde dich einmalig an. Danach bleibt die Verbindung gespeichert.';
+    const label=result.bridgeRequired?'🌐 Kleinanzeigen in Safari öffnen':`🔐 ${name} jetzt verbinden`;
+    return render(`${name}: ${note}`,[[{text:label,url:result.url}],...back]);
    }
    return render(result.authenticated===true?`${name}: ✅ Verbindung bestätigt.`:result.authenticated===false?`${name}: Anmeldung erforderlich.`:`${name}: Verbindung gespeichert, aber noch nicht vollständig verifiziert.`,back);
   }catch(error){return render(error.message,back);}
