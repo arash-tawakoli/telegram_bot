@@ -32,14 +32,30 @@ function renderStatus(title, detail) {
   if (document.body) draw(); else document.addEventListener('DOMContentLoaded', draw, { once: true });
 }
 
+function sendRuntimeMessage(message) {
+  return new Promise(resolve => {
+    let settled = false;
+    const finish = value => {
+      if (settled) return;
+      settled = true;
+      resolve(value || { ok: false, error: 'bridge_failed' });
+    };
+    try {
+      const result = api.runtime.sendMessage(message, finish);
+      if (result && typeof result.then === 'function') result.then(finish).catch(() => finish({ ok: false, error: 'bridge_failed' }));
+    } catch {
+      finish({ ok: false, error: 'bridge_failed' });
+    }
+  });
+}
+
 renderStatus('Kleinanzeigen wird verbunden …', 'Die Anmeldung wird sicher abgeschlossen. Du musst nichts kopieren oder teilen.');
 
-api.runtime.sendMessage({
+sendRuntimeMessage({
   type: 'complete-kleinanzeigen-login',
   callbackUrl: location.href
-}, response => {
-  const runtimeError = api.runtime.lastError;
-  if (runtimeError || response?.ok !== true) {
+}).then(response => {
+  if (response?.ok !== true) {
     renderStatus('Verbindung fehlgeschlagen', 'Bitte kehre zu Traumwohnung Hamburg zurück und starte die Kleinanzeigen-Verbindung erneut.');
     setTimeout(() => location.replace(TELEGRAM_FAILED), 900);
     return;
