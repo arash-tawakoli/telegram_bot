@@ -141,6 +141,7 @@ function appBaseHeaders(){return {
 function mainApiHeaders(token?:string,email?:string){const headers:any={...appBaseHeaders(),Authorization:APP_BASIC};if(token){headers['X-EBAYK-USERID-TOKEN']=token;if(email)headers['X-ECG-Authorization-User']=`email=${email},access=${token}`;}return headers;}
 function gatewayHeaders(token:string){return {...appBaseHeaders(),Authorization:`Bearer ${token}`,'Content-Type':'application/json'};}
 function scalar(value:any):any{while(value&&typeof value==='object'&&'value' in value)value=value.value;return value;}
+const wait=(ms:number)=>new Promise(resolve=>setTimeout(resolve,ms));
 async function apiRequest(url:string,init:RequestInit){
  try{
   const response=await fetch(url,{...init,signal:AbortSignal.timeout(30000)});
@@ -168,6 +169,7 @@ async function accountId(db:any,userId:string){
  return {...s,id:String(id)};
 }
 function conversationRows(body:any){let rows=body?.conversations??body?.data??[];if(rows&&typeof rows==='object'&&!Array.isArray(rows))rows=rows.conversations??rows.items??[];return Array.isArray(rows)?rows:[];}
+function conversationForAd(rows:any[],adId:string){return rows.find((entry:any)=>String(entry?.adId??entry?.ad?.id??entry?.advertisementId??'')===adId)||null;}
 async function listConversations(uid:string,token:string){
  const result=await apiRequest(`${GATEWAY_HOST}/messagebox/api/users/${encodeURIComponent(uid)}/conversations?page=0&size=100`,{method:'GET',headers:gatewayHeaders(token)});
  if(result.response.status===401||result.response.status===403)throw Error('needs_login');
@@ -181,6 +183,22 @@ async function openConversation(uid:string,conversationId:string,token:string){
 }
 function outboundMessageExists(body:any,message:string){const rows=body?.messages??body?.data?.messages??[];return Array.isArray(rows)&&rows.some((entry:any)=>{const direction=String(entry?.boundness??entry?.direction??'').toUpperCase(),text=String(entry?.text??entry?.textShort??entry?.title??'').trim();return direction.includes('OUT')&&text===message.trim();});}
 function createdConversationId(body:any){for(const value of [body?.id,body?.data?.id,body?.conversation?.id,body?.data?.conversation?.id,body?.value?.id]){const id=scalar(value);if(id)return String(id);}return null;}
+async function findConversationWithRetry(uid:string,token:string,adId:string){
+ for(const delay of [0,400,1000,2200]){
+  if(delay)await wait(delay);
+  const existing=conversationForAd(await listConversations(uid,token),adId);
+  if(existing?.id)return existing;
+ }
+ return null;
+}
+async function verifyOutboundWithRetry(uid:string,conversationId:string,token:string,message:string){
+ for(const delay of [0,400,1000,2200]){
+  if(delay)await wait(delay);
+  const opened=await openConversation(uid,conversationId,token);
+  if(opened&&outboundMessageExists(opened,message))return true;
+ }
+ return false;
+}
 
 export async function sendKleinanzeigenApplication(input:any){
  const {db,user,profile,listing,message,authorize}=input||{};
@@ -188,13 +206,11 @@ export async function sendKleinanzeigenApplication(input:any){
  if(!userId||!adId||!message)return {success:false,status:'manual_required',error:'provider_contract_unverified'};
  const ad=await apiRequest(`${API_HOST}/api/ads/${encodeURIComponent(adId)}.json`,{method:'GET',headers:mainApiHeaders()});
  if(ad.response.status===404||ad.response.status===410)return {success:false,status:'failed',error:'listing_unavailable'};
- if(!ad.response.ok){if(ad.response.status===429||ad.response.status>=500)throw Error('temporary_network_error');return {success:false,status:'manual_required',error:'provider_contract_unverified'};}
+ if(!ad.response.ok){if(ad.response.status===429||ad.response.status>=500)throw Error('temporary_network_error');return {success:false,status:'manual_required',error:`ad_lookup_${ad.response.status}`};}
  const account=await accountId(db,userId);
- let conversations=await listConversations(account.id,account.token);
- let existing=conversations.find((entry:any)=>String(entry?.adId??entry?.ad?.id??'')===adId&&String(entry?.role||'').toUpperCase()==='BUYER');
+ let existing=conversationForAd(await listConversations(account.id,account.token),adId);
  if(existing?.id){
-  const opened=await openConversation(account.id,String(existing.id),account.token);
-  if(opened&&outboundMessageExists(opened,message))return {success:true,status:'sent'};
+  if(await verifyOutboundWithRetry(account.id,String(existing.id),account.token,message))return {success:true,status:'sent'};
   return {success:false,status:'manual_required',error:'conversation_exists'};
  }
  if(typeof authorize!=='function'||await authorize()!==true)return {success:false,status:'failed',error:'send_not_authorized'};
@@ -203,19 +219,14 @@ export async function sendKleinanzeigenApplication(input:any){
  const createUrl=new URL(`${API_HOST}/api/users/${encodeURIComponent(account.id)}/create-conversation/${encodeURIComponent(adId)}`);createUrl.searchParams.set('contactName',contactName);
  const created=await apiRequest(createUrl.href,{method:'POST',headers:mainApiHeaders(account.token,account.email)});
  if(created.response.status===401||created.response.status===403){await markConnection(db,userId,'kleinanzeigen','needs_login','create_conversation_auth_failed').catch(()=>{});return {success:false,status:'manual_required',error:'needs_login'};}
- if(!created.response.ok)return {success:false,status:'manual_required',error:'submission_unconfirmed'};
+ if(!created.response.ok)return {success:false,status:'manual_required',error:`create_conversation_${created.response.status}`};
  let conversationId=createdConversationId(created.json);
- if(!conversationId){
-  conversations=await listConversations(account.id,account.token);
-  existing=conversations.find((entry:any)=>String(entry?.adId??entry?.ad?.id??'')===adId&&String(entry?.role||'').toUpperCase()==='BUYER');
-  conversationId=existing?.id?String(existing.id):null;
- }
- if(!conversationId)return {success:false,status:'manual_required',error:'submission_unconfirmed'};
+ if(!conversationId){existing=await findConversationWithRetry(account.id,account.token,adId);conversationId=existing?.id?String(existing.id):null;}
+ if(!conversationId)return {success:false,status:'manual_required',error:'create_conversation_unconfirmed'};
  const sendUrl=new URL(`${GATEWAY_HOST}/messagebox/api/users/${encodeURIComponent(account.id)}/conversations/${encodeURIComponent(conversationId)}`);sendUrl.searchParams.set('warnPhoneNumber','false');sendUrl.searchParams.set('warnEmail','false');sendUrl.searchParams.set('warnBankDetails','false');
  const sent=await apiRequest(sendUrl.href,{method:'POST',headers:gatewayHeaders(account.token),body:JSON.stringify({message})});
  if(sent.response.status===401||sent.response.status===403){await markConnection(db,userId,'kleinanzeigen','needs_login','message_auth_failed').catch(()=>{});return {success:false,status:'manual_required',error:'needs_login'};}
- if(!sent.response.ok)return {success:false,status:'manual_required',error:'submission_unconfirmed'};
- const opened=await openConversation(account.id,conversationId,account.token);
- if(!opened||!outboundMessageExists(opened,message))return {success:false,status:'manual_required',error:'submission_unconfirmed'};
+ if(!sent.response.ok)return {success:false,status:'manual_required',error:`message_send_${sent.response.status}`};
+ if(!await verifyOutboundWithRetry(account.id,conversationId,account.token,message))return {success:false,status:'manual_required',error:'message_unconfirmed'};
  return {success:true,status:'sent'};
 }
