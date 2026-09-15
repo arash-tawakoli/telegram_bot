@@ -9,6 +9,7 @@ async function challenge(verifier:string){return b64url(new Uint8Array(await cry
 const random=()=>b64url(crypto.getRandomValues(new Uint8Array(32)));
 
 export async function beginKleinanzeigenLogin(db:any,userId:string){
+ await db.from('platform_auth_flows').delete().eq('user_id',userId).eq('provider','kleinanzeigen').is('consumed_at',null);
  const verifier=random(),state=random().slice(0,32),codeChallenge=await challenge(verifier);
  const {error}=await db.from('platform_auth_flows').insert({user_id:userId,provider:'kleinanzeigen',state,code_verifier:verifier});
  if(error)throw Error('auth_flow_create_failed');
