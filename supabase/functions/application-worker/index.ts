@@ -1,6 +1,6 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.112.4';
 import {createProfileToken,handleProfilePage} from './profile-page.ts';
-import {beginKleinanzeigenLogin,completeKleinanzeigenLogin,completeKleinanzeigenCallback,checkKleinanzeigenConnection,disconnectKleinanzeigen,type KleinanzeigenOAuthConfig} from './providers/kleinanzeigen.ts';
+import {beginKleinanzeigenLogin,completeKleinanzeigenLogin,completeKleinanzeigenCallback,checkKleinanzeigenConnection,disconnectKleinanzeigen,inspectKleinanzeigenInquiry,type KleinanzeigenOAuthConfig} from './providers/kleinanzeigen.ts';
 import {checkImmoScoutConnection,disconnectImmoScout} from './providers/immoscout.ts';
 import {probeImmomioApplication} from './providers/immomio.ts';
 import {providerForListing,sendApplication} from './providers/router.ts';
@@ -120,7 +120,6 @@ async function action(body:any){
   if(source===1)return {status:'blocked',error:'provider_contract_unverified',officialApiRequired:false};
  }
  if(body.action==='complete_login'){
-  // Legacy manual completion remains as an emergency/debug fallback only.
   if(source===2)return completeKleinanzeigenLogin(db,userId,clean(body.callbackUrl,8000));
  }
  if(body.action==='check'){
@@ -130,6 +129,16 @@ async function action(body:any){
  if(body.action==='disconnect'){
   if(source===2)return disconnectKleinanzeigen(db,userId);
   if(source===1)return disconnectImmoScout(db,userId);
+ }
+ if(body.action==='probe_kleinanzeigen'){
+  const listingId=uuid(body.listingId);
+  const [{data:user,error:userError},{data:listing,error:listingError},{data:profile,error:profileError}]=await Promise.all([
+   db.from('bot_users').select('id,chat_id,is_active,auto_apply_enabled').eq('id',userId).single(),
+   db.from('listings').select('id,source_id,canonical_url,title,is_active,raw,external_id,source_listing_key').eq('id',listingId).single(),
+   db.from('applicant_profiles').select('*').eq('user_id',userId).single()
+  ]);
+  if(userError||listingError||profileError)throw Error('application_read_failed');
+  return inspectKleinanzeigenInquiry({db,user,profile,listing,message:messageFor(profile,listing)});
  }
  if(body.action==='probe_immomio'){
   const listingId=uuid(body.listingId);const {data,error}=await db.from('listings').select('*').eq('id',listingId).single();if(error)throw Error('listing_unavailable');return probeImmomioApplication(data);
