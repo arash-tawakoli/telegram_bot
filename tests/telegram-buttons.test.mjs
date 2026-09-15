@@ -3,14 +3,14 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 const root=new URL('../supabase/functions/telegram-ui/',import.meta.url);
-const source=readFileSync(new URL('index.ts',root),'utf8');
+const source=readFileSync(new URL('handler.ts',root),'utf8');
 async function invoke({claim=1,secretValue='s',fail=false}={}) {
  const calls=[];let handler;
- const scope={Deno:{serve(fn){handler=fn}},Response,URL,Number,String,console,secret:async()=> 's',secretCache:new Map(),chatLanguages:new Map(),isAdmin:()=>false,
+ const scope={Deno:{serve(fn){handler=fn}},Response,URL,Number,String,Date,Promise,setTimeout,console,secret:async()=> 's',secretCache:new Map(),chatLanguages:new Map(),isAdmin:()=>false,
  db:{rpc:async(name)=>{calls.push(name);return {data:{claim,user:{id:'u',is_active:true,ui_language:'de'},subscription:null},error:null}}},
  withPlan:async(user,subscription)=>{assert.equal(subscription,null);return user},
  handleCallback:async()=>{calls.push('handle');if(fail)throw Error('render failed')},finishUpdate:async(id,attempt,ok)=>calls.push(['finish',id,attempt,ok])};
- vm.runInNewContext(source.slice(source.indexOf('Deno.serve(')),scope);
+ vm.runInNewContext(source.slice(source.indexOf('export const handleTelegramUpdate')).replace('export const handleTelegramUpdate =','const handleTelegramUpdate =')+'\nDeno.serve(handleTelegramUpdate);',scope);
  const response=await handler(new Request('https://test',{method:'POST',headers:{'x-telegram-bot-api-secret-token':secretValue},body:JSON.stringify({update_id:5,callback_query:{id:'q',from:{id:3},message:{chat:{id:3},message_id:9},data:'type:flat'}})}));
  return {response,calls};
 }

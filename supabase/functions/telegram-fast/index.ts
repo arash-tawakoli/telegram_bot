@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { handleTelegramUpdate } from "../telegram-ui/handler.ts";
 
 const BASE_URL = Deno.env.get("SUPABASE_URL")!;
 const KEYS = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") || "{}");
@@ -86,9 +87,8 @@ async function finish(updateId: number, attempt: number, success: boolean, error
 function finishBackground(updateId: number, attempt: number, success: boolean, error: string | null = null) { EdgeRuntime.waitUntil(finish(updateId, attempt, success, error).catch((e) => console.error("telegram_fast_finish", String(e)))); }
 async function notifyAdminsNewUser(user: any) { const name = [user.first_name, user.last_name].filter(Boolean).join(" ").trim() || (user.username ? `@${user.username}` : String(user.telegram_user_id)); const username = user.username && name !== `@${user.username}` ? ` (@${user.username})` : ""; const text = `👤 Neuer Nutzer: ${name}${username}`; await Promise.all(ADMINS.filter((id) => id !== Number(user.telegram_user_id)).map((id) => telegram("sendMessage", { chat_id: id, text }).catch(() => {}))); }
 async function forwardCore(body: string, supplied: string, callbackAcked = false) {
-  let expected = await secret("telegram_webhook_secret"); if (supplied !== expected) { cachedWebhookSecret = null; expected = await secret("telegram_webhook_secret", true); if (supplied !== expected) return new Response("unauthorized", { status: 401 }); }
-  const upstream = await fetch(CORE, { method: "POST", headers: { "content-type": "application/json", "x-telegram-bot-api-secret-token": supplied, "x-region": "eu-west-1", "x-callback-acked": callbackAcked ? "1" : "0" }, body });
-  return new Response(await upstream.text(), { status: upstream.status, headers: { "content-type": upstream.headers.get("content-type") || "application/json" } });
+  // The shared handler authenticates the request; no second Edge invocation is needed.
+  return handleTelegramUpdate(new Request(CORE, { method: "POST", headers: { "content-type": "application/json", "x-telegram-bot-api-secret-token": supplied, "x-callback-acked": callbackAcked ? "1" : "0" }, body }));
 }
 async function performCallback(query: any, action: string, user: any, data: any) {
   const chatId = Number(query.message?.chat?.id); const messageId = Number(query.message?.message_id); const hasPhoto = Array.isArray(query.message?.photo) && query.message.photo.length > 0;
@@ -112,7 +112,12 @@ Deno.serve(async (req: Request) => {
             if (!response.ok) console.error("telegram_fast_core", response.status);
             return;
           }
-          const prepared = await rpc("prepare_telegram_fast_request", { p_payload: update, p_action: action, p_supplied_secret: supplied });
+          let prepared = await rpc("prepare_telegram_fast_request", { p_payload: update, p_action: action, p_supplied_secret: supplied });
+          const retryUntil = Date.now() + 2000;
+          while (prepared?.authorized === true && prepared?.claim < 0 && Date.now() < retryUntil) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            prepared = await rpc("prepare_telegram_fast_request", { p_payload: update, p_action: action, p_supplied_secret: supplied });
+          }
           if (prepared?.authorized !== true) return;
           const claim = Number(prepared?.claim ?? 0);
           if (claim <= 0) return;
