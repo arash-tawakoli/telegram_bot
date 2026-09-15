@@ -30,15 +30,16 @@ function score(link) {
   const u = String(link.href || '').toLowerCase();
   const t = String(link.text || '').toLowerCase();
   let s = 0;
-  if (u.includes('/download/?key=')) s += 200;
-  if (/downloadr\d*\.apkmirror\.com/.test(u)) s += 180;
-  if (u.includes('/wp-content/uploads/')) s += 160;
-  if (/\.(apkm|apk|xapk)(\?|$)/.test(u)) s += 150;
+  if (u.includes('/wp-content/themes/apkmirror/download.php')) s += 1000;
+  if (/downloadr\d*\.apkmirror\.com/.test(u)) s += 900;
+  if (u.includes('/wp-content/uploads/')) s += 800;
+  if (/\.(apkm|apk|xapk)(\?|$)/.test(u)) s += 700;
+  if (u.includes('/download/?key=') && !u.includes('#')) s += 500;
   if (u.includes('key=')) s += 70;
   if (t.includes('download apk bundle')) s += 100;
   if (t.includes('download apk')) s += 90;
   if (t.includes('download')) s += 30;
-  if (u.includes('facebook') || u.includes('twitter') || u.includes('google')) s -= 100;
+  if (u.includes('facebook') || u.includes('twitter') || u.includes('google') || u.includes('#disqus_thread')) s -= 600;
   return s;
 }
 
@@ -71,19 +72,22 @@ try {
   let candidate = await bestLink('variant');
   if (!candidate) throw new Error('no download link on variant page');
 
-  for (let hop = 0; hop < 6; hop++) {
+  let saved = false;
+  for (let hop = 0; hop < 6 && !saved; hop++) {
     console.log(`hop=${hop} candidate=${candidate.href} text=${candidate.text}`);
-    if (/downloadr\d*\.apkmirror\.com|\/wp-content\/uploads\/|\.(?:apkm|apk|xapk)(?:\?|$)/i.test(candidate.href)) {
-      if (await saveWithRequest(candidate.href, page.url())) break;
+    if (/\/wp-content\/themes\/apkmirror\/download\.php|downloadr\d*\.apkmirror\.com|\/wp-content\/uploads\/|\.(?:apkm|apk|xapk)(?:\?|$)/i.test(candidate.href)) {
+      saved = await saveWithRequest(candidate.href, page.url());
+      if (saved) break;
     }
 
-    const before = page.url();
-    await page.goto(candidate.href, { waitUntil: 'domcontentloaded', timeout: 60000 });
-    if (page.url() === before && candidate.href === before) await page.reload({ waitUntil: 'domcontentloaded' });
+    const target = candidate.href.split('#')[0];
+    if (!target || target === page.url()) throw new Error(`stalled at ${target}`);
+    await page.goto(target, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await page.waitForTimeout(hop === 0 ? 17000 : 2500);
     candidate = await bestLink(`hop-${hop}`);
     if (!candidate) throw new Error(`no download candidate at hop ${hop}`);
   }
+  if (!saved) throw new Error('binary download was not reached');
 
   const bytes = await fs.readFile(OUT);
   const sha = crypto.createHash('sha256').update(bytes).digest('hex');
