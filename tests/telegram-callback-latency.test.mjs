@@ -9,7 +9,7 @@ const timeout = ms => new Promise((_, reject) => setTimeout(() => reject(new Err
 function request(data='home') {
   return new Request('https://test', {
     method:'POST', headers:{'x-telegram-bot-api-secret-token':'s'},
-    body:JSON.stringify({update_id:7,callback_query:{id:'q7',from:{id:3},message:{chat:{id:3},message_id:9},data}}),
+    body:JSON.stringify({update_id:7,callback_query:{id:'q7',from:{id:3},message:{chat:{id:3,type:'private'},message_id:9},data}}),
   });
 }
 
@@ -46,18 +46,19 @@ test('telegram-fast acknowledges fallback callbacks before the core function fin
   await Promise.all(tasks);
 });
 
-test('telegram-gateway acknowledges callbacks without waiting for the core UI', async () => {
+test('telegram-gateway acknowledges auto-apply callbacks without waiting for their handler', async () => {
   const source=readFileSync(new URL('../supabase/functions/telegram-gateway/index.ts',import.meta.url),'utf8');
-  let handler, resolveCore; const tasks=[];
-  const blocked=new Promise(resolve=>{resolveCore=resolve});
+  let handler, resolveAutoApply; const tasks=[];
+  const blocked=new Promise(resolve=>{resolveAutoApply=resolve});
   const scope={Deno:{serve(fn){handler=fn}},Response,Request,URL,Number,String,JSON,console,Promise,
     EdgeRuntime:{waitUntil(p){tasks.push(p)}},secret:async()=> 's',cachedWebhookSecret:null,parsed:JSON.parse,
-    commandOf:()=>'',FAST_COMMANDS:new Set(),direct:(method,params)=>Response.json({method,...params}),forwardToCore:()=>blocked};
+    commandOf:()=>'',FAST_COMMANDS:new Set(),direct:(method,params)=>Response.json({method,...params}),forwardToCore:async()=>new Response('{}'),
+    isAutoApplyCallback:data=>data==='platforms',handleAutoApplyCallback:()=>blocked};
   vm.runInNewContext(stripTypeScriptTypes(source.slice(source.indexOf('Deno.serve(')),{mode:'strip'}),scope);
   const response=await Promise.race([handler(request('platforms')),timeout(80)]);
   assert.equal((await response.json()).method,'answerCallbackQuery');
   assert.equal(tasks.length,1);
-  resolveCore(new Response('{}'));
+  resolveAutoApply();
   await Promise.all(tasks);
 });
 
