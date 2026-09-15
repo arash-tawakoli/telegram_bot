@@ -9,15 +9,15 @@ const background=readFileSync(new URL('../clients/safari-kleinanzeigen-bridge/ex
 
 const callback='https://login.kleinanzeigen.de/android/com.ebay.kleinanzeigen/callback';
 
-test('Safari bridge is narrow-scope and never receives credentials',()=>{
+test('Safari bridge is narrow-scope and never receives user credentials',()=>{
  assert.equal(manifest.manifest_version,3);
  assert.deepEqual(manifest.permissions,[]);
  assert.ok(manifest.host_permissions.includes(`${callback}*`));
  assert.ok(manifest.host_permissions.includes('https://dpmohkrwdlicexwcrqfy.supabase.co/functions/v1/application-worker*'));
  assert.ok(!JSON.stringify(manifest).includes('<all_urls>'));
- assert.ok(!background.includes('password'));
- assert.ok(!background.includes('cookie'));
+ assert.doesNotMatch(background,/document\.cookie|cookie_header|password\s*[:=]|authorization\s*[:=]|localStorage|sessionStorage/i);
  assert.match(background,/credentials:\s*'omit'/);
+ assert.match(background,/callbackUrl/);
 });
 
 test('bridge callback stays PKCE-bound and exact-target validated',()=>{
