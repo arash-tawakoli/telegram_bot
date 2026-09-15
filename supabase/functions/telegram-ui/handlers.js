@@ -1,5 +1,5 @@
 import { quickApplication } from './application.js';
-import { platformSessions } from './platform-sessions.js';
+import { platformSessions, handleAutoApplyMessage } from './platform-sessions.js';
 import { isAdmin, adminGrantLabel, adminPremiumNotice, adminUsers, adminUser, setUserBlocked, deleteUser, setPlanOverride } from "./admin.js";
 import { homeKeyboard, home, premium, saved, setPaused, toggleSave, referralPage, languagePage, settings } from "./navigation.js";
 import { draftFor, validateDraft, renderTypes, renderLocation, renderBoroughs, renderNeighborhoods, renderRent, renderCustomRent, renderRooms, renderArea, renderReview, renderStep, afterSelection, persistProfile, profileLimit, draftFromProfile, startNewProfile, profileEditMenu, profile, renderStatus } from "./profiles.js";
@@ -56,6 +56,9 @@ export async function handleMessage(message, user) {
     }
     if (command === "/premium")
         return premium(user, chatId);
+    const autoApplyMessage = await handleAutoApplyMessage(user, message);
+    if (autoApplyMessage)
+        return autoApplyMessage;
     const draft = draftFor(user);
     if (user.onboarding_step === "rent_custom") {
         const value = Number(text.replace(/\./g, "").replace(",", "."));
