@@ -8,8 +8,13 @@
       "files": [
         {
           "path": "supabase/functions/application-worker/index.ts",
-          "sha256": "22804f41f99e7227854a03e4ed4a05cb7ce35481d0ced55349776ea27cc2df2d",
+          "sha256": "a30fe4bac16c4adf125c53a0d1e5322b1a99de117beaccf5b0762888b3b5f3e4",
           "deployed_sha256": "22804f41f99e7227854a03e4ed4a05cb7ce35481d0ced55349776ea27cc2df2d"
+        },
+        {
+          "path": "supabase/functions/application-worker/adapters.js",
+          "sha256": "f94b4a435104d44a376dda5006cad503df735ec03999d08be0087f6e835b0d1f",
+          "deployed_sha256": "f94b4a435104d44a376dda5006cad503df735ec03999d08be0087f6e835b0d1f"
         },
         {
           "path": "supabase/functions/application-worker/browserbase.js",
@@ -17,9 +22,34 @@
           "deployed_sha256": "07e74c7d1b4e582d3e6461977b17899a4f293f865e87d88969d4113601ff1817"
         },
         {
-          "path": "supabase/functions/application-worker/adapters.js",
-          "sha256": "f94b4a435104d44a376dda5006cad503df735ec03999d08be0087f6e835b0d1f",
-          "deployed_sha256": "f94b4a435104d44a376dda5006cad503df735ec03999d08be0087f6e835b0d1f"
+          "path": "supabase/functions/application-worker/credentials.ts",
+          "sha256": "dc0c52883eb45f47f7fc354c877469a358799923414e6abb9551da9c1fa803a4",
+          "deployed_sha256": "pending"
+        },
+        {
+          "path": "supabase/functions/application-worker/profile-page.ts",
+          "sha256": "f022313ddb05d40298dd79b1db0c58e90ca2e843081bd3cfa912d26f2d64ce7b",
+          "deployed_sha256": "pending"
+        },
+        {
+          "path": "supabase/functions/application-worker/providers/immomio.ts",
+          "sha256": "46d65fecbebe171abeecae5cb14b5e75b05e85bb33542f399389c311096c7c69",
+          "deployed_sha256": "pending"
+        },
+        {
+          "path": "supabase/functions/application-worker/providers/immoscout.ts",
+          "sha256": "8ee029687c77bc790c6893dc5fe4ae58aaf010983137ce713f390dab11285a67",
+          "deployed_sha256": "pending"
+        },
+        {
+          "path": "supabase/functions/application-worker/providers/kleinanzeigen.ts",
+          "sha256": "fe7421fcade45e703adb312b9b0b7a07f94d0fb8b57158aa11d8793f979c39a6",
+          "deployed_sha256": "pending"
+        },
+        {
+          "path": "supabase/functions/application-worker/providers/router.ts",
+          "sha256": "64df2147e7dae783efeefcf0f161ad23a7dbcae75a65353e83af19fbce583464",
+          "deployed_sha256": "pending"
         },
         {
           "path": "supabase/functions/telegram-ui/application-message.js",
@@ -712,14 +742,34 @@
           "deployed_sha256": "5cfb5e921095a5e81dde613c18bb02d21554cde9cb1c405f428a9bd0d28f0299"
         },
         {
-          "path": "supabase/functions/telegram-ui/navigation.js",
-          "sha256": "9a5cc59f7bf4da59da45669b4dc771a364d825d949140a3845c7d9c02aaee2e4",
-          "deployed_sha256": "9a5cc59f7bf4da59da45669b4dc771a364d825d949140a3845c7d9c02aaee2e4"
+          "path": "supabase/functions/telegram-ui/application-message.js",
+          "sha256": "ed9bdf442c42fed5321834a9c84c594b645c84cb38d973f28950b8d2c8076f02",
+          "deployed_sha256": "ed9bdf442c42fed5321834a9c84c594b645c84cb38d973f28950b8d2c8076f02"
+        },
+        {
+          "path": "supabase/functions/telegram-ui/application.js",
+          "sha256": "acb3bee4ab96433e53e1fd51679f06438725a475a35c49aef1c166e875a62b32",
+          "deployed_sha256": "397a5f4033a26b5e39ac6bea8e9fb8ed0e2d8f10f342827279ca40e6e4415f74"
+        },
+        {
+          "path": "supabase/functions/telegram-ui/handlers.js",
+          "sha256": "8ea40cd623c02f7f129d633aa3d316d07df337743949362e90faec42a6b347b5",
+          "deployed_sha256": "8ea40cd623c02f7f129d633aa3d316d07df337743949362e90faec42a6b347b5"
         },
         {
           "path": "supabase/functions/telegram-ui/localization.js",
           "sha256": "77b7c52b0f7ff22c25399d036a97fc16a5fbd6fbbb3db8302123ec5daca57f09",
           "deployed_sha256": "77b7c52b0f7ff22c25399d036a97fc16a5fbd6fbbb3db8302123ec5daca57f09"
+        },
+        {
+          "path": "supabase/functions/telegram-ui/navigation.js",
+          "sha256": "9a5cc59f7bf4da59da45669b4dc771a364d825d949140a3845c7d9c02aaee2e4",
+          "deployed_sha256": "9a5cc59f7bf4da59da45669b4dc771a364d825d949140a3845c7d9c02aaee2e4"
+        },
+        {
+          "path": "supabase/functions/telegram-ui/platform-sessions.js",
+          "sha256": "c3061dc0bb9ac8dacac74212833ee3aae75de8e61e6dc64ec5898013cb77da28",
+          "deployed_sha256": "c0b50f8982d49d7b0a77b59c24628079d85efb44aa17c3d83960602b84c0e25a"
         },
         {
           "path": "supabase/functions/telegram-ui/profiles.js",
@@ -730,26 +780,6 @@
           "path": "supabase/functions/telegram-ui/runtime.js",
           "sha256": "cbaf25b91d24196d51ba87964755346e3b0beec384f7938f1f856cf9f1e5890f",
           "deployed_sha256": "cbaf25b91d24196d51ba87964755346e3b0beec384f7938f1f856cf9f1e5890f"
-        },
-        {
-          "path": "supabase/functions/telegram-ui/platform-sessions.js",
-          "sha256": "c0b50f8982d49d7b0a77b59c24628079d85efb44aa17c3d83960602b84c0e25a",
-          "deployed_sha256": "c0b50f8982d49d7b0a77b59c24628079d85efb44aa17c3d83960602b84c0e25a"
-        },
-        {
-          "path": "supabase/functions/telegram-ui/handlers.js",
-          "sha256": "8ea40cd623c02f7f129d633aa3d316d07df337743949362e90faec42a6b347b5",
-          "deployed_sha256": "8ea40cd623c02f7f129d633aa3d316d07df337743949362e90faec42a6b347b5"
-        },
-        {
-          "path": "supabase/functions/telegram-ui/application.js",
-          "sha256": "397a5f4033a26b5e39ac6bea8e9fb8ed0e2d8f10f342827279ca40e6e4415f74",
-          "deployed_sha256": "397a5f4033a26b5e39ac6bea8e9fb8ed0e2d8f10f342827279ca40e6e4415f74"
-        },
-        {
-          "path": "supabase/functions/telegram-ui/application-message.js",
-          "sha256": "ed9bdf442c42fed5321834a9c84c594b645c84cb38d973f28950b8d2c8076f02",
-          "deployed_sha256": "ed9bdf442c42fed5321834a9c84c594b645c84cb38d973f28950b8d2c8076f02"
         }
       ],
       "import_map": false,

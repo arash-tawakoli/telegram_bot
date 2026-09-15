@@ -1336,6 +1336,22 @@
       "registry_sql_sha256": "20297e7155a85ed19da7a7a6f3f361da5d47c94cea0096ca25ca98b85c813e55",
       "export_sql_sha256": "20297e7155a85ed19da7a7a6f3f361da5d47c94cea0096ca25ca98b85c813e55",
       "vault_substitution": false
+    },
+    {
+      "version": "20260915091500",
+      "name": "auto_apply_v2_foundation",
+      "file": "supabase/migrations/20260915091500_auto_apply_v2_foundation.sql",
+      "registry_sql_sha256": "3dd62c89d5b2d6dac5cee8a791d005a4bd3d6b2880cac982cb1d988284f5cd12",
+      "export_sql_sha256": "3dd62c89d5b2d6dac5cee8a791d005a4bd3d6b2880cac982cb1d988284f5cd12",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260915093000",
+      "name": "auto_apply_queue_controls",
+      "file": "supabase/migrations/20260915093000_auto_apply_queue_controls.sql",
+      "registry_sql_sha256": "4c362891158ec7ae2409de678dc2d1e386bf09ef229d9dac3fb0aa1c64ed8a27",
+      "export_sql_sha256": "4c362891158ec7ae2409de678dc2d1e386bf09ef229d9dac3fb0aa1c64ed8a27",
+      "vault_substitution": false
     }
   ],
   "historical_repository_ref": "36708e9e2f073d7b3835cfd28b8222446e23c0ff",
