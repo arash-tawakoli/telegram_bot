@@ -1,29 +1,13 @@
-import {beginKleinanzeigenLogin,completeKleinanzeigenLogin,checkKleinanzeigenConnection} from './providers/kleinanzeigen.ts';
 const enc=new TextEncoder();
 const b64url=(bytes:Uint8Array)=>{let s='';for(const b of bytes)s+=String.fromCharCode(b);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')};
 const unb64url=(v:string)=>Uint8Array.from(atob(v.replace(/-/g,'+').replace(/_/g,'/').padEnd(Math.ceil(v.length/4)*4,'=')),c=>c.charCodeAt(0));
 async function secret(db:any){const {data,error}=await db.rpc('get_bot_secret',{secret_name:'application_credential_key_v1'});if(error||!data)throw Error('profile_key_unavailable');return unb64url(String(data).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''));}
 async function mac(db:any,payload:string){const key=await crypto.subtle.importKey('raw',await secret(db),{name:'HMAC',hash:'SHA-256'},false,['sign','verify']);return b64url(new Uint8Array(await crypto.subtle.sign('HMAC',key,enc.encode(payload))));}
 export async function createProfileToken(db:any,userId:string){const payload=b64url(enc.encode(JSON.stringify({u:userId,e:Date.now()+20*60_000,n:crypto.randomUUID()})));return `${payload}.${await mac(db,payload)}`;}
-async function userFromToken(db:any,token:string){const [payload,sig]=String(token||'').split('.');if(!payload||!sig||await mac(db,payload)!==sig)return null;try{const data=JSON.parse(new TextDecoder().decode(unb64url(payload)));if(!data.u||Number(data.e)<Date.now())return null;return String(data.u);}catch{return null;}}
-const e=(v:any)=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-const fields=[['first_name','Vorname','text'],['last_name','Nachname','text'],['email','E-Mail','email'],['phone','Telefon','tel'],['street','Straße','text'],['house_number','Hausnummer','text'],['postcode','PLZ','text'],['city','Ort','text'],['household_size','Haushaltsgröße','number'],['employment_status','Beschäftigung','text'],['monthly_net_income','Nettoeinkommen','number'],['pets','Haustiere','text'],['wbs_status','WBS','text'],['move_in_date','Einzugsdatum','date']];
-function page(token:string,p:any={},message=''){
- const inputs=fields.map(([name,label,type])=>`<label>${label}<input name="${name}" type="${type}" value="${e(p?.[name])}" ${['first_name','last_name','email','phone','city','household_size'].includes(name)?'required':''}></label>`).join('');
- return `<!doctype html><html lang="de"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Bewerberprofil</title><style>body{font:16px system-ui;margin:0;background:#f7f7f7;color:#111}.c{max-width:620px;margin:auto;padding:20px}form,.card{background:white;padding:18px;border-radius:16px;margin:12px 0}label{display:block;margin:11px 0}input,textarea{box-sizing:border-box;width:100%;padding:12px;border:1px solid #ccc;border-radius:10px;margin-top:5px}button,a.b{display:block;width:100%;box-sizing:border-box;padding:13px;border:0;border-radius:10px;background:#111;color:white;text-align:center;text-decoration:none;margin-top:10px}.ok{color:#087a35}</style><div class="c"><h1>⚡ Auto-Bewerbung</h1>${message?`<p class="ok">${e(message)}</p>`:''}<form method="post"><input type="hidden" name="token" value="${e(token)}">${inputs}<label>Standard-Bewerbungstext<textarea name="default_message" rows="6">${e(p?.default_message)}</textarea></label><button name="action" value="save_profile">Bewerberprofil speichern</button></form><div class="card"><h3>Kleinanzeigen</h3><form method="post"><input type="hidden" name="token" value="${e(token)}"><button name="action" value="klein_start">Einmalig verbinden</button></form><p>Nach dem Login die vollständige Callback-URL hier einfügen:</p><form method="post"><input type="hidden" name="token" value="${e(token)}"><input name="callback_url" placeholder="https://login.kleinanzeigen.de/..."><button name="action" value="klein_finish">Verbindung abschließen</button></form></div><div class="card"><b>Immomio:</b> kein Login erforderlich.<br><b>ImmoScout24:</b> wird ohne offizielle API über eine verifizierte Web-Session angebunden; Freigabe erst nach kontrolliertem Sendetest.</div><a class="b" href="https://t.me/traumwohnunghamburgbot">Zurück zu Telegram</a></div></html>`;
-}
-export async function handleProfilePage(db:any,request:Request){
- const url=new URL(request.url),form=request.method==='POST'?await request.formData():null,token=String(form?.get('token')||url.searchParams.get('token')||''),userId=await userFromToken(db,token);
- if(!userId)return new Response('Link ungültig oder abgelaufen',{status:403});
- const read=async()=>{const {data}=await db.from('applicant_profiles').select('*').eq('user_id',userId).maybeSingle();return data||{};};
- if(request.method==='GET')return new Response(page(token,await read()),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store'}});
- const action=String(form?.get('action')||'');
- if(action==='save_profile'){
-  const values:any={user_id:userId,updated_at:new Date().toISOString()};for(const [name] of fields){const value=String(form?.get(name)||'').trim();values[name]=['household_size','monthly_net_income'].includes(name)?(value?Number(value):null):(value||null);}values.city=values.city||'Hamburg';values.default_message=String(form?.get('default_message')||'').trim()||null;
-  const {error}=await db.from('applicant_profiles').upsert(values,{onConflict:'user_id'});if(error)return new Response(page(token,values,'Speichern fehlgeschlagen.'),{status:400,headers:{'content-type':'text/html; charset=utf-8'}});return new Response(page(token,values,'✅ Bewerberprofil gespeichert.'),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store'}});
- }
- if(action==='klein_start'){const result=await beginKleinanzeigenLogin(db,userId);return Response.redirect(result.url,303);}
- if(action==='klein_finish'){try{await completeKleinanzeigenLogin(db,userId,String(form?.get('callback_url')||''));return new Response(page(token,await read(),'✅ Kleinanzeigen verbunden.'),{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store'}});}catch{return new Response(page(token,await read(),'Kleinanzeigen-Verbindung konnte nicht abgeschlossen werden.'),{status:400,headers:{'content-type':'text/html; charset=utf-8'}});}}
- if(action==='klein_check'){const r=await checkKleinanzeigenConnection(db,userId);return new Response(page(token,await read(),r.authenticated?'✅ Kleinanzeigen verbunden.':'Kleinanzeigen muss erneut verbunden werden.'),{headers:{'content-type':'text/html; charset=utf-8'}});}
- return new Response(page(token,await read()),{headers:{'content-type':'text/html; charset=utf-8'}});
+
+// Hosted Supabase Edge Function domains intentionally serve HTML as text/plain.
+// Applicant profile editing therefore lives natively in Telegram. Legacy profile
+// links simply return the user to the bot instead of exposing raw HTML source.
+export async function handleProfilePage(_db:any,_request:Request){
+ return Response.redirect('https://t.me/traumwohnunghamburgbot',303);
 }
