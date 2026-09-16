@@ -12,7 +12,6 @@ const LOGIN_METHOD='DEFAULT';
 const PKCE_ALPHABET='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 const HEADERS={'content-type':'application/json','accept':'application/json','origin':TENANT,'referer':`${TENANT}/`,'user-agent':'TraumWohnungHamburg/1.0'};
 const SSO_QUERY=`query sso($email: String, $redirectUri: String!, $loginMethod: String) { sso(input: { email: $email redirectUri: $redirectUri loginMethod: $loginMethod }) { baseUrl clientId realm } }`;
-const USER_QUERY=`query { user { id email } }`;
 const enc=new TextEncoder();
 const b64url=(bytes:Uint8Array)=>{let s='';for(const b of bytes)s+=String.fromCharCode(b);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')};
 const b64=(bytes:Uint8Array)=>{let s='';for(const b of bytes)s+=String.fromCharCode(b);return btoa(s)};
@@ -26,7 +25,7 @@ const uuid=(v:any)=>{const s=String(v||'');if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f
 async function secret(name:string){const {data,error}=await db.rpc('get_bot_secret',{secret_name:name});if(error||!data)throw Error('configuration_unavailable');return String(data)}
 async function eligible(userId:string){const {data,error}=await db.rpc('application_user_eligible',{p_user:userId});if(error||data!==true)throw Error('premium_required')}
 async function challenge(v:string){return b64url(new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(v))))}
-async function rawGraphql(query:string,variables:any,token?:string){const headers:any={...HEADERS};if(token)headers.authorization=`bearer ${token}`;const response=await fetch(GQL,{method:'POST',headers,body:JSON.stringify({query,variables}),signal:AbortSignal.timeout(25000)}),body=await response.json().catch(()=>null);return{response,body}}
+async function rawGraphql(query:string,variables:any){const response=await fetch(GQL,{method:'POST',headers:HEADERS,body:JSON.stringify({query,variables}),signal:AbortSignal.timeout(25000)}),body=await response.json().catch(()=>null);return{response,body}}
 async function resolveSso(email:string){const r=await rawGraphql(SSO_QUERY,{email,redirectUri:REDIRECT,loginMethod:LOGIN_METHOD});const s=r.body?.data?.sso;if(!r.response.ok||r.body?.errors?.length||!s)throw Error('immomio_sso_failed');let u:URL;try{u=new URL(String(s.baseUrl||''))}catch{throw Error('immomio_sso_contract_changed')}if(u.protocol!=='https:'||u.hostname!==SSO_HOST||String(s.realm)!==REALM||String(s.clientId)!==CLIENT_ID)throw Error('immomio_sso_contract_changed');return{baseUrl:`https://${SSO_HOST}/auth`,realm:REALM,clientId:CLIENT_ID}}
 async function tokenRequest(cfg:any,payload:Record<string,string>){const response=await fetch(`${cfg.baseUrl}/realms/${encodeURIComponent(cfg.realm)}/protocol/openid-connect/token`,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded','accept':'application/json'},body:new URLSearchParams({...payload,client_id:cfg.clientId}),signal:AbortSignal.timeout(25000)}),token=await response.json().catch(()=>null);return{response,token}}
 function decodeEmail(token:any){try{const p=String(token||'').split('.')[1];if(!p)return null;return validEmail(JSON.parse(atob(p.replace(/-/g,'+').replace(/_/g,'/').padEnd(Math.ceil(p.length/4)*4,'=')))?.email)}catch{return null}}
@@ -43,7 +42,7 @@ async function begin(userId:string){
  const url=new URL(`${cfg.baseUrl}/realms/${encodeURIComponent(cfg.realm)}/protocol/openid-connect/auth`);
  const params={client_id:cfg.clientId,redirect_uri:REDIRECT,response_type:'code',response_mode:'query',scope:'openid profile email',state,code_challenge:cc,code_challenge_method:'S256',login_hint:email,prompt:'login'};
  for(const[k,v]of Object.entries(params))url.searchParams.set(k,String(v));
- return{status:'login',url:url.href,transport:'telegram-share-bridge',redirectUri:REDIRECT,reuseExistingSession:false,pkceVerifierLength:verifier.length,expiresInSeconds:600}
+ return{status:'login',url:url.href,transport:'telegram-share-bridge',redirectUri:REDIRECT,reuseExistingSession:false,completionMode:'token-exchange-then-save',expiresInSeconds:600}
 }
 
 function callback(v:string){let u:URL;try{u=new URL(String(v||'').trim())}catch{throw Error('invalid_callback_url')}if(u.protocol!=='https:'||u.hostname!=='tenant.immomio.com'||u.port||u.username||u.password||u.pathname!=='/robots.txt')throw Error('invalid_callback_url');const state=u.searchParams.get('state'),code=u.searchParams.get('code');if(!state||!code)throw Error('invalid_callback_url');return{state,code}}
@@ -51,12 +50,13 @@ async function complete(userId:string,callbackUrl:string){
  const {state,code}=callback(callbackUrl),{data:flow,error}=await db.from('platform_auth_flows').select('*').eq('user_id',userId).eq('provider','immomio').eq('state',state).is('consumed_at',null).gt('expires_at',new Date().toISOString()).maybeSingle();if(error||!flow)throw Error('auth_flow_expired');
  const email=await profileEmail(userId),cfg=await resolveSso(email),{response,token}=await tokenRequest(cfg,{grant_type:'authorization_code',code,redirect_uri:REDIRECT,code_verifier:String(flow.code_verifier||'')});
  if(!response.ok||!token?.access_token||!token?.refresh_token){const detail=`token_exchange_failed:${response.status}:${safeDiag(token?.error)}:${safeDiag(token?.error_description)}`.slice(0,120);await db.from('platform_connections').upsert({user_id:userId,provider:'immomio',status:'needs_login',last_error:detail,updated_at:new Date().toISOString()},{onConflict:'user_id,provider'});throw Error('token_exchange_failed')}
- const expiresAt=new Date(Date.now()+Math.max(60,Number(token.expires_in||300))*1000).toISOString(),hint=decodeEmail(token.id_token)||email,encrypted=await encrypt(userId,{access_token:String(token.access_token),refresh_token:String(token.refresh_token),expires_at:expiresAt,base_url:cfg.baseUrl,realm:cfg.realm,client_id:cfg.clientId,redirect_uri:REDIRECT});
- const verify=await rawGraphql(USER_QUERY,{},String(token.access_token)),account=verify.body?.data?.user;
- if(!verify.response.ok||verify.body?.errors?.length||!account?.id){const detail=`account_verification_failed:${verify.response.status}:${safeDiag(verify.body?.errors?.[0]?.message)}`.slice(0,120);await db.from('platform_connections').upsert({user_id:userId,provider:'immomio',status:'needs_login',last_error:detail,updated_at:new Date().toISOString()},{onConflict:'user_id,provider'});throw Error('account_verification_failed')}
- const {error:saveError}=await db.from('platform_connections').upsert({user_id:userId,provider:'immomio',status:'connected',...encrypted,account_hint:validEmail(account.email)||hint,expires_at:expiresAt,last_verified_at:new Date().toISOString(),last_error:null,updated_at:new Date().toISOString()},{onConflict:'user_id,provider'});if(saveError)throw Error('connection_save_failed');
- await db.from('platform_auth_flows').update({consumed_at:new Date().toISOString()}).eq('id',flow.id);
- return{status:'connected',authenticated:true,accountReady:true,accountHint:validEmail(account.email)||hint}
+ const expiresAt=new Date(Date.now()+Math.max(60,Number(token.expires_in||300))*1000).toISOString();
+ const hint=decodeEmail(token.id_token)||email;
+ const encrypted=await encrypt(userId,{access_token:String(token.access_token),refresh_token:String(token.refresh_token),expires_at:expiresAt,base_url:cfg.baseUrl,realm:cfg.realm,client_id:cfg.clientId,redirect_uri:REDIRECT});
+ const now=new Date().toISOString();
+ const {error:saveError}=await db.from('platform_connections').upsert({user_id:userId,provider:'immomio',status:'connected',...encrypted,account_hint:hint,expires_at:expiresAt,last_verified_at:now,last_error:null,updated_at:now},{onConflict:'user_id,provider'});if(saveError)throw Error('connection_save_failed');
+ await db.from('platform_auth_flows').update({consumed_at:now}).eq('id',flow.id);
+ return{status:'connected',authenticated:true,accountHint:hint,verificationDeferred:true}
 }
 
 async function latestCallback(userId:string){
@@ -70,10 +70,10 @@ async function latestCallback(userId:string){
 Deno.serve(async req=>{try{
  if(req.method!=='POST')return new Response('method not allowed',{status:405});
  if(req.headers.get('x-internal-secret')!==await secret('internal_worker_secret'))return new Response('unauthorized',{status:401});
- const body=await req.json();if(body.action==='health')return Response.json({ok:true,mode:'immomio-pkce-share-robots',redirectUri:REDIRECT,reuseExistingSession:false,pkceVerifierLength:96});
+ const body=await req.json();if(body.action==='health')return Response.json({ok:true,mode:'immomio-pkce-share-robots-kleinanzeigen-style',redirectUri:REDIRECT,reuseExistingSession:false,completionMode:'token-exchange-then-save'});
  const userId=uuid(body.userId);await eligible(userId);
  if(body.action==='login')return Response.json(await begin(userId));
  if(body.action==='complete_login')return Response.json(await complete(userId,String(body.callbackUrl||'')));
  if(body.action==='complete_latest')return Response.json(await complete(userId,await latestCallback(userId)));
  throw Error('invalid_action')
-}catch(e:any){const safe=new Set(['configuration_unavailable','premium_required','invalid_user','invalid_action','immomio_email_required','immomio_sso_failed','immomio_sso_contract_changed','auth_flow_create_failed','invalid_callback_url','auth_flow_expired','token_exchange_failed','account_verification_failed','connection_save_failed','connection_update_failed','credential_key_invalid','callback_not_found']);return Response.json({error:safe.has(e?.message)?e.message:'immomio_auth_bridge_failed'},{status:503})}});
+}catch(e:any){const safe=new Set(['configuration_unavailable','premium_required','invalid_user','invalid_action','immomio_email_required','immomio_sso_failed','immomio_sso_contract_changed','auth_flow_create_failed','invalid_callback_url','auth_flow_expired','token_exchange_failed','connection_save_failed','connection_update_failed','credential_key_invalid','callback_not_found']);return Response.json({error:safe.has(e?.message)?e.message:'immomio_auth_bridge_failed'},{status:503})}});
