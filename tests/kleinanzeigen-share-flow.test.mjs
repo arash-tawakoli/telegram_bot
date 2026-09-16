@@ -8,7 +8,8 @@ const handlers=readFileSync(new URL('../supabase/functions/telegram-ui/handlers.
 test('Kleinanzeigen callback can be completed from a Telegram share message',()=>{
  assert.match(sessions,/export function kleinCallbackFromMessage\(message\)/);
  assert.match(sessions,/login\\\.kleinanzeigen\\\.de\\\/android\\\/com\\\.ebay\\\.kleinanzeigen\\\/callback/);
- assert.match(sessions,/applicationWorker\('complete_login',user\.id,2,\{callbackUrl\}\)/);
+ assert.match(sessions,/const source=immomioUrl\?3:2/);
+ assert.match(sessions,/applicationWorker\('complete_login',user\.id,source,\{callbackUrl\}\)/);
  assert.match(sessions,/deleteMessage/);
  assert.match(handlers,/handleAutoApplyMessage\(user, message\)/);
 });
