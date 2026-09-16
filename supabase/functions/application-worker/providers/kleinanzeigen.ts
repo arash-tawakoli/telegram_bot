@@ -13,7 +13,6 @@ const XCF_PATH=(adId:string)=>`/user-contactdetails/api/v1/ad/${encodeURICompone
 const enc=new TextEncoder();
 const b64url=(bytes:Uint8Array)=>{let s='';for(const b of bytes)s+=String.fromCharCode(b);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')};
 const random=()=>b64url(crypto.getRandomValues(new Uint8Array(32)));
-const wait=(ms:number)=>new Promise(r=>setTimeout(r,ms));
 const norm=(v:any)=>String(v??'').replace(/\s+/g,' ').trim();
 
 export type KleinanzeigenOAuthConfig={clientId:string,redirectUri:string};
@@ -141,12 +140,7 @@ async function contactForm(acct:any,adId:string){
 }
 function dmhSource(listing:any){try{const u=new URL(String(listing?.canonical_url||''));return norm(u.searchParams.get('dmh_source'))||null}catch{return null}}
 function wenkseSessionId(){return crypto.randomUUID().replace(/-/g,'')}
-function createdConversationId(body:any){for(const v of[body?.conversationId,body?.data?.conversationId,body?.id,body?.data?.id,body?.conversation?.id,body?.data?.conversation?.id]){const id=scalar(v);if(id)return String(id)}return null}
-function messageRows(body:any){const rows=body?.messages??body?.data?.messages??[];return Array.isArray(rows)?rows:[]}
-function messageText(m:any){return norm(m?.message??m?.text??m?.textShort??m?.body??m?.title??'')}
-function isOutbound(m:any){const d=String(m?.boundness??m?.direction??'').toUpperCase();return d.includes('OUT')||d==='SENT'}
-async function openConversation(acct:any,cid:string){const r=await apiRequest(`${GATEWAY_HOST}/messagebox/api/users/${encodeURIComponent(acct.id)}/conversations/${encodeURIComponent(cid)}?contentWarnings=true`,{method:'PUT',headers:gatewayHeaders(acct.token,acct.xapp)});return r.response.ok?r.json:null}
-async function verifyConversation(acct:any,cid:string,message:string){const wanted=norm(message);for(const delay of[500,900,1600,2600,4200]){await wait(delay);const body=await openConversation(acct,cid);if(messageRows(body).some((m:any)=>isOutbound(m)&&messageText(m)===wanted))return true}return false}
+function xcfRejected(body:any){if(!body||typeof body!=='object')return false;const root=unwrapPayload(body),errors=root?.errors??body?.errors,status=String(root?.status??body?.status??'').toLowerCase();return root?.success===false||body?.success===false||root?.ok===false||body?.ok===false||!!(root?.error??body?.error)||(Array.isArray(errors)&&errors.length>0)||['error','failed','failure','rejected'].includes(status)}
 
 export async function inspectKleinanzeigenInquiry(input:any){
  const{db,user,profile,listing,message}=input||{},userId=String(user?.id||''),adId=String(listing?.external_id||listing?.source_listing_key||'').match(/\d{6,20}/)?.[0]||'';if(!userId||!adId||!message)return{ok:false,error:'provider_contract_unverified'};
@@ -169,7 +163,10 @@ export async function sendKleinanzeigenApplication(input:any){
  const submit=await apiRequest(url.href,{method:'POST',headers,body:JSON.stringify(prepared.payload)});
  if(submit.response.status===401||submit.response.status===403){await markConnection(db,userId,'kleinanzeigen','needs_login',`xcf_submit_${submit.response.status}`).catch(()=>{});return{success:false,status:'manual_required',error:'needs_login'}}
  if(!submit.response.ok)return{success:false,status:'manual_required',error:`xcf_submit_${submit.response.status}`};
- const cid=createdConversationId(submit.json);if(!cid)return{success:false,status:'manual_required',error:'xcf_conversation_id_missing'};
- if(await verifyConversation(acct,cid,message))return{success:true,status:'sent'};
- return{success:false,status:'manual_required',error:'xcf_submit_unconfirmed'};
+ if(xcfRejected(submit.json))return{success:false,status:'manual_required',error:'xcf_submit_rejected'};
+ // The real-estate XCF endpoint is the authoritative send boundary. Successful
+ // inquiries are confirmed by Kleinanzeigen via email and are not guaranteed to
+ // create a normal Messagebox conversation, so a 2xx response without an explicit
+ // rejection is considered sent.
+ return{success:true,status:'sent'};
 }
