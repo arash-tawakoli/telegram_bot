@@ -41,9 +41,9 @@ async function begin(userId:string){
  const verifier=randomVerifier(),state=randomState(),cc=await challenge(verifier),{error}=await db.from('platform_auth_flows').insert({user_id:userId,provider:'immomio',state,code_verifier:verifier});if(error)throw Error('auth_flow_create_failed');
  await markPending(userId,email);
  const url=new URL(`${cfg.baseUrl}/realms/${encodeURIComponent(cfg.realm)}/protocol/openid-connect/auth`);
- const params={client_id:cfg.clientId,redirect_uri:REDIRECT,response_type:'code',response_mode:'query',scope:'openid profile email',state,code_challenge:cc,code_challenge_method:'S256',login_hint:email};
+ const params={client_id:cfg.clientId,redirect_uri:REDIRECT,response_type:'code',response_mode:'query',scope:'openid profile email',state,code_challenge:cc,code_challenge_method:'S256',login_hint:email,prompt:'login'};
  for(const[k,v]of Object.entries(params))url.searchParams.set(k,String(v));
- return{status:'login',url:url.href,transport:'telegram-share-bridge',redirectUri:REDIRECT,reuseExistingSession:true,pkceVerifierLength:verifier.length,expiresInSeconds:600}
+ return{status:'login',url:url.href,transport:'telegram-share-bridge',redirectUri:REDIRECT,reuseExistingSession:false,pkceVerifierLength:verifier.length,expiresInSeconds:600}
 }
 
 function callback(v:string){let u:URL;try{u=new URL(String(v||'').trim())}catch{throw Error('invalid_callback_url')}if(u.protocol!=='https:'||u.hostname!=='tenant.immomio.com'||u.port||u.username||u.password||u.pathname!=='/robots.txt')throw Error('invalid_callback_url');const state=u.searchParams.get('state'),code=u.searchParams.get('code');if(!state||!code)throw Error('invalid_callback_url');return{state,code}}
@@ -70,7 +70,7 @@ async function latestCallback(userId:string){
 Deno.serve(async req=>{try{
  if(req.method!=='POST')return new Response('method not allowed',{status:405});
  if(req.headers.get('x-internal-secret')!==await secret('internal_worker_secret'))return new Response('unauthorized',{status:401});
- const body=await req.json();if(body.action==='health')return Response.json({ok:true,mode:'immomio-pkce-share-robots',redirectUri:REDIRECT,reuseExistingSession:true,pkceVerifierLength:96});
+ const body=await req.json();if(body.action==='health')return Response.json({ok:true,mode:'immomio-pkce-share-robots',redirectUri:REDIRECT,reuseExistingSession:false,pkceVerifierLength:96});
  const userId=uuid(body.userId);await eligible(userId);
  if(body.action==='login')return Response.json(await begin(userId));
  if(body.action==='complete_login')return Response.json(await complete(userId,String(body.callbackUrl||'')));
