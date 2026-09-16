@@ -1,0 +1,20 @@
+{
+  "migrations": [
+    {
+      "version": "20260916225500",
+      "name": "harden_auto_apply_listing_types",
+      "file": "supabase/migrations/20260916225500_harden_auto_apply_listing_types.sql",
+      "registry_sql_sha256": "387b8a26fa8a5796cbc5be20f1cc90df5a13d7988412fba859d003330abb5ea9",
+      "export_sql_sha256": "387b8a26fa8a5796cbc5be20f1cc90df5a13d7988412fba859d003330abb5ea9",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260916230730",
+      "name": "add_internal_application_canary_invokers",
+      "file": "supabase/migrations/20260916230730_add_internal_application_canary_invokers.sql",
+      "registry_sql_sha256": "736f152a7bc962990d349ca21e4f50f912ab107aeec72615847a7bba615d27a0",
+      "export_sql_sha256": "736f152a7bc962990d349ca21e4f50f912ab107aeec72615847a7bba615d27a0",
+      "vault_substitution": false
+    }
+  ]
+}
