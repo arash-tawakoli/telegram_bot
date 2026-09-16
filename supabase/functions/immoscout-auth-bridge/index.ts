@@ -27,6 +27,9 @@ async function secret(name:string){const {data,error}=await db.rpc('get_bot_secr
 async function keyMaterial(version=1){const raw=unb64(await secret(`application_credential_key_v${version}`));if(raw.length!==32)throw Error('credential_key_invalid');return crypto.subtle.importKey('raw',raw,{name:'AES-GCM'},false,['encrypt','decrypt'])}
 async function encryptCredentials(userId:string,value:unknown,version=1){const key=await keyMaterial(version),iv=crypto.getRandomValues(new Uint8Array(12)),aad=enc.encode(`${userId}:${PROVIDER}:v${version}`),plain=enc.encode(JSON.stringify(value)),cipher=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:aad},key,plain));return{credential_ciphertext:b64(cipher),credential_iv:b64(iv),key_version:version}}
 async function decryptCredentials(row:any){if(!row?.credential_ciphertext||!row?.credential_iv)return null;const version=Number(row.key_version)||1,key=await keyMaterial(version),aad=enc.encode(`${row.user_id}:${PROVIDER}:v${version}`);const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(row.credential_iv),additionalData:aad},key,unb64(row.credential_ciphertext));return JSON.parse(dec.decode(plain))}
+async function encryptTransient(flow:any,value:unknown,version=1){const key=await keyMaterial(version),iv=crypto.getRandomValues(new Uint8Array(12)),aad=enc.encode(`${flow.user_id}:${PROVIDER}:flow:${flow.id}:v${version}`),plain=enc.encode(JSON.stringify(value)),cipher=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:aad},key,plain));return{transient_ciphertext:b64(cipher),transient_iv:b64(iv),transient_key_version:version}}
+async function saveTransient(flow:any,value:unknown){const encrypted=await encryptTransient(flow,value);const {data,error}=await db.from('platform_auth_flows').update(encrypted).eq('id',flow.id).is('consumed_at',null).select('*').maybeSingle();if(error||!data)throw Error('auth_flow_expired');return data}
+async function readTransient(flow:any){if(!flow?.transient_ciphertext||!flow?.transient_iv)throw Error('mfa_state_missing');const version=Number(flow.transient_key_version)||1,key=await keyMaterial(version),aad=enc.encode(`${flow.user_id}:${PROVIDER}:flow:${flow.id}:v${version}`);try{const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(flow.transient_iv),additionalData:aad},key,unb64(flow.transient_ciphertext));return JSON.parse(dec.decode(plain))}catch{throw Error('mfa_state_missing')}}
 function uuid(v:any){const s=String(v||'');if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s))throw Error('invalid_user');return s}
 function validEmail(v:any){const e=clean(v,320).toLowerCase();return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)?e:null}
 async function eligible(userId:string){const {data,error}=await db.rpc('application_user_eligible',{p_user:userId});if(error||data!==true)throw Error('premium_required')}
@@ -38,9 +41,18 @@ async function save(userId:string,credentials:any,accountHint:string|null,expire
 async function tokenRequest(payload:Record<string,string>){try{const response=await fetch(TOKEN,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded','accept':'application/json','user-agent':OAUTH_USER_AGENT},body:new URLSearchParams({...payload,client_id:CLIENT_ID}),signal:AbortSignal.timeout(25000)}),body=await response.json().catch(()=>null);return{response,body}}catch{throw Error('temporary_network_error')}}
 async function userInfo(accessToken:string){try{const response=await fetch(USERINFO,{headers:{accept:'application/json',authorization:`Bearer ${accessToken}`,'user-agent':OAUTH_USER_AGENT},signal:AbortSignal.timeout(25000)}),body=await response.json().catch(()=>null);return{response,body}}catch{throw Error('temporary_network_error')}}
 async function authn(email:string,password:string){try{const response=await fetch(AUTHN,{method:'POST',headers:{accept:'application/json','content-type':'application/json','user-agent':OAUTH_USER_AGENT},body:JSON.stringify({username:email,password,options:{multiOptionalFactorEnroll:false,warnBeforePasswordExpired:false}}),signal:AbortSignal.timeout(25000)}),body=await response.json().catch(()=>null);return{response,body}}catch{throw Error('temporary_network_error')}}
-function callbackParts(value:string){let url:URL;try{url=new URL(String(value||'').trim())}catch{throw Error('invalid_callback_url')}if(url.protocol!=='immobilienscout24.de:'||url.hostname||url.port||url.username||url.password||url.pathname!=='/loginCallback')throw Error('invalid_callback_url');const fragment=new URLSearchParams(url.hash.replace(/^#/,'').replace(/^\?/,'')),state=fragment.get('state')||url.searchParams.get('state'),code=fragment.get('code')||url.searchParams.get('code'),oauthError=fragment.get('error')||url.searchParams.get('error');return{state,code,oauthError}}
+function callbackParts(value:string){let url:URL;try{url=new URL(String(value||'').trim())}catch{throw Error('invalid_callback_url')}if(url.protocol!=='immobilienscout24.de:'||url.hostname||url.port||url.username||url.password||url.pathname!=='/loginCallback')throw Error('invalid_callback_url');const fragment=new URLSearchParams(url.hash.replace(/^#/, '').replace(/^\?/,'')),state=fragment.get('state')||url.searchParams.get('state'),code=fragment.get('code')||url.searchParams.get('code'),oauthError=fragment.get('error')||url.searchParams.get('error');return{state,code,oauthError}}
 async function flowByState(state:string,userId?:string){if(!/^[A-Za-z0-9_-]{20,80}$/.test(state))throw Error('invalid_state');let q=db.from('platform_auth_flows').select('*').eq('provider',PROVIDER).eq('state',state).is('consumed_at',null).gt('expires_at',new Date().toISOString());if(userId)q=q.eq('user_id',userId);const {data,error}=await q.maybeSingle();if(error||!data)throw Error('auth_flow_expired');return data}
-async function claimFlow(flow:any){const now=new Date().toISOString(),{data,error}=await db.from('platform_auth_flows').update({consumed_at:now}).eq('id',flow.id).is('consumed_at',null).select('id').maybeSingle();if(error||!data)throw Error('auth_flow_expired')}
+async function claimFlow(flow:any){const now=new Date().toISOString(),{data,error}=await db.from('platform_auth_flows').update({consumed_at:now,transient_ciphertext:null,transient_iv:null}).eq('id',flow.id).is('consumed_at',null).select('id').maybeSingle();if(error||!data)throw Error('auth_flow_expired')}
+
+const SUPPORTED_FACTORS=new Set(['sms','call','email','token:software:totp','token:hotp','push','question']);
+function factorId(v:any){const id=clean(v,160);return /^[A-Za-z0-9_-]{3,160}$/.test(id)?id:null}
+function factorDescriptor(raw:any){const id=factorId(raw?.id),type=clean(raw?.factorType,80).toLowerCase();if(!id||!SUPPORTED_FACTORS.has(type))return null;const profile=raw?.profile&&typeof raw.profile==='object'?raw.profile:{};let detail='';if(type==='sms'||type==='call')detail=clean(profile.phoneNumber,80);else if(type==='email')detail=clean(profile.email||profile.credentialId,160);else if(type==='push')detail=clean(profile.name||profile.deviceType||profile.platform,80);else if(type==='question')detail=clean(profile.questionText,180);const names:Record<string,string>={sms:'SMS-Code',call:'Telefon-Code',email:'E-Mail-Code','token:software:totp':'Authenticator-Code','token:hotp':'Authenticator-Code',push:'Push-Bestätigung',question:'Sicherheitsfrage'};return{id,type,label:detail?`${names[type]} · ${detail}`:names[type],question:type==='question'?detail:null}}
+function extractFactors(body:any){const raw=Array.isArray(body?._embedded?.factors)?body._embedded.factors:[];return raw.map(factorDescriptor).filter(Boolean)}
+function safeFactor(f:any){return{id:String(f.id),type:String(f.type),label:clean(f.label,220),question:f.question?clean(f.question,220):null}}
+function selectedFactor(transient:any){const id=factorId(transient?.selectedFactorId);if(!id)return null;return Array.isArray(transient?.factors)?transient.factors.find((f:any)=>f.id===id)||null:null}
+async function verifyFactor(stateToken:string,id:string,payload:Record<string,string>={}){const safeId=factorId(id);if(!safeId)throw Error('mfa_factor_invalid');try{const response=await fetch(`${AUTHN}/factors/${encodeURIComponent(safeId)}/verify`,{method:'POST',headers:{accept:'application/json','content-type':'application/json','user-agent':OAUTH_USER_AGENT},body:JSON.stringify({stateToken,...payload}),signal:AbortSignal.timeout(25000)}),body=await response.json().catch(()=>null);return{response,body}}catch{throw Error('temporary_network_error')}}
+function mfaPayload(transient:any,step?:string){const factors=(Array.isArray(transient?.factors)?transient.factors:[]).map(safeFactor),selected=selectedFactor(transient);return{status:'mfa_required',authenticated:false,step:step||(selected?(selected.type==='push'?'push':'code'):'select'),factors,selectedFactor:selected?safeFactor(selected):null}}
 
 async function beginLogin(userId:string){
  const email=await profileEmail(userId);
@@ -69,16 +81,47 @@ async function exchangeAndSave(userId:string,flow:any,code:string,emailFallback:
  return{status:'connected',authenticated:true,accountReady:true,accountHint};
 }
 
+async function finishMfa(flow:any,transient:any,sessionToken:string){const userId=uuid(flow.user_id),email=validEmail(transient?.email)||await profileEmail(userId);await claimFlow(flow);const code=await authorizeWithSession(flow,email,String(sessionToken));return exchangeAndSave(userId,flow,code,email)}
+
+async function startFactor(flow:any,transient:any,factorValue:any){
+ const id=factorId(factorValue),factor=Array.isArray(transient?.factors)?transient.factors.find((f:any)=>f.id===id):null;if(!factor)throw Error('mfa_factor_invalid');
+ transient={...transient,selectedFactorId:factor.id};
+ if(factor.type==='token:software:totp'||factor.type==='token:hotp'||factor.type==='question'){await saveTransient(flow,transient);return mfaPayload(transient,'code')}
+ const {response,body}=await verifyFactor(String(transient.stateToken||''),factor.id);
+ if(!response.ok){throw Error('mfa_challenge_failed')}
+ transient={...transient,stateToken:String(body?.stateToken||transient.stateToken||''),selectedFactorId:factor.id};
+ const saved=await saveTransient(flow,transient);
+ if(clean(body?.status,60).toUpperCase()==='SUCCESS'&&body?.sessionToken)return finishMfa(saved,transient,String(body.sessionToken));
+ const factorResult=clean(body?.factorResult,60).toUpperCase();if(factorResult==='REJECTED')throw Error('mfa_rejected');if(factorResult==='TIMEOUT')throw Error('mfa_timeout');
+ return mfaPayload(transient,factor.type==='push'?'push':'code');
+}
+
 async function passwordLogin(state:string,emailValue:any,passwordValue:any){
  const email=validEmail(emailValue),password=String(passwordValue||'');if(!email||!password||password.length>1024)throw Error('login_failed');
  const flow=await flowByState(state),userId=uuid(flow.user_id);await eligible(userId);
  const {response,body}=await authn(email,password);
  const status=clean(body?.status,60).toUpperCase();
- if(status.includes('MFA')){await mark(userId,'needs_login','mfa_required',{account_hint:email}).catch(()=>{});throw Error('mfa_required')}
+ if(status.startsWith('MFA')){
+   const stateToken=clean(body?.stateToken,4096),factors=extractFactors(body);if(!stateToken||!factors.length){await mark(userId,'needs_login','mfa_unsupported',{account_hint:email}).catch(()=>{});throw Error('mfa_unsupported')}
+   const transient={kind:'mfa',stateToken,email,factors,selectedFactorId:null};const saved=await saveTransient(flow,transient);await mark(userId,'pending','mfa_required',{account_hint:email}).catch(()=>{});
+   if(factors.length===1)return startFactor(saved,transient,factors[0].id);
+   return mfaPayload(transient,'select');
+ }
  if(!response.ok||status!=='SUCCESS'||!body?.sessionToken){await mark(userId,'pending','login_failed',{account_hint:email}).catch(()=>{});throw Error('login_failed')}
  await claimFlow(flow);
  const code=await authorizeWithSession(flow,email,String(body.sessionToken));
  return exchangeAndSave(userId,flow,code,email);
+}
+
+async function mfaStatus(state:string){const flow=await flowByState(state),userId=uuid(flow.user_id);await eligible(userId);if(!flow.transient_ciphertext)return{status:'login',authenticated:false};const transient=await readTransient(flow);if(transient?.kind!=='mfa')return{status:'login',authenticated:false};return mfaPayload(transient)}
+async function mfaSelect(state:string,factorValue:any){const flow=await flowByState(state),userId=uuid(flow.user_id);await eligible(userId);const transient=await readTransient(flow);if(transient?.kind!=='mfa')throw Error('mfa_state_missing');return startFactor(flow,transient,factorValue)}
+async function mfaVerify(state:string,codeValue:any){
+ let flow=await flowByState(state),userId=uuid(flow.user_id);await eligible(userId);let transient=await readTransient(flow);if(transient?.kind!=='mfa')throw Error('mfa_state_missing');let factor=selectedFactor(transient);if(!factor&&Array.isArray(transient.factors)&&transient.factors.length===1){const selected=await startFactor(flow,transient,transient.factors[0].id);if(selected?.status==='connected')return selected;flow=await flowByState(state);transient=await readTransient(flow);factor=selectedFactor(transient)}if(!factor)throw Error('mfa_factor_required');
+ const payload:Record<string,string>={};if(factor.type==='question'){const answer=clean(codeValue,300);if(!answer)throw Error('mfa_code_required');payload.answer=answer}else if(factor.type!=='push'){const passCode=clean(codeValue,80);if(!passCode)throw Error('mfa_code_required');payload.passCode=passCode}
+ const {response,body}=await verifyFactor(String(transient.stateToken||''),factor.id,payload);
+ if(!response.ok){if(String(body?.errorCode||'')==='E0000068')throw Error('mfa_invalid_code');throw Error('mfa_verification_failed')}
+ transient={...transient,stateToken:String(body?.stateToken||transient.stateToken||'')};flow=await saveTransient(flow,transient);
+ const status=clean(body?.status,60).toUpperCase(),factorResult=clean(body?.factorResult,60).toUpperCase();if(status==='SUCCESS'&&body?.sessionToken)return finishMfa(flow,transient,String(body.sessionToken));if(factorResult==='REJECTED')throw Error('mfa_rejected');if(factorResult==='TIMEOUT')throw Error('mfa_timeout');if(factor.type==='push'&&factorResult==='WAITING')return mfaPayload(transient,'push');throw Error('mfa_verification_failed');
 }
 
 async function completeLogin(userId:string,callbackUrl:string){const parsed=callbackParts(callbackUrl);if(!parsed.state)throw Error('invalid_callback_url');if(parsed.oauthError){await mark(userId,'needs_login',clean(parsed.oauthError,120)).catch(()=>{});throw Error('oauth_login_failed')}if(!parsed.code)throw Error('invalid_callback_url');const flow=await flowByState(parsed.state,userId);await claimFlow(flow);return exchangeAndSave(userId,flow,parsed.code,await profileEmail(userId).catch(()=>null))}
@@ -90,18 +133,20 @@ async function disconnect(userId:string){await Promise.all([db.from('platform_co
 
 const CORS={'access-control-allow-origin':HANDOFF_ORIGIN,'access-control-allow-methods':'POST,OPTIONS','access-control-allow-headers':'content-type','cache-control':'no-store','vary':'Origin'};
 function publicJson(body:any,status=200){return Response.json(body,{status,headers:CORS})}
+const PUBLIC_ERRORS=new Set(['login_failed','auth_flow_expired','invalid_state','mfa_unsupported','mfa_state_missing','mfa_factor_invalid','mfa_factor_required','mfa_code_required','mfa_invalid_code','mfa_challenge_failed','mfa_verification_failed','mfa_rejected','mfa_timeout','temporary_network_error']);
+function publicError(error:any){const code=String(error?.message||'immoscout_operation_failed');let status=503;if(code==='login_failed'||code==='mfa_invalid_code')status=401;else if(code==='auth_flow_expired'||code==='invalid_state'||code==='mfa_timeout')status=410;else if(['mfa_unsupported','mfa_state_missing','mfa_factor_invalid','mfa_factor_required','mfa_code_required','mfa_verification_failed','mfa_rejected'].includes(code))status=409;else if(code==='mfa_challenge_failed')status=502;return publicJson({error:PUBLIC_ERRORS.has(code)?code:'immoscout_operation_failed'},status)}
 
 Deno.serve(async req=>{try{
  const origin=req.headers.get('origin')||'';
  if(req.method==='OPTIONS'){if(origin!==HANDOFF_ORIGIN)return new Response('forbidden',{status:403});return new Response(null,{status:204,headers:CORS})}
  if(req.method!=='POST')return new Response('method not allowed',{status:405});
  const body=await req.json().catch(()=>({}));
- if(body.action==='password_login'){
+ if(['password_login','mfa_status','mfa_select','mfa_verify'].includes(String(body.action||''))){
    if(origin!==HANDOFF_ORIGIN)return new Response('forbidden',{status:403});
-   try{return publicJson(await passwordLogin(String(body.state||''),body.email,body.password))}catch(error:any){const code=String(error?.message||'immoscout_operation_failed');const status=code==='login_failed'?401:code==='mfa_required'?409:code==='auth_flow_expired'||code==='invalid_state'?410:503;return publicJson({error:['login_failed','mfa_required','auth_flow_expired','invalid_state'].includes(code)?code:'immoscout_operation_failed'},status)}
+   try{if(body.action==='password_login')return publicJson(await passwordLogin(String(body.state||''),body.email,body.password));if(body.action==='mfa_status')return publicJson(await mfaStatus(String(body.state||'')));if(body.action==='mfa_select')return publicJson(await mfaSelect(String(body.state||''),body.factorId));return publicJson(await mfaVerify(String(body.state||''),body.code))}catch(error:any){return publicError(error)}
  }
  if(req.headers.get('x-internal-secret')!==await secret('internal_worker_secret'))return new Response('unauthorized',{status:401});
- if(body.action==='health')return Response.json({ok:true,mode:'immoscout-one-time-password-pkce-handoff',clientId:CLIENT_ID,redirectUri:REDIRECT_URI,marksConnectedAfterUserInfo:true,expiresInSeconds:1800,passwordStored:false});
+ if(body.action==='health')return Response.json({ok:true,mode:'immoscout-one-time-password-pkce-handoff',clientId:CLIENT_ID,redirectUri:REDIRECT_URI,marksConnectedAfterUserInfo:true,expiresInSeconds:1800,passwordStored:false,mfaSupported:true,transientMfaStateEncrypted:true});
  const userId=uuid(body.userId);if(body.action!=='disconnect')await eligible(userId);
  if(body.action==='login')return Response.json(await beginLogin(userId));
  if(body.action==='complete_login')return Response.json(await completeLogin(userId,String(body.callbackUrl||'')));
@@ -109,4 +154,4 @@ Deno.serve(async req=>{try{
  if(body.action==='inspect')return Response.json(await inspect(userId));
  if(body.action==='disconnect')return Response.json(await disconnect(userId));
  throw Error('invalid_action');
-}catch(error:any){const code=String(error?.message||'immoscout_operation_failed'),safe=new Set(['configuration_unavailable','credential_key_invalid','premium_required','invalid_user','invalid_action','immoscout_email_required','auth_flow_create_failed','connection_update_failed','connection_save_failed','connection_read_failed','invalid_callback_url','invalid_state','auth_flow_expired','oauth_login_failed','authorization_code_missing','token_exchange_failed','refresh_token_missing','userinfo_failed','temporary_network_error','needs_login','login_failed','mfa_required']);return Response.json({error:safe.has(code)?code:'immoscout_operation_failed'},{status:503})}});
+}catch(error:any){const code=String(error?.message||'immoscout_operation_failed'),safe=new Set(['configuration_unavailable','credential_key_invalid','premium_required','invalid_user','invalid_action','immoscout_email_required','auth_flow_create_failed','connection_update_failed','connection_save_failed','connection_read_failed','invalid_callback_url','invalid_state','auth_flow_expired','oauth_login_failed','authorization_code_missing','token_exchange_failed','refresh_token_missing','userinfo_failed','temporary_network_error','needs_login','login_failed','mfa_unsupported','mfa_state_missing','mfa_factor_invalid','mfa_factor_required','mfa_code_required','mfa_invalid_code','mfa_challenge_failed','mfa_verification_failed','mfa_rejected','mfa_timeout']);return Response.json({error:safe.has(code)?code:'immoscout_operation_failed'},{status:503})}});
