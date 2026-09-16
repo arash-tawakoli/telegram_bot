@@ -19,11 +19,14 @@ jobs:
           node-version: '24'
           cache: npm
 
-      - name: Test job ownership and database permissions
-        run: |
-          npm ci --ignore-scripts
-          npm test
-          node scripts/check-runtime.mjs
+      - name: Install test dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Run architecture tests
+        run: npm test
+
+      - name: Validate runtime and migration registry
+        run: node scripts/check-runtime.mjs
 
       - name: Validate architecture files
         run: |
@@ -93,4 +96,3 @@ jobs:
             echo 'Potential secret found in repository.' >&2
             exit 1
           fi
-
