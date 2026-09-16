@@ -26,11 +26,14 @@ const SETUP_PROMPT='👤 Bewerberprofil · Grundeinrichtung';
 const FIELD_PROMPT_PREFIX='👤 Bewerberprofil · ';
 const KLEIN_CALLBACK_ORIGIN='https://login.kleinanzeigen.de';
 const KLEIN_CALLBACK_PATH='/android/com.ebay.kleinanzeigen/callback';
+const IMMOMIO_CALLBACK_ORIGIN='https://tenant.immomio.com';
+const IMMOMIO_CALLBACK_PATH='/assets/manifest.webmanifest';
 
 export async function applicationWorker(action,userId,source,extra={}){
  let response;
  try{
-  response=await fetch(`${SUPABASE_URL}/functions/v1/application-worker`,{
+  const endpoint=source===3?`${SUPABASE_URL}/functions/v1/immomio-account`:`${SUPABASE_URL}/functions/v1/application-worker`;
+  response=await fetch(endpoint,{
    method:'POST',headers:{'Content-Type':'application/json','x-internal-secret':await secret('internal_worker_secret')},
    body:JSON.stringify({action,userId,source,...extra}),signal:AbortSignal.timeout(45000)});
  }catch{throw Error('Auto-Bewerbung ist gerade nicht erreichbar. Bitte erneut versuchen.');}
@@ -38,9 +41,10 @@ export async function applicationWorker(action,userId,source,extra={}){
  if(!response.ok||!result){
   const code=result?.error;
   if(code==='premium_required')throw Error('Premium ist erforderlich.');
-  if(code==='auth_flow_expired')throw Error('Die Kleinanzeigen-Anmeldung ist abgelaufen. Bitte erneut verbinden.');
-  if(code==='invalid_callback_url')throw Error('Der Kleinanzeigen-Rücksprung ist unvollständig. Bitte den Login erneut starten.');
-  if(code==='token_exchange_failed')throw Error('Kleinanzeigen konnte die Anmeldung nicht abschließen. Bitte erneut versuchen.');
+  if(code==='auth_flow_expired')throw Error('Die Plattform-Anmeldung ist abgelaufen. Bitte erneut verbinden.');
+  if(code==='invalid_callback_url')throw Error('Der Plattform-Rücksprung ist unvollständig. Bitte den Login erneut starten.');
+  if(code==='token_exchange_failed')throw Error('Die Plattform konnte die Anmeldung nicht abschließen. Bitte erneut versuchen.');
+  if(code==='immomio_email_required')throw Error('Im Bewerberprofil fehlt eine gültige E-Mail-Adresse.');
   throw Error('Plattformverbindung momentan nicht verfügbar.');
  }
  return result;
@@ -49,7 +53,7 @@ export async function applicationWorker(action,userId,source,extra={}){
 export async function purgePlatformSessions(userId){
  const {data,error}=await db.from('platform_connections').select('provider').eq('user_id',userId);
  if(error)throw Error('Plattformverbindungen konnten nicht geladen werden.');
- const sourceFor={immoscout:1,kleinanzeigen:2};
+ const sourceFor={immoscout:1,kleinanzeigen:2,immomio:3};
  for(const row of data||[]){const source=sourceFor[row.provider];if(source)await applicationWorker('disconnect',userId,source).catch(()=>{});}
  await db.from('platform_connections').delete().eq('user_id',userId);
  await db.from('platform_auth_flows').delete().eq('user_id',userId);
@@ -73,20 +77,32 @@ function normalizeKleinCallback(value){
  if(!url.searchParams.get('code')&&!url.searchParams.get('error'))return null;
  return url.href;
 }
-
-export function kleinCallbackFromMessage(message){
+function normalizeImmomioCallback(value){
+ let url;try{url=new URL(String(value||'').trim().replace(/[\])},.;!?]+$/g,''));}catch{return null;}
+ if(url.origin!==IMMOMIO_CALLBACK_ORIGIN||url.pathname!==IMMOMIO_CALLBACK_PATH||url.username||url.password||url.port)return null;
+ if(!url.searchParams.get('state')||!url.searchParams.get('code'))return null;
+ return url.href;
+}
+function callbackCandidates(message,regex){
  const candidates=[];
  for(const [textKey,entitiesKey] of [['text','entities'],['caption','caption_entities']]){
   const text=String(message?.[textKey]||'');
   if(!text)continue;
   candidates.push(text);
-  for(const match of text.matchAll(/https:\/\/login\.kleinanzeigen\.de\/android\/com\.ebay\.kleinanzeigen\/callback[^\s<>"']*/gi))candidates.push(match[0]);
+  for(const match of text.matchAll(regex))candidates.push(match[0]);
   for(const entity of message?.[entitiesKey]||[]){
    if(entity?.type==='text_link'&&entity.url)candidates.push(String(entity.url));
    if(entity?.type==='url'&&Number.isInteger(entity.offset)&&Number.isInteger(entity.length))candidates.push(text.slice(entity.offset,entity.offset+entity.length));
   }
  }
- for(const candidate of candidates){const parsed=normalizeKleinCallback(candidate);if(parsed)return parsed;}
+ return candidates;
+}
+export function kleinCallbackFromMessage(message){
+ for(const candidate of callbackCandidates(message,/https:\/\/login\.kleinanzeigen\.de\/android\/com\.ebay\.kleinanzeigen\/callback[^\s<>"']*/gi)){const parsed=normalizeKleinCallback(candidate);if(parsed)return parsed;}
+ return null;
+}
+export function immomioCallbackFromMessage(message){
+ for(const candidate of callbackCandidates(message,/https:\/\/tenant\.immomio\.com\/assets\/manifest\.webmanifest[^\s<>"']*/gi)){const parsed=normalizeImmomioCallback(candidate);if(parsed)return parsed;}
  return null;
 }
 
@@ -155,16 +171,17 @@ export async function handleAutoApplyMessage(user,message){
  const chat=message?.chat;if(!privateOwner(user,chat))return null;
  const text=String(message?.text||'').trim();
  const replied=String(message?.reply_to_message?.text||'');
- const callbackUrl=kleinCallbackFromMessage(message);
+ const kleinUrl=kleinCallbackFromMessage(message),immomioUrl=immomioCallbackFromMessage(message),callbackUrl=immomioUrl||kleinUrl;
  if(callbackUrl){
+  const source=immomioUrl?3:2,name=source===3?'Immomio':'Kleinanzeigen';
   await telegram('deleteMessage',{chat_id:chat.id,message_id:message.message_id}).catch(()=>{});
-  if(!user.is_premium)return send(chat.id,'💎 Die Kleinanzeigen-Verbindung benötigt Premium.',{inline_keyboard:[[button('← Automatische Bewerbung','platforms')]]});
+  if(!user.is_premium)return send(chat.id,`💎 Die ${name}-Verbindung benötigt Premium.`,{inline_keyboard:[[button('← Automatische Bewerbung','platforms')]]});
   try{
-   const result=await applicationWorker('complete_login',user.id,2,{callbackUrl});
-   if(result?.authenticated!==true&&result?.status!=='connected')throw Error('Kleinanzeigen konnte nicht verbunden werden.');
-   return send(chat.id,'✅ <b>Kleinanzeigen verbunden</b>\n\nDie Anmeldung ist gespeichert. Du musst nichts kopieren oder einfügen. Künftige Anmeldungen werden nur nötig, wenn Kleinanzeigen die Verbindung widerruft.',{inline_keyboard:[[button('← Automatische Bewerbung','platforms')]]});
+   const result=await applicationWorker('complete_login',user.id,source,{callbackUrl});
+   if(result?.authenticated!==true&&result?.status!=='connected')throw Error(`${name} konnte nicht verbunden werden.`);
+   return send(chat.id,`✅ <b>${name} verbunden</b>\n\nDie Anmeldung ist verschlüsselt gespeichert. Du musst nichts kopieren oder einfügen.`,{inline_keyboard:[[button('← Automatische Bewerbung','platforms')]]});
   }catch(error){
-   return send(chat.id,`⚠️ ${esc(error.message)}`,{inline_keyboard:[[button('🔐 Erneut verbinden','platforms:login:2')],[button('← Automatische Bewerbung','platforms')]]});
+   return send(chat.id,`⚠️ ${esc(error.message)}`,{inline_keyboard:[[button(`🔐 ${name} erneut verbinden`,`platforms:login:${source}`)],[button('← Automatische Bewerbung','platforms')]]});
   }
  }
  if(replied.startsWith(SETUP_PROMPT)){
@@ -214,22 +231,23 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   const prompt=fieldPrompt(arg);if(!prompt)return renderApplicantProfile(user,chat,messageId);
   return send(chat.id,prompt,{force_reply:true,selective:true,input_field_placeholder:PROFILE_FIELDS[arg].label});
  }
- if(action==='immomio')return render('🟢 <b>Immomio</b>\n\nKein separates Immomio-Konto ist für den geplanten Gastbewerbungsweg erforderlich. Passende Immomio-Angebote werden über ihren Bewerbungslink verarbeitet. Der automatische Versand bleibt bis zum kontrollierten Sendetest gesperrt.',back);
 
  if(action==='login'||action==='disconnect'||action==='check'){
-  if(![1,2].includes(source))return;
+  if(![1,2,3].includes(source))return;
   if(action!=='disconnect'&&!user.is_premium)return render('Zum Verbinden ist Premium erforderlich.',back);
-  const name=source===1?'ImmoScout24':'Kleinanzeigen';
+  const name=source===1?'ImmoScout24':source===2?'Kleinanzeigen':'Immomio';
   if(source===1&&action==='login')return render('🔐 <b>ImmoScout24</b>\n\nDie Verbindung wird ohne offizielle ImmoScout-API über eine gespeicherte Web-Session umgesetzt. Der kontrollierte Login-/Sendetest ist noch ausstehend; deshalb wird hier aktuell noch keine produktive Session angelegt.',back);
   try{
    const result=await applicationWorker(action,user.id,source);
    if(action==='disconnect')return render(`${name}: Verbindung gelöscht.`,back);
    if(action==='login'&&result.url){
-    const note=result.bridgeRequired
-     ? '<b>1.</b> Öffne Kleinanzeigen und melde dich normal an.\n<b>2.</b> Auf der Abschlussseite tippe auf <b>Teilen</b>.\n<b>3.</b> Wähle <b>Telegram → Traumwohnung Hamburg</b>.\n\nDas war’s. Der Bot erkennt den Rücksprung automatisch und löscht die geteilte Login-URL direkt wieder. Du musst nichts kopieren, einfügen oder zusätzlich installieren. Falls Telegram den Login intern öffnet, kannst du ihn über das Menü in Safari öffnen.'
-     : result.automaticCallback
-      ? 'Öffne Kleinanzeigen und melde dich ganz normal im Browser an. Nach erfolgreichem Login wird die Verbindung automatisch abgeschlossen und du wirst zurück zu Telegram geführt. Kein Kopieren, Teilen oder Remote-Browser.'
-      : 'Melde dich einmalig an. Danach bleibt die Verbindung gespeichert.';
+    const note=source===3
+     ? '<b>1.</b> Öffne Immomio und melde dich normal an.\n<b>2.</b> Auf der Abschlussseite tippe auf <b>Teilen</b>.\n<b>3.</b> Wähle <b>Telegram → Traumwohnung – Hamburg → Senden</b>.\n\nDer Bot übernimmt den Rücksprung automatisch und speichert die Sitzung verschlüsselt.'
+     : result.bridgeRequired
+      ? '<b>1.</b> Öffne Kleinanzeigen und melde dich normal an.\n<b>2.</b> Auf der Abschlussseite tippe auf <b>Teilen</b>.\n<b>3.</b> Wähle <b>Telegram → Traumwohnung Hamburg</b>.\n\nDas war’s. Der Bot erkennt den Rücksprung automatisch und löscht die geteilte Login-URL direkt wieder. Du musst nichts kopieren, einfügen oder zusätzlich installieren. Falls Telegram den Login intern öffnet, kannst du ihn über das Menü in Safari öffnen.'
+      : result.automaticCallback
+       ? 'Öffne Kleinanzeigen und melde dich ganz normal im Browser an. Nach erfolgreichem Login wird die Verbindung automatisch abgeschlossen und du wirst zurück zu Telegram geführt. Kein Kopieren, Teilen oder Remote-Browser.'
+       : 'Melde dich einmalig an. Danach bleibt die Verbindung gespeichert.';
     return render(`🔐 <b>${name} verbinden</b>\n\n${note}`,[[{text:`🌐 ${name}-Login öffnen`,url:result.url}],...back]);
    }
    return render(result.authenticated===true?`${name}: ✅ Verbindung bestätigt.`:result.authenticated===false?`${name}: Anmeldung erforderlich.`:`${name}: Verbindung gespeichert, aber noch nicht vollständig verifiziert.`,back);
@@ -252,13 +270,14 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   db.from('applicant_profiles').select('*').eq('user_id',user.id).maybeSingle()
  ]);
  if(error||stateError||applicantError)throw Error('Auto-Bewerbung konnte nicht geladen werden.');
- const scout=connections?.find(r=>r.provider==='immoscout'),klein=connections?.find(r=>r.provider==='kleinanzeigen'),ready=profileReady(applicant);
- const text=`⚡ <b>Automatische Bewerbung</b>\n\n👤 Bewerberprofil: ${ready?'✅ vollständig':applicant?'⚠️ unvollständig':'⚠️ fehlt'}\n\n<b>Plattformen</b>\nKleinanzeigen: ${connectionLabel(klein)} · 🧪 Sendetest ausstehend\nImmoScout24: ${connectionLabel(scout)} · 🧪 Sendetest ausstehend\nImmomio: 🟢 kein Login erforderlich · 🧪 Sendetest ausstehend\n\nAuto-Bewerbung: ${state.auto_apply_enabled?'✅ aktiv':'aus'}\n\nNach der einmaligen Einrichtung läuft die Bewerbung auf freigegebenen Plattformen vollständig automatisch.`;
+ const scout=connections?.find(r=>r.provider==='immoscout'),klein=connections?.find(r=>r.provider==='kleinanzeigen'),immomio=connections?.find(r=>r.provider==='immomio'),ready=profileReady(applicant);
+ const text=`⚡ <b>Automatische Bewerbung</b>\n\n👤 Bewerberprofil: ${ready?'✅ vollständig':applicant?'⚠️ unvollständig':'⚠️ fehlt'}\n\n<b>Plattformen</b>\nKleinanzeigen: ${connectionLabel(klein)} · 🧪 Sendetest ausstehend\nImmoScout24: ${connectionLabel(scout)} · 🧪 Sendetest ausstehend\nImmomio: ${connectionLabel(immomio)} · 🧪 Sendetest ausstehend\n\nAuto-Bewerbung: ${state.auto_apply_enabled?'✅ aktiv':'aus'}\n\nNach der einmaligen Einrichtung läuft die Bewerbung auf freigegebenen Plattformen vollständig automatisch.`;
  const rows=[
   [button('👤 Bewerberprofil','platforms:profile')],
-  ...(user.is_premium?[[button(klein?.status==='connected'?'✅ Kleinanzeigen verbunden':'🔐 Kleinanzeigen verbinden','platforms:login:2')],[button('✅ Kleinanzeigen prüfen','platforms:check:2')],[button('🔐 ImmoScout24 verbinden','platforms:login:1')],[button('🟢 Immomio · kein Login nötig','platforms:immomio')]]:[]),
+  ...(user.is_premium?[[button(klein?.status==='connected'?'✅ Kleinanzeigen verbunden':'🔐 Kleinanzeigen verbinden','platforms:login:2')],[button('✅ Kleinanzeigen prüfen','platforms:check:2')],[button('🔐 ImmoScout24 verbinden','platforms:login:1')],[button(immomio?.status==='connected'?'✅ Immomio verbunden':'🔐 Immomio verbinden','platforms:login:3')],[button('✅ Immomio prüfen','platforms:check:3')]]:[]),
   ...(klein?[[button('Kleinanzeigen trennen','platforms:disconnect:2')]]:[]),
   ...(scout?[[button('ImmoScout24 trennen','platforms:disconnect:1')]]:[]),
+  ...(immomio?[[button('Immomio trennen','platforms:disconnect:3')]]:[]),
   [button(state.auto_apply_enabled?'Auto-Bewerbung deaktivieren':'⚡ Auto-Bewerbung aktivieren',`platforms:${state.auto_apply_enabled?'off':'on'}`)],
   [button('← Einstellungen','settings')]
  ];
