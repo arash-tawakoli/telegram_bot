@@ -15,6 +15,22 @@
       "registry_sql_sha256": "736f152a7bc962990d349ca21e4f50f912ab107aeec72615847a7bba615d27a0",
       "export_sql_sha256": "736f152a7bc962990d349ca21e4f50f912ab107aeec72615847a7bba615d27a0",
       "vault_substitution": false
+    },
+    {
+      "version": "20260916233032",
+      "name": "allow_all_listing_types_for_auto_apply",
+      "file": "supabase/migrations/20260916233032_allow_all_listing_types_for_auto_apply.sql",
+      "registry_sql_sha256": "6ca87e23f0efdcb13c9f3b9bd59184155c5f4b9fd0b50d29c9f29ea7d490fcc5",
+      "export_sql_sha256": "6ca87e23f0efdcb13c9f3b9bd59184155c5f4b9fd0b50d29c9f29ea7d490fcc5",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260916233138",
+      "name": "notify_immoscout_plus_required",
+      "file": "supabase/migrations/20260916233138_notify_immoscout_plus_required.sql",
+      "registry_sql_sha256": "66ef0fdabfe27349695a9ad3e85a60a6bf12cece3dcc8a3c2bbc64f580e64d39",
+      "export_sql_sha256": "66ef0fdabfe27349695a9ad3e85a60a6bf12cece3dcc8a3c2bbc64f580e64d39",
+      "vault_substitution": false
     }
   ]
 }
