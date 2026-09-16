@@ -1,0 +1,92 @@
+{
+  "migrations": [
+    {
+      "version": "20260915205500",
+      "name": "allow_unknown_rent_when_profile_permits",
+      "file": "supabase/migrations/20260915205500_allow_unknown_rent_when_profile_permits.sql",
+      "registry_sql_sha256": "430f534ce76769510214b324733b378ca49fcb51639eba4de5808a02186b2f1f",
+      "export_sql_sha256": "430f534ce76769510214b324733b378ca49fcb51639eba4de5808a02186b2f1f",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260916073952",
+      "name": "add_kleinanzeigen_application_preferences",
+      "file": "supabase/migrations/20260916073952_add_kleinanzeigen_application_preferences.sql",
+      "registry_sql_sha256": "fef796a27300fd9be5d000c2dc4bfead97538a67844932d8a2068eef450361f8",
+      "export_sql_sha256": "fef796a27300fd9be5d000c2dc4bfead97538a67844932d8a2068eef450361f8",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260916095916",
+      "name": "route_immomio_callbacks_through_gateway",
+      "file": "supabase/migrations/20260916095916_route_immomio_callbacks_through_gateway.sql",
+      "registry_sql_sha256": "ef28390c00be76ccf7288e99163edd706aef26e6dc590ff0c6b7a47150da9ad5",
+      "export_sql_sha256": "ef28390c00be76ccf7288e99163edd706aef26e6dc590ff0c6b7a47150da9ad5",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260916105000",
+      "name": "enable_immomio_auth_flows",
+      "file": "supabase/migrations/20260916105000_enable_immomio_auth_flows.sql",
+      "registry_sql_sha256": "4b15e2a2724e5493e49f11605a774a5269eb74834d31e757685f0804cbddcb74",
+      "export_sql_sha256": "4b15e2a2724e5493e49f11605a774a5269eb74834d31e757685f0804cbddcb74",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260916123200",
+      "name": "forward_immomio_oauth_share_to_auth_bridge",
+      "file": "supabase/migrations/20260916123200_forward_immomio_oauth_share_to_auth_bridge.sql",
+      "registry_sql_sha256": "55add2edcab64b1332723041f00ceb03d47966e9b7ae180cdf829d9be9c3b475",
+      "export_sql_sha256": "55add2edcab64b1332723041f00ceb03d47966e9b7ae180cdf829d9be9c3b475",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260916135923",
+      "name": "scope_auto_apply_to_connected_providers",
+      "file": "supabase/migrations/20260916135923_scope_auto_apply_to_connected_providers.sql",
+      "registry_sql_sha256": "874d09033aacfbbf1cf84e15702ceaeedd6b8494a2a60941ce2d30b5468bb4ca",
+      "export_sql_sha256": "874d09033aacfbbf1cf84e15702ceaeedd6b8494a2a60941ce2d30b5468bb4ca",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260916140250",
+      "name": "route_immomio_applications_to_verified_worker",
+      "file": "supabase/migrations/20260916140250_route_immomio_applications_to_verified_worker.sql",
+      "registry_sql_sha256": "589e128b093d2f4456b0a30fe9a8d512e12e524e64e0dee7d44b693acd0d7044",
+      "export_sql_sha256": "589e128b093d2f4456b0a30fe9a8d512e12e524e64e0dee7d44b693acd0d7044",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260916140428",
+      "name": "avoid_duplicate_worker_wakeups_for_immomio",
+      "file": "supabase/migrations/20260916140428_avoid_duplicate_worker_wakeups_for_immomio.sql",
+      "registry_sql_sha256": "57cd938e8e8061f4254fb9fbf554814fcd29ca4216bfec1361ea394afaa2895e",
+      "export_sql_sha256": "57cd938e8e8061f4254fb9fbf554814fcd29ca4216bfec1361ea394afaa2895e",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260916174600",
+      "name": "extend_platform_auth_flows_to_30_minutes",
+      "file": "supabase/migrations/20260916174600_extend_platform_auth_flows_to_30_minutes.sql",
+      "registry_sql_sha256": "bb1c8179937688a0b6b314accb738d518cb07c015f025a1b562d67894db9acd7",
+      "export_sql_sha256": "bb1c8179937688a0b6b314accb738d518cb07c015f025a1b562d67894db9acd7",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260916190000",
+      "name": "add_platform_auth_flow_transient_state",
+      "file": "supabase/migrations/20260916190000_add_platform_auth_flow_transient_state.sql",
+      "registry_sql_sha256": "ec130a5c5968db2e2e6c2a22a1e44492b8265dbac5c3fba8c07ee8ce30262cfc",
+      "export_sql_sha256": "ec130a5c5968db2e2e6c2a22a1e44492b8265dbac5c3fba8c07ee8ce30262cfc",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260916194500",
+      "name": "remove_unused_platform_auth_flow_transient_state",
+      "file": "supabase/migrations/20260916194500_remove_unused_platform_auth_flow_transient_state.sql",
+      "registry_sql_sha256": "03eb1c3f96df6008aeb308c52425a2b831416a8c2d13dce90c10f7ba921e5640",
+      "export_sql_sha256": "03eb1c3f96df6008aeb308c52425a2b831416a8c2d13dce90c10f7ba921e5640",
+      "vault_substitution": false
+    }
+  ]
+}
