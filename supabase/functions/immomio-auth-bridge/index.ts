@@ -55,6 +55,17 @@ async function complete(userId:string,callbackUrl:string){
  return{status:'connected',authenticated:true,accountReady:true,accountHint:validEmail(account.email)||hint}
 }
 
+async function latestCallback(userId:string){
+ const {data:user,error:userError}=await db.from('bot_users').select('telegram_user_id').eq('id',userId).maybeSingle();
+ if(userError||!user?.telegram_user_id)throw Error('callback_not_found');
+ const {data:flow,error:flowError}=await db.from('platform_auth_flows').select('state,expires_at,consumed_at').eq('user_id',userId).eq('provider','immomio').is('consumed_at',null).gt('expires_at',new Date().toISOString()).order('created_at',{ascending:false}).limit(1).maybeSingle();
+ if(flowError||!flow?.state)throw Error('auth_flow_expired');
+ const {data:events,error:eventError}=await db.from('bot_events').select('payload,created_at').eq('telegram_user_id',user.telegram_user_id).order('created_at',{ascending:false}).limit(20);
+ if(eventError||!Array.isArray(events))throw Error('callback_not_found');
+ for(const event of events){const text=String(event?.payload?.message?.text||'').trim();if(!text.startsWith(`${REDIRECT}?`))continue;try{const parsed=callback(text);if(parsed.state===String(flow.state))return text}catch{}}
+ throw Error('callback_not_found')
+}
+
 Deno.serve(async req=>{try{
  if(req.method!=='POST')return new Response('method not allowed',{status:405});
  if(req.headers.get('x-internal-secret')!==await secret('internal_worker_secret'))return new Response('unauthorized',{status:401});
@@ -62,5 +73,6 @@ Deno.serve(async req=>{try{
  const userId=uuid(body.userId);await eligible(userId);
  if(body.action==='login')return Response.json(await begin(userId));
  if(body.action==='complete_login')return Response.json(await complete(userId,String(body.callbackUrl||'')));
+ if(body.action==='complete_latest')return Response.json(await complete(userId,await latestCallback(userId)));
  throw Error('invalid_action')
-}catch(e:any){const safe=new Set(['configuration_unavailable','premium_required','invalid_user','invalid_action','immomio_email_required','immomio_sso_failed','immomio_sso_contract_changed','auth_flow_create_failed','invalid_callback_url','auth_flow_expired','token_exchange_failed','account_verification_failed','connection_save_failed','connection_update_failed','credential_key_invalid']);return Response.json({error:safe.has(e?.message)?e.message:'immomio_auth_bridge_failed'},{status:503})}});
+}catch(e:any){const safe=new Set(['configuration_unavailable','premium_required','invalid_user','invalid_action','immomio_email_required','immomio_sso_failed','immomio_sso_contract_changed','auth_flow_create_failed','invalid_callback_url','auth_flow_expired','token_exchange_failed','account_verification_failed','connection_save_failed','connection_update_failed','credential_key_invalid','callback_not_found']);return Response.json({error:safe.has(e?.message)?e.message:'immomio_auth_bridge_failed'},{status:503})}});
