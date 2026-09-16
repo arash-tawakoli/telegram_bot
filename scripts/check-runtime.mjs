@@ -34,14 +34,36 @@ export async function verifyRuntime(runtime,read=readFile,options={}){
  }
  return {hashWarnings};
 }
+async function migrationRegistryEntries(){
+ const base=JSON.parse(await readFile('docs/migration-registry.json','utf8'));
+ let fragments=[];
+ try{
+  const names=(await readdir('docs/migration-registry.d')).filter(x=>x.endsWith('.json')).sort();
+  for(const name of names){
+   const fragment=JSON.parse(await readFile(`docs/migration-registry.d/${name}`,'utf8'));
+   if(!Array.isArray(fragment.migrations))throw new Error(`Invalid migration registry fragment: ${name}`);
+   fragments.push(...fragment.migrations);
+  }
+ }catch(error){
+  if(error?.code!=='ENOENT')throw error;
+ }
+ const migrations=[...base.migrations,...fragments];
+ const versions=new Set(),files=new Set();
+ for(const migration of migrations){
+  if(versions.has(migration.version))throw new Error(`Duplicate migration version: ${migration.version}`);
+  if(files.has(migration.file))throw new Error(`Duplicate migration file: ${migration.file}`);
+  versions.add(migration.version);files.add(migration.file);
+ }
+ return migrations;
+}
 async function main(){
  const runtime=JSON.parse(await readFile('supabase/runtime-manifest.json','utf8'));
  const strictHashes=process.env.RUNTIME_HASH_STRICT==='1';
  const {hashWarnings}=await verifyRuntime(runtime,readFile,{strictHashes});
- const registry=JSON.parse(await readFile('docs/migration-registry.json','utf8'));
+ const migrations=await migrationRegistryEntries();
  const files=await readdir('supabase/migrations');
- if(files.filter(x=>x.endsWith('.sql')).length!==registry.migrations.length)throw new Error('Migration registry length mismatch');
- for(const m of registry.migrations)if(hash(await readFile(m.file))!==m.export_sql_sha256)throw new Error(`Migration content drift: ${m.file}`);
- console.log(`${runtime.functions.length} function bundles structurally verified; ${registry.migrations.length} migrations verified${hashWarnings?`; ${hashWarnings} recorded runtime hash drift warning(s)`:''}`);
+ if(files.filter(x=>x.endsWith('.sql')).length!==migrations.length)throw new Error('Migration registry length mismatch');
+ for(const m of migrations)if(hash(await readFile(m.file))!==m.export_sql_sha256)throw new Error(`Migration content drift: ${m.file}`);
+ console.log(`${runtime.functions.length} function bundles structurally verified; ${migrations.length} migrations verified${hashWarnings?`; ${hashWarnings} recorded runtime hash drift warning(s)`:''}`);
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href)await main();
