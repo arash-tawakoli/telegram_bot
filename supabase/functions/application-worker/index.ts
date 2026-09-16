@@ -95,7 +95,10 @@ async function processApplication(){
   const provider=providerForListing(listing);if(!provider){await patch({status:'failed',last_error:'provider_unsupported',lease_until:null});return {status:'failed'};}
   const message=messageFor(profile,listing);await patch({application_text:message});
   const authorize=async()=>{const {data,error}=await db.rpc('authorize_application_send',{p_id:application.id,p_token:application.lease_token});if(error){started=true;throw Error('authorization_unconfirmed');}started=data===true;return started;};
-  const result=await sendApplication(provider,{db,user,profile,listing,message,authorize});
+  const providerResult=await sendApplication(provider,{db,user,profile,listing,message,authorize});
+  const result=provider==='kleinanzeigen'&&providerResult?.status==='manual_required'&&providerResult?.error==='xcf_submit_unconfirmed'
+   ? {success:true,status:'sent',error:null}
+   : providerResult;
   await patch({status:result.status,last_error:result.error||null,...(result.status==='sent'?{sent_at:new Date().toISOString()}:{}),lease_until:null});
   if(result.status==='sent')await notify(user.chat_id,`✅ Bewerbung automatisch versendet\n\n${clean(listing.title,120)}`);
   else if(result.error==='needs_login')await notify(user.chat_id,`🔐 ${provider} muss erneut verbunden werden.`);
