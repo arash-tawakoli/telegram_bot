@@ -19,6 +19,7 @@ const enc=new TextEncoder(),dec=new TextDecoder();
 const b64=(bytes:Uint8Array)=>{let s='';for(const b of bytes)s+=String.fromCharCode(b);return btoa(s)};
 const unb64=(value:string)=>Uint8Array.from(atob(value),c=>c.charCodeAt(0));
 const b64url=(bytes:Uint8Array)=>b64(bytes).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+const unb64url=(value:string)=>unb64(value.replace(/-/g,'+').replace(/_/g,'/').padEnd(Math.ceil(value.length/4)*4,'='));
 const random=()=>b64url(crypto.getRandomValues(new Uint8Array(32)));
 const clean=(v:any,max=320)=>String(v??'').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
 async function challenge(verifier:string){return b64url(new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(verifier))))}
@@ -27,6 +28,8 @@ async function secret(name:string){const {data,error}=await db.rpc('get_bot_secr
 async function keyMaterial(version=1){const raw=unb64(await secret(`application_credential_key_v${version}`));if(raw.length!==32)throw Error('credential_key_invalid');return crypto.subtle.importKey('raw',raw,{name:'AES-GCM'},false,['encrypt','decrypt'])}
 async function encryptCredentials(userId:string,value:unknown,version=1){const key=await keyMaterial(version),iv=crypto.getRandomValues(new Uint8Array(12)),aad=enc.encode(`${userId}:${PROVIDER}:v${version}`),plain=enc.encode(JSON.stringify(value)),cipher=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:aad},key,plain));return{credential_ciphertext:b64(cipher),credential_iv:b64(iv),key_version:version}}
 async function decryptCredentials(row:any){if(!row?.credential_ciphertext||!row?.credential_iv)return null;const version=Number(row.key_version)||1,key=await keyMaterial(version),aad=enc.encode(`${row.user_id}:${PROVIDER}:v${version}`);const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(row.credential_iv),additionalData:aad},key,unb64(row.credential_ciphertext));return JSON.parse(dec.decode(plain))}
+async function sealMfaTicket(value:any){const key=await keyMaterial(1),iv=crypto.getRandomValues(new Uint8Array(12)),aad=enc.encode('immoscout:mfa:v1'),plain=enc.encode(JSON.stringify(value)),cipher=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:aad},key,plain));return `${b64url(iv)}.${b64url(cipher)}`}
+async function openMfaTicket(ticket:string){const parts=String(ticket||'').split('.');if(parts.length!==2)throw Error('mfa_expired');try{const key=await keyMaterial(1),plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64url(parts[0]),additionalData:enc.encode('immoscout:mfa:v1')},key,unb64url(parts[1])),data=JSON.parse(dec.decode(plain));if(!data?.exp||Date.now()>Number(data.exp))throw Error('mfa_expired');return data}catch(error:any){if(error?.message==='mfa_expired')throw error;throw Error('mfa_expired')}}
 function uuid(v:any){const s=String(v||'');if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s))throw Error('invalid_user');return s}
 function validEmail(v:any){const e=clean(v,320).toLowerCase();return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)?e:null}
 async function eligible(userId:string){const {data,error}=await db.rpc('application_user_eligible',{p_user:userId});if(error||data!==true)throw Error('premium_required')}
@@ -38,6 +41,9 @@ async function save(userId:string,credentials:any,accountHint:string|null,expire
 async function tokenRequest(payload:Record<string,string>){try{const response=await fetch(TOKEN,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded','accept':'application/json','user-agent':OAUTH_USER_AGENT},body:new URLSearchParams({...payload,client_id:CLIENT_ID}),signal:AbortSignal.timeout(25000)}),body=await response.json().catch(()=>null);return{response,body}}catch{throw Error('temporary_network_error')}}
 async function userInfo(accessToken:string){try{const response=await fetch(USERINFO,{headers:{accept:'application/json',authorization:`Bearer ${accessToken}`,'user-agent':OAUTH_USER_AGENT},signal:AbortSignal.timeout(25000)}),body=await response.json().catch(()=>null);return{response,body}}catch{throw Error('temporary_network_error')}}
 async function authn(email:string,password:string){try{const response=await fetch(AUTHN,{method:'POST',headers:{accept:'application/json','content-type':'application/json','user-agent':OAUTH_USER_AGENT},body:JSON.stringify({username:email,password,options:{multiOptionalFactorEnroll:false,warnBeforePasswordExpired:false}}),signal:AbortSignal.timeout(25000)}),body=await response.json().catch(()=>null);return{response,body}}catch{throw Error('temporary_network_error')}}
+async function verifyFactor(factorId:string,stateToken:string,passCode?:string){if(!/^[A-Za-z0-9_-]{3,160}$/.test(factorId))throw Error('mfa_factor_unsupported');const payload:any={stateToken};if(passCode)payload.passCode=passCode;try{const response=await fetch(`${AUTHN}/factors/${encodeURIComponent(factorId)}/verify`,{method:'POST',headers:{accept:'application/json','content-type':'application/json','user-agent':OAUTH_USER_AGENT},body:JSON.stringify(payload),signal:AbortSignal.timeout(25000)}),body=await response.json().catch(()=>null);return{response,body}}catch{throw Error('temporary_network_error')}}
+function factorLabel(f:any){const type=clean(f?.factorType,80);if(type==='token:software:totp')return 'Authenticator-App';if(type==='sms')return f?.profile?.phoneNumber?`SMS an ${clean(f.profile.phoneNumber,40)}`:'SMS-Code';if(type==='call')return f?.profile?.phoneNumber?`Anruf an ${clean(f.profile.phoneNumber,40)}`:'Telefon-Code';return type}
+function supportedFactors(body:any){const factors=Array.isArray(body?._embedded?.factors)?body._embedded.factors:[];return factors.filter((f:any)=>['token:software:totp','sms','call'].includes(String(f?.factorType||''))&&/^[A-Za-z0-9_-]{3,160}$/.test(String(f?.id||''))).map((f:any)=>({id:String(f.id),type:String(f.factorType),provider:clean(f.provider,40),label:factorLabel(f)}))}
 function callbackParts(value:string){let url:URL;try{url=new URL(String(value||'').trim())}catch{throw Error('invalid_callback_url')}if(url.protocol!=='immobilienscout24.de:'||url.hostname||url.port||url.username||url.password||url.pathname!=='/loginCallback')throw Error('invalid_callback_url');const fragment=new URLSearchParams(url.hash.replace(/^#/,'').replace(/^\?/,'')),state=fragment.get('state')||url.searchParams.get('state'),code=fragment.get('code')||url.searchParams.get('code'),oauthError=fragment.get('error')||url.searchParams.get('error');return{state,code,oauthError}}
 async function flowByState(state:string,userId?:string){if(!/^[A-Za-z0-9_-]{20,80}$/.test(state))throw Error('invalid_state');let q=db.from('platform_auth_flows').select('*').eq('provider',PROVIDER).eq('state',state).is('consumed_at',null).gt('expires_at',new Date().toISOString());if(userId)q=q.eq('user_id',userId);const {data,error}=await q.maybeSingle();if(error||!data)throw Error('auth_flow_expired');return data}
 async function claimFlow(flow:any){const now=new Date().toISOString(),{data,error}=await db.from('platform_auth_flows').update({consumed_at:now}).eq('id',flow.id).is('consumed_at',null).select('id').maybeSingle();if(error||!data)throw Error('auth_flow_expired')}
@@ -48,7 +54,7 @@ async function beginLogin(userId:string){
  const verifier=random(),state=random().slice(0,43),{error:flowError}=await db.from('platform_auth_flows').insert({user_id:userId,provider:PROVIDER,state,code_verifier:verifier});if(flowError)throw Error('auth_flow_create_failed');
  await mark(userId,'pending',null,{account_hint:email,credential_ciphertext:null,credential_iv:null,key_version:1,expires_at:null,last_verified_at:null});
  const url=new URL(HANDOFF_URL);url.searchParams.set('state',state);
- return{status:'login',url:url.href,requiresCallback:false,automaticCallback:true,bridgeRequired:false,transport:'one-time-password-pkce-handoff',expiresInSeconds:1800};
+ return{status:'login',url:url.href,requiresCallback:false,automaticCallback:true,bridgeRequired:false,transport:'one-time-password-mfa-pkce-handoff',expiresInSeconds:1800};
 }
 
 async function authorizeWithSession(flow:any,email:string,sessionToken:string){
@@ -68,17 +74,43 @@ async function exchangeAndSave(userId:string,flow:any,code:string,emailFallback:
  await save(userId,{access_token:String(body.access_token),refresh_token:String(body.refresh_token),id_token:body.id_token?String(body.id_token):null,expires_at:expiresAt,token_type:String(body.token_type||'Bearer'),scope:String(body.scope||SCOPE),client_id:CLIENT_ID,redirect_uri:REDIRECT_URI,issuer:ISSUER,sub:String(info.body.sub)},accountHint,expiresAt);
  return{status:'connected',authenticated:true,accountReady:true,accountHint};
 }
+async function finishWithSession(flow:any,userId:string,email:string,sessionToken:string){await claimFlow(flow);const code=await authorizeWithSession(flow,email,sessionToken);return exchangeAndSave(userId,flow,code,email)}
 
 async function passwordLogin(state:string,emailValue:any,passwordValue:any){
  const email=validEmail(emailValue),password=String(passwordValue||'');if(!email||!password||password.length>1024)throw Error('login_failed');
  const flow=await flowByState(state),userId=uuid(flow.user_id);await eligible(userId);
  const {response,body}=await authn(email,password);
  const status=clean(body?.status,60).toUpperCase();
- if(status.includes('MFA')){await mark(userId,'needs_login','mfa_required',{account_hint:email}).catch(()=>{});throw Error('mfa_required')}
+ if(status==='MFA_REQUIRED'||status==='MFA_CHALLENGE'){
+   const factors=supportedFactors(body),stateToken=String(body?.stateToken||'');if(!stateToken||!factors.length){await mark(userId,'needs_login','mfa_factor_unsupported',{account_hint:email}).catch(()=>{});throw Error('mfa_factor_unsupported')}
+   const mfaTicket=await sealMfaTicket({v:1,exp:Date.now()+10*60*1000,flowState:String(flow.state),userId,email,stateToken,factors:factors.map((f:any)=>({id:f.id,type:f.type}))});
+   await mark(userId,'pending','mfa_required',{account_hint:email}).catch(()=>{});
+   return{status:'mfa_required',authenticated:false,mfaRequired:true,mfaTicket,factors};
+ }
  if(!response.ok||status!=='SUCCESS'||!body?.sessionToken){await mark(userId,'pending','login_failed',{account_hint:email}).catch(()=>{});throw Error('login_failed')}
- await claimFlow(flow);
- const code=await authorizeWithSession(flow,email,String(body.sessionToken));
- return exchangeAndSave(userId,flow,code,email);
+ return finishWithSession(flow,userId,email,String(body.sessionToken));
+}
+
+async function mfaStart(ticketValue:any,factorIdValue:any){
+ const ticket=await openMfaTicket(String(ticketValue||'')),factorId=String(factorIdValue||''),allowed=(ticket.factors||[]).find((f:any)=>f.id===factorId);if(!allowed)throw Error('mfa_factor_unsupported');
+ const flow=await flowByState(String(ticket.flowState),String(ticket.userId));await eligible(String(ticket.userId));
+ if(allowed.type==='token:software:totp')return{status:'mfa_code_required',mfaRequired:true,mfaTicket:String(ticketValue),factorId,factorType:allowed.type};
+ const {response,body}=await verifyFactor(factorId,String(ticket.stateToken));const status=clean(body?.status,60).toUpperCase();
+ if(status==='SUCCESS'&&body?.sessionToken)return finishWithSession(flow,String(ticket.userId),String(ticket.email),String(body.sessionToken));
+ if(!response.ok&&!['MFA_CHALLENGE','MFA_REQUIRED'].includes(status))throw Error('mfa_challenge_failed');
+ const nextTicket=await sealMfaTicket({...ticket,exp:Date.now()+10*60*1000,stateToken:String(body?.stateToken||ticket.stateToken)});
+ return{status:'mfa_code_required',mfaRequired:true,mfaTicket:nextTicket,factorId,factorType:allowed.type};
+}
+
+async function mfaVerify(ticketValue:any,factorIdValue:any,passCodeValue:any){
+ const passCode=String(passCodeValue||'').trim();if(!/^[0-9]{4,10}$/.test(passCode))throw Error('mfa_invalid_code');
+ const ticket=await openMfaTicket(String(ticketValue||'')),factorId=String(factorIdValue||''),allowed=(ticket.factors||[]).find((f:any)=>f.id===factorId);if(!allowed)throw Error('mfa_factor_unsupported');
+ const flow=await flowByState(String(ticket.flowState),String(ticket.userId));await eligible(String(ticket.userId));
+ const {response,body}=await verifyFactor(factorId,String(ticket.stateToken),passCode);const status=clean(body?.status,60).toUpperCase();
+ if(status==='SUCCESS'&&body?.sessionToken)return finishWithSession(flow,String(ticket.userId),String(ticket.email),String(body.sessionToken));
+ if(response.status===403||String(body?.errorCode||'')==='E0000068')throw Error('mfa_invalid_code');
+ if(status==='MFA_CHALLENGE'||status==='MFA_REQUIRED'){const nextTicket=await sealMfaTicket({...ticket,exp:Date.now()+10*60*1000,stateToken:String(body?.stateToken||ticket.stateToken)});return{status:'mfa_code_required',mfaRequired:true,mfaTicket:nextTicket,factorId,factorType:allowed.type}}
+ throw Error('mfa_challenge_failed');
 }
 
 async function completeLogin(userId:string,callbackUrl:string){const parsed=callbackParts(callbackUrl);if(!parsed.state)throw Error('invalid_callback_url');if(parsed.oauthError){await mark(userId,'needs_login',clean(parsed.oauthError,120)).catch(()=>{});throw Error('oauth_login_failed')}if(!parsed.code)throw Error('invalid_callback_url');const flow=await flowByState(parsed.state,userId);await claimFlow(flow);return exchangeAndSave(userId,flow,parsed.code,await profileEmail(userId).catch(()=>null))}
@@ -90,18 +122,19 @@ async function disconnect(userId:string){await Promise.all([db.from('platform_co
 
 const CORS={'access-control-allow-origin':HANDOFF_ORIGIN,'access-control-allow-methods':'POST,OPTIONS','access-control-allow-headers':'content-type','cache-control':'no-store','vary':'Origin'};
 function publicJson(body:any,status=200){return Response.json(body,{status,headers:CORS})}
+function publicError(error:any){const code=String(error?.message||'immoscout_operation_failed'),safe=new Set(['login_failed','mfa_required','mfa_factor_unsupported','mfa_invalid_code','mfa_challenge_failed','mfa_expired','auth_flow_expired','invalid_state']);const status=code==='login_failed'||code==='mfa_invalid_code'?401:code==='auth_flow_expired'||code==='invalid_state'||code==='mfa_expired'?410:code.startsWith('mfa_')?409:503;return publicJson({error:safe.has(code)?code:'immoscout_operation_failed'},status)}
 
 Deno.serve(async req=>{try{
  const origin=req.headers.get('origin')||'';
  if(req.method==='OPTIONS'){if(origin!==HANDOFF_ORIGIN)return new Response('forbidden',{status:403});return new Response(null,{status:204,headers:CORS})}
  if(req.method!=='POST')return new Response('method not allowed',{status:405});
  const body=await req.json().catch(()=>({}));
- if(body.action==='password_login'){
+ if(['password_login','mfa_start','mfa_verify'].includes(String(body.action||''))){
    if(origin!==HANDOFF_ORIGIN)return new Response('forbidden',{status:403});
-   try{return publicJson(await passwordLogin(String(body.state||''),body.email,body.password))}catch(error:any){const code=String(error?.message||'immoscout_operation_failed');const status=code==='login_failed'?401:code==='mfa_required'?409:code==='auth_flow_expired'||code==='invalid_state'?410:503;return publicJson({error:['login_failed','mfa_required','auth_flow_expired','invalid_state'].includes(code)?code:'immoscout_operation_failed'},status)}
+   try{if(body.action==='password_login')return publicJson(await passwordLogin(String(body.state||''),body.email,body.password));if(body.action==='mfa_start')return publicJson(await mfaStart(body.mfaTicket,body.factorId));return publicJson(await mfaVerify(body.mfaTicket,body.factorId,body.passCode))}catch(error:any){return publicError(error)}
  }
  if(req.headers.get('x-internal-secret')!==await secret('internal_worker_secret'))return new Response('unauthorized',{status:401});
- if(body.action==='health')return Response.json({ok:true,mode:'immoscout-one-time-password-pkce-handoff',clientId:CLIENT_ID,redirectUri:REDIRECT_URI,marksConnectedAfterUserInfo:true,expiresInSeconds:1800,passwordStored:false});
+ if(body.action==='health')return Response.json({ok:true,mode:'immoscout-one-time-password-mfa-pkce-handoff',clientId:CLIENT_ID,redirectUri:REDIRECT_URI,marksConnectedAfterUserInfo:true,expiresInSeconds:1800,passwordStored:false,mfaStored:false,mfaTicketEncrypted:true});
  const userId=uuid(body.userId);if(body.action!=='disconnect')await eligible(userId);
  if(body.action==='login')return Response.json(await beginLogin(userId));
  if(body.action==='complete_login')return Response.json(await completeLogin(userId,String(body.callbackUrl||'')));
@@ -109,4 +142,4 @@ Deno.serve(async req=>{try{
  if(body.action==='inspect')return Response.json(await inspect(userId));
  if(body.action==='disconnect')return Response.json(await disconnect(userId));
  throw Error('invalid_action');
-}catch(error:any){const code=String(error?.message||'immoscout_operation_failed'),safe=new Set(['configuration_unavailable','credential_key_invalid','premium_required','invalid_user','invalid_action','immoscout_email_required','auth_flow_create_failed','connection_update_failed','connection_save_failed','connection_read_failed','invalid_callback_url','invalid_state','auth_flow_expired','oauth_login_failed','authorization_code_missing','token_exchange_failed','refresh_token_missing','userinfo_failed','temporary_network_error','needs_login','login_failed','mfa_required']);return Response.json({error:safe.has(code)?code:'immoscout_operation_failed'},{status:503})}});
+}catch(error:any){const code=String(error?.message||'immoscout_operation_failed'),safe=new Set(['configuration_unavailable','credential_key_invalid','premium_required','invalid_user','invalid_action','immoscout_email_required','auth_flow_create_failed','connection_update_failed','connection_save_failed','connection_read_failed','invalid_callback_url','invalid_state','auth_flow_expired','oauth_login_failed','authorization_code_missing','token_exchange_failed','refresh_token_missing','userinfo_failed','temporary_network_error','needs_login','login_failed','mfa_required','mfa_factor_unsupported','mfa_invalid_code','mfa_challenge_failed','mfa_expired']);return Response.json({error:safe.has(code)?code:'immoscout_operation_failed'},{status:503})}});
