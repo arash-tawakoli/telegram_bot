@@ -9,6 +9,7 @@ const SSO_HOST='sso.immomio.com';
 const REALM='immomio';
 const CLIENT_ID='immomio-oidc-web';
 const LOGIN_METHOD='DEFAULT';
+const PKCE_ALPHABET='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 const HEADERS={'content-type':'application/json','accept':'application/json','origin':TENANT,'referer':`${TENANT}/`,'user-agent':'TraumWohnungHamburg/1.0'};
 const SSO_QUERY=`query sso($email: String, $redirectUri: String!, $loginMethod: String) { sso(input: { email: $email redirectUri: $redirectUri loginMethod: $loginMethod }) { baseUrl clientId realm } }`;
 const USER_QUERY=`query currentUser { user { id email } }`;
@@ -16,8 +17,10 @@ const enc=new TextEncoder();
 const b64url=(bytes:Uint8Array)=>{let s='';for(const b of bytes)s+=String.fromCharCode(b);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')};
 const b64=(bytes:Uint8Array)=>{let s='';for(const b of bytes)s+=String.fromCharCode(b);return btoa(s)};
 const unb64=(v:string)=>Uint8Array.from(atob(v),c=>c.charCodeAt(0));
-const random=()=>b64url(crypto.getRandomValues(new Uint8Array(32)));
+const randomState=()=>b64url(crypto.getRandomValues(new Uint8Array(32))).slice(0,40);
+const randomVerifier=()=>{const bytes=crypto.getRandomValues(new Uint8Array(96));let s='';for(const b of bytes)s+=PKCE_ALPHABET[b%PKCE_ALPHABET.length];return s};
 const validEmail=(v:any)=>{const s=String(v||'').trim().toLowerCase();return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)?s:null};
+const safeDiag=(v:any,max=80)=>String(v||'').replace(/[^a-zA-Z0-9 _.:/-]/g,'').trim().slice(0,max);
 const uuid=(v:any)=>{const s=String(v||'');if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s))throw Error('invalid_user');return s};
 
 async function secret(name:string){const {data,error}=await db.rpc('get_bot_secret',{secret_name:name});if(error||!data)throw Error('configuration_unavailable');return String(data)}
@@ -35,19 +38,19 @@ async function markPending(userId:string,email:string){const {error}=await db.fr
 async function begin(userId:string){
  const email=await profileEmail(userId),cfg=await resolveSso(email);
  await db.from('platform_auth_flows').delete().eq('user_id',userId).eq('provider','immomio').is('consumed_at',null);
- const verifier=random(),state=random().slice(0,40),cc=await challenge(verifier),{error}=await db.from('platform_auth_flows').insert({user_id:userId,provider:'immomio',state,code_verifier:verifier});if(error)throw Error('auth_flow_create_failed');
+ const verifier=randomVerifier(),state=randomState(),cc=await challenge(verifier),{error}=await db.from('platform_auth_flows').insert({user_id:userId,provider:'immomio',state,code_verifier:verifier});if(error)throw Error('auth_flow_create_failed');
  await markPending(userId,email);
  const url=new URL(`${cfg.baseUrl}/realms/${encodeURIComponent(cfg.realm)}/protocol/openid-connect/auth`);
- const params={client_id:cfg.clientId,redirect_uri:REDIRECT,response_type:'code',scope:'openid profile email',state,code_challenge:cc,code_challenge_method:'S256',login_hint:email};
+ const params={client_id:cfg.clientId,redirect_uri:REDIRECT,response_type:'code',response_mode:'query',scope:'openid profile email',state,code_challenge:cc,code_challenge_method:'S256',login_hint:email};
  for(const[k,v]of Object.entries(params))url.searchParams.set(k,String(v));
- return{status:'login',url:url.href,transport:'telegram-share-bridge',redirectUri:REDIRECT,reuseExistingSession:true,expiresInSeconds:600}
+ return{status:'login',url:url.href,transport:'telegram-share-bridge',redirectUri:REDIRECT,reuseExistingSession:true,pkceVerifierLength:verifier.length,expiresInSeconds:600}
 }
 
 function callback(v:string){let u:URL;try{u=new URL(String(v||'').trim())}catch{throw Error('invalid_callback_url')}if(u.protocol!=='https:'||u.hostname!=='tenant.immomio.com'||u.port||u.username||u.password||u.pathname!=='/robots.txt')throw Error('invalid_callback_url');const state=u.searchParams.get('state'),code=u.searchParams.get('code');if(!state||!code)throw Error('invalid_callback_url');return{state,code}}
 async function complete(userId:string,callbackUrl:string){
  const {state,code}=callback(callbackUrl),{data:flow,error}=await db.from('platform_auth_flows').select('*').eq('user_id',userId).eq('provider','immomio').eq('state',state).is('consumed_at',null).gt('expires_at',new Date().toISOString()).maybeSingle();if(error||!flow)throw Error('auth_flow_expired');
  const email=await profileEmail(userId),cfg=await resolveSso(email),{response,token}=await tokenRequest(cfg,{grant_type:'authorization_code',code,redirect_uri:REDIRECT,code_verifier:String(flow.code_verifier||'')});
- if(!response.ok||!token?.access_token||!token?.refresh_token){await db.from('platform_connections').upsert({user_id:userId,provider:'immomio',status:'needs_login',last_error:'token_exchange_failed',updated_at:new Date().toISOString()},{onConflict:'user_id,provider'});throw Error('token_exchange_failed')}
+ if(!response.ok||!token?.access_token||!token?.refresh_token){const detail=`token_exchange_failed:${response.status}:${safeDiag(token?.error)}:${safeDiag(token?.error_description)}`.slice(0,120);await db.from('platform_connections').upsert({user_id:userId,provider:'immomio',status:'needs_login',last_error:detail,updated_at:new Date().toISOString()},{onConflict:'user_id,provider'});throw Error('token_exchange_failed')}
  const expiresAt=new Date(Date.now()+Math.max(60,Number(token.expires_in||300))*1000).toISOString(),hint=decodeEmail(token.id_token)||email,encrypted=await encrypt(userId,{access_token:String(token.access_token),refresh_token:String(token.refresh_token),expires_at:expiresAt,base_url:cfg.baseUrl,realm:cfg.realm,client_id:cfg.clientId,redirect_uri:REDIRECT});
  const verify=await rawGraphql(USER_QUERY,{},String(token.access_token)),account=verify.body?.data?.user;if(!verify.response.ok||verify.body?.errors?.length||!account?.id)throw Error('account_verification_failed');
  const {error:saveError}=await db.from('platform_connections').upsert({user_id:userId,provider:'immomio',status:'connected',...encrypted,account_hint:validEmail(account.email)||hint,expires_at:expiresAt,last_verified_at:new Date().toISOString(),last_error:null,updated_at:new Date().toISOString()},{onConflict:'user_id,provider'});if(saveError)throw Error('connection_save_failed');
@@ -56,12 +59,9 @@ async function complete(userId:string,callbackUrl:string){
 }
 
 async function latestCallback(userId:string){
- const {data:user,error:userError}=await db.from('bot_users').select('telegram_user_id').eq('id',userId).maybeSingle();
- if(userError||!user?.telegram_user_id)throw Error('callback_not_found');
- const {data:flow,error:flowError}=await db.from('platform_auth_flows').select('state,expires_at,consumed_at').eq('user_id',userId).eq('provider','immomio').is('consumed_at',null).gt('expires_at',new Date().toISOString()).order('created_at',{ascending:false}).limit(1).maybeSingle();
- if(flowError||!flow?.state)throw Error('auth_flow_expired');
- const {data:events,error:eventError}=await db.from('bot_events').select('payload,created_at').eq('telegram_user_id',user.telegram_user_id).order('created_at',{ascending:false}).limit(20);
- if(eventError||!Array.isArray(events))throw Error('callback_not_found');
+ const {data:user,error:userError}=await db.from('bot_users').select('telegram_user_id').eq('id',userId).maybeSingle();if(userError||!user?.telegram_user_id)throw Error('callback_not_found');
+ const {data:flow,error:flowError}=await db.from('platform_auth_flows').select('state').eq('user_id',userId).eq('provider','immomio').is('consumed_at',null).gt('expires_at',new Date().toISOString()).order('created_at',{ascending:false}).limit(1).maybeSingle();if(flowError||!flow?.state)throw Error('auth_flow_expired');
+ const {data:events,error:eventError}=await db.from('bot_events').select('payload,created_at').eq('telegram_user_id',user.telegram_user_id).order('created_at',{ascending:false}).limit(20);if(eventError||!Array.isArray(events))throw Error('callback_not_found');
  for(const event of events){const text=String(event?.payload?.message?.text||'').trim();if(!text.startsWith(`${REDIRECT}?`))continue;try{const parsed=callback(text);if(parsed.state===String(flow.state))return text}catch{}}
  throw Error('callback_not_found')
 }
@@ -69,7 +69,7 @@ async function latestCallback(userId:string){
 Deno.serve(async req=>{try{
  if(req.method!=='POST')return new Response('method not allowed',{status:405});
  if(req.headers.get('x-internal-secret')!==await secret('internal_worker_secret'))return new Response('unauthorized',{status:401});
- const body=await req.json();if(body.action==='health')return Response.json({ok:true,mode:'immomio-pkce-share-robots',redirectUri:REDIRECT,reuseExistingSession:true});
+ const body=await req.json();if(body.action==='health')return Response.json({ok:true,mode:'immomio-pkce-share-robots',redirectUri:REDIRECT,reuseExistingSession:true,pkceVerifierLength:96});
  const userId=uuid(body.userId);await eligible(userId);
  if(body.action==='login')return Response.json(await begin(userId));
  if(body.action==='complete_login')return Response.json(await complete(userId,String(body.callbackUrl||'')));
