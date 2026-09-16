@@ -61,8 +61,16 @@ async function main(){
  const strictHashes=process.env.RUNTIME_HASH_STRICT==='1';
  const {hashWarnings}=await verifyRuntime(runtime,readFile,{strictHashes});
  const migrations=await migrationRegistryEntries();
- const files=await readdir('supabase/migrations');
- if(files.filter(x=>x.endsWith('.sql')).length!==migrations.length)throw new Error('Migration registry length mismatch');
+ const migrationNames=(await readdir('supabase/migrations')).filter(x=>x.endsWith('.sql')).sort();
+ const migrationPaths=migrationNames.map(name=>`supabase/migrations/${name}`);
+ const registered=new Set(migrations.map(m=>m.file));
+ if(migrationPaths.length!==migrations.length){
+  const missing=migrationPaths.filter(file=>!registered.has(file));
+  const stale=migrations.map(m=>m.file).filter(file=>!migrationPaths.includes(file));
+  for(const file of missing)console.error(`Missing migration registry entry: ${file} sha256=${hash(await readFile(file))}`);
+  for(const file of stale)console.error(`Stale migration registry entry: ${file}`);
+  throw new Error(`Migration registry length mismatch: files=${migrationPaths.length} registry=${migrations.length} missing=${missing.length} stale=${stale.length}`);
+ }
  for(const m of migrations)if(hash(await readFile(m.file))!==m.export_sql_sha256)throw new Error(`Migration content drift: ${m.file}`);
  console.log(`${runtime.functions.length} function bundles structurally verified; ${migrations.length} migrations verified${hashWarnings?`; ${hashWarnings} recorded runtime hash drift warning(s)`:''}`);
 }
