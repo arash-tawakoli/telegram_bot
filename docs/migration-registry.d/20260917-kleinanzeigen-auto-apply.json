@@ -1,0 +1,20 @@
+{
+  "migrations": [
+    {
+      "version": "20260917042550",
+      "name": "route_kleinanzeigen_to_apk_first_contact_worker",
+      "file": "supabase/migrations/20260917042550_route_kleinanzeigen_to_apk_first_contact_worker.sql",
+      "registry_sql_sha256": "e3f2a2f1b707f1c934003896a0387e2e6e1eb3e064918fbd12b4f1b05aa0225d",
+      "export_sql_sha256": "e3f2a2f1b707f1c934003896a0387e2e6e1eb3e064918fbd12b4f1b05aa0225d",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260917045230",
+      "name": "restore_kleinanzeigen_to_main_application_worker",
+      "file": "supabase/migrations/20260917045230_restore_kleinanzeigen_to_main_application_worker.sql",
+      "registry_sql_sha256": "c589e2ab12755f148640cb8f6002439a4cbcd14ef49de28a161fcf9c56233850",
+      "export_sql_sha256": "c589e2ab12755f148640cb8f6002439a4cbcd14ef49de28a161fcf9c56233850",
+      "vault_substitution": false
+    }
+  ]
+}
