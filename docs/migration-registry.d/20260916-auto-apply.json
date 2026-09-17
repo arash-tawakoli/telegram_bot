@@ -31,6 +31,30 @@
       "registry_sql_sha256": "66ef0fdabfe27349695a9ad3e85a60a6bf12cece3dcc8a3c2bbc64f580e64d39",
       "export_sql_sha256": "66ef0fdabfe27349695a9ad3e85a60a6bf12cece3dcc8a3c2bbc64f580e64d39",
       "vault_substitution": false
+    },
+    {
+      "version": "20260917080348",
+      "name": "add_internal_kleinanzeigen_contact_inspector_invoker",
+      "file": "supabase/migrations/20260917080348_add_internal_kleinanzeigen_contact_inspector_invoker.sql",
+      "registry_sql_sha256": "737e3e1d1062c9112108b7fa6e25b0164ea12320c682863a3628397b78102767",
+      "export_sql_sha256": "737e3e1d1062c9112108b7fa6e25b0164ea12320c682863a3628397b78102767",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260917081010",
+      "name": "add_internal_kleinanzeigen_worker_probe_invoker",
+      "file": "supabase/migrations/20260917081010_add_internal_kleinanzeigen_worker_probe_invoker.sql",
+      "registry_sql_sha256": "e5de9d670d72cc6fbe056f538428b1eaacad37a4e5c9ce2aaf9e662ec0e39f46",
+      "export_sql_sha256": "e5de9d670d72cc6fbe056f538428b1eaacad37a4e5c9ce2aaf9e662ec0e39f46",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260917081052",
+      "name": "route_kleinanzeigen_to_verified_xcf_worker",
+      "file": "supabase/migrations/20260917081052_route_kleinanzeigen_to_verified_xcf_worker.sql",
+      "registry_sql_sha256": "a22069c356e7463241953f1befe6caa5abbbcddb3934cbf890c67773f5ed8896",
+      "export_sql_sha256": "a22069c356e7463241953f1befe6caa5abbbcddb3934cbf890c67773f5ed8896",
+      "vault_substitution": false
     }
   ]
 }
