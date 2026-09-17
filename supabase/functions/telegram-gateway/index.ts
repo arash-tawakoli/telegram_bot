@@ -5,6 +5,8 @@ const URL=Deno.env.get('SUPABASE_URL')!;
 const KEYS=JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')||'{}');
 const KEY=KEYS.default||Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const CORE=`${URL}/functions/v1/telegram-ui`;
+const OAUTH_BRIDGE=`${URL}/functions/v1/telegram-oauth-bridge`;
+const SECURE_LOGIN_CALLBACKS=new Set(['platforms:login:1','platforms:login:2','platforms:login:3']);
 let cachedWebhookSecret:{value:string,expiresAt:number}|null=null;
 
 function headers(){return {apikey:KEY,Authorization:`Bearer ${KEY}`,'content-type':'application/json'};}
@@ -16,9 +18,12 @@ async function secret(force=false){
 }
 function parsed(body:string){try{return JSON.parse(body)}catch{return null}}
 function direct(method:string,params:Record<string,unknown>){return Response.json({method,...params});}
-async function forwardToCore(body:string,expected:string,callbackAcked=false){
- const r=await fetch(CORE,{method:'POST',headers:{'content-type':'application/json','x-telegram-bot-api-secret-token':expected,'x-region':'eu-west-1','x-callback-acked':callbackAcked?'1':'0'},body});
+async function forward(body:string,expected:string,target:string,extraHeaders:Record<string,string>={}){
+ const r=await fetch(target,{method:'POST',headers:{'content-type':'application/json','x-telegram-bot-api-secret-token':expected,...extraHeaders},body,signal:AbortSignal.timeout(50000)});
  return new Response(await r.text(),{status:r.status,headers:{'content-type':r.headers.get('content-type')||'application/json'}});
+}
+async function forwardToCore(body:string,expected:string,callbackAcked=false){
+ return forward(body,expected,CORE,{'x-region':'eu-west-1','x-callback-acked':callbackAcked?'1':'0'});
 }
 
 Deno.serve(async req=>{
@@ -27,6 +32,14 @@ Deno.serve(async req=>{
   const supplied=req.headers.get('x-telegram-bot-api-secret-token')||'';let expected=await secret();
   if(supplied!==expected){cachedWebhookSecret=null;expected=await secret(true);if(supplied!==expected)return new Response('unauthorized',{status:401});}
   const body=await req.text(),update=parsed(body),callback=String(update?.callback_query?.data||'');
+
+  // Security invariant: provider login callbacks may never reach the legacy
+  // auto-apply/UI handlers that can emit provider URLs. Always hand them to
+  // telegram-oauth-bridge, which only exposes the Vercel /connect facade.
+  if(update?.callback_query?.id&&SECURE_LOGIN_CALLBACKS.has(callback)){
+   return forward(body,expected,OAUTH_BRIDGE);
+  }
+
   const autoCallback=typeof isAutoApplyCallback==='function'&&isAutoApplyCallback(callback);
   if(update?.callback_query?.id&&autoCallback){
    EdgeRuntime.waitUntil(handleAutoApplyCallback(update).catch(e=>console.error('telegram_auto_apply_callback',String(e))));
