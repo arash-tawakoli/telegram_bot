@@ -6,7 +6,6 @@ const KEYS=JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')||'{}');
 const KEY=KEYS.default||Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const CORE=`${URL}/functions/v1/telegram-ui`;
 const OAUTH_BRIDGE=`${URL}/functions/v1/telegram-oauth-bridge`;
-const SECURE_LOGIN_CALLBACKS=new Set(['platforms:login:1','platforms:login:2','platforms:login:3']);
 let cachedWebhookSecret:{value:string,expiresAt:number}|null=null;
 
 function headers(){return {apikey:KEY,Authorization:`Bearer ${KEY}`,'content-type':'application/json'};}
@@ -35,7 +34,7 @@ Deno.serve(async req=>{
 
   // Provider login must never block Telegram's callback acknowledgement.
   // The bridge creates only a short-lived facade ticket; provider work happens later.
-  if(update?.callback_query?.id&&SECURE_LOGIN_CALLBACKS.has(callback)){
+  if(update?.callback_query?.id&&['platforms:login:1','platforms:login:2','platforms:login:3'].includes(callback)){
    EdgeRuntime.waitUntil(forward(body,expected,OAUTH_BRIDGE).then(r=>{if(!r.ok)console.error('telegram_oauth_bridge',r.status)}).catch(e=>console.error('telegram_oauth_bridge',String(e))));
    return direct('answerCallbackQuery',{callback_query_id:String(update.callback_query.id)});
   }
