@@ -18,7 +18,7 @@ async function prepared(update:any){const p=await rpc('prepare_telegram_update',
 
 function randomUrlSafe(bytes=32){const b=crypto.getRandomValues(new Uint8Array(bytes));let s='';for(const x of b)s+=String.fromCharCode(x);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
 async function createFlow(userId:string,provider:'kleinanzeigen'|'immoscout'|'immomio'){
- const q=new URL(`${URL}/rest/v1/platform_auth_flows`);q.searchParams.set('user_id',`eq.${userId}`);q.searchParams.set('provider',`eq.${provider}`);q.searchParams.set('consumed_at','is.null');
+ const q=new globalThis.URL(`${URL}/rest/v1/platform_auth_flows`);q.searchParams.set('user_id',`eq.${userId}`);q.searchParams.set('provider',`eq.${provider}`);q.searchParams.set('consumed_at','is.null');
  const d=await fetch(q,{method:'DELETE',headers:headers({Prefer:'return=minimal'}),signal:AbortSignal.timeout(10000)});if(!d.ok)throw Error('auth_flow_cleanup_failed');
  const state=randomUrlSafe(32),code_verifier=randomUrlSafe(64);
  const r=await fetch(`${URL}/rest/v1/platform_auth_flows`,{method:'POST',headers:headers({Prefer:'return=minimal'}),body:JSON.stringify({user_id:userId,provider,state,code_verifier}),signal:AbortSignal.timeout(10000)});if(!r.ok)throw Error('auth_flow_create_failed');
