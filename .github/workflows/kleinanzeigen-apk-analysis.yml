@@ -66,10 +66,12 @@ jobs:
         run: |
           set -e
           mkdir -p tmp/ka-analysis/relevant
-          PATTERN='user-contactdetails|real-estate-seeker-profile|create-conversation|messagebox/api/users|warnPhoneNumber|contentWarnings|contactName|contact-form|seeker-profile|request.?quality|anfrage|isRequired|contactFields'
+          PATTERN='user-contactdetails|real-estate-seeker-profile|create-conversation|messagebox/api/users|warnPhoneNumber|contentWarnings|contactName|contact-form|seeker-profile|request.?quality|anfrage|isRequired|contactFields|ReplyToSellerDetails|PayloadSerializer'
           if [ -d tmp/ka-analysis/jadx/sources ]; then
             grep -RInE "$PATTERN" tmp/ka-analysis/jadx/sources > tmp/ka-analysis/jadx_hits.txt || true
             grep -RIlE "$PATTERN" tmp/ka-analysis/jadx/sources > tmp/ka-analysis/relevant_files.txt || true
+            find tmp/ka-analysis/jadx/sources/ebk/data/entities/models -type f \( -iname '*Serializer*.java' -o -iname '*Payload*.java' \) >> tmp/ka-analysis/relevant_files.txt 2>/dev/null || true
+            sort -u tmp/ka-analysis/relevant_files.txt -o tmp/ka-analysis/relevant_files.txt
             while IFS= read -r f; do
               [ -n "$f" ] || continue
               rel="${f#tmp/ka-analysis/jadx/sources/}"
