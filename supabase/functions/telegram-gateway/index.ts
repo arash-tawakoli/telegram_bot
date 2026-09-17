@@ -33,11 +33,11 @@ Deno.serve(async req=>{
   if(supplied!==expected){cachedWebhookSecret=null;expected=await secret(true);if(supplied!==expected)return new Response('unauthorized',{status:401});}
   const body=await req.text(),update=parsed(body),callback=String(update?.callback_query?.data||'');
 
-  // Security invariant: provider login callbacks may never reach the legacy
-  // auto-apply/UI handlers that can emit provider URLs. Always hand them to
-  // telegram-oauth-bridge, which only exposes the Vercel /connect facade.
+  // Provider login must never block Telegram's callback acknowledgement.
+  // The bridge creates only a short-lived facade ticket; provider work happens later.
   if(update?.callback_query?.id&&SECURE_LOGIN_CALLBACKS.has(callback)){
-   return forward(body,expected,OAUTH_BRIDGE);
+   EdgeRuntime.waitUntil(forward(body,expected,OAUTH_BRIDGE).then(r=>{if(!r.ok)console.error('telegram_oauth_bridge',r.status)}).catch(e=>console.error('telegram_oauth_bridge',String(e))));
+   return direct('answerCallbackQuery',{callback_query_id:String(update.callback_query.id)});
   }
 
   const autoCallback=typeof isAutoApplyCallback==='function'&&isAutoApplyCallback(callback);
