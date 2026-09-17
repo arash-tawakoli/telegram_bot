@@ -59,7 +59,7 @@ jobs:
           test -n "$URL"
           curl -fL "$URL" -o tmp/jadx.zip
           unzip -q tmp/jadx.zip -d tmp/jadx-bin
-          tmp/jadx-bin/bin/jadx --deobf --show-bad-code -d tmp/ka-analysis/jadx tmp/ka-analysis/base.apk || true
+          timeout 420 tmp/jadx-bin/bin/jadx --no-res --threads-count 4 -d tmp/ka-analysis/jadx tmp/ka-analysis/base.apk || true
 
       - name: Collect targeted First Contact source
         if: always()
