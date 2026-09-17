@@ -62,7 +62,9 @@ jobs:
           for CLASS in \
             ebk.data.entities.models.ReplyToSellerDetailsPayloadSerializer \
             ebk.data.entities.models.messagebox.C25250d2 \
-            ebk.data.remote.api_commands.InterfaceC26803t0; do
+            ebk.data.entities.models.messagebox.C25313p2 \
+            ebk.data.remote.api_commands.InterfaceC26803t0 \
+            ebk.data.remote.api_commands.InterfaceC26806u0; do
             SAFE="$(printf '%s' "$CLASS" | tr '.' '_')"
             timeout 120 tmp/jadx-bin/bin/jadx --no-res --single-class "$CLASS" --single-class-output "tmp/ka-analysis/relevant/${SAFE}.java" tmp/ka-analysis/base.apk || true
           done
@@ -74,7 +76,7 @@ jobs:
           mkdir -p tmp/ka-analysis/relevant
           : > tmp/ka-analysis/relevant_files.txt
           find tmp/ka-analysis/relevant -type f -name '*.java' -print | sort > tmp/ka-analysis/relevant_files.txt || true
-          grep -RInE 'contactFields|contact-fields|message|adId|ReplyToSellerDetails|PayloadSerializer|dmh_source|coming_from|conversations' tmp/ka-analysis/relevant > tmp/ka-analysis/jadx_hits_top.txt || true
+          grep -RInE 'contactFields|contact-fields|message|adId|ReplyToSellerDetails|PayloadSerializer|dmh_source|coming_from|conversations|warnPhoneNumber|warnEmail|warnBankDetails' tmp/ka-analysis/relevant > tmp/ka-analysis/jadx_hits_top.txt || true
           tar -czf tmp/ka-analysis/relevant-sources.tgz -C tmp/ka-analysis/relevant . || true
           echo '--- targeted source files ---'
           cat tmp/ka-analysis/relevant_files.txt || true
