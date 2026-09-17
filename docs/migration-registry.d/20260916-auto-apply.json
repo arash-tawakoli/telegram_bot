@@ -55,6 +55,14 @@
       "registry_sql_sha256": "a22069c356e7463241953f1befe6caa5abbbcddb3934cbf890c67773f5ed8896",
       "export_sql_sha256": "a22069c356e7463241953f1befe6caa5abbbcddb3934cbf890c67773f5ed8896",
       "vault_substitution": false
+    },
+    {
+      "version": "20260917110325",
+      "name": "preserve_connected_kleinanzeigen_during_relogin",
+      "file": "supabase/migrations/20260917110325_preserve_connected_kleinanzeigen_during_relogin.sql",
+      "registry_sql_sha256": "0560ec79841aa339e2cba9d5c1c81f09bc60cd4f553fafdf61e3e94d3a62b673",
+      "export_sql_sha256": "0560ec79841aa339e2cba9d5c1c81f09bc60cd4f553fafdf61e3e94d3a62b673",
+      "vault_substitution": false
     }
   ]
 }
