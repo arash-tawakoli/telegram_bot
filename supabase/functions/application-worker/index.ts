@@ -49,7 +49,7 @@ async function processApplication(){
   const message=messageFor(profile,listing);await patch({application_text:message});
   const authorize=async()=>{const {data,error}=await db.rpc('authorize_application_send',{p_id:application.id,p_token:application.lease_token});if(error){started=true;throw Error('authorization_unconfirmed');}started=data===true;return started;};
   const result=await sendApplication(provider,{db,user,profile,listing,message,authorize});
-  if(result?.error==='listing_unavailable')await db.from('listings').update({is_active:false,fresh_delivery_eligible:false}).eq('id',listing.id);
+  if(result?.error==='listing_unavailable')await db.from('listings').update({is_active:false}).eq('id',listing.id);
   await patch({status:result.status,last_error:result.error||null,...(result.status==='sent'?{sent_at:new Date().toISOString()}:{}),lease_until:null});
   if(result.status==='sent')await notify(user.chat_id,`✅ Bewerbung automatisch versendet\n\n${clean(listing.title,120)}`);
   else if(result.error==='needs_login')await notify(user.chat_id,`🔐 ${provider} muss erneut verbunden werden.`);
