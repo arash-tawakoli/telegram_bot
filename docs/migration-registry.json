@@ -1352,6 +1352,14 @@
       "registry_sql_sha256": "13549bcfff00f297780ddc40b6d6fc59093f6fc9162a13a7e08f67b34c19c9ce",
       "export_sql_sha256": "4c362891158ec7ae2409de678dc2d1e386bf09ef229d9dac3fb0aa1c64ed8a27",
       "vault_substitution": true
+    },
+    {
+      "version": "20260918190641",
+      "name": "simplify_active_listing_delivery_policy",
+      "file": "supabase/migrations/20260918190641_simplify_active_listing_delivery_policy.sql",
+      "registry_sql_sha256": "83576d2f1ae512d2bc431b32ee3727784cc1e24163a00af50dedf160e4d36ca6",
+      "export_sql_sha256": "83576d2f1ae512d2bc431b32ee3727784cc1e24163a00af50dedf160e4d36ca6",
+      "vault_substitution": false
     }
   ],
   "historical_repository_ref": "36708e9e2f073d7b3835cfd28b8222446e23c0ff",
