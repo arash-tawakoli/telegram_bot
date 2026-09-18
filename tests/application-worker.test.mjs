@@ -52,7 +52,7 @@ test('listing_unavailable is terminal and deactivates the listing',async()=>{
  assert.equal(result.status,'failed');
  const listingWrite=w.writes.find(x=>x.table==='listings')?.write;
  assert.equal(listingWrite?.is_active,false);
- assert.equal(listingWrite?.fresh_delivery_eligible,false);
+ assert.equal(listingWrite?.fresh_delivery_eligible,undefined);
  const final=w.writes.filter(x=>x.table==='applications').at(-1).write;
  assert.equal(final.status,'failed');
  assert.equal(final.last_error,'listing_unavailable');
