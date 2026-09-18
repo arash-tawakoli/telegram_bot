@@ -1,5 +1,5 @@
 # Architektur und Betrieb
-Stand: 14.09.2026. [Produktive Optimierung und Messwerte](SUPABASE_OPTIMIZATION_2026-09-11.md) · [Effizienz-Audit und Messwerte](SUPABASE_EFFICIENCY_2026-09-10.md) · [Vorherige Bereinigung](ARCHITECTURE_CLEANUP_2026-09-09.md) · [Einzelaudit aller Quellen](SOURCE_DELIVERY_AUDIT_2026-09-09.md)
+Stand: 18.09.2026. [Produktive Optimierung und Messwerte](SUPABASE_OPTIMIZATION_2026-09-11.md) · [Effizienz-Audit und Messwerte](SUPABASE_EFFICIENCY_2026-09-10.md) · [Vorherige Bereinigung](ARCHITECTURE_CLEANUP_2026-09-09.md) · [Einzelaudit aller Quellen](SOURCE_DELIVERY_AUDIT_2026-09-09.md)
 
 ## Datenfluss und Verantwortlichkeiten
 
@@ -7,7 +7,7 @@ Cron plant fällige Quellen in `source_jobs`/PGMQ ein. Ein zentraler `source-wor
 
 Ein gemeinsamer minutengenauer Scheduler plant Jobs und ruft den Worker nur bei sichtbaren Queue-Nachrichten auf. `ingest_listing_batch` verarbeitet höchstens 100 Angebote atomar pro RPC. Unveränderte normalisierte Quelldaten aktualisieren nur einen neueren `last_seen_at`-Wert; identische/ältere Beobachtungen schreiben keine neue Row-Version. Kein B-Tree indiziert diesen Zeitstempel; drei gezielte Teilindizes unterstützen aktive Quellen und Dubletten.  Neue/geänderte Daten durchlaufen weiterhin die vorhandenen Trigger. Ein separater Fingerprint beschreibt den Connector-Input, nicht nachträglich angereicherte Daten. Externe Änderungen an Quellfeldern invalidieren diesen Cache. Änderungen an Enrichment-Regeln müssen ebenfalls eine gezielte Cache-Invalidierung vorsehen.
 
-SQL übernimmt Qualitätsprüfung, Frischefreigabe, Dubletten und Profil-Matching. Daraus entstehen `delivery_events`. Der Dispatcher prüft die aktuelle Verfügbarkeit, ergänzt belegte Quelldaten und stellt über Telegram zu. Wiedergefundener Bestand ist nicht automatisch frisch.
+SQL übernimmt Qualitätsprüfung, Dubletten und Profil-Matching. Ein Listing ist für neue Zustellungen grundsätzlich berechtigt, wenn die Quelle `enabled`/`live` ist, das Listing `is_active=true` und nicht qualitätsseitig abgelehnt ist, es das bevorzugte Listing seiner Dedupe-Gruppe ist, zum Suchprofil passt und derselbe Nutzer es noch nicht erhalten hat. `enrichment_delivery_eligible`, `fresh_delivery_eligible` und `baseline_completed_at` bleiben nur Telemetrie bzw. Crawl-Zustand und blockieren keine Zustellung. Es gibt keine pauschale 24-Stunden-/Stale-Sperre mehr. Der Dispatcher prüft vor dem Versand weiterhin Aktivität, Qualität, Dedupe und Live-Status der Quelle, ergänzt belegte Quelldaten und stellt über Telegram zu.
 
 Telegram-Eingaben laufen über Gateway/Fast-Pfad zur UI beziehungsweise Premium-Verarbeitung. Inbox-Claims und Versuchsnummern schützen vor doppelter Verarbeitung. Stripe-Webhooks und Billing-Maintenance verwalten Abonnements getrennt von der Wohnungszustellung.
 
@@ -18,7 +18,7 @@ Der bestehende Bewerbungsbereich bleibt erhalten: private Dokumente und Plattfor
 - Source-Jobs und Delivery-Events haben atomare Claims und versuchsgebundene Bestätigungen. Ein alter Worker darf einen neueren Versuch nicht abschließen.
 - Mehrdeutige Telegram-Ausgänge werden nicht automatisch erneut gesendet. Exactly-once kann über einen externen Telegram-Aufruf nicht garantiert werden.
 - Ein persistierter Versandabstand begrenzt reguläre Listing-Zustellungen. Button-Bestätigungen verwenden ihren eigenen schnellen Pfad.
-- Quellen bleiben bei fehlendem Frischenachweis, nicht belegtem Inventar oder deaktiviertem Live-Modus vom Versand ausgeschlossen.
+- Zustellungen werden nur für aktive, qualitätsgeprüfte Primär-Listings aus aktivierten Live-Quellen erzeugt. Alter, Baseline-Status und Enrichment-/Freshness-Telemetrie sind keine Delivery-Gates.
 - Vorschauen enthalten höchstens ein Foto und alle verfügbaren Textdaten. Bilddaten werden unabhängig vom MIME-Header erkannt; bestätigte unbrauchbare Fotos erlauben Textfallback. Bezirk/Stadtteil nur aus expliziten Quellfeldern.
 - GCP nutzt den tatsächlich betriebenen Primärconnector. Detailfehler erscheinen in den Crawl-Metadaten; scheitern alle Details, gilt der Lauf als Fehler. Vollständigkeit wird nicht vorgetäuscht.
 
@@ -28,7 +28,7 @@ Der bestehende Bewerbungsbereich bleibt erhalten: private Dokumente und Plattfor
 
 65 registrierte Quellen: beim Audit 51 aktiviert/live, 2 aktiviert/shadow und 12 deaktiviert/shadow. Historische Quellen bleiben für Zuordnung, Diagnose und spätere verifizierte Reparaturen erhalten. Registrierungspfade beweisen kein Wohnungsinventar.
 
-Neun aktive Cron-Jobs: gemeinsamer Source-Scheduler/Worker-Start, Dispatcher, stündliche gemeinsame Wartung, Ablauf von Admin-Premium-Ausnahmen, zwei Provider-Index-Aufgaben, Inbox-Recovery, stündliche Shadow-Probes und Bewerbungs-Worker. Der separate Source-Worker-Timer wurde entfernt. Dispatcher-Aufrufe erfordern fällige Events oder abgelaufene Leases; der Frische-Guard läuft vorher weiterhin jede Minute.
+Neun aktive Cron-Jobs: gemeinsamer Source-Scheduler/Worker-Start, Dispatcher, stündliche gemeinsame Wartung, Ablauf von Admin-Premium-Ausnahmen, zwei Provider-Index-Aufgaben, Inbox-Recovery, stündliche Shadow-Probes und Bewerbungs-Worker. Der separate Source-Worker-Timer wurde entfernt. Dispatcher-Aufrufe erfordern fällige Events oder abgelaufene Leases; der Queue-Guard entfernt vorher nur Events für inzwischen inaktive/abgelehnte/nicht primäre Listings oder nicht mehr live geschaltete Quellen.
 
 ## Sicherheit und Datenpflege
 
@@ -56,6 +56,6 @@ Die Prüfung lehnt fehlende relative Abhängigkeiten, doppelte Bundle-Namen, abw
 
 ## Bekannte offene Grenzen
 
-Vollständige externe Coverage und permanente Erreichbarkeit aller Anbieter sind nicht belegt. Unter anderem bleiben Vonovia-/WG-Gesucht-Verifikation, SAGA-Indexstabilität, Wunderflats-Zugriff und City-Wohnen-Preiszuordnung im Quellenbericht offen. Diese Probleme werden nicht durch Lockerung der Frische- oder Budgetfilter überdeckt.
+Vollständige externe Coverage und permanente Erreichbarkeit aller Anbieter sind nicht belegt. Unter anderem bleiben Vonovia-/WG-Gesucht-Verifikation, SAGA-Indexstabilität, Wunderflats-Zugriff und City-Wohnen-Preiszuordnung im Quellenbericht offen. Diese Probleme werden nicht durch die vereinfachte Delivery-Policy überdeckt; Quellenverfügbarkeit, Qualitätsfilter, Deduplizierung und Suchprofil-Matching bleiben verbindlich.
 
 Kein vollständiger Lasttest, keine gemessene Verbesserung der Telegram-Latenz und kein Restore-Test des gesamten Supabase-Projekts in dieser Bereinigung. Der Nachweis umfasst Codegleichheit, Verhaltenstests, Zugriffsprüfungen und begrenzte Liveproben.
