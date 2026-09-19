@@ -1,4 +1,3 @@
--- Keep listings with unknown rent eligible when the search profile does not require a known warm rent.
 create or replace function app_private.queue_listing_delivery_v3()
 returns trigger
 language plpgsql

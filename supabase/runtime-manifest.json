@@ -478,7 +478,7 @@
         },
         {
           "path": "supabase/functions/source-worker/scout.ts",
-          "sha256": "fdc90ec4d69817dc1ad9ea26702f45160d9096494f664f6a20af9bbe525421ab",
+          "sha256": "eda8af11bc7ac7fd68bd1522db237ff72d5d7f43aad3e35f3a280e048e674d2b",
           "deployed_sha256": "fdc90ec4d69817dc1ad9ea26702f45160d9096494f664f6a20af9bbe525421ab"
         },
         {
@@ -538,7 +538,7 @@
         },
         {
           "path": "supabase/functions/source-worker/catalog.ts",
-          "sha256": "9e8fe3d39efb121b57be3563a211bf367f578b58ad22529a4ad777e5fc79c1a6",
+          "sha256": "9daa09bce143e42392d2a7bf14e496a6b0b7b03a07420bd01f893bcdfde1c31b",
           "deployed_sha256": "9e8fe3d39efb121b57be3563a211bf367f578b58ad22529a4ad777e5fc79c1a6"
         },
         {
@@ -601,9 +601,17 @@
       "retired": false,
       "slug": "source-worker",
       "verify_jwt": false,
-      "version": 72,
+      "version": 73,
       "deployment_observed_at": "2026-09-19T15:02:00Z",
-      "source_sync_note": "Restored v72 ingestion and cycle semantics from inspected production source. Changed file deployment hashes are not independently measured; old recorded hashes remain for drift visibility."
+      "source_sync_note": "Restored v72 ingestion and cycle semantics from inspected production source. Changed file deployment hashes are not independently measured; old recorded hashes remain for drift visibility.",
+      "observed_artifact": {
+        "observed_at": "2026-09-19T18:21:00Z",
+        "format": "compiled_esm",
+        "entrypoint": "index.js",
+        "import_map_path": "deno.json",
+        "ezbr_sha256": "1869144f536bf2e0968adc5ecf7a417bdaa5792815520bfb1270270bea0c2bb8",
+        "verification": "Management metadata plus normal production crawl evidence. The compiled artifact is not byte-comparable with the TypeScript source file list; historical deployed_sha256 values are retained, not asserted as current."
+      }
     },
     {
       "entrypoint": "supabase/functions/spacest-feed/index.ts",
