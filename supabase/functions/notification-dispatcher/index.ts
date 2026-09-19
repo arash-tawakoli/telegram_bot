@@ -1,4 +1,5 @@
 import {pageAvailability,recentInventory} from './availability.ts';
+import {deliveryNewness} from './newness.ts';
 import {quickApplyButton} from '../telegram-ui/application-message.js';
 import {previewOperations,deliverPreview,sourcePhoto} from "./preview-delivery.ts";
 import {present, textValue, exactAddress, structuredFacts, collectImages, htmlFacts} from "./source-facts.ts";
@@ -38,6 +39,7 @@ function premium(u: any, s: boolean) {
     return true;
   return s;
 }
+
 function esc(v: any) {
   return String(v ?? "")
     .replace(/&/g, "&amp;")
@@ -361,16 +363,16 @@ Deno.serve(async (req) => {
       return new Response("unauthorized", { status: 401 });
     const input = await req.json().catch(() => ({}));
     if (input.dry_run && input.listing_id) {
-      const {data,error}=await db.from('listings').select('*,sources(button_label,source_type,source_connectors(config,enabled,priority))').eq('id',input.listing_id).single();
+      const {data,error}=await db.from('listings').select('*,sources(button_label,source_type,baseline_completed_at,enabled,runtime_mode,delivery_mode,source_connectors(config,enabled,priority))').eq('id',input.listing_id).single();
       if(error)throw error;
-      const listing=await enrich(data,false),facts=knownFacts(listing);
+      const listing=await enrich(data,false),facts=knownFacts(listing),newness=deliveryNewness(listing,'new_listing',facts.published_text);
       if(input.probe_image && facts.images.length){
         const response=await fetch(facts.images[0],{headers:{'user-agent':UA,accept:'image/*'},signal:AbortSignal.timeout(6500)});
         const declared_type=response.headers.get('content-type');
         try{const photo=await sourcePhoto(response);return Response.json({ok:true,dry_run:true,availability:listing._availability,image_probe:{declared_type,validated_type:photo.type,bytes:photo.size},operations:previewOperations(facts.images,cap(listing,'de'),kb(listing,'de',true)).map(x=>x.method)});}
         catch(e){return Response.json({ok:false,dry_run:true,image_probe:{declared_type,error:String(e)}});}
       }
-      return Response.json({ok:true,dry_run:true,caption:cap(listing,'de'),keyboard:kb(listing,'de',true),images:facts.images,availability:listing._availability,address:loc(listing),operations:previewOperations(facts.images,cap(listing,'de'),kb(listing,'de',true)).map(x=>x.method)});
+      return Response.json({ok:true,dry_run:true,caption:cap(listing,'de'),keyboard:kb(listing,'de',true),images:facts.images,availability:listing._availability,newness,address:loc(listing),operations:previewOperations(facts.images,cap(listing,'de'),kb(listing,'de',true)).map(x=>x.method)});
     }
     if (input.dry_run) {
       const { error } = await db.from("delivery_events").select("id").limit(1);
@@ -394,7 +396,7 @@ Deno.serve(async (req) => {
     const { data: events, error } = await db
       .from("delivery_events")
       .select(
-        "id,status,dispatch_attempts,preview_progress,recipient:bot_users!delivery_events_recipient_user_id_fkey(id,chat_id,is_active,ui_language),search_profiles!inner(id,profile_slot,is_active,owner:bot_users!search_profiles_user_id_fkey(id,is_active,plan_override,plan_override_expires_at,referral_bonus_until)),listings!inner(*,sources(button_label,source_type,source_connectors(config,enabled,priority)))",
+        "id,status,event_type,dispatch_attempts,preview_progress,recipient:bot_users!delivery_events_recipient_user_id_fkey(id,chat_id,is_active,ui_language),search_profiles!inner(id,profile_slot,is_active,owner:bot_users!search_profiles_user_id_fkey(id,is_active,plan_override,plan_override_expires_at,referral_bonus_until)),listings!inner(*,sources(button_label,source_type,baseline_completed_at,enabled,runtime_mode,delivery_mode,source_connectors(config,enabled,priority)))",
       )
       .in("status", ["pending", "failed"])
       .eq("delivery_outcome_unknown", false)
@@ -459,6 +461,11 @@ Deno.serve(async (req) => {
           cache.set(String(raw.id), task);
         }
         const listing = await task;
+        const newness=deliveryNewness(listing,event.event_type,knownFacts(listing).published_text);
+        if(!newness.ok){
+          await finishDelivery(db,lease,{status:'skipped',next_retry_at:null,error_message:`Newness guard: ${newness.reason}`});
+          skipped++;continue;
+        }
         if(listing.source_id===21 || listing._availability==='unavailable') {
           if(listing._availability==='unavailable') {
             const {error}=await db.from('listings').update({is_active:false}).eq('id',listing.id);

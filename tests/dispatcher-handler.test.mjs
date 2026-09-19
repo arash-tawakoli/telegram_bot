@@ -19,7 +19,7 @@ test('dispatcher processes a queued event using its lease UUID, not the profile 
     db, sec: async name => name === 'internal_worker_secret' ? 'test-secret' : 'test-token',
     recoverDeliveries: async () => {}, waitForDispatchSlot: async (_db, owner) => { assert.equal(owner, leaseOwner); return true; },
     claimDelivery: async () => ({ id: 'event', attempt: 1 }), finishDelivery: async (_db, _lease, result) => finishes.push(result),
-    premium: owner => { assert.equal(owner, profileOwner); return false; }, enrich: async listing => ({...listing,_availability:"online"}),
+    premium: owner => { assert.equal(owner, profileOwner); return false; }, deliveryNewness:()=>({ok:true,reason:"qualified"}), knownFacts:()=>({published_text:null}), enrich: async listing => ({...listing,_availability:"online"}),
     send: async () => { sends++; return { message_id: 987 }; }, TelegramFailure: class extends Error {},
   });
   const response = await handler(new Request('https://test', { method: 'POST', headers: { 'x-internal-secret': 'test-secret' }, body: '{}' }));
@@ -61,7 +61,7 @@ test('unknown availability is retried without sending a message', async () => {
     db, sec: async name => name === 'internal_worker_secret' ? 'test-secret' : 'test-token',
     recoverDeliveries: async () => {}, waitForDispatchSlot: async (_db, owner) => { assert.equal(owner, leaseOwner); return true; },
     claimDelivery: async () => ({ id: 'event', attempt: 1 }), finishDelivery: async (_db, _lease, result) => finishes.push(result),
-    premium: owner => { assert.equal(owner, profileOwner); return false; }, enrich: async listing => ({...listing,_availability:"unknown"}),
+    premium: owner => { assert.equal(owner, profileOwner); return false; }, deliveryNewness:()=>({ok:true,reason:"qualified"}), knownFacts:()=>({published_text:null}), enrich: async listing => ({...listing,_availability:"unknown"}),
     send: async () => { sends++; return { message_id: 987 }; }, TelegramFailure: class extends Error { retryAfter=300;outcomeUnknown=false; },
   });
   const response = await handler(new Request('https://test', { method: 'POST', headers: { 'x-internal-secret': 'test-secret' }, body: '{}' }));

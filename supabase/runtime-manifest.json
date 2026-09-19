@@ -1,5 +1,5 @@
 {
-  "observed_at": "2026-09-15",
+  "observed_at": "2026-09-19",
   "project_id": "dpmohkrwdlicexwcrqfy",
   "snapshot_kind": "repository_with_observed_deployment_hashes",
   "functions": [
@@ -318,8 +318,8 @@
       "files": [
         {
           "path": "supabase/functions/notification-dispatcher/index.ts",
-          "sha256": "6efd9b074c27aec7281ce34dd54b1645743147cde0387f28f565fff3cc781e0f",
-          "deployed_sha256": "6efd9b074c27aec7281ce34dd54b1645743147cde0387f28f565fff3cc781e0f"
+          "sha256": "1dd26cdf00289db6f1f6ffd01afe7bd4def43fe59af033d2e02871d0a045eb58",
+          "deployed_sha256": "1dd26cdf00289db6f1f6ffd01afe7bd4def43fe59af033d2e02871d0a045eb58"
         },
         {
           "path": "supabase/functions/notification-dispatcher/availability.ts",
@@ -360,13 +360,18 @@
           "path": "supabase/functions/notification-dispatcher/labels.ts",
           "sha256": "43ad0fc0ddce4be57a2da4a76f72b3e76a8c197ec6603472dc09e6cfaf63889b",
           "deployed_sha256": "43ad0fc0ddce4be57a2da4a76f72b3e76a8c197ec6603472dc09e6cfaf63889b"
+        },
+        {
+          "path": "supabase/functions/notification-dispatcher/newness.ts",
+          "sha256": "57fed32aa6cf9f01d2362d3899be2a3ea120b027da36948da3b18c4c26fcb142",
+          "deployed_sha256": "57fed32aa6cf9f01d2362d3899be2a3ea120b027da36948da3b18c4c26fcb142"
         }
       ],
       "import_map": false,
       "retired": false,
       "slug": "notification-dispatcher",
       "verify_jwt": false,
-      "version": 105
+      "version": 108
     },
     {
       "entrypoint": "supabase/functions/source-shadow/index.ts",

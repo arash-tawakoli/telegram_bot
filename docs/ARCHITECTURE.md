@@ -1,5 +1,5 @@
 # Architektur und Betrieb
-Stand: 18.09.2026. [Produktive Optimierung und Messwerte](SUPABASE_OPTIMIZATION_2026-09-11.md) · [Effizienz-Audit und Messwerte](SUPABASE_EFFICIENCY_2026-09-10.md) · [Vorherige Bereinigung](ARCHITECTURE_CLEANUP_2026-09-09.md) · [Einzelaudit aller Quellen](SOURCE_DELIVERY_AUDIT_2026-09-09.md)
+Stand: 19.09.2026. [Produktive Optimierung und Messwerte](SUPABASE_OPTIMIZATION_2026-09-11.md) · [Effizienz-Audit und Messwerte](SUPABASE_EFFICIENCY_2026-09-10.md) · [Vorherige Bereinigung](ARCHITECTURE_CLEANUP_2026-09-09.md) · [Einzelaudit aller Quellen](SOURCE_DELIVERY_AUDIT_2026-09-09.md)
 
 ## Datenfluss und Verantwortlichkeiten
 
@@ -7,7 +7,7 @@ Cron plant fällige Quellen in `source_jobs`/PGMQ ein. Ein zentraler `source-wor
 
 Ein gemeinsamer minutengenauer Scheduler plant Jobs und ruft den Worker nur bei sichtbaren Queue-Nachrichten auf. `ingest_listing_batch` verarbeitet höchstens 100 Angebote atomar pro RPC. Unveränderte normalisierte Quelldaten aktualisieren nur einen neueren `last_seen_at`-Wert; identische/ältere Beobachtungen schreiben keine neue Row-Version. Kein B-Tree indiziert diesen Zeitstempel; drei gezielte Teilindizes unterstützen aktive Quellen und Dubletten.  Neue/geänderte Daten durchlaufen weiterhin die vorhandenen Trigger. Ein separater Fingerprint beschreibt den Connector-Input, nicht nachträglich angereicherte Daten. Externe Änderungen an Quellfeldern invalidieren diesen Cache. Änderungen an Enrichment-Regeln müssen ebenfalls eine gezielte Cache-Invalidierung vorsehen.
 
-SQL übernimmt Qualitätsprüfung, Dubletten und Profil-Matching. Ein Listing ist für neue Zustellungen grundsätzlich berechtigt, wenn die Quelle `enabled`/`live` ist, das Listing `is_active=true` und nicht qualitätsseitig abgelehnt ist, es das bevorzugte Listing seiner Dedupe-Gruppe ist, zum Suchprofil passt und derselbe Nutzer es noch nicht erhalten hat. `enrichment_delivery_eligible`, `fresh_delivery_eligible` und `baseline_completed_at` bleiben nur Telemetrie bzw. Crawl-Zustand und blockieren keine Zustellung. Es gibt keine pauschale 24-Stunden-/Stale-Sperre mehr. Der Dispatcher prüft vor dem Versand weiterhin Aktivität, Qualität, Dedupe und Live-Status der Quelle, ergänzt belegte Quelldaten und stellt über Telegram zu.
+SQL übernimmt Qualitätsprüfung, Dubletten, Profil-Matching und den zentralen Neuheitsnachweis. Neue Telegram-Zustellungen müssen zusätzlich `app_private.delivery_newness_qualified(...)` bestehen: `first_seen_at` darf höchstens 24 Stunden zurückliegen, die Quell-Baseline muss initialisiert sein und der Source-Worker muss den Fund als zustellfähigen Neu-Fund klassifiziert haben. Kleinanzeigen darf nur aus `lane=fast` mit einem von der Quelle belegten Alter von höchstens 24 Stunden zustellen; `coverage` ist reine Bestandsbeobachtung. ImmoScout darf nur aus `fresh_global`/`fresh_borough` zustellen; `coverage` ist ebenfalls ausgeschlossen. Bei anderen Quellen dient `fresh_delivery_eligible` nur als quellspezifischer Neuheitsnachweis zusammen mit Baseline und 24-Stunden-Fenster, nicht mehr als eigenständiges globales Gate. Der Dispatcher prüft vor Telegram erneut; liefert die Detailseite ein Veröffentlichungsdatum, werden nicht nachweislich höchstens 24 Stunden alte Angebote verworfen. `enrichment_delivery_eligible` bleibt reine Qualitäts-/Telemetrieinformation.
 
 Telegram-Eingaben laufen über Gateway/Fast-Pfad zur UI beziehungsweise Premium-Verarbeitung. Inbox-Claims und Versuchsnummern schützen vor doppelter Verarbeitung. Stripe-Webhooks und Billing-Maintenance verwalten Abonnements getrennt von der Wohnungszustellung.
 
@@ -18,7 +18,7 @@ Der bestehende Bewerbungsbereich bleibt erhalten: private Dokumente und Plattfor
 - Source-Jobs und Delivery-Events haben atomare Claims und versuchsgebundene Bestätigungen. Ein alter Worker darf einen neueren Versuch nicht abschließen.
 - Mehrdeutige Telegram-Ausgänge werden nicht automatisch erneut gesendet. Exactly-once kann über einen externen Telegram-Aufruf nicht garantiert werden.
 - Ein persistierter Versandabstand begrenzt reguläre Listing-Zustellungen. Button-Bestätigungen verwenden ihren eigenen schnellen Pfad.
-- Zustellungen werden nur für aktive, qualitätsgeprüfte Primär-Listings aus aktivierten Live-Quellen erzeugt. Alter, Baseline-Status und Enrichment-/Freshness-Telemetrie sind keine Delivery-Gates.
+- Zustellungen werden nur für aktive, qualitätsgeprüfte Primär-Listings aus aktivierten Live-Quellen erzeugt. `new_listing` benötigt zusätzlich einen <=24h-Neuheitsnachweis. Coverage/Backfill und alte Reaktivierungen erzeugen keine neue Zustellung; ein vorhandenes Quell-Veröffentlichungsdatum wird im Dispatcher nochmals geprüft. `listing_changed` bleibt von der Neuheitsprüfung getrennt, unterliegt aber Aktivitäts-, Qualitäts-, Dedupe- und Live-Guards.
 - Vorschauen enthalten höchstens ein Foto und alle verfügbaren Textdaten. Bilddaten werden unabhängig vom MIME-Header erkannt; bestätigte unbrauchbare Fotos erlauben Textfallback. Bezirk/Stadtteil nur aus expliziten Quellfeldern.
 - GCP nutzt den tatsächlich betriebenen Primärconnector. Detailfehler erscheinen in den Crawl-Metadaten; scheitern alle Details, gilt der Lauf als Fehler. Vollständigkeit wird nicht vorgetäuscht.
 
@@ -28,7 +28,7 @@ Der bestehende Bewerbungsbereich bleibt erhalten: private Dokumente und Plattfor
 
 65 registrierte Quellen: beim Audit 51 aktiviert/live, 2 aktiviert/shadow und 12 deaktiviert/shadow. Historische Quellen bleiben für Zuordnung, Diagnose und spätere verifizierte Reparaturen erhalten. Registrierungspfade beweisen kein Wohnungsinventar.
 
-Neun aktive Cron-Jobs: gemeinsamer Source-Scheduler/Worker-Start, Dispatcher, stündliche gemeinsame Wartung, Ablauf von Admin-Premium-Ausnahmen, zwei Provider-Index-Aufgaben, Inbox-Recovery, stündliche Shadow-Probes und Bewerbungs-Worker. Der separate Source-Worker-Timer wurde entfernt. Dispatcher-Aufrufe erfordern fällige Events oder abgelaufene Leases; der Queue-Guard entfernt vorher nur Events für inzwischen inaktive/abgelehnte/nicht primäre Listings oder nicht mehr live geschaltete Quellen.
+Neun aktive Cron-Jobs: gemeinsamer Source-Scheduler/Worker-Start, Dispatcher, stündliche gemeinsame Wartung, Ablauf von Admin-Premium-Ausnahmen, zwei Provider-Index-Aufgaben, Inbox-Recovery, stündliche Shadow-Probes und Bewerbungs-Worker. Der separate Source-Worker-Timer wurde entfernt. Dispatcher-Aufrufe erfordern fällige Events oder abgelaufene Leases; der Queue-Guard entfernt außerdem `new_listing`-Events, deren <=24h-Neuheit nicht mehr belegt ist, sowie Events für inzwischen inaktive/abgelehnte/nicht primäre Listings oder nicht mehr live geschaltete Quellen.
 
 ## Sicherheit und Datenpflege
 
@@ -52,7 +52,7 @@ Die Prüfung lehnt fehlende relative Abhängigkeiten, doppelte Bundle-Namen, abw
 
 `seed.sql` ist ausschließlich für ein leeres Register. Es lehnt vorhandene Quellen/Connectoren vor Schreibzugriffen ab. Bootstrap-URLs starten deaktiviert/shadow und müssen gegen ihre tatsächlichen Schnittstellen getestet werden, bevor ein neuer Standort live gehen kann. Historische Reparatur-SQLs unter `scripts` sind keine Replay-Reihenfolge; nie pauschal auf Produktion anwenden.
 
-167 Migrationen bleiben als abgeglichene Historie erhalten. Historische Reviews und Quellenberichte sind zeitbezogene Belege, keine aktive Konfiguration. Den spezifischen Rücknahmeweg der Effizienzänderungen beschreibt der aktuelle Auditbericht; ein pauschales Deployment des alten Commits würde neuere Bewerbungsfunktionen überschreiben.
+Die versionierten Migrationen bleiben als abgeglichene Historie erhalten. Historische Reviews und Quellenberichte sind zeitbezogene Belege, keine aktive Konfiguration. Den spezifischen Rücknahmeweg der Effizienzänderungen beschreibt der aktuelle Auditbericht; ein pauschales Deployment des alten Commits würde neuere Bewerbungsfunktionen überschreiben.
 
 ## Bekannte offene Grenzen
 

@@ -1,0 +1,12 @@
+{
+  "migrations": [
+    {
+      "version": "20260919093128",
+      "name": "enforce_24h_new_listing_delivery_policy",
+      "file": "supabase/migrations/20260919093128_enforce_24h_new_listing_delivery_policy.sql",
+      "registry_sql_sha256": "c4bcd2b133963fbc23d27a377d7a12da0abeabc4ed535999fe6e358e17a0ee97",
+      "export_sql_sha256": "c4bcd2b133963fbc23d27a377d7a12da0abeabc4ed535999fe6e358e17a0ee97",
+      "vault_substitution": false
+    }
+  ]
+}
