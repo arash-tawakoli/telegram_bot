@@ -30,12 +30,17 @@ async function processOne(){
   const probe=await immomio('probe',String(user.id),String(listing.id));
   if(probe?.ready!==true){const error=clean(probe?.error||'provider_contract_unverified',120);await patch({status:'manual_required',last_error:error,lease_until:null});return {status:'manual_required',provider:'immomio',error};}
 
-  const {data:authorized,error:authError}=await db.rpc('authorize_application_send',{p_id:application.id,p_token:application.lease_token});
+  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(probe.sourceIdentifier||'')))throw Error('application_target_unverified');
+  const {data:authorized,error:authError}=await db.rpc('authorize_immomio_application_send',{p_id:application.id,p_token:application.lease_token,p_source_identifier:probe.sourceIdentifier});
   if(authError){started=true;throw Error('authorization_unconfirmed');}
-  if(authorized!==true){await patch({status:'failed',last_error:'send_not_authorized',lease_until:null});return {status:'failed',provider:'immomio',error:'send_not_authorized'};}
+  if(authorized!==true){
+   const {data:current}=await db.from('applications').select('status,last_error').eq('id',application.id).eq('lease_token',application.lease_token).maybeSingle();
+   if(current&&['failed','manual_required'].includes(current.status))return {status:current.status,provider:'immomio',error:current.last_error};
+   await patch({status:'failed',last_error:'send_not_authorized',lease_until:null});return {status:'failed',provider:'immomio',error:'send_not_authorized'};
+  }
   started=true;
 
-  const result=await immomio('send_test',String(user.id),String(listing.id),{confirm:'SEND_ONE_IMMOMIO_TEST'});
+  const result=await immomio('send_authorized',String(user.id),String(listing.id),{applicationId:application.id,leaseToken:application.lease_token,sourceIdentifier:probe.sourceIdentifier});
   const status=['sent','failed','manual_required'].includes(String(result?.status))?String(result.status):'manual_required';
   const error=result?.error?clean(result.error,120):null;
   await patch({status,last_error:error,...(status==='sent'?{sent_at:new Date().toISOString()}:{}),lease_until:null});
@@ -55,4 +60,4 @@ async function processOne(){
  }
 }
 
-Deno.serve(async req=>{try{if(req.method!=='POST')return new Response('method not allowed',{status:405});if(req.headers.get('x-internal-secret')!==await secret('internal_worker_secret'))return new Response('unauthorized',{status:401});const body=await req.json().catch(()=>({}));if(body.action==='health')return Response.json({ok:true,mode:'immomio-auto-application-worker'});if(body.action!=='process')return Response.json({error:'invalid_action'},{status:400});return Response.json(await processOne());}catch(error:any){return Response.json({error:clean(error?.message||'worker_failed',120)},{status:503});}});
+Deno.serve(async req=>{try{if(req.method!=='POST')return new Response('method not allowed',{status:405});if(req.headers.get('x-internal-secret')!==await secret('internal_worker_secret'))return new Response('unauthorized',{status:401});const body=await req.json().catch(()=>({}));if(body.action==='health')return Response.json({ok:true,mode:'immomio-auto-application-worker',applicationTargets:'central-db-resolver',sendAuthorization:'single-use-object-lease'});if(body.action!=='process')return Response.json({error:'invalid_action'},{status:400});return Response.json(await processOne());}catch(error:any){return Response.json({error:clean(error?.message||'worker_failed',120)},{status:503});}});

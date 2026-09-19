@@ -1,0 +1,12 @@
+{
+  "migrations": [
+    {
+      "version": "20260919164605",
+      "name": "expand_cooperative_auto_apply_targets",
+      "file": "supabase/migrations/20260919164605_expand_cooperative_auto_apply_targets.sql",
+      "registry_sql_sha256": "fc1b0a8f05d4238bec09cd7705867171a1debf3651effe1aecb1db283d67fc89",
+      "export_sql_sha256": "fc1b0a8f05d4238bec09cd7705867171a1debf3651effe1aecb1db283d67fc89",
+      "vault_substitution": false
+    }
+  ]
+}

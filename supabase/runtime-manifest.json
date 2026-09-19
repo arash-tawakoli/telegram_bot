@@ -839,6 +839,48 @@
       "slug": "wunderflats-transport",
       "verify_jwt": false,
       "version": 4
+    },
+    {
+      "slug": "immomio-account",
+      "entrypoint": "supabase/functions/immomio-account/index.ts",
+      "version": 7,
+      "verify_jwt": false,
+      "import_map": false,
+      "retired": false,
+      "observed_artifact_sha256": "f48f77e6391da1fb4c341dc68891389299677a9879d52aadd912ef2396009585",
+      "files": [
+        {
+          "path": "supabase/functions/immomio-account/credentials.ts",
+          "sha256": "d86f47221ac133ede2ece33344125975d64bda01253c4879b6449a9aef3cc71c",
+          "deployed_sha256": null
+        },
+        {
+          "path": "supabase/functions/immomio-account/index.ts",
+          "sha256": "f923a46edaf6c0b0c4fa73f522cdd56a3977c6bdfcd57cbc8c136aa8727ce035",
+          "deployed_sha256": null
+        },
+        {
+          "path": "supabase/functions/immomio-account/providers/immomio.ts",
+          "sha256": "27246d645fb6fc300cbed8d30fd3befd9b97e773c34ebc54d55bb9ba24c657b0",
+          "deployed_sha256": null
+        }
+      ]
+    },
+    {
+      "slug": "immomio-application-worker",
+      "entrypoint": "supabase/functions/immomio-application-worker/index.ts",
+      "version": 2,
+      "verify_jwt": false,
+      "import_map": false,
+      "retired": false,
+      "observed_artifact_sha256": "85c55e83f0b14cba28e42da65890e55e9d9b13736586deaf0d30b1e527e88f80",
+      "files": [
+        {
+          "path": "supabase/functions/immomio-application-worker/index.ts",
+          "sha256": "5972d9e2475a1371ce16beb2f7134e22c55f536a0c0c50726a59ad0032016c1e",
+          "deployed_sha256": null
+        }
+      ]
     }
   ]
 }
