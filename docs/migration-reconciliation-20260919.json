@@ -1,0 +1,122 @@
+{
+  "project": "dpmohkrwdlicexwcrqfy",
+  "observed_at": "2026-09-19T18:25:00Z",
+  "method": "Read-only applied migration ledger export. No old migration executed; production ledger left unchanged.",
+  "reconciliations": [
+    {
+      "old_version": "20260911113000",
+      "new_version": "20260911093449",
+      "old_file": "supabase/migrations/20260911113000_conservative_cross_source_dedupe_guard.sql",
+      "file": "supabase/migrations/20260911093449_conservative_cross_source_dedupe_guard.sql",
+      "sha256": "0a411cc8aeb9d1e366ce1648c77f47ea30fc914ed634411242b99b44fe919491",
+      "reason": "Exact applied SQL verified after removal of final newline"
+    },
+    {
+      "old_version": "20260915205500",
+      "new_version": "20260915185625",
+      "old_file": "supabase/migrations/20260915205500_allow_unknown_rent_when_profile_permits.sql",
+      "file": "supabase/migrations/20260915185625_allow_unknown_rent_when_profile_permits.sql",
+      "sha256": "e11fabe9687cd3af25c8ae6d7a77fe2c31326757d9d64407bd99a61f76b26e7d",
+      "reason": "Exact applied SQL verified after removal of final newline and repository-only leading comment"
+    },
+    {
+      "old_version": "20260916105000",
+      "new_version": "20260916085101",
+      "old_file": "supabase/migrations/20260916105000_enable_immomio_auth_flows.sql",
+      "file": "supabase/migrations/20260916085101_enable_immomio_auth_flows.sql",
+      "sha256": "33b22a210d2e8bf641f7bfbb2da33fea85899a6337c509f16dd5e35ac4d91a30",
+      "reason": "Exact applied SQL verified after removal of final newline"
+    },
+    {
+      "old_version": "20260916123200",
+      "new_version": "20260916123155",
+      "old_file": "supabase/migrations/20260916123200_forward_immomio_oauth_share_to_auth_bridge.sql",
+      "file": "supabase/migrations/20260916123155_forward_immomio_oauth_share_to_auth_bridge.sql",
+      "sha256": "9428c23e4101255b1de62bb304f7877c0d09c6341b08c29956578398f094f8ab",
+      "reason": "Exact applied SQL verified after removal of final newline"
+    },
+    {
+      "old_version": "20260916174600",
+      "new_version": "20260916154742",
+      "old_file": "supabase/migrations/20260916174600_extend_platform_auth_flows_to_30_minutes.sql",
+      "file": "supabase/migrations/20260916154742_extend_platform_auth_flows_to_30_minutes.sql",
+      "sha256": "dd49b3e75eaa57065e4b6cf76ea06380e8574b4d17a60f9b1b9ac65426fe75cf",
+      "reason": "Exact applied SQL verified after removal of final newline"
+    },
+    {
+      "old_version": "20260916190000",
+      "new_version": "20260916174953",
+      "old_file": "supabase/migrations/20260916190000_add_platform_auth_flow_transient_state.sql",
+      "file": "supabase/migrations/20260916174953_add_platform_auth_flow_transient_state.sql",
+      "sha256": "122bd55a3815184b0bd959817ce9171924b4e85e0863f6c9f26e823bbca2aef4",
+      "reason": "Exact applied SQL verified after removal of final newline"
+    },
+    {
+      "old_version": "20260916194500",
+      "new_version": "20260916180055",
+      "old_file": "supabase/migrations/20260916194500_remove_unused_platform_auth_flow_transient_state.sql",
+      "file": "supabase/migrations/20260916180055_remove_unused_platform_auth_flow_transient_state.sql",
+      "sha256": "8fad3c0f3a72122a723b80d70e291a2f629fc7d07171272526a32975496c94a4",
+      "reason": "Exact applied SQL verified after removal of final newline"
+    },
+    {
+      "old_version": "20260916225500",
+      "new_version": "20260916225323",
+      "old_file": "supabase/migrations/20260916225500_harden_auto_apply_listing_types.sql",
+      "file": "supabase/migrations/20260916225323_harden_auto_apply_listing_types.sql",
+      "sha256": "e71271066ffc6be9f4ed75c71d208a15fedbf759b77be8fe84031501cc762969",
+      "reason": "Exact applied SQL verified after removal of final newline"
+    },
+    {
+      "new_version": "20260916164356",
+      "file": "supabase/migrations/20260916164356_create_public_auth_pages_bucket.sql",
+      "sha256": "dc8b3752f6afa6d6c6d11099c9cd84e15dae986daa8b4517db9d6cd3d40d7221",
+      "reason": "Exact applied migration SQL export, not executed"
+    },
+    {
+      "new_version": "20260916225711",
+      "file": "supabase/migrations/20260916225711_add_internal_immoscout_canary_invoker.sql",
+      "sha256": "145af68ed81c7cd0baa7aa99f011d452d73d52dedfc8d045982e8473c03e4893",
+      "reason": "Exact applied migration SQL export, not executed"
+    },
+    {
+      "new_version": "20260916225904",
+      "file": "supabase/migrations/20260916225904_set_immoscout_canary_invoker_timeout.sql",
+      "sha256": "8d3f7108be0d4040a907f5c9054ffca096b7cc36577bcb219f3237e0e6af62b1",
+      "reason": "Exact applied migration SQL export, not executed"
+    },
+    {
+      "new_version": "20260916230422",
+      "file": "supabase/migrations/20260916230422_add_internal_application_worker_health_invoker.sql",
+      "sha256": "2a09de658c31703c6da34084431290799562f098ef6db205a025e30b6b7a0c3a",
+      "reason": "Exact applied migration SQL export, not executed"
+    },
+    {
+      "old_version": "20260916230730",
+      "old_file": "supabase/migrations/20260916230730_add_internal_application_canary_invokers.sql",
+      "replacement_versions": [
+        "20260916225711",
+        "20260916225904",
+        "20260916230422"
+      ],
+      "reason": "Repository-only combined export split into exact production migration versions; no database execution"
+    },
+    {
+      "new_version": "20260917015826",
+      "file": "supabase/migrations/20260917015826_notify_immoscout_plus_required.sql",
+      "sha256": "a3f19fd0b2fca39457a8ba2ae185e199866d52c93b8c71cd4fe83643f2e469aa",
+      "reason": "Exact applied migration SQL export, not executed"
+    }
+  ],
+  "additional_exports": [
+    {
+      "version": "20260916092644",
+      "sha256": "af94a0243160d7092f87a786b50a297c024eb288f12d71c1a85fd6410b94d7fe"
+    },
+    {
+      "version": "20260919171615",
+      "sha256": "2ff9949d56d46303937dd038b641f9cb5189625b6f47783dc4f5139999618ec4"
+    }
+  ],
+  "version_count": 211
+}

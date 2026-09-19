@@ -1,11 +1,17 @@
-# Pending crawl-budget rollout
+# Crawl-budget rollout: deployed and merged
 
-Status: tested in the repository; not deployed to Supabase.
+Production: source-worker version 73, deployed 2026-09-19 at 17:37:52 UTC. PR #32 merged into main as e44e6b84f131024274b917777a4dbff4e86f0a2e on the same day.
 
-Preserve source-worker v72 semantics and all fast-lane queries. This change reduces ImmoScout coverage to one partition, prevents same-batch fast records being overwritten by coverage, bounds Wunderflats deep pagination to eight pages and preserves complete-cycle state.
+The production worker keeps all normal fast discovery queries. Scout coverage is one partition per normal run; IDs already handled in the same fast batch are not overwritten by coverage. Request accounting includes two MCP session calls: the previous normal budget was 16 HTTP calls, now 10. Wunderflats keeps page one and at most eight cursor pages, and indexes hrefs once. Catalogue cycle identity/start/last completion are preserved across partial runs. Kleinanzeigen polling and all listing newness guards are unchanged.
 
-Expected request budgets (not billing measurements): Scout normal queries 14 to 8, plus two MCP handshake requests in both cases. Wunderflats first page plus at most eight deep pages per run. No Kleinanzeigen polling change.
+## Observed production evidence
 
-Trade-off: catalogue/full-inventory sweeps take more runs. Wunderflats is relevance-sorted, so deeper-page discovery may be later. Verify cursor progression, completion and new-offer recall; do not present this as latency-neutral.
+- Scout, 17:45:03 UTC: successful crawl, requests=10, session_requests=2, coverage_partitions=1, fresh_lane_items=60, map_errors=0.
+- Wunderflats, 17:45:22 UTC: successful completion, enumerated=reported_total=1375, pages_total=46, pages_checked=9, deep_page_budget=8, coverage_errors=[]. This cycle began before deployment; it is evidence of compatible continuation and completion, not a full fresh-cycle latency benchmark.
+- At 18:16 UTC Scout, Kleinanzeigen, Wunderflats, Hamburger Wohnen, EBV Harburg and Finkenwaerder had successful post-deployment activity without consecutive errors. No newness-invalid pending new listings were present. Existing uncertain Telegram outcomes were not retried.
 
-Rollout requires the complete source-worker bundle, its deno.json/import map and all relative dependencies, preserving existing custom internal authentication. Do not use partial-file deployment or replace the complete bundle with an unauthenticated loader. Verify the published function version, dry run, normal queue progress and error/latency counters before marking production complete. Update recorded deployment hashes only after measuring the deployed files.
+Observed artifact: `1869144f536bf2e0968adc5ecf7a417bdaa5792815520bfb1270270bea0c2bb8`. Entry: `index.js`; import map: `deno.json`; existing custom internal authentication remains in place. This is a compiled multi-file ES module bundle, not a claim that older TypeScript per-file deployment hashes match it byte-for-byte.
+
+## Trade-offs
+
+Wunderflats is relevance sorted. Smaller page budgets can delay discovery on deeper pages. The completion checks above do not prove unchanged recall or a specific CPU/billing saving. No slow-polling policy was applied to other sources. A source-specific long-run comparison requires subsequent real observations, not synthetic successful applications or backdated listings.

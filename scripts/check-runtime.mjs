@@ -48,8 +48,14 @@ async function migrationRegistryEntries(){
   if(error?.code!=='ENOENT')throw error;
  }
  const migrations=[...base.migrations,...fragments];
+ return validateMigrationEntries(migrations);
+}
+export function validateMigrationEntries(migrations){
  const versions=new Set(),files=new Set();
  for(const migration of migrations){
+  if(!/^[0-9]{14}$/.test(migration.version))throw new Error(`Invalid migration version: ${migration.version}`);
+  const expected=`supabase/migrations/${migration.version}_${migration.name}.sql`;
+  if(migration.file!==expected)throw new Error(`Migration filename/version mismatch: ${migration.file}; expected ${expected}`);
   if(versions.has(migration.version))throw new Error(`Duplicate migration version: ${migration.version}`);
   if(files.has(migration.file))throw new Error(`Duplicate migration file: ${migration.file}`);
   versions.add(migration.version);files.add(migration.file);

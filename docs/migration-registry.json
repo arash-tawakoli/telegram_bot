@@ -1306,14 +1306,6 @@
       "vault_substitution": false
     },
     {
-      "version": "20260911093449",
-      "name": "conservative_cross_source_dedupe_guard",
-      "registry_sql_sha256": "76ed5211476e778719cdf53c25634c5335bd39a5521d84020f634a7905255f2b",
-      "file": "supabase/migrations/20260911113000_conservative_cross_source_dedupe_guard.sql",
-      "export_sql_sha256": "76ed5211476e778719cdf53c25634c5335bd39a5521d84020f634a7905255f2b",
-      "vault_substitution": false
-    },
-    {
       "version": "20260913103527",
       "name": "indexed_operational_retention",
       "file": "supabase/migrations/20260913103527_indexed_operational_retention.sql",
