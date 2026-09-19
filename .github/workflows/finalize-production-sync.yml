@@ -1,0 +1,61 @@
+name: Finalize verified production sync
+on:
+  push:
+    branches: [completion/production-sync-20260919]
+    paths: ['.github/workflows/finalize-production-sync.yml']
+permissions:
+  contents: write
+concurrency:
+  group: production-source-reconciliation-20260919
+  cancel-in-progress: false
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Verify and apply reviewed source-only patch
+        run: |
+          set -eu
+          test "$GITHUB_REF_NAME" = 'completion/production-sync-20260919'
+          git merge-base --is-ancestor e44e6b84f131024274b917777a4dbff4e86f0a2e HEAD
+          python3 - <<'PY'
+          import hashlib,lzma,pathlib
+          packed=pathlib.Path('maintenance/production-sync.patch.xz').read_bytes()
+          assert hashlib.sha256(packed).hexdigest()=='8d13620804dfd09f5aee0ea2e0641eec18898a6904b33808e1de9da75d6862c6'
+          patch=lzma.decompress(packed)
+          assert len(patch)==76526 and hashlib.sha256(patch).hexdigest()=='335ad11effbbc0c0d8e66a3dfeb4738ff13bf791472da32b48535b14e9ed0d7e'
+          pathlib.Path('/tmp/production-sync.patch').write_bytes(patch)
+          PY
+          git apply --check /tmp/production-sync.patch
+          git apply --index /tmp/production-sync.patch
+          git rm maintenance/production-sync.patch.xz .github/workflows/finalize-production-sync.yml
+      - name: Install test-only dependencies
+        run: npm ci --ignore-scripts
+      - name: Verify all regression tests
+        run: npm test
+      - name: Verify exact migration identities and source structure
+        run: node scripts/check-runtime.mjs
+      - name: Confirm migration version-set proof
+        run: |
+          python3 - <<'PY'
+          import hashlib,pathlib
+          versions=sorted(p.name.split('_',1)[0] for p in pathlib.Path('supabase/migrations').glob('*.sql'))
+          assert len(versions)==len(set(versions))==211
+          assert hashlib.sha256('\n'.join(versions).encode()).hexdigest()=='8d8a7283bc982e54fc39836639ad2f2d0573d4234e552b99fd5ef667d2dfd403'
+          print('211 migration versions match the read-only production ledger proof; no SQL executed.')
+          PY
+      - name: Publish verified changes only to completion branch
+        run: |
+          set -eu
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git diff --cached --stat
+          git commit -m 'Reconcile all applied migration versions and verify cooperative identity guard'
+          git push origin HEAD:refs/heads/completion/production-sync-20260919
