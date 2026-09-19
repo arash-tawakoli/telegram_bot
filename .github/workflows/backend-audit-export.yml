@@ -15,15 +15,18 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci --ignore-scripts
+      - run: npm install --prefix audit-build --no-save --ignore-scripts esbuild@0.25.11
       - uses: actions/upload-artifact@v4
         with:
           name: backend-audit-snapshot
           retention-days: 1
           path: |
             supabase/
+            clients/
             docs/
             scripts/
             tests/
             package.json
             package-lock.json
             node_modules/@electric-sql/pglite/
+            audit-build/
