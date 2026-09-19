@@ -14,7 +14,7 @@ import { runCatalog } from "./catalog.ts";
 async function processSource(id: number) {
   const { data: source, error } = await db
     .from("sources")
-    .select("*,source_connectors(priority,label,connector_kind,enumerable,shadow_only,config,enabled)")
+    .select("*,source_connectors(priority,label,connector_kind,enumerable,shadow_only,config,enabled,warmed_at)")
     .eq("id", id)
     .eq("enabled", true)
     .eq("runtime_mode", "live")

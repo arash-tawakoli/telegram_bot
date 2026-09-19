@@ -458,12 +458,12 @@
       "files": [
         {
           "path": "supabase/functions/source-worker/index.ts",
-          "sha256": "9a112b65c76ca59935dd468ed784273af5735566f9d224e637b9c833d03ac0dc",
+          "sha256": "7444251c45551902e3bd94a54a292cfd2d27c5adbdece05af522356927855a5e",
           "deployed_sha256": "9a112b65c76ca59935dd468ed784273af5735566f9d224e637b9c833d03ac0dc"
         },
         {
           "path": "supabase/functions/source-worker/shared.ts",
-          "sha256": "36ee9017df1f663a79319ef3b72f0b140311876fcfaf2996bbb1f93c4b892592",
+          "sha256": "49bab77f8994667afc63fa1c1677cff69d3f2ff298e54851bfac9ed9b86f8c4c",
           "deployed_sha256": "36ee9017df1f663a79319ef3b72f0b140311876fcfaf2996bbb1f93c4b892592"
         },
         {
@@ -483,7 +483,7 @@
         },
         {
           "path": "supabase/functions/source-worker/klein.ts",
-          "sha256": "9f41c91f7a45a7677faa0b20985c58fe0eb1a55a6528ec937d7a62ccce56de1b",
+          "sha256": "1070ecb043052a63133a9db41824c721fa5fb2608b3374e8dc32d01f081f1b85",
           "deployed_sha256": "9f41c91f7a45a7677faa0b20985c58fe0eb1a55a6528ec937d7a62ccce56de1b"
         },
         {
@@ -513,7 +513,7 @@
         },
         {
           "path": "supabase/functions/source-worker/generic.ts",
-          "sha256": "c1144853bd33be6a3901ff066b0b0aaaf22b63ad136fad52bff34db1cb99b6d1",
+          "sha256": "5f0f35220cadfef93e2ff9e8f5157ee714c8498a7c4c52cdd3f1932fe9badb31",
           "deployed_sha256": "c1144853bd33be6a3901ff066b0b0aaaf22b63ad136fad52bff34db1cb99b6d1"
         },
         {
@@ -601,7 +601,9 @@
       "retired": false,
       "slug": "source-worker",
       "verify_jwt": false,
-      "version": 68
+      "version": 72,
+      "deployment_observed_at": "2026-09-19T15:02:00Z",
+      "source_sync_note": "Restored v72 ingestion and cycle semantics from inspected production source. Changed file deployment hashes are not independently measured; old recorded hashes remain for drift visibility."
     },
     {
       "entrypoint": "supabase/functions/spacest-feed/index.ts",

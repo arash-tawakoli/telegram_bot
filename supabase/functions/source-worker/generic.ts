@@ -13,7 +13,12 @@ async function databaseQuery(query: PromiseLike<any>) {
 }
 async function persistCandidates(...args: Parameters<typeof upsertCandidates>) {
   try {
-    return await upsertCandidates(...args);
+    return await upsertCandidates(
+      args[0],
+      args[1],
+      args[2] ?? false,
+      args[3] ?? null,
+    );
   } catch (error) {
     throw new CrawlDatabaseError(
       `Listing persistence failed: ${error instanceof Error ? error.message : (error as any)?.message || String(error)}`,
@@ -485,7 +490,7 @@ export async function runGeneric(source: Source, connectors: Connector[]) {
       cands: Candidate[] = [],
       complete = true,
       meta: any = { connector_attempts: [] },
-      savedOverride: { seen: number; fresh: number } | null = null,
+      savedOverride: { seen: number; fresh: number; keys: string[] } | null = null,
       primaryTrustedSnapshot = false,
       successfulLaneCount = 0;
     const attempted = new Set<string>(),
@@ -528,7 +533,8 @@ export async function runGeneric(source: Source, connectors: Connector[]) {
         else fresh.push(x.c);
       }
       let seen = 0,
-        created = 0;
+        created = 0,
+        persistedKeys: string[] = [];
       for (const [rows, eligible] of [
         [yes, true],
         [no, false],
@@ -538,22 +544,15 @@ export async function runGeneric(source: Source, connectors: Connector[]) {
         const r = await persistCandidates(source, rows, eligible);
         seen += r.seen;
         created += r.fresh;
+        persistedKeys.push(...(r.keys || []));
       }
-      return { seen, fresh: created };
+      return {
+        seen,
+        fresh: created,
+        keys: [...new Set(persistedKeys)],
+      };
     };
-    const laneWasWarmed = async (c: Connector) => {
-      const { data } = await databaseQuery(
-        db
-          .from("crawl_runs")
-          .select("id")
-          .eq("source_id", source.id)
-          .eq("connector_priority", c.priority)
-          .eq("connector_label", c.label)
-          .eq("success", true)
-          .limit(1),
-      );
-      return !!data?.length;
-    };
+    const laneWasWarmed = async (c: Connector) => !!c.warmed_at;
     const recordLane = async (
       c: Connector,
       laneStarted: string,
@@ -563,26 +562,26 @@ export async function runGeneric(source: Source, connectors: Connector[]) {
       error: string | null,
       extra: any = {},
     ) => {
-      await databaseQuery(
-        db
-          .from("crawl_runs")
-          .insert({
-            source_id: source.id,
-            started_at: laneStarted,
-            finished_at: iso(),
-            success,
-            connector_priority: c.priority,
-            connector_label: c.label,
-            fetched_count: fetched,
-            inserted_count: fresh,
-            error_message: error ? error.slice(0, 1500) : null,
-            metadata: {
-              architecture: "v3",
-              additive_connector: true,
-              ...extra,
-            },
-          }),
-      );
+      const { error: laneError } = await db.rpc("record_connector_lane_result", {
+        p_source_id: source.id,
+        p_started_at: laneStarted,
+        p_finished_at: iso(),
+        p_success: success,
+        p_connector_priority: c.priority,
+        p_connector_label: c.label,
+        p_fetched_count: fetched,
+        p_inserted_count: fresh,
+        p_metadata: {
+          architecture: "v3",
+          additive_connector: true,
+          ...extra,
+        },
+        p_error: error ? error.slice(0, 1500) : null,
+      });
+      if (laneError)
+        throw new CrawlDatabaseError(
+          `Connector lane persistence failed: ${laneError.message}`,
+        );
     };
     for (const c of connectors) {
       if (c.shadow_only) continue;
@@ -632,6 +631,9 @@ export async function runGeneric(source: Source, connectors: Connector[]) {
               saturated = 0;
               sitemapRequests = IMMOWELT_ROOM_SITEMAPS.length;
             }
+            const cycleStartedAt = newCycle
+              ? started
+              : String(st?.cycle_started_at || started);
             const work = queue.splice(0, 8),
               [frontRs, deepRs] = await Promise.all([
                 Promise.all(
@@ -662,11 +664,12 @@ export async function runGeneric(source: Source, connectors: Connector[]) {
             const all = [...eligibility.values()],
               rest = all.filter((x) => !x.eligible).map((x) => x.c),
               deliverable = all.filter((x) => x.eligible).map((x) => x.c),
-              restSaved = await persistCandidates(source, rest, false),
+              restSaved = await persistCandidates(source, rest, false, cycleStartedAt),
               deliverableSaved = await persistCandidates(
                 source,
                 deliverable,
                 true,
+                cycleStartedAt,
               ),
               deepSaturated = deepRs.filter(
                 (x) => x.total != null && Number(x.total) > x.cands.length,
@@ -680,6 +683,7 @@ export async function runGeneric(source: Source, connectors: Connector[]) {
             savedOverride = {
               seen: restSaved.seen + deliverableSaved.seen,
               fresh: restSaved.fresh + deliverableSaved.fresh,
+              keys: [...new Set([...(restSaved.keys || []), ...(deliverableSaved.keys || [])])],
             };
             cands = all.map((x) => x.c);
             meta = {
@@ -712,9 +716,7 @@ export async function runGeneric(source: Source, connectors: Connector[]) {
                     saturated,
                     baseline_done: baselineDoneNext,
                   },
-                  cycle_started_at: newCycle
-                    ? started
-                    : st?.cycle_started_at || started,
+                  cycle_started_at: cycleStartedAt,
                   cycle_finished_at: cycleDone ? t : null,
                   last_complete_at: cycleDone
                     ? t
@@ -743,8 +745,16 @@ export async function runGeneric(source: Source, connectors: Connector[]) {
               .eq("source_id", source.id)
               .maybeSingle(),
           );
-          let page = Math.max(2, Number(st?.cursor?.page || 2)),
-            cycle = st?.cycle_id || crypto.randomUUID();
+          const newPaginationCycle = !st?.cycle_id || st?.status === "complete";
+          let page = newPaginationCycle
+              ? 2
+              : Math.max(2, Number(st?.cursor?.page || 2)),
+            cycle = newPaginationCycle
+              ? crypto.randomUUID()
+              : String(st.cycle_id),
+            cycleStartedAt = newPaginationCycle
+              ? started
+              : String(st?.cycle_started_at || started);
           const front = await parseOne(
             source,
             c,
@@ -770,11 +780,13 @@ export async function runGeneric(source: Source, connectors: Connector[]) {
               source,
               front.cands,
               frontFresh,
+              cycleStartedAt,
             ),
-            deepSaved = await persistCandidates(source, deep, false);
+            deepSaved = await persistCandidates(source, deep, false, cycleStartedAt);
           savedOverride = {
             seen: frontSaved.seen + deepSaved.seen,
             fresh: frontSaved.fresh + deepSaved.fresh,
+            keys: [...new Set([...(frontSaved.keys || []), ...(deepSaved.keys || [])])],
           };
           cands = [...front.cands, ...deep];
           const next = page + 4,
@@ -788,7 +800,7 @@ export async function runGeneric(source: Source, connectors: Connector[]) {
                 strategy: "pagination",
                 status: done ? "complete" : "running",
                 cursor: { page: done ? 2 : next, max: detected },
-                cycle_started_at: st?.cycle_started_at || started,
+                cycle_started_at: cycleStartedAt,
                 cycle_finished_at: done ? iso() : null,
                 last_complete_at: done ? iso() : st?.last_complete_at || null,
                 updated_at: iso(),
@@ -876,6 +888,7 @@ export async function runGeneric(source: Source, connectors: Connector[]) {
         savedOverride = {
           seen: (savedOverride?.seen || 0) + r.seen,
           fresh: (savedOverride?.fresh || 0) + r.fresh,
+          keys: [...new Set([...(savedOverride?.keys || []), ...(r.keys || [])])],
         };
         cands.push(...x.cands);
         successfulLaneCount++;
@@ -928,15 +941,37 @@ export async function runGeneric(source: Source, connectors: Connector[]) {
       picked.enumerable &&
       source.baseline_completed_at &&
       picked.priority === effectivePrimaryPriority
-    )
-      await databaseQuery(
-        db
-          .from("listings")
-          .update({ is_active: false })
-          .eq("source_id", source.id)
-          .eq("is_active", true)
-          .lt("last_seen_at", started),
-      );
+    ) {
+      if (source.coverage_strategy === "pagination") {
+        const { data: coverageState } = await databaseQuery(
+          db
+            .from("source_coverage_state")
+            .select("cycle_started_at")
+            .eq("source_id", source.id)
+            .maybeSingle(),
+        );
+        await databaseQuery(
+          db
+            .from("listings")
+            .update({ is_active: false })
+            .eq("source_id", source.id)
+            .eq("is_active", true)
+            .lt("last_seen_at", coverageState?.cycle_started_at || started),
+        );
+      } else {
+        const { error: reconcileError } = await db.rpc(
+          "deactivate_missing_source_listings",
+          {
+            p_source_id: source.id,
+            p_keys: saved.keys || [],
+          },
+        );
+        if (reconcileError)
+          throw new CrawlDatabaseError(
+            `Snapshot reconciliation failed: ${reconcileError.message}`,
+          );
+      }
+    }
     const freshDeliveryMode =
       source.coverage_strategy === "pagination"
         ? meta.freshness_mode

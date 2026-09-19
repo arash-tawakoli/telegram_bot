@@ -34,6 +34,7 @@ export type Connector = {
   enumerable: boolean;
   shadow_only: boolean;
   config: any;
+  warmed_at?: string | null;
 };
 export type Candidate = {
   key?: string;
@@ -591,6 +592,7 @@ export async function upsertCandidates(
   source: Source,
   cands: Candidate[],
   freshDeliveryEligible = false,
+  presenceEpoch: string | null = null,
 ) {
   const map = new Map<string, any>();
   for (const c of cands) {
@@ -601,19 +603,24 @@ export async function upsertCandidates(
     } catch {}
   }
   const rows = [...map.values()];
-  if (!rows.length) return { seen: 0, fresh: 0 };
+  if (!rows.length) return { seen: 0, fresh: 0, keys: [] as string[] };
   let fresh = 0;
   for (let i = 0; i < rows.length; i += 100) {
     const result = checked(
-      await db.rpc("ingest_listing_batch", {
+      await db.rpc("ingest_listing_batch_v3", {
         p_source_id: source.id,
         p_rows: rows.slice(i, i + 100),
+        p_presence_epoch: presenceEpoch,
       }),
-      "ingest listing batch",
+      "ingest listing batch v3",
     );
     fresh += Number(result.fresh);
   }
-  return { seen: rows.length, fresh };
+  return {
+    seen: rows.length,
+    fresh,
+    keys: rows.map((r: any) => String(r.source_listing_key)),
+  };
 }
 export async function markSuccess(
   source: Source,

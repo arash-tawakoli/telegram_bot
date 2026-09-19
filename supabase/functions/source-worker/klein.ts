@@ -15,7 +15,7 @@ function parsePage(h:string){const dates=listingDates(h),items:Candidate[]=[];le
 
 async function fetchPage(s:string,id:number,p:number,retries=1,allowEmpty=false){let last:any=null;for(let attempt=1;attempt<=retries+1;attempt++){try{const r=await fetchListingPage(url(s,id,p),AbortSignal.timeout(15000));if(!r.ok)throw new Error(`Kleinanzeigen transport HTTP ${r.status}`);const upstream=Number(r.headers.get('x-upstream-status')||0),h=await r.text();if(upstream!==200)throw new Error(`Kleinanzeigen upstream HTTP ${upstream||'unknown'}`);const parsed=parsePage(h);if(parsed.opens===0)throw new Error(`Kleinanzeigen empty result HTML ${s} page ${p}`);if(parsed.items.length===0&&!allowEmpty)throw new Error(`Kleinanzeigen parser accepted 0/${parsed.opens} ${s} page ${p}`);return{h,items:parsed.items,opens:parsed.opens,attempts:attempt}}catch(e){last=e;if(attempt<=retries)await sleep(1500)}}throw last}
 
-async function upsertCoverage(source:Source,cands:Candidate[]){const saved=cands.length?await upsertCandidates(source,cands,false):{seen:0,fresh:0};return{...saved,newEligible:0}}
+async function upsertCoverage(source:Source,cands:Candidate[],presenceEpoch:string){const saved=cands.length?await upsertCandidates(source,cands,false,presenceEpoch):{seen:0,fresh:0,keys:[] as string[]};return{...saved,newEligible:0}}
 
 export async function runKlein(source:Source){const started=iso();try{
   let{data:st}=await db.from('source_coverage_state').select('*').eq('source_id',2).maybeSingle().throwOnError();
@@ -23,6 +23,7 @@ export async function runKlein(source:Source){const started=iso();try{
   const cycle=legacy?crypto.randomUUID():String(st.cycle_id);
   const cursor:any=legacy?{v:2,district:0,page:2,pages:{},totals:{},fast_checked_at:null}:st.cursor;
   if(legacy){await db.from('source_coverage_state').upsert({source_id:2,cycle_id:cycle,strategy:'district_hybrid',status:'running',cursor,cycle_started_at:started,cycle_finished_at:null,seen_count:0,request_count:0,consecutive_errors:0,backoff_until:null,last_error:null,updated_at:started}).throwOnError();st={...st,cycle_id:cycle,cycle_started_at:started,seen_count:0,request_count:0,status:'running',cursor}}
+  const presenceEpoch=String(st?.cycle_started_at||started);
 
   const pages:any={...(cursor.pages||{})},totals:any={...(cursor.totals||{})};
   const initializing=D.some(([s])=>!Number(pages[s]));
@@ -35,7 +36,7 @@ export async function runKlein(source:Source){const started=iso();try{
       await sleep(REQUEST_GAP_MS);
     }
   }
-  const fastSaved=fastItems.length?await upsertCandidates(source,fastItems,true):{seen:0,fresh:0};
+  const fastSaved=fastItems.length?await upsertCandidates(source,fastItems,true,presenceEpoch):{seen:0,fresh:0,keys:[] as string[]};
   const missing=D.filter(([s])=>!Number(pages[s])).map(([s])=>s);
   const fastCheckedAt=fastDue&&!fastErrors.length?iso():cursor.fast_checked_at||null;
   if(missing.length){const msg=`missing first pages: ${missing.join(', ')}${fastErrors.length?` | ${fastErrors.join(' | ')}`:''}`.slice(0,1000);await db.from('source_coverage_state').update({status:'running',cursor:{...cursor,pages,totals,fast_checked_at:fastCheckedAt},expected_count:Object.values(totals).reduce((a:any,x:any)=>a+Number(x||0),0),request_count:Number(st?.request_count||0)+fastRequests,consecutive_errors:Number(st?.consecutive_errors||0)+1,backoff_until:null,updated_at:iso(),last_error:msg}).eq('source_id',2).throwOnError();throw new Error(`Kleinanzeigen first-page coverage incomplete: ${msg}`)}
@@ -50,8 +51,8 @@ export async function runKlein(source:Source){const started=iso();try{
     try{const r=await fetchPage(s,id,currentPage,1,true);coverageRequests=r.attempts;coverageOpens=r.opens;coverageItems=r.items.map(x=>({...x,raw:{...x.raw,lane:'coverage'}}));page++;if(page>Number(pages[s]||1)){district++;page=2}}
     catch(e){coverageRequests=2;coverageError=e instanceof Error?e.message:String(e)}
   }
-  const coverageSaved=await upsertCoverage(source,coverageItems);
-  const complete=district>=D.length&&!coverageError,t=iso(),cycleStarted=String(st?.cycle_started_at||started);
+  const coverageSaved=await upsertCoverage(source,coverageItems,presenceEpoch);
+  const complete=district>=D.length&&!coverageError,t=iso(),cycleStarted=presenceEpoch;
   if(complete)await db.from('listings').update({is_active:false}).eq('source_id',2).eq('is_active',true).lt('last_seen_at',cycleStarted).throwOnError();
 
   const requests=fastRequests+coverageRequests;
