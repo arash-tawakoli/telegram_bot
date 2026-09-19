@@ -46,3 +46,27 @@ test('old parser baselines cannot turn newly recovered deep-page inventory into 
  await load({db,iso:()=>new Date().toISOString(),fetch,upsertCandidates:async(_,rows,flag)=>{fresh=flag;assert.ok(rows.every(r=>!r.raw.catalog_baseline_verified));return{fresh:0}},markSuccess:async()=>{},markFailure:async(_,__,e)=>{throw e}}).runCatalog({id:10,baseline_completed_at:'2026-09-01'},{config:{adapter:'source-worker/wunder-catalog',url:'https://wunderflats.com/de/moeblierte-wohnungen/hamburg'}});
  assert.equal(fresh,false);assert.equal(savedState.cursor.parser_revision,'2026-09-08-v2');assert.equal(savedState.cursor.baseline_done,true);
 });
+// The first page remains fresh on every run, while deep pages resume by cursor.
+test('Wunder budget resumes without resetting cycle or last completion',async()=>{
+ const url='https://wunderflats.com/de/moeblierte-wohnungen/hamburg';
+ const clock='2026-09-19T15:30:00.000Z';
+ let state={cycle_id:'stable-cycle',cycle_started_at:'2026-09-19T15:00:00.000Z',last_complete_at:'2026-09-19T14:00:00.000Z',cursor:{adapter:'source-worker/wunder-catalog',url,parser_revision:'2026-09-08-v2',baseline_done:true,next_page:10,seen_ids:Array.from({length:18},(_,i)=>(i+1).toString().padStart(24,'0'))}};
+ const requests=[];let metadata;
+ const db={from(){const q={select(){return q},eq(){return q},maybeSingle(){return q},upsert(value){state=value;return q},throwOnError:async()=>({data:state})};return q}};
+ const fetch=async raw=>{const path=new URL(raw).pathname;const page=Number(path.match(/\/(\d+)$/)?.[1]||1);requests.push(page);const ids=[page*2-1,page*2].map(x=>x.toString().padStart(24,'0'));return new Response(wunder(page,ids,40))};
+ const api=load({db,iso:()=>clock,fetch,upsertCandidates:async()=>({fresh:0}),markSuccess:async(...args)=>{metadata=args[5]},markFailure:async(_,__,e)=>{throw e}});
+ await api.runCatalog({id:10,baseline_completed_at:'2026-09-01'},{config:{adapter:'source-worker/wunder-catalog',url}});
+ assert.deepEqual(requests,[1,10,11,12,13,14,15,16,17]);
+ assert.equal(state.cursor.next_page,18);assert.equal(state.cycle_id,'stable-cycle');
+ assert.equal(state.cycle_started_at,'2026-09-19T15:00:00.000Z');
+ assert.equal(state.last_complete_at,'2026-09-19T14:00:00.000Z');
+ assert.equal(state.status,'running');assert.equal(metadata.deep_page_budget,8);
+});
+
+test('Wunder href indexing preserves exact IDs and first matching URL',()=>{
+ const html=wunder(1,[a,b]);
+ const before=`<a href="/de/moebliertes-apartment/first/${a}">first</a>`;
+ const result=load().parseWunderCatalog(before+html,1);
+ assert.equal(result.candidates[0].url,`https://wunderflats.com/de/moebliertes-apartment/first/${a}`);
+ assert.equal(result.candidates[1].url,`https://wunderflats.com/de/moebliertes-apartment/wohnung/${b}`);
+});

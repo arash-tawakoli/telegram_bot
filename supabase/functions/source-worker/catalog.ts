@@ -32,10 +32,18 @@ export function parseWunderCatalog(html:string,page:number):Page{
   if(r?.region?.slug!=='hamburg'||r.page!==page-1||!Number.isInteger(r.total)||r.total<0||!Number.isInteger(r.itemsPerPage)||r.itemsPerPage<1||!Array.isArray(r.items))throw new Error('Wunderflats pagination schema invalid');
   if(r.items.length!==Math.min(r.itemsPerPage,Math.max(0,r.total-r.page*r.itemsPerPage)))throw new Error('Wunderflats truncated page');
   const candidates:Candidate[]=[],keys:string[]=[];
+  // Build the canonical URL lookup once, not once per apartment.
+  const hrefById=new Map<string,string>();
+  for(const m of html.matchAll(/href=["']([^"']+)["']/g)){
+    const href=m[1];
+    if(!href.includes('/de/moebliertes-apartment/'))continue;
+    const id=href.split('?')[0].split('/').at(-1);
+    if(id&&!hrefById.has(id))hrefById.set(id,href);
+  }
   for(const x of r.items){
     if(!/^[a-f0-9]{24}$/.test(x._id))throw new Error('Wunderflats listing identity missing');keys.push(x._id);
     if(x.address?.city!=='Hamburg')continue;
-    const href=[...html.matchAll(/href=["']([^"']+)["']/g)].map(m=>m[1]).find(u=>u.includes(`/de/moebliertes-apartment/`)&&u.split('?')[0].endsWith('/'+x._id));
+    const href=hrefById.get(x._id);
     if(!href)throw new Error('Wunderflats canonical URL missing');
     const u=new URL(href,'https://wunderflats.com');u.search='';
     candidates.push({key:x._id,url:u.href,title:x.title?.de||x.title?.en,address:x.address.street?`${x.address.street}, Hamburg`:'Hamburg',rooms:positive(x.rooms),area:positive(x.area),furnished:true,image:x.images?.[0]?.urls?.original,raw:{provider:'wunderflats_catalog',advertised_monthly_price:x.currency==='EUR'&&Number.isInteger(x.price)&&x.price>0?x.price/100:null,price_currency:x.currency,price_components_verified:false}});
@@ -92,11 +100,15 @@ export async function runCatalog(source:Source,c:Connector){
       }
       const r=await fetchText(u.href);return source.id===21?parseSwapCatalog(r.text,page):parseCityCatalog(r.text)};
     const deadline=Date.now()+25000;const front=await load(1);if(front.pages>1000)throw new Error('Catalog page count exceeds verified budget');
-    const {data:st}=await db.from('source_coverage_state').select('cursor').eq('source_id',source.id).maybeSingle().throwOnError();
+    const {data:st}=await db.from('source_coverage_state').select('cursor,cycle_id,cycle_started_at,last_complete_at').eq('source_id',source.id).maybeSingle().throwOnError();
     const same=st?.cursor?.adapter===adapter&&st?.cursor?.url===base,old=same?st.cursor:{},warmed=old.baseline_done===true&&old.parser_revision==='2026-09-08-v2';
     let next=Number(warmed?old.next_page||2:old.parser_revision==='2026-09-08-v2'?old.next_page||2:2);const seen=new Set<string>(old.parser_revision==='2026-09-08-v2'&&Array.isArray(old.seen_ids)?old.seen_ids:[]),pages=[front],errors:any[]=[];front.keys.forEach(k=>seen.add(k));
-    const width=source.id===10?1:4,firstNext=next;for(let start=next;start<=Math.min(front.pages,firstNext+31)&&Date.now()<deadline;start+=width){
-      const batch=Array.from({length:Math.min(width,front.pages-start+1,firstNext+32-start)},(_,i)=>start+i);
+    const width=source.id===10?1:4,firstNext=next,deepBudget=source.id===10?8:32;
+    const resumeCycle=same&&old.parser_revision==='2026-09-08-v2'&&firstNext>2;
+    const cycleId=resumeCycle?(st?.cycle_id||crypto.randomUUID()):crypto.randomUUID();
+    const cycleStartedAt=resumeCycle?(st?.cycle_started_at||started):started;
+    for(let start=next;start<=Math.min(front.pages,firstNext+deepBudget-1)&&Date.now()<deadline;start+=width){
+      const batch=Array.from({length:Math.min(width,front.pages-start+1,firstNext+deepBudget-start)},(_,i)=>start+i);
       const results=await Promise.allSettled(batch.map(load));
       for(let i=0;i<results.length;i++){const result=results[i];if(result.status==='fulfilled'&&result.value.total===front.total&&result.value.pages===front.pages){pages.push(result.value);result.value.keys.forEach(k=>seen.add(k))}else errors.push({page:batch[i],error:String(result.status==='rejected'?result.reason:'inventory total changed').slice(0,250)})}
       if(errors.length)break;next=batch.at(-1)!+1;
@@ -104,8 +116,8 @@ export async function runCatalog(source:Source,c:Connector){
     const traversed=next>front.pages,complete=traversed&&!errors.length&&seen.size===front.total;
     const rows=new Map<string,Candidate>();for(const page of pages)for(const row of page.candidates)rows.set(String(row.key),{...row,raw:{...row.raw,catalog_baseline_verified:warmed&&source.id!==21}});
     const saved=await upsertCandidates(source,[...rows.values()],warmed&&source.id!==21&&!!source.baseline_completed_at);
-    await db.from('source_coverage_state').upsert({source_id:source.id,cycle_id:crypto.randomUUID(),strategy:'public_catalog',status:complete?'complete':'running',cursor:{adapter,url:base,parser_revision:'2026-09-08-v2',next_page:traversed?2:next,seen_ids:traversed?[]:[...seen],baseline_done:warmed||complete},seen_count:seen.size,request_count:pages.length+errors.length,cycle_started_at:started,cycle_finished_at:complete?iso():null,last_complete_at:complete?iso():null,updated_at:iso(),last_error:errors.length?JSON.stringify(errors):null}).throwOnError();
-    await markSuccess(source,started,c,rows.size,saved.fresh,{adapter,complete,reported_total:front.total,enumerated:seen.size,pages_total:front.pages,pages_checked:pages.length,coverage_errors:errors,baseline_verified:warmed,freshness_mode:source.id===21?'publication_time_unverified_no_delivery':'new_id_after_complete_route_baseline',outcome:complete?'success_with_listing':'partial_inventory'});
+    await db.from('source_coverage_state').upsert({source_id:source.id,cycle_id:cycleId,strategy:'public_catalog',status:complete?'complete':'running',cursor:{adapter,url:base,parser_revision:'2026-09-08-v2',next_page:traversed?2:next,seen_ids:traversed?[]:[...seen],baseline_done:warmed||complete},seen_count:seen.size,request_count:pages.length+errors.length,cycle_started_at:cycleStartedAt,cycle_finished_at:complete?iso():null,last_complete_at:complete?iso():(st?.last_complete_at||null),updated_at:iso(),last_error:errors.length?JSON.stringify(errors):null}).throwOnError();
+    await markSuccess(source,started,c,rows.size,saved.fresh,{adapter,complete,reported_total:front.total,enumerated:seen.size,pages_total:front.pages,pages_checked:pages.length,deep_page_budget:deepBudget,coverage_errors:errors,baseline_verified:warmed,freshness_mode:source.id===21?'publication_time_unverified_no_delivery':'new_id_after_complete_route_baseline',outcome:complete?'success_with_listing':'partial_inventory'});
     return {ok:true,source_id:source.id,fetched:rows.size,new:saved.fresh,complete};
   }catch(e){return markFailure(source,started,e)}
 }
