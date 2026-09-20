@@ -11,7 +11,7 @@ SQL übernimmt Qualitätsprüfung, Dubletten, Profil-Matching und den zentralen 
 
 Telegram-Eingaben laufen über Gateway/Fast-Pfad zur UI beziehungsweise Premium-Verarbeitung. Inbox-Claims und Versuchsnummern schützen vor doppelter Verarbeitung. Stripe-Webhooks und Billing-Maintenance verwalten Abonnements getrennt von der Wohnungszustellung.
 
-Der bestehende Bewerbungsbereich bleibt erhalten: private Dokumente und Plattform-Sessions, eigene Claims und ein bedarfsgesteuerter `application-worker`. Seine Browser-Integration wurde bei diesem Audit nicht mit echten Bewerbungen getestet oder verändert.
+Der Bewerbungsbereich arbeitet ausschließlich als Auto-Bewerbung: private Dokumente und Plattform-Sessions, eigene Claims und ein bedarfsgesteuerter `application-worker`. Neue Bewerbungen werden nur durch den qualifizierten `new_listing`-Delivery-Trigger für Nutzer mit aktivierter Auto-Bewerbung erzeugt. Ein manueller Listing-spezifischer Ein-Klick-/Schnellbewerbungs-Pfad existiert nicht; der Preview-Button „Auto-Bewerbung“ öffnet ausschließlich die Auto-Bewerbungsverwaltung. Seine Browser-Integration wurde bei diesem Audit nicht mit echten Bewerbungen getestet oder verändert.
 
 ## Zuverlässigkeitsgrenzen
 
