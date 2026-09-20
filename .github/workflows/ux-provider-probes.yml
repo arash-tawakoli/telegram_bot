@@ -1,0 +1,45 @@
+name: UX category read-only fixtures
+on:
+  push:
+    branches: ['ux/onboarding-category-speed-20260920']
+    paths: ['.github/workflows/ux-provider-probes.yml']
+permissions:
+  contents: read
+jobs:
+  probes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Read public category pages
+        run: |
+          mkdir -p fixtures-out
+          node --input-type=module <<'JS'
+          import {writeFile} from 'node:fs/promises';
+          const urls={
+           klein_house:'https://www.kleinanzeigen.de/s-haus-mieten/hamburg/anzeige:angebote/c205l9409?sortingField=SORTING_DATE',
+           klein_room:'https://www.kleinanzeigen.de/s-auf-zeit-wg/hamburg/anzeige:angebote/c199l9409?sortingField=SORTING_DATE',
+           wg_room:'https://www.wg-gesucht.de/wg-zimmer-in-Hamburg.55.0.1.0.html',
+           ohne_house:'https://www.ohne-makler.net/immobilien/haus-mieten/hamburg/',
+           changelog:'https://supabase.com/changelog.md'
+          };
+          const results=[];
+          for(const [name,url] of Object.entries(urls)){
+           try{const r=await fetch(url,{headers:{'user-agent':'Mozilla/5.0 (compatible; TraumwohnungHamburgBot/13.0; +https://traumwohnunghamburg.de)','accept-language':'de-DE,de;q=0.9'},signal:AbortSignal.timeout(18000)});const b=await r.text();await writeFile(`fixtures-out/${name}.txt`,b);results.push({name,url:r.url,status:r.status,bytes:b.length,at:new Date().toISOString()});}catch(e){results.push({name,error:String(e)})}
+          }
+          await writeFile('fixtures-out/results.json',JSON.stringify(results,null,2));
+          JS
+      - name: Pinned build utility
+        run: |
+          mkdir build-utils
+          npm install --prefix build-utils --no-audit --no-fund esbuild@0.25.11
+          tar -czf fixtures-out/build-utils.tar.gz build-utils
+          sha256sum fixtures-out/* > fixtures-out/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ux-public-category-fixtures
+          path: fixtures-out/
+          retention-days: 2
