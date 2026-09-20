@@ -4,7 +4,7 @@ import {readFileSync} from 'node:fs';
 
 const category=readFileSync(new URL('../supabase/functions/source-worker/category.ts',import.meta.url),'utf8');
 const klein=readFileSync(new URL('../supabase/functions/source-worker/klein.ts',import.meta.url),'utf8');
-const migration=readFileSync(new URL('../supabase/migrations/20260920183500_enable_verified_category_streams.sql',import.meta.url),'utf8');
+const migration=readFileSync(new URL('../supabase/migrations/20260920170532_enable_verified_category_streams.sql',import.meta.url),'utf8');
 
 test('category discovery uses all verified production adapters',()=>{
   assert.match(category,/stream\.adapter==='scout'/);
