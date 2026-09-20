@@ -1,7 +1,9 @@
 import { home, premium, settings } from "./navigation.js";
-import { db, PROPERTY_TYPES, RENT_PRESETS, ROOM_PRESETS, AREA_PRESETS, NEIGHBORHOODS_PER_PAGE, finiteOrNull, esc, money, button, cancelRow, backRow, send, edit, saveState, geography } from "./runtime.js";
+import { db, PROPERTY_TYPES, RENT_PRESETS, ROOM_PRESETS, AREA_PRESETS, ROOM_AREA_PRESETS, NEIGHBORHOODS_PER_PAGE, finiteOrNull, esc, money, button, cancelRow, backRow, send, edit, saveState, geography } from "./runtime.js";
 export function emptyDraft(profileSlot = 1) {
     return {
+        _flow: crypto.randomUUID().replace(/-/g, "").slice(0, 12),
+        _revision: 0,
         profile_slot: Math.max(1, Math.min(3, Number(profileSlot) || 1)),
         property_types: [],
         location_mode: null,
@@ -11,6 +13,7 @@ export function emptyDraft(profileSlot = 1) {
         max_warm_rent: null,
         min_rooms: null,
         min_area_sqm: null,
+        min_room_area_sqm: null,
     };
 }
 
@@ -26,6 +29,8 @@ export function normalizeDraft(raw) {
             ? "neighborhoods"
             : null;
     return {
+        _flow: /^[a-f0-9]{12}$/.test(String(raw?._flow || "")) ? String(raw._flow) : crypto.randomUUID().replace(/-/g, "").slice(0, 12),
+        _revision: Number.isInteger(Number(raw?._revision)) ? Math.max(0, Number(raw._revision)) : 0,
         profile_slot: Math.max(1, Math.min(3, Number(raw?.profile_slot) || 1)),
         property_types: Array.from(new Set(propertyTypes)),
         location_mode: ["all_hamburg", "boroughs", "neighborhoods"].includes(String(raw?.location_mode || ""))
@@ -43,6 +48,7 @@ export function normalizeDraft(raw) {
         max_warm_rent: finiteOrNull(raw?.max_warm_rent ?? raw?.rent),
         min_rooms: finiteOrNull(raw?.min_rooms ?? raw?.rooms),
         min_area_sqm: finiteOrNull(raw?.min_area_sqm ?? raw?.area),
+        min_room_area_sqm: finiteOrNull(raw?.min_room_area_sqm),
         edit_return: raw?.edit_return === true,
         profile_edit: raw?.profile_edit === true,
     };
@@ -50,6 +56,26 @@ export function normalizeDraft(raw) {
 
 export function draftFor(user) {
     return normalizeDraft(user?.onboarding_state || {});
+}
+
+function hasRoomType(draft) {
+    return draft.property_types.includes("WG");
+}
+
+function hasStandardType(draft) {
+    return draft.property_types.some((value) => value !== "WG");
+}
+
+export function nextAfterRent(draft) {
+    return hasStandardType(draft) ? "rooms" : "roomarea";
+}
+
+function nextAfterArea(draft) {
+    return hasRoomType(draft) ? "roomarea" : "review";
+}
+
+async function saveDraft(user, step, draft) {
+    return saveState(user.id, step, draft, user.request_update_id, user.request_attempt);
 }
 
 export function validateDraft(draft) {
@@ -69,17 +95,24 @@ export function validateDraft(draft) {
         draft.max_warm_rent > 5000) {
         return "rent";
     }
-    if (draft.min_rooms == null || !ROOM_PRESETS.has(draft.min_rooms)) {
+    if (hasStandardType(draft) &&
+        (draft.min_rooms == null || !ROOM_PRESETS.has(draft.min_rooms))) {
         return "rooms";
     }
-    if (draft.min_area_sqm == null || !AREA_PRESETS.has(draft.min_area_sqm)) {
+    if (hasStandardType(draft) &&
+        (draft.min_area_sqm == null || !AREA_PRESETS.has(draft.min_area_sqm))) {
         return "area";
+    }
+    if (hasRoomType(draft) &&
+        (draft.min_room_area_sqm == null ||
+            !ROOM_AREA_PRESETS.has(draft.min_room_area_sqm))) {
+        return "roomarea";
     }
     return null;
 }
 
 export async function renderTypes(user, chatId, messageId, draft) {
-    await saveState(user.id, "types", draft);
+    await saveDraft(user, "types", draft);
     const rows = PROPERTY_TYPES.map((value) => [
         button(`${draft.property_types.includes(value) ? "✅ " : ""}${value}`, `type:${value}`),
     ]);
@@ -95,7 +128,7 @@ export async function renderTypes(user, chatId, messageId, draft) {
 }
 
 export async function renderLocation(user, chatId, messageId, draft) {
-    await saveState(user.id, "location", draft);
+    await saveDraft(user, "location", draft);
     return edit(chatId, messageId, "2/5 · <b>Wo möchtest du suchen?</b>", {
         inline_keyboard: [
             [button(`${draft.location_mode === "all_hamburg" ? "✅ " : ""}🌐 Ganz Hamburg`, "loc:all")],
@@ -109,7 +142,7 @@ export async function renderLocation(user, chatId, messageId, draft) {
 
 export async function renderBoroughs(user, chatId, messageId, draft) {
     const geo = await geography();
-    await saveState(user.id, "boroughs", draft);
+    await saveDraft(user, "boroughs", draft);
     const rows = [];
     for (let index = 0; index < geo.boroughs.length; index += 2) {
         rows.push(geo.boroughs.slice(index, index + 2).map((borough) => button(`${draft.borough_ids.includes(borough.id) ? "✅ " : ""}${borough.name}`, `borough:${borough.id}`)));
@@ -126,7 +159,7 @@ export async function renderNeighborhoods(user, chatId, messageId, draft) {
     const pages = Math.max(1, Math.ceil(geo.neighborhoods.length / NEIGHBORHOODS_PER_PAGE));
     const page = Math.max(0, Math.min(draft.neighborhood_page, pages - 1));
     draft.neighborhood_page = page;
-    await saveState(user.id, "neighborhoods", draft);
+    await saveDraft(user, "neighborhoods", draft);
     const entries = geo.neighborhoods.slice(page * NEIGHBORHOODS_PER_PAGE, (page + 1) * NEIGHBORHOODS_PER_PAGE);
     const rows = [];
     for (let index = 0; index < entries.length; index += 2) {
@@ -144,7 +177,7 @@ export async function renderNeighborhoods(user, chatId, messageId, draft) {
 }
 
 export async function renderRent(user, chatId, messageId, draft) {
-    await saveState(user.id, "rent", draft);
+    await saveDraft(user, "rent", draft);
     const customSelected = draft.max_warm_rent != null &&
         !RENT_PRESETS.has(draft.max_warm_rent);
     return edit(chatId, messageId, "3/5 · <b>Maximale Warmmiete</b>", {
@@ -167,7 +200,7 @@ export async function renderRent(user, chatId, messageId, draft) {
 }
 
 export async function renderCustomRent(user, chatId, messageId, draft) {
-    await saveState(user.id, "rent_custom", draft);
+    await saveDraft(user, "rent_custom", draft);
     const current = draft.max_warm_rent != null
         ? `\n\nAktuell gespeichert: <b>${esc(money(draft.max_warm_rent))}</b>`
         : "";
@@ -175,7 +208,9 @@ export async function renderCustomRent(user, chatId, messageId, draft) {
 }
 
 export async function renderRooms(user, chatId, messageId, draft) {
-    await saveState(user.id, "rooms", draft);
+    if (!hasStandardType(draft))
+        return renderRoomArea(user, chatId, messageId, draft);
+    await saveDraft(user, "rooms", draft);
     return edit(chatId, messageId, "4/5 · <b>Mindestens wie viele Zimmer?</b>", {
         inline_keyboard: [
             [
@@ -193,7 +228,9 @@ export async function renderRooms(user, chatId, messageId, draft) {
 }
 
 export async function renderArea(user, chatId, messageId, draft) {
-    await saveState(user.id, "area", draft);
+    if (!hasStandardType(draft))
+        return renderRoomArea(user, chatId, messageId, draft);
+    await saveDraft(user, "area", draft);
     return edit(chatId, messageId, "5/5 · <b>Mindestfläche</b>", {
         inline_keyboard: [
             [
@@ -205,6 +242,28 @@ export async function renderArea(user, chatId, messageId, draft) {
                 button(`${draft.min_area_sqm === 90 ? "✅ " : ""}90 m²`, "area:90"),
             ],
             backRow(draft.profile_edit ? `profile:edit:${draft.profile_slot}` : "rooms"),
+            cancelRow(),
+        ],
+    });
+}
+
+export async function renderRoomArea(user, chatId, messageId, draft) {
+    if (!hasRoomType(draft))
+        return renderReview(user, chatId, messageId, draft);
+    await saveDraft(user, "roomarea", draft);
+    const selected = draft.min_room_area_sqm;
+    return edit(chatId, messageId, "🏠 <b>WG-Zimmer · Mindestgröße</b>\n\nWie groß soll dein eigenes Zimmer mindestens sein?", {
+        inline_keyboard: [
+            [
+                button(`${selected === 0 ? "✅ " : ""}Egal`, "roomarea:0"),
+                button(`${selected === 10 ? "✅ " : ""}10 m²+`, "roomarea:10"),
+            ],
+            [
+                button(`${selected === 12 ? "✅ " : ""}12 m²+`, "roomarea:12"),
+                button(`${selected === 15 ? "✅ " : ""}15 m²+`, "roomarea:15"),
+            ],
+            [button(`${selected === 20 ? "✅ " : ""}20 m²+`, "roomarea:20")],
+            backRow(draft.profile_edit ? `profile:edit:${draft.profile_slot}` : (hasStandardType(draft) ? "area" : "rent")),
             cancelRow(),
         ],
     });
@@ -258,25 +317,36 @@ export async function renderReview(user, chatId, messageId, draft) {
     if (issue)
         return renderStep(user, chatId, messageId, draft, issue);
     const places = await selectedPlaces(draft);
-    await saveState(user.id, "review", draft);
-    const text = "✅ <b>Suchprofil prüfen</b>\n\n" +
-        `🏠 <b>Typ:</b> ${esc(draft.property_types.join(", "))}\n` +
-        `📍 <b>Gebiet:</b> ${esc(places.location)}\n` +
-        `💶 <b>Warmmiete:</b> bis ${esc(money(draft.max_warm_rent))}\n` +
-        `🚪 <b>Zimmer:</b> ${esc(draft.min_rooms)}+\n` +
-        `📐 <b>Fläche:</b> ${esc(draft.min_area_sqm)} m²+`;
-    return edit(chatId, messageId, text, {
-        inline_keyboard: [
-            [button("✅ Suche aktivieren", "profile:save")],
-            [button("🏠 Typ", "edit:types"), button("📍 Gebiet", "edit:location")],
-            [button("💶 Miete", "edit:rent"), button("🚪 Zimmer", "edit:rooms")],
-            [button("📐 Fläche", "edit:area")],
-            backRow("area"),
-            cancelRow(),
-        ],
+    await saveDraft(user, "review", draft);
+    const standard = hasStandardType(draft);
+    const room = hasRoomType(draft);
+    const details = [
+        `🏠 <b>Typ:</b> ${esc(draft.property_types.join(", "))}`,
+        `📍 <b>Gebiet:</b> ${esc(places.location)}`,
+        `💶 <b>Warmmiete:</b> bis ${esc(money(draft.max_warm_rent))}`,
+        ...(standard ? [
+            `🚪 <b>Zimmer:</b> ${esc(draft.min_rooms)}+`,
+            `📐 <b>Fläche:</b> ${esc(draft.min_area_sqm)} m²+`,
+        ] : []),
+        ...(room ? [
+            `🛏 <b>WG-Zimmer:</b> ${draft.min_room_area_sqm === 0 ? "Größe egal" : `ab ${esc(draft.min_room_area_sqm)} m²`}`,
+        ] : []),
+    ];
+    const rows = [
+        [button("✅ Suche aktivieren", "profile:save")],
+        [button("🏠 Typ", "edit:types"), button("📍 Gebiet", "edit:location")],
+        [button("💶 Miete", "edit:rent")],
+        ...(standard ? [
+            [button("🚪 Zimmer", "edit:rooms"), button("📐 Fläche", "edit:area")],
+        ] : []),
+        ...(room ? [[button("🛏 WG-Zimmergröße", "edit:roomarea")]] : []),
+        backRow(room ? "roomarea" : "area"),
+        cancelRow(),
+    ];
+    return edit(chatId, messageId, "✅ <b>Suchprofil prüfen</b>\n\n" + details.join("\n"), {
+        inline_keyboard: rows,
     });
 }
-
 export function renderStep(user, chatId, messageId, draft, step) {
     if (step === "types")
         return renderTypes(user, chatId, messageId, draft);
@@ -296,6 +366,8 @@ export function renderStep(user, chatId, messageId, draft, step) {
         return renderRooms(user, chatId, messageId, draft);
     if (step === "area")
         return renderArea(user, chatId, messageId, draft);
+    if (step === "roomarea")
+        return renderRoomArea(user, chatId, messageId, draft);
     return renderReview(user, chatId, messageId, draft);
 }
 
@@ -320,12 +392,31 @@ export async function persistProfile(user, draft) {
         throw new Error(`incomplete profile: ${issue}`);
     const places = await selectedPlaces(draft);
     const slot = Math.max(1, Math.min(profileLimit(user), Number(draft.profile_slot) || 1));
-    const { count: profileCount, error: profileCountError } = await db
-        .from("search_profiles")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id);
-    if (profileCountError)
-        throw profileCountError;
+    const values = {
+        ...draft,
+        profile_slot: slot,
+        districts: places.districts,
+        boroughs: places.boroughs,
+        neighborhoods: places.neighborhoods,
+        min_rooms: hasStandardType(draft) ? draft.min_rooms : 0,
+        min_area_sqm: hasStandardType(draft) ? draft.min_area_sqm : 0,
+        min_room_area_sqm: hasRoomType(draft) ? draft.min_room_area_sqm : 0,
+    };
+    if (user.request_update_id != null && user.request_attempt != null &&
+        /^[a-f0-9]{12}$/.test(String(user.onboarding_state?._flow || draft._flow || ""))) {
+        const { data, error } = await db.rpc("save_search_profile_ui", {
+            p_user: user.id,
+            p_update_id: user.request_update_id,
+            p_attempt: user.request_attempt,
+            p_values: values,
+        });
+        if (error)
+            throw error;
+        for (const key of Object.keys(draft))
+            delete draft[key];
+        return data || null;
+    }
+
     const { error } = await db.from("search_profiles").upsert({
         user_id: user.id,
         profile_slot: slot,
@@ -336,24 +427,21 @@ export async function persistProfile(user, draft) {
         boroughs: places.boroughs,
         neighborhoods: places.neighborhoods,
         max_warm_rent: draft.max_warm_rent,
-        min_rooms: draft.min_rooms,
-        min_area_sqm: draft.min_area_sqm,
+        min_rooms: values.min_rooms,
+        min_area_sqm: values.min_area_sqm,
+        min_room_area_sqm: values.min_room_area_sqm,
         wbs_only: false,
         furnished_preference: "any",
         updated_at: new Date().toISOString(),
     }, { onConflict: "user_id,profile_slot" });
     if (error)
         throw error;
-    await saveState(user.id, null, {});
-    if (true) {
-        const { data: referralReward, error: referralError } = await db.rpc("complete_referral_reward", { p_referred_user_id: user.id });
-        if (referralError)
-            throw referralError;
-        return referralReward || null;
-    }
-    return null;
+    await saveState(user.id, null, user.onboarding_state || {}, user.request_update_id, user.request_attempt);
+    const { data: referralReward, error: referralError } = await db.rpc("complete_referral_reward", { p_referred_user_id: user.id });
+    if (referralError)
+        throw referralError;
+    return referralReward || null;
 }
-
 export function profileLimit(user) { return user.is_premium ? 3 : 1; }
 
 export function profileLocation(current) {
@@ -390,6 +478,7 @@ export async function draftFromProfile(current) {
         max_warm_rent: current.max_warm_rent,
         min_rooms: current.min_rooms,
         min_area_sqm: current.min_area_sqm,
+        min_room_area_sqm: current.min_room_area_sqm,
         profile_edit: true,
     });
 }
@@ -424,19 +513,22 @@ export async function profileEditMenu(user, chatId, messageId, selectedSlot) {
     if (!current)
         return profile(user, chatId, messageId);
     await saveState(user.id, null, {});
+    const types = Array.isArray(current.property_types) ? current.property_types : [];
+    const standard = types.some((value) => value !== "WG");
+    const room = types.includes("WG");
     const text = "✏️ <b>Suchprofil ändern</b>\n\n" +
         "Wähle, was du ändern möchtest. Deine aktuell gespeicherten Werte bleiben vorausgewählt.\n\n" +
-        `🏠 <b>Typ:</b> ${esc((current.property_types || []).join(", "))}\n` +
+        `🏠 <b>Typ:</b> ${esc(types.join(", "))}\n` +
         `📍 <b>Gebiet:</b> ${esc(profileLocation(current))}\n` +
-        `💶 <b>Warmmiete:</b> bis ${esc(money(current.max_warm_rent))}\n` +
-        `🚪 <b>Zimmer:</b> ${esc(current.min_rooms ?? "–")}+\n` +
-        `📐 <b>Fläche:</b> ${esc(current.min_area_sqm ?? "–")} m²+`;
+        `💶 <b>Warmmiete:</b> bis ${esc(money(current.max_warm_rent))}` +
+        (standard ? `\n🚪 <b>Zimmer:</b> ${esc(current.min_rooms ?? "–")}+\n📐 <b>Fläche:</b> ${esc(current.min_area_sqm ?? "–")} m²+` : "") +
+        (room ? `\n🛏 <b>WG-Zimmer:</b> ${Number(current.min_room_area_sqm || 0) > 0 ? `ab ${esc(current.min_room_area_sqm)} m²` : "Größe egal"}` : "");
     const markup = { inline_keyboard: [
             [button("🏠 Wohnungsart", `profile:edit-field:${selectedSlot}:types`)],
             [button("📍 Gebiet", `profile:edit-field:${selectedSlot}:location`)],
             [button("💶 Warmmiete", `profile:edit-field:${selectedSlot}:rent`)],
-            [button("🚪 Zimmer", `profile:edit-field:${selectedSlot}:rooms`)],
-            [button("📐 Fläche", `profile:edit-field:${selectedSlot}:area`)],
+            ...(standard ? [[button("🚪 Zimmer", `profile:edit-field:${selectedSlot}:rooms`), button("📐 Fläche", `profile:edit-field:${selectedSlot}:area`)]] : []),
+            ...(room ? [[button("🛏 WG-Zimmergröße", `profile:edit-field:${selectedSlot}:roomarea`)]] : []),
             [button("← Zurück", `profile:view:${selectedSlot}`)],
         ] };
     return edit(chatId, messageId, text, markup);
@@ -453,13 +545,16 @@ export async function profile(user, chatId, messageId, selectedSlot) {
         if (!current)
             return profile(user, chatId, messageId);
         const location = profileLocation(current);
+        const types = Array.isArray(current.property_types) ? current.property_types : [];
+        const standard = types.some((value) => value !== "WG");
+        const room = types.includes("WG");
         const text = `🔎 <b>${esc(current.name || `Meine Suche ${selectedSlot}`)}</b>\n\n` +
             `Status: ${current.is_active ? "aktiv" : "pausiert"}\n` +
-            `Typ: ${esc((current.property_types || []).join(", "))}\n` +
+            `Typ: ${esc(types.join(", "))}\n` +
             `Gebiet: ${esc(location)}\n` +
-            `Warmmiete: bis ${esc(money(current.max_warm_rent))}\n` +
-            `Zimmer: ${esc(current.min_rooms ?? "–")}+\n` +
-            `Fläche: ${esc(current.min_area_sqm ?? "–")} m²+`;
+            `Warmmiete: bis ${esc(money(current.max_warm_rent))}` +
+            (standard ? `\nZimmer: ${esc(current.min_rooms ?? "–")}+\nFläche: ${esc(current.min_area_sqm ?? "–")} m²+` : "") +
+            (room ? `\nWG-Zimmer: ${Number(current.min_room_area_sqm || 0) > 0 ? `ab ${esc(current.min_room_area_sqm)} m²` : "Größe egal"}` : "");
         const markup = { inline_keyboard: [
                 [button("✏️ Suchprofil ändern", `profile:edit:${selectedSlot}`)],
                 [button(current.is_active ? "⏸ Pausieren" : "▶️ Fortsetzen", current.is_active ? `profile:pause:${selectedSlot}` : `profile:resume:${selectedSlot}`)],
