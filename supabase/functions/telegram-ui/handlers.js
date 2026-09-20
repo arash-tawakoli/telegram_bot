@@ -75,10 +75,10 @@ export async function handleMessage(message, user) {
         }
         if (draft.edit_return) {
             delete draft.edit_return;
-            return renderReview(user, chatId, message.message_id, draft);
+            return renderReview(user, chatId, undefined, draft);
         }
         if (includesWG(draft)) {
-            await saveState(user.id, "roomarea", draft);
+            await saveState(user.id, "roomarea", draft, user.request_update_id, user.request_attempt);
             return send(chatId, "🛏 <b>Wie groß soll dein WG-Zimmer mindestens sein?</b>\n\nDas ist die Fläche deines Zimmers – nicht die Gesamtfläche der WG.", {
                 inline_keyboard: [
                     [button("Egal", "roomarea:0"), button("8 m²+", "roomarea:8")],
@@ -88,7 +88,7 @@ export async function handleMessage(message, user) {
                 ],
             });
         }
-        await saveState(user.id, "rooms", draft);
+        await saveState(user.id, "rooms", draft, user.request_update_id, user.request_attempt);
         return send(chatId, "🚪 <b>Wie viele Zimmer brauchst du mindestens?</b>", {
             inline_keyboard: [
                 [button("1+", "rooms:1"), button("2+", "rooms:2")],
@@ -213,7 +213,7 @@ export async function handleCallback(query, user) {
     if (data === "noop")
         return;
     if (data === "cancel") {
-        await saveState(user.id, null, {});
+        await saveState(user.id, null, user.onboarding_state || {}, user.request_update_id, user.request_attempt);
         return home({ ...user, onboarding_step: null, onboarding_state: {} }, chatId, messageId);
     }
     if (data === "home") {
