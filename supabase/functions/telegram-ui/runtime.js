@@ -27,6 +27,8 @@ export const ROOM_PRESETS = new Set([1, 2, 3, 4]);
 
 export const AREA_PRESETS = new Set([20, 50, 70, 90]);
 
+export const ROOM_AREA_PRESETS = new Set([0, 10, 12, 15, 20]);
+
 export const NEIGHBORHOODS_PER_PAGE = 10;
 
 export const SAVED_PAGE_SIZE = 8;
@@ -160,8 +162,13 @@ export async function edit(chatId, messageId, text, replyMarkup) {
             reply_markup: localizeMarkup(replyMarkup, chatLanguages.get(chatId)),
         });
     }
-    catch {
-        return send(chatId, text, replyMarkup);
+    catch (error) {
+        const message = String(error || "");
+        if (/message is not modified/i.test(message))
+            return null;
+        if (/message to edit not found|message can't be edited|there is no text in the message to edit/i.test(message))
+            return send(chatId, text, replyMarkup);
+        throw error;
     }
 }
 
@@ -229,17 +236,42 @@ export async function withPlan(user, subscription = undefined) {
     return { ...user, is_premium: !!premium, subscription };
 }
 
-export async function saveState(userId, step, draft) {
+export async function saveState(userId, step, draft, updateId = null, attempt = null) {
+    const state = draft && typeof draft === "object" ? draft : {};
+    if (updateId != null && attempt != null) {
+        const revision = Number(state._revision || 0);
+        const { data, error } = await db.rpc("save_ui_state", {
+            p_user: userId,
+            p_update_id: updateId,
+            p_attempt: attempt,
+            p_step: step,
+            p_state: state,
+            p_revision: Number.isFinite(revision) ? revision : 0,
+        });
+        if (error)
+            throw error;
+        if (step === null) {
+            for (const key of Object.keys(state))
+                delete state[key];
+        }
+        else if (data && typeof data === "object") {
+            for (const key of Object.keys(state))
+                delete state[key];
+            Object.assign(state, data);
+        }
+        return data;
+    }
     const { error } = await db
         .from("bot_users")
         .update({
         onboarding_step: step,
-        onboarding_state: draft,
+        onboarding_state: state,
         updated_at: new Date().toISOString(),
     })
         .eq("id", userId);
     if (error)
         throw error;
+    return state;
 }
 
 export async function geography() {
@@ -273,8 +305,8 @@ export const HELP_TEXT = "❓ <b>Hilfe & Befehle</b>\n\n" +
     "💎 /premium – Premium anzeigen\n" +
     "❓ /hilfe – Hilfe";
 
-export async function finishUpdate(updateId,attempt,success,error=null) {
- const {data,error:rpcError}=await db.rpc('finish_telegram_update',{p_update_id:updateId,p_attempt:attempt,p_success:success,p_error:error});
+export async function finishUpdate(updateId,attempt,success,error=null,timings={}) {
+ const {data,error:rpcError}=await db.rpc('finish_ui_update',{p_update_id:updateId,p_attempt:attempt,p_success:success,p_error:error,p_timings:timings||{}});
  if(rpcError) throw rpcError;
  if(!data) throw new Error('Telegram update lease lost');
 }
