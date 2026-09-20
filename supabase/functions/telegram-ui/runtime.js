@@ -26,6 +26,7 @@ export const RENT_PRESETS = new Set([800, 1000, 1250, 2000]);
 export const ROOM_PRESETS = new Set([1, 2, 3, 4]);
 
 export const AREA_PRESETS = new Set([20, 50, 70, 90]);
+export const ROOM_AREA_PRESETS = new Set([0, 8, 10, 12, 15, 20]);
 
 export const NEIGHBORHOODS_PER_PAGE = 10;
 
@@ -160,8 +161,13 @@ export async function edit(chatId, messageId, text, replyMarkup) {
             reply_markup: localizeMarkup(replyMarkup, chatLanguages.get(chatId)),
         });
     }
-    catch {
-        return send(chatId, text, replyMarkup);
+    catch (error) {
+        const message = String(error?.message || error || "");
+        if (/message is not modified/i.test(message))
+            return null;
+        if (/message to edit not found|message can't be edited|message_id_invalid/i.test(message))
+            return send(chatId, text, replyMarkup);
+        throw error;
     }
 }
 
