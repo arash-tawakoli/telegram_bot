@@ -64,7 +64,7 @@ export async function runKlein(source:Source){const started=iso();try{
   }
   const coverageSaved=await upsertCoverage(source,coverageItems,presenceEpoch);
   const complete=district>=D.length&&!coverageError,t=iso(),cycleStarted=presenceEpoch;
-  if(complete)await db.from('listings').update({is_active:false}).eq('source_id',2).eq('is_active',true).lt('last_seen_at',cycleStarted).throwOnError();
+  if(complete)await db.from('listings').update({is_active:false}).eq('source_id',2).eq('is_active',true).or('property_kind.is.null,property_kind.eq.apartment').lt('last_seen_at',cycleStarted).throwOnError();
 
   const requests=fastRequests+coverageRequests;
   const seenIncrement=coverageSaved.seen+(initializing?fastSaved.seen:0);
@@ -87,7 +87,12 @@ export async function runKleinCategory(source:Source,stream:any){
   for(const c of parsed.items){
     const title=String(c.title||'');
     if(stream.category==='house'&&(!/\b(Haus|Einfamilienhaus|Reihenhaus|Doppelhaus|Doppelhaushälfte|Villa|Bungalow)\b/i.test(title)||/\b(Kauf|kaufen|Mietkauf|Bauen statt Mieten|Grundstück)\b/i.test(title)))continue;
-    if(stream.category==='room'&&!/\b(WG(?:-Zimmer)?|Zimmer|Mitbewohner(?:in)?)\b/i.test(title))continue;
+    if(stream.category==='room'){
+      const roomSignal=/\b(?:WG(?:[- ]?Zimmer)?|Privatzimmer|Mitbewohner(?:in)?|Untermiet(?:e|er)?|Zimmer)\b/i.test(title);
+      const wholeUnit=/\b(?:gesamte|komplette)\s+(?:Unterkunft|Wohnung)\b|\b\d+[ -]?Zimmer[ -]?Wohnung\b|\bApartment\b/i.test(title);
+      const strongRoom=/\b(?:WG(?:[- ]?Zimmer)?|Privatzimmer|Mitbewohner(?:in)?|Untermiet(?:e|er)?)\b/i.test(title);
+      if(!roomSignal||(wholeUnit&&!strongRoom))continue;
+    }
     const published=sortingDateIso(String(c.raw?.sorting_date||'')),kind=String(stream.category);
     const x:Candidate={...c,type:kind==='house'?'Haus':'WG',raw:{...c.raw,category_stream:kind,_classification:{version:1,kind,mode:'rent'},...(published?{_newness:{method:'source_timestamp',source_published_at:published}}:{})}};
     const fresh=!!stream.baseline_at&&!!published&&now-new Date(published).getTime()>=-5*60*1000&&now-new Date(published).getTime()<=24*60*60*1000;
