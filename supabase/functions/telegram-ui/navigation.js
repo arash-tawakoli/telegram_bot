@@ -3,15 +3,16 @@ import { profile } from "./profiles.js";
 import { db, PREMIUM_LINK, SAVED_PAGE_SIZE, short, button, send, edit, sendPremiumPreview, editPremiumPreview } from "./runtime.js";
 export function homeKeyboard(user) {
     const rows = [
+        [button("🔎 Suche & Filter", "profile")],
         [
-            button("🔎 Suchprofil", "profile"),
-            button(user.is_premium ? "⭐️ Gespeichert" : "🔒 ⭐️ Gespeichert", "saved"),
+            button(user.is_premium ? "⭐ Gespeichert" : "🔒 ⭐ Gespeichert", "saved"),
+            button("⚡ Auto-Bewerbung", "platforms"),
         ],
         [
             button("⚙️ Einstellungen", "settings"),
             button("❓ Hilfe", "help"),
         ],
-        [button("💎 30 Tage Premium für 0 €", "referral")],
+        [button("🎁 30 Tage Premium kostenlos", "referral")],
     ];
     return { inline_keyboard: rows };
 }
@@ -88,11 +89,11 @@ export async function saved(user, chatId, messageId, requestedPage = 0) {
         rows.push([button(label, "noop")]);
     }
     rows.push([
-        button("← Zurück", `saved:${Math.max(0, page - 1)}`),
+        button("‹ Vorherige", `saved:${Math.max(0, page - 1)}`),
         button(`${page + 1}/${pages}`, "noop"),
-        button("Weiter →", `saved:${Math.min(pages - 1, page + 1)}`),
+        button("Nächste ›", `saved:${Math.min(pages - 1, page + 1)}`),
     ]);
-    rows.push([button("✖️ Abbrechen", "home")]);
+    rows.push([button("← Start", "home")]);
     const text = `⭐️ <b>Gespeicherte Inserate</b>\n\n${total} · Seite ${page + 1}/${pages}`;
     const markup = { inline_keyboard: rows };
     return messageId
@@ -143,12 +144,12 @@ export async function languagePage(user, chatId, messageId) {
 }
 
 export async function settings(user, chatId, messageId) {
-    const text = "⚙️ <b>Einstellungen</b>\n\nVerwalte hier Premium, Sprache und Systemstatus.";
+    const text = "⚙️ <b>Einstellungen</b>\n\nKonten, Sprache, Premium und Systeminformationen.";
     const markup = { inline_keyboard: [
-            [button("⚡ Automatische Bewerbung", "platforms")],
-            [button(user.is_premium ? "💎 Premium aktiv" : "💎 Premium", "premium")],
-            [button("🌐 Sprachen", "language"), button("📡 Systemstatus", "status")],
-            [button("← Zurück", "home")],
+            [button("⚡ Bewerbung & Konten", "platforms")],
+            [button("🌐 Sprache", "language"), button(user.is_premium ? "💎 Premium aktiv" : "💎 Premium", "premium")],
+            [button("📡 Systemstatus", "status")],
+            [button("← Start", "home")],
         ] };
     return messageId ? edit(chatId, messageId, text, markup) : send(chatId, text, markup);
 }
