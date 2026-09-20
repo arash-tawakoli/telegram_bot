@@ -35,3 +35,17 @@ No claim is made that every visible Telegram update will be under 100 ms. Telegr
 - No application submission, billing mutation, source crawl or delivery behavior is changed.
 - Static telemetry stores only update id, Telegram user id, callback action, timing numbers and Edge region; it does not copy the full Telegram payload.
 - New telemetry RPCs are service-role only.
+
+## Isolated canary verification
+
+A separate `telegram-gateway-v3-canary` bundle was deployed before touching the production webhook. With the function forced to `eu-west-1` and invoked twice through the same authenticated code path:
+
+- cold static Home response: 238 ms (includes first worker secret warmup)
+- warm static Home response: 68 ms
+- returned method: `editMessageText`
+- recorded DB time for static path: 0 ms
+- recorded render time: 1 ms
+- Edge region: `eu-west-1`
+- no persistent synthetic user or event data retained
+
+This canary is a server-side runtime check, not a guarantee of Telegram client-visible latency. Telegram transport remains external.
