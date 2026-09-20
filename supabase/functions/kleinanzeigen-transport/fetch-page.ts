@@ -3,7 +3,7 @@ const UA='Mozilla/5.0 (compatible; TraumwohnungHamburgBot/13.0; +https://traumwo
 export async function fetchListingPage(raw: string, signal?: AbortSignal): Promise<Response> {
   try {
     const url=new URL(raw);
-    if(url.protocol!=='https:' || url.hostname!=='www.kleinanzeigen.de' || url.port || url.username || url.password || !url.pathname.startsWith('/s-wohnung-mieten/'))
+    if(url.protocol!=='https:' || url.hostname!=='www.kleinanzeigen.de' || url.port || url.username || url.password || !/^\/s-(?:wohnung-mieten|haus-mieten|auf-zeit-wg)\//.test(url.pathname))
       return new Response('invalid target',{status:400});
     const response=await fetch(url.href,{
       redirect:'follow',
