@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {likelyFastAction,renderFast} from '../supabase/functions/telegram-gateway/fast-ui.ts';
+import {isStaticFastAction,likelyFastAction,renderFast,renderStaticFast} from '../supabase/functions/telegram-gateway/fast-ui.ts';
 
 const update={callback_query:{message:{chat:{id:1},message_id:2}}};
 const base={fast:true,claim:1,user:{id:'u',ui_language:'de'},is_premium:false,state:{property_types:['Haus'],location_mode:'all_hamburg',max_warm_rent:2000,min_rooms:2,min_area_sqm:50},data:{}};
@@ -60,4 +60,19 @@ test('borough selection uses markup-only updates',()=>{
  const r=renderFast({...base,view:'boroughs',state:{borough_ids:[1]},data:{boroughs:[{id:1,name:'Hamburg-Mitte'},{id:2,name:'Altona'}]}},{callback_query:{data:'borough:1',message:{chat:{id:1},message_id:2}}});
  assert.equal(r.method,'editMessageReplyMarkup');
  assert.match(r.reply_markup.inline_keyboard[0][0].text,/✅/);
+});
+
+test('German home settings and help use DB-free locale-tagged navigation',()=>{
+ for(const action of ['home:de','settings:de','help:de'])assert.equal(isStaticFastAction(action),true,action);
+ for(const action of ['home','settings','help','home:en'])assert.equal(isStaticFastAction(action),false,action);
+ const home=renderStaticFast('home:de',update);
+ assert.equal(home.method,'editMessageText');
+ const callbacks=home.reply_markup.inline_keyboard.flat().map(x=>x.callback_data).filter(Boolean);
+ assert.ok(callbacks.includes('settings:de'));
+ assert.ok(callbacks.includes('help:de'));
+ assert.equal(callbacks.includes('home'),false);
+ const settings=renderStaticFast('settings:de',update);
+ assert.equal(settings.reply_markup.inline_keyboard.at(-1)[0].callback_data,'home:de');
+ const help=renderStaticFast('help:de',update);
+ assert.equal(help.reply_markup.inline_keyboard[0][0].callback_data,'home:de');
 });

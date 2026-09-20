@@ -1,0 +1,12 @@
+{
+  "migrations": [
+    {
+      "version": "20260920214817",
+      "name": "telegram_static_navigation_fast_path",
+      "file": "supabase/migrations/20260920214817_telegram_static_navigation_fast_path.sql",
+      "registry_sql_sha256": "5909c41cbf84af77949d6db976f9f423009f20b36f2a558558fea99be037ca01",
+      "export_sql_sha256": "5909c41cbf84af77949d6db976f9f423009f20b36f2a558558fea99be037ca01",
+      "vault_substitution": false
+    }
+  ]
+}
