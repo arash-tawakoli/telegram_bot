@@ -2,7 +2,7 @@
 
 ## Ziel und Sicherheitsgrenze
 
-Die Premium-Bewerbungsfunktion ergänzt die bestehende manuelle Schnellbewerbung um private, wiederverwendbare Plattformsitzungen für ImmoScout24 und Kleinanzeigen. Nutzer melden sich selbst in einem Browserfenster der Plattform an; der Bot speichert keine Passwörter. Automatischer Versand bleibt hinter Premium, individueller Freigabe, bestehender Listing-Berechtigung, Dokumentfreigaben und einem irreversiblen Send-Checkpoint abgesichert.
+Die Premium-Bewerbungsfunktion verwendet private, wiederverwendbare Plattformsitzungen für ImmoScout24 und Kleinanzeigen. Nutzer melden sich selbst in einem Browserfenster der Plattform an; der Bot speichert keine Passwörter. Seit 21.09.2026 existiert kein manueller Ein-Klick-Bewerbungspfad mehr: Bewerbungen entstehen ausschließlich über die aktivierte Auto-Bewerbung für qualifizierte neue Listings. Automatischer Versand bleibt hinter Premium, individueller Freigabe, bestehender Listing-Berechtigung, Dokumentfreigaben und einem irreversiblen Send-Checkpoint abgesichert.
 
 ## Laufzeit
 
