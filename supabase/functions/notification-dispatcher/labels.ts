@@ -17,9 +17,10 @@ const de = {
   rooms: "Zimmer",
   area: "Wohnfläche",
   offer: "Angebot",
-  save: "❤️ Speichern",
-  saved: "❤️ Gespeichert",
-  maps: "📍 Google Maps",
+  save: "Speichern",
+  saved: "Gespeichert",
+  maps: "Google Map",
+  auto_apply: "Auto-Bewerbung",
 };
 const en = {
   ...de,
@@ -41,8 +42,10 @@ const en = {
   rooms: "Rooms",
   area: "Living area",
   offer: "Listing",
-  save: "❤️ Save",
-  saved: "❤️ Saved",
+  save: "Save",
+  saved: "Saved",
+  maps: "Google Map",
+  auto_apply: "Auto-apply",
 };
 export const LABELS: any = {
   de,
