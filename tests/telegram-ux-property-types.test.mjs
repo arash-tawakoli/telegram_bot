@@ -23,8 +23,11 @@ const files=[
 
 test('changed JavaScript and TypeScript files parse',()=>{
  for(const file of files){
-  const args=file.endsWith('.ts')?['--experimental-strip-types','--check',file]:['--check',file];
-  const r=spawnSync(process.execPath,args,{encoding:'utf8'});
+  if(file.endsWith('.ts')){
+   assert.doesNotThrow(()=>stripTypeScriptTypes(readFileSync(file,'utf8'),{mode:'strip'}),file);
+   continue;
+  }
+  const r=spawnSync(process.execPath,['--check',file],{encoding:'utf8'});
   assert.equal(r.status,0,`${file}: ${r.stderr}`);
  }
 });
