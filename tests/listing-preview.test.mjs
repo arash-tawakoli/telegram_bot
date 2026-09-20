@@ -7,10 +7,9 @@ import * as facts from '../supabase/functions/notification-dispatcher/source-fac
 import {previewOperations,deliverPreview,sourcePhoto} from '../supabase/functions/notification-dispatcher/preview-delivery.ts';
 import {TelegramFailure} from '../supabase/functions/notification-dispatcher/telegram-request.ts';
 import {label} from '../supabase/functions/notification-dispatcher/labels.ts';
-import {quickApplyButton} from '../supabase/functions/telegram-ui/application-message.js';
 const base='https://example.test/expose/42';
 const source=readFileSync(new URL('../supabase/functions/notification-dispatcher/index.ts',import.meta.url),'utf8');
-const scope={...facts,label,quickApplyButton,URL,Date,console};
+const scope={...facts,label,URL,Date,console};
 vm.runInNewContext(stripTypeScriptTypes(source.slice(source.indexOf('function esc('),source.indexOf('async function enrich('))),scope);
 const listing=(raw={},rest={})=>({id:'l',title:'Wohnung',canonical_url:base,raw,...rest});
 test('binary image signatures accept real octet-stream photos, not HTML or spoofed MIME',async()=>{
@@ -115,7 +114,7 @@ test('tenant destination prefers concrete offers and validates registration fall
  const sources={source_type:'Baugenossenschaft',source_connectors:[{enabled:true,priority:1,config:{tenant_registration_url:portal}}]};
  const l=listing({}, {sources});
  assert.equal(scope.kb(l,'de',true).inline_keyboard[0][0].url,portal);
- assert.equal(scope.kb(l,'de',true).inline_keyboard[0][0].text,'ImmoMio-Registrierung');
+ assert.equal(scope.kb(l,'de',true).inline_keyboard[0][0].text,'Angebot');
  assert.equal(scope.kb({...l,canonical_url:direct},'de',true).inline_keyboard[0][0].url,direct);
  assert.equal(scope.kb({...l,raw:{applicationLink:direct}},'de',true).inline_keyboard[0][0].url,direct);
  assert.equal(scope.kb(l,'de',false).inline_keyboard[0][0].callback_data,'premium');

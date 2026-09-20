@@ -1,4 +1,3 @@
-import { quickApplication } from './application.js';
 import { platformSessions, handleAutoApplyMessage } from './platform-sessions.js';
 import { isAdmin, adminGrantLabel, adminPremiumNotice, adminUsers, adminUser, setUserBlocked, deleteUser, setPlanOverride } from "./admin.js";
 import { homeKeyboard, home, premium, saved, setPaused, toggleSave, referralPage, languagePage, settings } from "./navigation.js";
@@ -209,7 +208,6 @@ export async function handleCallback(query, user) {
     }
     EdgeRuntime.waitUntil(ack());
     if (data === 'platforms' || data.startsWith('platforms:')) return platformSessions(user,query.message.chat,query.message?.photo?undefined:messageId,data);
-    if (data.startsWith('apply:')) return quickApplication(user, query);
     if (data === "noop")
         return;
     if (data === "cancel") {

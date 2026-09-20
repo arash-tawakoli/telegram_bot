@@ -1,33 +1,45 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
-import {quickApplyButton,applicationTarget} from '../supabase/functions/telegram-ui/application-message.js';
+import {existsSync,readFileSync} from 'node:fs';
+import {previewOperations} from '../supabase/functions/notification-dispatcher/preview-delivery.ts';
 
-const id='123e4567-e89b-12d3-a456-426614174000';
-
-test('quick apply action is present for every active listing source',()=>{
-  assert.deepEqual(quickApplyButton({id,is_active:true,source_id:16,canonical_url:'https://example.com/listing/1'}),{
-    text:'⚡ Schnellbewerbung',callback_data:`apply:${id}`,
-  });
-  assert.equal(quickApplyButton({id,is_active:false,source_id:16,canonical_url:'https://example.com/listing/1'}),null);
+test('listing preview stacks the four requested actions in exact order',()=>{
+  const keyboard={inline_keyboard:[
+    [{text:'Angebot',url:'https://example.com/listing/1'}],
+    [{text:'Google Map',url:'https://www.google.com/maps/search/?api=1&query=Hamburg'}],
+    [{text:'Auto-Bewerbung',callback_data:'platforms'}],
+    [{text:'Speichern',callback_data:'save:123'}],
+  ]};
+  const op=previewOperations([],'📍 Adresse: Hamburg',keyboard)[0];
+  const rows=op.body.reply_markup.inline_keyboard;
+  assert.deepEqual(rows.map(row=>row.map(button=>button.text)),[
+    ['Angebot'],['Speichern'],['Google Map'],['Auto-Bewerbung'],
+  ]);
+  assert.equal(rows[3][0].callback_data,'platforms');
 });
 
-test('automatic application targets remain restricted to supported portals',()=>{
-  assert.equal(applicationTarget({source_id:16,canonical_url:'https://example.com/listing/1'}),null);
-  assert.equal(applicationTarget({source_id:1,canonical_url:'https://www.immobilienscout24.de/expose/123'}).platform,'ImmoScout24');
+test('dispatcher no longer creates a manual quick-application action',()=>{
+  const dispatcher=readFileSync(new URL('../supabase/functions/notification-dispatcher/index.ts',import.meta.url),'utf8');
+  const delivery=readFileSync(new URL('../supabase/functions/notification-dispatcher/preview-delivery.ts',import.meta.url),'utf8');
+  assert.doesNotMatch(dispatcher,/quickApplyButton|application-message\.js|Schnellbewerbung|callback_data:\s*[`'"]apply:/);
+  assert.doesNotMatch(delivery,/startsWith\(['"]apply:|Schnellbewerbung/);
+  assert.match(dispatcher,/callback_data:"platforms"/);
 });
 
-test('delivery normalizer guarantees maps and the requested action order',()=>{
-  const source=readFileSync(new URL('../supabase/functions/notification-dispatcher/preview-delivery.ts',import.meta.url),'utf8');
-  assert.match(source,/Google Maps/);
-  assert.match(source,/inline_keyboard:\[offer,maps,save,\.\.\.\(applyRow\?\[applyRow\]:\[\]\)/);
-});
-
-test('save labels use heart state',()=>{
-  const labels=readFileSync(new URL('../supabase/functions/notification-dispatcher/labels.ts',import.meta.url),'utf8');
+test('legacy one-click application modules and callback handlers are removed',()=>{
+  assert.equal(existsSync(new URL('../supabase/functions/telegram-ui/application.js',import.meta.url)),false);
+  assert.equal(existsSync(new URL('../supabase/functions/telegram-ui/application-message.js',import.meta.url)),false);
   const handlers=readFileSync(new URL('../supabase/functions/telegram-ui/handlers.js',import.meta.url),'utf8');
-  assert.match(labels,/❤️ Speichern/);
-  assert.match(labels,/❤️ Gespeichert/);
-  assert.match(handlers,/❤️ Speichern/);
-  assert.match(handlers,/❤️ Gespeichert/);
+  const gateway=readFileSync(new URL('../supabase/functions/telegram-gateway/auto-apply.ts',import.meta.url),'utf8');
+  assert.doesNotMatch(handlers,/quickApplication|enqueue_application_now|startsWith\(['"]apply:/);
+  assert.doesNotMatch(gateway,/handleApply|enqueue_application_now|startsWith\(['"]apply:|callback_data.*apply:/);
+  assert.match(gateway,/data==='platforms'\|\|data\.startsWith\('platforms:'\)/);
+});
+
+test('preview labels use the requested German button names',()=>{
+  const labels=readFileSync(new URL('../supabase/functions/notification-dispatcher/labels.ts',import.meta.url),'utf8');
+  assert.match(labels,/offer: "Angebot"/);
+  assert.match(labels,/save: "Speichern"/);
+  assert.match(labels,/maps: "Google Map"/);
+  assert.match(labels,/auto_apply: "Auto-Bewerbung"/);
 });
