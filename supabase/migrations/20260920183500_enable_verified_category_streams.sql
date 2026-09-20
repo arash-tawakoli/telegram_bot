@@ -7,7 +7,7 @@ set local statement_timeout='30s';
 update app_private.source_category_streams
 set url=case category
       when 'house' then 'https://www.kleinanzeigen.de/s-haus-mieten/hamburg/anzeige:angebote/c205l9409?sortingField=SORTING_DATE'
-      when 'room' then 'https://www.kleinanzeigen.de/s-auf-zeit-wg/hamburg/anzeige:angebote/c199l9409?sortingField=SORTING_DATE'
+      when 'room' then 'https://www.kleinanzeigen.de/s-auf-zeit-wg/hamburg/wg-zimmer/k0c199l9409?sortingField=SORTING_DATE'
       else url end,
     enabled=true,
     verified_at=now(),
