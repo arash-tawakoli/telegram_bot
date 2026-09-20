@@ -46,19 +46,43 @@ test('telegram-fast acknowledges fallback callbacks before the core function fin
   await Promise.all(tasks);
 });
 
-test('telegram-gateway acknowledges callbacks without waiting for the core UI', async () => {
+test('telegram-gateway acknowledges fallback callbacks without waiting for the core UI', async () => {
   const source=readFileSync(new URL('../supabase/functions/telegram-gateway/index.ts',import.meta.url),'utf8');
   let handler, resolveCore; const tasks=[];
   const blocked=new Promise(resolve=>{resolveCore=resolve});
-  const scope={Deno:{serve(fn){handler=fn}},Response,Request,URL,Number,String,JSON,console,Promise,
-    EdgeRuntime:{waitUntil(p){tasks.push(p)}},secret:async()=> 's',cachedWebhookSecret:null,parsed:JSON.parse,
-    commandOf:()=>'',FAST_COMMANDS:new Set(),direct:(method,params)=>Response.json({method,...params}),forwardToCore:()=>blocked};
+  const scope={Deno:{serve(fn){handler=fn}},Response,Request,URL,Number,String,JSON,console,Promise,Date,
+    EdgeRuntime:{waitUntil(p){tasks.push(p)}},secret:async()=> 's',secretCache:new Map(),parsed:JSON.parse,
+    direct:(method,params)=>Response.json({method,...params}),forwardToCore:()=>blocked,
+    isAutoApplyCallback:()=>false,isAutoApplyMessage:()=>false,likelyFastAction:()=>false};
   vm.runInNewContext(stripTypeScriptTypes(source.slice(source.indexOf('Deno.serve(')),{mode:'strip'}),scope);
-  const response=await Promise.race([handler(request('platforms')),timeout(80)]);
+  const response=await Promise.race([handler(request('legacy-action')),timeout(80)]);
   assert.equal((await response.json()).method,'answerCallbackQuery');
   assert.equal(tasks.length,1);
   resolveCore(new Response('{}'));
   await Promise.all(tasks);
+});
+
+test('telegram-gateway common callback returns direct UI edit without core hop or ACK wait', async () => {
+  const source=readFileSync(new URL('../supabase/functions/telegram-gateway/index.ts',import.meta.url),'utf8');
+  let handler, resolveAck; const tasks=[]; let coreCalls=0, metricCalls=0;
+  const ackBlocked=new Promise(resolve=>{resolveAck=resolve});
+  const scope={Deno:{serve(fn){handler=fn}},Response,Request,URL,Number,String,JSON,console,Promise,Date,
+    EdgeRuntime:{waitUntil(p){tasks.push(p)}},secret:async()=> 's',secretCache:new Map(),parsed:JSON.parse,
+    direct:(method,params)=>Response.json({method,...params}),
+    forwardToCore:async()=>{coreCalls++;return new Response('{}')},
+    isAutoApplyCallback:()=>false,isAutoApplyMessage:()=>false,likelyFastAction:()=>true,
+    acknowledge:()=>ackBlocked,fastAction:async()=>({fast:true,claim:1,critical:false,view:'home'}),
+    renderFast:()=>({method:'editMessageText',chat_id:3,message_id:9,text:'home',reply_markup:{inline_keyboard:[]}}),
+    recordMetric:async()=>{metricCalls++}};
+  vm.runInNewContext(stripTypeScriptTypes(source.slice(source.indexOf('Deno.serve(')),{mode:'strip'}),scope);
+  const response=await Promise.race([handler(request('home')),timeout(80)]);
+  const body=await response.json();
+  assert.equal(body.method,'editMessageText');
+  assert.equal(coreCalls,0);
+  assert.equal(tasks.length,1);
+  resolveAck(5);
+  await Promise.all(tasks);
+  assert.equal(metricCalls,1);
 });
 
 test('core callback handler skips duplicate Telegram ACK after upstream pre-ACK', async () => {
