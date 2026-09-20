@@ -487,6 +487,11 @@
           "deployed_sha256": "9f41c91f7a45a7677faa0b20985c58fe0eb1a55a6528ec937d7a62ccce56de1b"
         },
         {
+          "path": "supabase/functions/source-worker/category-streams.ts",
+          "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+          "deployed_sha256": null
+        },
+        {
           "path": "supabase/functions/kleinanzeigen-transport/fetch-page.ts",
           "sha256": "4cdcdf1056e7b2ac182e07cfb0a24223f0ebd51d5a461e953d20e2696499aebd",
           "deployed_sha256": "4cdcdf1056e7b2ac182e07cfb0a24223f0ebd51d5a461e953d20e2696499aebd"
