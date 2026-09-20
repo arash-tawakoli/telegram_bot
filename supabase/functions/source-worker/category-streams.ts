@@ -133,6 +133,13 @@ export function parseKleinCategoryPage(
       null;
     const publishedAt = sourcePublishedAt(sortingDate);
     const kind = category === "house" ? "house" : "room";
+    if (category === "room") {
+      const roomText = `${title} ${plain}`;
+      const positiveRoom = /\b(?:WG(?:[- ]?Zimmer)?|Privatzimmer|Mitbewohner|Untermiet(?:e|er)?|Zimmer)\b/i.test(roomText);
+      const wholeUnit = /\b(?:gesamte|komplette)\s+(?:Unterkunft|Wohnung)\b|\b\d+[ -]?Zimmer[ -]?Wohnung\b|\bApartment\b/i.test(roomText);
+      if (!positiveRoom || (wholeUnit && !/\b(?:WG(?:[- ]?Zimmer)?|Privatzimmer|Mitbewohner|Untermiet(?:e|er)?)\b/i.test(roomText)))
+        continue;
+    }
     items.push({
       key: m[1],
       url: m[2].startsWith("http")
