@@ -211,7 +211,8 @@ export async function renderRooms(user, chatId, messageId, draft) {
     if (!hasStandardType(draft))
         return renderRoomArea(user, chatId, messageId, draft);
     await saveDraft(user, "rooms", draft);
-    return edit(chatId, messageId, "4/5 · <b>Mindestens wie viele Zimmer?</b>", {
+    const text = "4/5 · <b>Mindestens wie viele Zimmer?</b>";
+    const markup = {
         inline_keyboard: [
             [
                 button(`${draft.min_rooms === 1 ? "✅ " : ""}1+`, "rooms:1"),
@@ -224,7 +225,8 @@ export async function renderRooms(user, chatId, messageId, draft) {
             backRow(draft.profile_edit ? `profile:edit:${draft.profile_slot}` : "rent"),
             cancelRow(),
         ],
-    });
+    };
+    return messageId ? edit(chatId, messageId, text, markup) : send(chatId, text, markup);
 }
 
 export async function renderArea(user, chatId, messageId, draft) {
@@ -252,7 +254,8 @@ export async function renderRoomArea(user, chatId, messageId, draft) {
         return renderReview(user, chatId, messageId, draft);
     await saveDraft(user, "roomarea", draft);
     const selected = draft.min_room_area_sqm;
-    return edit(chatId, messageId, "🏠 <b>WG-Zimmer · Mindestgröße</b>\n\nWie groß soll dein eigenes Zimmer mindestens sein?", {
+    const text = "🏠 <b>WG-Zimmer · Mindestgröße</b>\n\nWie groß soll dein eigenes Zimmer mindestens sein?";
+    const markup = {
         inline_keyboard: [
             [
                 button(`${selected === 0 ? "✅ " : ""}Egal`, "roomarea:0"),
@@ -266,7 +269,8 @@ export async function renderRoomArea(user, chatId, messageId, draft) {
             backRow(draft.profile_edit ? `profile:edit:${draft.profile_slot}` : (hasStandardType(draft) ? "area" : "rent")),
             cancelRow(),
         ],
-    });
+    };
+    return messageId ? edit(chatId, messageId, text, markup) : send(chatId, text, markup);
 }
 
 export async function selectedPlaces(draft) {
@@ -343,9 +347,9 @@ export async function renderReview(user, chatId, messageId, draft) {
         backRow(room ? "roomarea" : "area"),
         cancelRow(),
     ];
-    return edit(chatId, messageId, "✅ <b>Suchprofil prüfen</b>\n\n" + details.join("\n"), {
-        inline_keyboard: rows,
-    });
+    const text = "✅ <b>Suchprofil prüfen</b>\n\n" + details.join("\n");
+    const markup = { inline_keyboard: rows };
+    return messageId ? edit(chatId, messageId, text, markup) : send(chatId, text, markup);
 }
 export function renderStep(user, chatId, messageId, draft, step) {
     if (step === "types")
@@ -403,7 +407,7 @@ export async function persistProfile(user, draft) {
         min_room_area_sqm: hasRoomType(draft) ? draft.min_room_area_sqm : 0,
     };
     if (user.request_update_id != null && user.request_attempt != null &&
-        /^[a-f0-9]{12}$/.test(String(user.onboarding_state?._flow || draft._flow || ""))) {
+        /^[a-f0-9]{12}$/.test(String(user.onboarding_state?._flow || ""))) {
         const { data, error } = await db.rpc("save_search_profile_ui", {
             p_user: user.id,
             p_update_id: user.request_update_id,
