@@ -8,38 +8,30 @@ permissions:
 jobs:
   probes:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 4
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Read public category pages
+      - name: Read house inventory contract
         run: |
           mkdir -p fixtures-out
           node --input-type=module <<'JS'
           import {writeFile} from 'node:fs/promises';
-          const urls={
-           klein_house:'https://www.kleinanzeigen.de/s-haus-mieten/hamburg/anzeige:angebote/c205l9409?sortingField=SORTING_DATE',
-           klein_room:'https://www.kleinanzeigen.de/s-auf-zeit-wg/hamburg/anzeige:angebote/c199l9409?sortingField=SORTING_DATE',
-           wg_room:'https://www.wg-gesucht.de/wg-zimmer-in-Hamburg.55.0.1.0.html',
-           ohne_house:'https://www.ohne-makler.net/immobilien/haus-mieten/hamburg/',
-           changelog:'https://supabase.com/changelog.md'
+          const endpoint='https://app.chatgpt.immobilienscout24.de/v2/mcp';
+          const call=async(method,params)=>{
+            const r=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json','accept':'application/json, text/event-stream','mcp-protocol-version':'2025-06-18'},body:JSON.stringify({jsonrpc:'2.0',...(method.startsWith('notifications/')?{}:{id:crypto.randomUUID()}),method,...(params?{params}:{})}),signal:AbortSignal.timeout(18000)});
+            const text=await r.text(); if(!r.ok)throw Error(`HTTP ${r.status}`); let j;for(const line of text.split('\n'))try{j=JSON.parse(line.startsWith('data:')?line.slice(5):line)}catch{};if(j?.error||j?.result?.isError)throw Error('MCP contract error');return j?.result?.structuredContent||j?.result?.structured_content||{};
           };
-          const results=[];
-          for(const [name,url] of Object.entries(urls)){
-           try{const r=await fetch(url,{headers:{'user-agent':'Mozilla/5.0 (compatible; TraumwohnungHamburgBot/13.0; +https://traumwohnunghamburg.de)','accept-language':'de-DE,de;q=0.9'},signal:AbortSignal.timeout(18000)});const b=await r.text();await writeFile(`fixtures-out/${name}.txt`,b);results.push({name,url:r.url,status:r.status,bytes:b.length,at:new Date().toISOString()});}catch(e){results.push({name,error:String(e)})}
-          }
-          await writeFile('fixtures-out/results.json',JSON.stringify(results,null,2));
+          await call('initialize',{protocolVersion:'2025-06-18',capabilities:{},clientInfo:{name:'traumwohnung-hamburg',version:'14.0.0'}});await call('notifications/initialized');
+          const data=await call('tools/call',{name:'property_map_de',arguments:{query:'Häuser zur Miete in Hamburg, neueste Inserate'}});
+          const entries=data.entries||[],ids=[...new Set(entries.map(x=>String(x.exposedId||x.exposeId||x.id||'')))];
+          const reduced={at:new Date().toISOString(),total:data.total,returned:entries.length,unique:ids.length,keys:Object.keys(data),entries:entries.map(({exposedId,exposeId,id,title,rooms,size,price,address,realEstateType,totalRent})=>({exposedId,exposeId,id,title,rooms,size,price,address,realEstateType,totalRent}))};
+          await writeFile('fixtures-out/scout-house.json',JSON.stringify(reduced,null,2));console.log(JSON.stringify({total:data.total,returned:entries.length,unique:ids.length,keys:Object.keys(data)}));
           JS
-      - name: Pinned build utility
-        run: |
-          mkdir build-utils
-          npm install --prefix build-utils --no-audit --no-fund esbuild@0.25.11
-          tar -czf fixtures-out/build-utils.tar.gz build-utils
-          sha256sum fixtures-out/* > fixtures-out/SHA256SUMS
       - uses: actions/upload-artifact@v4
         with:
-          name: ux-public-category-fixtures
+          name: ux-scout-house-fixture
           path: fixtures-out/
           retention-days: 2
