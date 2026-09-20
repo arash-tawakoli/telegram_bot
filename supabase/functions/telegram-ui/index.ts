@@ -4,7 +4,8 @@ import { handleMessage, handleCallback } from "./handlers.js";
 import { premium } from "./navigation.js";
 import { SUPABASE_URL, db, secretCache, chatLanguages, secret, telegram, withPlan, finishUpdate } from "./runtime.js";
 Deno.serve(async (request) => {
-    let updateId=null,attempt=null;
+    const requestStarted=Date.now();
+    let updateId=null,attempt=null,prepareMs=0,renderStarted=0,renderMs=0;
     try {
         if (request.method === "GET" || request.method === "HEAD") {
             const url = new URL(request.url);
@@ -29,7 +30,9 @@ Deno.serve(async (request) => {
         const chatId = payload.callback_query?.message?.chat?.id || payload.message?.chat?.id;
         if (!from?.id || !chatId)
             return Response.json({ ok: true, ignored: true });
+        const prepareStarted=Date.now();
         const {data:prepared,error:claimError}=await db.rpc('prepare_telegram_update',{p_payload:payload});
+        prepareMs=Date.now()-prepareStarted;
         const claim=prepared?.claim;
         if(claimError) throw claimError;
         if(claim===0) return Response.json({ok:true,duplicate:true});
@@ -40,10 +43,11 @@ Deno.serve(async (request) => {
         user.request_attempt=attempt;
         user.__callback_acked=request.headers.get("x-callback-acked")==="1";
         if (!user.is_active && !isAdmin(user)) {
-            await finishUpdate(updateId,attempt,true);
+            await finishUpdate(updateId,attempt,true,null,{prepare_ms:prepareMs,total_ms:Date.now()-requestStarted});
             return Response.json({ ok: true, blocked: true });
         }
         chatLanguages.set(Number(chatId), String(user.ui_language || "de"));
+        renderStarted=Date.now();
         if (payload.callback_query) {
             await handleCallback(payload.callback_query, user);
         }
@@ -51,12 +55,13 @@ Deno.serve(async (request) => {
             (payload.message?.text || payload.message?.document || payload.message?.photo)) {
             await handleMessage(payload.message, user);
         }
-        await finishUpdate(updateId,attempt,true);
+        renderMs=Date.now()-renderStarted;
+        await finishUpdate(updateId,attempt,true,null,{prepare_ms:prepareMs,render_ms:renderMs,total_ms:Date.now()-requestStarted});
         return Response.json({ ok: true });
     }
     catch (error) {
         if(updateId!==null && attempt!==null) {
-          try {await finishUpdate(updateId,attempt,false,String(error));} catch(ackError){console.error('inbox_finish',String(ackError));}
+          try {if(renderStarted&&!renderMs)renderMs=Date.now()-renderStarted;await finishUpdate(updateId,attempt,false,String(error),{prepare_ms:prepareMs,render_ms:renderMs,total_ms:Date.now()-requestStarted});} catch(ackError){console.error('inbox_finish',String(ackError));}
         }
         console.error("telegram_command_runtime", error);
         return Response.json({ ok: false, error: "command_runtime_failed" }, { status: 500 });
