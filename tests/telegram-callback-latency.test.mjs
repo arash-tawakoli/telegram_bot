@@ -51,7 +51,7 @@ test('telegram-gateway acknowledges fallback callbacks without waiting for the c
   let handler, resolveCore; const tasks=[];
   const blocked=new Promise(resolve=>{resolveCore=resolve});
   const scope={Deno:{serve(fn){handler=fn},env:{get(){return 'eu-west-1'}}},Response,Request,URL,Number,String,JSON,console,Promise,Date,
-    EdgeRuntime:{waitUntil(p){tasks.push(p)}},secret:async()=> 's',secretCache:new Map(),parsed:JSON.parse,
+    EdgeRuntime:{waitUntil(p){tasks.push(p)}},secret:async()=> 's',secretCache:new Map(),validWebhookSecret:async()=>true,parsed:JSON.parse,
     direct:(method,params)=>Response.json({method,...params}),forwardToCore:()=>blocked,
     isAutoApplyCallback:()=>false,isAutoApplyMessage:()=>false,isStaticFastAction:()=>false,likelyFastAction:()=>false};
   vm.runInNewContext(stripTypeScriptTypes(source.slice(source.indexOf('Deno.serve(')),{mode:'strip'}),scope);
@@ -67,7 +67,7 @@ test('telegram-gateway common callback returns direct UI edit without core hop o
   let handler, resolveAck; const tasks=[]; let coreCalls=0, metricCalls=0;
   const ackBlocked=new Promise(resolve=>{resolveAck=resolve});
   const scope={Deno:{serve(fn){handler=fn},env:{get(){return 'eu-west-1'}}},Response,Request,URL,Number,String,JSON,console,Promise,Date,
-    EdgeRuntime:{waitUntil(p){tasks.push(p)}},secret:async()=> 's',secretCache:new Map(),parsed:JSON.parse,
+    EdgeRuntime:{waitUntil(p){tasks.push(p)}},secret:async()=> 's',secretCache:new Map(),validWebhookSecret:async()=>true,parsed:JSON.parse,
     direct:(method,params)=>Response.json({method,...params}),
     forwardToCore:async()=>{coreCalls++;return new Response('{}')},
     isAutoApplyCallback:()=>false,isAutoApplyMessage:()=>false,isStaticFastAction:()=>false,likelyFastAction:()=>true,
@@ -99,7 +99,7 @@ test('telegram-gateway static German navigation returns UI before DB telemetry f
   let handler, resolveMetric; const tasks=[]; let fastCalls=0;
   const blockedMetric=new Promise(resolve=>{resolveMetric=resolve});
   const scope={Deno:{serve(fn){handler=fn},env:{get(){return 'eu-west-1'}}},Response,Request,URL,Number,String,JSON,console,Promise,Date,
-    EdgeRuntime:{waitUntil(p){tasks.push(p)}},secret:async()=> 's',secretCache:new Map(),parsed:JSON.parse,
+    EdgeRuntime:{waitUntil(p){tasks.push(p)}},secret:async()=> 's',secretCache:new Map(),validWebhookSecret:async()=>true,parsed:JSON.parse,
     direct:(method,params)=>Response.json({method,...params}),forwardToCore:async()=>new Response('{}'),
     isAutoApplyCallback:()=>false,isAutoApplyMessage:()=>false,isStaticFastAction:a=>a==='home:de',likelyFastAction:()=>false,
     acknowledge:async()=>5,fastAction:async()=>{fastCalls++;return{}},
@@ -113,4 +113,12 @@ test('telegram-gateway static German navigation returns UI before DB telemetry f
   assert.equal(tasks.length,1);
   resolveMetric(true);
   await Promise.all(tasks);
+});
+
+test('gateway webhook fingerprint validates without a blocking webhook-secret RPC on the normal path',()=>{
+ const source=readFileSync(new URL('../supabase/functions/telegram-gateway/index.ts',import.meta.url),'utf8');
+ assert.match(source,/WEBHOOK_SECRET_SHA256="[a-f0-9]{64}"/);
+ assert.match(source,/suppliedHash===webhookSecretHash/);
+ assert.match(source,/const expected=await secret\('telegram_webhook_secret',true\)/);
+ assert.doesNotMatch(source,/Promise\.allSettled\(\[secret\('telegram_webhook_secret'/);
 });
