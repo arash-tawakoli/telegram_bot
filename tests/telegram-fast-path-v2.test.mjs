@@ -15,7 +15,7 @@ test('common navigation and onboarding actions are fast-path eligible',()=>{
 });
 
 test('house toggle renders compact 2x2 property grid',()=>{
- const r=renderFast({...base,view:'types'},update);
+ const r=renderFast({...base,view:'types'},{callback_query:{data:'type:Haus',message:{chat:{id:1},message_id:2}}});
  assert.equal(r.method,'editMessageReplyMarkup');
  assert.equal(r.reply_markup.inline_keyboard[0][1].text,'✅ 🏡 Haus');
  assert.equal(r.reply_markup.inline_keyboard[1][0].callback_data,'type:WG');
