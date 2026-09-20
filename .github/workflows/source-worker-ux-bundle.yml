@@ -1,0 +1,38 @@
+name: Temporary source-worker bundle
+
+on:
+  push:
+    branches:
+      - feature/telegram-ux-property-types-20260920
+
+permissions:
+  contents: write
+
+jobs:
+  bundle:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/telegram-ux-property-types-20260920
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Build reproducible source worker bundle
+        run: |
+          npm install --no-save --ignore-scripts esbuild@0.25.11
+          mkdir -p supabase/deployed-support/source-worker-ux
+          npx esbuild supabase/functions/source-worker/index.ts \
+            --bundle --minify --format=esm --platform=neutral --target=es2022 \
+            '--external:npm:*' '--external:node:*' '--external:jsr:*' '--external:https://*' \
+            --outfile=supabase/deployed-support/source-worker-ux/index.js
+          cp supabase/functions/source-worker/deno.json supabase/deployed-support/source-worker-ux/deno.json
+      - name: Commit generated deployment artifact
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add supabase/deployed-support/source-worker-ux
+          git diff --cached --quiet && exit 0
+          git commit -m "Build temporary source-worker UX deployment artifact"
+          git push origin HEAD:feature/telegram-ux-property-types-20260920
