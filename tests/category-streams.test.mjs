@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 
 const worker=readFileSync(new URL('../supabase/functions/source-worker/category-streams.ts',import.meta.url),'utf8');
 const index=readFileSync(new URL('../supabase/functions/source-worker/index.ts',import.meta.url),'utf8');
+const klein=readFileSync(new URL('../supabase/functions/source-worker/klein.ts',import.meta.url),'utf8');
 const migration=readFileSync(new URL('../supabase/migrations/20260920183500_enable_verified_category_streams.sql',import.meta.url),'utf8');
 
 test('category discovery stays isolated from apartment inventory',()=>{
@@ -22,4 +23,9 @@ test('only verified Kleinanzeigen house and room streams are enabled',()=>{
   assert.doesNotMatch(migration,/source_id=1[^;]*enabled=true/s);
   assert.doesNotMatch(migration,/source_id=6[^;]*enabled=true/s);
   assert.doesNotMatch(migration,/source_id=12[^;]*enabled=true/s);
+});
+
+
+test('apartment coverage cannot deactivate independent house or room rows',()=>{
+  assert.match(klein,/property_kind\.is\.null,property_kind\.eq\.apartment/);
 });
