@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import {handleAutoApplyCallback,handleAutoApplyMessage,isAutoApplyCallback,isAutoApplyMessage} from './auto-apply.ts';
-import {likelyFastAction,renderFast} from './fast-ui.ts';
+import {isStaticFastAction,likelyFastAction,renderFast,renderStaticFast} from './fast-ui.ts';
 
 const URL=Deno.env.get('SUPABASE_URL')!;
 const KEYS=JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')||'{}');
@@ -18,18 +18,22 @@ async function rpc(name:string,body:Record<string,unknown>){
 async function secret(name:string,force=false){
  const cached=secretCache.get(name);if(!force&&cached&&cached.expiresAt>Date.now())return cached.value;
  if(!force&&secretInflight.has(name))return secretInflight.get(name)!;
- const task=(async()=>{const data=await rpc('get_bot_secret',{secret_name:name});if(!data)throw Error(name+' unavailable');const value=String(data);secretCache.set(name,{value,expiresAt:Date.now()+(name==='telegram_webhook_secret'?3600000:300000)});return value;})();
+ const task=(async()=>{const data=await rpc('get_bot_secret',{secret_name:name});if(!data)throw Error(name+' unavailable');const value=String(data);const ttl=(name==='telegram_webhook_secret'||name==='telegram_bot_token_runtime')?3600000:300000;secretCache.set(name,{value,expiresAt:Date.now()+ttl});return value;})();
  secretInflight.set(name,task);try{return await task}finally{secretInflight.delete(name)}
 }
+void Promise.allSettled([secret('telegram_webhook_secret'),secret('telegram_bot_token_runtime')]);
 function parsed(body:string){try{return JSON.parse(body)}catch{return null}}
 function direct(method:string,params:Record<string,unknown>){return Response.json({method,...params});}
 async function telegram(method:string,params:Record<string,unknown>){
- const token=await secret('telegram_bot_token_runtime');
- const r=await fetch(`https://api.telegram.org/bot${token}/${method}`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(params),signal:AbortSignal.timeout(15000)});
- const data=await r.json().catch(()=>null);if(!r.ok||!data?.ok)throw Error(String(data?.description||`telegram:${r.status}`));return data.result;
+ let token=await secret('telegram_bot_token_runtime');
+ const send=async(t:string)=>{const r=await fetch(`https://api.telegram.org/bot${t}/${method}`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(params),signal:AbortSignal.timeout(15000)});return{r,data:await r.json().catch(()=>null)}};
+ let out=await send(token);
+ if(!out.r.ok&&(out.r.status===401||out.r.status===404)){secretCache.delete('telegram_bot_token_runtime');token=await secret('telegram_bot_token_runtime',true);out=await send(token)}
+ if(!out.r.ok||!out.data?.ok)throw Error(String(out.data?.description||`telegram:${out.r.status}`));return out.data.result;
 }
 async function acknowledge(id:string){const started=Date.now();try{await telegram('answerCallbackQuery',{callback_query_id:id});return Date.now()-started}catch(error){console.error('telegram_fast_ack',String(error));return null}}
-async function recordMetric(updateId:number,metrics:Record<string,number>){try{await rpc('record_telegram_fast_metric',{p_update_id:updateId,p_metrics:metrics})}catch(error){console.error('telegram_fast_metric',String(error))}}
+async function recordMetric(updateId:number,metrics:Record<string,number|string>){try{await rpc('record_telegram_fast_metric',{p_update_id:updateId,p_metrics:metrics})}catch(error){console.error('telegram_fast_metric',String(error))}}
+async function recordStaticNav(update:any,metrics:Record<string,number|string>){try{await rpc('record_telegram_static_nav',{p_payload:update,p_metrics:metrics})}catch(error){console.error('telegram_static_metric',String(error))}}
 async function forward(body:string,expected:string,target:string,extraHeaders:Record<string,string>={}){
  const r=await fetch(target,{method:'POST',headers:{'content-type':'application/json','x-telegram-bot-api-secret-token':expected,...extraHeaders},body,signal:AbortSignal.timeout(50000)});
  return new Response(await r.text(),{status:r.status,headers:{'content-type':r.headers.get('content-type')||'application/json'}});
@@ -65,6 +69,15 @@ Deno.serve(async req=>{
 
   if(callbackId&&callback==='noop')return direct('answerCallbackQuery',{callback_query_id:callbackId});
 
+  if(callbackId&&isStaticFastAction(callback)){
+   const renderStarted=Date.now(),rendered=renderStaticFast(callback,update),renderMs=Date.now()-renderStarted;
+   if(rendered){
+    const ackPromise=acknowledge(callbackId),responseMs=Date.now()-requestStarted,region=String(Deno.env.get('SB_REGION')||'unknown');
+    EdgeRuntime.waitUntil((async()=>{const ackMs=await ackPromise;await recordStaticNav(update,{db_ms:0,render_ms:renderMs,ack_ms:Number(ackMs||0),response_ms:responseMs,telegram_ms:0,total_ms:responseMs,rpc_count:0,telegram_count:2,fast_path:2,edge_region:region})})());
+    return Response.json(rendered);
+   }
+  }
+
   if(callbackId&&likelyFastAction(callback)){
    const ackPromise=acknowledge(callbackId),dbStarted=Date.now();
    try{
@@ -78,10 +91,10 @@ Deno.serve(async req=>{
        if(fast?.critical===true){
         const tgStarted=Date.now();
         try{await telegram(method,params);telegramMs=Date.now()-tgStarted}
-        catch(error){telegramMs=Date.now()-tgStarted;console.error('telegram_fast_critical_edit',String(error));const responseMs=Date.now()-requestStarted;EdgeRuntime.waitUntil((async()=>{const ackMs=await ackPromise;await recordMetric(Number(update.update_id),{db_ms:dbMs,render_ms:renderMs,ack_ms:Number(ackMs||0),response_ms:responseMs,telegram_ms:telegramMs,total_ms:responseMs,rpc_count:1,telegram_count:2,fast_path:1})})());return Response.json(rendered)}
+        catch(error){telegramMs=Date.now()-tgStarted;console.error('telegram_fast_critical_edit',String(error));const responseMs=Date.now()-requestStarted;EdgeRuntime.waitUntil((async()=>{const ackMs=await ackPromise;await recordMetric(Number(update.update_id),{db_ms:dbMs,render_ms:renderMs,ack_ms:Number(ackMs||0),response_ms:responseMs,telegram_ms:telegramMs,total_ms:responseMs,rpc_count:1,telegram_count:2,fast_path:1,edge_region:String(Deno.env.get('SB_REGION')||'unknown')})})());return Response.json(rendered)}
        }
        const responseMs=Date.now()-requestStarted;
-       EdgeRuntime.waitUntil((async()=>{const ackMs=await ackPromise;await recordMetric(Number(update.update_id),{db_ms:dbMs,render_ms:renderMs,ack_ms:Number(ackMs||0),response_ms:responseMs,telegram_ms:telegramMs,total_ms:responseMs,rpc_count:1,telegram_count:2,fast_path:1})})());
+       EdgeRuntime.waitUntil((async()=>{const ackMs=await ackPromise;await recordMetric(Number(update.update_id),{db_ms:dbMs,render_ms:renderMs,ack_ms:Number(ackMs||0),response_ms:responseMs,telegram_ms:telegramMs,total_ms:responseMs,rpc_count:1,telegram_count:2,fast_path:1,edge_region:String(Deno.env.get('SB_REGION')||'unknown')})})());
        if(fast?.reward?.status==='rewarded')EdgeRuntime.waitUntil(telegram('sendMessage',{chat_id:Number(update.callback_query.message.chat.id),text:'💎 <b>30 Tage Premium kostenlos aktiviert</b>\n\nDein erstes Suchprofil ist erstellt und dir wurden 30 Tage Premium kostenlos gutgeschrieben.',parse_mode:'HTML'}).catch(e=>console.error('telegram_reward_notice',String(e))));
        return fast?.critical===true?Response.json({ok:true}):Response.json(rendered);
       }
