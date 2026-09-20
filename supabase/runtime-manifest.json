@@ -693,20 +693,25 @@
       "files": [
         {
           "path": "supabase/functions/telegram-gateway/index.ts",
-          "sha256": "5f9ded82dd36d5facc7983b28b27dfbde196f7cc13b47b14f68899eb58669039",
+          "sha256": "0573a3ca22105ed6150e6c4c2e5a66a21af60153af288f11acc69bb254610072",
           "deployed_sha256": "76386167b4fcf90cad7fe8191cf035e47cb5f91ec5b866d56540b519e6045263"
         },
         {
           "path": "supabase/functions/telegram-gateway/auto-apply.ts",
           "sha256": "042f8a56e19f659e92cccaadf073d1005a2b03b2670ccf443a5a4076b9bcc123",
           "deployed_sha256": "da3244cce4689e005bf7efe35b64b1e3cac6783bccb92639adb7d389972b0e54"
+        },
+        {
+          "path": "supabase/functions/telegram-gateway/fast-ui.ts",
+          "sha256": "9734bc4e9a7236b44d4d9d57a9d6a4037eb7f8b7695c859255719f39df6efc3a",
+          "deployed_sha256": null
         }
       ],
       "import_map": false,
       "retired": false,
       "slug": "telegram-gateway",
       "verify_jwt": false,
-      "version": 31
+      "version": 37
     },
     {
       "entrypoint": "supabase/functions/telegram-premium-image/index.ts",
