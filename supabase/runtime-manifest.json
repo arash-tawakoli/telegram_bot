@@ -693,25 +693,32 @@
       "files": [
         {
           "path": "supabase/functions/telegram-gateway/index.ts",
-          "sha256": "0573a3ca22105ed6150e6c4c2e5a66a21af60153af288f11acc69bb254610072",
-          "deployed_sha256": "76386167b4fcf90cad7fe8191cf035e47cb5f91ec5b866d56540b519e6045263"
+          "sha256": "72d2666206faa35e5b5e4a8e1f1363c0e836db5ab7b9ea6ffee71db6cccb6d6b",
+          "deployed_sha256": "72d2666206faa35e5b5e4a8e1f1363c0e836db5ab7b9ea6ffee71db6cccb6d6b"
         },
         {
           "path": "supabase/functions/telegram-gateway/auto-apply.ts",
           "sha256": "042f8a56e19f659e92cccaadf073d1005a2b03b2670ccf443a5a4076b9bcc123",
-          "deployed_sha256": "da3244cce4689e005bf7efe35b64b1e3cac6783bccb92639adb7d389972b0e54"
+          "deployed_sha256": "042f8a56e19f659e92cccaadf073d1005a2b03b2670ccf443a5a4076b9bcc123"
         },
         {
           "path": "supabase/functions/telegram-gateway/fast-ui.ts",
-          "sha256": "9734bc4e9a7236b44d4d9d57a9d6a4037eb7f8b7695c859255719f39df6efc3a",
-          "deployed_sha256": null
+          "sha256": "b95c7f1b8b73876444ec13e860edc12b3a17898469bcd83e027f30966b48738d",
+          "deployed_sha256": "b95c7f1b8b73876444ec13e860edc12b3a17898469bcd83e027f30966b48738d"
         }
       ],
       "import_map": false,
       "retired": false,
       "slug": "telegram-gateway",
       "verify_jwt": false,
-      "version": 37
+      "version": 38,
+      "observed_artifact": {
+        "observed_at": "2026-09-20T20:16:55Z",
+        "format": "compiled_esm",
+        "entrypoint": "index.ts",
+        "ezbr_sha256": "f2a0bb91471356f3bd1494e1878ebf03446120abee62b06549de0399171b7284",
+        "verification": "Supabase management metadata plus exact source-content comparison for all three deployed gateway files."
+      }
     },
     {
       "entrypoint": "supabase/functions/telegram-premium-image/index.ts",
