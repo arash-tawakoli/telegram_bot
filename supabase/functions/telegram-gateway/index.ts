@@ -7,6 +7,8 @@ const KEYS=JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')||'{}');
 const KEY=KEYS.default||Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const CORE=`${URL}/functions/v1/telegram-ui?forceFunctionRegion=eu-west-1`;
 const OAUTH_BRIDGE=`${URL}/functions/v1/telegram-oauth-bridge?forceFunctionRegion=eu-west-1`;
+const WEBHOOK_SECRET_SHA256="8de81c929dcff4e2d20eeedd034518126c99d775b84664d85635f87c7f2ad010";
+let webhookSecretHash=WEBHOOK_SECRET_SHA256;
 const secretCache=new Map<string,{value:string,expiresAt:number}>();
 const secretInflight=new Map<string,Promise<string>>();
 
@@ -21,7 +23,21 @@ async function secret(name:string,force=false){
  const task=(async()=>{const data=await rpc('get_bot_secret',{secret_name:name});if(!data)throw Error(name+' unavailable');const value=String(data);const ttl=(name==='telegram_webhook_secret'||name==='telegram_bot_token_runtime')?3600000:300000;secretCache.set(name,{value,expiresAt:Date.now()+ttl});return value;})();
  secretInflight.set(name,task);try{return await task}finally{secretInflight.delete(name)}
 }
-void Promise.allSettled([secret('telegram_webhook_secret'),secret('telegram_bot_token_runtime')]);
+void secret('telegram_bot_token_runtime').catch(error=>console.error('telegram_token_prewarm',String(error)));
+async function sha256Hex(value:string){
+ const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value));
+ return Array.from(new Uint8Array(digest),x=>x.toString(16).padStart(2,'0')).join('');
+}
+async function validWebhookSecret(supplied:string){
+ if(!supplied)return false;
+ const suppliedHash=await sha256Hex(supplied);
+ if(suppliedHash===webhookSecretHash)return true;
+ secretCache.delete('telegram_webhook_secret');
+ const expected=await secret('telegram_webhook_secret',true);
+ if(supplied!==expected)return false;
+ webhookSecretHash=await sha256Hex(expected);
+ return true;
+}
 function parsed(body:string){try{return JSON.parse(body)}catch{return null}}
 function direct(method:string,params:Record<string,unknown>){return Response.json({method,...params});}
 async function telegram(method:string,params:Record<string,unknown>){
@@ -47,9 +63,9 @@ Deno.serve(async req=>{
  const requestStarted=Date.now();
  try{
   if(req.method!=='POST')return new Response('method not allowed',{status:405});
-  const supplied=req.headers.get('x-telegram-bot-api-secret-token')||'';let expected=await secret('telegram_webhook_secret');
-  if(supplied!==expected){secretCache.delete('telegram_webhook_secret');expected=await secret('telegram_webhook_secret',true);if(supplied!==expected)return new Response('unauthorized',{status:401});}
-  const body=await req.text(),update=parsed(body),callback=String(update?.callback_query?.data||''),callbackId=String(update?.callback_query?.id||'');
+  const supplied=req.headers.get('x-telegram-bot-api-secret-token')||'';
+  if(!(await validWebhookSecret(supplied)))return new Response('unauthorized',{status:401});
+  const expected=supplied,body=await req.text(),update=parsed(body),callback=String(update?.callback_query?.data||''),callbackId=String(update?.callback_query?.id||'');
 
   if(callbackId&&['platforms:login:1','platforms:login:2','platforms:login:3'].includes(callback)){
    EdgeRuntime.waitUntil(forward(body,expected,OAUTH_BRIDGE).then(r=>{if(!r.ok)console.error('telegram_oauth_bridge',r.status)}).catch(e=>console.error('telegram_oauth_bridge',String(e))));
