@@ -2,8 +2,8 @@ import { quickApplication } from './application.js';
 import { platformSessions, handleAutoApplyMessage } from './platform-sessions.js';
 import { isAdmin, adminGrantLabel, adminPremiumNotice, adminUsers, adminUser, setUserBlocked, deleteUser, setPlanOverride } from "./admin.js";
 import { homeKeyboard, home, premium, saved, setPaused, toggleSave, referralPage, languagePage, settings } from "./navigation.js";
-import { draftFor, validateDraft, renderTypes, renderLocation, renderBoroughs, renderNeighborhoods, renderRent, renderCustomRent, renderRooms, renderArea, renderReview, renderStep, afterSelection, persistProfile, profileLimit, draftFromProfile, startNewProfile, profileEditMenu, profile, renderStatus } from "./profiles.js";
-import { db, PROPERTY_TYPES, RENT_PRESETS, ROOM_PRESETS, AREA_PRESETS, NEIGHBORHOODS_PER_PAGE, chatLanguages, button, cancelRow, backRow, secret, telegram, send, sendCelebration, edit, acknowledge, saveState, geography, HELP_TEXT } from "./runtime.js";
+import { draftFor, validateDraft, renderTypes, renderLocation, renderBoroughs, renderNeighborhoods, renderRent, renderCustomRent, renderRooms, renderArea, renderRoomArea, renderReview, renderStep, afterSelection, persistProfile, profileLimit, draftFromProfile, startNewProfile, profileEditMenu, profile, renderStatus, nextAfterRent } from "./profiles.js";
+import { db, PROPERTY_TYPES, RENT_PRESETS, ROOM_PRESETS, AREA_PRESETS, ROOM_AREA_PRESETS, NEIGHBORHOODS_PER_PAGE, chatLanguages, button, cancelRow, backRow, secret, telegram, send, sendCelebration, edit, acknowledge, saveState, geography, HELP_TEXT } from "./runtime.js";
 export async function handleMessage(message, user) {
     const chatId = Number(message.chat.id);
     const text = String(message.text || "").trim();
@@ -77,7 +77,19 @@ export async function handleMessage(message, user) {
             delete draft.edit_return;
             return renderReview(user, chatId, message.message_id, draft);
         }
-        await saveState(user.id, "rooms", draft);
+        const next = nextAfterRent(draft);
+        await saveState(user.id, next, draft, user.request_update_id, user.request_attempt);
+        if (next === "roomarea") {
+            return send(chatId, "🏠 <b>WG-Zimmer · Mindestgröße</b>\n\nWie groß soll dein eigenes Zimmer mindestens sein?", {
+                inline_keyboard: [
+                    [button("Egal", "roomarea:0"), button("10 m²+", "roomarea:10")],
+                    [button("12 m²+", "roomarea:12"), button("15 m²+", "roomarea:15")],
+                    [button("20 m²+", "roomarea:20")],
+                    backRow("rent"),
+                    cancelRow(),
+                ],
+            });
+        }
         return send(chatId, "4/5 · <b>Mindestens wie viele Zimmer?</b>", {
             inline_keyboard: [
                 [button("1+", "rooms:1"), button("2+", "rooms:2")],
@@ -203,7 +215,8 @@ export async function handleCallback(query, user) {
     if (data === "noop")
         return;
     if (data === "cancel") {
-        await saveState(user.id, null, {});
+        const currentDraft = draftFor(user);
+        await saveState(user.id, null, currentDraft, user.request_update_id, user.request_attempt);
         return home({ ...user, onboarding_step: null, onboarding_state: {} }, chatId, messageId);
     }
     if (data === "home") {
@@ -227,6 +240,7 @@ export async function handleCallback(query, user) {
             "rent_custom",
             "rooms",
             "area",
+            "roomarea",
             "review",
         ].includes(step)
             ? step
@@ -265,6 +279,8 @@ export async function handleCallback(query, user) {
             return renderRooms(user, chatId, messageId, draft);
         if (field === "area")
             return renderArea(user, chatId, messageId, draft);
+        if (field === "roomarea")
+            return renderRoomArea(user, chatId, messageId, draft);
         return profileEditMenu(user, chatId, messageId, slot);
     }
     if (data.startsWith("profile:edit:")) {
@@ -370,6 +386,8 @@ export async function handleCallback(query, user) {
         return renderRooms(user, chatId, messageId, draft);
     if (data === "area")
         return renderArea(user, chatId, messageId, draft);
+    if (data === "roomarea")
+        return renderRoomArea(user, chatId, messageId, draft);
     if (data.startsWith("edit:")) {
         draft.edit_return = true;
         const step = data.slice(5);
@@ -384,6 +402,8 @@ export async function handleCallback(query, user) {
             return renderRooms(user, chatId, messageId, draft);
         if (step === "area")
             return renderArea(user, chatId, messageId, draft);
+        if (step === "roomarea")
+            return renderRoomArea(user, chatId, messageId, draft);
     }
     if (data.startsWith("type:")) {
         const value = data.slice(5);
@@ -489,7 +509,7 @@ export async function handleCallback(query, user) {
         const amount = Number(value);
         if (RENT_PRESETS.has(amount)) {
             draft.max_warm_rent = amount;
-            return afterSelection(user, chatId, messageId, draft, "rooms");
+            return afterSelection(user, chatId, messageId, draft, nextAfterRent(draft));
         }
         return renderRent(user, chatId, messageId, draft);
     }
@@ -505,9 +525,17 @@ export async function handleCallback(query, user) {
         const area = Number(data.slice(5));
         if (AREA_PRESETS.has(area)) {
             draft.min_area_sqm = area;
-            return afterSelection(user, chatId, messageId, draft, "review");
+            return afterSelection(user, chatId, messageId, draft, draft.property_types.includes("WG") ? "roomarea" : "review");
         }
         return renderArea(user, chatId, messageId, draft);
+    }
+    if (data.startsWith("roomarea:")) {
+        const area = Number(data.slice(9));
+        if (ROOM_AREA_PRESETS.has(area)) {
+            draft.min_room_area_sqm = area;
+            return afterSelection(user, chatId, messageId, draft, "review");
+        }
+        return renderRoomArea(user, chatId, messageId, draft);
     }
     if (data === "profile:save" || data === "s:save") {
         const issue = validateDraft(draft);
