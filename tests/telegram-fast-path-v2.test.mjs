@@ -16,7 +16,7 @@ test('common navigation and onboarding actions are fast-path eligible',()=>{
 
 test('house toggle renders compact 2x2 property grid',()=>{
  const r=renderFast({...base,view:'types'},update);
- assert.equal(r.method,'editMessageText');
+ assert.equal(r.method,'editMessageReplyMarkup');
  assert.equal(r.reply_markup.inline_keyboard[0][1].text,'✅ 🏡 Haus');
  assert.equal(r.reply_markup.inline_keyboard[1][0].callback_data,'type:WG');
 });
@@ -54,4 +54,10 @@ test('profile list preserves an in-progress onboarding draft',()=>{
  const r=renderFast({...base,view:'profile_list',user:{id:'u',ui_language:'de',onboarding_step:'rent',onboarding_state:{profile_slot:1}},data:{profiles:[],profile_limit:1}},update);
  const callbacks=r.reply_markup.inline_keyboard.flat().map(x=>x.callback_data).filter(Boolean);
  assert.ok(callbacks.includes('draft'));
+});
+
+test('borough selection uses markup-only updates',()=>{
+ const r=renderFast({...base,view:'boroughs',state:{borough_ids:[1]},data:{boroughs:[{id:1,name:'Hamburg-Mitte'},{id:2,name:'Altona'}]}},{callback_query:{data:'borough:1',message:{chat:{id:1},message_id:2}}});
+ assert.equal(r.method,'editMessageReplyMarkup');
+ assert.match(r.reply_markup.inline_keyboard[0][0].text,/✅/);
 });
