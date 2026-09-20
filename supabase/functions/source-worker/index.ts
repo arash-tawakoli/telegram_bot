@@ -10,8 +10,22 @@ import { runClaimedJob } from "./job-runner.ts";
 import { runPublicInventory } from "./public-inventory.ts";
 import { runNestpick } from "./nestpick.ts";
 import { runCatalog } from "./catalog.ts";
-import { runCategoryStreams } from "./category-streams.ts";
+import { runCategoryStreams } from "./category.ts";
 
+async function processBaseSource(s:Source,connectors:Connector[]){
+  const id=s.id;
+  if (id === 1) return runScout(s);
+  if (id === 2) return runKlein(s);
+  const primary = connectors.find((c) => !c.shadow_only) || connectors[0];
+  if(primary && ['source-worker/city-catalog','source-worker/wunder-catalog','source-worker/swap-catalog'].includes(String(primary.config?.adapter)))return runCatalog(s,primary);
+  if(primary?.config?.adapter==='source-worker/nestpick-public')return runNestpick(s,primary);
+  if(primary && ['source-worker/tag-public','source-worker/urban-public','source-worker/heim-public','source-worker/kaifu-public','source-worker/finken-public'].includes(String(primary.config?.adapter)))
+    return runPublicInventory(s,primary);
+  if (id === 8 && connectors.length) return runGcp(s, connectors);
+  if (primary?.connector_kind === "immomio_tenant") return runImmomio(s, primary, connectors.filter(c=>c!==primary));
+  if (primary?.connector_kind === "immosolve_api") return runHpm(s, primary);
+  return runGeneric(s, connectors);
+}
 async function processSource(id: number) {
   const { data: source, error } = await db
     .from("sources")
@@ -25,29 +39,9 @@ async function processSource(id: number) {
   const connectors = (source.source_connectors || [])
     .filter((c: any) => c.enabled)
     .sort((a: any, b: any) => a.priority - b.priority) as Connector[];
-  const primary = connectors.find((c) => !c.shadow_only) || connectors[0];
-  let result: any;
-  if (id === 1) result = await runScout(s);
-  else if (id === 2) result = await runKlein(s);
-  else if(primary && ['source-worker/city-catalog','source-worker/wunder-catalog','source-worker/swap-catalog'].includes(String(primary.config?.adapter)))result = await runCatalog(s,primary);
-  else if(primary?.config?.adapter==='source-worker/nestpick-public')result = await runNestpick(s,primary);
-  else if(primary && ['source-worker/tag-public','source-worker/urban-public','source-worker/heim-public','source-worker/kaifu-public','source-worker/finken-public'].includes(String(primary.config?.adapter)))
-    result = await runPublicInventory(s,primary);
-  else if (id === 8 && connectors.length) result = await runGcp(s, connectors);
-  else if (primary?.connector_kind === "immomio_tenant")
-    result = await runImmomio(s, primary, connectors.filter(c=>c!==primary));
-  else if (primary?.connector_kind === "immosolve_api") result = await runHpm(s, primary);
-  else result = await runGeneric(s, connectors);
-
-  if ([1,2,6,12].includes(id)) {
-    try {
-      const category_streams = await runCategoryStreams(s);
-      if (category_streams.length) result = {...result, category_streams};
-    } catch (error) {
-      console.error("source_category_streams", id, emsg(error));
-    }
-  }
-  return result;
+  const base=await processBaseSource(s,connectors);
+  const category_streams=await runCategoryStreams(s).catch(error=>[{ok:false,error:error instanceof Error?error.message:String(error)}]);
+  return {...base,category_streams};
 }
 async function one(job: any) {
   return runClaimedJob(job, processSource, async (args) => {
