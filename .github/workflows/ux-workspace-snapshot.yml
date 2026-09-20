@@ -1,0 +1,29 @@
+name: UX implementation workspace
+on:
+  push:
+    branches: ['ux/onboarding-category-speed-20260920']
+    paths: ['.github/workflows/ux-workspace-snapshot.yml']
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm ci --ignore-scripts
+      - name: Source and offline test dependencies
+        run: |
+          mkdir -p workspace
+          git archive HEAD | gzip -n > workspace/source.tar.gz
+          tar -czf workspace/test-dependencies.tar.gz node_modules
+          git rev-parse HEAD > workspace/commit.txt
+          sha256sum workspace/*.tar.gz > workspace/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ux-implementation-workspace
+          path: workspace/
+          retention-days: 2
