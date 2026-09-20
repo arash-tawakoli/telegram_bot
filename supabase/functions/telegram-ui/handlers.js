@@ -75,7 +75,7 @@ export async function handleMessage(message, user) {
         }
         if (draft.edit_return) {
             delete draft.edit_return;
-            return renderReview(user, chatId, message.message_id, draft);
+            return renderReview(user, chatId, undefined, draft);
         }
         const next = nextAfterRent(draft);
         await saveState(user.id, next, draft, user.request_update_id, user.request_attempt);
