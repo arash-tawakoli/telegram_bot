@@ -82,8 +82,8 @@ function savedContent(user: any, data: any) {
 }
 function contentFor(action: string, user: any, data: any) { if (action === "home") return homeContent(user); if (action === "settings") return settingsContent(user); if (action === "help") return helpContent(); if (action === "profile") return profileContent(user, data); if (action === "new") return newContent(user, data); if (action === "status") return statusContent(data); if (action === "saved") return savedContent(user, data); if (action === "pause") return { text: "⏸ Dein Suchprofil ist pausiert." }; if (action === "resume") return { text: "▶️ Dein Suchprofil ist wieder aktiv." }; return null; }
 
-async function finish(updateId: number, attempt: number, success: boolean, error: string | null = null) { return rpc("finish_telegram_update", { p_update_id: updateId, p_attempt: attempt, p_success: success, p_error: error }); }
-function finishBackground(updateId: number, attempt: number, success: boolean, error: string | null = null) { EdgeRuntime.waitUntil(finish(updateId, attempt, success, error).catch((e) => console.error("telegram_fast_finish", String(e)))); }
+async function finish(updateId: number, attempt: number, success: boolean, error: string | null = null, timings: Record<string, number> = {}) { return rpc("finish_ui_update", { p_update_id: updateId, p_attempt: attempt, p_success: success, p_error: error, p_timings: timings }); }
+function finishBackground(updateId: number, attempt: number, success: boolean, error: string | null = null, timings: Record<string, number> = {}) { EdgeRuntime.waitUntil(finish(updateId, attempt, success, error, timings).catch((e) => console.error("telegram_fast_finish", String(e)))); }
 async function notifyAdminsNewUser(user: any) { const name = [user.first_name, user.last_name].filter(Boolean).join(" ").trim() || (user.username ? `@${user.username}` : String(user.telegram_user_id)); const username = user.username && name !== `@${user.username}` ? ` (@${user.username})` : ""; const text = `👤 Neuer Nutzer: ${name}${username}`; await Promise.all(ADMINS.filter((id) => id !== Number(user.telegram_user_id)).map((id) => telegram("sendMessage", { chat_id: id, text }).catch(() => {}))); }
 async function forwardCore(body: string, supplied: string, callbackAcked = false) {
   let expected = await secret("telegram_webhook_secret"); if (supplied !== expected) { cachedWebhookSecret = null; expected = await secret("telegram_webhook_secret", true); if (supplied !== expected) return new Response("unauthorized", { status: 401 }); }
@@ -97,6 +97,7 @@ async function performCallback(query: any, action: string, user: any, data: any)
 }
 
 Deno.serve(async (req: Request) => {
+  const requestStarted = Date.now();
   let updateId: number | null = null; let attempt: number | null = null;
   try {
     if (req.method !== "POST") return new Response("method not allowed", { status: 405 });
@@ -104,6 +105,7 @@ Deno.serve(async (req: Request) => {
     if (update?.callback_query?.id) {
       const query = update.callback_query;
       EdgeRuntime.waitUntil((async () => {
+        const callbackStarted = Date.now();
         let callbackUpdateId: number | null = null;
         let callbackAttempt: number | null = null;
         try {
@@ -132,11 +134,11 @@ Deno.serve(async (req: Request) => {
             return;
           }
           await performCallback(query, action, user, data);
-          await finish(callbackUpdateId, callbackAttempt, true);
+          await finish(callbackUpdateId, callbackAttempt, true, null, { total_ms: Date.now() - callbackStarted });
         } catch (error) {
           console.error("telegram_fast_callback", String(error));
           if (callbackUpdateId !== null && callbackAttempt !== null)
-            await finish(callbackUpdateId, callbackAttempt, false, String(error)).catch(() => {});
+            await finish(callbackUpdateId, callbackAttempt, false, String(error), { total_ms: Date.now() - callbackStarted }).catch(() => {});
         }
       })());
       return direct("answerCallbackQuery", { callback_query_id: query.id });
@@ -151,6 +153,6 @@ Deno.serve(async (req: Request) => {
     const chatId = Number(update?.message?.chat?.id); if (!chatId) throw new Error("missing chat id");
     if (action === "home") { const argument = argumentOf(update); if (argument.startsWith("ref_") && user.__is_new_user) await rpc("redeem_referral_code", { p_referred_user_id: user.id, p_code: argument.slice(4) }).catch((e) => console.error("referral_register", String(e))); EdgeRuntime.waitUntil(telegram("setChatMenuButton", { chat_id: chatId, menu_button: { type: "commands" } }).catch(() => {})); if (user.__is_new_user) EdgeRuntime.waitUntil(notifyAdminsNewUser(user)); }
     let response: Response; if (action === "premium" || (action === "saved" && !user.is_premium)) { const premium = premiumContent(user); response = direct("sendPhoto", { chat_id: chatId, photo: PREMIUM_IMAGE, caption: premium.caption, parse_mode: "HTML", reply_markup: premium.reply_markup }); } else { const content = contentFor(action, user, data); if (!content) throw new Error(`unsupported fast action ${action}`); response = direct("sendMessage", textParams(chatId, content.text, content.reply_markup)); }
-    finishBackground(updateId, attempt, true); return response;
-  } catch (error) { if (updateId !== null && attempt !== null) finishBackground(updateId, attempt, false, String(error)); console.error("telegram_fast", String(error)); return Response.json({ ok: false, error: "telegram_fast_failure" }, { status: 502 }); }
+    finishBackground(updateId, attempt, true, null, { total_ms: Date.now() - requestStarted }); return response;
+  } catch (error) { if (updateId !== null && attempt !== null) finishBackground(updateId, attempt, false, String(error), { total_ms: Date.now() - requestStarted }); console.error("telegram_fast", String(error)); return Response.json({ ok: false, error: "telegram_fast_failure" }, { status: 502 }); }
 });
