@@ -50,7 +50,7 @@ Deno.serve(async req=>{
    return Response.json({ok:true});
   }
   if(update?.callback_query?.id){
-   EdgeRuntime.waitUntil(forwardToCore(body,expected,true).then(r=>{if(!r.ok)console.error('telegram_callback_core',r.status)}).catch(e=>console.error('telegram_callback_core',String(e))));
+   EdgeRuntime.waitUntil((async()=>{const delays=[0,40,80,140,220,320];let last:Response|null=null;for(const delay of delays){if(delay)await new Promise(resolve=>setTimeout(resolve,delay));last=await forwardToCore(body,expected,true);if(![409,503].includes(last.status))break;}if(last&&!last.ok)console.error('telegram_callback_core',last.status);})().catch(e=>console.error('telegram_callback_core',String(e))));
    return direct('answerCallbackQuery',{callback_query_id:String(update.callback_query.id)});
   }
   return forwardToCore(body,expected,false);
