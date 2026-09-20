@@ -516,7 +516,7 @@ export async function profileEditMenu(user, chatId, messageId, selectedSlot) {
         throw error;
     if (!current)
         return profile(user, chatId, messageId);
-    await saveState(user.id, null, {});
+    await saveState(user.id, null, user.onboarding_state || {}, user.request_update_id, user.request_attempt);
     const types = Array.isArray(current.property_types) ? current.property_types : [];
     const standard = types.some((value) => value !== "WG");
     const room = types.includes("WG");
