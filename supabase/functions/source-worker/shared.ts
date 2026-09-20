@@ -26,6 +26,7 @@ export type Source = {
   baseline_completed_at: string | null;
   consecutive_failures: number;
   last_success_at?: string | null;
+  search_capabilities?: any;
 };
 export type Connector = {
   priority: number;
@@ -520,7 +521,7 @@ const BAD_CANONICAL_URL =
 const NON_RESIDENTIAL =
   /\b(?:Stellplatz|Garage|Parkplatz|Parkhaus|Gewerbe|Büro|Praxis|Lager|Halle|Laden|Grundstück)\b/i;
 const RESIDENTIAL =
-  /\b(?:Wohnung|Apartment|Appartement|Zimmer|Studio|Loft|Maisonette|Mietwohnung|Wohnen)\b/i;
+  /\b(?:Wohnung|Apartment|Appartement|Zimmer|Studio|Loft|Maisonette|Mietwohnung|Wohnen|Haus|Einfamilienhaus|Reihenhaus|Doppelhaushälfte|Doppelhaus|Villa)\b/i;
 function validCandidate(source: Source, c: Candidate) {
   if (!c.url || BAD_CANONICAL_URL.test(c.url)) return false;
   if (source.id === 8 && !/\/wohnungssuche\/hamburg\//i.test(c.url))
@@ -577,7 +578,22 @@ async function normalize(
     rooms: saneRooms(c.rooms),
     area_sqm: c.area != null && Number(c.area) > 0 ? c.area : null,
     available_from: c.available || null,
-    property_type: c.type || "Wohnung",
+    property_type: (() => {
+      if (c.type) return c.type;
+      const classification = c.raw?._classification;
+      if (classification?.version === 1) {
+        if (classification.mode === "swap") return "Tauschwohnung";
+        if (classification.kind === "house") return "Haus";
+        if (classification.kind === "room") return "WG";
+        if (classification.kind === "apartment") return "Wohnung";
+        return null;
+      }
+      const kinds = Array.isArray(source.search_capabilities?.configured_kinds) ? source.search_capabilities.configured_kinds : [];
+      const modes = Array.isArray(source.search_capabilities?.offer_modes) ? source.search_capabilities.offer_modes : [];
+      if (modes.length === 1 && modes[0] === "swap") return "Tauschwohnung";
+      if (kinds.length === 1) return kinds[0] === "house" ? "Haus" : kinds[0] === "room" ? "WG" : kinds[0] === "apartment" ? "Wohnung" : null;
+      return null;
+    })(),
     furnished: c.furnished ?? null,
     wbs_required: c.wbs ?? false,
     image_url: c.image || null,

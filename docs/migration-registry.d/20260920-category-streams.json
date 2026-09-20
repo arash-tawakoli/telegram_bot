@@ -1,0 +1,12 @@
+{
+  "migrations": [
+    {
+      "version": "20260920170532",
+      "name": "enable_verified_category_streams",
+      "file": "supabase/migrations/20260920170532_enable_verified_category_streams.sql",
+      "registry_sql_sha256": "93378868564217a25b4651137717ea87ca9fb1bc7b4215e73ef2f672bdbdcd1e",
+      "export_sql_sha256": "93378868564217a25b4651137717ea87ca9fb1bc7b4215e73ef2f672bdbdcd1e",
+      "vault_substitution": false
+    }
+  ]
+}

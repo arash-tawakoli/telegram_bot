@@ -11,6 +11,17 @@ function listingDates(h:string){const out=new Map<string,string>(),decoded=decod
 function berlinNow(){const parts=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Berlin',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date()).filter(x=>x.type!=='literal').map(x=>[x.type,Number(x.value)]));return{year:Number(parts.year),month:Number(parts.month),day:Number(parts.day),hour:Number(parts.hour),minute:Number(parts.minute)}}
 function ageMinutes(label:string|null){if(!label)return null;const now=berlinNow(),time=label.match(/(\d{1,2}):(\d{2})/);if(!time)return null;const adMinutes=Number(time[1])*60+Number(time[2]);let dayDiff:number;if(/^Heute\b/i.test(label))dayDiff=0;else if(/^Gestern\b/i.test(label))dayDiff=1;else{const d=label.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);if(!d)return null;dayDiff=Math.round((Date.UTC(now.year,now.month-1,now.day)-Date.UTC(Number(d[3]),Number(d[2])-1,Number(d[1])))/86400000)}return dayDiff*1440+now.hour*60+now.minute-adMinutes}
 function currentListing(label:string|null){const age=ageMinutes(label);return age!=null&&age>=-5&&age<=1440}
+function sortingDateIso(label:string|null){
+  if(!label)return null;
+  const now=berlinNow(),time=label.match(/(\d{1,2}):(\d{2})/);if(!time)return null;
+  let y=now.year,m=now.month,d=now.day;
+  if(/^Gestern\b/i.test(label)){const x=new Date(Date.UTC(y,m-1,d)-86400000);y=x.getUTCFullYear();m=x.getUTCMonth()+1;d=x.getUTCDate()}
+  else if(!/^Heute\b/i.test(label)){const x=label.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);if(!x)return null;d=Number(x[1]);m=Number(x[2]);y=Number(x[3])}
+  const utcGuess=new Date(Date.UTC(y,m-1,d,Number(time[1]),Number(time[2])));
+  const zone=new Intl.DateTimeFormat('en-US',{timeZone:'Europe/Berlin',timeZoneName:'shortOffset'}).formatToParts(utcGuess).find(x=>x.type==='timeZoneName')?.value||'GMT+1';
+  const om=zone.match(/GMT([+-])(\d{1,2})(?::(\d{2}))?/);const offset=om?(om[1]==='-'?-1:1)*(Number(om[2])*60+Number(om[3]||0)):60;
+  return new Date(utcGuess.getTime()-offset*60000).toISOString();
+}
 function parsePage(h:string){const dates=listingDates(h),items:Candidate[]=[];let opens=0;for(const m of h.matchAll(/<article\b[^>]*data-adid=["'](\d+)["'][^>]*data-href=["']([^"']+)["'][^>]*>/gi)){opens++;const st=m.index||0,en=h.indexOf('</article>',st);if(en<0)continue;const b=h.slice(st,en+10),plain=strip(b),title=strip(b.match(/<a\b[^>]*class=["'][^"']*ellipsis[^"']*["'][^>]*>([\s\S]*?)<\/a>/i)?.[1]||b.match(/<h[23]\b[^>]*>([\s\S]*?)<\/h[23]>/i)?.[1]||'');if(!title)continue;let loc=strip(b.match(/aditem-main--top--left[^>]*>([\s\S]*?)<\/div>/i)?.[1]||b.match(/<span\b[^>]*>\s*(\d{5}\s+Hamburg[^<]*)<\/span>/i)?.[1]||'');let zip=loc.match(/\b(\d{5})\b/)?.[1]||plain.match(/\b(\d{5})\s+Hamburg\b/i)?.[1];if(!zip||!HH_ZIPS.has(zip))continue;if(!loc){const lm=plain.match(new RegExp(`\\b${zip}\\s+Hamburg(?:\\s+[A-Za-zÄÖÜäöüß&;#0-9.-]+){0,3}`,'i'));loc=lm?.[0]||`${zip} Hamburg`}const tags=strip(b.match(/aditem-main--middle--tags[^>]*>([\s\S]*?)<\/(?:div|p)>/i)?.[1]||b),price=strip(b.match(/aditem-main--middle--price-shipping--price[^>]*>([\s\S]*?)<\/p>/i)?.[1]||b.match(/<p\b[^>]*>\s*([\d.]+(?:,\d{1,2})?\s*€(?:\s*VB)?)\s*<\/p>/i)?.[1]||''),image=b.match(/<img\b[^>]*(?:src|data-src)=["']([^"']+)["']/i)?.[1]||null,district=loc.replace(/^\d{5}\s+/,'').replace(/^Hamburg\s+/i,'').replace(/\s*\(Stadtteil\)$/i,'').trim(),sortingDate=dates.get(m[1])||null;items.push({key:m[1],url:m[2].startsWith('http')?m[2]:'https://www.kleinanzeigen.de'+m[2],title,district,zip,cold:deNum(price),rooms:deNum(tags.match(/([\d.,]+)\s*Zi/i)?.[1]),area:deNum(tags.match(/([\d.,]+)\s*m²/i)?.[1]),image,raw:{provider:'kleinanzeigen',native_offer:true,location:loc,price_text:price,sorting_date:sortingDate}})}return{items,opens}}
 
 async function fetchPage(s:string,id:number,p:number,retries=1,allowEmpty=false){let last:any=null;for(let attempt=1;attempt<=retries+1;attempt++){try{const r=await fetchListingPage(url(s,id,p),AbortSignal.timeout(15000));if(!r.ok)throw new Error(`Kleinanzeigen transport HTTP ${r.status}`);const upstream=Number(r.headers.get('x-upstream-status')||0),h=await r.text();if(upstream!==200)throw new Error(`Kleinanzeigen upstream HTTP ${upstream||'unknown'}`);const parsed=parsePage(h);if(parsed.opens===0)throw new Error(`Kleinanzeigen empty result HTML ${s} page ${p}`);if(parsed.items.length===0&&!allowEmpty)throw new Error(`Kleinanzeigen parser accepted 0/${parsed.opens} ${s} page ${p}`);return{h,items:parsed.items,opens:parsed.opens,attempts:attempt}}catch(e){last=e;if(attempt<=retries)await sleep(1500)}}throw last}
@@ -53,7 +64,7 @@ export async function runKlein(source:Source){const started=iso();try{
   }
   const coverageSaved=await upsertCoverage(source,coverageItems,presenceEpoch);
   const complete=district>=D.length&&!coverageError,t=iso(),cycleStarted=presenceEpoch;
-  if(complete)await db.from('listings').update({is_active:false}).eq('source_id',2).eq('is_active',true).lt('last_seen_at',cycleStarted).throwOnError();
+  if(complete)await db.from('listings').update({is_active:false}).eq('source_id',2).eq('is_active',true).or('property_kind.is.null,property_kind.eq.apartment').lt('last_seen_at',cycleStarted).throwOnError();
 
   const requests=fastRequests+coverageRequests;
   const seenIncrement=coverageSaved.seen+(initializing?fastSaved.seen:0);
@@ -64,3 +75,30 @@ export async function runKlein(source:Source){const started=iso();try{
   return{ok:true,source_id:2,fetched:fastItems.length+coverageItems.length,new:fastSaved.fresh,fast_lane:fastDue,fast_rejected_stale:fastRejectedStale,coverage_page:coverageLabel,coverage_accepted:coverageItems.length,coverage_new_eligible:0,next:complete?null:{district:D[district]?.[0]||null,page},complete};
 }catch(e){const t=iso(),{data:st}=await db.from('source_coverage_state').select('consecutive_errors').eq('source_id',2).maybeSingle().throwOnError();await db.from('source_coverage_state').update({status:'running',consecutive_errors:Number(st?.consecutive_errors||0)+1,last_error:String(e).slice(0,1000),backoff_until:null,updated_at:t}).eq('source_id',2).throwOnError();return markFailure(source,started,e)}}
 
+
+export async function runKleinCategory(source:Source,stream:any){
+  if(!['house','room'].includes(String(stream?.category)))throw new Error('unsupported Kleinanzeigen category stream');
+  const response=await fetchListingPage(String(stream.url),AbortSignal.timeout(15000));
+  if(!response.ok)throw new Error(`Kleinanzeigen category transport HTTP ${response.status}`);
+  const upstream=Number(response.headers.get('x-upstream-status')||0),html=await response.text();
+  if(upstream!==200)throw new Error(`Kleinanzeigen category upstream HTTP ${upstream||'unknown'}`);
+  const parsed=parsePage(html);if(parsed.opens===0)throw new Error('Kleinanzeigen category result HTML empty');
+  const now=Date.now(),eligible:Candidate[]=[],rest:Candidate[]=[];
+  for(const c of parsed.items){
+    const title=String(c.title||'');
+    if(stream.category==='house'&&(!/\b(Haus|Einfamilienhaus|Reihenhaus|Doppelhaus|Doppelhaushälfte|Villa|Bungalow)\b/i.test(title)||/\b(Kauf|kaufen|Mietkauf|Bauen statt Mieten|Grundstück)\b/i.test(title)))continue;
+    if(stream.category==='room'){
+      const roomSignal=/\b(?:WG(?:[- ]?Zimmer)?|Privatzimmer|Mitbewohner(?:in)?|Untermiet(?:e|er)?|Zimmer)\b/i.test(title);
+      const wholeUnit=/\b(?:gesamte|komplette)\s+(?:Unterkunft|Wohnung)\b|\b\d+(?:[.,]\d+)?[ -]?Zimmer\b.{0,40}\bWohnung\b|\bApartment\b/i.test(title);
+      const strongRoom=/\b(?:WG(?:[- ]?Zimmer)?|Privatzimmer|Mitbewohner(?:in)?|Untermiet(?:e|er)?)\b/i.test(title);
+      if(!roomSignal||(wholeUnit&&!strongRoom))continue;
+    }
+    const published=sortingDateIso(String(c.raw?.sorting_date||'')),kind=String(stream.category);
+    const x:Candidate={...c,type:kind==='house'?'Haus':'WG',raw:{...c.raw,category_stream:kind,_classification:{version:1,kind,mode:'rent'},...(published?{_newness:{method:'source_timestamp',source_published_at:published}}:{})}};
+    const fresh=!!stream.baseline_at&&!!published&&now-new Date(published).getTime()>=-5*60*1000&&now-new Date(published).getTime()<=24*60*60*1000;
+    (fresh?eligible:rest).push(x);
+  }
+  const a=rest.length?await upsertCandidates(source,rest,false):{seen:0,fresh:0,keys:[] as string[]};
+  const b=eligible.length?await upsertCandidates(source,eligible,true):{seen:0,fresh:0,keys:[] as string[]};
+  return{requests:1,candidates:a.seen+b.seen,fresh:a.fresh+b.fresh,cursor:{opens:parsed.opens,accepted:a.seen+b.seen,last_checked_at:iso()}};
+}
