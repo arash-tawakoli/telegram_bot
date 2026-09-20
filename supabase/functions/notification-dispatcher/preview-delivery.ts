@@ -15,17 +15,24 @@ function listingKeyboard(keyboard:any,caption:string) {
   const rows=Array.isArray(keyboard?.inline_keyboard)?keyboard.inline_keyboard:[];
   if(!rows.length)return keyboard;
   const offer=rows[0];
-  const save=rows.find((row:any[])=>row.some((button:any)=>String(button?.callback_data||'').startsWith('save:')||String(button?.text||'').includes('❤️')));
+  const save=rows.find((row:any[])=>row.some((button:any)=>{
+    const callback=String(button?.callback_data||''),text=String(button?.text||'');
+    return callback.startsWith('save:')||/^(?:Speichern|Gespeichert|Save|Saved)$/.test(text);
+  }));
   if(!save)return keyboard;
   const middle=rows.filter((row:any[])=>row!==offer&&row!==save);
-  const mapRow=middle.find((row:any[])=>row.some((button:any)=>String(button?.text||'').includes('Google Maps')));
-  const applyRow=middle.find((row:any[])=>row.some((button:any)=>String(button?.callback_data||'').startsWith('apply:')));
+  const mapRow=middle.find((row:any[])=>row.some((button:any)=>{
+    const text=String(button?.text||''),url=String(button?.url||'');
+    return text.includes('Google Map')||url.includes('google.com/maps/');
+  }));
+  const autoApplyRow=middle.find((row:any[])=>row.some((button:any)=>String(button?.callback_data||'')==='platforms'));
   const clean=(value:string)=>value.replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').trim();
   const locationLine=caption.split('\n').map(clean).reverse().find(line=>line.startsWith('📍'));
   const location=(locationLine||'').replace(/^📍\s*(?:[^:]+:\s*)?/,'').trim()||'Hamburg';
-  const maps=mapRow||[{text:'📍 Google Maps',url:`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`}];
-  const extras=middle.filter((row:any[])=>row!==mapRow&&row!==applyRow);
-  return {...keyboard,inline_keyboard:[offer,maps,save,...(applyRow?[applyRow]:[]),...extras]};
+  const maps=mapRow||[{text:'Google Map',url:`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`}];
+  const autoApply=autoApplyRow||[{text:'Auto-Bewerbung',callback_data:'platforms'}];
+  const extras=middle.filter((row:any[])=>row!==mapRow&&row!==autoApplyRow);
+  return {...keyboard,inline_keyboard:[offer,save,maps,autoApply,...extras]};
 }
 export function previewOperations(images:string[],caption:string,keyboard:any) {
   keyboard=listingKeyboard(keyboard,caption);
