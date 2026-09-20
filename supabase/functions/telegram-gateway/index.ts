@@ -81,7 +81,7 @@ Deno.serve(async req=>{
         catch(error){telegramMs=Date.now()-tgStarted;console.error('telegram_fast_critical_edit',String(error));const responseMs=Date.now()-requestStarted;EdgeRuntime.waitUntil((async()=>{const ackMs=await ackPromise;await recordMetric(Number(update.update_id),{db_ms:dbMs,render_ms:renderMs,ack_ms:Number(ackMs||0),response_ms:responseMs,telegram_ms:telegramMs,total_ms:responseMs,rpc_count:1,telegram_count:2,fast_path:1})})());return Response.json(rendered)}
        }
        const responseMs=Date.now()-requestStarted;
-       EdgeRuntime.waitUntil((async()=>{const ackMs=await ackPromise;await recordMetric(Number(update.update_id),{db_ms:dbMs,render_ms:renderMs,ack_ms:Number(ackMs||0),response_ms:responseMs,telegram_ms:telegramMs,total_ms:responseMs,rpc_count:1,telegram_count:fast?.critical===true?2:2,fast_path:1})})());
+       EdgeRuntime.waitUntil((async()=>{const ackMs=await ackPromise;await recordMetric(Number(update.update_id),{db_ms:dbMs,render_ms:renderMs,ack_ms:Number(ackMs||0),response_ms:responseMs,telegram_ms:telegramMs,total_ms:responseMs,rpc_count:1,telegram_count:2,fast_path:1})})());
        if(fast?.reward?.status==='rewarded')EdgeRuntime.waitUntil(telegram('sendMessage',{chat_id:Number(update.callback_query.message.chat.id),text:'💎 <b>30 Tage Premium kostenlos aktiviert</b>\n\nDein erstes Suchprofil ist erstellt und dir wurden 30 Tage Premium kostenlos gutgeschrieben.',parse_mode:'HTML'}).catch(e=>console.error('telegram_reward_notice',String(e))));
        return fast?.critical===true?Response.json({ok:true}):Response.json(rendered);
       }
