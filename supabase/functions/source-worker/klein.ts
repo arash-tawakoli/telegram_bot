@@ -89,7 +89,7 @@ export async function runKleinCategory(source:Source,stream:any){
     if(stream.category==='house'&&(!/\b(Haus|Einfamilienhaus|Reihenhaus|Doppelhaus|Doppelhaushälfte|Villa|Bungalow)\b/i.test(title)||/\b(Kauf|kaufen|Mietkauf|Bauen statt Mieten|Grundstück)\b/i.test(title)))continue;
     if(stream.category==='room'){
       const roomSignal=/\b(?:WG(?:[- ]?Zimmer)?|Privatzimmer|Mitbewohner(?:in)?|Untermiet(?:e|er)?|Zimmer)\b/i.test(title);
-      const wholeUnit=/\b(?:gesamte|komplette)\s+(?:Unterkunft|Wohnung)\b|\b\d+[ -]?Zimmer[ -]?Wohnung\b|\bApartment\b/i.test(title);
+      const wholeUnit=/\b(?:gesamte|komplette)\s+(?:Unterkunft|Wohnung)\b|\b\d+(?:[.,]\d+)?[ -]?Zimmer\b.{0,40}\bWohnung\b|\bApartment\b/i.test(title);
       const strongRoom=/\b(?:WG(?:[- ]?Zimmer)?|Privatzimmer|Mitbewohner(?:in)?|Untermiet(?:e|er)?)\b/i.test(title);
       if(!roomSignal||(wholeUnit&&!strongRoom))continue;
     }
