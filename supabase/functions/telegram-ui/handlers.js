@@ -2,8 +2,8 @@ import { quickApplication } from './application.js';
 import { platformSessions, handleAutoApplyMessage } from './platform-sessions.js';
 import { isAdmin, adminGrantLabel, adminPremiumNotice, adminUsers, adminUser, setUserBlocked, deleteUser, setPlanOverride } from "./admin.js";
 import { homeKeyboard, home, premium, saved, setPaused, toggleSave, referralPage, languagePage, settings } from "./navigation.js";
-import { draftFor, validateDraft, renderTypes, renderLocation, renderBoroughs, renderNeighborhoods, renderRent, renderCustomRent, renderRooms, renderArea, renderRoomArea, renderReview, renderStep, afterSelection, persistProfile, profileLimit, draftFromProfile, startNewProfile, profileEditMenu, profile, renderStatus, nextAfterRent } from "./profiles.js";
-import { db, PROPERTY_TYPES, RENT_PRESETS, ROOM_PRESETS, AREA_PRESETS, ROOM_AREA_PRESETS, NEIGHBORHOODS_PER_PAGE, chatLanguages, button, cancelRow, backRow, secret, telegram, send, sendCelebration, edit, acknowledge, saveState, geography, HELP_TEXT } from "./runtime.js";
+import { draftFor, validateDraft, renderTypes, renderLocation, renderBoroughs, renderNeighborhoods, renderRent, renderCustomRent, renderRooms, renderArea, renderRoomArea, renderReview, renderStep, afterSelection, persistProfile, profileLimit, draftFromProfile, startNewProfile, profileEditMenu, profile, renderStatus, includesWG, includesWholeHome, nextSizeStep } from "./profiles.js";
+import { db, PROPERTY_TYPES, RENT_PRESETS, ROOM_PRESETS, AREA_PRESETS, NEIGHBORHOODS_PER_PAGE, chatLanguages, button, cancelRow, backRow, secret, telegram, send, sendCelebration, edit, acknowledge, saveState, geography, HELP_TEXT } from "./runtime.js";
 export async function handleMessage(message, user) {
     const chatId = Number(message.chat.id);
     const text = String(message.text || "").trim();
@@ -75,27 +75,25 @@ export async function handleMessage(message, user) {
         }
         if (draft.edit_return) {
             delete draft.edit_return;
-            return renderReview(user, chatId, undefined, draft);
+            return renderReview(user, chatId, message.message_id, draft);
         }
-        const next = nextAfterRent(draft);
-        await saveState(user.id, next, draft, user.request_update_id, user.request_attempt);
-        if (next === "roomarea") {
-            return send(chatId, "🏠 <b>WG-Zimmer · Mindestgröße</b>\n\nWie groß soll dein eigenes Zimmer mindestens sein?", {
+        if (includesWG(draft)) {
+            await saveState(user.id, "roomarea", draft);
+            return send(chatId, "🛏 <b>Wie groß soll dein WG-Zimmer mindestens sein?</b>\n\nDas ist die Fläche deines Zimmers – nicht die Gesamtfläche der WG.", {
                 inline_keyboard: [
-                    [button("Egal", "roomarea:0"), button("10 m²+", "roomarea:10")],
-                    [button("12 m²+", "roomarea:12"), button("15 m²+", "roomarea:15")],
-                    [button("20 m²+", "roomarea:20")],
-                    backRow("rent"),
-                    cancelRow(),
+                    [button("Egal", "roomarea:0"), button("8 m²+", "roomarea:8")],
+                    [button("10 m²+", "roomarea:10"), button("12 m²+", "roomarea:12")],
+                    [button("15 m²+", "roomarea:15"), button("20 m²+", "roomarea:20")],
+                    backRow("rent"), cancelRow(),
                 ],
             });
         }
-        return send(chatId, "4/5 · <b>Mindestens wie viele Zimmer?</b>", {
+        await saveState(user.id, "rooms", draft);
+        return send(chatId, "🚪 <b>Wie viele Zimmer brauchst du mindestens?</b>", {
             inline_keyboard: [
                 [button("1+", "rooms:1"), button("2+", "rooms:2")],
                 [button("3+", "rooms:3"), button("4+", "rooms:4")],
-                backRow("rent"),
-                cancelRow(),
+                backRow("rent"), cancelRow(),
             ],
         });
     }
@@ -215,8 +213,7 @@ export async function handleCallback(query, user) {
     if (data === "noop")
         return;
     if (data === "cancel") {
-        const currentDraft = draftFor(user);
-        await saveState(user.id, null, currentDraft, user.request_update_id, user.request_attempt);
+        await saveState(user.id, null, {});
         return home({ ...user, onboarding_step: null, onboarding_state: {} }, chatId, messageId);
     }
     if (data === "home") {
@@ -238,9 +235,9 @@ export async function handleCallback(query, user) {
             "neighborhoods",
             "rent",
             "rent_custom",
+            "roomarea",
             "rooms",
             "area",
-            "roomarea",
             "review",
         ].includes(step)
             ? step
@@ -275,12 +272,12 @@ export async function handleCallback(query, user) {
             return renderLocation(user, chatId, messageId, draft);
         if (field === "rent")
             return renderRent(user, chatId, messageId, draft);
+        if (field === "roomarea")
+            return renderRoomArea(user, chatId, messageId, draft);
         if (field === "rooms")
             return renderRooms(user, chatId, messageId, draft);
         if (field === "area")
             return renderArea(user, chatId, messageId, draft);
-        if (field === "roomarea")
-            return renderRoomArea(user, chatId, messageId, draft);
         return profileEditMenu(user, chatId, messageId, slot);
     }
     if (data.startsWith("profile:edit:")) {
@@ -382,12 +379,12 @@ export async function handleCallback(query, user) {
     }
     if (data === "rent")
         return renderRent(user, chatId, messageId, draft);
+    if (data === "roomarea")
+        return renderRoomArea(user, chatId, messageId, draft);
     if (data === "rooms")
         return renderRooms(user, chatId, messageId, draft);
     if (data === "area")
         return renderArea(user, chatId, messageId, draft);
-    if (data === "roomarea")
-        return renderRoomArea(user, chatId, messageId, draft);
     if (data.startsWith("edit:")) {
         draft.edit_return = true;
         const step = data.slice(5);
@@ -398,12 +395,12 @@ export async function handleCallback(query, user) {
         }
         if (step === "rent")
             return renderRent(user, chatId, messageId, draft);
+        if (step === "roomarea")
+            return renderRoomArea(user, chatId, messageId, draft);
         if (step === "rooms")
             return renderRooms(user, chatId, messageId, draft);
         if (step === "area")
             return renderArea(user, chatId, messageId, draft);
-        if (step === "roomarea")
-            return renderRoomArea(user, chatId, messageId, draft);
     }
     if (data.startsWith("type:")) {
         const value = data.slice(5);
@@ -509,9 +506,17 @@ export async function handleCallback(query, user) {
         const amount = Number(value);
         if (RENT_PRESETS.has(amount)) {
             draft.max_warm_rent = amount;
-            return afterSelection(user, chatId, messageId, draft, nextAfterRent(draft));
+            return afterSelection(user, chatId, messageId, draft, nextSizeStep(draft));
         }
         return renderRent(user, chatId, messageId, draft);
+    }
+    if (data.startsWith("roomarea:")) {
+        const roomArea = Number(data.slice(9));
+        if ([0, 8, 10, 12, 15, 20].includes(roomArea)) {
+            draft.min_room_area_sqm = roomArea;
+            return afterSelection(user, chatId, messageId, draft, includesWholeHome(draft) ? "rooms" : "review");
+        }
+        return renderRoomArea(user, chatId, messageId, draft);
     }
     if (data.startsWith("rooms:")) {
         const rooms = Number(data.slice(6));
@@ -525,17 +530,9 @@ export async function handleCallback(query, user) {
         const area = Number(data.slice(5));
         if (AREA_PRESETS.has(area)) {
             draft.min_area_sqm = area;
-            return afterSelection(user, chatId, messageId, draft, draft.property_types.includes("WG") ? "roomarea" : "review");
-        }
-        return renderArea(user, chatId, messageId, draft);
-    }
-    if (data.startsWith("roomarea:")) {
-        const area = Number(data.slice(9));
-        if (ROOM_AREA_PRESETS.has(area)) {
-            draft.min_room_area_sqm = area;
             return afterSelection(user, chatId, messageId, draft, "review");
         }
-        return renderRoomArea(user, chatId, messageId, draft);
+        return renderArea(user, chatId, messageId, draft);
     }
     if (data === "profile:save" || data === "s:save") {
         const issue = validateDraft(draft);
