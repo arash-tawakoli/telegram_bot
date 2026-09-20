@@ -53,7 +53,7 @@ export async function runKlein(source:Source){const started=iso();try{
   }
   const coverageSaved=await upsertCoverage(source,coverageItems,presenceEpoch);
   const complete=district>=D.length&&!coverageError,t=iso(),cycleStarted=presenceEpoch;
-  if(complete)await db.from('listings').update({is_active:false}).eq('source_id',2).eq('is_active',true).lt('last_seen_at',cycleStarted).throwOnError();
+  if(complete)await db.from('listings').update({is_active:false}).eq('source_id',2).eq('is_active',true).or('property_kind.is.null,property_kind.eq.apartment').lt('last_seen_at',cycleStarted).throwOnError();
 
   const requests=fastRequests+coverageRequests;
   const seenIncrement=coverageSaved.seen+(initializing?fastSaved.seen:0);
