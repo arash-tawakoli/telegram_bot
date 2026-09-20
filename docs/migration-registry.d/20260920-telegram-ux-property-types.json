@@ -1,0 +1,21 @@
+{
+  "project": "dpmohkrwdlicexwcrqfy",
+  "migrations": [
+    {
+      "version": "20260920140507",
+      "name": "housing_category_streams",
+      "file": "supabase/migrations/20260920140507_housing_category_streams.sql",
+      "registry_sql_sha256": "33e88aa0bdc6e71d6b8ea924cb0ff23eb0c88c3d44ee841380e38b279328be56",
+      "export_sql_sha256": "33e88aa0bdc6e71d6b8ea924cb0ff23eb0c88c3d44ee841380e38b279328be56",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260920141055",
+      "name": "telegram_ux_state_and_metrics",
+      "file": "supabase/migrations/20260920141055_telegram_ux_state_and_metrics.sql",
+      "registry_sql_sha256": "80901a0a0fa3cbcfe4bee6aa3f0f2d28738e0b7f717b3e502e5bfdf5588042f3",
+      "export_sql_sha256": "80901a0a0fa3cbcfe4bee6aa3f0f2d28738e0b7f717b3e502e5bfdf5588042f3",
+      "vault_substitution": false
+    }
+  ]
+}
