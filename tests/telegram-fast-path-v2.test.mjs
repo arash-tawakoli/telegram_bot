@@ -49,3 +49,9 @@ test('saved listings use URL buttons without extra messages',()=>{
  assert.equal(r.method,'editMessageText');
  assert.equal(r.reply_markup.inline_keyboard[0][0].url,'https://example.com/x');
 });
+
+test('profile list preserves an in-progress onboarding draft',()=>{
+ const r=renderFast({...base,view:'profile_list',user:{id:'u',ui_language:'de',onboarding_step:'rent',onboarding_state:{profile_slot:1}},data:{profiles:[],profile_limit:1}},update);
+ const callbacks=r.reply_markup.inline_keyboard.flat().map(x=>x.callback_data).filter(Boolean);
+ assert.ok(callbacks.includes('draft'));
+});
