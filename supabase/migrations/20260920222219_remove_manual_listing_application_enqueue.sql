@@ -1,0 +1,1 @@
+drop function if exists public.enqueue_application_now(uuid, uuid);

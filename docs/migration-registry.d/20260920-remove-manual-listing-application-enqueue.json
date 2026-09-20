@@ -1,0 +1,12 @@
+{
+  "migrations": [
+    {
+      "version": "20260920222219",
+      "name": "remove_manual_listing_application_enqueue",
+      "file": "supabase/migrations/20260920222219_remove_manual_listing_application_enqueue.sql",
+      "registry_sql_sha256": "2f9eaefaaf34dfe2a7f38a05da479e324d5e161cde709dcdf72a5ba8a3ae541a",
+      "export_sql_sha256": "2f9eaefaaf34dfe2a7f38a05da479e324d5e161cde709dcdf72a5ba8a3ae541a",
+      "vault_substitution": false
+    }
+  ]
+}

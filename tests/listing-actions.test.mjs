@@ -42,4 +42,7 @@ test('preview labels use the requested German button names',()=>{
   assert.match(labels,/save: "Speichern"/);
   assert.match(labels,/maps: "Google Map"/);
   assert.match(labels,/auto_apply: "Auto-Bewerbung"/);
+  const handlers=readFileSync(new URL('../supabase/functions/telegram-ui/handlers.js',import.meta.url),'utf8');
+  assert.doesNotMatch(handlers,/❤️ Speichern|❤️ Gespeichert/);
+  assert.match(handlers,/savedState \? "Gespeichert" : "Speichern"/);
 });
