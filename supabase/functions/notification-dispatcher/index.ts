@@ -1,6 +1,5 @@
 import {pageAvailability,recentInventory} from './availability.ts';
 import {deliveryNewness} from './newness.ts';
-import {quickApplyButton} from '../telegram-ui/application-message.js';
 import {previewOperations,deliverPreview,sourcePhoto} from "./preview-delivery.ts";
 import {present, textValue, exactAddress, structuredFacts, collectImages, htmlFacts} from "./source-facts.ts";
 import { telegramRequest, TelegramFailure } from "./telegram-request.ts";
@@ -161,7 +160,7 @@ function cap(l: any, lang: string) {
   return lines.join("\n").trim();
 }
 function offerTarget(l: any, lang: string) {
-  const fallback = {url:l.canonical_url, text:l.sources?.button_label ? `Zu ${l.sources.button_label}` : label(lang,"offer")};
+  const fallback = {url:l.canonical_url, text:label(lang,"offer")};
   if (l.sources?.source_type !== "Baugenossenschaft") return fallback;
   const tenant = (value:any, registration=false) => {
     if (typeof value !== "string") return null;
@@ -179,36 +178,22 @@ function offerTarget(l: any, lang: string) {
   const connectors=[...(l.sources?.source_connectors || [])].filter((c:any)=>c.enabled).sort((a:any,b:any)=>a.priority-b.priority);
   for(const c of connectors) {
     const portal=tenant(c.config?.tenant_registration_url,true);
-    if(portal) return {url:portal,text:"ImmoMio-Registrierung"};
+    if(portal) return {url:portal,text:label(lang,"offer")};
   }
   return fallback;
 }
 function kb(l: any, lang: string, p: boolean) {
-  const r: any[] = [
-      [
-        !p && String(l.sources?.source_type || "") === "Baugenossenschaft"
-          ? { text: "🔒 Angebot öffnen · 💎 Premium", callback_data: "premium" }
-          : {
-              ...offerTarget(l,lang),
-            },
-      ],
-    ],
-    q = mapLoc(l);
-  if (q)
-    r.push([
-      {
-        text: label(lang, "maps"),
-        url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`,
-      },
-    ]);
-  const apply = quickApplyButton(l);
-  if (apply) r.push([apply]);
-  r.push([
-    p
-      ? { text: label(lang, "save"), callback_data: `save:${l.id}` }
-      : { text: `🔒 ${label(lang, "save")}`, callback_data: "premium" },
-  ]);
-  return { inline_keyboard: r };
+  const offer = !p && String(l.sources?.source_type || "") === "Baugenossenschaft"
+    ? { text: label(lang, "offer"), callback_data: "premium" }
+    : { ...offerTarget(l,lang), text: label(lang, "offer") };
+  const save = p
+    ? { text: label(lang, "save"), callback_data: `save:${l.id}` }
+    : { text: label(lang, "save"), callback_data: "premium" };
+  const q = mapLoc(l);
+  const rows: any[] = [[offer],[save]];
+  if (q) rows.push([{text:label(lang,"maps"),url:`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`}]);
+  rows.push([{text:label(lang,"auto_apply"),callback_data:"platforms"}]);
+  return { inline_keyboard: rows };
 }
 async function tg(t: string, m: string, b: any) {
   return telegramRequest(`https://api.telegram.org/bot${t}/${m}`, {
