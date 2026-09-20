@@ -18,3 +18,29 @@ export async function runScout(source:Source){const started=iso();try{await init
  const freshLen=freshItems.length,searchItems=[...freshItems,...coverageItems],mapUnique=[...new Map(mapEntries.map((e:any)=>[entryId(e),e]).filter(([id])=>!!id)).values()],mapItems=candidates(mapUnique,'map_fact_cache'),combined=await preserveKnown(source.id,propagateDetails([...searchItems,...mapItems]).slice(0,searchItems.length));freshItems=combined.slice(0,freshLen);const freshKeys=new Set(freshItems.map(c=>String(c.key||'')));coverageItems=combined.slice(freshLen).filter(c=>!freshKeys.has(String(c.key||'')));const freshSaved=await upsertCandidates(source,freshItems,true),coverageSaved=await upsertCandidates(source,coverageItems,false),complete=queue.length===0,t=iso(),seen=freshSaved.seen+coverageSaved.seen,inserted=freshSaved.fresh+coverageSaved.fresh,nextFreshIndex=(freshBoroughIndex+bCount)%BOROUGHS.length;await db.from('source_coverage_state').update({status:complete?'complete':'running',cursor:{queue,processed:Number(cursor.processed||0)+processed,fresh_borough_index:nextFreshIndex},seen_count:Number(st?.seen_count||0)+seen,request_count:Number(st?.request_count||0)+requests,cycle_finished_at:complete?t:null,last_complete_at:complete?t:st?.last_complete_at||null,updated_at:t,last_error:saturated?`${saturated} saturated leaves`:null}).eq('source_id',source.id).throwOnError();await markSuccess(source,started,null,freshItems.length+coverageItems.length,inserted,{strategy:'fresh_first_7_borough_adaptive_price_mcp',cycle_id:cycle,requests,session_requests:2,coverage_partition_budget:1,coverage_partitions:work.length,map_enriched:mapEnriched,map_fact_entries:mapUnique.length,map_errors:mapErrors,remaining:queue.length,saturated,recovery,fresh_lane_items:freshItems.length,fresh_boroughs:bNames,coverage_items:coverageItems.length,coverage_delivery_eligible:false,complete:false});return{ok:true,source_id:1,fetched:freshItems.length+coverageItems.length,new:inserted,map_enriched:mapEnriched,map_fact_entries:mapUnique.length,map_errors:mapErrors,remaining:queue.length,cycle_complete:complete,recovery}}catch(e){return markFailure(source,started,e)}}
 
 
+
+function scoutPublishedAt(entry:any){
+  const values=[entry?.publishedAt,entry?.publishDate,entry?.creationDate,entry?.createdAt,entry?.firstPublishedAt,entry?.listingDate];
+  for(const value of values){
+    if(!value)continue;
+    const d=new Date(value);
+    if(Number.isFinite(d.getTime()))return d.toISOString();
+  }
+  return null;
+}
+export async function runScoutCategory(source:Source,stream:any){
+  if(stream?.category!=='house')throw new Error('unsupported Scout category stream');
+  await init();
+  const q='Häuser zur Miete in Hamburg, neueste Inserate';
+  const r=await enrichedSearch(q);
+  const now=Date.now(),eligible:Candidate[]=[],rest:Candidate[]=[];
+  for(const c of candidates(r.entries,q)){
+    const published=scoutPublishedAt(c.raw?.entry);
+    const x:Candidate={...c,type:'Haus',raw:{...c.raw,category_stream:'house',_classification:{version:1,kind:'house',mode:'rent'},...(published?{_newness:{method:'source_timestamp',source_published_at:published}}:{})}};
+    const fresh=!!stream.baseline_at&&!!published&&now-new Date(published).getTime()>=-5*60*1000&&now-new Date(published).getTime()<=24*60*60*1000;
+    (fresh?eligible:rest).push(x);
+  }
+  const a=rest.length?await upsertCandidates(source,rest,false):{seen:0,fresh:0,keys:[] as string[]};
+  const b=eligible.length?await upsertCandidates(source,eligible,true):{seen:0,fresh:0,keys:[] as string[]};
+  return{requests:4,candidates:a.seen+b.seen,fresh:a.fresh+b.fresh,cursor:{query:q,returned:r.entries.length,total:r.total,map_ok:r.map_ok,map_returned:r.map_returned}};
+}
