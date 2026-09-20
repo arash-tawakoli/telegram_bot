@@ -33,7 +33,7 @@ Deno.serve(async (request) => {
         const claim=prepared?.claim;
         if(claimError) throw claimError;
         if(claim===0) return Response.json({ok:true,duplicate:true});
-        if(claim<0) return Response.json({ok:false,busy:true,retry_after_ms:50},{status:409,headers:{"retry-after":"0"}});
+        if(claim<0) return Response.json({ok:false,busy:true,retry_after_ms:50},{status:503,headers:{"retry-after":"0"}});
         updateId=payload.update_id;attempt=claim;
         const user = await withPlan({...prepared.user, __is_new_user:prepared.is_new_user === true}, prepared.subscription ?? null);
         user.request_update_id=updateId;
