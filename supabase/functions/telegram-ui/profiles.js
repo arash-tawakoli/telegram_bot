@@ -1,5 +1,5 @@
 import { home, premium, settings } from "./navigation.js";
-import { db, PROPERTY_TYPES, RENT_PRESETS, ROOM_PRESETS, AREA_PRESETS, NEIGHBORHOODS_PER_PAGE, finiteOrNull, esc, money, button, cancelRow, backRow, send, edit, saveState, geography } from "./runtime.js";
+import { db, PROPERTY_TYPES, RENT_PRESETS, ROOM_PRESETS, AREA_PRESETS, ROOM_AREA_PRESETS, NEIGHBORHOODS_PER_PAGE, finiteOrNull, esc, money, button, cancelRow, backRow, send, edit, saveState, geography } from "./runtime.js";
 export function emptyDraft(profileSlot = 1) {
     return {
         profile_slot: Math.max(1, Math.min(3, Number(profileSlot) || 1)),
@@ -11,6 +11,13 @@ export function emptyDraft(profileSlot = 1) {
         max_warm_rent: null,
         min_rooms: null,
         min_area_sqm: null,
+        min_room_area_sqm: null,
+        wbs_only: false,
+        furnished_preference: "any",
+        require_known_warm_rent: false,
+        max_deposit: null,
+        _flow: crypto.randomUUID().replace(/-/g, "").slice(0, 12),
+        _revision: 0,
     };
 }
 
@@ -43,6 +50,13 @@ export function normalizeDraft(raw) {
         max_warm_rent: finiteOrNull(raw?.max_warm_rent ?? raw?.rent),
         min_rooms: finiteOrNull(raw?.min_rooms ?? raw?.rooms),
         min_area_sqm: finiteOrNull(raw?.min_area_sqm ?? raw?.area),
+        min_room_area_sqm: finiteOrNull(raw?.min_room_area_sqm),
+        wbs_only: raw?.wbs_only === true,
+        furnished_preference: ["any", "furnished", "unfurnished"].includes(String(raw?.furnished_preference || "")) ? raw.furnished_preference : "any",
+        require_known_warm_rent: raw?.require_known_warm_rent === true,
+        max_deposit: finiteOrNull(raw?.max_deposit),
+        _flow: /^[a-f0-9]{12}$/.test(String(raw?._flow || "")) ? raw._flow : crypto.randomUUID().replace(/-/g, "").slice(0, 12),
+        _revision: Number.isInteger(Number(raw?._revision)) ? Number(raw._revision) : 0,
         edit_return: raw?.edit_return === true,
         profile_edit: raw?.profile_edit === true,
     };
@@ -50,6 +64,22 @@ export function normalizeDraft(raw) {
 
 export function draftFor(user) {
     return normalizeDraft(user?.onboarding_state || {});
+}
+
+export function includesWG(draft) {
+    return draft.property_types.includes("WG");
+}
+
+export function includesWholeHome(draft) {
+    return draft.property_types.some((type) => ["Wohnung", "Haus", "Tauschwohnung"].includes(type));
+}
+
+export function nextSizeStep(draft) {
+    if (includesWG(draft))
+        return "roomarea";
+    if (includesWholeHome(draft))
+        return "rooms";
+    return "review";
 }
 
 export function validateDraft(draft) {
@@ -69,10 +99,13 @@ export function validateDraft(draft) {
         draft.max_warm_rent > 5000) {
         return "rent";
     }
-    if (draft.min_rooms == null || !ROOM_PRESETS.has(draft.min_rooms)) {
+    if (includesWG(draft) && (draft.min_room_area_sqm == null || !ROOM_AREA_PRESETS.has(draft.min_room_area_sqm))) {
+        return "roomarea";
+    }
+    if (includesWholeHome(draft) && (draft.min_rooms == null || !ROOM_PRESETS.has(draft.min_rooms))) {
         return "rooms";
     }
-    if (draft.min_area_sqm == null || !AREA_PRESETS.has(draft.min_area_sqm)) {
+    if (includesWholeHome(draft) && (draft.min_area_sqm == null || !AREA_PRESETS.has(draft.min_area_sqm))) {
         return "area";
     }
     return null;
@@ -80,15 +113,15 @@ export function validateDraft(draft) {
 
 export async function renderTypes(user, chatId, messageId, draft) {
     await saveState(user.id, "types", draft);
-    const rows = PROPERTY_TYPES.map((value) => [
-        button(`${draft.property_types.includes(value) ? "✅ " : ""}${value}`, `type:${value}`),
-    ]);
-    rows.push([
-        button("Alle auswählen", "type:all"),
-        button("Auswahl löschen", "type:clear"),
-    ], backRow(draft.profile_edit ? `profile:edit:${draft.profile_slot}` : "home", "type:done"), cancelRow());
-    const text = "1/5 · <b>Was suchst du?</b>\n\n" +
-        "Wähle eine oder mehrere Wohnungsarten.";
+    const mark = (value, label) => `${draft.property_types.includes(value) ? "✅ " : ""}${label}`;
+    const rows = [
+        [button(mark("Wohnung", "🏢 Wohnung"), "type:Wohnung"), button(mark("Haus", "🏡 Haus"), "type:Haus")],
+        [button(mark("WG", "🛏 WG-Zimmer"), "type:WG"), button(mark("Tauschwohnung", "🔁 Tauschwohnung"), "type:Tauschwohnung")],
+        [button("Alle Wohnformen", "type:all"), button("Zurücksetzen", "type:clear")],
+        [button("Weiter →", "type:done")],
+        [button("← Start", draft.profile_edit ? `profile:edit:${draft.profile_slot}` : "home")],
+    ];
+    const text = "🏠 <b>Was möchtest du mieten?</b>\n\nWähle eine oder mehrere Wohnformen. Die Suche nutzt nur Quellen, die diese Wohnform tatsächlich liefern.";
     return messageId
         ? edit(chatId, messageId, text, { inline_keyboard: rows })
         : send(chatId, text, { inline_keyboard: rows });
@@ -96,7 +129,7 @@ export async function renderTypes(user, chatId, messageId, draft) {
 
 export async function renderLocation(user, chatId, messageId, draft) {
     await saveState(user.id, "location", draft);
-    return edit(chatId, messageId, "2/5 · <b>Wo möchtest du suchen?</b>", {
+    return edit(chatId, messageId, "📍 <b>Wo möchtest du suchen?</b>", {
         inline_keyboard: [
             [button(`${draft.location_mode === "all_hamburg" ? "✅ " : ""}🌐 Ganz Hamburg`, "loc:all")],
             [button(`${draft.location_mode === "boroughs" ? "✅ " : ""}🏙 Bezirke auswählen`, "loc:boroughs")],
@@ -118,7 +151,7 @@ export async function renderBoroughs(user, chatId, messageId, draft) {
         button("Alle auswählen", "borough:all"),
         button("Auswahl löschen", "borough:clear"),
     ], backRow("location", "borough:done"), cancelRow());
-    return edit(chatId, messageId, "2/5 · <b>Hamburger Bezirke</b>\n\nWähle einen oder mehrere der 7 Bezirke.", { inline_keyboard: rows });
+    return edit(chatId, messageId, "📍 <b>Hamburger Bezirke</b>\n\nWähle einen oder mehrere der 7 Bezirke.", { inline_keyboard: rows });
 }
 
 export async function renderNeighborhoods(user, chatId, messageId, draft) {
@@ -140,14 +173,14 @@ export async function renderNeighborhoods(user, chatId, messageId, draft) {
         button(`${page + 1}/${pages}`, "noop"),
         button("→", "neighborhood:next"),
     ], backRow("location", "neighborhood:done"), cancelRow());
-    return edit(chatId, messageId, `2/5 · <b>Hamburger Stadtteile</b>\n\nWähle beliebig viele Stadtteile.\n\n<b>${draft.neighborhood_ids.length}/${geo.neighborhoods.length} ausgewählt</b>`, { inline_keyboard: rows });
+    return edit(chatId, messageId, `📍 <b>Hamburger Stadtteile</b>\n\nWähle beliebig viele Stadtteile.\n\n<b>${draft.neighborhood_ids.length}/${geo.neighborhoods.length} ausgewählt</b>`, { inline_keyboard: rows });
 }
 
 export async function renderRent(user, chatId, messageId, draft) {
     await saveState(user.id, "rent", draft);
     const customSelected = draft.max_warm_rent != null &&
         !RENT_PRESETS.has(draft.max_warm_rent);
-    return edit(chatId, messageId, "3/5 · <b>Maximale Warmmiete</b>", {
+    return edit(chatId, messageId, "💶 <b>Wie hoch darf die Warmmiete maximal sein?</b>", {
         inline_keyboard: [
             [
                 button(`${draft.max_warm_rent === 800 ? "✅ " : ""}800 €`, "rent:800"),
@@ -176,7 +209,7 @@ export async function renderCustomRent(user, chatId, messageId, draft) {
 
 export async function renderRooms(user, chatId, messageId, draft) {
     await saveState(user.id, "rooms", draft);
-    return edit(chatId, messageId, "4/5 · <b>Mindestens wie viele Zimmer?</b>", {
+    return edit(chatId, messageId, "🚪 <b>Wie viele Zimmer brauchst du mindestens?</b>", {
         inline_keyboard: [
             [
                 button(`${draft.min_rooms === 1 ? "✅ " : ""}1+`, "rooms:1"),
@@ -194,7 +227,7 @@ export async function renderRooms(user, chatId, messageId, draft) {
 
 export async function renderArea(user, chatId, messageId, draft) {
     await saveState(user.id, "area", draft);
-    return edit(chatId, messageId, "5/5 · <b>Mindestfläche</b>", {
+    return edit(chatId, messageId, "📐 <b>Wie groß soll die Wohnung oder das Haus mindestens sein?</b>", {
         inline_keyboard: [
             [
                 button(`${draft.min_area_sqm === 20 ? "✅ " : ""}20 m²`, "area:20"),
@@ -205,6 +238,20 @@ export async function renderArea(user, chatId, messageId, draft) {
                 button(`${draft.min_area_sqm === 90 ? "✅ " : ""}90 m²`, "area:90"),
             ],
             backRow(draft.profile_edit ? `profile:edit:${draft.profile_slot}` : "rooms"),
+            cancelRow(),
+        ],
+    });
+}
+
+export async function renderRoomArea(user, chatId, messageId, draft) {
+    await saveState(user.id, "roomarea", draft);
+    const selected = (value, label) => `${draft.min_room_area_sqm === value ? "✅ " : ""}${label}`;
+    return edit(chatId, messageId, "🛏 <b>Wie groß soll dein WG-Zimmer mindestens sein?</b>\n\nDas ist die Fläche deines Zimmers – nicht die Gesamtfläche der WG.", {
+        inline_keyboard: [
+            [button(selected(0, "Egal"), "roomarea:0"), button(selected(8, "8 m²+"), "roomarea:8")],
+            [button(selected(10, "10 m²+"), "roomarea:10"), button(selected(12, "12 m²+"), "roomarea:12")],
+            [button(selected(15, "15 m²+"), "roomarea:15"), button(selected(20, "20 m²+"), "roomarea:20")],
+            backRow(draft.profile_edit ? `profile:edit:${draft.profile_slot}` : "rent"),
             cancelRow(),
         ],
     });
@@ -263,15 +310,15 @@ export async function renderReview(user, chatId, messageId, draft) {
         `🏠 <b>Typ:</b> ${esc(draft.property_types.join(", "))}\n` +
         `📍 <b>Gebiet:</b> ${esc(places.location)}\n` +
         `💶 <b>Warmmiete:</b> bis ${esc(money(draft.max_warm_rent))}\n` +
-        `🚪 <b>Zimmer:</b> ${esc(draft.min_rooms)}+\n` +
-        `📐 <b>Fläche:</b> ${esc(draft.min_area_sqm)} m²+`;
+        (includesWG(draft) ? `🛏 <b>WG-Zimmer:</b> ${draft.min_room_area_sqm > 0 ? `${esc(draft.min_room_area_sqm)} m²+` : "egal"}\n` : "") +
+        (includesWholeHome(draft) ? `🚪 <b>Zimmer:</b> ${esc(draft.min_rooms)}+\n📐 <b>Fläche:</b> ${esc(draft.min_area_sqm)} m²+` : "");
     return edit(chatId, messageId, text, {
         inline_keyboard: [
             [button("✅ Suche aktivieren", "profile:save")],
             [button("🏠 Typ", "edit:types"), button("📍 Gebiet", "edit:location")],
-            [button("💶 Miete", "edit:rent"), button("🚪 Zimmer", "edit:rooms")],
-            [button("📐 Fläche", "edit:area")],
-            backRow("area"),
+            [button("💶 Miete", "edit:rent"), ...(includesWG(draft) ? [button("🛏 WG-Zimmer", "edit:roomarea")] : [])],
+            ...(includesWholeHome(draft) ? [[button("🚪 Zimmer", "edit:rooms"), button("📐 Fläche", "edit:area")]] : []),
+            backRow(includesWholeHome(draft) ? "area" : includesWG(draft) ? "roomarea" : "rent"),
             cancelRow(),
         ],
     });
@@ -292,6 +339,8 @@ export function renderStep(user, chatId, messageId, draft, step) {
     if (step === "rent_custom") {
         return renderCustomRent(user, chatId, messageId, draft);
     }
+    if (step === "roomarea")
+        return renderRoomArea(user, chatId, messageId, draft);
     if (step === "rooms")
         return renderRooms(user, chatId, messageId, draft);
     if (step === "area")
@@ -319,39 +368,24 @@ export async function persistProfile(user, draft) {
     if (issue)
         throw new Error(`incomplete profile: ${issue}`);
     const places = await selectedPlaces(draft);
-    const slot = Math.max(1, Math.min(profileLimit(user), Number(draft.profile_slot) || 1));
-    const { count: profileCount, error: profileCountError } = await db
-        .from("search_profiles")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id);
-    if (profileCountError)
-        throw profileCountError;
-    const { error } = await db.from("search_profiles").upsert({
-        user_id: user.id,
-        profile_slot: slot,
-        name: slot === 1 ? "Meine Suche" : `Meine Suche ${slot}`,
-        property_types: draft.property_types,
-        location_mode: draft.location_mode,
+    const values = {
+        ...draft,
         districts: places.districts,
         boroughs: places.boroughs,
         neighborhoods: places.neighborhoods,
-        max_warm_rent: draft.max_warm_rent,
-        min_rooms: draft.min_rooms,
-        min_area_sqm: draft.min_area_sqm,
-        wbs_only: false,
-        furnished_preference: "any",
-        updated_at: new Date().toISOString(),
-    }, { onConflict: "user_id,profile_slot" });
+        min_rooms: includesWholeHome(draft) ? draft.min_rooms : 0,
+        min_area_sqm: includesWholeHome(draft) ? draft.min_area_sqm : 0,
+        min_room_area_sqm: includesWG(draft) ? draft.min_room_area_sqm : 0,
+    };
+    const { data, error } = await db.rpc("save_search_profile_ui", {
+        p_user: user.id,
+        p_update_id: user.request_update_id,
+        p_attempt: user.request_attempt,
+        p_values: values,
+    });
     if (error)
         throw error;
-    await saveState(user.id, null, {});
-    if (true) {
-        const { data: referralReward, error: referralError } = await db.rpc("complete_referral_reward", { p_referred_user_id: user.id });
-        if (referralError)
-            throw referralError;
-        return referralReward || null;
-    }
-    return null;
+    return data || null;
 }
 
 export function profileLimit(user) { return user.is_premium ? 3 : 1; }
@@ -390,6 +424,11 @@ export async function draftFromProfile(current) {
         max_warm_rent: current.max_warm_rent,
         min_rooms: current.min_rooms,
         min_area_sqm: current.min_area_sqm,
+        min_room_area_sqm: current.min_room_area_sqm,
+        wbs_only: current.wbs_only,
+        furnished_preference: current.furnished_preference,
+        require_known_warm_rent: current.require_known_warm_rent,
+        max_deposit: current.max_deposit,
         profile_edit: true,
     });
 }
@@ -429,15 +468,15 @@ export async function profileEditMenu(user, chatId, messageId, selectedSlot) {
         `🏠 <b>Typ:</b> ${esc((current.property_types || []).join(", "))}\n` +
         `📍 <b>Gebiet:</b> ${esc(profileLocation(current))}\n` +
         `💶 <b>Warmmiete:</b> bis ${esc(money(current.max_warm_rent))}\n` +
-        `🚪 <b>Zimmer:</b> ${esc(current.min_rooms ?? "–")}+\n` +
-        `📐 <b>Fläche:</b> ${esc(current.min_area_sqm ?? "–")} m²+`;
+        ((current.property_types || []).includes("WG") ? `🛏 <b>WG-Zimmer:</b> ${Number(current.min_room_area_sqm || 0) > 0 ? `${esc(current.min_room_area_sqm)} m²+` : "egal"}\n` : "") +
+        ((current.property_types || []).some((type) => ["Wohnung", "Haus", "Tauschwohnung"].includes(type)) ? `🚪 <b>Zimmer:</b> ${esc(current.min_rooms ?? "–")}+\n📐 <b>Fläche:</b> ${esc(current.min_area_sqm ?? "–")} m²+` : "");
     const markup = { inline_keyboard: [
-            [button("🏠 Wohnungsart", `profile:edit-field:${selectedSlot}:types`)],
+            [button("🏠 Wohnform", `profile:edit-field:${selectedSlot}:types`)],
             [button("📍 Gebiet", `profile:edit-field:${selectedSlot}:location`)],
             [button("💶 Warmmiete", `profile:edit-field:${selectedSlot}:rent`)],
-            [button("🚪 Zimmer", `profile:edit-field:${selectedSlot}:rooms`)],
-            [button("📐 Fläche", `profile:edit-field:${selectedSlot}:area`)],
-            [button("← Zurück", `profile:view:${selectedSlot}`)],
+            ...((current.property_types || []).includes("WG") ? [[button("🛏 WG-Zimmergröße", `profile:edit-field:${selectedSlot}:roomarea`)]] : []),
+            ...((current.property_types || []).some((type) => ["Wohnung", "Haus", "Tauschwohnung"].includes(type)) ? [[button("🚪 Zimmer", `profile:edit-field:${selectedSlot}:rooms`), button("📐 Fläche", `profile:edit-field:${selectedSlot}:area`)]] : []),
+            [button("← Suchprofil", `profile:view:${selectedSlot}`)],
         ] };
     return edit(chatId, messageId, text, markup);
 }
@@ -458,8 +497,8 @@ export async function profile(user, chatId, messageId, selectedSlot) {
             `Typ: ${esc((current.property_types || []).join(", "))}\n` +
             `Gebiet: ${esc(location)}\n` +
             `Warmmiete: bis ${esc(money(current.max_warm_rent))}\n` +
-            `Zimmer: ${esc(current.min_rooms ?? "–")}+\n` +
-            `Fläche: ${esc(current.min_area_sqm ?? "–")} m²+`;
+            ((current.property_types || []).includes("WG") ? `WG-Zimmer: ${Number(current.min_room_area_sqm || 0) > 0 ? `${esc(current.min_room_area_sqm)} m²+` : "egal"}\n` : "") +
+            ((current.property_types || []).some((type) => ["Wohnung", "Haus", "Tauschwohnung"].includes(type)) ? `Zimmer: ${esc(current.min_rooms ?? "–")}+\nFläche: ${esc(current.min_area_sqm ?? "–")} m²+` : "");
         const markup = { inline_keyboard: [
                 [button("✏️ Suchprofil ändern", `profile:edit:${selectedSlot}`)],
                 [button(current.is_active ? "⏸ Pausieren" : "▶️ Fortsetzen", current.is_active ? `profile:pause:${selectedSlot}` : `profile:resume:${selectedSlot}`)],
