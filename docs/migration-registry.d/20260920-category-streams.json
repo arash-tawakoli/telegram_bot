@@ -4,8 +4,8 @@
       "version": "20260920183500",
       "name": "enable_verified_category_streams",
       "file": "supabase/migrations/20260920183500_enable_verified_category_streams.sql",
-      "registry_sql_sha256": "f28cfc6089c9fb34a6967c847224b9190625cca199c95c50cc544b5b73803fd4",
-      "export_sql_sha256": "f28cfc6089c9fb34a6967c847224b9190625cca199c95c50cc544b5b73803fd4",
+      "registry_sql_sha256": "28b0e8372a8031f26d3dd25f41ec2a0892cf35edd5220ce0e0f81935e7c327c5",
+      "export_sql_sha256": "28b0e8372a8031f26d3dd25f41ec2a0892cf35edd5220ce0e0f81935e7c327c5",
       "vault_substitution": false
     }
   ]
