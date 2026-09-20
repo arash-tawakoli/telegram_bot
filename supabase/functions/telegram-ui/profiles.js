@@ -82,6 +82,10 @@ export function nextSizeStep(draft) {
     return "review";
 }
 
+async function saveDraft(user, step, draft) {
+    return saveState(user.id, step, draft, user.request_update_id, user.request_attempt);
+}
+
 export function validateDraft(draft) {
     if (!draft.property_types.length)
         return "types";
@@ -112,7 +116,7 @@ export function validateDraft(draft) {
 }
 
 export async function renderTypes(user, chatId, messageId, draft) {
-    await saveState(user.id, "types", draft);
+    await saveDraft(user, "types", draft);
     const mark = (value, label) => `${draft.property_types.includes(value) ? "✅ " : ""}${label}`;
     const rows = [
         [button(mark("Wohnung", "🏢 Wohnung"), "type:Wohnung"), button(mark("Haus", "🏡 Haus"), "type:Haus")],
@@ -128,7 +132,7 @@ export async function renderTypes(user, chatId, messageId, draft) {
 }
 
 export async function renderLocation(user, chatId, messageId, draft) {
-    await saveState(user.id, "location", draft);
+    await saveDraft(user, "location", draft);
     return edit(chatId, messageId, "📍 <b>Wo möchtest du suchen?</b>", {
         inline_keyboard: [
             [button(`${draft.location_mode === "all_hamburg" ? "✅ " : ""}🌐 Ganz Hamburg`, "loc:all")],
@@ -142,7 +146,7 @@ export async function renderLocation(user, chatId, messageId, draft) {
 
 export async function renderBoroughs(user, chatId, messageId, draft) {
     const geo = await geography();
-    await saveState(user.id, "boroughs", draft);
+    await saveDraft(user, "boroughs", draft);
     const rows = [];
     for (let index = 0; index < geo.boroughs.length; index += 2) {
         rows.push(geo.boroughs.slice(index, index + 2).map((borough) => button(`${draft.borough_ids.includes(borough.id) ? "✅ " : ""}${borough.name}`, `borough:${borough.id}`)));
@@ -159,7 +163,7 @@ export async function renderNeighborhoods(user, chatId, messageId, draft) {
     const pages = Math.max(1, Math.ceil(geo.neighborhoods.length / NEIGHBORHOODS_PER_PAGE));
     const page = Math.max(0, Math.min(draft.neighborhood_page, pages - 1));
     draft.neighborhood_page = page;
-    await saveState(user.id, "neighborhoods", draft);
+    await saveDraft(user, "neighborhoods", draft);
     const entries = geo.neighborhoods.slice(page * NEIGHBORHOODS_PER_PAGE, (page + 1) * NEIGHBORHOODS_PER_PAGE);
     const rows = [];
     for (let index = 0; index < entries.length; index += 2) {
@@ -177,7 +181,7 @@ export async function renderNeighborhoods(user, chatId, messageId, draft) {
 }
 
 export async function renderRent(user, chatId, messageId, draft) {
-    await saveState(user.id, "rent", draft);
+    await saveDraft(user, "rent", draft);
     const customSelected = draft.max_warm_rent != null &&
         !RENT_PRESETS.has(draft.max_warm_rent);
     return edit(chatId, messageId, "💶 <b>Wie hoch darf die Warmmiete maximal sein?</b>", {
@@ -200,7 +204,7 @@ export async function renderRent(user, chatId, messageId, draft) {
 }
 
 export async function renderCustomRent(user, chatId, messageId, draft) {
-    await saveState(user.id, "rent_custom", draft);
+    await saveDraft(user, "rent_custom", draft);
     const current = draft.max_warm_rent != null
         ? `\n\nAktuell gespeichert: <b>${esc(money(draft.max_warm_rent))}</b>`
         : "";
@@ -208,7 +212,7 @@ export async function renderCustomRent(user, chatId, messageId, draft) {
 }
 
 export async function renderRooms(user, chatId, messageId, draft) {
-    await saveState(user.id, "rooms", draft);
+    await saveDraft(user, "rooms", draft);
     return edit(chatId, messageId, "🚪 <b>Wie viele Zimmer brauchst du mindestens?</b>", {
         inline_keyboard: [
             [
@@ -226,7 +230,7 @@ export async function renderRooms(user, chatId, messageId, draft) {
 }
 
 export async function renderArea(user, chatId, messageId, draft) {
-    await saveState(user.id, "area", draft);
+    await saveDraft(user, "area", draft);
     return edit(chatId, messageId, "📐 <b>Wie groß soll die Wohnung oder das Haus mindestens sein?</b>", {
         inline_keyboard: [
             [
@@ -244,7 +248,7 @@ export async function renderArea(user, chatId, messageId, draft) {
 }
 
 export async function renderRoomArea(user, chatId, messageId, draft) {
-    await saveState(user.id, "roomarea", draft);
+    await saveDraft(user, "roomarea", draft);
     const selected = (value, label) => `${draft.min_room_area_sqm === value ? "✅ " : ""}${label}`;
     return edit(chatId, messageId, "🛏 <b>Wie groß soll dein WG-Zimmer mindestens sein?</b>\n\nDas ist die Fläche deines Zimmers – nicht die Gesamtfläche der WG.", {
         inline_keyboard: [
@@ -305,7 +309,7 @@ export async function renderReview(user, chatId, messageId, draft) {
     if (issue)
         return renderStep(user, chatId, messageId, draft, issue);
     const places = await selectedPlaces(draft);
-    await saveState(user.id, "review", draft);
+    await saveDraft(user, "review", draft);
     const text = "✅ <b>Suchprofil prüfen</b>\n\n" +
         `🏠 <b>Typ:</b> ${esc(draft.property_types.join(", "))}\n` +
         `📍 <b>Gebiet:</b> ${esc(places.location)}\n` +
@@ -462,7 +466,7 @@ export async function profileEditMenu(user, chatId, messageId, selectedSlot) {
         throw error;
     if (!current)
         return profile(user, chatId, messageId);
-    await saveState(user.id, null, {});
+    await saveState(user.id, null, user.onboarding_state || {}, user.request_update_id, user.request_attempt);
     const text = "✏️ <b>Suchprofil ändern</b>\n\n" +
         "Wähle, was du ändern möchtest. Deine aktuell gespeicherten Werte bleiben vorausgewählt.\n\n" +
         `🏠 <b>Typ:</b> ${esc((current.property_types || []).join(", "))}\n` +
