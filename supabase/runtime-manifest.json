@@ -711,13 +711,13 @@
       "retired": false,
       "slug": "telegram-gateway",
       "verify_jwt": false,
-      "version": 40,
+      "version": 41,
       "observed_artifact": {
-        "observed_at": "2026-09-20T21:53:49Z",
+        "observed_at": "2026-09-20T21:55:40Z",
         "format": "compiled_esm",
         "entrypoint": "index.ts",
-        "ezbr_sha256": "f0bd8a2c6c0bd749e94ce30faad88377493bda4f1ae521f2d1f1f9a6d2b5f8db",
-        "verification": "Supabase production metadata plus exact source-content comparison for all three Fast Path v3 gateway files."
+        "ezbr_sha256": "e29d7062a56046413c550d0385fbbfdad7bf7e6a010ad1f50ddfab8a5eec3d08",
+        "verification": "Supabase production metadata after Fast Path v3 merge; all three deployed gateway source files exactly match main."
       }
     },
     {
