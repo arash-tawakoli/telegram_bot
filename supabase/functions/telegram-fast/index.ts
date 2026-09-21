@@ -55,23 +55,23 @@ function textParams(chatId: number, text: string, reply_markup?: unknown) { retu
 
 function premiumContent(user: any) {
   const rows: any[] = []; let caption: string;
-  if (user.is_premium) { caption = "💎 <b>Traumwohnung Premium</b>\n\n✅ <b>Premium ist aktiv.</b>\n\n<b>Deine Vorteile:</b>\n⚡ Sofortige Zustellung\n🔎 Bis zu 3 Suchprofile\n🔓 Baugenossenschafts-Angebote öffnen\n⭐️ Inserate speichern"; rows.push([button("💳 Abo verwalten", "portal")]); }
-  else { caption = "💎 <b>Traumwohnung Premium</b>\n\n<b>Deine Vorteile:</b>\n⚡ Sofortige Zustellung\n🔎 Bis zu 3 Suchprofile\n🔓 Baugenossenschafts-Angebote öffnen\n⭐️ Inserate speichern\n\n<s>1,99 €</s> <b>0,99 € / Monat</b>\nKeine Mindestlaufzeit · jederzeit kündbar"; rows.push([{ text: "💎 Premium freischalten", url: `${PREMIUM_LINK}?client_reference_id=${encodeURIComponent(user.id)}` }]); }
+  if (user.is_premium) { caption = "💎 <b>Traumwohnung Premium</b>\n\n✅ <b>Premium ist aktiv.</b>\n\n<b>Deine Vorteile:</b>\n⚡ Sofortige Zustellung\n🔎 Bis zu 4 Suchprofile\n🤖 Auto-Bewerbung\n🔓 Baugenossenschafts-Angebote öffnen\n⭐️ Inserate speichern"; rows.push([button("💳 Abo verwalten", "portal")]); }
+  else { caption = "💎 <b>Traumwohnung Premium</b>\n\n<b>Deine Vorteile:</b>\n⚡ Sofortige Zustellung\n🔎 Bis zu 4 Suchprofile\n🤖 Auto-Bewerbung\n🔓 Baugenossenschafts-Angebote öffnen\n⭐️ Inserate speichern\n\n<s>1,99 €</s> <b>0,99 € / Monat</b>\nKeine Mindestlaufzeit · jederzeit kündbar"; rows.push([{ text: "💎 Premium freischalten", url: `${PREMIUM_LINK}?client_reference_id=${encodeURIComponent(user.id)}` }]); }
   rows.push([button("← Zurück", "home")]); return { caption, reply_markup: { inline_keyboard: rows } };
 }
 function homeContent(user: any) { return { text: "🏠 <b>Traumwohnung Hamburg</b>\n\nFinde passende Mietangebote in Hamburg – automatisch und direkt per Telegram.\n\nWähle unten, was du machen möchtest.", reply_markup: { inline_keyboard: [[button("🔎 Suchprofil", "profile"), button(user.is_premium ? "⭐️ Gespeichert" : "🔒 ⭐️ Gespeichert", "saved")],[button("⚙️ Einstellungen", "settings"), button("❓ Hilfe", "help")],[button("💎 30 Tage Premium für 0 €", "referral")]] } }; }
 function settingsContent(user: any) { return { text: "⚙️ <b>Einstellungen</b>\n\nVerwalte hier Premium, Sprache und Systemstatus.", reply_markup: { inline_keyboard: [[button("⚡ Automatische Bewerbung", "platforms")],[button(user.is_premium ? "💎 Premium aktiv" : "💎 Premium", "premium")],[button("🌐 Sprachen", "language"), button("📡 Systemstatus", "status")],[button("← Zurück", "home")]] } }; }
 function helpContent() { return { text: "❓ <b>Hilfe & Befehle</b>\n\n🏠 /start – Startmenü\n🔎 /suche – Suchprofil erstellen oder ersetzen\n👤 /profile – Suchprofil anzeigen\n⭐️ /gespeichert – gespeicherte Inserate\n⚙️ /einstellungen – Einstellungen\n⏸ /pause – Suche pausieren\n▶️ /resume – Suche fortsetzen\n📡 /status – Systemstatus\n💎 /premium – Premium anzeigen\n❓ /hilfe – Hilfe", reply_markup: { inline_keyboard: [[button("← Zurück", "home")]] } }; }
 function profileContent(user: any, data: any) {
-  const profiles = Array.isArray(data?.profiles) ? data.profiles : []; const limit = Number(data?.profile_limit || (user.is_premium ? 3 : 1));
+  const profiles = Array.isArray(data?.profiles) ? data.profiles : []; const limit = Number(data?.profile_limit || (user.is_premium ? 4 : 1));
   const rows: any[] = profiles.map((row: any) => [button(`🔎 ${row.name || `Meine Suche ${row.profile_slot}`} · ${row.is_active ? "aktiv" : "pausiert"}`, `profile:view:${row.profile_slot}`)]);
   if (user.onboarding_step) rows.push([button("🔎 Entwurf fortsetzen", "draft")]); if (profiles.length < limit) rows.push([button("➕ Suchprofil erstellen", "new")]); if (!user.is_premium && profiles.length >= 1) rows.push([button("🔒 ➕ Weiteres Suchprofil · 💎 Premium", "premium")]); rows.push([button("← Zurück", "home")]);
   return { text: profiles.length ? `🔎 <b>Meine Suchprofile</b>\n\n${profiles.length}/${limit} Suchprofile angelegt.` : "🔎 <b>Meine Suchprofile</b>\n\nNoch kein Suchprofil angelegt.", reply_markup: { inline_keyboard: rows } };
 }
 function newContent(user: any, data: any) {
   if (data?.new_slot == null) return profileContent(user, data);
-  const rows: any[] = ["Wohnung", "Haus", "WG", "Tauschwohnung"].map((value) => [button(value, `type:${value}`)]); rows.push([button("Alle auswählen", "type:all"), button("Auswahl löschen", "type:clear")]); rows.push([button("← Zurück", "home"), button("Weiter →", "type:done")]); rows.push([button("✖️ Abbrechen", "cancel")]);
-  return { text: "1/5 · <b>Was suchst du?</b>\n\nWähle eine oder mehrere Wohnungsarten.", reply_markup: { inline_keyboard: rows } };
+  const rows: any[] = [[button("🏢 Wohnung", "type:Wohnung"), button("🏡 Haus", "type:Haus")],[button("🛏 WG-Zimmer", "type:WG"), button("🔁 Tauschwohnung", "type:Tauschwohnung")],[button("← Zurück", "home")],[button("✖️ Abbrechen", "cancel")]];
+  return { text: "1/5 · <b>Was suchst du?</b>\n\nWähle genau eine Wohnform.", reply_markup: { inline_keyboard: rows } };
 }
 function statusContent(data: any) { return { text: `📡 <b>Systemstatus</b>\n\n🔎 Suchprofile aktiv: ${Number(data?.active_profiles || 0)}/${Number(data?.profile_limit || 1)}\n🌐 Quellen im System: ${Number(data?.source_count || 0)}\n💎 Erfolgreiche Empfehlungen: ${Number(data?.referral_count || 0)}\n✅ System: online`, reply_markup: { inline_keyboard: [[button("← Einstellungen", "settings")]] } }; }
 function savedContent(user: any, data: any) {
