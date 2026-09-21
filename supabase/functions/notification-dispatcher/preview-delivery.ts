@@ -17,7 +17,7 @@ function listingKeyboard(keyboard:any,caption:string) {
   const offer=rows[0];
   const save=rows.find((row:any[])=>row.some((button:any)=>{
     const callback=String(button?.callback_data||''),text=String(button?.text||'');
-    return callback.startsWith('save:')||/^(?:Speichern|Gespeichert|Save|Saved)$/.test(text);
+    return callback.startsWith('save:')||/^(?:⭐\s*)?(?:Speichern|Gespeichert|Save|Saved)$/.test(text);
   }));
   if(!save)return keyboard;
   const middle=rows.filter((row:any[])=>row!==offer&&row!==save);
@@ -29,8 +29,8 @@ function listingKeyboard(keyboard:any,caption:string) {
   const clean=(value:string)=>value.replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').trim();
   const locationLine=caption.split('\n').map(clean).reverse().find(line=>line.startsWith('📍'));
   const location=(locationLine||'').replace(/^📍\s*(?:[^:]+:\s*)?/,'').trim()||'Hamburg';
-  const maps=mapRow||[{text:'Google Map',url:`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`}];
-  const autoApply=autoApplyRow||[{text:'Auto-Bewerbung',callback_data:'platforms'}];
+  const maps=mapRow||[{text:'🗺️ Google Maps',url:`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`}];
+  const autoApply=autoApplyRow||[{text:'⚡ Auto-Bewerbung',callback_data:'platforms'}];
   const extras=middle.filter((row:any[])=>row!==mapRow&&row!==autoApplyRow);
   return {...keyboard,inline_keyboard:[offer,save,maps,autoApply,...extras]};
 }
