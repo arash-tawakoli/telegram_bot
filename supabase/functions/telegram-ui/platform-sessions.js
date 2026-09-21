@@ -22,6 +22,19 @@ const PROFILE_FIELDS={
  move_in_date:{label:'Einzugsdatum',type:'date'},
  default_message:{label:'Standard-Bewerbungstext',max:4000}
 };
+const DOCUMENT_BUCKET='applicant-documents';
+const MAX_DOCUMENT_BYTES=6*1024*1024;
+const DOCUMENT_TYPES={
+ wbs:{label:'WBS',button:'🪪 WBS'},
+ urgency_certificate:{label:'Dringlichkeitsschein',button:'🚨 Dringlichkeit'},
+ guarantee:{label:'Bürgschaft',button:'🤝 Bürgschaft'},
+ schufa:{label:'SCHUFA',button:'📊 SCHUFA'},
+ income_proof:{label:'Einkommensnachweis',button:'💶 Einkommen'},
+ rent_clearance:{label:'Mietschuldenfreiheitsbescheinigung',button:'🏠 Mietschuldenfrei'},
+ other:{label:'Sonstiges Dokument',button:'📎 Sonstiges'}
+};
+const DOC_PROMPT_PREFIX='📎 Bewerberdokument · ';
+
 const SETUP_PROMPT='👤 Bewerberprofil · Grundeinrichtung';
 const FIELD_PROMPT_PREFIX='👤 Bewerberprofil · ';
 const KLEIN_CALLBACK_ORIGIN='https://login.kleinanzeigen.de';
@@ -51,6 +64,14 @@ export async function applicationWorker(action,userId,source,extra={}){
 }
 
 export async function purgePlatformSessions(userId){
+ const {data:documents,error:documentError}=await db.from('applicant_documents').select('storage_path').eq('user_id',userId);
+ if(documentError)throw Error('Bewerberdokumente konnten nicht geladen werden.');
+ const paths=(documents||[]).map(row=>String(row.storage_path||'')).filter(Boolean);
+ if(paths.length){
+  const {error:storageError}=await db.storage.from(DOCUMENT_BUCKET).remove(paths);
+  if(storageError)throw Error('Bewerberdokumente konnten nicht gelöscht werden.');
+ }
+ await db.from('applicant_documents').delete().eq('user_id',userId);
  const {data,error}=await db.from('platform_connections').select('provider').eq('user_id',userId);
  if(error)throw Error('Plattformverbindungen konnten nicht geladen werden.');
  const sourceFor={immoscout:1,kleinanzeigen:2,immomio:3};
@@ -106,6 +127,106 @@ export function immomioCallbackFromMessage(message){
  return null;
 }
 
+const clip=(value,max=28)=>{const s=String(value||'').replace(/\s+/g,' ').trim();return s.length>max?s.slice(0,max-1)+'…':s;};
+const safeOriginalName=value=>String(value||'Dokument')
+ .replace(/[\u0000-\u001f\u007f]/g,' ')
+ .replace(/[\\/]+/g,'_')
+ .replace(/\s+/g,' ')
+ .trim()
+ .slice(0,180)||'Dokument';
+
+function sniffDocumentMime(bytes){
+ if(bytes.length>=5&&bytes[0]===0x25&&bytes[1]===0x50&&bytes[2]===0x44&&bytes[3]===0x46&&bytes[4]===0x2d)return 'application/pdf';
+ if(bytes.length>=3&&bytes[0]===0xff&&bytes[1]===0xd8&&bytes[2]===0xff)return 'image/jpeg';
+ if(bytes.length>=8&&bytes[0]===0x89&&bytes[1]===0x50&&bytes[2]===0x4e&&bytes[3]===0x47&&bytes[4]===0x0d&&bytes[5]===0x0a&&bytes[6]===0x1a&&bytes[7]===0x0a)return 'image/png';
+ return null;
+}
+const extensionForMime=mime=>mime==='application/pdf'?'pdf':mime==='image/jpeg'?'jpg':'png';
+
+async function readDocuments(userId){
+ const {data,error}=await db.from('applicant_documents')
+  .select('id,document_type,original_filename,storage_path,mime_type,size_bytes,send_with_auto_apply,created_at')
+  .eq('user_id',userId)
+  .order('created_at',{ascending:false});
+ if(error)throw Error('Bewerberdokumente konnten nicht geladen werden.');
+ return data||[];
+}
+
+async function downloadTelegramDocument(fileId){
+ const file=await telegram('getFile',{file_id:fileId});
+ const path=String(file?.file_path||'');
+ if(!path||path.includes('..'))throw Error('Telegram-Datei konnte nicht geladen werden.');
+ const request=async(force=false)=>{
+  const token=await secret('telegram_bot_token_runtime',force);
+  return fetch(`https://api.telegram.org/file/bot${token}/${path}`,{signal:AbortSignal.timeout(25000)});
+ };
+ let response=await request(false);
+ if(response.status===401)response=await request(true);
+ if(!response.ok)throw Error('Telegram-Datei konnte nicht geladen werden.');
+ const bytes=new Uint8Array(await response.arrayBuffer());
+ if(!bytes.length||bytes.length>MAX_DOCUMENT_BYTES)throw Error('Die Datei muss zwischen 1 Byte und 6 MB groß sein.');
+ return bytes;
+}
+
+async function storeApplicantDocument(user,message,type){
+ const meta=DOCUMENT_TYPES[type];if(!meta)throw Error('Unbekannter Dokumenttyp.');
+ const doc=message?.document;
+ if(!doc)throw Error('Bitte sende das Dokument als Datei – nicht als Foto.');
+ const declaredSize=Number(doc.file_size||0);
+ if(declaredSize>MAX_DOCUMENT_BYTES)throw Error('Die Datei darf maximal 6 MB groß sein.');
+ const bytes=await downloadTelegramDocument(String(doc.file_id||''));
+ const mime=sniffDocumentMime(bytes);
+ if(!mime)throw Error('Erlaubt sind ausschließlich PDF-, JPG- und PNG-Dateien.');
+ const original=safeOriginalName(doc.file_name||`${meta.label}.${extensionForMime(mime)}`);
+ const storagePath=`${user.id}/${crypto.randomUUID()}.${extensionForMime(mime)}`;
+ const {error:uploadError}=await db.storage.from(DOCUMENT_BUCKET).upload(storagePath,bytes,{
+  contentType:mime,upsert:false,cacheControl:'3600'
+ });
+ if(uploadError)throw Error('Dokument konnte nicht sicher gespeichert werden.');
+ const {error:insertError}=await db.from('applicant_documents').insert({
+  user_id:user.id,document_type:type,original_filename:original,storage_path:storagePath,
+  mime_type:mime,size_bytes:bytes.length,send_with_auto_apply:false
+ });
+ if(insertError){
+  await db.storage.from(DOCUMENT_BUCKET).remove([storagePath]).catch(()=>{});
+  throw Error('Dokumentmetadaten konnten nicht gespeichert werden.');
+ }
+ return {label:meta.label,filename:original};
+}
+
+async function deleteApplicantDocument(userId,id){
+ const {data:doc,error}=await db.from('applicant_documents')
+  .select('id,storage_path').eq('id',id).eq('user_id',userId).maybeSingle();
+ if(error)throw Error('Dokument konnte nicht geladen werden.');
+ if(!doc)return;
+ const {error:storageError}=await db.storage.from(DOCUMENT_BUCKET).remove([doc.storage_path]);
+ if(storageError)throw Error('Dokumentdatei konnte nicht gelöscht werden.');
+ const {error:deleteError}=await db.from('applicant_documents').delete().eq('id',id).eq('user_id',userId);
+ if(deleteError)throw Error('Dokument konnte nicht gelöscht werden.');
+}
+
+async function renderApplicantDocuments(user,chat,messageId,notice=''){
+ const docs=await readDocuments(user.id),selected=docs.filter(d=>d.send_with_auto_apply).length;
+ const render=(text,rows)=>messageId?edit(chat.id,messageId,text,{inline_keyboard:rows}):send(chat.id,text,{inline_keyboard:rows});
+ const text=`📎 <b>Bewerberdokumente</b>\n\n${notice?`${notice}\n\n`:''}${docs.length} Datei${docs.length===1?'':'en'} gespeichert · ${selected} für Auto-Bewerbungen ausgewählt.\n\n<b>Dateiversand</b>\nImmoScout24: Erstkontakt derzeit ohne freie Dateianhänge\nKleinanzeigen: aktueller Kontaktkanal ohne Dateianhänge\nImmowelt: Bewerbermappe nur bewusst/manuell als PDF weitergeben\nImmomio: Unterlagen möglich, Bot-Uploadvertrag noch nicht verifiziert\n\nEine Auswahl ist nur eine Freigabe. Dateien werden ausschließlich über technisch verifizierte, dateifähige Provider-Kanäle übertragen.`;
+ const rows=[
+  [button('🪪 WBS','platforms:doc-upload:wbs'),button('🚨 Dringlichkeit','platforms:doc-upload:urgency_certificate')],
+  [button('🤝 Bürgschaft','platforms:doc-upload:guarantee'),button('📊 SCHUFA','platforms:doc-upload:schufa')],
+  [button('💶 Einkommensnachweis','platforms:doc-upload:income_proof')],
+  [button('🏠 Mietschuldenfrei','platforms:doc-upload:rent_clearance')],
+  [button('📎 Sonstiges','platforms:doc-upload:other')]
+ ];
+ for(const doc of docs){
+  const meta=DOCUMENT_TYPES[doc.document_type]||DOCUMENT_TYPES.other;
+  rows.push([
+   button(`${doc.send_with_auto_apply?'✅':'○'} ${meta.button} · ${clip(doc.original_filename,22)}`,`platforms:doc-toggle:${doc.id}`),
+   button('🗑',`platforms:doc-delete:${doc.id}`)
+  ]);
+ }
+ rows.push([button('← Bewerberprofil','platforms:profile')]);
+ return render(text,rows);
+}
+
 async function readProfile(userId){
  const {data,error}=await db.from('applicant_profiles').select('*').eq('user_id',userId).maybeSingle();
  if(error)throw Error('Bewerberprofil konnte nicht geladen werden.');
@@ -113,16 +234,16 @@ async function readProfile(userId){
 }
 
 async function renderApplicantProfile(user,chat,messageId,notice=''){
- const p=await readProfile(user.id),render=(text,rows)=>messageId?edit(chat.id,messageId,text,{inline_keyboard:rows}):send(chat.id,text,{inline_keyboard:rows});
+ const [p,docs]=await Promise.all([readProfile(user.id),readDocuments(user.id)]),render=(text,rows)=>messageId?edit(chat.id,messageId,text,{inline_keyboard:rows}):send(chat.id,text,{inline_keyboard:rows});
  if(!p){
   return render(`👤 <b>Bewerberprofil</b>\n\n${notice?`${notice}\n\n`:''}Noch kein Bewerberprofil angelegt. Die Grundeinrichtung erfolgt direkt hier in Telegram – ohne externe Supabase-Seite.`,[
    [button('➕ Bewerberprofil anlegen','platforms:profile-new')],
    [button('← Automatische Bewerbung','platforms')]
   ]);
  }
- const address=[p.street,p.house_number].filter(Boolean).join(' '),ready=profileReady(p);
+ const address=[p.street,p.house_number].filter(Boolean).join(' '),ready=profileReady(p),selectedDocs=docs.filter(d=>d.send_with_auto_apply).length;
  const text=`👤 <b>Bewerberprofil</b>\n\n${notice?`${notice}\n\n`:''}Status: ${ready?'✅ vollständig':'⚠️ unvollständig'}\n\n`+
-  `Anrede: ${shown(p.salutation)}\nVorname: ${shown(p.first_name)}\nNachname: ${shown(p.last_name)}\nE-Mail: ${shown(p.email)}\nTelefon: ${shown(p.phone)}\nAdresse: ${shown(address)}\nPLZ / Ort: ${shown([p.postcode,p.city].filter(Boolean).join(' '))}\nHaushalt: ${shown(p.household_size)}\nBeschäftigung: ${shown(p.employment_status)}\nNettoeinkommen: ${p.monthly_net_income==null?'–':`${shown(p.monthly_net_income)} €`}\nHaustiere: ${shown(p.pets)}\nWBS: ${shown(p.wbs_status)}\nEinzug: ${shown(p.move_in_date)}\nBewerbungstext: ${p.default_message?'✅ hinterlegt':'–'}`;
+  `Anrede: ${shown(p.salutation)}\nVorname: ${shown(p.first_name)}\nNachname: ${shown(p.last_name)}\nE-Mail: ${shown(p.email)}\nTelefon: ${shown(p.phone)}\nAdresse: ${shown(address)}\nPLZ / Ort: ${shown([p.postcode,p.city].filter(Boolean).join(' '))}\nHaushalt: ${shown(p.household_size)}\nBeschäftigung: ${shown(p.employment_status)}\nNettoeinkommen: ${p.monthly_net_income==null?'–':`${shown(p.monthly_net_income)} €`}\nHaustiere: ${shown(p.pets)}\nWBS: ${shown(p.wbs_status)}\nEinzug: ${shown(p.move_in_date)}\nBewerbungstext: ${p.default_message?'✅ hinterlegt':'–'}\nDokumente: ${docs.length} gespeichert · ${selectedDocs} ausgewählt`;
  const f=(name,label)=>button(label,`platforms:profile-field:${name}`);
  return render(text,[
   [f('first_name','Vorname'),f('last_name','Nachname')],
@@ -134,6 +255,7 @@ async function renderApplicantProfile(user,chat,messageId,notice=''){
   [f('pets','Haustiere'),f('wbs_status','WBS')],
   [f('move_in_date','Einzugsdatum')],
   [f('default_message','✍️ Bewerbungstext')],
+  [button('📎 Dokumente verwalten','platforms:docs')],
   [button('← Automatische Bewerbung','platforms')]
  ]);
 }
@@ -184,6 +306,23 @@ export async function handleAutoApplyMessage(user,message){
    return send(chat.id,`⚠️ ${esc(error.message)}`,{inline_keyboard:[[button(`🔐 ${name} erneut verbinden`,`platforms:login:${source}`)],[button('← Automatische Bewerbung','platforms')]]});
   }
  }
+ if(replied.startsWith(DOC_PROMPT_PREFIX)){
+  if(!user.is_premium)return send(chat.id,'💎 Bewerberdokumente benötigen Premium.');
+  const label=replied.slice(DOC_PROMPT_PREFIX.length).split('\n')[0].trim();
+  const type=Object.entries(DOCUMENT_TYPES).find(([,meta])=>meta.label===label)?.[0];
+  if(!type)return null;
+  try{
+   const current=await readProfile(user.id);
+   if(!current)return send(chat.id,'Bitte zuerst das Bewerberprofil anlegen.',{inline_keyboard:[[button('➕ Bewerberprofil anlegen','platforms:profile-new')]]});
+   const saved=await storeApplicantDocument(user,message,type);
+   await Promise.all([
+    telegram('deleteMessage',{chat_id:chat.id,message_id:message.message_id}).catch(()=>{}),
+    message.reply_to_message?.message_id?telegram('deleteMessage',{chat_id:chat.id,message_id:message.reply_to_message.message_id}).catch(()=>{}):null
+   ]);
+   return send(chat.id,`✅ ${esc(saved.label)} gespeichert. Die Datei ist standardmäßig <b>nicht</b> für Auto-Bewerbungen ausgewählt.`,{inline_keyboard:[[button('📎 Dokumente verwalten','platforms:docs')],[button('← Bewerberprofil','platforms:profile')]]});
+  }catch(error){return send(chat.id,`⚠️ ${esc(error.message)}`,{inline_keyboard:[[button('📎 Dokumente','platforms:docs')]]});}
+ }
+
  if(replied.startsWith(SETUP_PROMPT)){
   const parts=text.split('|').map(v=>v.trim());
   if(parts.length!==6)return send(chat.id,'Bitte genau 6 Werte mit <code>|</code> trennen:\nVorname | Nachname | E-Mail | Telefon | Ort | Haushaltsgröße');
@@ -230,6 +369,33 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
   const prompt=fieldPrompt(arg);if(!prompt)return renderApplicantProfile(user,chat,messageId);
   return send(chat.id,prompt,{force_reply:true,selective:true,input_field_placeholder:PROFILE_FIELDS[arg].label});
+ }
+
+ if(action==='docs'){
+  if(!user.is_premium)return render('Bewerberdokumente für Auto-Bewerbungen benötigen Premium.',back);
+  return renderApplicantDocuments(user,chat,messageId);
+ }
+ if(action==='doc-upload'){
+  if(!user.is_premium)return render('Bewerberdokumente für Auto-Bewerbungen benötigen Premium.',back);
+  const meta=DOCUMENT_TYPES[arg];if(!meta)return renderApplicantDocuments(user,chat,messageId);
+  const profile=await readProfile(user.id);if(!profile)return renderApplicantProfile(user,chat,messageId,'Bitte zuerst das Bewerberprofil anlegen.');
+  const incomeHint=arg==='income_proof'?'\nFür die letzten drei Monate kannst du diesen Upload dreimal nacheinander verwenden.':'';
+  return send(chat.id,`${DOC_PROMPT_PREFIX}${meta.label}\n\nSende die Datei als <b>Antwort auf diese Nachricht</b>.\n\nErlaubt: PDF, JPG oder PNG · maximal 6 MB.${incomeHint}\nNeue Dateien sind zunächst nicht für Auto-Bewerbungen freigegeben.`,{force_reply:true,selective:true,input_field_placeholder:'Datei senden'});
+ }
+ if(action==='doc-toggle'){
+  if(!user.is_premium)return render('Bewerberdokumente für Auto-Bewerbungen benötigen Premium.',back);
+  const {data:doc,error}=await db.from('applicant_documents').select('id,send_with_auto_apply').eq('id',arg).eq('user_id',user.id).maybeSingle();
+  if(error)throw Error('Dokument konnte nicht geladen werden.');
+  if(doc){
+   const {error:updateError}=await db.from('applicant_documents').update({send_with_auto_apply:!doc.send_with_auto_apply,updated_at:new Date().toISOString()}).eq('id',doc.id).eq('user_id',user.id);
+   if(updateError)throw Error('Dokumentauswahl konnte nicht gespeichert werden.');
+  }
+  return renderApplicantDocuments(user,chat,messageId);
+ }
+ if(action==='doc-delete'){
+  if(!user.is_premium)return render('Bewerberdokumente für Auto-Bewerbungen benötigen Premium.',back);
+  try{await deleteApplicantDocument(user.id,arg);return renderApplicantDocuments(user,chat,messageId,'Dokument gelöscht.');}
+  catch(error){return renderApplicantDocuments(user,chat,messageId,`⚠️ ${esc(error.message)}`);}
  }
 
  if(action==='login'||action==='disconnect'||action==='check'){
