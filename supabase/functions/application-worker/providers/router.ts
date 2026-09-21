@@ -3,9 +3,9 @@ import {sendKleinanzeigenApplication} from './kleinanzeigen.ts';
 import {immomioApplicationLink,sendImmomioApplication} from './immomio.ts';
 
 const ATTACHMENT_CAPABILITIES:Record<string,{supported:boolean,mode:string}>={
- immoscout:{supported:false,mode:'contact_api_no_free_attachments'},
- kleinanzeigen:{supported:false,mode:'contact_json_no_attachments'},
- immomio:{supported:false,mode:'upload_contract_not_verified'},
+ immoscout:{supported:false,mode:'secure_application_package_link'},
+ kleinanzeigen:{supported:false,mode:'secure_application_package_link'},
+ immomio:{supported:false,mode:'native_profile_upload_specialized_worker'},
  immowelt:{supported:false,mode:'no_auto_apply_provider'}
 };
 export function providerAttachmentCapability(provider:string){return ATTACHMENT_CAPABILITIES[provider]||{supported:false,mode:'provider_unsupported'};}
