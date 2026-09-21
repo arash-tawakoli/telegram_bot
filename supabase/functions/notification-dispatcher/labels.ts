@@ -19,7 +19,7 @@ const de = {
   offer: "Angebot",
   save: "Speichern",
   saved: "Gespeichert",
-  maps: "Google Map",
+  maps: "Google Maps",
   auto_apply: "Auto-Bewerbung",
 };
 const en = {
@@ -44,7 +44,7 @@ const en = {
   offer: "Listing",
   save: "Save",
   saved: "Saved",
-  maps: "Google Map",
+  maps: "Google Maps",
   auto_apply: "Auto-apply",
 };
 export const LABELS: any = {
