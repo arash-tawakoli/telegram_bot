@@ -46,14 +46,14 @@
       "retired": false,
       "slug": "application-worker",
       "verify_jwt": false,
-      "version": 60,
-      "deployment_observed_at": "2026-09-18T19:08:40.188Z",
+      "version": 61,
+      "deployment_observed_at": "2026-09-21T11:53:50.382Z",
       "observed_artifact": {
-        "observed_at": "2026-09-18T19:08:40.188Z",
+        "observed_at": "2026-09-21T11:53:50.382Z",
         "format": "compiled_esm",
         "entrypoint": "index.ts",
-        "ezbr_sha256": "bdeb90e6f9f421f82fd14c491d3246ef3d2729cb44dd2d0e1d1f20f12848b4cf",
-        "verification": "Production source and management metadata synchronized from Supabase on 2026-09-21."
+        "ezbr_sha256": "92ba478bfd64ef1537501b6d4d61ea6790eef5dc8493a3bb9d88038fa40b6e60",
+        "verification": "Verified against current Supabase production deployment after Git-triggered redeploy on 2026-09-21."
       }
     },
     {
@@ -69,14 +69,14 @@
       "retired": false,
       "slug": "billing-maintenance",
       "verify_jwt": false,
-      "version": 56,
-      "deployment_observed_at": "2026-09-20T22:28:07.458Z",
+      "version": 57,
+      "deployment_observed_at": "2026-09-21T11:53:50.382Z",
       "observed_artifact": {
-        "observed_at": "2026-09-20T22:28:07.458Z",
+        "observed_at": "2026-09-21T11:53:50.382Z",
         "format": "compiled_esm",
         "entrypoint": "index.ts",
-        "ezbr_sha256": "e8e41fbd9179722958a8a20137c467d32e9808d6cd150dba74115e66f75aa048",
-        "verification": "Production source and management metadata synchronized from Supabase on 2026-09-21."
+        "ezbr_sha256": "4533ccb5a09f246dfd17cc9c3f547366b03f8a1c45cd1056b2ce7ea722d5a1aa",
+        "verification": "Verified against current Supabase production deployment after Git-triggered redeploy on 2026-09-21."
       }
     },
     {
@@ -209,7 +209,7 @@
         "format": "compiled_esm",
         "entrypoint": "index.ts",
         "ezbr_sha256": "0a8ae2c6dc63fcefff6894e66f2dcb9397c74f16df646b7f8505edb6afcbc41f",
-        "verification": "Production source and management metadata synchronized from Supabase on 2026-09-21."
+        "verification": "Verified against current Supabase production deployment after Git-triggered redeploy on 2026-09-21."
       }
     },
     {
@@ -327,7 +327,7 @@
         "format": "compiled_esm",
         "entrypoint": "index.ts",
         "ezbr_sha256": "6b5b5a612da110664aac5464a49b5c2695ed1ad8a485c17c3fa44a969216e1be",
-        "verification": "Production source and management metadata synchronized from Supabase on 2026-09-21."
+        "verification": "Verified against current Supabase production deployment after Git-triggered redeploy on 2026-09-21."
       }
     },
     {
@@ -398,15 +398,15 @@
       "retired": false,
       "slug": "notification-dispatcher",
       "verify_jwt": false,
-      "version": 128,
+      "version": 129,
       "observed_artifact": {
-        "observed_at": "2026-09-21T10:58:00.627Z",
+        "observed_at": "2026-09-21T11:53:50.382Z",
         "format": "compiled_esm",
         "entrypoint": "index.ts",
-        "ezbr_sha256": "05247c699e946af8244d830eca93732589e92b65dc0b0189742eacd5020c5b5e",
-        "verification": "Production source and management metadata synchronized from Supabase on 2026-09-21."
+        "ezbr_sha256": "33d9d2763b5372969d60bc63031678b0135d9c93193f8e27a8c13a782355d0e5",
+        "verification": "Verified against current Supabase production deployment after Git-triggered redeploy on 2026-09-21."
       },
-      "deployment_observed_at": "2026-09-21T10:58:00.627Z"
+      "deployment_observed_at": "2026-09-21T11:53:50.382Z"
     },
     {
       "entrypoint": "supabase/functions/source-shadow/index.ts",
@@ -696,14 +696,14 @@
       "retired": false,
       "slug": "stripe-webhook",
       "verify_jwt": false,
-      "version": 67,
-      "deployment_observed_at": "2026-09-20T22:04:19.805Z",
+      "version": 68,
+      "deployment_observed_at": "2026-09-21T11:53:50.382Z",
       "observed_artifact": {
-        "observed_at": "2026-09-20T22:04:19.805Z",
+        "observed_at": "2026-09-21T11:53:50.382Z",
         "format": "compiled_esm",
         "entrypoint": "index.ts",
-        "ezbr_sha256": "5edc5588637d09705a10fe4a7197d12b09f8c5d61540cf57075c16001e12b78a",
-        "verification": "Production source and management metadata synchronized from Supabase on 2026-09-21."
+        "ezbr_sha256": "0b62f7d282d834c2be1bdb4b29e9b7142cfc0343620bc7744e2ef20988342844",
+        "verification": "Verified against current Supabase production deployment after Git-triggered redeploy on 2026-09-21."
       }
     },
     {
@@ -741,7 +741,7 @@
         "format": "compiled_esm",
         "entrypoint": "index.ts",
         "ezbr_sha256": "e6e908b9625f009c3a05b8c8e2dfa7710e9665f0dc710a99d71bd27acbfaec31",
-        "verification": "Production source and management metadata synchronized from Supabase on 2026-09-21."
+        "verification": "Verified against current Supabase production deployment after Git-triggered redeploy on 2026-09-21."
       }
     },
     {
@@ -767,15 +767,15 @@
       "retired": false,
       "slug": "telegram-gateway",
       "verify_jwt": false,
-      "version": 48,
+      "version": 49,
       "observed_artifact": {
-        "observed_at": "2026-09-21T09:33:55.512Z",
+        "observed_at": "2026-09-21T11:53:50.382Z",
         "format": "compiled_esm",
         "entrypoint": "index.ts",
-        "ezbr_sha256": "44faa20db8b33a84f9332ed746ba5bba8afb2b6de1b952fa356c68137b9c82e0",
-        "verification": "Production source and management metadata synchronized from Supabase on 2026-09-21."
+        "ezbr_sha256": "8f104e7f753b0d18180181964a8ad2bc12a831fef878231b4950ca870d29debb",
+        "verification": "Verified against current Supabase production deployment after Git-triggered redeploy on 2026-09-21."
       },
-      "deployment_observed_at": "2026-09-21T09:33:55.512Z"
+      "deployment_observed_at": "2026-09-21T11:53:50.382Z"
     },
     {
       "entrypoint": "supabase/functions/telegram-premium-image/index.ts",
@@ -855,15 +855,15 @@
       "retired": false,
       "slug": "telegram-ui",
       "verify_jwt": false,
-      "version": 123,
+      "version": 124,
       "observed_artifact": {
-        "observed_at": "2026-09-21T04:46:41.631Z",
+        "observed_at": "2026-09-21T11:53:50.382Z",
         "format": "compiled_esm",
         "entrypoint": "index.ts",
-        "ezbr_sha256": "0e44d8b50a4c8a0aa34c5f4648fb82acbcf4c0e3ccb46a76504b95b7c5520480",
-        "verification": "Production source and management metadata synchronized from Supabase on 2026-09-21."
+        "ezbr_sha256": "82db2a96c3bc907e0a2f17c78346cecbd641ff5ff71af29d8a59ff91277b597e",
+        "verification": "Verified against current Supabase production deployment after Git-triggered redeploy on 2026-09-21."
       },
-      "deployment_observed_at": "2026-09-21T04:46:41.631Z"
+      "deployment_observed_at": "2026-09-21T11:53:50.382Z"
     },
     {
       "entrypoint": "supabase/functions/vonovia-transport/index.ts",
