@@ -40,11 +40,15 @@ export async function collectNestpick(fetchPage:(page:number)=>Promise<string>) 
     }
     throw last;
   };
-  const first=await parseWithRetry(1),pages=[first];
+  const first=await parseWithRetry(1),pages=[first],errors:{page:number,error:string}[]=[];
   for(let page=2;page<=first.pages;page++){
-    const parsed=await parseWithRetry(page);
-    if(parsed.pages!==first.pages||parsed.total!==first.total||parsed.limit!==first.limit)throw new Error('Nestpick inventory changed during pagination');
-    pages.push(parsed);
+    try{
+      const parsed=await parseWithRetry(page);
+      if(parsed.pages!==first.pages||parsed.total!==first.total||parsed.limit!==first.limit)throw new Error('Nestpick inventory changed during pagination');
+      pages.push(parsed);
+    }catch(error){
+      errors.push({page,error:String(error).slice(0,250)});
+    }
     if(page<first.pages)await new Promise(resolve=>setTimeout(resolve,250));
   }
   const ids=new Set(pages.flatMap(p=>p.ids)),rows=new Map<string,Candidate>();
@@ -53,7 +57,7 @@ export async function collectNestpick(fetchPage:(page:number)=>Promise<string>) 
     if(old)c.raw.native_new=old.raw?.native_new===true&&c.raw.native_new===true;
     rows.set(String(c.key),c);
   }
-  return {candidates:[...rows.values()],enumerated:ids.size,total:first.total,requests:pages.length,complete:ids.size===first.total};
+  return {candidates:[...rows.values()],enumerated:ids.size,total:first.total,requests:pages.length+errors.length,complete:errors.length===0&&ids.size===first.total,errors};
 }
 export async function runNestpick(source:Source,connector:Connector){
   const started=iso(),adapter='source-worker/nestpick-public';
@@ -64,8 +68,8 @@ export async function runNestpick(source:Source,connector:Connector){
     const fresh=parsed.candidates.filter(c=>warmed&&c.raw?.native_new===true),blocked=parsed.candidates.filter(c=>!fresh.includes(c));
     const a=await upsertCandidates(source,fresh,true),b=await upsertCandidates(source,blocked,false);
     // Relevance pagination can repeat IDs: an absent ID is not proof of removal.
-    await db.from('source_coverage_state').upsert({source_id:source.id,cycle_id:crypto.randomUUID(),strategy:'verified_public_inventory',status:parsed.complete?'complete':'running',cursor:{adapter,url:NESTPICK_URL},seen_count:parsed.enumerated,request_count:parsed.requests,cycle_started_at:started,cycle_finished_at:parsed.complete?iso():null,last_complete_at:parsed.complete?iso():null,updated_at:iso(),last_error:null}).throwOnError();
-    await markSuccess(source,started,connector,parsed.candidates.length,a.fresh+b.fresh,{adapter,complete:parsed.complete,enumerated:parsed.enumerated,reported_total:parsed.total,request_count:parsed.requests,fallback_warmed:warmed,price_components_verified:false});
+    await db.from('source_coverage_state').upsert({source_id:source.id,cycle_id:crypto.randomUUID(),strategy:'verified_public_inventory',status:parsed.complete?'complete':'running',cursor:{adapter,url:NESTPICK_URL},seen_count:parsed.enumerated,request_count:parsed.requests,cycle_started_at:started,cycle_finished_at:parsed.complete?iso():null,last_complete_at:parsed.complete?iso():null,updated_at:iso(),last_error:parsed.errors.length?JSON.stringify(parsed.errors):null}).throwOnError();
+    await markSuccess(source,started,connector,parsed.candidates.length,a.fresh+b.fresh,{adapter,complete:parsed.complete,enumerated:parsed.enumerated,reported_total:parsed.total,request_count:parsed.requests,coverage_errors:parsed.errors,fallback_warmed:warmed,price_components_verified:false});
     return {ok:true,source_id:source.id,fetched:parsed.candidates.length,new:a.fresh,complete:parsed.complete};
   }catch(error){return markFailure(source,started,error);}
 }
