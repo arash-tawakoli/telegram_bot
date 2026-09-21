@@ -153,7 +153,7 @@ test('Kleinanzeigen thumbnails without image classes and explicit equipment are 
 test('unstarted legacy galleries adopt the single-photo policy on retry',async()=>{const ops=previewOperations(['a.jpg','b.jpg'],'facts',{});let saved,calls=[];await deliverPreview(ops,{version:1,operations:[{method:'sendMediaGroup',body:{media:[]}}],next:0,in_flight:false},async s=>saved=structuredClone(s),async op=>{calls.push(op.method);return{message_id:1}},async()=>{});assert.deepEqual(calls,['sendPhoto']);assert.equal(saved.next,1);});
 
 test('preview actions are stacked source-aware and keep requested emojis',()=>{
- const l=listing({}, {sources:{name:'Kleinanzeigen Hamburg',button_label:'Kleinanzeigen.de',source_type:'Portal',source_connectors:[]}});
+ const l=listing({address:'Musterstraße 1, 20095 Hamburg'}, {sources:{name:'Kleinanzeigen Hamburg',button_label:'Kleinanzeigen.de',source_type:'Portal',source_connectors:[]}});
  const rows=scope.kb(l,'de',true).inline_keyboard;
  assert.equal(rows.length,4);
  assert.deepEqual(Array.from(rows, row=>row.length),[1,1,1,1]);
