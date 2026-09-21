@@ -19,7 +19,7 @@ export function parseCityCatalog(html:string):Page{
     keys.push(id);if(x.address?.addressLocality!=='Hamburg'||!hhZip(x.address?.postalCode))continue;
     const table=m[2].match(/<div class="object_meta">([\s\S]*?)<\/table>/)?.[1]||'',cells=[...table.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map(v=>strip(v[1]));
     if(cells.length!==4||cells[3]!==id)throw new Error('City-Wohnen price table mismatch');
-    candidates.push({key:id,url:u.href,title:x.name,address:`${x.address.streetAddress}, ${x.address.postalCode} Hamburg`,zip:x.address.postalCode,rooms:positive(x.numberOfRooms),area:positive(x.floorSize?.value),furnished:true,image:x.image,raw:{provider:'city_wohnen_catalog',advertised_monthly_price:positive(cells[0]),price_currency:'EUR',price_components_verified:false}});
+    candidates.push({key:id,url:u.href,title:x.name,address:`${x.address.streetAddress}, ${x.address.postalCode} Hamburg`,zip:x.address.postalCode,rooms:positive(x.numberOfRooms),area:positive(x.floorSize?.value),furnished:true,image:x.image,raw:{provider:'city_wohnen_catalog',advertised_monthly_price:positive(cells[0]),price_currency:'EUR',price_components_verified:false,address:{streetAddress:x.address.streetAddress,postalCode:x.address.postalCode,addressLocality:x.address.addressLocality||'Hamburg'}}});
   }
   if(!keys.length&&total!==0)throw new Error('City-Wohnen apartments missing');
   if(new Set(keys).size!==keys.length||keys.length>total)throw new Error('City-Wohnen duplicate inventory');
@@ -46,7 +46,7 @@ export function parseWunderCatalog(html:string,page:number):Page{
     const href=hrefById.get(x._id);
     if(!href)throw new Error('Wunderflats canonical URL missing');
     const u=new URL(href,'https://wunderflats.com');u.search='';
-    candidates.push({key:x._id,url:u.href,title:x.title?.de||x.title?.en,address:x.address.street?`${x.address.street}, Hamburg`:'Hamburg',rooms:positive(x.rooms),area:positive(x.area),furnished:true,image:x.images?.[0]?.urls?.original,raw:{provider:'wunderflats_catalog',advertised_monthly_price:x.currency==='EUR'&&Number.isInteger(x.price)&&x.price>0?x.price/100:null,price_currency:x.currency,price_components_verified:false}});
+    candidates.push({key:x._id,url:u.href,title:x.title?.de||x.title?.en,address:x.address.street?`${x.address.street}, Hamburg`:'Hamburg',rooms:positive(x.rooms),area:positive(x.area),furnished:true,image:x.images?.[0]?.urls?.original,raw:{provider:'wunderflats_catalog',advertised_monthly_price:x.currency==='EUR'&&Number.isInteger(x.price)&&x.price>0?x.price/100:null,price_currency:x.currency,price_components_verified:false,price_semantics:'all_inclusive_warm',streetAddress:x.address?.street||null,addressLocality:x.address?.city||'Hamburg',district:x.address?.district||x.address?.quarter||null,postalCode:x.address?.zipCode||x.address?.postalCode||null,available_from:typeof x.availableFrom==='string'?x.availableFrom:typeof x.available_from==='string'?x.available_from:null,minimum_stay:x.minimumRentalDuration??x.minimum_rental_duration??x.minRentalPeriod??null,amenities:Array.isArray(x.amenities)?x.amenities:null}});
   }
   return {candidates,keys,page,pages:Math.max(1,Math.ceil(r.total/r.itemsPerPage)),total:r.total};
 }

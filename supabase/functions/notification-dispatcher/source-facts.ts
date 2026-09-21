@@ -25,20 +25,20 @@ export function exactAddress(a: any): string | null {
   return [street, place || (a.district ?? a.quarter)].filter(present).join(', ') || null;
 }
 const aliases: Record<string, string[]> = {
-  warm_rent: ['warm_rent','warmRent','totalRentGross','grossRent','monthlyTotalRent','totalRent','monatlGesamtkosten'],
-  cold_rent: ['cold_rent','coldRent','baseRent','netColdRent','netRent','basePrice','mietpreis'],
-  heating_costs: ['heating_costs','heatingCosts','heatingCost','heizkosten'],
-  additional_costs: ['additional_costs','additionalCosts','serviceCharge','ancillaryCosts','nebenkosten'],
-  operating_costs: ['operating_costs','operatingCosts','betriebskosten'],
-  deposit: ['deposit','securityDeposit','bailment','kaution'],
+  warm_rent: ['warm_rent','warmRent','totalRentGross','grossRent','monthlyTotalRent','totalRent','monatlGesamtkosten','grossMonthlyRent'],
+  cold_rent: ['cold_rent','coldRent','baseRent','netColdRent','netRent','basePrice','mietpreis','nettoKaltmiete'],
+  heating_costs: ['heating_costs','heatingCosts','heatingCost','heizkosten','heatingFee'],
+  additional_costs: ['additional_costs','additionalCosts','serviceCharge','ancillaryCosts','nebenkosten','serviceCosts','utilityCosts'],
+  operating_costs: ['operating_costs','operatingCosts','betriebskosten','operatingCharge'],
+  deposit: ['deposit','securityDeposit','bailment','kaution','depositAmount'],
   rooms: ['rooms','numberOfRooms','totalRooms','anzahlZimmer'],
   area_sqm: ['area_sqm','livingSpace','floorSize','size','area','wohnflaeche'],
 };
 const words: Record<string,string[]> = {
   floor: ['floor','floorNumber','etage','storey'],
-  property_type: ['apartmentType','flatType','property_type','propertyType','wohnungstyp'],
+  property_type: ['apartmentType','flatType','property_type','propertyType','wohnungstyp','objectType','estateType'],
   move_in_date: ['move_in_date','moveInDate','einzugsdatum','bezugsdatum'],
-  available_text: ['available_text','availableDate','availableStart','available_from','freeFrom'],
+  available_text: ['available_text','availableDate','availableStart','available_from','freeFrom','availableFromText'],
   deposit_text: ['deposit_text','depositText'],
 };
 function imageUrl(v: any, base: string): string | null {
@@ -85,8 +85,22 @@ export function structuredFacts(raw: any, base: string): any {
   }
   if (typeof node.heatingCosts === 'string' && /enthalten|inklusive/i.test(node.heatingCosts)) out.heating_text=node.heatingCosts;
   if(r.property?.data && amount(node.rooms)!=null && amount(node.halfRooms)!=null)out.rooms=amount(node.rooms)!+amount(node.halfRooms)!/2;
-  const typeNames:Record<string,string>={RAISED_GROUND_FLOOR:'Hochparterre',GROUND_FLOOR:'Erdgeschosswohnung',ATTIC:'Dachgeschosswohnung',MAISONETTE:'Maisonette',PENTHOUSE:'Penthouse',APARTMENT:'Apartment',FLAT:'Wohnung'};
+  const typeNames:Record<string,string>={
+    RAISED_GROUND_FLOOR:'Hochparterre',
+    GROUND_FLOOR:'Erdgeschosswohnung',
+    ROOF_STOREY:'Dachgeschosswohnung',
+    ATTIC:'Dachgeschosswohnung',
+    FLOOR:'Etagenwohnung',
+    MAISONETTE:'Maisonette',
+    PENTHOUSE:'Penthouse',
+    APARTMENT:'Apartment',
+    FLAT:'Wohnung',
+    LOFT:'Loft',
+    SOUTERRAIN:'Souterrainwohnung',
+    TERRACE_FLAT:'Terrassenwohnung'
+  };
   if(out.property_type && typeNames[out.property_type])out.property_type=typeNames[out.property_type];
+  if(r.property?.data && out.floor != null && /^9\d$/.test(String(out.floor).trim()))delete out.floor;
   const av = node.availableFrom ?? r.availableFrom;
   if (typeof av === 'string') out.available_text = textValue(av);
   else if (av) out.available_text = textValue(av.stringAvailable) ?? textValue(av.dateAvailable);
@@ -94,12 +108,92 @@ export function structuredFacts(raw: any, base: string): any {
   out.district=textValue(node.address?.quarter ?? node.address?.neighborhood ?? node.address?.stadtteil ?? node.address?.district ?? node.neighborhood ?? node.stadtteil ?? node.district ?? node.quarter);
   out.borough=textValue(node.address?.borough ?? node.address?.bezirk ?? node.borough ?? node.bezirk);
   out.published_text=textValue(node.datePosted ?? node.datePublished ?? node.publishedAt);
-  const features=node.features ?? node.amenities ?? node.equipment;
-  if(Array.isArray(features))out.features=features.map(x=>textValue(typeof x==='object'?x?.name:x)).filter(Boolean);
+  const features=node.features ?? node.amenities ?? node.equipment ?? r.catalog_amenities;
+  if(Array.isArray(features))out.features=features.map(x=>textValue(typeof x==='object'?(x?.name ?? x?.label ?? x?.title):x)).filter(Boolean);
   else if(typeof features==='string' && present(features))out.features=[features];
+  if(typeof node.furnished==='boolean')out.furnished=node.furnished;
   if (!out.deposit_text && typeof node.deposit === 'string' && amount(node.deposit)==null) out.deposit_text=textValue(node.deposit);
   out.address = node.showAddress === false ? null : exactAddress(h || node.address || (r.provider === 'kleinanzeigen' ? r.location : null));
+  if(!out.address && (node.streetAddress||node.street||node.strasse||node.postalCode||node.postcode||node.zipCode||node.plz||node.addressLocality||node.city||node.ort)){
+    out.address=exactAddress(node);
+  }
+  if(r.provider==='ohne_makler' && (r.streetAddress||r.postalCode||r.addressLocality)){
+    out.address=exactAddress({streetAddress:r.streetAddress,postalCode:r.postalCode,addressLocality:r.addressLocality});
+  }
   if(node.heatingCostIncluded === true)out.heating_text = 'in den Nebenkosten enthalten';
+
+  if(/(^|\.)wg-gesucht\.de$/i.test(new URL(base).hostname) && typeof r.text==='string'){
+    const text=r.text.replace(/\s+/g,' ').trim();
+    const available=text.match(/\bVerfügbar:\s*(.+?)(?=\s+Diese Anzeige|\s+<img|$)/i)?.[1]?.trim();
+    if(!out.available_text && present(available))out.available_text=available;
+    const place=text.match(/\|\s*Hamburg\s+([^|]{2,60}?)\s*\|\s*([^|]{2,100}?)\s+Verfügbar:/i);
+    if(place){
+      if(!out.district)out.district=textValue(place[1]);
+      if(!out.address)out.address=[textValue(place[2]),textValue(place[1])?'Hamburg '+textValue(place[1]):'Hamburg'].filter(Boolean).join(', ');
+    }
+    if(/\bmöbliert\b/i.test(text))(out.features??=[]).push('möbliert');
+    if(/\bunmöbliert\b/i.test(text))(out.features??=[]).push('unmöbliert');
+  }
+
+  if(r.provider==='immosolve_hpm_rest' && h){
+    const extra:Record<string,string>={};
+    const put=(label:string,value:any)=>{const v=textValue(value);if(v)extra[label]=v;};
+    put('Baujahr',h.baujahr);
+    put('Heizungsart',h.heizungsart);
+    put('Energieträger',h.primaereBefeuerungsart);
+    put('Energieeffizienzklasse',h.energieeffizienzklasse);
+    put('Endenergiebedarf',h.endEnergieBedarf);
+    put('Stellplatz',h.stellplatz);
+    put('Stellplatzmiete',h.mietpreisStellplatz);
+    put('Genossenschaftsanteile',h.anteile);
+    if(Object.keys(extra).length)out.extra_facts={...(out.extra_facts||{}),...extra};
+    const featureValues:string[]=[];
+    const specialties=textValue(r.detail?.specialties);
+    if(specialties)featureValues.push(...specialties.split(',').map((x:string)=>x.trim()).filter(Boolean));
+    const equipment=textValue(r.detail?.descriptions?.ausstattungsbeschreibung);
+    if(equipment)featureValues.push(...equipment.split(/[,;\n]+/).map((x:string)=>x.trim()).filter(Boolean));
+    if(featureValues.length)out.features=[...new Set([...(out.features||[]),...featureValues])];
+  }
+
+  if((r.provider==='nestpick_public_api'||r.provider==='wunderflats_catalog') && present(r.minimum_stay)){
+    out.extra_facts={...(out.extra_facts||{}),'Mindestmietdauer':String(r.minimum_stay)};
+  }
+
+  if(r.provider==='nestpick_public_api'){
+    const extra:Record<string,string>={};
+    const put=(label:string,value:any)=>{const v=textValue(value);if(v)extra[label]=v;};
+    put('Verfügbar ab',r.available_from);
+    put('Mindestmietdauer',r.minimum_stay);
+    put('Anbieter',r.partner);
+    if(Object.keys(extra).length)out.extra_facts={...(out.extra_facts||{}),...extra};
+    if(Array.isArray(r.amenities)){
+      const amenityLabels:Record<string,string>={
+        internet:'Internet',
+        wifi:'WLAN',
+        washing_machine:'Waschmaschine',
+        dishwasher:'Geschirrspüler',
+        equipped_kitchen:'Einbauküche',
+        kitchen:'Küche',
+        oven:'Backofen',
+        microwave:'Mikrowelle',
+        elevator:'Aufzug',
+        lift:'Aufzug',
+        tv:'TV',
+        balcony:'Balkon',
+        terrace:'Terrasse',
+        parking:'Stellplatz',
+        dryer:'Trockner',
+        air_conditioning:'Klimaanlage'
+      };
+      const rawAmenityNames=new Set(r.amenities.map((x:any)=>textValue(typeof x==='object'?(x?.name??x?.label):x)).filter(Boolean).map((x:string)=>x.toLowerCase()));
+      const mapped=r.amenities.map((x:any)=>{
+        const value=textValue(typeof x==='object'?(x?.name??x?.label):x);
+        return value ? (amenityLabels[value.toLowerCase()]||value.replace(/_/g,' ')) : null;
+      }).filter(Boolean);
+      const existing=(out.features||[]).filter((x:any)=>!rawAmenityNames.has(String(x).toLowerCase()));
+      out.features=[...new Set([...existing,...mapped])];
+    }
+  }
   if (r.provider === 'immowelt') {
     const card = [textValue(r.title), textValue(r.alt)].filter(Boolean).join(' ').replace(/\s+/g,' ').trim();
     const rawAlt = String(r.alt || '');
@@ -111,11 +205,16 @@ export function structuredFacts(raw: any, base: string): any {
     const available = card.match(/\bfrei ab\s+(sofort|\d{2}\.\d{2}\.\d{4}|nach Vereinbarung)\b/i)?.[1];
     if (!out.available_text && available) out.available_text = available;
     if (!out.address && rawAlt) {
-      const location = rawAlt.match(/\b\d+(?:[.,]\d+)?\s*m²(?:\s+(?:Geschoss\s+\d+(?:\/\d+)?|\d+\.\s*Geschoss))?(?:\s+frei ab\s+(?:sofort|\d{2}\.\d{2}\.\d{4}|nach Vereinbarung))?\s+(.+?)\s+(2\d{4})$/i);
-      if (location) out.address = rawAlt.slice(rawAlt.lastIndexOf(location[1]));
-      else {
+      const location = rawAlt.match(/\b\d+(?:[.,]\d+)?\s*m²(?:\s+(?:Geschoss\s+\d+(?:\/\d+)?|\d+\.\s*Geschoss))?(?:\s+frei ab\s+(?:sofort|\d{2}\.\d{2}\.\d{4}|nach Vereinbarung))?\s+(.+?)\s+Hamburg\s+(2\d{4})$/i);
+      if (location) {
+        const remainder=location[1].trim().replace(/^(?:Geschoss\s+\d+(?:\/\d+)?|\d+\.\s*Geschoss)\s+/i,'');
+        const knownDistrict=remainder.match(/\s([A-ZÄÖÜ][A-Za-zÄÖÜäöüß-]{2,30})$/)?.[1]||null;
+        if(knownDistrict && !out.district)out.district=knownDistrict;
+        const street=knownDistrict?remainder.slice(0,-knownDistrict.length).trim():remainder;
+        out.address=[street,location[2]+' Hamburg'].filter(Boolean).join(', ');
+      } else {
         const zip = rawAlt.match(/\b(2\d{4})\s*$/)?.[1];
-        if (zip) out.address = zip;
+        if (zip) out.address = zip+' Hamburg';
       }
     }
   }
@@ -129,14 +228,19 @@ export function structuredFacts(raw: any, base: string): any {
   return out;
 }
 function decode(s: string): string {
-  return s.replace(/<br\s*\/?\s*>/gi,'\n').replace(/<[^>]*>/g,'').replace(/&#(x[0-9a-f]+|\d+);/gi,(_,x)=>String.fromCodePoint(x[0].toLowerCase()==='x'?parseInt(x.slice(1),16):Number(x))).replace(/&(amp|lt|gt|quot|apos|nbsp|auml|ouml|uuml|szlig);/gi,(m,x)=>({amp:'&',lt:'<',gt:'>',quot:'"',apos:"'",nbsp:' ',auml:'ä',ouml:'ö',uuml:'ü',szlig:'ß'}[x.toLowerCase()] || m)).trim();
+  return s.replace(/<br\s*\/?\s*>/gi,'\n').replace(/<[^>]*>/g,'').replace(/&#(x[0-9a-f]+|\d+);/gi,(_,x)=>String.fromCodePoint(x[0].toLowerCase()==='x'?parseInt(x.slice(1),16):Number(x))).replace(/&(amp|lt|gt|quot|apos|nbsp|auml|ouml|uuml|szlig|euro);/gi,(m,x)=>({amp:'&',lt:'<',gt:'>',quot:'"',apos:"'",nbsp:' ',auml:'ä',ouml:'ö',uuml:'ü',szlig:'ß',euro:'€'}[x.toLowerCase()] || m)).trim();
 }
 const fieldLabels: Record<string,string> = {
-  bezirk:'borough',stadtteil:'district',
-  warmmiete:'warm_rent',bruttowarmmiete:'warm_rent',gesamtmiete:'warm_rent',kaltmiete:'cold_rent',nettokaltmiete:'cold_rent',grundmiete:'cold_rent',
-  heizkosten:'heating_costs',nebenkosten:'additional_costs',betriebskosten:'operating_costs',kaution:'deposit',mietsicherheit:'deposit',
-  zimmer:'rooms',zimmeranzahl:'rooms',wohnfläche:'area_sqm',fläche:'area_sqm',etage:'floor',geschoss:'floor',wohnungstyp:'property_type',wohnungsart:'property_type',
-  einzugsdatum:'move_in_date',bezugsdatum:'move_in_date','verfügbar ab':'available_text','frei ab':'available_text',bezugsfrei:'available_text',objektadresse:'address','kaution / genoss.-anteile':'deposit','veröffentlicht am':'published_text',ausstattung:'features',
+  bezirk:'borough',stadtteil:'district',wohnlage:'district',
+  warmmiete:'warm_rent',bruttowarmmiete:'warm_rent',gesamtmiete:'warm_rent','monatliche gesamtmiete':'warm_rent',bruttomiete:'warm_rent',
+  kaltmiete:'cold_rent',nettokaltmiete:'cold_rent',grundmiete:'cold_rent','netto-kaltmiete':'cold_rent',
+  heizkosten:'heating_costs',nebenkosten:'additional_costs','nebenkosten ohne heizkosten':'additional_costs',betriebskosten:'operating_costs',
+  kaution:'deposit',mietsicherheit:'deposit','kaution / genoss.-anteile':'deposit_or_coop','kaution o. genossenschaftsanteile':'deposit_or_coop',
+  zimmer:'rooms',zimmeranzahl:'rooms',wohnfläche:'area_sqm',fläche:'area_sqm',
+  etage:'floor',geschoss:'floor',stockwerk:'floor',
+  wohnungstyp:'property_type',wohnungsart:'property_type',objekttyp:'property_type',immobilientyp:'property_type',
+  einzugsdatum:'move_in_date',bezugsdatum:'move_in_date','verfügbar ab':'available_text','frei ab':'available_text',bezugsfrei:'available_text','mietbeginn':'available_text',
+  objektadresse:'address',adresse:'address','veröffentlicht am':'published_text',ausstattung:'features',merkmale:'features',
 };
 function jsonObjectAfter(text:string, marker:RegExp):any {
   const match=marker.exec(text);if(!match)return null;
@@ -154,6 +258,7 @@ export function htmlFacts(html: string, base: string): any {
     const val=decode(value);
     if(!key || !present(val))return;
     if(aliases[key]) {const n=amount(val); if(n!=null)out[key]=n; else if(key==='deposit')out.deposit_text=val; else if(key==='heating_costs' && /enthalten|inklusive/i.test(val))out.heating_text=val;}
+    else if(key==='deposit_or_coop')(out.extra_facts??={})['Kaution / Genossenschaftsanteile']=val;
     else if(key==='features')out.features=[...(out.features||[]),val];
     else out[key]=val;
   };
@@ -176,23 +281,42 @@ export function htmlFacts(html: string, base: string): any {
       const value=decode(m[1]);if(present(value))(out.features??=[]).push(value);
     }
   }
-  const extraLabels=new Set(['Schlafzimmer','Badezimmer','Haustiere','Baujahr','Objektzustand','Qualität der Ausstattung','Energieausweis','Heizungsart','Wesentliche Energieträger','Energieeffizienzklasse','Endenergieverbrauch','Endenergiebedarf','Miete für Garage/Stellplatz']);
+  const extraLabels:Record<string,string>={
+    'schlafzimmer':'Schlafzimmer','badezimmer':'Badezimmer','haustiere':'Haustiere','baujahr':'Baujahr',
+    'objektzustand':'Objektzustand','zustand':'Objektzustand','qualität der ausstattung':'Qualität der Ausstattung',
+    'energieausweis':'Energieausweis','heizungsart':'Heizungsart','wesentliche energieträger':'Wesentliche Energieträger',
+    'energieträger':'Energieträger','energieeffizienzklasse':'Energieeffizienzklasse','endenergieverbrauch':'Endenergieverbrauch',
+    'endenergiebedarf':'Endenergiebedarf','miete für garage/stellplatz':'Miete für Garage/Stellplatz',
+    'stellplatz':'Stellplatz','personen':'Personen','max. personen':'Max. Personen','mindestmietdauer':'Mindestmietdauer'
+  };
   for(const m of clean.matchAll(/<dt\b[^>]*>([\s\S]*?)<\/dt>\s*<dd\b[^>]*>([\s\S]*?)<\/dd>/gi)){
-    const key=decode(m[1]).replace(/\s*:\s*$/,'').trim(),value=decode(m[2]);
-    if(extraLabels.has(key)&&present(value))(out.extra_facts??={})[key]=value;
+    const rawKey=decode(m[1]).replace(/\s*:\s*$/,'').trim(),value=decode(m[2]),label=extraLabels[rawKey.toLowerCase()];
+    if(label&&present(value))(out.extra_facts??={})[label]=value;
+  }
+  if (/(^|\.)ohne-makler\.net$/i.test(hostname)) {
+    const h1End=clean.search(/<\/h1>/i);
+    const scoped=decode(clean.slice(h1End>=0?h1End+5:0).replace(/<[^>]+>/g,' ')).replace(/\s+/g,' ').trim();
+    const location=scoped.match(/([A-ZÄÖÜ][A-Za-zÄÖÜäöüß.'’-]*(?:\s+[A-Za-zÄÖÜäöüß.'’-]+){0,4}\s+\d+[a-zA-Z]?)\s*,\s*(2\d{4})\s+Hamburg(?:\s*\(([^)]+)\))?/i);
+    if(location){
+      out.address=location[1].trim()+', '+location[2]+' Hamburg';
+      if(!out.district && present(location[3]))out.district=location[3].trim();
+    }
   }
   if (/(^|\.)immowelt\.de$/i.test(hostname)) {
     const text = decode(clean.replace(/<[^>]+>/g,' ')).replace(/\s+/g,' ').trim();
     const rentSection = text.match(/\bMietkosten\b([\s\S]*?)(?=\bLage\b|\bWeitere Services\b|$)/i)?.[1] || '';
-    const rentLabels = ['Warmmiete','Kaltmiete','Nebenkosten','Betriebskosten','Heizkosten','Kaution'];
-    const stop = `${rentLabels.join('|')}|Miete pro Stellplatz`;
+    const rentLabels = ['Warmmiete','Gesamtmiete','Kaltmiete','Nettokaltmiete','Nebenkosten','Betriebskosten','Heizkosten','Kaution'];
+    const stop = rentLabels.join('|')+'|Miete pro Stellplatz|Stellplatzmiete';
     for (const labelText of rentLabels) {
-      const part = rentSection.match(new RegExp(`${labelText}\\s+([\\s\\S]*?)(?=${stop}|$)`,'i'))?.[1];
+      const scope=rentSection||text;
+      const part = scope.match(new RegExp(labelText+'\\s+([\\s\\S]*?)(?='+stop+'|$)','i'))?.[1];
       if (!part) continue;
       const values = [...part.matchAll(/([\d.]+(?:,\d{1,2})?)\s*€(?!\s*\/\s*m²)/gi)];
       const value = values.at(-1)?.[1];
-      if (value) apply(labelText, `${value} €`);
+      if (value) apply(labelText, value+' €');
     }
+    if(/Heizkosten[^.]{0,80}(?:in (?:den )?Nebenkosten enthalten|inklusive|enthalten)/i.test(rentSection||text))
+      out.heating_text='in den Nebenkosten enthalten';
     const floorForward = text.match(/\bGeschoss\s+(\d+(?:\/\d+)?)\b/i)?.[1];
     const floorOrdinal = text.match(/\b(\d+)\.\s*Geschoss(?:\/(\d+)\s*Geschossen)?\b/i);
     if (!out.floor && floorForward) out.floor = floorForward;

@@ -1,3 +1,4 @@
+import {persistCategoryListings} from './category-persist.ts';
 import {Candidate,Source,db,deNum,iso,markFailure,markSuccess,upsertCandidates,UA} from './shared.ts';
 const MCP='https://app.chatgpt.immobilienscout24.de/v2/mcp',PROTO='2025-06-18';
 const BOROUGHS=['Hamburg-Mitte','Altona','Eimsbüttel','Hamburg-Nord','Wandsbek','Bergedorf','Harburg'];
@@ -28,19 +29,4 @@ function scoutPublishedAt(entry:any){
   }
   return null;
 }
-export async function runScoutCategory(source:Source,stream:any){
-  if(stream?.category!=='house')throw new Error('unsupported Scout category stream');
-  await init();
-  const q='Häuser zur Miete in Hamburg, neueste Inserate';
-  const r=await enrichedSearch(q);
-  const now=Date.now(),eligible:Candidate[]=[],rest:Candidate[]=[];
-  for(const c of candidates(r.entries,q)){
-    const published=scoutPublishedAt(c.raw?.entry);
-    const x:Candidate={...c,type:'Haus',raw:{...c.raw,category_stream:'house',_classification:{version:1,kind:'house',mode:'rent'},...(published?{_newness:{method:'source_timestamp',source_published_at:published}}:{})}};
-    const fresh=!!stream.baseline_at&&!!published&&now-new Date(published).getTime()>=-5*60*1000&&now-new Date(published).getTime()<=24*60*60*1000;
-    (fresh?eligible:rest).push(x);
-  }
-  const a=rest.length?await upsertCandidates(source,rest,false):{seen:0,fresh:0,keys:[] as string[]};
-  const b=eligible.length?await upsertCandidates(source,eligible,true):{seen:0,fresh:0,keys:[] as string[]};
-  return{requests:4,candidates:a.seen+b.seen,fresh:a.fresh+b.fresh,cursor:{query:q,returned:r.entries.length,total:r.total,map_ok:r.map_ok,map_returned:r.map_returned}};
-}
+export async function runScoutCategory(source:Source,stream:any){if(stream?.category!=='house')throw new Error('unsupported Scout category stream');await init();const q='Häuser zur Miete in Hamburg, neueste Inserate',r=await enrichedSearch(q),rows:Candidate[]=[];for(const c of candidates(r.entries,q)){const published=scoutPublishedAt(c.raw?.entry);rows.push({...c,raw:{...c.raw,...(published?{_newness:{method:'source_timestamp',source_published_at:published}}:{})}})}const saved=await persistCategoryListings(source,stream,rows,false);return{requests:4,candidates:saved.seen,fresh:saved.fresh,cursor:{query:q,returned:r.entries.length,total:r.total,map_ok:r.map_ok,map_returned:r.map_returned,last_checked_at:iso()}}}

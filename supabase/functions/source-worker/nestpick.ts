@@ -16,7 +16,7 @@ export function parseNestpickPage(text:string, page:number) {
     const price=x.price?.currency==='EUR'?positive(x.price.price):null;
     candidates.push({key:String(x.id),url:`https://www.nestpick.com/pick/${x.id}/`,title:x.name,address:x.address||'Hamburg',area:positive(x.apartment_size),type:x.category==='room'?'WG':'Wohnung',image:x.photos?.find((v:any)=>v.main)?.thumbnail,
       // Bedrooms are not total rooms; a card price does not establish warm/cold rent.
-      raw:{provider:'nestpick_public_api',native_new:Array.isArray(x.history)&&x.history.some((h:any)=>h.new===true),advertised_monthly_price:price,price_currency:price?'EUR':null,price_components_verified:false,bedrooms:positive(x.number_of_bedrooms),partner:x.provider?.code||null}});
+      raw:{provider:'nestpick_public_api',native_new:Array.isArray(x.history)&&x.history.some((h:any)=>h.new===true),advertised_monthly_price:price,price_currency:price?'EUR':null,price_components_verified:false,bedrooms:positive(x.number_of_bedrooms),partner:x.provider?.code||null,address:typeof x.address==='string'?x.address:null,available_from:typeof x.available_from==='string'?x.available_from:typeof x.availableFrom==='string'?x.availableFrom:null,minimum_stay:x.minimum_stay??x.minimumStay??x.minimum_rental_duration??null,amenities:Array.isArray(x.amenities)?x.amenities:null,furnished:typeof x.furnished==='boolean'?x.furnished:null,district:x.neighborhood?.name??x.district?.name??null}});
   }
   return {candidates,ids,pages:p.total_pages,total:p.total_items,limit:p.limit};
 }

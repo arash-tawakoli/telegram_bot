@@ -1,3 +1,4 @@
+import {persistCategoryListings} from './category-persist.ts';
 import { fetchListingPage } from "../kleinanzeigen-transport/fetch-page.ts";
 import {Candidate,HH_ZIPS,Source,db,deNum,decode,iso,markFailure,markSuccess,strip,upsertCandidates} from './shared.ts';
 
@@ -76,29 +77,4 @@ export async function runKlein(source:Source){const started=iso();try{
 }catch(e){const t=iso(),{data:st}=await db.from('source_coverage_state').select('consecutive_errors').eq('source_id',2).maybeSingle().throwOnError();await db.from('source_coverage_state').update({status:'running',consecutive_errors:Number(st?.consecutive_errors||0)+1,last_error:String(e).slice(0,1000),backoff_until:null,updated_at:t}).eq('source_id',2).throwOnError();return markFailure(source,started,e)}}
 
 
-export async function runKleinCategory(source:Source,stream:any){
-  if(!['house','room'].includes(String(stream?.category)))throw new Error('unsupported Kleinanzeigen category stream');
-  const response=await fetchListingPage(String(stream.url),AbortSignal.timeout(15000));
-  if(!response.ok)throw new Error(`Kleinanzeigen category transport HTTP ${response.status}`);
-  const upstream=Number(response.headers.get('x-upstream-status')||0),html=await response.text();
-  if(upstream!==200)throw new Error(`Kleinanzeigen category upstream HTTP ${upstream||'unknown'}`);
-  const parsed=parsePage(html);if(parsed.opens===0)throw new Error('Kleinanzeigen category result HTML empty');
-  const now=Date.now(),eligible:Candidate[]=[],rest:Candidate[]=[];
-  for(const c of parsed.items){
-    const title=String(c.title||'');
-    if(stream.category==='house'&&(!/\b(Haus|Einfamilienhaus|Reihenhaus|Doppelhaus|Doppelhaushälfte|Villa|Bungalow)\b/i.test(title)||/\b(Kauf|kaufen|Mietkauf|Bauen statt Mieten|Grundstück)\b/i.test(title)))continue;
-    if(stream.category==='room'){
-      const roomSignal=/\b(?:WG(?:[- ]?Zimmer)?|Privatzimmer|Mitbewohner(?:in)?|Untermiet(?:e|er)?|Zimmer)\b/i.test(title);
-      const wholeUnit=/\b(?:gesamte|komplette)\s+(?:Unterkunft|Wohnung)\b|\b\d+(?:[.,]\d+)?[ -]?Zimmer\b.{0,40}\bWohnung\b|\bApartment\b/i.test(title);
-      const strongRoom=/\b(?:WG(?:[- ]?Zimmer)?|Privatzimmer|Mitbewohner(?:in)?|Untermiet(?:e|er)?)\b/i.test(title);
-      if(!roomSignal||(wholeUnit&&!strongRoom))continue;
-    }
-    const published=sortingDateIso(String(c.raw?.sorting_date||'')),kind=String(stream.category);
-    const x:Candidate={...c,type:kind==='house'?'Haus':'WG',raw:{...c.raw,category_stream:kind,_classification:{version:1,kind,mode:'rent'},...(published?{_newness:{method:'source_timestamp',source_published_at:published}}:{})}};
-    const fresh=!!stream.baseline_at&&!!published&&now-new Date(published).getTime()>=-5*60*1000&&now-new Date(published).getTime()<=24*60*60*1000;
-    (fresh?eligible:rest).push(x);
-  }
-  const a=rest.length?await upsertCandidates(source,rest,false):{seen:0,fresh:0,keys:[] as string[]};
-  const b=eligible.length?await upsertCandidates(source,eligible,true):{seen:0,fresh:0,keys:[] as string[]};
-  return{requests:1,candidates:a.seen+b.seen,fresh:a.fresh+b.fresh,cursor:{opens:parsed.opens,accepted:a.seen+b.seen,last_checked_at:iso()}};
-}
+export async function runKleinCategory(source:Source,stream:any){const url=String(stream.url||''),response=await fetchKlein(url,AbortSignal.timeout(15000));if(!response.ok)throw new Error(`Kleinanzeigen category HTTP ${response.status}`);const html=await response.text(),parsed=parseKleinHtml(html);if(parsed.opens===0)throw new Error('Kleinanzeigen category result HTML empty');const rows:Candidate[]=[];for(const c of parsed.items){const title=String(c.title||'');if(stream.category==='house'&&(!/\b(Haus|Einfamilienhaus|Reihenhaus|Doppelhaus|Doppelhaushälfte|Villa|Bungalow|Stadthaus)\b/i.test(title)||/\b(Kauf|kaufen|Mietkauf|Bauen statt Mieten|Grundstück|Erbpacht)\b/i.test(title)))continue;if(stream.category==='room'){const roomSignal=/\b(?:WG(?:[- ]?Zimmer)?|Privatzimmer|Mitbewohner(?:in)?|Untermiet(?:e|er)?|Zimmer)\b/i.test(title),wholeUnit=/\b(?:gesamte|komplette)\s+(?:Unterkunft|Wohnung)\b|\b\d+(?:[.,]\d+)?[ -]?Zimmer\b.{0,40}\bWohnung\b|\bApartment\b/i.test(title),strongRoom=/\b(?:WG(?:[- ]?Zimmer)?|Privatzimmer|Mitbewohner(?:in)?|Untermiet(?:e|er)?)\b/i.test(title);if(!roomSignal||(wholeUnit&&!strongRoom))continue}const published=sortingDateIso(String(c.raw?.sorting_date||''));rows.push({...c,raw:{...c.raw,...(published?{_newness:{method:'source_timestamp',source_published_at:published}}:{})}})}const saved=await persistCategoryListings(source,stream,rows,false);return{requests:1,candidates:saved.seen,fresh:saved.fresh,cursor:{opens:parsed.opens,accepted:saved.seen,last_checked_at:iso()}}}

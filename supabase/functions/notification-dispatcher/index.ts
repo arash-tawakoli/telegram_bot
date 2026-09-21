@@ -20,12 +20,24 @@ const U = Deno.env.get("SUPABASE_URL")!,
     auth: { persistSession: false, autoRefreshToken: false },
   }),
   UA =
-    "Mozilla/5.0 (compatible; TraumwohnungHamburgBot/15.0; +https://traumwohnunghamburg.de)";
+    "Mozilla/5.0 (compatible; TraumwohnungHamburgBot/15.0; +https://traumwohnunghamburg.de)",
+  PREMIUM_LINK = "https://buy.stripe.com/dRm9AM7DSajfgYK2qVfYY01";
 async function sec(n: string) {
   const { data, error } = await db.rpc("get_bot_secret", { secret_name: n });
   if (error || !data) throw new Error("secret unavailable");
   return String(data);
 }
+async function deliveryNewnessCheck(l:any,eventType:any,publishedText:any=null) {
+  if(String(eventType||'new_listing')==='new_listing' && l?.raw?.category_stream) {
+    const {data,error}=await db.rpc('category_delivery_qualified',{p_listing_id:l.id});
+    if(error)throw error;
+    return data===true
+      ? {ok:true,reason:'category_db_qualified'}
+      : {ok:false,reason:'category_db_newness_unqualified'};
+  }
+  return deliveryNewness(l,eventType,publishedText);
+}
+
 function premium(u: any, s: boolean) {
   if (u?.plan_override === "free") return false;
   if (
@@ -84,11 +96,44 @@ function knownFacts(l: any) {
   const out = {...l, ...direct, ...detail};
   // Old DB values can include inferred addresses, default types and calculated rents.
   out.address = loc(l);
+  out.district = textValue(detail.district) ?? textValue(direct.district) ?? textValue(l.district);
+  out.borough = textValue(detail.borough) ?? textValue(direct.borough) ?? textValue(l.borough);
   out.property_type = detail.property_type ?? direct.property_type ?? null;
   out.deposit_text = detail.deposit_text ?? direct.deposit_text ?? null;
   if (l.warm_rent_is_calculated && direct.warm_rent == null && detail.warm_rent == null) out.warm_rent = null;
   out.images = collectImages({images:[...(detail.images || []), ...(direct.images || []), l.resolved_image_url, l.image_url]},l.canonical_url);
   return out;
+}
+let geoCache: Promise<Map<string,{district:string,borough:string}>> | null = null;
+function geoKey(value:any) {
+  return String(value ?? "").trim().toLocaleLowerCase("de-DE").replace(/^hamburg[\s,-]+/,"");
+}
+async function hamburgGeo() {
+  if (!geoCache) geoCache = (async () => {
+    const [{data:hoods,error:hErr},{data:boroughs,error:bErr}] = await Promise.all([
+      db.from("hamburg_neighborhoods").select("name,borough_id"),
+      db.from("hamburg_boroughs").select("id,name"),
+    ]);
+    if (hErr || bErr) throw hErr || bErr;
+    const boroughById=new Map((boroughs||[]).map((b:any)=>[Number(b.id),String(b.name)]));
+    const map=new Map<string,{district:string,borough:string}>();
+    for(const h of hoods||[]){
+      const borough=boroughById.get(Number(h.borough_id));
+      if(borough)map.set(geoKey(h.name),{district:String(h.name),borough});
+    }
+    return map;
+  })().catch(error=>{geoCache=null;throw error;});
+  return geoCache;
+}
+async function withHamburgGeo(l:any) {
+  const facts=knownFacts(l), district=textValue(facts.district);
+  if(!district)return l;
+  const explicitBorough=textValue(facts.borough);
+  if(explicitBorough)return {...l,district,borough:explicitBorough};
+  try{
+    const match=(await hamburgGeo()).get(geoKey(district));
+    return match ? {...l,district:match.district,borough:match.borough} : {...l,district};
+  }catch{return {...l,district};}
 }
 function cap(l: any, lang: string) {
   l = knownFacts(l);
@@ -130,11 +175,17 @@ function cap(l: any, lang: string) {
       `🔐 <b>${label(lang, "deposit")}:</b> ${deposit != null ? deposit + " €" : ""}${deposit != null && depositText ? " · " : ""}${esc(depositText)}`,
     );
   if (
-    [
-      "nestpick_public_api",
-      "city_wohnen_catalog",
-      "wunderflats_catalog",
-    ].includes(l.raw?.provider) &&
+    l.raw?.provider === "wunderflats_catalog" &&
+    l.raw?.price_currency === "EUR" &&
+    typeof l.raw.advertised_monthly_price === "number" &&
+    l.raw.advertised_monthly_price > 0 &&
+    factNumber(l.raw.advertised_monthly_price) != null &&
+    l.warm_rent == null &&
+    l.cold_rent == null
+  )
+    lines.push("💶 <b>"+(lang==="de"?"Warmmiete (pauschal)":"All-inclusive rent")+":</b> "+factNumber(l.raw.advertised_monthly_price)+" €");
+  else if (
+    ["nestpick_public_api","city_wohnen_catalog"].includes(l.raw?.provider) &&
     l.raw?.price_currency === "EUR" &&
     typeof l.raw.advertised_monthly_price === "number" &&
     l.raw.advertised_monthly_price > 0 &&
@@ -151,10 +202,17 @@ function cap(l: any, lang: string) {
   const available = availableText(l);
   if (available)
     lines.push(`📅 <b>${label(lang, "available")}:</b> ${esc(available)}`);
+  if(typeof l.furnished==="boolean")
+    lines.push("🛋️ <b>"+(lang==="de"?"Möblierung":"Furnishing")+":</b> "+(l.furnished?(lang==="de"?"möbliert":"furnished"):(lang==="de"?"unmöbliert":"unfurnished")));
+  if(l.wbs_required===true)
+    lines.push("🪪 <b>"+(lang==="de"?"WBS erforderlich":"WBS required")+":</b> "+(lang==="de"?"ja":"yes"));
   if (present(l.borough)) lines.push(`📍 <b>Bezirk:</b> ${esc(l.borough)}`);
   if (present(l.district)) lines.push(`📍 <b>Stadtteil:</b> ${esc(l.district)}`);
   if (present(l.published_text)) lines.push(`<b>Veröffentlicht laut Quelle:</b> ${esc(l.published_text)}`);
-  if (l.features?.length) lines.push(`<b>Ausstattung:</b> ${l.features.map(esc).join(', ')}`);
+  if (l.features?.length) {
+    const features=[...new Set(l.features.map((v:any)=>String(v).trim()).filter((v:string)=>v))];
+    if(features.length)lines.push(`🛋️ <b>Ausstattung:</b> ${features.map(esc).join(', ')}`);
+  }
   for(const [key,value] of Object.entries(l.extra_facts||{}))if(present(value))lines.push(`<b>${esc(key)}:</b> ${esc(value)}`);
   if (loc(l)) lines.push(`📍 <b>${label(lang, "address")}:</b> ${esc(loc(l))}`);
   return lines.join("\n").trim();
@@ -186,22 +244,31 @@ function offerTarget(l: any, lang: string) {
   }
   return fallback;
 }
-function kb(l: any, lang: string, p: boolean) {
+function kb(l: any, lang: string, p: boolean, userId = "", autoApplyEnabled = false) {
+  const checkout=`${PREMIUM_LINK}?client_reference_id=${encodeURIComponent(String(userId))}`;
   const sourceName=sourceButtonName(l);
   const cooperative=String(l.sources?.source_type || "") === "Baugenossenschaft";
-  const offerText=lang==="de"
+  const normalOfferText=lang==="de"
     ? `${cooperative ? "🏠 " : ""}Zu ${sourceName}`
     : `${cooperative ? "🏠 " : ""}${sourceName}`;
-  const offer = !p && cooperative
-    ? { text: offerText, callback_data: "premium" }
-    : { ...offerTarget(l,lang), text: offerText };
+  const offer = cooperative
+    ? (p
+        ? { ...offerTarget(l,lang), text: lang==="de" ? "💎 Premium-Angebot" : "💎 Premium listing" }
+        : { text: lang==="de" ? "🔒 💎 Premium-Angebot" : "🔒 💎 Premium listing", url: checkout })
+    : { ...offerTarget(l,lang), text: normalOfferText };
   const save = p
     ? { text: `⭐ ${label(lang, "save")}`, callback_data: `save:${l.id}` }
     : { text: `⭐ ${label(lang, "save")}`, callback_data: "premium" };
   const q = mapLoc(l);
   const rows: any[] = [[offer],[save]];
   if (q) rows.push([{text:`🗺️ ${label(lang, "maps")}`,url:`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`}]);
-  rows.push([{text:lang==="de"?"⚡ Auto-Bewerbung":"⚡ Auto-apply",callback_data:"platforms"}]);
+  const autoApplyText=lang==="de"
+    ? `⚡ Auto-Bewerbung • ${autoApplyEnabled?"aktiv":"inaktiv"}`
+    : `⚡ Auto-apply • ${autoApplyEnabled?"active":"inactive"}`;
+  rows.push([p
+    ? {text:autoApplyText,callback_data:`platforms:preview:${l.id}`}
+    : {text:`🔒 ${autoApplyText}`,url:checkout}
+  ]);
   return { inline_keyboard: rows };
 }
 async function tg(t: string, m: string, b: any) {
@@ -337,8 +404,9 @@ async function uploadOperation(t:string,chat:number,op:any) {
   else for(const [k,v] of Object.entries(op.body))if(k!=='photo')f.set(k,typeof v==='string'?v:JSON.stringify(v));
   return telegramRequest(`https://api.telegram.org/bot${t}/${op.method}`,{method:'POST',body:f});
 }
-async function send(t:string,chat:number,l:any,lang:string,p:boolean,lease:any,previous:any) {
-  const facts=knownFacts(l),operations=previewOperations(facts.images,cap(l,lang),kb(l,lang,p));
+async function send(t:string,chat:number,l:any,lang:string,p:boolean,userId:string,autoApplyEnabled:boolean,lease:any,previous:any) {
+  l=await withHamburgGeo(l);
+  const facts=knownFacts(l),operations=previewOperations(facts.images,cap(l,lang),kb(l,lang,p,userId,autoApplyEnabled));
   return deliverPreview(operations,previous,async state=>{
     const {data,error}=await db.from('delivery_events').update({preview_progress:state}).eq('id',lease.id).eq('status','processing').eq('dispatch_attempts',lease.attempt).eq('last_attempt_at',lease.claimedAt).select('id').maybeSingle();
     if(error||!data)throw new Error('Gallery checkpoint could not be saved');
@@ -359,14 +427,17 @@ Deno.serve(async (req) => {
     if (input.dry_run && input.listing_id) {
       const {data,error}=await db.from('listings').select('*,sources(name,button_label,source_type,baseline_completed_at,enabled,runtime_mode,delivery_mode,source_connectors(config,enabled,priority))').eq('id',input.listing_id).single();
       if(error)throw error;
-      const listing=await enrich(data,false),facts=knownFacts(listing),newness=deliveryNewness(listing,'new_listing',facts.published_text);
+      let listing=await enrich(data,false);
+      listing=await withHamburgGeo(listing);
+      const facts=knownFacts(listing),newness=await deliveryNewnessCheck(listing,'new_listing',facts.published_text);
+      const probePremium=input.premium!==false,probeUserId=String(input.user_id||"probe"),probeAutoApply=input.auto_apply_enabled===true;
       if(input.probe_image && facts.images.length){
         const response=await fetch(facts.images[0],{headers:{'user-agent':UA,accept:'image/*'},signal:AbortSignal.timeout(6500)});
         const declared_type=response.headers.get('content-type');
-        try{const photo=await sourcePhoto(response);return Response.json({ok:true,dry_run:true,availability:listing._availability,image_probe:{declared_type,validated_type:photo.type,bytes:photo.size},operations:previewOperations(facts.images,cap(listing,'de'),kb(listing,'de',true)).map(x=>x.method)});}
+        try{const photo=await sourcePhoto(response);return Response.json({ok:true,dry_run:true,availability:listing._availability,image_probe:{declared_type,validated_type:photo.type,bytes:photo.size},operations:previewOperations(facts.images,cap(listing,'de'),kb(listing,'de',probePremium,probeUserId,probeAutoApply)).map(x=>x.method)});}
         catch(e){return Response.json({ok:false,dry_run:true,image_probe:{declared_type,error:String(e)}});}
       }
-      return Response.json({ok:true,dry_run:true,caption:cap(listing,'de'),keyboard:kb(listing,'de',true),images:facts.images,availability:listing._availability,newness,address:loc(listing),operations:previewOperations(facts.images,cap(listing,'de'),kb(listing,'de',true)).map(x=>x.method)});
+      return Response.json({ok:true,dry_run:true,caption:cap(listing,'de'),keyboard:kb(listing,'de',probePremium,probeUserId,probeAutoApply),images:facts.images,availability:listing._availability,newness,address:loc(listing),operations:previewOperations(facts.images,cap(listing,'de'),kb(listing,'de',probePremium,probeUserId,probeAutoApply)).map(x=>x.method)});
     }
     if (input.dry_run) {
       const { error } = await db.from("delivery_events").select("id").limit(1);
@@ -390,7 +461,7 @@ Deno.serve(async (req) => {
     const { data: events, error } = await db
       .from("delivery_events")
       .select(
-        "id,status,event_type,dispatch_attempts,preview_progress,recipient:bot_users!delivery_events_recipient_user_id_fkey(id,chat_id,is_active,ui_language),search_profiles!inner(id,profile_slot,is_active,owner:bot_users!search_profiles_user_id_fkey(id,is_active,plan_override,plan_override_expires_at,referral_bonus_until)),listings!inner(*,sources(name,button_label,source_type,baseline_completed_at,enabled,runtime_mode,delivery_mode,source_connectors(config,enabled,priority)))",
+        "id,status,event_type,dispatch_attempts,preview_progress,recipient:bot_users!delivery_events_recipient_user_id_fkey(id,chat_id,is_active,ui_language,auto_apply_enabled),search_profiles!inner(id,profile_slot,is_active,owner:bot_users!search_profiles_user_id_fkey(id,is_active,plan_override,plan_override_expires_at,referral_bonus_until,auto_apply_enabled)),listings!inner(*,sources(name,button_label,source_type,baseline_completed_at,enabled,runtime_mode,delivery_mode,source_connectors(config,enabled,priority)))",
       )
       .in("status", ["pending", "failed"])
       .eq("delivery_outcome_unknown", false)
@@ -455,7 +526,7 @@ Deno.serve(async (req) => {
           cache.set(String(raw.id), task);
         }
         const listing = await task;
-        const newness=deliveryNewness(listing,event.event_type,knownFacts(listing).published_text);
+        const newness=await deliveryNewnessCheck(listing,event.event_type,knownFacts(listing).published_text);
         if(!newness.ok){
           await finishDelivery(db,lease,{status:'skipped',next_retry_at:null,error_message:`Newness guard: ${newness.reason}`});
           skipped++;continue;
@@ -480,6 +551,8 @@ Deno.serve(async (req) => {
           listing,
           recipient.ui_language || "de",
           isPremium,
+          String(profileOwner?.id || recipient?.id || ""),
+          profileOwner?.auto_apply_enabled === true || recipient?.auto_apply_enabled === true,
           lease,
           event.preview_progress,
         );

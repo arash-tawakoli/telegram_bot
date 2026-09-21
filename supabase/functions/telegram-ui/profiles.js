@@ -392,7 +392,7 @@ export async function persistProfile(user, draft) {
     return data || null;
 }
 
-export function profileLimit(user) { return user.is_premium ? 3 : 1; }
+export function profileLimit(user) { return user.is_premium ? 4 : 1; }
 
 export function profileLocation(current) {
     return current.location_mode === "all_hamburg"

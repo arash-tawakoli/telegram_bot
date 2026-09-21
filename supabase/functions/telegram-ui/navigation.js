@@ -6,7 +6,9 @@ export function homeKeyboard(user) {
         [button("🔎 Suche & Filter", "profile")],
         [
             button(user.is_premium ? "⭐ Gespeichert" : "🔒 ⭐ Gespeichert", "saved"),
-            button("⚡ Auto-Bewerbung", "platforms"),
+            user.is_premium
+                ? button("⚡ Auto-Bewerbung", "platforms")
+                : { text: "🔒 ⚡ Auto-Bewerbung", url: `${PREMIUM_LINK}?client_reference_id=${encodeURIComponent(user.id)}` },
         ],
         [
             button("⚙️ Einstellungen", "settings"),
@@ -29,19 +31,29 @@ export function home(user, chatId, messageId) {
 export async function premium(user, chatId, messageId, messageHasPhoto = false) {
     const rows = [];
     let text;
+    const checkoutUrl = `${PREMIUM_LINK}?client_reference_id=${encodeURIComponent(user.id)}`;
     if (user.is_premium) {
-        text = "💎 <b>Traumwohnung Premium</b>\n\n✅ <b>Premium ist aktiv.</b>\n\n<b>Deine Vorteile:</b>\n⚡ Sofortige Zustellung\n🔎 Bis zu 3 Suchprofile\n🔓 Baugenossenschafts-Angebote öffnen\n⭐️ Inserate speichern";
-        rows.push([button("💳 Abo verwalten", "portal")]);
+        text = "💎 <b>Traumwohnung Premium</b>\n\n✅ <b>Premium ist aktiv.</b>\n\n<b>Deine Vorteile:</b>\n⚡ Sofortige Zustellung\n🔎 Bis zu 4 Suchprofile\n🤖 Auto-Bewerbung\n🔓 Baugenossenschafts-Angebote öffnen\n⭐️ Inserate speichern";
+        let portal = null;
+        try {
+            const result = await db.rpc("get_bot_secret", { secret_name: "stripe_portal_url" });
+            if (!result.error)
+                portal = result.data;
+        }
+        catch {
+        }
+        const billingUrl = typeof portal === "string" && /^https:\/\/billing\.stripe\.com\//.test(portal) ? portal : checkoutUrl;
+        rows.push([{ text: "💳 Abo verwalten", url: billingUrl }]);
     }
     else {
-        text = "💎 <b>Traumwohnung Premium</b>\n\n<b>Deine Vorteile:</b>\n⚡ Sofortige Zustellung\n🔎 Bis zu 3 Suchprofile\n🔓 Baugenossenschafts-Angebote öffnen\n⭐️ Inserate speichern\n\n<s>1,99 €</s> <b>0,99 € / Monat</b>\nKeine Mindestlaufzeit · jederzeit kündbar";
-        rows.push([{ text: "💎 Premium freischalten", url: `${PREMIUM_LINK}?client_reference_id=${encodeURIComponent(user.id)}` }]);
+        text = "💎 <b>Traumwohnung Premium</b>\n\n<b>Deine Vorteile:</b>\n⚡ Sofortige Zustellung\n🔎 Bis zu 4 Suchprofile\n🤖 Auto-Bewerbung\n🔓 Baugenossenschafts-Angebote öffnen\n⭐️ Inserate speichern\n\n<s>1,99 €</s> <b>0,99 € / Monat</b>\nKeine Mindestlaufzeit · jederzeit kündbar";
+        rows.push([{ text: "💎 Jetzt abonnieren", url: checkoutUrl }]);
     }
     rows.push([button("← Zurück", "home")]);
     const markup = { inline_keyboard: rows };
-    if (messageId && messageHasPhoto)
-        return editPremiumPreview(chatId, messageId, text, markup);
-    return sendPremiumPreview(chatId, text, markup);
+    return messageId
+        ? edit(chatId, messageId, text, markup)
+        : send(chatId, text, markup);
 }
 
 export async function saved(user, chatId, messageId, requestedPage = 0) {
@@ -146,7 +158,9 @@ export async function languagePage(user, chatId, messageId) {
 export async function settings(user, chatId, messageId) {
     const text = "⚙️ <b>Einstellungen</b>\n\nKonten, Sprache, Premium und Systeminformationen.";
     const markup = { inline_keyboard: [
-            [button("⚡ Bewerbung & Konten", "platforms")],
+            [user.is_premium
+                ? button("⚡ Bewerbung & Konten", "platforms")
+                : { text: "🔒 ⚡ Bewerbung & Konten", url: `${PREMIUM_LINK}?client_reference_id=${encodeURIComponent(user.id)}` }],
             [button("🌐 Sprache", "language"), button(user.is_premium ? "💎 Premium aktiv" : "💎 Premium", "premium")],
             [button("📡 Systemstatus", "status")],
             [button("← Start", "home")],

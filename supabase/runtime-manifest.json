@@ -8,45 +8,53 @@
       "files": [
         {
           "path": "supabase/functions/application-worker/index.ts",
-          "sha256": "509fbda705a7ee9809804d12a7c20153ab29c40a31c06bcc3209b7b3b2b9bd0a",
-          "deployed_sha256": "509fbda705a7ee9809804d12a7c20153ab29c40a31c06bcc3209b7b3b2b9bd0a"
+          "sha256": "88ba427ecc4fc70223fd0267261e055c2a47155098d9167570216ecedb524608",
+          "deployed_sha256": "88ba427ecc4fc70223fd0267261e055c2a47155098d9167570216ecedb524608"
         },
         {
           "path": "supabase/functions/application-worker/credentials.ts",
-          "sha256": "d86f47221ac133ede2ece33344125975d64bda01253c4879b6449a9aef3cc71c",
-          "deployed_sha256": "d86f47221ac133ede2ece33344125975d64bda01253c4879b6449a9aef3cc71c"
+          "sha256": "fa566446453563ecdbd7d1166656454612d115ec6a92c8316890ac77175f0eb9",
+          "deployed_sha256": "fa566446453563ecdbd7d1166656454612d115ec6a92c8316890ac77175f0eb9"
         },
         {
           "path": "supabase/functions/application-worker/profile-page.ts",
-          "sha256": "adda1090aebfa8a602147719b84f0d1daacac2dcb14fb24c683e02d0446f5c98",
-          "deployed_sha256": "adda1090aebfa8a602147719b84f0d1daacac2dcb14fb24c683e02d0446f5c98"
+          "sha256": "c0fd1c76acdb712aa51e25ffdfd702256dd1a26d7c44ff24d3f1fc836648e654",
+          "deployed_sha256": "c0fd1c76acdb712aa51e25ffdfd702256dd1a26d7c44ff24d3f1fc836648e654"
         },
         {
           "path": "supabase/functions/application-worker/providers/kleinanzeigen.ts",
-          "sha256": "8b3dd4db8a7ba76d9a7a003bcd728e0a741f29e5de8510b72c830696d30bb4f7",
-          "deployed_sha256": "8b3dd4db8a7ba76d9a7a003bcd728e0a741f29e5de8510b72c830696d30bb4f7"
+          "sha256": "1aabf44d7b2accb949711abf6ce6ceee51552e9a70420ad75d6860fc284a2dc3",
+          "deployed_sha256": "1aabf44d7b2accb949711abf6ce6ceee51552e9a70420ad75d6860fc284a2dc3"
         },
         {
           "path": "supabase/functions/application-worker/providers/immoscout.ts",
-          "sha256": "47b90d65672c66b2aaa18bd3f6fbaa28ed0f06cbd71ad40a1bf99d6bdf0c5704",
-          "deployed_sha256": "47b90d65672c66b2aaa18bd3f6fbaa28ed0f06cbd71ad40a1bf99d6bdf0c5704"
+          "sha256": "88dc34f234b22877a7e6f585e4066bea6432aa1c84ff3e487140655fcc2f3e75",
+          "deployed_sha256": "88dc34f234b22877a7e6f585e4066bea6432aa1c84ff3e487140655fcc2f3e75"
         },
         {
           "path": "supabase/functions/application-worker/providers/immomio.ts",
-          "sha256": "bd5b12d672e035e2023741ec80740700c9d74e55a6ff10b07b8023d9ed0713aa",
-          "deployed_sha256": "bd5b12d672e035e2023741ec80740700c9d74e55a6ff10b07b8023d9ed0713aa"
+          "sha256": "62ba5118da5fd1f9044e2a29434e6cc23bd15b67a18e7fc3788a38ad35c8d5d9",
+          "deployed_sha256": "62ba5118da5fd1f9044e2a29434e6cc23bd15b67a18e7fc3788a38ad35c8d5d9"
         },
         {
           "path": "supabase/functions/application-worker/providers/router.ts",
-          "sha256": "90c47c80f09d816578f0803e42eda10a5e7b772eecce1158c77a1f4b61b67b09",
-          "deployed_sha256": "90c47c80f09d816578f0803e42eda10a5e7b772eecce1158c77a1f4b61b67b09"
+          "sha256": "f7c6356a8363980c246794ebc986c18c37e58ef06b71384dad6a9e5209df5d2f",
+          "deployed_sha256": "f7c6356a8363980c246794ebc986c18c37e58ef06b71384dad6a9e5209df5d2f"
         }
       ],
       "import_map": false,
       "retired": false,
       "slug": "application-worker",
       "verify_jwt": false,
-      "version": 40
+      "version": 60,
+      "deployment_observed_at": "2026-09-18T19:08:40.188Z",
+      "observed_artifact": {
+        "observed_at": "2026-09-18T19:08:40.188Z",
+        "format": "compiled_esm",
+        "entrypoint": "index.ts",
+        "ezbr_sha256": "bdeb90e6f9f421f82fd14c491d3246ef3d2729cb44dd2d0e1d1f20f12848b4cf",
+        "verification": "Production source and management metadata synchronized from Supabase on 2026-09-21."
+      }
     },
     {
       "entrypoint": "supabase/functions/billing-maintenance/index.ts",
@@ -61,7 +69,15 @@
       "retired": false,
       "slug": "billing-maintenance",
       "verify_jwt": false,
-      "version": 48
+      "version": 56,
+      "deployment_observed_at": "2026-09-20T22:28:07.458Z",
+      "observed_artifact": {
+        "observed_at": "2026-09-20T22:28:07.458Z",
+        "format": "compiled_esm",
+        "entrypoint": "index.ts",
+        "ezbr_sha256": "e8e41fbd9179722958a8a20137c467d32e9808d6cd150dba74115e66f75aa048",
+        "verification": "Production source and management metadata synchronized from Supabase on 2026-09-21."
+      }
     },
     {
       "entrypoint": "supabase/functions/covivio-feed/index.ts",
@@ -186,7 +202,15 @@
       "retired": false,
       "slug": "kleinanzeigen-transport",
       "verify_jwt": false,
-      "version": 3
+      "version": 4,
+      "deployment_observed_at": "2026-09-20T15:27:08.285Z",
+      "observed_artifact": {
+        "observed_at": "2026-09-20T15:27:08.285Z",
+        "format": "compiled_esm",
+        "entrypoint": "index.ts",
+        "ezbr_sha256": "0a8ae2c6dc63fcefff6894e66f2dcb9397c74f16df646b7f8505edb6afcbc41f",
+        "verification": "Production source and management metadata synchronized from Supabase on 2026-09-21."
+      }
     },
     {
       "entrypoint": "supabase/functions/meravis-feed/index.ts",
@@ -278,13 +302,13 @@
         },
         {
           "path": "supabase/functions/noncoop-new-feed/handler.ts",
-          "sha256": "abb707662e7485c08c4dad9facf18f62b7264bd2b308e7963f8908d0593c7074",
-          "deployed_sha256": "abb707662e7485c08c4dad9facf18f62b7264bd2b308e7963f8908d0593c7074"
+          "sha256": "2fb560ed373739a95472c33acd218b227f78160c41c921afb1fd38d7fa0f700d",
+          "deployed_sha256": "2fb560ed373739a95472c33acd218b227f78160c41c921afb1fd38d7fa0f700d"
         },
         {
           "path": "supabase/functions/noncoop-feed/handler.ts",
-          "sha256": "1068acdddb2097b063cf0f23aff97356b22a13154656c9637ee884418d990962",
-          "deployed_sha256": "1068acdddb2097b063cf0f23aff97356b22a13154656c9637ee884418d990962"
+          "sha256": "e39e7408af779fc5effd3c359914922ffe00c8f2ced02669243fbb312c7885f3",
+          "deployed_sha256": "e39e7408af779fc5effd3c359914922ffe00c8f2ced02669243fbb312c7885f3"
         },
         {
           "path": "supabase/functions/_shared/hamburg.ts",
@@ -296,7 +320,15 @@
       "retired": false,
       "slug": "noncoop-new-feed",
       "verify_jwt": false,
-      "version": 6
+      "version": 7,
+      "deployment_observed_at": "2026-09-21T10:49:07.429Z",
+      "observed_artifact": {
+        "observed_at": "2026-09-21T10:49:07.429Z",
+        "format": "compiled_esm",
+        "entrypoint": "index.ts",
+        "ezbr_sha256": "6b5b5a612da110664aac5464a49b5c2695ed1ad8a485c17c3fa44a969216e1be",
+        "verification": "Production source and management metadata synchronized from Supabase on 2026-09-21."
+      }
     },
     {
       "entrypoint": "supabase/deployed-support/noop/index.ts",
@@ -318,18 +350,18 @@
       "files": [
         {
           "path": "supabase/functions/notification-dispatcher/index.ts",
-          "sha256": "afc1c72269798b9c538d7d8877f833349095881ce6d8a804938dc56114448dd5",
-          "deployed_sha256": "afc1c72269798b9c538d7d8877f833349095881ce6d8a804938dc56114448dd5"
+          "sha256": "d4417d7eba10060071d1b211b5d12d39ac6c937ee139d4337d3c0798536ed7e4",
+          "deployed_sha256": "d4417d7eba10060071d1b211b5d12d39ac6c937ee139d4337d3c0798536ed7e4"
         },
         {
           "path": "supabase/functions/notification-dispatcher/availability.ts",
-          "sha256": "4175e77503a485d51f59f189a9dca8f9e05c2c222216833d2a84657e0b3ba845",
-          "deployed_sha256": "4175e77503a485d51f59f189a9dca8f9e05c2c222216833d2a84657e0b3ba845"
+          "sha256": "2374df2ec40aa246ae22980140d19febf12cd0e933121b225dbd420a46ba0fc9",
+          "deployed_sha256": "2374df2ec40aa246ae22980140d19febf12cd0e933121b225dbd420a46ba0fc9"
         },
         {
           "path": "supabase/functions/notification-dispatcher/preview-delivery.ts",
-          "sha256": "293933ce6b204752711c47d1ee0b621b1f4da60dc60c3e237de25cb9b00cd811",
-          "deployed_sha256": "293933ce6b204752711c47d1ee0b621b1f4da60dc60c3e237de25cb9b00cd811"
+          "sha256": "f7ce2f3ec876ade6fcac503d3f63c65b254bc8e4c69226ff3be07cc21da89a18",
+          "deployed_sha256": "f7ce2f3ec876ade6fcac503d3f63c65b254bc8e4c69226ff3be07cc21da89a18"
         },
         {
           "path": "supabase/functions/notification-dispatcher/telegram-request.ts",
@@ -338,8 +370,8 @@
         },
         {
           "path": "supabase/functions/notification-dispatcher/source-facts.ts",
-          "sha256": "47653573929feef64b645aae5a4f90896953451e3d777791e9b997b9a30002f9",
-          "deployed_sha256": "47653573929feef64b645aae5a4f90896953451e3d777791e9b997b9a30002f9"
+          "sha256": "10760efb6ffe490ad68bcb1f4a586b08867c89a05c198309ad759000c9762185",
+          "deployed_sha256": "10760efb6ffe490ad68bcb1f4a586b08867c89a05c198309ad759000c9762185"
         },
         {
           "path": "supabase/functions/notification-dispatcher/pacing.ts",
@@ -353,8 +385,8 @@
         },
         {
           "path": "supabase/functions/notification-dispatcher/labels.ts",
-          "sha256": "86a870fd3a81b93752ca0d53825c169faa86eedc3cd27ad110165d1981fee8ad",
-          "deployed_sha256": "86a870fd3a81b93752ca0d53825c169faa86eedc3cd27ad110165d1981fee8ad"
+          "sha256": "4d9929f90c15e7e94acf5b8a24273abb7020da0d896f45109f7c31466a21ebb8",
+          "deployed_sha256": "4d9929f90c15e7e94acf5b8a24273abb7020da0d896f45109f7c31466a21ebb8"
         },
         {
           "path": "supabase/functions/notification-dispatcher/newness.ts",
@@ -366,14 +398,15 @@
       "retired": false,
       "slug": "notification-dispatcher",
       "verify_jwt": false,
-      "version": 119,
+      "version": 128,
       "observed_artifact": {
-        "observed_at": "2026-09-21T04:05:54.796Z",
+        "observed_at": "2026-09-21T10:58:00.627Z",
         "format": "compiled_esm",
         "entrypoint": "index.ts",
-        "ezbr_sha256": "e20ebf53776e7492c9f3f325d511953ff2b4739239a87b81ca285f9de25fc771",
-        "verification": "Supabase production metadata plus exact source-content comparison after listing preview action rollout."
-      }
+        "ezbr_sha256": "05247c699e946af8244d830eca93732589e92b65dc0b0189742eacd5020c5b5e",
+        "verification": "Production source and management metadata synchronized from Supabase on 2026-09-21."
+      },
+      "deployment_observed_at": "2026-09-21T10:58:00.627Z"
     },
     {
       "entrypoint": "supabase/functions/source-shadow/index.ts",
@@ -480,13 +513,13 @@
         },
         {
           "path": "supabase/functions/source-worker/scout.ts",
-          "sha256": "d8cc5b7a35a999a9ba50d7bcd355441a77398e8d0bf4ac909470373744df1096",
-          "deployed_sha256": "fdc90ec4d69817dc1ad9ea26702f45160d9096494f664f6a20af9bbe525421ab"
+          "sha256": "a978edc4739bc36cfcdc8c255e36301374a07ed81711c4d1cfbda4a7be514059",
+          "deployed_sha256": null
         },
         {
           "path": "supabase/functions/source-worker/klein.ts",
-          "sha256": "08dea2aa2771fe1aca752bcebdd49af9868c75a15a71151e5b95a78674b0e099",
-          "deployed_sha256": "9f41c91f7a45a7677faa0b20985c58fe0eb1a55a6528ec937d7a62ccce56de1b"
+          "sha256": "edb4dfc799e862d5280580be8c5276c6286eb01e34faadd68f0b9edb2b2533c3",
+          "deployed_sha256": null
         },
         {
           "path": "supabase/functions/kleinanzeigen-transport/fetch-page.ts",
@@ -515,8 +548,8 @@
         },
         {
           "path": "supabase/functions/source-worker/generic.ts",
-          "sha256": "5f0f35220cadfef93e2ff9e8f5157ee714c8498a7c4c52cdd3f1932fe9badb31",
-          "deployed_sha256": "c1144853bd33be6a3901ff066b0b0aaaf22b63ad136fad52bff34db1cb99b6d1"
+          "sha256": "2f8c81d680d68920104d0de1503cdda828499de5bf95de5ac6e0136b1a7f8592",
+          "deployed_sha256": null
         },
         {
           "path": "supabase/functions/source-worker/job-runner.ts",
@@ -535,13 +568,13 @@
         },
         {
           "path": "supabase/functions/source-worker/nestpick.ts",
-          "sha256": "7e65ae24919b449d5dd9d6761fc72382d4afb16ced6c6f96ae04b6f3f899c991",
-          "deployed_sha256": "7e65ae24919b449d5dd9d6761fc72382d4afb16ced6c6f96ae04b6f3f899c991"
+          "sha256": "42e38df5c5827c0e3789405bc6f1503219e625bd8c670794308e84b69bf73cdb",
+          "deployed_sha256": null
         },
         {
           "path": "supabase/functions/source-worker/catalog.ts",
-          "sha256": "9daa09bce143e42392d2a7bf14e496a6b0b7b03a07420bd01f893bcdfde1c31b",
-          "deployed_sha256": "9e8fe3d39efb121b57be3563a211bf367f578b58ad22529a4ad777e5fc79c1a6"
+          "sha256": "c8db39946b6a0e0d2b1407302d5e777f03c2233890eda95bc850f9b2cc30e9a6",
+          "deployed_sha256": null
         },
         {
           "path": "supabase/functions/covivio-feed/handler.ts",
@@ -565,13 +598,13 @@
         },
         {
           "path": "supabase/functions/noncoop-feed/handler.ts",
-          "sha256": "1068acdddb2097b063cf0f23aff97356b22a13154656c9637ee884418d990962",
-          "deployed_sha256": "1068acdddb2097b063cf0f23aff97356b22a13154656c9637ee884418d990962"
+          "sha256": "e39e7408af779fc5effd3c359914922ffe00c8f2ced02669243fbb312c7885f3",
+          "deployed_sha256": null
         },
         {
           "path": "supabase/functions/noncoop-new-feed/handler.ts",
-          "sha256": "abb707662e7485c08c4dad9facf18f62b7264bd2b308e7963f8908d0593c7074",
-          "deployed_sha256": "abb707662e7485c08c4dad9facf18f62b7264bd2b308e7963f8908d0593c7074"
+          "sha256": "2fb560ed373739a95472c33acd218b227f78160c41c921afb1fd38d7fa0f700d",
+          "deployed_sha256": null
         },
         {
           "path": "supabase/functions/spacest-feed/handler.ts",
@@ -596,11 +629,16 @@
         {
           "path": "supabase/functions/_shared/hamburg.ts",
           "sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a",
-          "deployed_sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a"
+          "deployed_sha256": null
         },
         {
           "path": "supabase/functions/source-worker/category.ts",
-          "sha256": "4157f9c9f139bf1a67a4376bbd895b476b2e9bce40cfa96a1310808528ab3611",
+          "sha256": "0cd4bbf49218fe768366dec5c3693b51b39e5781b7d26f93c83b0abcad179c26",
+          "deployed_sha256": null
+        },
+        {
+          "path": "supabase/functions/source-worker/category-persist.ts",
+          "sha256": "97da274915467e156987e26942992061c157e74726bf7a8bbdab509f3d9845cd",
           "deployed_sha256": null
         }
       ],
@@ -608,16 +646,16 @@
       "retired": false,
       "slug": "source-worker",
       "verify_jwt": false,
-      "version": 73,
-      "deployment_observed_at": "2026-09-19T15:02:00Z",
-      "source_sync_note": "Restored v72 ingestion and cycle semantics from inspected production source. Changed file deployment hashes are not independently measured; old recorded hashes remain for drift visibility.",
+      "version": 83,
+      "deployment_observed_at": "2026-09-21T10:53:23.741Z",
+      "source_sync_note": "Production v83 is a compiled bundle; modular GitHub source has been updated for cross-lane category newness, Immowelt house discovery, Wunderflats/Nestpick/City-Wohnen metadata, and in-process noncoop feed fixes.",
       "observed_artifact": {
-        "observed_at": "2026-09-19T18:21:00Z",
+        "observed_at": "2026-09-21T10:53:23.741Z",
         "format": "compiled_esm",
         "entrypoint": "index.js",
         "import_map_path": "deno.json",
-        "ezbr_sha256": "1869144f536bf2e0968adc5ecf7a417bdaa5792815520bfb1270270bea0c2bb8",
-        "verification": "Management metadata plus normal production crawl evidence. The compiled artifact is not byte-comparable with the TypeScript source file list; historical deployed_sha256 values are retained, not asserted as current."
+        "ezbr_sha256": "a0b2ba7add529cfcb017b71af88e7742bbe44b8f5bebe976e84cec684e9379ce",
+        "verification": "Production v83 metadata synced; modular TypeScript source updated to preserve the known production semantics of the compiled deployment."
       }
     },
     {
@@ -658,7 +696,15 @@
       "retired": false,
       "slug": "stripe-webhook",
       "verify_jwt": false,
-      "version": 61
+      "version": 67,
+      "deployment_observed_at": "2026-09-20T22:04:19.805Z",
+      "observed_artifact": {
+        "observed_at": "2026-09-20T22:04:19.805Z",
+        "format": "compiled_esm",
+        "entrypoint": "index.ts",
+        "ezbr_sha256": "5edc5588637d09705a10fe4a7197d12b09f8c5d61540cf57075c16001e12b78a",
+        "verification": "Production source and management metadata synchronized from Supabase on 2026-09-21."
+      }
     },
     {
       "entrypoint": "supabase/functions/telegram-fallback-logo/index.ts",
@@ -688,7 +734,15 @@
       "retired": false,
       "slug": "telegram-fast",
       "verify_jwt": false,
-      "version": 9
+      "version": 10,
+      "deployment_observed_at": "2026-09-20T17:04:54.343Z",
+      "observed_artifact": {
+        "observed_at": "2026-09-20T17:04:54.343Z",
+        "format": "compiled_esm",
+        "entrypoint": "index.ts",
+        "ezbr_sha256": "e6e908b9625f009c3a05b8c8e2dfa7710e9665f0dc710a99d71bd27acbfaec31",
+        "verification": "Production source and management metadata synchronized from Supabase on 2026-09-21."
+      }
     },
     {
       "entrypoint": "supabase/functions/telegram-gateway/index.ts",
@@ -700,27 +754,28 @@
         },
         {
           "path": "supabase/functions/telegram-gateway/auto-apply.ts",
-          "sha256": "a810d59090beeade51c68de684ede0486616c5e254fe5fd31b5d0f15002cedcc",
-          "deployed_sha256": "a810d59090beeade51c68de684ede0486616c5e254fe5fd31b5d0f15002cedcc"
+          "sha256": "69f1dbc0e9dcc7c1c1cff8fa9db13bc622e71b440b362038606ca8e28361e317",
+          "deployed_sha256": "69f1dbc0e9dcc7c1c1cff8fa9db13bc622e71b440b362038606ca8e28361e317"
         },
         {
           "path": "supabase/functions/telegram-gateway/fast-ui.ts",
-          "sha256": "cfa610c17758b173cdbd6c98074d199a00a757855847effb7913b6d25d2a1c1f",
-          "deployed_sha256": "cfa610c17758b173cdbd6c98074d199a00a757855847effb7913b6d25d2a1c1f"
+          "sha256": "8920e0bfc97b2b23dd86330d25455cf1c0dc62386c18269d5c200ea7b2bb8bee",
+          "deployed_sha256": "8920e0bfc97b2b23dd86330d25455cf1c0dc62386c18269d5c200ea7b2bb8bee"
         }
       ],
       "import_map": false,
       "retired": false,
       "slug": "telegram-gateway",
       "verify_jwt": false,
-      "version": 44,
+      "version": 48,
       "observed_artifact": {
-        "observed_at": "2026-09-20T22:21:05.410Z",
+        "observed_at": "2026-09-21T09:33:55.512Z",
         "format": "compiled_esm",
         "entrypoint": "index.ts",
-        "ezbr_sha256": "08837dcaf37a0ff2bf6b90eb2f705edc2588f402fe3e5c340de6651168b01951",
-        "verification": "Supabase production metadata plus exact source-content comparison for every deployed file after Schnellbewerbung removal."
-      }
+        "ezbr_sha256": "44faa20db8b33a84f9332ed746ba5bba8afb2b6de1b952fa356c68137b9c82e0",
+        "verification": "Production source and management metadata synchronized from Supabase on 2026-09-21."
+      },
+      "deployment_observed_at": "2026-09-21T09:33:55.512Z"
     },
     {
       "entrypoint": "supabase/functions/telegram-premium-image/index.ts",
@@ -767,18 +822,18 @@
         },
         {
           "path": "supabase/functions/telegram-ui/navigation.js",
-          "sha256": "df482c09e98389373db2a78eebb93a111aedc99d4f2da81fa8a79fedcf57c395",
-          "deployed_sha256": "df482c09e98389373db2a78eebb93a111aedc99d4f2da81fa8a79fedcf57c395"
+          "sha256": "8e2a46deb967fb1806505d73e9467ef8e3c9e39404f758b5c169452bf7e4efa1",
+          "deployed_sha256": "8e2a46deb967fb1806505d73e9467ef8e3c9e39404f758b5c169452bf7e4efa1"
         },
         {
           "path": "supabase/functions/telegram-ui/localization.js",
-          "sha256": "77b7c52b0f7ff22c25399d036a97fc16a5fbd6fbbb3db8302123ec5daca57f09",
-          "deployed_sha256": "77b7c52b0f7ff22c25399d036a97fc16a5fbd6fbbb3db8302123ec5daca57f09"
+          "sha256": "6904d8d7882cd867234bae65a45d54a3361cd197d7e656b4435c0451e63e4ed2",
+          "deployed_sha256": "6904d8d7882cd867234bae65a45d54a3361cd197d7e656b4435c0451e63e4ed2"
         },
         {
           "path": "supabase/functions/telegram-ui/profiles.js",
-          "sha256": "c7c92a99df4426542fb9edff9c884bea634ab982b9a34161b1c4863932c549fe",
-          "deployed_sha256": "c7c92a99df4426542fb9edff9c884bea634ab982b9a34161b1c4863932c549fe"
+          "sha256": "70a3c71e46e7ecdd7989eaba5b5c149982f6a2025b10495c71e2312a2b5bb97b",
+          "deployed_sha256": "70a3c71e46e7ecdd7989eaba5b5c149982f6a2025b10495c71e2312a2b5bb97b"
         },
         {
           "path": "supabase/functions/telegram-ui/runtime.js",
@@ -792,22 +847,23 @@
         },
         {
           "path": "supabase/functions/telegram-ui/handlers.js",
-          "sha256": "5de063f7ccfbe8d143e399fd29f6bd7e3fbe2bbde4b10dc3626d72ccdb2b6a1d",
-          "deployed_sha256": "5de063f7ccfbe8d143e399fd29f6bd7e3fbe2bbde4b10dc3626d72ccdb2b6a1d"
+          "sha256": "d89a800dd0c90875beaef458628ff1e52fcedacb98d79e8c9a6521e513578166",
+          "deployed_sha256": "d89a800dd0c90875beaef458628ff1e52fcedacb98d79e8c9a6521e513578166"
         }
       ],
       "import_map": false,
       "retired": false,
       "slug": "telegram-ui",
       "verify_jwt": false,
-      "version": 120,
+      "version": 123,
       "observed_artifact": {
-        "observed_at": "2026-09-21T04:06:12.572Z",
+        "observed_at": "2026-09-21T04:46:41.631Z",
         "format": "compiled_esm",
         "entrypoint": "index.ts",
-        "ezbr_sha256": "65f6579a3d03d0b27019861afeda940e76279c454ccd92d5a3aa0a29a6281418",
-        "verification": "Supabase production metadata plus exact source-content comparison after preview save-label rollout."
-      }
+        "ezbr_sha256": "0e44d8b50a4c8a0aa34c5f4648fb82acbcf4c0e3ccb46a76504b95b7c5520480",
+        "verification": "Production source and management metadata synchronized from Supabase on 2026-09-21."
+      },
+      "deployment_observed_at": "2026-09-21T04:46:41.631Z"
     },
     {
       "entrypoint": "supabase/functions/vonovia-transport/index.ts",

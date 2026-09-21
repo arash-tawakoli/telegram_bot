@@ -2,7 +2,7 @@ import { platformSessions, handleAutoApplyMessage } from './platform-sessions.js
 import { isAdmin, adminGrantLabel, adminPremiumNotice, adminUsers, adminUser, setUserBlocked, deleteUser, setPlanOverride } from "./admin.js";
 import { homeKeyboard, home, premium, saved, setPaused, toggleSave, referralPage, languagePage, settings } from "./navigation.js";
 import { draftFor, validateDraft, renderTypes, renderLocation, renderBoroughs, renderNeighborhoods, renderRent, renderCustomRent, renderRooms, renderArea, renderRoomArea, renderReview, renderStep, afterSelection, persistProfile, profileLimit, draftFromProfile, startNewProfile, profileEditMenu, profile, renderStatus, includesWG, includesWholeHome, nextSizeStep } from "./profiles.js";
-import { db, PROPERTY_TYPES, RENT_PRESETS, ROOM_PRESETS, AREA_PRESETS, NEIGHBORHOODS_PER_PAGE, chatLanguages, button, cancelRow, backRow, secret, telegram, send, sendCelebration, edit, acknowledge, saveState, geography, HELP_TEXT } from "./runtime.js";
+import { db, PREMIUM_LINK, PROPERTY_TYPES, RENT_PRESETS, ROOM_PRESETS, AREA_PRESETS, NEIGHBORHOODS_PER_PAGE, chatLanguages, button, cancelRow, backRow, secret, telegram, send, sendCelebration, edit, acknowledge, saveState, geography, HELP_TEXT } from "./runtime.js";
 export async function handleMessage(message, user) {
     const chatId = Number(message.chat.id);
     const text = String(message.text || "").trim();
@@ -24,6 +24,20 @@ export async function handleMessage(message, user) {
             if (error)
                 console.error("referral_register", error.message);
         }
+        telegram("setMyCommands", {
+            commands: [
+                { command: "start", description: "Startmenü" },
+                { command: "suche", description: "Suchprofil erstellen" },
+                { command: "profile", description: "Suchprofile anzeigen" },
+                { command: "gespeichert", description: "Gespeicherte Inserate" },
+                { command: "einstellungen", description: "Einstellungen" },
+                { command: "pause", description: "Suche pausieren" },
+                { command: "resume", description: "Suche fortsetzen" },
+                { command: "status", description: "Systemstatus" },
+                { command: "premium", description: "Premium anzeigen" },
+                { command: "hilfe", description: "Hilfe" },
+            ],
+        }).catch(() => { });
         telegram("setChatMenuButton", {
             chat_id: chatId,
             menu_button: { type: "commands" },
@@ -207,7 +221,17 @@ export async function handleCallback(query, user) {
         return ack(savedState ? "⭐ Gespeichert" : "Entfernt");
     }
     EdgeRuntime.waitUntil(ack());
-    if (data === 'platforms' || data.startsWith('platforms:')) return platformSessions(user,query.message.chat,query.message?.photo?undefined:messageId,data);
+    if (data === 'platforms' || data.startsWith('platforms:')) {
+        if (!user.is_premium) {
+            return edit(chatId, messageId, "🔒 <b>Auto-Bewerbung ist ein Premium-Feature.</b>", {
+                inline_keyboard: [
+                    [{ text: "💎 Jetzt abonnieren", url: `${PREMIUM_LINK}?client_reference_id=${encodeURIComponent(user.id)}` }],
+                    [button("← Zurück", "home")],
+                ],
+            });
+        }
+        return platformSessions(user,query.message.chat,query.message?.photo?undefined:messageId,data);
+    }
     if (data === "noop")
         return;
     if (data === "cancel") {
@@ -335,10 +359,11 @@ export async function handleCallback(query, user) {
         });
     }
     if (data === "premium") {
-        if (query.message?.photo)
-            return premium(user, chatId, messageId, true);
-        await telegram("deleteMessage", { chat_id: chatId, message_id: messageId }).catch(() => { });
-        return premium(user, chatId);
+        if (query.message?.photo) {
+            await telegram("deleteMessage", { chat_id: chatId, message_id: messageId }).catch(() => { });
+            return premium(user, chatId);
+        }
+        return premium(user, chatId, messageId);
     }
     if (data === "portal") {
         if (query.message?.photo)
@@ -349,7 +374,7 @@ export async function handleCallback(query, user) {
             ? "💳 <b>Abo verwalten</b>"
             : "💳 Das Stripe Customer Portal ist aktuell noch nicht konfiguriert.", {
             inline_keyboard: [
-                ...(valid ? [[{ text: "Stripe öffnen", url }]] : []),
+                ...(valid ? [[{ text: "💳 Abo verwalten", url }]] : []),
                 [button("← Premium", "premium")],
             ],
         });

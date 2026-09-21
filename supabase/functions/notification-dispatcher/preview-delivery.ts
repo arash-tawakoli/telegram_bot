@@ -25,12 +25,15 @@ function listingKeyboard(keyboard:any,caption:string) {
     const text=String(button?.text||''),url=String(button?.url||'');
     return text.includes('Google Map')||url.includes('google.com/maps/');
   }));
-  const autoApplyRow=middle.find((row:any[])=>row.some((button:any)=>String(button?.callback_data||'')==='platforms'));
+  const autoApplyRow=middle.find((row:any[])=>row.some((button:any)=>{
+    const callback=String(button?.callback_data||''),text=String(button?.text||'');
+    return callback==='platforms'||/Auto-Bewerbung|Auto-apply/i.test(text);
+  }));
   const clean=(value:string)=>value.replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').trim();
   const locationLine=caption.split('\n').map(clean).reverse().find(line=>line.startsWith('📍'));
   const location=(locationLine||'').replace(/^📍\s*(?:[^:]+:\s*)?/,'').trim()||'Hamburg';
   const maps=mapRow||[{text:'🗺️ Google Map',url:`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`}];
-  const autoApply=autoApplyRow||[{text:'⚡ Auto-Bewerbung',callback_data:'platforms'}];
+  const autoApply=autoApplyRow||[{text:'⚡ Auto-Bewerbung • inaktiv',callback_data:'platforms'}];
   return {...keyboard,inline_keyboard:[offer,save,maps,autoApply]};
 }
 export function previewOperations(images:string[],caption:string,keyboard:any) {

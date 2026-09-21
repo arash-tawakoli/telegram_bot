@@ -1,6 +1,8 @@
 import {Candidate,Source,db,fetchText,iso,parseHtml,strip,upsertCandidates} from './shared.ts';
 import {runScoutCategory} from './scout.ts';
 import {runKleinCategory} from './klein.ts';
+import {persistCategoryListings} from './category-persist.ts';
+import {runImmoweltCategory} from './generic.ts';
 
 function pageTimestamp(text:string){
   const label=text.match(/\b(Heute|Gestern|\d{1,2}\.\d{1,2}\.\d{4})\b[^\d]{0,12}(\d{1,2}):(\d{2})/i);
@@ -16,22 +18,10 @@ function pageTimestamp(text:string){
 }
 
 async function runHtmlCategory(source:Source,stream:any){
-  const r=await fetchText(String(stream.url));
-  const parsed=parseHtml(r.text,r.url),now=Date.now(),eligible:Candidate[]=[],rest:Candidate[]=[];
-  for(const c of parsed){
-    const text=`${c.title||''} ${c.raw?.text||''}`,kind=String(stream.category);
-    if(kind==='house'&&(!/\b(Haus|Einfamilienhaus|Reihenhaus|Doppelhaus|Doppelhaushälfte|Villa|Bungalow)\b/i.test(text)||/\b(Kauf|kaufen|Mietkauf|Grundstück)\b/i.test(text)))continue;
-    if(kind==='room'&&!/\b(WG(?:-Zimmer)?|Zimmer|Mitbewohner(?:in)?)\b/i.test(text))continue;
-    const published=pageTimestamp(text);
-    const x:Candidate={...c,type:kind==='house'?'Haus':'WG',raw:{...c.raw,category_stream:kind,_classification:{version:1,kind,mode:'rent'},...(published?{_newness:{method:'source_timestamp',source_published_at:published}}:{})}};
-    const fresh=!!stream.baseline_at&&!!published&&now-new Date(published).getTime()>=-5*60*1000&&now-new Date(published).getTime()<=24*60*60*1000;
-    (fresh?eligible:rest).push(x);
-  }
-  const noOffers=/keine (?:passenden )?(?:angebote|immobilien)|0 (?:angebote|treffer)/i.test(strip(r.text));
-  if(!parsed.length&&!noOffers)throw new Error(`${stream.adapter} category parser found no recognizable listing cards`);
-  const a=rest.length?await upsertCandidates(source,rest,false):{seen:0,fresh:0,keys:[] as string[]};
-  const b=eligible.length?await upsertCandidates(source,eligible,true):{seen:0,fresh:0,keys:[] as string[]};
-  return{requests:1,candidates:a.seen+b.seen,fresh:a.fresh+b.fresh,cursor:{url:r.url,parsed:parsed.length,accepted:a.seen+b.seen,last_checked_at:iso()}};
+  const r=await fetchText(String(stream.url)),parsed=parseHtml(r.text,r.url),rows:Candidate[]=[];
+  for(const c of parsed){const text=`${c.title||''} ${c.raw?.text||''}`,kind=String(stream.category);if(kind==='house'&&(!/\b(Haus|Einfamilienhaus|Reihenhaus|Doppelhaus|Doppelhaushälfte|Villa|Bungalow|Stadthaus)\b/i.test(text)||/\b(Kauf|kaufen|Mietkauf|Grundstück|Erbpacht)\b/i.test(text)))continue;if(kind==='room'&&!/\b(WG(?:-Zimmer)?|Zimmer|Mitbewohner(?:in)?)\b/i.test(text))continue;const published=pageTimestamp(text);rows.push({...c,raw:{...c.raw,...(published?{_newness:{method:'source_timestamp',source_published_at:published}}:{})}})}
+  const noOffers=/keine (?:passenden )?(?:angebote|immobilien)|0 (?:angebote|treffer)/i.test(strip(r.text));if(!parsed.length&&!noOffers)throw new Error(`${stream.adapter} category parser found no recognizable listing cards`);
+  const saved=await persistCategoryListings(source,stream,rows,false);return{requests:1,candidates:saved.seen,fresh:saved.fresh,cursor:{url:r.url,parsed:parsed.length,accepted:saved.seen,last_checked_at:iso()}};
 }
 
 async function finish(stream:any,success:boolean,result:any,error:string|null){
@@ -52,6 +42,7 @@ export async function runCategoryStreams(source:Source){
       if(stream.adapter==='scout')result=await runScoutCategory(source,stream);
       else if(stream.adapter==='kleinanzeigen')result=await runKleinCategory(source,stream);
       else if(['wg-gesucht','ohne-makler'].includes(stream.adapter))result=await runHtmlCategory(source,stream);
+      else if(stream.adapter==='immowelt')result=await runImmoweltCategory(source,stream);
       else throw new Error(`unsupported category adapter ${stream.adapter}`);
       await finish(stream,true,result,null);
       out.push({category:stream.category,adapter:stream.adapter,ok:true,...result});

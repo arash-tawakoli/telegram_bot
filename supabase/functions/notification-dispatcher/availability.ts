@@ -4,7 +4,7 @@ export function recentInventory(l:any, now=Date.now()) {
   const maxAge=Number(l.source_id)===6 ? 60*60*1000 : 10*60*1000;
   if(!l.is_active || !l.fresh_delivery_eligible || !Number.isFinite(age) || age<0 || age>maxAge)return false;
   const r=l.raw||{};
-  return Number(l.source_id)===6 ||
+  return [6,10,19].includes(Number(l.source_id)) ||
     (r.provider==='immoscout_mcp' && /^fresh/.test(r.delivery_lane||'')) ||
     (r.provider==='kleinanzeigen' && r.native_offer===true && r.lane==='fast') ||
     (r.provider==='immowelt' && r.is_new===true) ||
