@@ -28,11 +28,24 @@ export function parseNestpickPage(text:string, page:number) {
   return {candidates,ids,pages:p.total_pages,total:p.total_items,limit:p.limit};
 }
 export async function collectNestpick(fetchPage:(page:number)=>Promise<string>) {
-  const first=parseNestpickPage(await fetchPage(1),1),pages=[first];
-  for(let start=2;start<=first.pages;start+=4){
-    const batch=await Promise.all(Array.from({length:Math.min(4,first.pages-start+1)},(_,i)=>start+i).map(async page=>parseNestpickPage(await fetchPage(page),page)));
-    for(const p of batch)if(p.pages!==first.pages||p.total!==first.total||p.limit!==first.limit)throw new Error('Nestpick inventory changed during pagination');
-    pages.push(...batch);
+  const parseWithRetry=async(page:number)=>{
+    let last:unknown=null;
+    for(let attempt=0;attempt<3;attempt++){
+      if(attempt>0)await new Promise(resolve=>setTimeout(resolve,500*attempt));
+      try{return parseNestpickPage(await fetchPage(page),page);}
+      catch(error){
+        last=error;
+        if(!String(error).includes('Nestpick pagination schema invalid'))throw error;
+      }
+    }
+    throw last;
+  };
+  const first=await parseWithRetry(1),pages=[first];
+  for(let page=2;page<=first.pages;page++){
+    const parsed=await parseWithRetry(page);
+    if(parsed.pages!==first.pages||parsed.total!==first.total||parsed.limit!==first.limit)throw new Error('Nestpick inventory changed during pagination');
+    pages.push(parsed);
+    if(page<first.pages)await new Promise(resolve=>setTimeout(resolve,250));
   }
   const ids=new Set(pages.flatMap(p=>p.ids)),rows=new Map<string,Candidate>();
   for(const c of pages.flatMap(p=>p.candidates)){
