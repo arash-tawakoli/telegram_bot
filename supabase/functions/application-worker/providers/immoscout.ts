@@ -44,7 +44,7 @@ function snake(v:string){return v.replace(/([a-z0-9])([A-Z])/g,'$1_$2').replace(
 function providerPrefill(raw:any){if(!raw||typeof raw!=='object')return undefined;for(const k of['prefillValue','defaultValue','initialValue'])if(raw[k]!==undefined&&raw[k]!==null&&raw[k]!=='')return raw[k];return undefined;}
 function metadataKeys(configKey:string,rawConfig:any){const values:any[]=[configKey,payloadName(configKey)];if(rawConfig&&typeof rawConfig==='object')for(const k of['name','key','id','label','title','fieldName','payloadName','property','semanticName','apiName']){const v=rawConfig[k];if(typeof v==='string'&&v.trim())values.push(v);}return [...new Set(values.map(canonical).filter(Boolean))];}
 export function resolveImmoScoutField(configKey:string,rawConfig:any,profile:any,message:string){
- const payload=payloadName(configKey),address={city:clean(profile?.city,160),street:clean(profile?.street,160),postcode:clean(profile?.postcode,40),houseNumber:clean(profile?.house_number,40)};
+ const payload=payloadName(configKey),address={'@xsi.type':'common:Address',city:clean(profile?.city,160),street:clean(profile?.street,160),postcode:clean(profile?.postcode,40),houseNumber:clean(profile?.house_number,40)};
  const known:Record<string,()=>any>={
   moveindate:()=>profile?.move_in_date?String(profile.move_in_date):null,desiredmoveindate:()=>profile?.move_in_date?String(profile.move_in_date):null,einzugsdatum:()=>profile?.move_in_date?String(profile.move_in_date):null,gewunschteeinzugsdatum:()=>profile?.move_in_date?String(profile.move_in_date):null,
   petsinhousehold:()=>petValue(profile?.pets),pets:()=>petValue(profile?.pets),pet:()=>petValue(profile?.pets),haustiere:()=>petValue(profile?.pets),haustier:()=>petValue(profile?.pets),
@@ -56,7 +56,7 @@ export function resolveImmoScoutField(configKey:string,rawConfig:any,profile:any
   phonenumber:()=>phoneValue(profile?.phone),phone:()=>phoneValue(profile?.phone),mobilephone:()=>phoneValue(profile?.phone),mobilenumber:()=>phoneValue(profile?.phone),telephone:()=>phoneValue(profile?.phone),telefonnummer:()=>phoneValue(profile?.phone),telefon:()=>phoneValue(profile?.phone),mobilnummer:()=>phoneValue(profile?.phone),handynummer:()=>phoneValue(profile?.phone),
   emailaddress:()=>clean(profile?.email,320)||null,email:()=>clean(profile?.email,320)||null,emailadresse:()=>clean(profile?.email,320)||null,
   address:()=>address,anschrift:()=>address,adresse:()=>address,street:()=>clean(profile?.street,160)||null,strasse:()=>clean(profile?.street,160)||null,housenumber:()=>clean(profile?.house_number,40)||null,hausnummer:()=>clean(profile?.house_number,40)||null,postcode:()=>clean(profile?.postcode,40)||null,postalcode:()=>clean(profile?.postcode,40)||null,zipcode:()=>clean(profile?.postcode,40)||null,plz:()=>clean(profile?.postcode,40)||null,postleitzahl:()=>clean(profile?.postcode,40)||null,city:()=>clean(profile?.city,160)||null,stadt:()=>clean(profile?.city,160)||null,ort:()=>clean(profile?.city,160)||null,
-  applicationpackagecompleted:()=>false,salutation:()=>salutation(profile?.salutation),anrede:()=>salutation(profile?.salutation),message:()=>String(message||'').trim()||null,contactmessage:()=>String(message||'').trim()||null,messagetext:()=>String(message||'').trim()||null,nachricht:()=>String(message||'').trim()||null,bewerbungstext:()=>String(message||'').trim()||null,kontaktnachricht:()=>String(message||'').trim()||null,
+  applicationpackagecompleted:()=>false,sendprofile:()=>false,privacypolicyaccepted:()=>true,salutation:()=>salutation(profile?.salutation),anrede:()=>salutation(profile?.salutation),message:()=>String(message||'').trim()||null,contactmessage:()=>String(message||'').trim()||null,messagetext:()=>String(message||'').trim()||null,nachricht:()=>String(message||'').trim()||null,bewerbungstext:()=>String(message||'').trim()||null,kontaktnachricht:()=>String(message||'').trim()||null,
   currentschufainformation:()=>clean(profile?.schufa_status,80)||'NOT_SPECIFIED',schufainformation:()=>clean(profile?.schufa_status,80)||'NOT_SPECIFIED',schufastatus:()=>clean(profile?.schufa_status,80)||'NOT_SPECIFIED',schufa:()=>clean(profile?.schufa_status,80)||'NOT_SPECIFIED',schufaauskunft:()=>clean(profile?.schufa_status,80)||'NOT_SPECIFIED',
   phonecalldesired:()=>profile?.phone_call_desired===true,callbackdesired:()=>profile?.phone_call_desired===true,ruckruf:()=>profile?.phone_call_desired===true,ruckrufgewunscht:()=>profile?.phone_call_desired===true,
   wbs:()=>clean(profile?.wbs_status,120)||null,wbsstatus:()=>clean(profile?.wbs_status,120)||null,housingeligibility:()=>clean(profile?.wbs_status,120)||null,wohnberechtigungsschein:()=>clean(profile?.wbs_status,120)||null
@@ -66,11 +66,97 @@ export function resolveImmoScoutField(configKey:string,rawConfig:any,profile:any
  const normalizedProfileKey=Object.keys(profile||{}).find(k=>candidates.includes(canonical(k)));if(normalizedProfileKey)return{payload,value:profile[normalizedProfileKey],source:'profile'};
  const prefill=providerPrefill(rawConfig);if(prefill!==undefined)return{payload,value:prefill,source:'provider_prefill'};return{payload,value:undefined,source:'unmapped'};
 }
-export function prepareImmoScoutForm(config:any,profile:any,message:string){const form:any={privacyPolicyAccepted:true,profileType:'BASIC',sendProfile:false},missing:string[]=[],mapped:any[]=[];const active=Object.entries(config||{}).filter(([,v])=>['MANDATORY','OPTIONAL'].includes(fieldState(v)));if(!active.length)return{form,missing:['formFieldConfig'],mapped,configAvailable:false};for(const[configKey,rawConfig]of active){const required=fieldState(rawConfig)==='MANDATORY',r=resolveImmoScoutField(configKey,rawConfig,profile,message);mapped.push({configKey,payload:r.payload,required,source:r.source});if(required&&empty(r.value)){missing.push(r.payload);continue;}if(!empty(r.value)||typeof r.value==='boolean')form[r.payload]=r.value;}return{form,missing,mapped,configAvailable:true};}
-function freemiumActive(v:any){return v?.freemiumPeriodActive===true||(Number.isFinite(Number(v?.duration))&&Number.isFinite(Date.parse(String(v?.dateStarted||'')))&&Date.parse(String(v.dateStarted))+Number(v.duration)*3600000>Date.now());}
-function responseSignals(v:any){const out:any[]=[];const walk=(x:any,path:string,depth:number)=>{if(depth>5||x==null)return;if(Array.isArray(x)){for(let i=0;i<Math.min(x.length,8);i++)walk(x[i],`${path}[${i}]`,depth+1);return;}if(typeof x!=='object')return;for(const[k,y]of Object.entries(x)){const p=path?`${path}.${k}`:k;if(/conversation|message|request|success|status|result|id/i.test(k)&&(y==null||['string','number','boolean'].includes(typeof y)))out.push({path:p,value:y});walk(y,p,depth+1);}};walk(v,'',0);return out.slice(0,60);}
-function signalText(signals:any[]){return signals.map(x=>`${x.path}:${String(x.value??'')}`).join(' ').toLowerCase();}
-function successSignal(signals:any[]){return signals.some(x=>/success|result|status/i.test(String(x.path))&&(x.value===true||['success','sent','created','accepted','ok'].includes(String(x.value||'').toLowerCase())))||signals.some(x=>/conversation/i.test(String(x.path))&&String(x.value??'').length>0);}
-function classify(status:number,signals:any[]){const text=signalText(signals);if(status===412&&(/plus subscription is required|plus_required|plus subscription/.test(text)))return{status:'failed',error:'plus_required'};if(/phone(number)?/.test(text)&&/not a valid phone|invalid phone|valid phone number/.test(text))return{status:'manual_required',error:'invalid_phone_number'};if(/resource_validation|validating input|validation/.test(text))return{status:'manual_required',error:'provider_validation_error'};if(status===401||status===403)return{status:'manual_required',error:'needs_login'};return{status:'manual_required',error:status>=500?'provider_http_5xx':`contact_http_${status||0}`};}
-async function detail(token:string,id:string){const response=await fetch(`https://api.mobile.immobilienscout24.de/expose/${encodeURIComponent(id)}`,{headers:{accept:'application/json','user-agent':UA,authorization:`Bearer ${token}`},signal:AbortSignal.timeout(25000)});const text=await response.text();let body:any=null;try{body=JSON.parse(text);}catch{}if(response.status===404||response.status===410)throw Error('listing_unavailable');if(response.status===401||response.status===403)throw Error('needs_login');if(!response.ok||!body){if(response.status===429||response.status>=500)throw Error('temporary_network_error');throw Error('provider_contract_unverified');}const contact=body?.contact??null;return{mailButtonState:contact?.mailButtonState??null,formFieldConfig:contact?.contactData?.formFieldConfig??{},freemium:contact?.freemiumSettings??null,contactHash:await sha(contact)};}
-export async function sendImmoScoutApplication(input:any){const{db,user,profile,listing,message,authorize}=input||{},userId=String(user?.id||''),id=exposeId(listing);if(!userId||!id||!message)return{success:false,status:'manual_required',error:'provider_contract_unverified'};let credentials:any,before:any;try{credentials=await session(db,userId);before=await detail(String(credentials.access_token),id);}catch(error:any){if(error?.message==='temporary_network_error')throw error;if(error?.message==='listing_unavailable')return{success:false,status:'failed',error:'listing_unavailable'};if(error?.message==='needs_login'){await markConnection(db,userId,PROVIDER,'needs_login','session_invalid').catch(()=>{});return{success:false,status:'manual_required',error:'needs_login'};}return{success:false,status:'manual_required',error:'provider_contract_unverified'};}if(before.mailButtonState!=='active')return{success:false,status:'manual_required',error:'contact_unavailable'};if(freemiumActive(before.freemium))return{success:false,status:'failed',error:'plus_required'};const prepared=prepareImmoScoutForm(before.formFieldConfig,profile,message),ssoId=clean(claims(credentials.id_token)?.ssoId,200);if(prepared.missing.length)return{success:false,status:'manual_required',error:`required_profile_data_missing:${prepared.missing.join(',')}`};if(!ssoId)return{success:false,status:'manual_required',error:'provider_contract_unverified'};if(typeof authorize!=='function'||await authorize()!==true)return{success:false,status:'failed',error:'send_not_authorized'};const payload:any={'expose.contactForm':prepared.form,supportedScreens:['registration','valuation'],requestCount:1,doNotSend:false,entitlements:[],ssoId};let response:Response,text='',json:any=null;try{response=await fetch(`https://api.mobile.immobilienscout24.de/expose/${encodeURIComponent(id)}/contact?referrer=resultlist`,{method:'POST',headers:{'user-agent':UA,accept:'application/json',authorization:`Bearer ${credentials.access_token}`,'content-type':'application/json; charset=UTF-8'},body:JSON.stringify(payload),signal:AbortSignal.timeout(30000)});text=await response.text();try{json=JSON.parse(text);}catch{}}catch{return{success:false,status:'manual_required',error:'submission_unconfirmed'};}const signals=json?responseSignals(json):[];if(response.status===404||response.status===410)return{success:false,status:'failed',error:'listing_unavailable'};if(!response.ok){const c=classify(response.status,signals);if(c.error==='needs_login')await markConnection(db,userId,PROVIDER,'needs_login','contact_auth_failed').catch(()=>{});return{success:false,...c};}for(const ms of[700,1600,3200,5200]){await wait(ms);try{const after=await detail(String(credentials.access_token),id);if((after.contactHash&&after.contactHash!==before.contactHash)||(after.mailButtonState&&after.mailButtonState!=='active'))return{success:true,status:'sent'};}catch(error:any){if(error?.message==='listing_unavailable')return{success:true,status:'sent'};}}if(successSignal(signals))return{success:true,status:'sent'};return{success:false,status:'manual_required',error:'submission_unconfirmed'};}
+export function prepareImmoScoutForm(config:any,profile:any,message:string){
+ const form:any={'@xmlns':{common:'http://rest.immobilienscout24.de/schema/common/1.0'}},missing:string[]=[],mapped:any[]=[];
+ const active=Object.entries(config||{}).filter(([k,v])=>String(k).endsWith('Field')&&['MANDATORY','OPTIONAL'].includes(fieldState(v)));
+ if(!active.length)return{form,missing:['contactFormConfiguration'],mapped,configAvailable:false};
+ for(const[configKey,rawConfig]of active){
+  const required=fieldState(rawConfig)==='MANDATORY',name=String(configKey).replace(/Field$/,'');
+  if(!required&&name!=='message')continue;
+  const r=resolveImmoScoutField(configKey,rawConfig,profile,message);
+  mapped.push({configKey,payload:r.payload,required,source:r.source});
+  if(required&&empty(r.value)){missing.push(r.payload);continue}
+  if(!empty(r.value)||typeof r.value==='boolean')form[r.payload]=r.value;
+ }
+ return{form,missing,mapped,configAvailable:true};
+}
+async function detail(token:string,id:string){
+ const response=await fetch(`https://rest.immobilienscout24.de/restapi/api/search/v1.0/expose/${encodeURIComponent(id)}`,{
+  headers:{accept:'application/json',authorization:`Bearer ${token}`,'user-agent':'TraumWohnungHamburg/1.0'},
+  signal:AbortSignal.timeout(25000)
+ });
+ const text=await response.text();let body:any=null;try{body=JSON.parse(text)}catch{}
+ if(response.status===404||response.status===410)throw Error('listing_unavailable');
+ if(response.status===401||response.status===403)throw Error('needs_login');
+ if(!response.ok||!body){if(response.status===429||response.status>=500)throw Error('temporary_network_error');throw Error('provider_contract_unverified')}
+ const expose=body?.['expose.expose']??body?.expose??body,
+  config=expose?.contactFormConfiguration??{};
+ return{
+  contactFormType:expose?.['@contactFormType']??null,
+  formFieldConfig:config,
+  premiumRequired:String(config?.premiumProfileRequired||'false').toLowerCase()==='true',
+  freemiumDuration:Number(config?.freemiumSettings?.duration||0)
+ };
+}
+function officialError(status:number,body:any,text:string){
+ const summary=clean(body?.['common.messages']?.[0]?.message?.message||body?.message||text,1000);
+ if(/plus subscription|plus erforderlich|plus_required/i.test(summary))return{status:'failed',error:'plus_required'};
+ if(status===401||status===403)return{status:'manual_required',error:'needs_login'};
+ if(/schema valid|cvc-complex-type|schema validation|validation/i.test(summary))return{status:'manual_required',error:'provider_validation_error'};
+ if(status===404||status===410)return{status:'failed',error:'listing_unavailable'};
+ return{status:'manual_required',error:status>=500?'provider_http_5xx':`contact_http_${status||0}`};
+}
+export async function inspectImmoScoutInquiry(input:any){
+ const{db,user,profile,listing,message}=input||{},userId=String(user?.id||''),id=exposeId(listing);
+ if(!db||!userId||!id||!profile)return{ok:false,ready:false,error:'provider_contract_unverified'};
+ try{
+  const credentials=await session(db,userId),before=await detail(String(credentials.access_token),id),
+   prepared=prepareImmoScoutForm(before.formFieldConfig,profile,String(message||'')),
+   blocked=before.premiumRequired||before.freemiumDuration>0;
+  return{
+   ok:prepared.missing.length===0,
+   ready:prepared.missing.length===0&&!blocked,
+   exposeId:id,
+   contactFormType:before.contactFormType,
+   premiumRequired:before.premiumRequired,
+   freemiumDuration:before.freemiumDuration,
+   missing:prepared.missing,
+   mappedFields:prepared.mapped,
+   formKeys:Object.keys(prepared.form),
+   transport:'official_rest_contact'
+  };
+ }catch(error:any){
+  const code=String(error?.message||'provider_contract_unverified');
+  return{ok:false,ready:false,error:['needs_login','listing_unavailable','temporary_network_error'].includes(code)?code:'provider_contract_unverified'};
+ }
+}
+export async function sendImmoScoutApplication(input:any){
+ const{db,user,profile,listing,message,authorize}=input||{},userId=String(user?.id||''),id=exposeId(listing);
+ if(!userId||!id||!message)return{success:false,status:'manual_required',error:'provider_contract_unverified'};
+ let credentials:any,before:any;
+ try{credentials=await session(db,userId);before=await detail(String(credentials.access_token),id)}
+ catch(error:any){
+  if(error?.message==='temporary_network_error')throw error;
+  if(error?.message==='listing_unavailable')return{success:false,status:'failed',error:'listing_unavailable'};
+  if(error?.message==='needs_login'){await markConnection(db,userId,PROVIDER,'needs_login','session_invalid').catch(()=>{});return{success:false,status:'manual_required',error:'needs_login'}}
+  return{success:false,status:'manual_required',error:'provider_contract_unverified'};
+ }
+ if(before.premiumRequired||before.freemiumDuration>0)return{success:false,status:'failed',error:'plus_required'};
+ const prepared=prepareImmoScoutForm(before.formFieldConfig,profile,message);
+ if(prepared.missing.length)return{success:false,status:'manual_required',error:`required_profile_data_missing:${prepared.missing.join(',')}`};
+ if(typeof authorize!=='function'||await authorize()!==true)return{success:false,status:'failed',error:'send_not_authorized'};
+ let response:Response,text='',body:any=null;
+ try{
+  response=await fetch(`https://rest.immobilienscout24.de/restapi/api/search/v1.0/expose/${encodeURIComponent(id)}/contact`,{
+   method:'POST',
+   headers:{accept:'application/json','content-type':'application/json',authorization:`Bearer ${credentials.access_token}`,'user-agent':'TraumWohnungHamburg/1.0'},
+   body:JSON.stringify({'expose.contactForm':prepared.form}),
+   signal:AbortSignal.timeout(30000)
+  });
+  text=await response.text();try{body=JSON.parse(text)}catch{}
+ }catch{return{success:false,status:'manual_required',error:'submission_unconfirmed'}}
+ if(response.ok)return{success:true,status:'sent',error:null,confirmation:'official_rest_2xx'};
+ const classified=officialError(response.status,body,text);
+ if(classified.error==='needs_login')await markConnection(db,userId,PROVIDER,'needs_login','contact_auth_failed').catch(()=>{});
+ return{success:false,...classified};
+}
