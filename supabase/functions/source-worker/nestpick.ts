@@ -3,7 +3,14 @@ import {Candidate, Connector, Source, db, fetchText, iso, markFailure, markSucce
 export const NESTPICK_URL='https://www.nestpick.com/search/api/?city=hamburg&location=101748841&currency=EUR&order=relevance';
 const positive=(v:unknown)=>v!==null&&v!==''&&Number.isFinite(Number(v))&&Number(v)>0?Number(v):null;
 export function parseNestpickPage(text:string, page:number) {
-  const body=JSON.parse(text),p=body.pages;
+  const body=JSON.parse(text),rawPages=body.pages;
+  const p=rawPages?{
+    ...rawPages,
+    page:Number(rawPages.page),
+    total_items:Number(rawPages.total_items),
+    total_pages:Number(rawPages.total_pages),
+    limit:Number(rawPages.limit),
+  }:null;
   if(!Array.isArray(body.items)||!p||p.page!==page||!Number.isInteger(p.total_items)||p.total_items<0||!Number.isInteger(p.total_pages)||p.total_pages<1||p.total_pages>30||!Number.isInteger(p.limit)||p.limit<1||p.total_pages!==Math.max(1,Math.ceil(p.total_items/p.limit)))throw new Error('Nestpick pagination schema invalid');
   if(body.items.length!==Math.min(p.limit,Math.max(0,p.total_items-(page-1)*p.limit)))throw new Error('Nestpick truncated page');
   const ids:string[]=[],candidates:Candidate[]=[];
