@@ -457,8 +457,6 @@ Deno.serve(async (req) => {
     acquired = true;
     const deadline = Date.now() + 50_000;
     await recoverDeliveries(db);
-    const { error: deliveryGuardError } = await db.rpc("prepare_current_delivery_queue");
-    if (deliveryGuardError) throw deliveryGuardError;
     const now = new Date().toISOString();
     const { data: events, error } = await db
       .from("delivery_events")
