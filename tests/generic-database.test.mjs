@@ -15,7 +15,7 @@ test('generic adapter preserves successful data including an empty result',async
 test('a failed fallback baseline read cannot be reported as a successful crawl',async()=>{
   let successes=0;
   const q={select(){return q},eq(){return q},limit(){return q},then(resolve){return Promise.resolve({data:null,error:{message:'database unavailable'}}).then(resolve)}};
-  const executable=source.replace(/import\s*\{[\s\S]*?\}\s*from\s*"\.\/shared.ts";/,'').replace('export async function','async function');
+  const executable=source.replace(/import\s*\{[\s\S]*?\}\s*from\s*["'][^"']+["'];/g,'').replace('export async function','async function');
   const worker=vm.runInNewContext(stripTypeScriptTypes(executable)+';({runGeneric,setParser(fn){parseOne=fn}})',{
     db:{from:()=>q},URL,iso:()=>new Date().toISOString(),
     upsertCandidates:async()=>({seen:1,fresh:1}),
@@ -30,7 +30,7 @@ test('a failed fallback baseline read cannot be reported as a successful crawl',
 });
 test('listing persistence failure aborts before fallback, deactivation or success',async()=>{
   let successes=0,parses=0;
-  const executable=source.replace(/import\s*\{[\s\S]*?\}\s*from\s*"\.\/shared.ts";/,'').replace('export async function','async function');
+  const executable=source.replace(/import\s*\{[\s\S]*?\}\s*from\s*["'][^"']+["'];/g,'').replace('export async function','async function');
   const worker=vm.runInNewContext(stripTypeScriptTypes(executable)+';({runGeneric,setParser(fn){parseOne=fn}})',{
     db:{from(){throw new Error('must not deactivate or record success')}},URL,iso:()=>new Date().toISOString(),
     upsertCandidates:async()=>{throw new Error('upsert unavailable')},
@@ -45,7 +45,7 @@ test('listing persistence failure aborts before fallback, deactivation or succes
 });
 test('an empty generic parse never deactivates inventory or claims completeness',async()=>{
   let metadata;
-  const executable=source.replace(/import\s*\{[\s\S]*?\}\s*from\s*"\.\/shared.ts";/,'').replace('export async function','async function');
+  const executable=source.replace(/import\s*\{[\s\S]*?\}\s*from\s*["'][^"']+["'];/g,'').replace('export async function','async function');
   const worker=vm.runInNewContext(stripTypeScriptTypes(executable)+';({runGeneric,setParser(fn){parseOne=fn}})',{
     db:{from(){throw new Error('unexpected inventory deactivation')}},URL,iso:()=>new Date().toISOString(),
     upsertCandidates:async()=>({seen:0,fresh:0}),

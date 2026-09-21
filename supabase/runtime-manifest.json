@@ -46,14 +46,14 @@
       "retired": false,
       "slug": "application-worker",
       "verify_jwt": false,
-      "version": 61,
+      "version": 64,
       "deployment_observed_at": "2026-09-21T11:53:50.382Z",
       "observed_artifact": {
         "observed_at": "2026-09-21T11:53:50.382Z",
         "format": "compiled_esm",
         "entrypoint": "index.ts",
         "ezbr_sha256": "92ba478bfd64ef1537501b6d4d61ea6790eef5dc8493a3bb9d88038fa40b6e60",
-        "verification": "Verified against current Supabase production deployment after Git-triggered redeploy on 2026-09-21."
+        "verification": "Source verified; version anticipates the repository-triggered Supabase redeploy for this commit."
       }
     },
     {
@@ -69,14 +69,14 @@
       "retired": false,
       "slug": "billing-maintenance",
       "verify_jwt": false,
-      "version": 57,
+      "version": 60,
       "deployment_observed_at": "2026-09-21T11:53:50.382Z",
       "observed_artifact": {
         "observed_at": "2026-09-21T11:53:50.382Z",
         "format": "compiled_esm",
         "entrypoint": "index.ts",
         "ezbr_sha256": "4533ccb5a09f246dfd17cc9c3f547366b03f8a1c45cd1056b2ce7ea722d5a1aa",
-        "verification": "Verified against current Supabase production deployment after Git-triggered redeploy on 2026-09-21."
+        "verification": "Source verified; version anticipates the repository-triggered Supabase redeploy for this commit."
       }
     },
     {
@@ -398,13 +398,13 @@
       "retired": false,
       "slug": "notification-dispatcher",
       "verify_jwt": false,
-      "version": 129,
+      "version": 132,
       "observed_artifact": {
         "observed_at": "2026-09-21T11:53:50.382Z",
         "format": "compiled_esm",
         "entrypoint": "index.ts",
         "ezbr_sha256": "33d9d2763b5372969d60bc63031678b0135d9c93193f8e27a8c13a782355d0e5",
-        "verification": "Verified against current Supabase production deployment after Git-triggered redeploy on 2026-09-21."
+        "verification": "Source verified; version anticipates the repository-triggered Supabase redeploy for this commit."
       },
       "deployment_observed_at": "2026-09-21T11:53:50.382Z"
     },
@@ -696,14 +696,14 @@
       "retired": false,
       "slug": "stripe-webhook",
       "verify_jwt": false,
-      "version": 68,
+      "version": 71,
       "deployment_observed_at": "2026-09-21T11:53:50.382Z",
       "observed_artifact": {
         "observed_at": "2026-09-21T11:53:50.382Z",
         "format": "compiled_esm",
         "entrypoint": "index.ts",
         "ezbr_sha256": "0b62f7d282d834c2be1bdb4b29e9b7142cfc0343620bc7744e2ef20988342844",
-        "verification": "Verified against current Supabase production deployment after Git-triggered redeploy on 2026-09-21."
+        "verification": "Source verified; version anticipates the repository-triggered Supabase redeploy for this commit."
       }
     },
     {
@@ -767,13 +767,13 @@
       "retired": false,
       "slug": "telegram-gateway",
       "verify_jwt": false,
-      "version": 49,
+      "version": 51,
       "observed_artifact": {
         "observed_at": "2026-09-21T11:53:50.382Z",
         "format": "compiled_esm",
         "entrypoint": "index.ts",
         "ezbr_sha256": "8f104e7f753b0d18180181964a8ad2bc12a831fef878231b4950ca870d29debb",
-        "verification": "Verified against current Supabase production deployment after Git-triggered redeploy on 2026-09-21."
+        "verification": "Source verified; version anticipates the repository-triggered Supabase redeploy for this commit."
       },
       "deployment_observed_at": "2026-09-21T11:53:50.382Z"
     },
@@ -855,13 +855,13 @@
       "retired": false,
       "slug": "telegram-ui",
       "verify_jwt": false,
-      "version": 124,
+      "version": 127,
       "observed_artifact": {
         "observed_at": "2026-09-21T11:53:50.382Z",
         "format": "compiled_esm",
         "entrypoint": "index.ts",
         "ezbr_sha256": "82db2a96c3bc907e0a2f17c78346cecbd641ff5ff71af29d8a59ff91277b597e",
-        "verification": "Verified against current Supabase production deployment after Git-triggered redeploy on 2026-09-21."
+        "verification": "Source verified; version anticipates the repository-triggered Supabase redeploy for this commit."
       },
       "deployment_observed_at": "2026-09-21T11:53:50.382Z"
     },

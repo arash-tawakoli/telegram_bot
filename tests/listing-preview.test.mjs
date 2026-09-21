@@ -114,10 +114,11 @@ test('tenant destination prefers concrete offers and validates registration fall
  const sources={source_type:'Baugenossenschaft',source_connectors:[{enabled:true,priority:1,config:{tenant_registration_url:portal}}]};
  const l=listing({}, {sources});
  assert.equal(scope.kb(l,'de',true).inline_keyboard[0][0].url,portal);
- assert.equal(scope.kb(l,'de',true).inline_keyboard[0][0].text,'🏠 Zu Angebot');
+ assert.equal(scope.kb(l,'de',true).inline_keyboard[0][0].text,'💎 Premium-Angebot');
  assert.equal(scope.kb({...l,canonical_url:direct},'de',true).inline_keyboard[0][0].url,direct);
  assert.equal(scope.kb({...l,raw:{applicationLink:direct}},'de',true).inline_keyboard[0][0].url,direct);
- assert.equal(scope.kb(l,'de',false).inline_keyboard[0][0].callback_data,'premium');
+ assert.equal(scope.kb(l,'de',false).inline_keyboard[0][0].text,'🔒 💎 Premium-Angebot');
+ assert.match(scope.kb(l,'de',false,'user').inline_keyboard[0][0].url,/buy\.stripe\.com/);
  assert.equal(scope.kb({...l,sources:{source_type:'Portal'}},'de',true).inline_keyboard[0][0].url,base);
  for(const bad of ['https://tenant.immomio.com.evil.test/de/auth/register/propertyLocation?token=x','http://tenant.immomio.com/de/auth/register/propertyLocation?token=x','https://tenant.immomio.com/de/auth/register/propertyLocation']) {
   sources.source_connectors[0].config.tenant_registration_url=bad;
@@ -176,9 +177,9 @@ test('preview source label strips common domains but preserves cooperative names
 test('cooperative previews keep the offer emoji and show the actual source name',()=>{
  const premium=scope.kb(listing({address:'Musterstraße 1, 20095 Hamburg'},{sources:{name:'SAGA',button_label:'SAGA',source_type:'Baugenossenschaft',source_connectors:[]}}),'de',true).inline_keyboard;
  const free=scope.kb(listing({address:'Musterstraße 1, 20095 Hamburg'},{sources:{name:'SAGA',button_label:'SAGA',source_type:'Baugenossenschaft',source_connectors:[]}}),'de',false).inline_keyboard;
- assert.equal(premium[0][0].text,'🏠 Zu SAGA');
- assert.equal(free[0][0].text,'🏠 Zu SAGA');
- assert.equal(free[0][0].callback_data,'premium');
+ assert.equal(premium[0][0].text,'💎 Premium-Angebot');
+ assert.equal(free[0][0].text,'🔒 💎 Premium-Angebot');
+ assert.match(free[0][0].url,/buy\.stripe\.com/);
 });
 
 
