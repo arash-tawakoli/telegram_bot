@@ -9,7 +9,7 @@ import {TelegramFailure} from '../supabase/functions/notification-dispatcher/tel
 import {label} from '../supabase/functions/notification-dispatcher/labels.ts';
 const base='https://example.test/expose/42';
 const source=readFileSync(new URL('../supabase/functions/notification-dispatcher/index.ts',import.meta.url),'utf8');
-const scope={...facts,label,URL,Date,console};
+const scope={...facts,label,URL,Date,console,PREMIUM_LINK:'https://buy.stripe.com/test'};
 vm.runInNewContext(stripTypeScriptTypes(source.slice(source.indexOf('function esc('),source.indexOf('async function enrich('))),scope);
 const listing=(raw={},rest={})=>({id:'l',title:'Wohnung',canonical_url:base,raw,...rest});
 test('binary image signatures accept real octet-stream photos, not HTML or spoofed MIME',async()=>{
@@ -160,8 +160,9 @@ test('preview actions are stacked source-aware and keep requested emojis',()=>{
  assert.equal(rows[0][0].text,'Zu Kleinanzeigen');
  assert.equal(rows[1][0].text,'⭐ Speichern');
  assert.equal(rows[2][0].text,'🗺️ Google Map');
- assert.equal(rows[3][0].text,'⚡ Auto-Bewerbung');
- assert.equal(rows[3][0].callback_data,'platforms');
+ assert.equal(rows[3][0].text,'⚡ Auto-Bewerbung • inaktiv');
+ assert.equal(rows[3][0].callback_data,'platforms:preview:l');
+ assert.equal(scope.kb(l,'de',true,'probe',true).inline_keyboard[3][0].text,'⚡ Auto-Bewerbung • aktiv');
  assert.equal(rows.flat().some(button=>/Schnellbewerbung/i.test(button.text||'')),false);
 });
 
@@ -194,7 +195,7 @@ test('preview normalizer drops every legacy extra and leaves the four requested 
  assert.equal(rows[0][0].text,'Zu Kleinanzeigen');
  assert.equal(rows[1][0].text,'⭐ Speichern');
  assert.equal(rows[2][0].text,'🗺️ Google Map');
- assert.equal(rows[3][0].text,'⚡ Auto-Bewerbung');
+ assert.equal(rows[3][0].text,'⚡ Auto-Bewerbung • inaktiv');
  assert.equal(rows[3][0].callback_data,'platforms');
  assert.equal(rows.flat().some(button=>String(button.callback_data||'').startsWith('apply:')),false);
 });

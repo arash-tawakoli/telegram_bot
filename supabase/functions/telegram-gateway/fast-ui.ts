@@ -7,7 +7,7 @@ function short(v:any,n=42){const s=String(v||"Inserat").replace(/\s+/g," ").trim
 function whole(s:any){return (s?.property_types||[]).some((x:string)=>["Wohnung","Haus","Tauschwohnung"].includes(x))}
 function wg(s:any){return (s?.property_types||[]).includes("WG")}
 function checkout(user:any){return PREMIUM_LINK+"?client_reference_id="+encodeURIComponent(String(user?.id||""))}
-function homeRows(user?:any){const p=user?.is_premium===true;return [[b("🔎 Suche & Filter","profile")],[b(p?"⭐ Gespeichert":"🔒 ⭐ Gespeichert","saved"),p?b("⚡ Auto-Bewerbung","platforms"):{text:"🔒 ⚡ Auto-Bewerbung",url:checkout(user)}],[b("⚙️ Einstellungen","settings"),b("❓ Hilfe","help")],[b("🎁 30 Tage Premium kostenlos","referral")]]}
+function homeRows(user?:any,staticDe=false){const p=user?.is_premium===true;return [[b("🔎 Suche & Filter","profile")],[b(p?"⭐ Gespeichert":"🔒 ⭐ Gespeichert","saved"),p?b("⚡ Auto-Bewerbung","platforms"):{text:"🔒 ⚡ Auto-Bewerbung",url:checkout(user)}],[b("⚙️ Einstellungen",staticDe?"settings:de":"settings"),b("❓ Hilfe",staticDe?"help:de":"help")],[b("🎁 30 Tage Premium kostenlos","referral")]]}
 function settingsRows(user:any){return [[user?.is_premium?b("⚡ Bewerbung & Konten","platforms"):{text:"🔒 ⚡ Bewerbung & Konten",url:checkout(user)}],[b("🌐 Sprache","language"),b(user?.is_premium?"💎 Premium aktiv":"💎 Premium","premium")],[b("📡 Systemstatus","status")],[b("← Start","home")]]}
 function profileLocation(p:any){return p?.location_mode==="all_hamburg"?"Ganz Hamburg":p?.location_mode==="boroughs"?(p?.boroughs||[]).join(", ")||"Hamburg":(p?.neighborhoods||[]).join(", ")||(p?.districts||[]).join(", ")||"Hamburg"}
 function selectedPlaces(state:any,data:any){
@@ -31,7 +31,7 @@ function maybeMarkup(update:any,view:string,rows:any[],full:any){
 }
 export function isStaticFastAction(a:string){return a==="home:de"||a==="settings:de"||a==="help:de"}
 export function renderStaticFast(a:string,update:any){
- if(a==="home:de")return result("editMessageText",update,"🏠 <b>Traumwohnung Hamburg</b>\n\nFinde passende Mietangebote in Hamburg – automatisch und direkt per Telegram.\n\nWähle unten, was du machen möchtest.",homeRows());
+ if(a==="home:de")return result("editMessageText",update,"🏠 <b>Traumwohnung Hamburg</b>\n\nFinde passende Mietangebote in Hamburg – automatisch und direkt per Telegram.\n\nWähle unten, was du machen möchtest.",homeRows(undefined,true));
  if(a==="settings:de")return result("editMessageText",update,"⚙️ <b>Einstellungen</b>\n\nKonten, Sprache, Premium und Systeminformationen.",[[b("⚡ Bewerbung & Konten","platforms")],[b("🌐 Sprache","language"),b("💎 Premium","premium")],[b("📡 Systemstatus","status")],[b("← Start","home:de")]]);
  if(a==="help:de")return result("editMessageText",update,"❓ <b>Hilfe & Befehle</b>\n\n🏠 /start – Startmenü\n🔎 /suche – Suchprofil erstellen oder ersetzen\n👤 /profile – Suchprofil anzeigen\n⭐️ /gespeichert – gespeicherte Inserate\n⚙️ /einstellungen – Einstellungen\n⏸ /pause – Suche pausieren\n▶️ /resume – Suche fortsetzen\n📡 /status – Systemstatus\n💎 /premium – Premium anzeigen\n❓ /hilfe – Hilfe",[[b("← Zurück","home:de")]]);
  return null;

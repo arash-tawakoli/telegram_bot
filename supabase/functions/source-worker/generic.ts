@@ -1,4 +1,3 @@
-import {persistCategoryListings} from './category-persist.ts';
 // Database failures are fatal to a crawl, unlike recoverable connector HTTP errors.
 class CrawlDatabaseError extends Error {}
 async function databaseQuery(query: PromiseLike<any>) {
@@ -46,6 +45,7 @@ import {
   strip,
   upsertCandidates,
 } from "./shared.ts";
+import {persistCategoryListings} from "./category-persist.ts";
 const IMMOWELT_HAMBURG_AREAS = [
   "https://www.immowelt.de/suche/mieten/wohnung/hamburg/hamburg-20095/ad08de1113",
   "https://www.immowelt.de/suche/mieten/wohnung/hamburg-20095/altona-22589/ad09de70",

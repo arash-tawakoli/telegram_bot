@@ -23,7 +23,7 @@ test('dispatcher no longer creates a manual quick-application action',()=>{
   const delivery=readFileSync(new URL('../supabase/functions/notification-dispatcher/preview-delivery.ts',import.meta.url),'utf8');
   assert.doesNotMatch(dispatcher,/quickApplyButton|application-message\.js|Schnellbewerbung|callback_data:\s*[`'"]apply:/);
   assert.doesNotMatch(delivery,/startsWith\(['"]apply:|Schnellbewerbung/);
-  assert.match(dispatcher,/callback_data:"platforms"/);
+  assert.match(dispatcher,/callback_data:`platforms:preview:\$\{l\.id\}`/);
 });
 
 test('legacy one-click application modules and callback handlers are removed',()=>{

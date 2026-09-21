@@ -370,8 +370,8 @@
         },
         {
           "path": "supabase/functions/notification-dispatcher/source-facts.ts",
-          "sha256": "10760efb6ffe490ad68bcb1f4a586b08867c89a05c198309ad759000c9762185",
-          "deployed_sha256": "10760efb6ffe490ad68bcb1f4a586b08867c89a05c198309ad759000c9762185"
+          "sha256": "e838e832c27508a8f12dc85cddd3826800f9277bd169a710630daa5a573d30a1",
+          "deployed_sha256": "e838e832c27508a8f12dc85cddd3826800f9277bd169a710630daa5a573d30a1"
         },
         {
           "path": "supabase/functions/notification-dispatcher/pacing.ts",
@@ -548,7 +548,7 @@
         },
         {
           "path": "supabase/functions/source-worker/generic.ts",
-          "sha256": "2f8c81d680d68920104d0de1503cdda828499de5bf95de5ac6e0136b1a7f8592",
+          "sha256": "c4d5f669577819358e02435bb6ad1218754353cabe94625dcee4f759fa7d8757",
           "deployed_sha256": null
         },
         {
@@ -759,8 +759,8 @@
         },
         {
           "path": "supabase/functions/telegram-gateway/fast-ui.ts",
-          "sha256": "8920e0bfc97b2b23dd86330d25455cf1c0dc62386c18269d5c200ea7b2bb8bee",
-          "deployed_sha256": "8920e0bfc97b2b23dd86330d25455cf1c0dc62386c18269d5c200ea7b2bb8bee"
+          "sha256": "daa59a8772e584f1fda419831edf135d7b1fba63466315da9cf3ec13d7220140",
+          "deployed_sha256": "daa59a8772e584f1fda419831edf135d7b1fba63466315da9cf3ec13d7220140"
         }
       ],
       "import_map": false,

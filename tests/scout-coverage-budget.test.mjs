@@ -5,7 +5,7 @@ import {stripTypeScriptTypes} from 'node:module';
 import vm from 'node:vm';
 import {webcrypto} from 'node:crypto';
 const path=new URL('../supabase/functions/source-worker/scout.ts',import.meta.url);
-const source=readFileSync(path,'utf8').replace(/^import[^;]+;/,'').replaceAll('export ','');
+const source=readFileSync(path,'utf8').replace(/^import[^;]+;\s*/gm,'').replaceAll('export ','');
 test('Scout keeps all fresh calls, limits coverage to one and avoids overwriting fresh IDs',async()=>{
  const calls=[],writes=[];let telemetry;
  const state={status:'running',cycle_id:'cycle',cycle_started_at:'2026-09-19T15:00:00Z',seen_count:0,request_count:0,cursor:{queue:[{borough:'Altona'},{borough:'Harburg'},{borough:'Wandsbek'},{borough:'Bergedorf'}],fresh_borough_index:0}};

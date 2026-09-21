@@ -72,6 +72,8 @@ export function structuredFacts(raw: any, base: string): any {
   const r = raw || {}, h = r.provider === 'immosolve_hpm_rest' ? r.detail?.immoObject?.labels : null;
   const node = h || r.entry || r.listing || r.property?.data || r.property || r;
   const out: any = {};
+  let sourceHostname='';
+  try{sourceHostname=new URL(base).hostname}catch{}
   // Cost/area containers are known property containers, not arbitrary recursion.
   const containers = [node, node.costs, node.prices, node.attributes].filter(x=>x && typeof x==='object' && !Array.isArray(x));
   for (const [key, names] of Object.entries(aliases)) for (const c of containers) {
@@ -122,7 +124,7 @@ export function structuredFacts(raw: any, base: string): any {
   }
   if(node.heatingCostIncluded === true)out.heating_text = 'in den Nebenkosten enthalten';
 
-  if(/(^|\.)wg-gesucht\.de$/i.test(new URL(base).hostname) && typeof r.text==='string'){
+  if(/(^|\.)wg-gesucht\.de$/i.test(sourceHostname) && typeof r.text==='string'){
     const text=r.text.replace(/\s+/g,' ').trim();
     const available=text.match(/\bVerfügbar:\s*(.+?)(?=\s+Diese Anzeige|\s+<img|$)/i)?.[1]?.trim();
     if(!out.available_text && present(available))out.available_text=available;

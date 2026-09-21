@@ -4,16 +4,21 @@ import {readFileSync} from 'node:fs';
 
 const category=readFileSync(new URL('../supabase/functions/source-worker/category.ts',import.meta.url),'utf8');
 const klein=readFileSync(new URL('../supabase/functions/source-worker/klein.ts',import.meta.url),'utf8');
+const categoryPersist=readFileSync(new URL('../supabase/functions/source-worker/category-persist.ts',import.meta.url),'utf8');
 const migration=readFileSync(new URL('../supabase/migrations/20260920170532_enable_verified_category_streams.sql',import.meta.url),'utf8');
 
 test('category discovery uses all verified production adapters',()=>{
   assert.match(category,/stream\.adapter==='scout'/);
   assert.match(category,/stream\.adapter==='kleinanzeigen'/);
   assert.match(category,/\['wg-gesucht','ohne-makler'\]\.includes\(stream\.adapter\)/);
-  assert.match(category,/category_stream:kind/);
+  assert.match(category,/stream\.adapter==='immowelt'/);
   assert.match(category,/method:'source_timestamp'/);
-  assert.match(category,/!!stream\.baseline_at/);
-  assert.match(category,/24\*60\*60\*1000/);
+  assert.match(categoryPersist,/category_stream:category/);
+  assert.match(categoryPersist,/old\?\.raw\?\.category_stream!==category/);
+  assert.match(categoryPersist,/poll_delta/);
+  assert.match(categoryPersist,/complete_snapshot_delta/);
+  assert.match(categoryPersist,/stream\?\.baseline_at/);
+  assert.match(categoryPersist,/86400000/);
 });
 
 test('Kleinanzeigen apartment reconciliation cannot deactivate category rows',()=>{
