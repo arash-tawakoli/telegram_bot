@@ -17,7 +17,7 @@ function listingKeyboard(keyboard:any,caption:string) {
   const offer=rows[0];
   const save=rows.find((row:any[])=>row.some((button:any)=>{
     const callback=String(button?.callback_data||''),text=String(button?.text||'');
-    return callback.startsWith('save:')||/^(?:Speichern|Gespeichert|Save|Saved)$/.test(text);
+    return callback.startsWith('save:')||/^(?:⭐\s*)?(?:Speichern|Gespeichert|Save|Saved)$/.test(text);
   }));
   if(!save)return keyboard;
   const middle=rows.filter((row:any[])=>row!==offer&&row!==save);
