@@ -1,5 +1,5 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.112.4';
-import {beginImmomioLogin,completeImmomioLogin,checkImmomioConnection,disconnectImmomio,inspectImmomioAccountApplication,sendImmomioApplication} from './providers/immomio.ts';
+import {beginImmomioLogin,completeImmomioLogin,checkImmomioConnection,disconnectImmomio,inspectImmomioAccountApplication,sendImmomioApplication,syncImmomioDocuments} from './providers/immomio.ts';
 const keys=JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')||'{}');
 const db=createClient(Deno.env.get('SUPABASE_URL')!,keys.default||Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false,autoRefreshToken:false}});
 async function secret(name:string){const {data,error}=await db.rpc('get_bot_secret',{secret_name:name});if(error||!data)throw Error('configuration_unavailable');return String(data)}
@@ -27,6 +27,7 @@ async function handleAction(body:any){
  if(body.action==='complete_login')return await completeImmomioLogin(db,userId,String(body.callbackUrl||''));
  if(body.action==='check')return await checkImmomioConnection(db,userId);
  if(body.action==='disconnect')return await disconnectImmomio(db,userId);
+ if(body.action==='sync_documents')return await syncImmomioDocuments(db,userId);
  if(body.action==='probe'){
   const listing=await applicationListing(uuid(body.listingId));
   if(!listing.is_active)return {available:false,ready:false,error:'listing_unavailable'};
