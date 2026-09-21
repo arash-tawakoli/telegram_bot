@@ -189,7 +189,9 @@ function offerTarget(l: any, lang: string) {
 function kb(l: any, lang: string, p: boolean) {
   const sourceName=sourceButtonName(l);
   const cooperative=String(l.sources?.source_type || "") === "Baugenossenschaft";
-  const offerText=cooperative ? "💎 Premium Angebot" : (lang==="de" ? `🏠 Zu ${sourceName}` : `🏠 ${sourceName}`);
+  const offerText=lang==="de"
+    ? `${cooperative ? "🏠 " : ""}Zu ${sourceName}`
+    : `${cooperative ? "🏠 " : ""}${sourceName}`;
   const offer = !p && cooperative
     ? { text: offerText, callback_data: "premium" }
     : { ...offerTarget(l,lang), text: offerText };
@@ -198,7 +200,7 @@ function kb(l: any, lang: string, p: boolean) {
     : { text: `⭐ ${label(lang, "save")}`, callback_data: "premium" };
   const q = mapLoc(l);
   const rows: any[] = [[offer],[save]];
-  if (q) rows.push([{text:"🗺️ Google Maps",url:`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`}]);
+  if (q) rows.push([{text:`🗺️ ${label(lang, "maps")}`,url:`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`}]);
   rows.push([{text:lang==="de"?"⚡ Auto-Bewerbung":"⚡ Auto-apply",callback_data:"platforms"}]);
   return { inline_keyboard: rows };
 }

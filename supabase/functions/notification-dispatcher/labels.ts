@@ -19,7 +19,7 @@ const de = {
   offer: "Angebot",
   save: "Speichern",
   saved: "Gespeichert",
-  maps: "Google Maps",
+  maps: "Google Map",
   auto_apply: "Auto-Bewerbung",
 };
 const en = {

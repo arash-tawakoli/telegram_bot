@@ -114,7 +114,7 @@ test('tenant destination prefers concrete offers and validates registration fall
  const sources={source_type:'Baugenossenschaft',source_connectors:[{enabled:true,priority:1,config:{tenant_registration_url:portal}}]};
  const l=listing({}, {sources});
  assert.equal(scope.kb(l,'de',true).inline_keyboard[0][0].url,portal);
- assert.equal(scope.kb(l,'de',true).inline_keyboard[0][0].text,'💎 Premium Angebot');
+ assert.equal(scope.kb(l,'de',true).inline_keyboard[0][0].text,'🏠 Zu Angebot');
  assert.equal(scope.kb({...l,canonical_url:direct},'de',true).inline_keyboard[0][0].url,direct);
  assert.equal(scope.kb({...l,raw:{applicationLink:direct}},'de',true).inline_keyboard[0][0].url,direct);
  assert.equal(scope.kb(l,'de',false).inline_keyboard[0][0].callback_data,'premium');
@@ -157,26 +157,44 @@ test('preview actions are stacked source-aware and keep requested emojis',()=>{
  const rows=scope.kb(l,'de',true).inline_keyboard;
  assert.equal(rows.length,4);
  assert.deepEqual(Array.from(rows, row=>row.length),[1,1,1,1]);
- assert.equal(rows[0][0].text,'🏠 Zu Kleinanzeigen');
+ assert.equal(rows[0][0].text,'Zu Kleinanzeigen');
  assert.equal(rows[1][0].text,'⭐ Speichern');
- assert.equal(rows[2][0].text,'🗺️ Google Maps');
+ assert.equal(rows[2][0].text,'🗺️ Google Map');
  assert.equal(rows[3][0].text,'⚡ Auto-Bewerbung');
  assert.equal(rows[3][0].callback_data,'platforms');
  assert.equal(rows.flat().some(button=>/Schnellbewerbung/i.test(button.text||'')),false);
 });
 
 test('preview source label strips common domains but preserves cooperative names',()=>{
- for(const [button_label,expected] of [['ImmoScout24.de','🏠 Zu ImmoScout24'],['Wunderflats.com','🏠 Zu Wunderflats'],['SAGA','🏠 Zu SAGA']]){
+ for(const [button_label,expected] of [['ImmoScout24.de','Zu ImmoScout24'],['Wunderflats.com','Zu Wunderflats'],['SAGA','Zu SAGA']]){
    const rows=scope.kb(listing({}, {sources:{button_label,source_type:'Portal',source_connectors:[]}}),'de',true).inline_keyboard;
    assert.equal(rows[0][0].text,expected);
  }
 });
 
-test('cooperative previews always use Premium Angebot instead of provider name',()=>{
+test('cooperative previews keep the offer emoji and show the actual source name',()=>{
  const premium=scope.kb(listing({address:'Musterstraße 1, 20095 Hamburg'},{sources:{name:'SAGA',button_label:'SAGA',source_type:'Baugenossenschaft',source_connectors:[]}}),'de',true).inline_keyboard;
  const free=scope.kb(listing({address:'Musterstraße 1, 20095 Hamburg'},{sources:{name:'SAGA',button_label:'SAGA',source_type:'Baugenossenschaft',source_connectors:[]}}),'de',false).inline_keyboard;
- assert.equal(premium[0][0].text,'💎 Premium Angebot');
- assert.equal(free[0][0].text,'💎 Premium Angebot');
+ assert.equal(premium[0][0].text,'🏠 Zu SAGA');
+ assert.equal(free[0][0].text,'🏠 Zu SAGA');
  assert.equal(free[0][0].callback_data,'premium');
- assert.equal(premium[0][0].text.includes('SAGA'),false);
+});
+
+
+test('preview normalizer drops every legacy extra and leaves the four requested rows',()=>{
+ const legacy={inline_keyboard:[
+  [{text:'Zu Kleinanzeigen',url:base}],
+  [{text:'⭐ Speichern',callback_data:'save:l'}],
+  [{text:'🗺️ Google Map',url:'https://www.google.com/maps/search/?api=1&query=Hamburg'}],
+  [{text:'Schnellbewerbung',callback_data:'apply:l'}],
+  [{text:'Legacy',callback_data:'legacy'}]
+ ]};
+ const rows=previewOperations([], '📍 <b>Adresse:</b> Hamburg', legacy)[0].body.reply_markup.inline_keyboard;
+ assert.equal(rows.length,4);
+ assert.equal(rows[0][0].text,'Zu Kleinanzeigen');
+ assert.equal(rows[1][0].text,'⭐ Speichern');
+ assert.equal(rows[2][0].text,'🗺️ Google Map');
+ assert.equal(rows[3][0].text,'⚡ Auto-Bewerbung');
+ assert.equal(rows[3][0].callback_data,'platforms');
+ assert.equal(rows.flat().some(button=>String(button.callback_data||'').startsWith('apply:')),false);
 });

@@ -29,10 +29,9 @@ function listingKeyboard(keyboard:any,caption:string) {
   const clean=(value:string)=>value.replace(/<[^>]+>/g,'').replace(/&amp;/g,'&').trim();
   const locationLine=caption.split('\n').map(clean).reverse().find(line=>line.startsWith('📍'));
   const location=(locationLine||'').replace(/^📍\s*(?:[^:]+:\s*)?/,'').trim()||'Hamburg';
-  const maps=mapRow||[{text:'🗺️ Google Maps',url:`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`}];
+  const maps=mapRow||[{text:'🗺️ Google Map',url:`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`}];
   const autoApply=autoApplyRow||[{text:'⚡ Auto-Bewerbung',callback_data:'platforms'}];
-  const extras=middle.filter((row:any[])=>row!==mapRow&&row!==autoApplyRow);
-  return {...keyboard,inline_keyboard:[offer,save,maps,autoApply,...extras]};
+  return {...keyboard,inline_keyboard:[offer,save,maps,autoApply]};
 }
 export function previewOperations(images:string[],caption:string,keyboard:any) {
   keyboard=listingKeyboard(keyboard,caption);
