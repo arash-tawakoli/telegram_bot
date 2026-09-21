@@ -200,7 +200,7 @@ function kb(l: any, lang: string, p: boolean) {
     : { text: `⭐ ${label(lang, "save")}`, callback_data: "premium" };
   const q = mapLoc(l);
   const rows: any[] = [[offer],[save]];
-  if (q) rows.push([{text:"🗺️ Google Map",url:`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`}]);
+  if (q) rows.push([{text:`🗺️ ${label(lang, "maps")}`,url:`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`}]);
   rows.push([{text:lang==="de"?"⚡ Auto-Bewerbung":"⚡ Auto-apply",callback_data:"platforms"}]);
   return { inline_keyboard: rows };
 }
