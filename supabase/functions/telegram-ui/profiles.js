@@ -2,7 +2,7 @@ import { home, premium, settings } from "./navigation.js";
 import { db, PROPERTY_TYPES, RENT_PRESETS, ROOM_PRESETS, AREA_PRESETS, ROOM_AREA_PRESETS, NEIGHBORHOODS_PER_PAGE, finiteOrNull, esc, money, button, cancelRow, backRow, send, edit, saveState, geography } from "./runtime.js";
 export function emptyDraft(profileSlot = 1) {
     return {
-        profile_slot: Math.max(1, Math.min(3, Number(profileSlot) || 1)),
+        profile_slot: Math.max(1, Math.min(4, Number(profileSlot) || 1)),
         property_types: [],
         location_mode: null,
         borough_ids: [],
@@ -33,8 +33,8 @@ export function normalizeDraft(raw) {
             ? "neighborhoods"
             : null;
     return {
-        profile_slot: Math.max(1, Math.min(3, Number(raw?.profile_slot) || 1)),
-        property_types: Array.from(new Set(propertyTypes)),
+        profile_slot: Math.max(1, Math.min(4, Number(raw?.profile_slot) || 1)),
+        property_types: Array.from(new Set(propertyTypes)).slice(0, 1),
         location_mode: ["all_hamburg", "boroughs", "neighborhoods"].includes(String(raw?.location_mode || ""))
             ? raw.location_mode
             : legacyMode,
@@ -52,7 +52,12 @@ export function normalizeDraft(raw) {
         min_area_sqm: finiteOrNull(raw?.min_area_sqm ?? raw?.area),
         min_room_area_sqm: finiteOrNull(raw?.min_room_area_sqm),
         wbs_only: raw?.wbs_only === true,
-        furnished_preference: ["any", "furnished", "unfurnished"].includes(String(raw?.furnished_preference || "")) ? raw.furnished_preference : "any",
+        furnished_preference: (() => {
+            const value = String(raw?.furnished_preference || "any");
+            if (value === "furnished") return "yes";
+            if (value === "unfurnished") return "no";
+            return ["any", "yes", "no"].includes(value) ? value : "any";
+        })(),
         require_known_warm_rent: raw?.require_known_warm_rent === true,
         max_deposit: finiteOrNull(raw?.max_deposit),
         _flow: /^[a-f0-9]{12}$/.test(String(raw?._flow || "")) ? raw._flow : crypto.randomUUID().replace(/-/g, "").slice(0, 12),
@@ -87,7 +92,7 @@ async function saveDraft(user, step, draft) {
 }
 
 export function validateDraft(draft) {
-    if (!draft.property_types.length)
+    if (draft.property_types.length !== 1)
         return "types";
     if (!draft.location_mode)
         return "location";
@@ -117,15 +122,15 @@ export function validateDraft(draft) {
 
 export async function renderTypes(user, chatId, messageId, draft) {
     await saveDraft(user, "types", draft);
-    const mark = (value, label) => `${draft.property_types.includes(value) ? "✅ " : ""}${label}`;
+    const selected = draft.property_types[0] || "";
+    const mark = (value, label) => `${selected === value ? "✅ " : ""}${label}`;
     const rows = [
         [button(mark("Wohnung", "🏢 Wohnung"), "type:Wohnung"), button(mark("Haus", "🏡 Haus"), "type:Haus")],
         [button(mark("WG", "🛏 WG-Zimmer"), "type:WG"), button(mark("Tauschwohnung", "🔁 Tauschwohnung"), "type:Tauschwohnung")],
-        [button("Alle Wohnformen", "type:all"), button("Zurücksetzen", "type:clear")],
-        [button("Weiter →", "type:done")],
         [button("← Start", draft.profile_edit ? `profile:edit:${draft.profile_slot}` : "home")],
+        cancelRow(),
     ];
-    const text = "🏠 <b>Was möchtest du mieten?</b>\n\nWähle eine oder mehrere Wohnformen. Die Suche nutzt nur Quellen, die diese Wohnform tatsächlich liefern.";
+    const text = "🏠 <b>Was möchtest du mieten?</b>\n\nWähle genau eine Wohnform. Danach werden nur die dafür relevanten Filter abgefragt.";
     return messageId
         ? edit(chatId, messageId, text, { inline_keyboard: rows })
         : send(chatId, text, { inline_keyboard: rows });
@@ -184,7 +189,15 @@ export async function renderRent(user, chatId, messageId, draft) {
     await saveDraft(user, "rent", draft);
     const customSelected = draft.max_warm_rent != null &&
         !RENT_PRESETS.has(draft.max_warm_rent);
-    return edit(chatId, messageId, "💶 <b>Wie hoch darf die Warmmiete maximal sein?</b>", {
+    const type = draft.property_types[0];
+    const question = type === "Haus"
+        ? "💶 <b>Wie hoch darf die Warmmiete des Hauses maximal sein?</b>"
+        : type === "WG"
+            ? "💶 <b>Wie hoch darf die Warmmiete des WG-Zimmers maximal sein?</b>"
+            : type === "Tauschwohnung"
+                ? "💶 <b>Wie hoch darf die Warmmiete der Tauschwohnung maximal sein?</b>"
+                : "💶 <b>Wie hoch darf die Warmmiete der Wohnung maximal sein?</b>";
+    return edit(chatId, messageId, question, {
         inline_keyboard: [
             [
                 button(`${draft.max_warm_rent === 800 ? "✅ " : ""}800 €`, "rent:800"),
@@ -213,7 +226,13 @@ export async function renderCustomRent(user, chatId, messageId, draft) {
 
 export async function renderRooms(user, chatId, messageId, draft) {
     await saveDraft(user, "rooms", draft);
-    return edit(chatId, messageId, "🚪 <b>Wie viele Zimmer brauchst du mindestens?</b>", {
+    const type = draft.property_types[0];
+    const question = type === "Haus"
+        ? "🚪 <b>Wie viele Zimmer soll das Haus mindestens haben?</b>"
+        : type === "Tauschwohnung"
+            ? "🚪 <b>Wie viele Zimmer soll die Tauschwohnung mindestens haben?</b>"
+            : "🚪 <b>Wie viele Zimmer soll die Wohnung mindestens haben?</b>";
+    return edit(chatId, messageId, question, {
         inline_keyboard: [
             [
                 button(`${draft.min_rooms === 1 ? "✅ " : ""}1+`, "rooms:1"),
@@ -231,7 +250,13 @@ export async function renderRooms(user, chatId, messageId, draft) {
 
 export async function renderArea(user, chatId, messageId, draft) {
     await saveDraft(user, "area", draft);
-    return edit(chatId, messageId, "📐 <b>Wie groß soll die Wohnung oder das Haus mindestens sein?</b>", {
+    const type = draft.property_types[0];
+    const question = type === "Haus"
+        ? "📐 <b>Wie groß soll das Haus mindestens sein?</b>"
+        : type === "Tauschwohnung"
+            ? "📐 <b>Wie groß soll die Tauschwohnung mindestens sein?</b>"
+            : "📐 <b>Wie groß soll die Wohnung mindestens sein?</b>";
+    return edit(chatId, messageId, question, {
         inline_keyboard: [
             [
                 button(`${draft.min_area_sqm === 20 ? "✅ " : ""}20 m²`, "area:20"),
@@ -311,7 +336,7 @@ export async function renderReview(user, chatId, messageId, draft) {
     const places = await selectedPlaces(draft);
     await saveDraft(user, "review", draft);
     const text = "✅ <b>Suchprofil prüfen</b>\n\n" +
-        `🏠 <b>Typ:</b> ${esc(draft.property_types.join(", "))}\n` +
+        `🏠 <b>Typ:</b> ${esc(draft.property_types[0] || "–")}\n` +
         `📍 <b>Gebiet:</b> ${esc(places.location)}\n` +
         `💶 <b>Warmmiete:</b> bis ${esc(money(draft.max_warm_rent))}\n` +
         (includesWG(draft) ? `🛏 <b>WG-Zimmer:</b> ${draft.min_room_area_sqm > 0 ? `${esc(draft.min_room_area_sqm)} m²+` : "egal"}\n` : "") +
