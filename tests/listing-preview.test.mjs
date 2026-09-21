@@ -157,17 +157,38 @@ test('preview actions are stacked source-aware and keep requested emojis',()=>{
  const rows=scope.kb(l,'de',true).inline_keyboard;
  assert.equal(rows.length,4);
  assert.deepEqual(Array.from(rows, row=>row.length),[1,1,1,1]);
- assert.equal(rows[0][0].text,'🏠 Zu Kleinanzeigen');
+ assert.equal(rows[0][0].text,'Zu Kleinanzeigen');
  assert.equal(rows[1][0].text,'⭐ Speichern');
- assert.equal(rows[2][0].text,'🗺️ Google Maps');
+ assert.equal(rows[2][0].text,'🗺️ Google Map');
  assert.equal(rows[3][0].text,'⚡ Auto-Bewerbung');
  assert.equal(rows[3][0].callback_data,'platforms');
  assert.equal(rows.flat().some(button=>/Schnellbewerbung/i.test(button.text||'')),false);
 });
 
 test('preview source label strips common domains but preserves cooperative names',()=>{
- for(const [button_label,expected] of [['ImmoScout24.de','🏠 Zu ImmoScout24'],['Wunderflats.com','🏠 Zu Wunderflats'],['SAGA','🏠 Zu SAGA']]){
+ for(const [button_label,expected] of [['ImmoScout24.de','Zu ImmoScout24'],['Wunderflats.com','Zu Wunderflats'],['SAGA','Zu SAGA']]){
    const rows=scope.kb(listing({}, {sources:{button_label,source_type:'Portal',source_connectors:[]}}),'de',true).inline_keyboard;
    assert.equal(rows[0][0].text,expected);
  }
+ const cooperative=scope.kb(listing({}, {sources:{button_label:'SAGA',source_type:'Baugenossenschaft',source_connectors:[]}}),'de',true).inline_keyboard;
+ assert.equal(cooperative[0][0].text,'🏠 Zu SAGA');
+});
+
+
+test('legacy preview extras and quick-apply controls are discarded in favor of exactly four actions',()=>{
+ const legacy={inline_keyboard:[
+   [{text:'Zu Kleinanzeigen',url:base}],
+   [{text:'⭐ Speichern',callback_data:'save:l'}],
+   [{text:'🗺️ Google Map',url:'https://www.google.com/maps/search/?api=1&query=Hamburg'}],
+   [{text:'Schnellbewerbung',callback_data:'apply:l'}],
+   [{text:'Legacy',callback_data:'legacy'}]
+ ]};
+ const rows=previewOperations([], '📍 <b>Adresse:</b> Hamburg', legacy)[0].body.reply_markup.inline_keyboard;
+ assert.equal(rows.length,4);
+ assert.equal(rows[0][0].text,'Zu Kleinanzeigen');
+ assert.equal(rows[1][0].text,'⭐ Speichern');
+ assert.equal(rows[2][0].text,'🗺️ Google Map');
+ assert.equal(rows[3][0].text,'⚡ Auto-Bewerbung');
+ assert.equal(rows[3][0].callback_data,'platforms');
+ assert.equal(rows.flat().some(button=>String(button.callback_data||'').startsWith('apply:')),false);
 });
