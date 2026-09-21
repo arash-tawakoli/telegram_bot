@@ -159,6 +159,10 @@ function cap(l: any, lang: string) {
   if (loc(l)) lines.push(`📍 <b>${label(lang, "address")}:</b> ${esc(loc(l))}`);
   return lines.join("\n").trim();
 }
+function sourceButtonName(l:any) {
+  const raw=String(l.sources?.button_label||l.sources?.name||"Angebot").trim();
+  return raw.replace(/^Zu\s+/i,"").replace(/\.(?:de|com|net|org)$/i,"").replace(/\s+Hamburg$/i,"").trim()||"Angebot";
+}
 function offerTarget(l: any, lang: string) {
   const fallback = {url:l.canonical_url, text:label(lang,"offer")};
   if (l.sources?.source_type !== "Baugenossenschaft") return fallback;
@@ -183,16 +187,19 @@ function offerTarget(l: any, lang: string) {
   return fallback;
 }
 function kb(l: any, lang: string, p: boolean) {
-  const offer = !p && String(l.sources?.source_type || "") === "Baugenossenschaft"
-    ? { text: label(lang, "offer"), callback_data: "premium" }
-    : { ...offerTarget(l,lang), text: label(lang, "offer") };
+  const sourceName=sourceButtonName(l);
+  const cooperative=String(l.sources?.source_type || "") === "Baugenossenschaft";
+  const offerText=cooperative ? "💎 Premium Angebot" : (lang==="de" ? `🏠 Zu ${sourceName}` : `🏠 ${sourceName}`);
+  const offer = !p && cooperative
+    ? { text: offerText, callback_data: "premium" }
+    : { ...offerTarget(l,lang), text: offerText };
   const save = p
-    ? { text: label(lang, "save"), callback_data: `save:${l.id}` }
-    : { text: label(lang, "save"), callback_data: "premium" };
+    ? { text: `⭐ ${label(lang, "save")}`, callback_data: `save:${l.id}` }
+    : { text: `⭐ ${label(lang, "save")}`, callback_data: "premium" };
   const q = mapLoc(l);
   const rows: any[] = [[offer],[save]];
-  if (q) rows.push([{text:label(lang,"maps"),url:`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`}]);
-  rows.push([{text:label(lang,"auto_apply"),callback_data:"platforms"}]);
+  if (q) rows.push([{text:"🗺️ Google Maps",url:`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`}]);
+  rows.push([{text:lang==="de"?"⚡ Auto-Bewerbung":"⚡ Auto-apply",callback_data:"platforms"}]);
   return { inline_keyboard: rows };
 }
 async function tg(t: string, m: string, b: any) {
@@ -348,7 +355,7 @@ Deno.serve(async (req) => {
       return new Response("unauthorized", { status: 401 });
     const input = await req.json().catch(() => ({}));
     if (input.dry_run && input.listing_id) {
-      const {data,error}=await db.from('listings').select('*,sources(button_label,source_type,baseline_completed_at,enabled,runtime_mode,delivery_mode,source_connectors(config,enabled,priority))').eq('id',input.listing_id).single();
+      const {data,error}=await db.from('listings').select('*,sources(name,button_label,source_type,baseline_completed_at,enabled,runtime_mode,delivery_mode,source_connectors(config,enabled,priority))').eq('id',input.listing_id).single();
       if(error)throw error;
       const listing=await enrich(data,false),facts=knownFacts(listing),newness=deliveryNewness(listing,'new_listing',facts.published_text);
       if(input.probe_image && facts.images.length){
@@ -381,7 +388,7 @@ Deno.serve(async (req) => {
     const { data: events, error } = await db
       .from("delivery_events")
       .select(
-        "id,status,event_type,dispatch_attempts,preview_progress,recipient:bot_users!delivery_events_recipient_user_id_fkey(id,chat_id,is_active,ui_language),search_profiles!inner(id,profile_slot,is_active,owner:bot_users!search_profiles_user_id_fkey(id,is_active,plan_override,plan_override_expires_at,referral_bonus_until)),listings!inner(*,sources(button_label,source_type,baseline_completed_at,enabled,runtime_mode,delivery_mode,source_connectors(config,enabled,priority)))",
+        "id,status,event_type,dispatch_attempts,preview_progress,recipient:bot_users!delivery_events_recipient_user_id_fkey(id,chat_id,is_active,ui_language),search_profiles!inner(id,profile_slot,is_active,owner:bot_users!search_profiles_user_id_fkey(id,is_active,plan_override,plan_override_expires_at,referral_bonus_until)),listings!inner(*,sources(name,button_label,source_type,baseline_completed_at,enabled,runtime_mode,delivery_mode,source_connectors(config,enabled,priority)))",
       )
       .in("status", ["pending", "failed"])
       .eq("delivery_outcome_unknown", false)

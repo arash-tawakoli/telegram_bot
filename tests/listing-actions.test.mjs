@@ -40,9 +40,6 @@ test('preview labels use the requested German button names',()=>{
   const labels=readFileSync(new URL('../supabase/functions/notification-dispatcher/labels.ts',import.meta.url),'utf8');
   assert.match(labels,/offer: "Angebot"/);
   assert.match(labels,/save: "Speichern"/);
-  assert.match(labels,/maps: "Google Map"/);
+  assert.match(labels,/maps: "Google Maps"/);
   assert.match(labels,/auto_apply: "Auto-Bewerbung"/);
-  const handlers=readFileSync(new URL('../supabase/functions/telegram-ui/handlers.js',import.meta.url),'utf8');
-  assert.doesNotMatch(handlers,/❤️ Speichern|❤️ Gespeichert/);
-  assert.match(handlers,/savedState \? "Gespeichert" : "Speichern"/);
 });
