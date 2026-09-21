@@ -114,7 +114,7 @@ test('tenant destination prefers concrete offers and validates registration fall
  const sources={source_type:'Baugenossenschaft',source_connectors:[{enabled:true,priority:1,config:{tenant_registration_url:portal}}]};
  const l=listing({}, {sources});
  assert.equal(scope.kb(l,'de',true).inline_keyboard[0][0].url,portal);
- assert.equal(scope.kb(l,'de',true).inline_keyboard[0][0].text,'Angebot');
+ assert.equal(scope.kb(l,'de',true).inline_keyboard[0][0].text,'🏠 Zu Angebot');
  assert.equal(scope.kb({...l,canonical_url:direct},'de',true).inline_keyboard[0][0].url,direct);
  assert.equal(scope.kb({...l,raw:{applicationLink:direct}},'de',true).inline_keyboard[0][0].url,direct);
  assert.equal(scope.kb(l,'de',false).inline_keyboard[0][0].callback_data,'premium');
@@ -151,3 +151,23 @@ test('Kleinanzeigen thumbnails without image classes and explicit equipment are 
 });
 
 test('unstarted legacy galleries adopt the single-photo policy on retry',async()=>{const ops=previewOperations(['a.jpg','b.jpg'],'facts',{});let saved,calls=[];await deliverPreview(ops,{version:1,operations:[{method:'sendMediaGroup',body:{media:[]}}],next:0,in_flight:false},async s=>saved=structuredClone(s),async op=>{calls.push(op.method);return{message_id:1}},async()=>{});assert.deepEqual(calls,['sendPhoto']);assert.equal(saved.next,1);});
+
+test('preview actions are stacked source-aware and keep requested emojis',()=>{
+ const l=listing({}, {sources:{name:'Kleinanzeigen Hamburg',button_label:'Kleinanzeigen.de',source_type:'Portal',source_connectors:[]}});
+ const rows=scope.kb(l,'de',true).inline_keyboard;
+ assert.equal(rows.length,4);
+ assert.deepEqual(Array.from(rows, row=>row.length),[1,1,1,1]);
+ assert.equal(rows[0][0].text,'🏠 Zu Kleinanzeigen');
+ assert.equal(rows[1][0].text,'⭐ Speichern');
+ assert.equal(rows[2][0].text,'🗺️ Google Maps');
+ assert.equal(rows[3][0].text,'⚡ Auto-Bewerbung');
+ assert.equal(rows[3][0].callback_data,'platforms');
+ assert.equal(rows.flat().some(button=>/Schnellbewerbung/i.test(button.text||'')),false);
+});
+
+test('preview source label strips common domains but preserves cooperative names',()=>{
+ for(const [button_label,expected] of [['ImmoScout24.de','🏠 Zu ImmoScout24'],['Wunderflats.com','🏠 Zu Wunderflats'],['SAGA','🏠 Zu SAGA']]){
+   const rows=scope.kb(listing({}, {sources:{button_label,source_type:'Portal',source_connectors:[]}}),'de',true).inline_keyboard;
+   assert.equal(rows[0][0].text,expected);
+ }
+});
