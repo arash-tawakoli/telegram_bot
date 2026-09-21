@@ -208,7 +208,7 @@ async function deleteApplicantDocument(userId,id){
 async function renderApplicantDocuments(user,chat,messageId,notice=''){
  const docs=await readDocuments(user.id),selected=docs.filter(d=>d.send_with_auto_apply).length;
  const render=(text,rows)=>messageId?edit(chat.id,messageId,text,{inline_keyboard:rows}):send(chat.id,text,{inline_keyboard:rows});
- const text=`📎 <b>Bewerberdokumente</b>\n\n${notice?`${notice}\n\n`:''}${docs.length} Datei${docs.length===1?'':'en'} gespeichert · ${selected} für Auto-Bewerbungen ausgewählt.\n\n<b>Dateiversand</b>\nImmoScout24: Erstkontakt derzeit ohne freie Dateianhänge\nKleinanzeigen: aktueller Kontaktkanal ohne Dateianhänge\nImmowelt: Bewerbermappe nur bewusst/manuell als PDF weitergeben\nImmomio: Unterlagen möglich, Bot-Uploadvertrag noch nicht verifiziert\n\nEine Auswahl ist nur eine Freigabe. Dateien werden ausschließlich über technisch verifizierte, dateifähige Provider-Kanäle übertragen.`;
+ const text=`📎 <b>Bewerberdokumente</b>\n\n${notice?`${notice}\n\n`:''}${docs.length} Datei${docs.length===1?'':'en'} gespeichert · ${selected} für Auto-Bewerbungen ausgewählt.\n\n<b>Dateiversand</b>\nImmoScout24: ausgewählte Unterlagen über einen geschützten Bewerbungslink im Erstkontakt\nKleinanzeigen: ausgewählte Unterlagen über einen geschützten Bewerbungslink im Erstkontakt\nImmomio: nativer Upload in dein Tenant-Profil mit technischer Verifikation vor dem Versand\n\nDer geschützte Link enthält einen Snapshot der beim Erstellen ausgewählten Dateien. Späteres Abwählen verändert bereits erstellte Bewerbungen nicht; Löschen einer Datei widerruft den Zugriff auf diese Datei.`;
  const rows=[
   [button('🪪 WBS','platforms:doc-upload:wbs'),button('🚨 Dringlichkeit','platforms:doc-upload:urgency_certificate')],
   [button('🤝 Bürgschaft','platforms:doc-upload:guarantee'),button('📊 SCHUFA','platforms:doc-upload:schufa')],
@@ -387,15 +387,20 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   const {data:doc,error}=await db.from('applicant_documents').select('id,send_with_auto_apply').eq('id',arg).eq('user_id',user.id).maybeSingle();
   if(error)throw Error('Dokument konnte nicht geladen werden.');
   if(doc){
-   const {error:updateError}=await db.from('applicant_documents').update({send_with_auto_apply:!doc.send_with_auto_apply,updated_at:new Date().toISOString()}).eq('id',doc.id).eq('user_id',user.id);
+   const next=!doc.send_with_auto_apply;
+   const {error:updateError}=await db.from('applicant_documents').update({send_with_auto_apply:next,updated_at:new Date().toISOString()}).eq('id',doc.id).eq('user_id',user.id);
    if(updateError)throw Error('Dokumentauswahl konnte nicht gespeichert werden.');
+   if(!next)await applicationWorker('sync_documents',user.id,3).catch(()=>null);
   }
   return renderApplicantDocuments(user,chat,messageId);
  }
  if(action==='doc-delete'){
   if(!user.is_premium)return render('Bewerberdokumente für Auto-Bewerbungen benötigen Premium.',back);
-  try{await deleteApplicantDocument(user.id,arg);return renderApplicantDocuments(user,chat,messageId,'Dokument gelöscht.');}
-  catch(error){return renderApplicantDocuments(user,chat,messageId,`⚠️ ${esc(error.message)}`);}
+  try{
+   await deleteApplicantDocument(user.id,arg);
+   await applicationWorker('sync_documents',user.id,3).catch(()=>null);
+   return renderApplicantDocuments(user,chat,messageId,'Dokument gelöscht.');
+  }catch(error){return renderApplicantDocuments(user,chat,messageId,`⚠️ ${esc(error.message)}`);}
  }
 
  if(action==='login'||action==='disconnect'||action==='check'){
