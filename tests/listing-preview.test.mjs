@@ -114,7 +114,7 @@ test('tenant destination prefers concrete offers and validates registration fall
  const sources={source_type:'Baugenossenschaft',source_connectors:[{enabled:true,priority:1,config:{tenant_registration_url:portal}}]};
  const l=listing({}, {sources});
  assert.equal(scope.kb(l,'de',true).inline_keyboard[0][0].url,portal);
- assert.equal(scope.kb(l,'de',true).inline_keyboard[0][0].text,'🏠 Zu Angebot');
+ assert.equal(scope.kb(l,'de',true).inline_keyboard[0][0].text,'💎 Premium Angebot');
  assert.equal(scope.kb({...l,canonical_url:direct},'de',true).inline_keyboard[0][0].url,direct);
  assert.equal(scope.kb({...l,raw:{applicationLink:direct}},'de',true).inline_keyboard[0][0].url,direct);
  assert.equal(scope.kb(l,'de',false).inline_keyboard[0][0].callback_data,'premium');
@@ -170,4 +170,13 @@ test('preview source label strips common domains but preserves cooperative names
    const rows=scope.kb(listing({}, {sources:{button_label,source_type:'Portal',source_connectors:[]}}),'de',true).inline_keyboard;
    assert.equal(rows[0][0].text,expected);
  }
+});
+
+test('cooperative previews always use Premium Angebot instead of provider name',()=>{
+ const premium=scope.kb(listing({address:'Musterstraße 1, 20095 Hamburg'},{sources:{name:'SAGA',button_label:'SAGA',source_type:'Baugenossenschaft',source_connectors:[]}}),'de',true).inline_keyboard;
+ const free=scope.kb(listing({address:'Musterstraße 1, 20095 Hamburg'},{sources:{name:'SAGA',button_label:'SAGA',source_type:'Baugenossenschaft',source_connectors:[]}}),'de',false).inline_keyboard;
+ assert.equal(premium[0][0].text,'💎 Premium Angebot');
+ assert.equal(free[0][0].text,'💎 Premium Angebot');
+ assert.equal(free[0][0].callback_data,'premium');
+ assert.equal(premium[0][0].text.includes('SAGA'),false);
 });
