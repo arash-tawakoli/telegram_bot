@@ -244,6 +244,27 @@ function offerTarget(l: any, lang: string) {
   }
   return fallback;
 }
+function autoApplyProvider(l:any) {
+  const raw=l?.raw||{}, ids=new Set<string>();
+  for(const value of [
+    raw.applicationLink,
+    raw.application_link,
+    raw.applicationUrl,
+    raw.application_url,
+    raw.tenant_apply_url,
+    l?.canonical_url,
+  ]){
+    if(typeof value!=="string" || value.length>4096 || /[\x00-\x1f\x7f]/.test(value))continue;
+    const match=value.trim().match(/^https:\/\/tenant\.immomio\.com\/(?:de\/)?apply\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/?(?:[?#][^\s\\]*)?$/i);
+    if(match)ids.add(match[1].toLowerCase());
+  }
+  if(ids.size>1)return null;
+  if(ids.size===1)return "immomio";
+  const sourceId=Number(l?.source_id);
+  if(sourceId===1)return "immoscout";
+  if(sourceId===2)return "kleinanzeigen";
+  return null;
+}
 function kb(l: any, lang: string, p: boolean, userId = "", autoApplyEnabled = false) {
   const checkout=`${PREMIUM_LINK}?client_reference_id=${encodeURIComponent(String(userId))}`;
   const sourceName=sourceButtonName(l);
@@ -262,13 +283,15 @@ function kb(l: any, lang: string, p: boolean, userId = "", autoApplyEnabled = fa
   const q = mapLoc(l);
   const rows: any[] = [[offer],[save]];
   if (q) rows.push([{text:`🗺️ ${label(lang, "maps")}`,url:`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`}]);
-  const autoApplyText=lang==="de"
-    ? `⚡ Auto-Bewerbung • ${autoApplyEnabled?"aktiv":"inaktiv"}`
-    : `⚡ Auto-apply • ${autoApplyEnabled?"active":"inactive"}`;
-  rows.push([p
-    ? {text:autoApplyText,callback_data:`platforms:preview:${l.id}`}
-    : {text:`🔒 ${autoApplyText}`,url:checkout}
-  ]);
+  if(autoApplyProvider(l)){
+    const autoApplyText=lang==="de"
+      ? `⚡ Auto-Bewerbung • ${autoApplyEnabled?"aktiv":"inaktiv"}`
+      : `⚡ Auto-apply • ${autoApplyEnabled?"active":"inactive"}`;
+    rows.push([p
+      ? {text:autoApplyText,callback_data:`platforms:preview:${l.id}`}
+      : {text:`🔒 ${autoApplyText}`,url:checkout}
+    ]);
+  }
   return { inline_keyboard: rows };
 }
 async function tg(t: string, m: string, b: any) {
