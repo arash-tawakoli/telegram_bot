@@ -188,8 +188,9 @@ function offerTarget(l: any, lang: string) {
 }
 function kb(l: any, lang: string, p: boolean) {
   const sourceName=sourceButtonName(l);
-  const offerText=lang==="de" ? `🏠 Zu ${sourceName}` : `🏠 ${sourceName}`;
-  const offer = !p && String(l.sources?.source_type || "") === "Baugenossenschaft"
+  const cooperative=String(l.sources?.source_type || "") === "Baugenossenschaft";
+  const offerText=cooperative ? "💎 Premium Angebot" : (lang==="de" ? `🏠 Zu ${sourceName}` : `🏠 ${sourceName}`);
+  const offer = !p && cooperative
     ? { text: offerText, callback_data: "premium" }
     : { ...offerTarget(l,lang), text: offerText };
   const save = p
