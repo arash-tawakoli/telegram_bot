@@ -427,23 +427,22 @@ export async function handleCallback(query, user) {
     }
     if (data.startsWith("type:")) {
         const value = data.slice(5);
-        if (value === "all")
-            draft.property_types = [...PROPERTY_TYPES];
-        else if (value === "clear")
-            draft.property_types = [];
-        else if (value === "done") {
-            if (!draft.property_types.length) {
-                return renderTypes(user, chatId, messageId, draft);
-            }
-            return afterSelection(user, chatId, messageId, draft, "location");
+        if (!PROPERTY_TYPES.includes(value)) {
+            return renderTypes(user, chatId, messageId, draft);
         }
-        else if (PROPERTY_TYPES.includes(value)) {
-            const type = value;
-            draft.property_types = draft.property_types.includes(type)
-                ? draft.property_types.filter((entry) => entry !== type)
-                : [...draft.property_types, type];
+        const hadExistingLocation = ["all_hamburg", "boroughs", "neighborhoods"].includes(String(draft.location_mode || ""));
+        const categoryEdit = draft.profile_edit === true || draft.edit_return === true;
+        draft.property_types = [value];
+        draft.min_rooms = null;
+        draft.min_area_sqm = null;
+        draft.min_room_area_sqm = null;
+        if (categoryEdit) {
+            delete draft.profile_edit;
+            delete draft.edit_return;
         }
-        return renderTypes(user, chatId, messageId, draft);
+        return categoryEdit && hadExistingLocation
+            ? renderRent(user, chatId, messageId, draft)
+            : renderLocation(user, chatId, messageId, draft);
     }
     if (data.startsWith("loc:")) {
         const value = data.slice(4);
