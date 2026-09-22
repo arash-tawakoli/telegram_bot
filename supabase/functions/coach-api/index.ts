@@ -8,7 +8,11 @@ const PUBLISHABLE=publishableKeys.default||Deno.env.get('SUPABASE_ANON_KEY')!;
 const admin=createClient(URL,SECRET,{auth:{persistSession:false,autoRefreshToken:false}});
 const ORIGINS=new Set(['https://intern.traumwohnunghamburg.de','http://localhost:4321','http://127.0.0.1:4321']);
 const PROVIDERS=new Set(['immoscout','kleinanzeigen','immomio']);
-const CONNECT_BROKER=`${URL}/functions/v1/platform-connect-broker-v2`;
+const KLEIN_AUTHORIZE='https://login.kleinanzeigen.de/authorize';
+const KLEIN_CLIENT_ID='uV5j90myVPc2XzEOFuWUD2At17OACEGQ';
+const KLEIN_REDIRECT='https://login.kleinanzeigen.de/android/com.ebay.kleinanzeigen/callback';
+const KLEIN_SCOPE='openid email profile offline_access';
+const ENC=new TextEncoder();
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PUBLIC_ID=/^cp_[a-f0-9]{24}$/;
 
@@ -22,12 +26,12 @@ function integer(v:any,min:number,max:number){const n=Number(v);if(!Number.isInt
 function optionalInteger(v:any,min:number,max:number){if(v===null||v===undefined||v==='')return null;return integer(v,min,max)}
 function random(bytes=32){const a=crypto.getRandomValues(new Uint8Array(bytes));let s='';for(const b of a)s+=String.fromCharCode(b);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
 function provider(v:any){const p=String(v||'');if(!PROVIDERS.has(p))throw Error('provider_unsupported');return p}
-async function directKleinanzeigenUrl(ticketValue:string){
- const r=await fetch(CONNECT_BROKER,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'resolve',ticket:ticketValue}),signal:AbortSignal.timeout(15000)});
- const data=await r.json().catch(()=>null);
- if(!r.ok||data?.provider!=='kleinanzeigen'||data?.mode!=='provider_web'||!data?.url)throw Error(data?.error||'provider_operation_failed');
- let u:URL;try{u=new URL(String(data.url))}catch{throw Error('provider_operation_failed')}
- if(u.protocol!=='https:'||u.hostname!=='login.kleinanzeigen.de'||u.username||u.password)throw Error('provider_operation_failed');
+function b64url(bytes:Uint8Array){let out='';for(const b of bytes)out+=String.fromCharCode(b);return btoa(out).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
+async function pkceChallenge(verifier:string){return b64url(new Uint8Array(await crypto.subtle.digest('SHA-256',ENC.encode(verifier))))}
+async function kleinanzeigenAuthorizeUrl(state:string,verifier:string){
+ const u=new URL(KLEIN_AUTHORIZE);
+ const params={client_id:KLEIN_CLIENT_ID,response_type:'code',redirect_uri:KLEIN_REDIRECT,scope:KLEIN_SCOPE,code_challenge:await pkceChallenge(verifier),code_challenge_method:'S256',state,prompt:'login'};
+ for(const[k,v]of Object.entries(params))u.searchParams.set(k,String(v));
  return u.href;
 }
 function without<T extends Record<string,any>>(row:T|null|undefined,...keys:string[]){if(!row)return row;const out={...row};for(const k of keys)delete out[k];return out}
@@ -215,7 +219,7 @@ async function startConnect(a:any,assignment:any,p:string){
   context:{assignment_version:assignment.assignment_version}
  });
  if(error)throw Error('auth_flow_create_failed');
- if(p==='kleinanzeigen')return{url:await directKleinanzeigenUrl(state),expiresInSeconds:1800,directProvider:true};
+ if(p==='kleinanzeigen')return{url:await kleinanzeigenAuthorizeUrl(state,verifier),expiresInSeconds:1800,directProvider:true};
  return{url:'https://login.traumwohnunghamburg.de/connect?ticket='+encodeURIComponent(state),expiresInSeconds:1800};
 }
 async function updateProfile(a:any,assignment:any,input:any){
