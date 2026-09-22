@@ -29,7 +29,7 @@ function provider(v:any){const p=String(v||'');if(!PROVIDERS.has(p))throw Error(
 function b64url(bytes:Uint8Array){let out='';for(const b of bytes)out+=String.fromCharCode(b);return btoa(out).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
 async function pkceChallenge(verifier:string){return b64url(new Uint8Array(await crypto.subtle.digest('SHA-256',ENC.encode(verifier))))}
 async function kleinanzeigenAuthorizeUrl(state:string,verifier:string){
- const u=new URL(KLEIN_AUTHORIZE);
+ const u=new globalThis.URL(KLEIN_AUTHORIZE);
  const params={client_id:KLEIN_CLIENT_ID,response_type:'code',redirect_uri:KLEIN_REDIRECT,scope:KLEIN_SCOPE,code_challenge:await pkceChallenge(verifier),code_challenge_method:'S256',state,prompt:'login'};
  for(const[k,v]of Object.entries(params))u.searchParams.set(k,String(v));
  return u.href;
