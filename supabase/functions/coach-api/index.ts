@@ -229,7 +229,7 @@ async function updateProfile(a:any,assignment:any,input:any){
  await audit(a,userId,'profile_updated');return{ok:true};
 }
 async function saveSearch(a:any,assignment:any,input:any){
- const values={
+ const values:any={
   profile_slot:integer(input.profile_slot,1,4),
   property_types:[String(input.property_type||'')],
   location_mode:String(input.location_mode||'all_hamburg'),
@@ -237,12 +237,12 @@ async function saveSearch(a:any,assignment:any,input:any){
   neighborhoods:Array.isArray(input.neighborhoods)?input.neighborhoods.map((x:any)=>clean(x,120)).filter(Boolean):[],
   max_warm_rent:input.max_warm_rent,
   min_rooms:input.min_rooms,
-  min_area_sqm:input.min_area_sqm,
-  wbs_only:Boolean(input.wbs_only),
-  furnished_preference:['any','yes','no'].includes(String(input.furnished_preference))?String(input.furnished_preference):'any',
-  require_known_warm_rent:Boolean(input.require_known_warm_rent),
-  max_deposit:input.max_deposit==null||input.max_deposit===''?null:input.max_deposit
+  min_area_sqm:input.min_area_sqm
  };
+ if(Object.prototype.hasOwnProperty.call(input,'wbs_only'))values.wbs_only=Boolean(input.wbs_only);
+ if(Object.prototype.hasOwnProperty.call(input,'furnished_preference'))values.furnished_preference=['any','yes','no'].includes(String(input.furnished_preference))?String(input.furnished_preference):'any';
+ if(Object.prototype.hasOwnProperty.call(input,'require_known_warm_rent'))values.require_known_warm_rent=Boolean(input.require_known_warm_rent);
+ if(Object.prototype.hasOwnProperty.call(input,'max_deposit'))values.max_deposit=input.max_deposit==null||input.max_deposit===''?null:input.max_deposit;
  const{data,error}=await admin.rpc('coach_save_search_profile',{p_actor:a.member.id,p_user:assignment.user_id,p_values:values});
  if(error)throw Error(error.message||'search_save_failed');
  return{ok:true,id:data};
@@ -396,7 +396,7 @@ function publicError(error:any){const code=String(error?.message||'coach_api_fai
 
 Deno.serve(async req=>{
  if(req.method==='OPTIONS')return new Response(null,{status:204,headers:cors(req)});
- if(req.method==='GET')return json(req,{ok:true,service:'coach-api',version:8});
+ if(req.method==='GET')return json(req,{ok:true,service:'coach-api',version:9});
  if(req.method!=='POST')return new Response('method not allowed',{status:405,headers:cors(req)});
  try{return json(req,await handle(req));}
  catch(error:any){console.error('coach_api',String(error));const code=publicError(error),status=code==='unauthorized'?401:['coach_forbidden','participant_forbidden','admin_required','workspace_unavailable'].includes(code)?403:400;return json(req,{error:code},status);}
