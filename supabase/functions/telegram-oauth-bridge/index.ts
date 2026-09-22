@@ -47,9 +47,10 @@ async function handleProviderLogin(update:any,provider:'kleinanzeigen'|'immomio'
   const {ctx,chatId,messageId,user}=x,name=providerName(provider);
   let url:string,note:string;
   if(provider==='kleinanzeigen'){
-   const result=await internal(APPLICATION_WORKER,{action:'login_beta_bridge',userId:String(user.id),source:2,origin:'telegram',returnTarget:'telegram',context:{channel:'telegram',beta_callback_helper:true}});
-   url=providerUrl(provider,result?.url);
-   note='Du wirst direkt zur originalen Kleinanzeigen-Anmeldeseite weitergeleitet. Login und eine eventuell angeforderte Sicherheitsbestätigung erfolgen ausschließlich bei Kleinanzeigen. Danach wird die Verbindung automatisch abgeschlossen.';
+   const result=await internal(APPLICATION_WORKER,{action:'login_beta_bridge',userId:String(user.id),source:2,origin:'telegram',returnTarget:'telegram',context:{channel:'telegram',remote_browser_handoff:true}});
+   if(!result?.ticket)throw Error('auth_flow_create_failed');
+   url='https://login.traumwohnunghamburg.de/remote/kleinanzeigen/open?ticket='+encodeURIComponent(String(result.ticket));
+   note='Kleinanzeigen öffnet sich in einer temporären sicheren Browser-Sitzung. Du meldest dich direkt bei Kleinanzeigen an und bestätigst gegebenenfalls den Sicherheitscode. Danach wird die Verbindung automatisch abgeschlossen.';
   }else{
    const connect=await createConnectTicket(String(user.id),provider),ticket=connect.state;
    url=`https://login.traumwohnunghamburg.de/connect?ticket=${encodeURIComponent(ticket)}`;
