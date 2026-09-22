@@ -1,0 +1,20 @@
+{
+  "migrations": [
+    {
+      "version": "20260922171732",
+      "name": "add_immomio_object_resolution_shadow",
+      "file": "supabase/migrations/20260922171732_add_immomio_object_resolution_shadow.sql",
+      "registry_sql_sha256": "e2a096bf7b76bbf6128ed54a8fa7a621ae1ab1818f1619b697e4e1420f3a4b37",
+      "export_sql_sha256": "e2a096bf7b76bbf6128ed54a8fa7a621ae1ab1818f1619b697e4e1420f3a4b37",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260922172351",
+      "name": "remove_unused_immomio_shadow_due_index",
+      "file": "supabase/migrations/20260922172351_remove_unused_immomio_shadow_due_index.sql",
+      "registry_sql_sha256": "b6edf43ad044132851f022301c1b67e53856ebe52fa6fb598d6f067455892b08",
+      "export_sql_sha256": "b6edf43ad044132851f022301c1b67e53856ebe52fa6fb598d6f067455892b08",
+      "vault_substitution": false
+    }
+  ]
+}
