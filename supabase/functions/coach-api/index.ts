@@ -8,11 +8,6 @@ const PUBLISHABLE=publishableKeys.default||Deno.env.get('SUPABASE_ANON_KEY')!;
 const admin=createClient(URL,SECRET,{auth:{persistSession:false,autoRefreshToken:false}});
 const ORIGINS=new Set(['https://intern.traumwohnunghamburg.de','http://localhost:4321','http://127.0.0.1:4321']);
 const PROVIDERS=new Set(['immoscout','kleinanzeigen','immomio']);
-const KLEIN_AUTHORIZE='https://login.kleinanzeigen.de/authorize';
-const KLEIN_CLIENT_ID='uV5j90myVPc2XzEOFuWUD2At17OACEGQ';
-const KLEIN_REDIRECT='https://login.kleinanzeigen.de/android/com.ebay.kleinanzeigen/callback';
-const KLEIN_SCOPE='openid email profile offline_access';
-const ENC=new TextEncoder();
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PUBLIC_ID=/^cp_[a-f0-9]{24}$/;
 
@@ -26,14 +21,6 @@ function integer(v:any,min:number,max:number){const n=Number(v);if(!Number.isInt
 function optionalInteger(v:any,min:number,max:number){if(v===null||v===undefined||v==='')return null;return integer(v,min,max)}
 function random(bytes=32){const a=crypto.getRandomValues(new Uint8Array(bytes));let s='';for(const b of a)s+=String.fromCharCode(b);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
 function provider(v:any){const p=String(v||'');if(!PROVIDERS.has(p))throw Error('provider_unsupported');return p}
-function b64url(bytes:Uint8Array){let out='';for(const b of bytes)out+=String.fromCharCode(b);return btoa(out).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
-async function pkceChallenge(verifier:string){return b64url(new Uint8Array(await crypto.subtle.digest('SHA-256',ENC.encode(verifier))))}
-async function kleinanzeigenAuthorizeUrl(state:string,verifier:string){
- const u=new globalThis.URL(KLEIN_AUTHORIZE);
- const params={client_id:KLEIN_CLIENT_ID,response_type:'code',redirect_uri:KLEIN_REDIRECT,scope:KLEIN_SCOPE,code_challenge:await pkceChallenge(verifier),code_challenge_method:'S256',state,prompt:'login'};
- for(const[k,v]of Object.entries(params))u.searchParams.set(k,String(v));
- return u.href;
-}
 function without<T extends Record<string,any>>(row:T|null|undefined,...keys:string[]){if(!row)return row;const out={...row};for(const k of keys)delete out[k];return out}
 const READINESS_LABELS:Record<string,string>={
  active:'AutoApply aktiv',automation_paused:'Bereit zum Starten',premium_required:'Premium erforderlich',
@@ -212,6 +199,10 @@ async function providerDisconnect(userId:string,p:string){
 async function startConnect(a:any,assignment:any,p:string){
  const userId=assignment.user_id,premium=await effectivePremium([String(userId)]);
  if(premium.get(String(userId))!==true)throw Error('premium_required');
+ if(p==='kleinanzeigen'){
+  const result=await internalCall(URL+'/functions/v1/application-worker',{action:'login',userId,source:2});
+  return{url:result.url,expiresInSeconds:1800,directProvider:true};
+ }
  await admin.from('platform_auth_flows').update({consumed_at:new Date().toISOString()}).eq('user_id',userId).eq('provider',p).is('consumed_at',null);
  const state=random(32),verifier=random(64);
  const{error}=await admin.from('platform_auth_flows').insert({
@@ -219,7 +210,6 @@ async function startConnect(a:any,assignment:any,p:string){
   context:{assignment_version:assignment.assignment_version}
  });
  if(error)throw Error('auth_flow_create_failed');
- if(p==='kleinanzeigen')return{url:await kleinanzeigenAuthorizeUrl(state,verifier),expiresInSeconds:1800,directProvider:true};
  return{url:'https://login.traumwohnunghamburg.de/connect?ticket='+encodeURIComponent(state),expiresInSeconds:1800};
 }
 async function updateProfile(a:any,assignment:any,input:any){
@@ -406,7 +396,7 @@ async function handle(req:Request){
  if(action==='set_coach_active'){if(a.member.role!=='admin')throw Error('admin_required');const id=uuid(body.memberId);if(id===a.member.id&&!body.active)throw Error('cannot_disable_self');const{error}=await admin.from('coaching_members').update({is_active:Boolean(body.active),updated_at:new Date().toISOString()}).eq('id',id).eq('workspace_id',a.member.workspace_id).eq('role','coach');if(error)throw Error('coach_update_failed');await audit(a,null,'coach_status_changed',{member_id:id,active:Boolean(body.active)});return{ok:true};}
  throw Error('invalid_action');
 }
-function publicError(error:any){const code=String(error?.message||'coach_api_failed').slice(0,160);const known=new Set(['unauthorized','coach_forbidden','workspace_unavailable','participant_forbidden','admin_required','invalid_id','invalid_participant','invalid_email','invalid_number','provider_unsupported','invalid_property_type','invalid_location','invalid_search_limits','location_required','invalid_document','invalid_document_type','invalid_document_path','upload_not_found','upload_invalid','document_not_found','document_open_failed','invalid_retention_date','password_too_short','cannot_disable_self','premium_required','import_candidates_failed','import_candidate_invalid','participant_adopt_failed','participant_create_failed','request_id_required','request_id_conflict','request_in_progress']);return known.has(code)?code:(code.includes('profile_slot_not_allowed')?'profile_slot_not_allowed':'operation_failed');}
+function publicError(error:any){const code=String(error?.message||'coach_api_failed').slice(0,160);const known=new Set(['unauthorized','coach_forbidden','workspace_unavailable','participant_forbidden','admin_required','invalid_id','invalid_participant','invalid_email','invalid_number','provider_unsupported','invalid_property_type','invalid_location','invalid_search_limits','location_required','invalid_document','invalid_document_type','invalid_document_path','upload_not_found','upload_invalid','document_not_found','document_open_failed','invalid_retention_date','password_too_short','cannot_disable_self','premium_required','import_candidates_failed','import_candidate_invalid','participant_adopt_failed','participant_create_failed','request_id_required','request_id_conflict','request_in_progress','oauth_client_not_provisioned']);return known.has(code)?code:(code.includes('profile_slot_not_allowed')?'profile_slot_not_allowed':'operation_failed');}
 
 Deno.serve(async req=>{
  if(req.method==='OPTIONS')return new Response(null,{status:204,headers:cors(req)});
