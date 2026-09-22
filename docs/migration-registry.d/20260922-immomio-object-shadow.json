@@ -31,6 +31,14 @@
       "registry_sql_sha256": "35895498eb43256c626461b13707164f45aad3e99de6db861191f86894699d73",
       "export_sql_sha256": "35895498eb43256c626461b13707164f45aad3e99de6db861191f86894699d73",
       "vault_substitution": false
+    },
+    {
+      "version": "20260922173851",
+      "name": "classify_immomio_tenant_pool_and_buchdrucker_shadow",
+      "file": "supabase/migrations/20260922173851_classify_immomio_tenant_pool_and_buchdrucker_shadow.sql",
+      "registry_sql_sha256": "a79c746f92eb881a711f7c27a7e24a650f95f19d5525c744228dbf9fd8e784d7",
+      "export_sql_sha256": "a79c746f92eb881a711f7c27a7e24a650f95f19d5525c744228dbf9fd8e784d7",
+      "vault_substitution": false
     }
   ]
 }
