@@ -1,52 +1,63 @@
-# Traumwohnung Kleinanzeigen Safari Bridge
+# TraumWohnung Kleinanzeigen Login Helper (Beta)
 
-Diese Safari Web Extension beendet den einmaligen Kleinanzeigen-PKCE-Login automatisch auf dem Gerät des Nutzers.
+Dieser Safari WebExtension-Helper wird nur für den internen Beta-Test verwendet. Er ersetzt keinen Kleinanzeigen-Login und automatisiert keine Eingaben.
 
-## Ablauf
+## Nutzerablauf
 
-1. Der Telegram-Bot startet den bestehenden Kleinanzeigen-Authorization-Code-Flow mit PKCE.
-2. Der Nutzer öffnet den Login in Safari und meldet sich direkt bei Kleinanzeigen an.
-3. Kleinanzeigen leitet auf den registrierten Android-Callback `https://login.kleinanzeigen.de/android/com.ebay.kleinanzeigen/callback` weiter.
-4. Die Extension läuft ausschließlich auf diesem Callback-Pfad, liest `code` + `state` und sendet die vollständige Callback-URL per TLS an den Bridge-Endpunkt des `application-worker`.
-5. Der Server validiert Host/Pfad/State/Expiry, verwendet den serverseitig gespeicherten PKCE-Verifier und tauscht den Code gegen Access-/Refresh-Token.
-6. Die Tokens werden über den bestehenden AES-GCM-Credential-Store verschlüsselt gespeichert.
-7. Die Extension leitet zurück zu `@traumwohnunghamburgbot`.
+1. In Telegram oder unter `intern.traumwohnunghamburg.de` auf **Kleinanzeigen verbinden** klicken.
+2. Die originale Kleinanzeigen-Loginseite öffnet sich.
+3. Nutzer meldet sich direkt bei Kleinanzeigen an und bestätigt gegebenenfalls MFA.
+4. Kleinanzeigen leitet auf den registrierten Android-Callback weiter.
+5. Der Helper läuft ausschließlich auf diesem Callback-Pfad, übergibt `code + state` an die Supabase-Callback-Bridge und beendet den Login automatisch.
+6. Supabase prüft State, Ablaufzeit und PKCE, tauscht den Code gegen Tokens und speichert die Verbindung.
+7. Coach-Portal aktualisiert den Status über das vorhandene Polling; Telegram erhält die Bestätigung.
 
-Passwörter, Cookies oder 2FA-Codes werden nicht an Traumwohnung übertragen.
+Es gibt **keinen Share-Flow, kein Copy/Paste und keine Browser-Automation**.
 
 ## Berechtigungen
 
-Die Extension fordert nur Zugriff auf:
+Der Helper darf ausschließlich auf folgenden Zielen laufen bzw. zugreifen:
 
 - `https://login.kleinanzeigen.de/android/com.ebay.kleinanzeigen/callback*`
-- den konkreten Supabase `application-worker`-Endpunkt
+- `https://dpmohkrwdlicexwcrqfy.supabase.co/functions/v1/kleinanzeigen-callback-bridge*`
 
-Es gibt keinen Zugriff auf andere Kleinanzeigen-Seiten und kein `<all_urls>`.
+Er liest keine Passwörter, Cookies, MFA-Codes, Local Storage oder Session Storage.
 
-## iOS paketieren
+## macOS Safari paketieren
 
-Aktuelle Apple-Toolchains verwenden den Safari Web Extension Packager. Auf einem Mac mit Xcode:
+Auf einem Mac mit aktuellem Xcode:
 
 ```bash
 xcrun safari-web-extension-packager clients/safari-kleinanzeigen-bridge/extension \
-  --project-location clients/safari-kleinanzeigen-bridge/build \
-  --app-name "Traumwohnung Bridge" \
-  --bundle-identifier de.traumwohnunghamburg.bridge \
+  --project-location clients/safari-kleinanzeigen-bridge/build-macos \
+  --app-name "TraumWohnung Login Helper" \
+  --bundle-identifier de.traumwohnunghamburg.loginhelper \
   --swift \
-  --ios-only
+  --macos-only \
+  --copy-resources
 ```
 
-Danach das erzeugte Xcode-Projekt öffnen, Signing-Team wählen und auf einem iPhone ausführen. Anschließend unter **Einstellungen → Apps → Safari → Erweiterungen** die Erweiterung aktivieren und für `login.kleinanzeigen.de` erlauben.
+Danach das erzeugte Xcode-Projekt öffnen, Signing-Team auswählen und die App einmal ausführen. Anschließend in **Safari → Einstellungen → Erweiterungen** den Helper aktivieren und den Zugriff für `login.kleinanzeigen.de` erlauben.
 
-Für einen physischen iOS-Test verlangt Apple ein Developer-Program-Konto. Für Distribution kann das Projekt über TestFlight/App Store Connect verteilt werden.
+## iOS Safari paketieren
 
-## Sicherheit
+```bash
+xcrun safari-web-extension-packager clients/safari-kleinanzeigen-bridge/extension \
+  --project-location clients/safari-kleinanzeigen-bridge/build-ios \
+  --app-name "TraumWohnung Login Helper" \
+  --bundle-identifier de.traumwohnunghamburg.loginhelper \
+  --swift \
+  --ios-only \
+  --copy-resources
+```
 
-Der Bridge-Endpunkt besitzt bewusst keinen Service-Role- oder statischen Client-Key. Eine erfolgreiche Completion benötigt gleichzeitig:
+## Sicherheitsmodell
 
-- einen gültigen, nicht verbrauchten, kurzlebigen `state`,
-- den zugehörigen PKCE-Verifier, der ausschließlich serverseitig liegt,
+Eine erfolgreiche Completion benötigt gleichzeitig:
+
+- einen gültigen, noch nicht verbrauchten und nicht abgelaufenen `state`,
+- den zugehörigen PKCE-Verifier, der ausschließlich in Supabase gespeichert ist,
 - einen echten Authorization Code von Kleinanzeigen,
 - exakt den registrierten Kleinanzeigen-Callback-Host und -Pfad.
 
-Callbacks sind one-time; Replays scheitern nach `consumed_at`.
+Nach erfolgreichem Token-Exchange wird der Flow über `consumed_at` einmalig verbraucht. Die Callback-URL wird nicht als Credential gespeichert.
