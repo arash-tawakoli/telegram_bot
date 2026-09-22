@@ -17,7 +17,6 @@ const REDIRECT_URI = 'immobilienscout24.de:/loginCallback';
 const SCOPE = 'openid profile offline_access';
 const OAUTH_USER_AGENT = 'okta-oauth2-kotlin/2.0.3 Android/34';
 const enc = new TextEncoder();
-const dec = new TextDecoder();
 
 const b64 = (bytes: Uint8Array) => {
   let value = '';
@@ -170,13 +169,14 @@ async function saveConnected(userId: string, credentials: any, accountHint: stri
   }, { onConflict: 'user_id,provider' });
   if (error) throw new Error('connection_save_failed');
 }
-async function complete(callbackUrl: string) {
+async function complete(callbackUrl: string, expectedUserId?: string) {
   const parsed = callbackParts(callbackUrl);
   if (!parsed.state) throw new Error('invalid_callback_url');
   if (parsed.oauthError) throw new Error('oauth_login_failed');
   if (!parsed.code) throw new Error('invalid_callback_url');
   const flow = await flowByState(parsed.state);
   const userId = uuid(flow.user_id);
+  if (expectedUserId && uuid(expectedUserId) !== userId) throw new Error('invalid_state');
   await eligible(userId);
   await claimFlow(flow);
 
@@ -218,7 +218,7 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
 
     if (body.action === 'complete') {
-      try { return Response.json(await complete(String(body.callbackUrl || '')), { headers: { 'cache-control': 'no-store' } }); }
+      try { return Response.json(await complete(String(body.callbackUrl || ''), String(body.userId || '')), { headers: { 'cache-control': 'no-store' } }); }
       catch (error: any) {
         const code = String(error?.message || 'immoscout_operation_failed');
         return Response.json({ error: PUBLIC_SAFE.has(code) ? code : 'immoscout_operation_failed' }, { status: code === 'auth_flow_expired' || code === 'invalid_state' ? 410 : 400, headers: { 'cache-control': 'no-store' } });
