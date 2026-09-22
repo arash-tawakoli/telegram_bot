@@ -83,23 +83,28 @@ Deno.serve(async request=>{
   const state=String(url.searchParams.get('state')||'');
   const {data:flow,error:flowError}=await db
     .from('platform_auth_flows')
-    .select('id,user_id,origin,return_target,expires_at,consumed_at')
+    .select('id,user_id,origin,return_target,expires_at,consumed_at,code_verifier')
     .eq('provider','kleinanzeigen')
     .eq('state',state)
     .is('consumed_at',null)
-    .gt('expires_at',new Date().toISOString())
     .maybeSingle();
 
   if(flowError||!flow)return json({ok:false,error:'auth_flow_expired',returnTarget:'telegram',redirectUrl:TELEGRAM_FAILED},400);
 
   const destination=target(flow,false);
+  if(!flow.code_verifier||Date.parse(String(flow.expires_at||''))<=Date.now()){
+    return json({ok:false,error:'auth_flow_expired',...destination},400);
+  }
 
   if(url.searchParams.get('error')){
-    await db.from('platform_connections').update({
-      status:'needs_login',
-      last_error:String(url.searchParams.get('error')||'oauth_login_failed').slice(0,120),
-      updated_at:new Date().toISOString()
-    }).eq('user_id',flow.user_id).eq('provider','kleinanzeigen').catch(()=>{});
+    try{
+      await db.from('platform_connections').update({
+        status:'needs_login',
+        last_error:String(url.searchParams.get('error')||'oauth_login_failed').slice(0,120),
+        updated_at:new Date().toISOString()
+      }).eq('user_id',flow.user_id).eq('provider','kleinanzeigen');
+      await db.from('platform_auth_flows').update({consumed_at:new Date().toISOString()}).eq('id',flow.id).is('consumed_at',null);
+    }catch{}
     return json({ok:false,error:'oauth_login_failed',...destination},400);
   }
 
