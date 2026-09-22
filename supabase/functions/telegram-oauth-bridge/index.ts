@@ -7,7 +7,11 @@ const CORE=`${URL}/functions/v1/telegram-gateway`;
 const APPLICATION_WORKER=`${URL}/functions/v1/application-worker`;
 const IMMOMIO_WORKER=`${URL}/functions/v1/immomio-account`;
 const SCOUT_HANDOFF=`${URL}/functions/v1/immoscout-native-handoff`;
-const CONNECT_BROKER=`${URL}/functions/v1/platform-connect-broker-v2`;
+const KLEIN_AUTHORIZE='https://login.kleinanzeigen.de/authorize';
+const KLEIN_CLIENT_ID='uV5j90myVPc2XzEOFuWUD2At17OACEGQ';
+const KLEIN_REDIRECT='https://login.kleinanzeigen.de/android/com.ebay.kleinanzeigen/callback';
+const KLEIN_SCOPE='openid email profile offline_access';
+const ENC=new TextEncoder();
 let cached:{value:string,expiresAt:number}|null=null;
 
 function headers(extra:Record<string,string>={}){return{apikey:KEY,Authorization:`Bearer ${KEY}`,'content-type':'application/json',...extra}}
@@ -21,11 +25,13 @@ async function prepared(update:any){const p=await rpc('prepare_telegram_update',
 async function internal(endpoint:string,payload:Record<string,unknown>){const internalSecret=await secret('internal_worker_secret');const r=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json','x-internal-secret':internalSecret},body:JSON.stringify(payload),signal:AbortSignal.timeout(45000)}),data=await r.json().catch(()=>null);if(!r.ok||!data)throw Error(data?.error||`provider:${r.status}`);return data}
 function providerName(provider:string){return provider==='kleinanzeigen'?'Kleinanzeigen':provider==='immomio'?'Immomio':'ImmoScout24'}
 function providerUrl(provider:string,value:any){let u:any;try{u=new globalThis.URL(String(value||''))}catch{throw Error('provider_url_invalid')}if(u.protocol!=='https:'||u.username||u.password)throw Error('provider_url_invalid');const allowed=provider==='kleinanzeigen'?u.hostname==='login.kleinanzeigen.de':provider==='immomio'?u.hostname==='sso.immomio.com':u.hostname==='login.immobilienscout24.de';if(!allowed)throw Error('provider_url_invalid');return u.href}
-async function directProviderUrl(ticket:string,provider:string){
- const r=await fetch(CONNECT_BROKER,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'resolve',ticket}),signal:AbortSignal.timeout(15000)});
- const data=await r.json().catch(()=>null);
- if(!r.ok||data?.provider!==provider||!data?.url)throw Error(data?.error||'provider_url_invalid');
- return providerUrl(provider,data.url);
+function b64url(bytes:Uint8Array){let out='';for(const b of bytes)out+=String.fromCharCode(b);return btoa(out).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
+async function pkceChallenge(verifier:string){return b64url(new Uint8Array(await crypto.subtle.digest('SHA-256',ENC.encode(verifier))))}
+async function kleinanzeigenAuthorizeUrl(state:string,verifier:string){
+ const u=new globalThis.URL(KLEIN_AUTHORIZE);
+ const params={client_id:KLEIN_CLIENT_ID,response_type:'code',redirect_uri:KLEIN_REDIRECT,scope:KLEIN_SCOPE,code_challenge:await pkceChallenge(verifier),code_challenge_method:'S256',state,prompt:'login'};
+ for(const[k,v]of Object.entries(params))u.searchParams.set(k,String(v));
+ return providerUrl('kleinanzeigen',u.href);
 }
 async function validateUser(update:any){const ctx=await prepared(update);if(!ctx)return null;const q=update?.callback_query,chatId=Number(q?.message?.chat?.id),fromId=Number(q?.from?.id),messageId=Number(q?.message?.message_id),user=ctx.user;if(!user||!user.is_active||Number(user.telegram_user_id)!==fromId||Number(user.chat_id)!==chatId)throw Error('user_mismatch');const eligible=await rpc('application_user_eligible',{p_user:user.id});if(eligible!==true)throw Error('premium_required');return{ctx,chatId,messageId,user}}
 
@@ -44,16 +50,16 @@ async function createConnectTicket(userId:string,provider:'kleinanzeigen'|'immom
    signal:AbortSignal.timeout(15000)
  });
  if(!r.ok)throw Error('auth_flow_create_failed');
- return state;
+ return{state,verifier};
 }
 
 async function handleProviderLogin(update:any,provider:'kleinanzeigen'|'immomio'|'immoscout'){
  let x:any=null;
  try{
   x=await validateUser(update);if(!x)return;
-  const {ctx,chatId,messageId,user}=x,name=providerName(provider),ticket=await createConnectTicket(String(user.id),provider);
+  const {ctx,chatId,messageId,user}=x,name=providerName(provider),connect=await createConnectTicket(String(user.id),provider),ticket=connect.state;
   const direct=provider==='kleinanzeigen';
-  const url=direct?await directProviderUrl(ticket,provider):`https://login.traumwohnunghamburg.de/connect?ticket=${encodeURIComponent(ticket)}`;
+  const url=direct?await kleinanzeigenAuthorizeUrl(connect.state,connect.verifier):`https://login.traumwohnunghamburg.de/connect?ticket=${encodeURIComponent(ticket)}`;
   const note=direct
    ?'Du wirst direkt zur originalen Kleinanzeigen-Anmeldeseite weitergeleitet. Login und eine eventuell angeforderte Sicherheitsbestätigung erfolgen ausschließlich bei Kleinanzeigen.'
    :'Die Verbindung läuft über die zentrale TraumWohnungHamburg-Anmeldeseite. Dort wird die Zuordnung geprüft und anschließend die originale Anmeldeseite des Anbieters geöffnet. Anbieterpasswörter und MFA-Codes werden nicht im Telegram-Bot gespeichert.';
