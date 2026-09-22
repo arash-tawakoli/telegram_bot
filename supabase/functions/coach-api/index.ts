@@ -22,6 +22,51 @@ function optionalInteger(v:any,min:number,max:number){if(v===null||v===undefined
 function random(bytes=32){const a=crypto.getRandomValues(new Uint8Array(bytes));let s='';for(const b of a)s+=String.fromCharCode(b);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
 function provider(v:any){const p=String(v||'');if(!PROVIDERS.has(p))throw Error('provider_unsupported');return p}
 function without<T extends Record<string,any>>(row:T|null|undefined,...keys:string[]){if(!row)return row;const out={...row};for(const k of keys)delete out[k];return out}
+const READINESS_LABELS:Record<string,string>={
+ active:'AutoApply aktiv',automation_paused:'Bereit zum Starten',premium_required:'Premium erforderlich',
+ profile_incomplete:'Bewerberprofil ergänzen',search_missing:'Suchprofil anlegen',provider_missing:'Konto verbinden',
+ provider_not_enabled:'Plattform für AutoApply freigeben',provider_not_ready:'Plattform erneut verbinden',
+ archived:'Teilnehmer archiviert',pending_deletion:'Löschung geplant'
+};
+function readinessView(row:any,status='active'){
+ const connected=Array.isArray(row?.connected_providers)?row.connected_providers:[],enabled=Array.isArray(row?.enabled_providers)?row.enabled_providers:[],ready=Array.isArray(row?.ready_providers)?row.ready_providers:[];
+ const blockers:string[]=[];
+ if(status==='archived')blockers.push('archived');
+ else if(status==='pending_deletion')blockers.push('pending_deletion');
+ else{
+  if(row?.is_premium!==true)blockers.push('premium_required');
+  if(row?.profile_complete!==true)blockers.push('profile_incomplete');
+  if(Number(row?.active_search_count||0)<1)blockers.push('search_missing');
+  if(connected.length<1)blockers.push('provider_missing');
+  else if(enabled.length<1)blockers.push('provider_not_enabled');
+  else if(ready.length<1)blockers.push('provider_not_ready');
+ }
+ const primaryCode=blockers[0]||(row?.automation_enabled===true?'active':'automation_paused');
+ const actionTab=primaryCode==='profile_incomplete'?'profile':primaryCode==='search_missing'?'search':['provider_missing','provider_not_enabled','provider_not_ready','automation_paused'].includes(primaryCode)?'platforms':primaryCode==='archived'||primaryCode==='pending_deletion'?'settings':null;
+ return{
+  primaryCode,label:READINESS_LABELS[primaryCode]||primaryCode,actionTab,blockers,
+  isPremium:row?.is_premium===true,profileComplete:row?.profile_complete===true,
+  activeSearchCount:Number(row?.active_search_count||0),connectedProviders:connected,enabledProviders:enabled,readyProviders:ready,
+  documentsCount:Number(row?.document_count||0),documentsAutoCount:Number(row?.document_auto_count||0),
+  automationEnabled:row?.automation_enabled===true,
+  readyToStart:status==='active'&&blockers.length===0
+ };
+}
+async function readinessCore(users:string[]){
+ const map=new Map<string,any>();if(!users.length)return map;
+ const{data,error}=await admin.rpc('coach_readiness_core',{p_users:users});
+ if(error)throw Error('readiness_failed');
+ for(const row of data||[])map.set(String(row.user_id),row);
+ return map;
+}
+function filterDays(v:any){const n=Number(v||30);return [7,30,90].includes(n)?n:30}
+function safeFilter(v:any,allowed:string[]){const s=String(v||'');return allowed.includes(s)?s:''}
+async function candidateToken(keyText:string,userId:string){
+ const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(keyText),{name:'HMAC',hash:'SHA-256'},false,['sign']);
+ const sig=new Uint8Array(await crypto.subtle.sign('HMAC',key,new TextEncoder().encode('coach-import:'+userId)));
+ let raw='';for(const b of sig)raw+=String.fromCharCode(b);
+ return 'ci_'+btoa(raw).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'').slice(0,32);
+}
 
 async function secret(name:string){const{data,error}=await admin.rpc('get_bot_secret',{secret_name:name});if(error||!data)throw Error('configuration_unavailable');return String(data)}
 async function actor(req:Request){
@@ -81,48 +126,56 @@ async function effectivePremium(users:string[]){
 }
 async function participantSummary(a:any,scope='all'){
  const data:any[]=await visibleAssignments(a,scope),users=data.map(x=>x.user_id);
- const [profiles,prefs,apps,premium]=users.length?await Promise.all([
+ const [profiles,prefs,apps,readiness]=users.length?await Promise.all([
   admin.from('applicant_profiles').select('user_id,email,phone,city,household_size').in('user_id',users),
   admin.from('application_preferences').select('user_id,enabled,daily_limit,immoscout_enabled,kleinanzeigen_enabled,immomio_enabled').in('user_id',users),
   admin.from('applications').select('user_id,status').in('user_id',users),
-  effectivePremium(users)
- ]):[{data:[]},{data:[]},{data:[]},new Map<string,boolean>()];
+  readinessCore(users)
+ ]):[{data:[]},{data:[]},{data:[]},new Map<string,any>()];
  const pMap=new Map((profiles.data||[]).map((x:any)=>[x.user_id,without(x,'user_id')]));
  const prefMap=new Map((prefs.data||[]).map((x:any)=>[x.user_id,without(x,'user_id')]));
  const appMap=new Map<string,any>();
  for(const x of apps.data||[]){const v=appMap.get(x.user_id)||{total:0,sent:0,failed:0,pending:0};v.total++;if(x.status==='sent')v.sent++;else if(x.status==='failed'||x.status==='manual_required')v.failed++;else v.pending++;appMap.set(x.user_id,v)}
  return data.map((x:any)=>{
-   const u=x.bot_users||{};
+   const u=x.bot_users||{},ready=readinessView(readiness.get(String(x.user_id)),x.status);
    return{
     participantId:x.public_id,coachMemberId:x.coach_member_id,coach:x.coach||null,status:x.status,
     retentionMode:x.retention_mode,retentionDeleteOn:x.retention_delete_on,updatedAt:x.updated_at,createdAt:x.created_at,
-    participant:{firstName:u.first_name,lastName:u.last_name,isActive:u.is_active,origin:u.origin,telegramConnected:u.telegram_user_id!=null,isPremium:premium.get(String(x.user_id))===true,planOverride:u.plan_override||null,planExpiresAt:u.plan_override_expires_at,referralBonusUntil:u.referral_bonus_until},
-    profile:pMap.get(x.user_id)||null,automation:prefMap.get(x.user_id)||null,applications:appMap.get(x.user_id)||{total:0,sent:0,failed:0,pending:0}
+    participant:{firstName:u.first_name,lastName:u.last_name,isActive:u.is_active,origin:u.origin,telegramConnected:u.telegram_user_id!=null,isPremium:ready.isPremium,planOverride:u.plan_override||null,planExpiresAt:u.plan_override_expires_at,referralBonusUntil:u.referral_bonus_until},
+    profile:pMap.get(x.user_id)||null,automation:prefMap.get(x.user_id)||null,readiness:ready,
+    applications:appMap.get(x.user_id)||{total:0,sent:0,failed:0,pending:0}
    };
  });
 }
 async function participantDetail(a:any,publicId:string){
  const assignment=await assignmentFor(a,publicId),userId=assignment.user_id;
- const [user,profile,searches,documents,connections,prefs,apps]=await Promise.all([
+ const [user,profile,searches,documents,connections,prefs,apps,readiness]=await Promise.all([
   admin.from('bot_users').select('first_name,last_name,username,is_active,origin,telegram_user_id,plan_override,plan_override_expires_at,referral_bonus_until,created_at,updated_at').eq('id',userId).single(),
   admin.from('applicant_profiles').select('*').eq('user_id',userId).maybeSingle(),
   admin.from('search_profiles').select('*').eq('user_id',userId).order('profile_slot'),
   admin.from('applicant_documents').select('id,document_type,original_filename,mime_type,size_bytes,send_with_auto_apply,created_at,updated_at').eq('user_id',userId).order('created_at',{ascending:false}),
   admin.from('platform_connections').select('provider,status,account_hint,expires_at,last_verified_at,last_error,updated_at').eq('user_id',userId),
   admin.from('application_preferences').select('*').eq('user_id',userId).maybeSingle(),
-  admin.from('applications').select('id,listing_id,source_id,status,attempts,last_error,wait_reason,created_at,sent_at,next_attempt_at,listings(title,canonical_url,district,postal_code,city,sources(name))').eq('user_id',userId).order('created_at',{ascending:false}).limit(50)
+  admin.from('applications').select('id,listing_id,source_id,status,attempts,last_error,wait_reason,created_at,sent_at,next_attempt_at,listings(title,canonical_url,district,postal_code,city,sources(name))').eq('user_id',userId).order('created_at',{ascending:false}).limit(50),
+  readinessCore([String(userId)])
  ]);
  if(user.error)throw Error('participant_read_failed');
- const premium=await effectivePremium([String(userId)]);
+ const appRows:any[]=apps.data||[],appIds=appRows.map(x=>x.id),latest=new Map<string,any>();
+ if(appIds.length){
+  const{data:events,error:eventError}=await admin.from('application_events').select('application_id,provider,document_result,status,reason,created_at').in('application_id',appIds).order('created_at',{ascending:false});
+  if(eventError)throw Error('applications_read_failed');
+  for(const event of events||[])if(!latest.has(String(event.application_id)))latest.set(String(event.application_id),event);
+ }
  const safeAssignment={participantId:assignment.public_id,coachMemberId:assignment.coach_member_id,status:assignment.status,retentionMode:assignment.retention_mode,retentionDeleteOn:assignment.retention_delete_on,assignmentVersion:assignment.assignment_version,archivedAt:assignment.archived_at,createdAt:assignment.created_at,updatedAt:assignment.updated_at};
- const safeUser={...without(user.data,'telegram_user_id'),telegramConnected:user.data?.telegram_user_id!=null,isPremium:premium.get(String(userId))===true};
+ const ready=readinessView(readiness.get(String(userId)),assignment.status);
+ const safeUser={...without(user.data,'telegram_user_id'),telegramConnected:user.data?.telegram_user_id!=null,isPremium:ready.isPremium};
  return{
-   assignment:safeAssignment,user:safeUser,
+   assignment:safeAssignment,user:safeUser,readiness:ready,
    profile:without(profile.data,'user_id'),
    searchProfiles:(searches.data||[]).map((x:any)=>without(x,'user_id')),
    documents:documents.data||[],connections:connections.data||[],
    preferences:without(prefs.data,'user_id'),
-   applications:apps.data||[]
+   applications:appRows.map((x:any)=>({...x,latestEvent:without(latest.get(String(x.id)),'application_id')}))
  };
 }
 async function providerDisconnect(userId:string,p:string){
@@ -198,6 +251,74 @@ async function registerUpload(a:any,assignment:any,input:any){
  if(error)throw Error('document_register_failed');await audit(a,userId,'document_added',{document_id:data.id,document_type:type});return{ok:true,id:data.id};
 }
 
+async function applicationRows(a:any,scope='all',input:any={}){
+ const assignments:any[]=await visibleAssignments(a,scope),ids=assignments.map(x=>x.user_id);
+ if(!ids.length)return[];
+ const publicByUser=new Map(assignments.map((x:any)=>[String(x.user_id),{participantId:x.public_id,name:[x.bot_users?.first_name,x.bot_users?.last_name].filter(Boolean).join(' '),coach:x.coach?.display_name||null}]));
+ let q=admin.from('applications').select('id,user_id,status,attempts,last_error,wait_reason,created_at,sent_at,next_attempt_at,listings(title,canonical_url,district,postal_code,city,sources(name))').in('user_id',ids).order('created_at',{ascending:false}).limit(1000);
+ const days=filterDays(input.days);q=q.gte('created_at',new Date(Date.now()-days*86400000).toISOString());
+ const status=safeFilter(input.status,['pending','processing','sent','failed','manual_required']);
+ if(status)q=q.eq('status',status);
+ const{data,error}=await q;if(error)throw Error('applications_read_failed');
+ const appIds=(data||[]).map((x:any)=>x.id),latest=new Map<string,any>();
+ if(appIds.length){
+  const{data:events,error:eventError}=await admin.from('application_events').select('application_id,provider,document_result,status,reason,created_at').in('application_id',appIds).order('created_at',{ascending:false});
+  if(eventError)throw Error('applications_read_failed');
+  for(const event of events||[])if(!latest.has(String(event.application_id)))latest.set(String(event.application_id),event);
+ }
+ let out=(data||[]).map((x:any)=>({...without(x,'user_id'),participant:publicByUser.get(String(x.user_id))||null,latestEvent:without(latest.get(String(x.id)),'application_id')}));
+ const providerFilter=safeFilter(input.provider,['immoscout','kleinanzeigen','immomio']);
+ const docFilter=safeFilter(input.documentResult,['native_uploaded','link_included','not_provided','not_supported','transfer_failed']);
+ if(providerFilter)out=out.filter((x:any)=>x.latestEvent?.provider===providerFilter);
+ if(docFilter)out=out.filter((x:any)=>x.latestEvent?.document_result===docFilter);
+ const participantFilter=String(input.participantId||'');if(participantFilter&&PUBLIC_ID.test(participantFilter))out=out.filter((x:any)=>x.participant?.participantId===participantFilter);
+ return out;
+}
+async function dashboardData(a:any,scope='all',input:any={}){
+ const [participants,applications]=await Promise.all([participantSummary(a,scope),applicationRows(a,scope,{days:filterDays(input.days)})]);
+ const metrics:any={total:0,sent:0,failed:0,pending:0,manualRequired:0};
+ const providers:any={immoscout:0,kleinanzeigen:0,immomio:0,unknown:0};
+ const documents:any={native_uploaded:0,link_included:0,not_provided:0,not_supported:0,transfer_failed:0,unknown:0};
+ const waits:any={};
+ for(const x of applications){
+  metrics.total++;if(x.status==='sent')metrics.sent++;else if(x.status==='failed')metrics.failed++;else if(x.status==='manual_required'){metrics.failed++;metrics.manualRequired++;}else metrics.pending++;
+  const p=x.latestEvent?.provider;providers[p in providers?p:'unknown']++;
+  const d=x.latestEvent?.document_result;documents[d in documents?d:'unknown']++;
+  if(x.wait_reason)waits[x.wait_reason]=(waits[x.wait_reason]||0)+1;
+ }
+ const connections={immoscout:0,kleinanzeigen:0,immomio:0};
+ for(const p of participants)for(const provider of p.readiness?.connectedProviders||[])if(provider in connections)(connections as any)[provider]++;
+ const attention=participants.filter((p:any)=>p.readiness?.primaryCode!=='active').slice(0,12).map((p:any)=>({
+  participantId:p.participantId,name:[p.participant.firstName,p.participant.lastName].filter(Boolean).join(' '),
+  coach:p.coach?.display_name||null,status:p.readiness?.primaryCode,label:p.readiness?.label,actionTab:p.readiness?.actionTab
+ }));
+ return{
+  periodDays:filterDays(input.days),participants:participants.length,premium:participants.filter((p:any)=>p.participant.isPremium).length,
+  automationActive:participants.filter((p:any)=>p.readiness?.primaryCode==='active').length,
+  applications:metrics,providers,documents,connections,waitReasons:waits,attention,recentApplications:applications.slice(0,8)
+ };
+}
+async function importCandidates(a:any,includeUserId=false){
+ if(a.member.role!=='admin')throw Error('admin_required');
+ const[{data:assigned,error:assignedError},{data:bots,error:botsError}]=await Promise.all([
+  admin.from('coaching_participants').select('user_id'),
+  admin.from('bot_users').select('id,first_name,last_name,origin,telegram_user_id,created_at').order('created_at',{ascending:false}).limit(250)
+ ]);
+ if(assignedError||botsError)throw Error('import_candidates_failed');
+ const assignedSet=new Set((assigned||[]).map((x:any)=>String(x.user_id))),available=(bots||[]).filter((x:any)=>!assignedSet.has(String(x.id)));
+ const ids=available.map((x:any)=>String(x.id));if(!ids.length)return[];
+ const [{data:profiles},premium,key]=await Promise.all([
+  admin.from('applicant_profiles').select('user_id,email,phone,city').in('user_id',ids),
+  effectivePremium(ids),
+  secret('internal_worker_secret')
+ ]);
+ const profileMap=new Map((profiles||[]).map((x:any)=>[String(x.user_id),without(x,'user_id')]));
+ return Promise.all(available.map(async(x:any)=>{
+  const row:any={candidateRef:await candidateToken(key,String(x.id)),firstName:x.first_name,lastName:x.last_name,origin:x.origin,telegramConnected:x.telegram_user_id!=null,isPremium:premium.get(String(x.id))===true,profile:profileMap.get(String(x.id))||null,createdAt:x.created_at};
+  if(includeUserId)row.userId=String(x.id);return row;
+ }));
+}
+
 async function handle(req:Request){
  const a=await actor(req),body=await req.json().catch(()=>({})),action=String(body.action||'');
  if(action==='me')return{member:{id:a.member.id,displayName:a.member.display_name,role:a.member.role},workspace:{name:a.workspace.name}};
@@ -212,7 +333,17 @@ async function handle(req:Request){
   const{data:cp,error:cpError}=await admin.from('coaching_participants').select('public_id').eq('user_id',userId).single();if(cpError)throw Error('participant_create_failed');
   return{ok:true,participantId:cp.public_id};
  }
- const assignment=['dashboard','applications','create_coach','set_coach_active'].includes(action)?null:await assignmentFor(a,participantId(body.participantId),['set_plan','reassign'].includes(action));
+ if(action==='import_candidates')return{candidates:await importCandidates(a)};
+ if(action==='adopt_participant'){
+  if(a.member.role!=='admin')throw Error('admin_required');
+  const ref=String(body.candidateRef||''),candidates:any[]=await importCandidates(a,true),candidate=candidates.find(x=>x.candidateRef===ref);
+  if(!candidate)throw Error('import_candidate_invalid');
+  const coachId=body.coachMemberId?uuid(body.coachMemberId):a.member.id;
+  const{data,error}=await admin.rpc('coach_adopt_participant',{p_actor:a.member.id,p_user:candidate.userId,p_coach:coachId});
+  if(error)throw Error(error.message||'participant_adopt_failed');
+  return{ok:true,participantId:String(data)};
+ }
+ const assignment=['dashboard','applications','import_candidates','adopt_participant','create_coach','set_coach_active'].includes(action)?null:await assignmentFor(a,participantId(body.participantId),['set_plan','reassign'].includes(action));
  if(action==='update_profile')return updateProfile(a,assignment,body.profile||{});
  if(action==='save_search')return saveSearch(a,assignment,body.profile||{});
  if(action==='set_search_active'){const id=uuid(body.profileId),userId=assignment.user_id;const{error}=await admin.from('search_profiles').update({is_active:Boolean(body.active),updated_at:new Date().toISOString()}).eq('id',id).eq('user_id',userId);if(error)throw Error('search_update_failed');await audit(a,userId,body.active?'search_profile_resumed':'search_profile_paused',{profile_id:id});return{ok:true};}
@@ -227,33 +358,27 @@ async function handle(req:Request){
  if(action==='disconnect_provider'){const p=provider(body.provider),result=await providerDisconnect(assignment.user_id,p);await admin.from('application_preferences').update({[p+'_enabled']:false}).eq('user_id',assignment.user_id);await audit(a,assignment.user_id,'provider_disconnected',{provider:p});return{ok:true,result};}
  if(action==='request_upload')return requestUpload(a,assignment,body);
  if(action==='register_upload')return registerUpload(a,assignment,body);
+ if(action==='open_document'){
+  const id=uuid(body.documentId),{data,error}=await admin.from('applicant_documents').select('storage_path,original_filename,mime_type').eq('id',id).eq('user_id',assignment.user_id).maybeSingle();
+  if(error||!data)throw Error('document_not_found');
+  const signed=await admin.storage.from('applicant-documents').createSignedUrl(data.storage_path,300);
+  if(signed.error||!signed.data?.signedUrl)throw Error('document_open_failed');
+  return{url:signed.data.signedUrl,filename:data.original_filename,mimeType:data.mime_type,expiresInSeconds:300};
+ }
  if(action==='toggle_document'){const id=uuid(body.documentId),{error}=await admin.from('applicant_documents').update({send_with_auto_apply:Boolean(body.enabled),updated_at:new Date().toISOString()}).eq('id',id).eq('user_id',assignment.user_id);if(error)throw Error('document_update_failed');await audit(a,assignment.user_id,'document_permission_changed',{document_id:id,enabled:Boolean(body.enabled)});return{ok:true};}
  if(action==='delete_document'){const id=uuid(body.documentId),{data,error}=await admin.from('applicant_documents').select('storage_path').eq('id',id).eq('user_id',assignment.user_id).maybeSingle();if(error||!data)throw Error('document_not_found');await admin.storage.from('applicant-documents').remove([data.storage_path]);const del=await admin.from('applicant_documents').delete().eq('id',id).eq('user_id',assignment.user_id);if(del.error)throw Error('document_delete_failed');await audit(a,assignment.user_id,'document_deleted',{document_id:id});return{ok:true};}
  if(action==='application_events'){const appId=uuid(body.applicationId),{data,error}=await admin.from('application_events').select('provider,event_type,status,attempt,reason,document_result,metadata,created_at').eq('application_id',appId).eq('user_id',assignment.user_id).order('created_at');if(error)throw Error('events_read_failed');return{events:data||[]};}
- if(action==='applications'){
-  const rows:any[]=await visibleAssignments(a,body.scope==='mine'?'mine':'all'),ids=rows.map(x=>x.user_id);
-  if(!ids.length)return{applications:[]};
-  const publicByUser=new Map(rows.map((x:any)=>[String(x.user_id),{participantId:x.public_id,name:[x.bot_users?.first_name,x.bot_users?.last_name].filter(Boolean).join(' '),coach:x.coach?.display_name||null}]));
-  const{data,error}=await admin.from('applications').select('id,user_id,status,attempts,last_error,wait_reason,created_at,sent_at,next_attempt_at,listings(title,canonical_url,district,postal_code,city,sources(name))').in('user_id',ids).order('created_at',{ascending:false}).limit(200);
-  if(error)throw Error('applications_read_failed');
-  const appIds=(data||[]).map((x:any)=>x.id),latest=new Map<string,any>();
-  if(appIds.length){
-   const{data:events,error:eventError}=await admin.from('application_events').select('application_id,provider,document_result,status,reason,created_at').in('application_id',appIds).order('created_at',{ascending:false});
-   if(eventError)throw Error('applications_read_failed');
-   for(const event of events||[])if(!latest.has(String(event.application_id)))latest.set(String(event.application_id),event);
-  }
-  return{applications:(data||[]).map((x:any)=>({...without(x,'user_id'),participant:publicByUser.get(String(x.user_id))||null,latestEvent:without(latest.get(String(x.id)),'application_id')}))};
- }
- if(action==='dashboard'){const rows:any[]=await visibleAssignments(a,body.scope==='mine'?'mine':'all'),ids=rows.map(x=>x.user_id);if(!ids.length)return{participants:0,applications:{sent:0,failed:0,pending:0,total:0}};const{data:apps,error}=await admin.from('applications').select('status').in('user_id',ids);if(error)throw Error('dashboard_read_failed');const counts:any={sent:0,failed:0,pending:0,total:0};for(const x of apps||[]){counts.total++;if(x.status==='sent')counts.sent++;else if(x.status==='failed'||x.status==='manual_required')counts.failed++;else counts.pending++}return{participants:ids.length,applications:counts};}
+ if(action==='applications')return{applications:await applicationRows(a,body.scope==='mine'?'mine':'all',body)};
+ if(action==='dashboard')return dashboardData(a,body.scope==='mine'?'mine':'all',body);
  if(action==='create_coach'){if(a.member.role!=='admin')throw Error('admin_required');const e=email(body.email),password=String(body.password||'');if(password.length<12)throw Error('password_too_short');const{data:created,error}=await admin.auth.admin.createUser({email:e,password,email_confirm:true});if(error||!created.user)throw Error(error?.message||'coach_auth_create_failed');const{data:member,error:me}=await admin.from('coaching_members').insert({auth_user_id:created.user.id,workspace_id:a.member.workspace_id,display_name:clean(body.display_name,120)||e,role:'coach',is_active:true}).select('id,display_name,role').single();if(me){await admin.auth.admin.deleteUser(created.user.id).catch(()=>{});throw Error('coach_member_create_failed');}await audit(a,null,'coach_created',{member_id:member.id});return{ok:true,member:{id:member.id,displayName:member.display_name,role:member.role}};}
  if(action==='set_coach_active'){if(a.member.role!=='admin')throw Error('admin_required');const id=uuid(body.memberId);if(id===a.member.id&&!body.active)throw Error('cannot_disable_self');const{error}=await admin.from('coaching_members').update({is_active:Boolean(body.active),updated_at:new Date().toISOString()}).eq('id',id).eq('workspace_id',a.member.workspace_id).eq('role','coach');if(error)throw Error('coach_update_failed');await audit(a,null,'coach_status_changed',{member_id:id,active:Boolean(body.active)});return{ok:true};}
  throw Error('invalid_action');
 }
-function publicError(error:any){const code=String(error?.message||'coach_api_failed').slice(0,160);const known=new Set(['unauthorized','coach_forbidden','workspace_unavailable','participant_forbidden','admin_required','invalid_id','invalid_participant','invalid_email','invalid_number','provider_unsupported','invalid_property_type','invalid_location','invalid_search_limits','location_required','invalid_document','invalid_document_type','invalid_document_path','upload_not_found','upload_invalid','invalid_retention_date','password_too_short','cannot_disable_self','premium_required']);return known.has(code)?code:(code.includes('profile_slot_not_allowed')?'profile_slot_not_allowed':'operation_failed');}
+function publicError(error:any){const code=String(error?.message||'coach_api_failed').slice(0,160);const known=new Set(['unauthorized','coach_forbidden','workspace_unavailable','participant_forbidden','admin_required','invalid_id','invalid_participant','invalid_email','invalid_number','provider_unsupported','invalid_property_type','invalid_location','invalid_search_limits','location_required','invalid_document','invalid_document_type','invalid_document_path','upload_not_found','upload_invalid','document_not_found','document_open_failed','invalid_retention_date','password_too_short','cannot_disable_self','premium_required','import_candidates_failed','import_candidate_invalid','participant_adopt_failed']);return known.has(code)?code:(code.includes('profile_slot_not_allowed')?'profile_slot_not_allowed':'operation_failed');}
 
 Deno.serve(async req=>{
  if(req.method==='OPTIONS')return new Response(null,{status:204,headers:cors(req)});
- if(req.method==='GET')return json(req,{ok:true,service:'coach-api',version:5});
+ if(req.method==='GET')return json(req,{ok:true,service:'coach-api',version:6});
  if(req.method!=='POST')return new Response('method not allowed',{status:405,headers:cors(req)});
  try{return json(req,await handle(req));}
  catch(error:any){console.error('coach_api',String(error));const code=publicError(error),status=code==='unauthorized'?401:['coach_forbidden','participant_forbidden','admin_required','workspace_unavailable'].includes(code)?403:400;return json(req,{error:code},status);}
