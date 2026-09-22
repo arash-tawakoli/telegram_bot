@@ -3,7 +3,7 @@ import { fetchListingPage } from "../kleinanzeigen-transport/fetch-page.ts";
 import {Candidate,HH_ZIPS,Source,db,deNum,decode,iso,markFailure,markSuccess,strip,upsertCandidates} from './shared.ts';
 
 const D=[['hamburg-nord',16436],['hamburg-mitte',16423],['altona',9497],['eimsbuettel',16446],['wandsbek',9446],['harburg',9440],['bergedorf',9511]] as const;
-const FAST_INTERVAL_MS=3*60*1000,REQUEST_GAP_MS=700;
+const FAST_INTERVAL_MS=3*60*1000,COVERAGE_INTERVAL_MS=10*60*1000,REQUEST_GAP_MS=350;
 const sleep=(ms:number)=>new Promise(r=>setTimeout(r,ms));
 
 function url(s:string,id:number,p:number){const base=p===1?`https://www.kleinanzeigen.de/s-wohnung-mieten/${s}/anzeige:angebote/c203l${id}`:`https://www.kleinanzeigen.de/s-wohnung-mieten/${s}/anzeige:angebote/seite:${p}/c203l${id}`;return`${base}?sortingField=SORTING_DATE`}
@@ -33,7 +33,7 @@ export async function runKlein(source:Source){const started=iso();try{
   let{data:st}=await db.from('source_coverage_state').select('*').eq('source_id',2).maybeSingle().throwOnError();
   const legacy=st?.status!=='running'||Number(st?.cursor?.v||0)!==2;
   const cycle=legacy?crypto.randomUUID():String(st.cycle_id);
-  const cursor:any=legacy?{v:2,district:0,page:2,pages:{},totals:{},fast_checked_at:null}:st.cursor;
+  const cursor:any=legacy?{v:2,district:0,page:2,pages:{},totals:{},fast_checked_at:null,coverage_checked_at:null}:st.cursor;
   if(legacy){await db.from('source_coverage_state').upsert({source_id:2,cycle_id:cycle,strategy:'district_hybrid',status:'running',cursor,cycle_started_at:started,cycle_finished_at:null,seen_count:0,request_count:0,consecutive_errors:0,backoff_until:null,last_error:null,updated_at:started}).throwOnError();st={...st,cycle_id:cycle,cycle_started_at:started,seen_count:0,request_count:0,status:'running',cursor}}
   const presenceEpoch=String(st?.cycle_started_at||started);
 
@@ -43,9 +43,10 @@ export async function runKlein(source:Source){const started=iso();try{
   let fastItems:Candidate[]=[],fastRequests=0,fastErrors:string[]=[],fastOpens=0,fastRejectedStale=0;
   if(fastDue){
     const targets=initializing?D.filter(([s])=>!Number(pages[s])):D;
+    let targetIndex=0;
     for(const [s,id] of targets){
       try{const r=await fetchPage(s,id,1,1);fastRequests+=r.attempts;fastOpens+=r.opens;const n=total(r.h);if(n==null)throw new Error(`Kleinanzeigen total missing for ${s}`);totals[s]=n;pages[s]=Math.max(1,Math.min(60,Math.ceil(n/25)));const current=r.items.filter(x=>currentListing(String(x.raw?.sorting_date||''))).map(x=>({...x,raw:{...x.raw,lane:'fast'}}));fastRejectedStale+=r.items.length-current.length;fastItems.push(...current)}catch(e){fastErrors.push(`${s}: ${e instanceof Error?e.message:String(e)}`)}
-      await sleep(REQUEST_GAP_MS);
+      if(++targetIndex<targets.length)await sleep(REQUEST_GAP_MS);
     }
   }
   const fastSaved=fastItems.length?await upsertCandidates(source,fastItems,true,presenceEpoch):{seen:0,fresh:0,keys:[] as string[]};
@@ -56,24 +57,26 @@ export async function runKlein(source:Source){const started=iso();try{
   let district=Math.max(0,Number(cursor.district||0)),page=Math.max(2,Number(cursor.page||2));
   while(district<D.length&&page>Number(pages[D[district][0]]||1)){district++;page=2}
 
+  const coverageDue=initializing||!cursor.coverage_checked_at||Date.now()-new Date(cursor.coverage_checked_at).getTime()>=COVERAGE_INTERVAL_MS;
   let coverageItems:Candidate[]=[],coverageRequests=0,coverageOpens=0,coverageLabel:string|null=null,coverageError:string|null=null;
-  if(district<D.length){
+  if(coverageDue&&district<D.length){
     const [s,id]=D[district],currentPage=page;
     coverageLabel=`${s}:page:${currentPage}`;
     try{const r=await fetchPage(s,id,currentPage,1,true);coverageRequests=r.attempts;coverageOpens=r.opens;coverageItems=r.items.map(x=>({...x,raw:{...x.raw,lane:'coverage'}}));page++;if(page>Number(pages[s]||1)){district++;page=2}}
     catch(e){coverageRequests=2;coverageError=e instanceof Error?e.message:String(e)}
   }
   const coverageSaved=await upsertCoverage(source,coverageItems,presenceEpoch);
+  const coverageCheckedAt=coverageDue&&!coverageError?iso():cursor.coverage_checked_at||null;
   const complete=district>=D.length&&!coverageError,t=iso(),cycleStarted=presenceEpoch;
   if(complete)await db.from('listings').update({is_active:false}).eq('source_id',2).eq('is_active',true).or('property_kind.is.null,property_kind.eq.apartment').lt('last_seen_at',cycleStarted).throwOnError();
 
   const requests=fastRequests+coverageRequests;
   const seenIncrement=coverageSaved.seen+(initializing?fastSaved.seen:0);
-  const nextCursor={v:2,district:complete?0:district,page:complete?2:page,pages:complete?{}:pages,totals:complete?{}:totals,fast_checked_at:fastCheckedAt};
+  const nextCursor={v:2,district:complete?0:district,page:complete?2:page,pages:complete?{}:pages,totals:complete?{}:totals,fast_checked_at:fastCheckedAt,coverage_checked_at:coverageCheckedAt};
   const partialErrors=[...(fastErrors.length?[`fast lane partial: ${fastErrors.join(' | ')}`]:[]),...(coverageError?[`coverage partial: ${coverageError}`]:[])];
   await db.from('source_coverage_state').update({status:complete?'complete':'running',strategy:'district_hybrid',cursor:nextCursor,expected_count:Object.values(totals).reduce((a:any,x:any)=>a+Number(x||0),0),seen_count:Number(st?.seen_count||0)+seenIncrement,request_count:Number(st?.request_count||0)+requests,cycle_finished_at:complete?t:null,last_complete_at:complete?t:st?.last_complete_at||null,consecutive_errors:coverageError?Number(st?.consecutive_errors||0)+1:0,backoff_until:null,last_error:partialErrors.length?partialErrors.join(' | ').slice(0,900):null,updated_at:t}).eq('source_id',2).throwOnError();
-  await markSuccess(source,started,null,fastItems.length+coverageItems.length,fastSaved.fresh+coverageSaved.fresh,{strategy:'7_borough_current_fast_lane_plus_inventory_cursor',transport:'supabase_kleinanzeigen_transport',cycle_id:cycle,fast_lane:fastDue,fast_requests:fastRequests,fast_opens:fastOpens,fast_accepted:fastItems.length,fast_rejected_stale:fastRejectedStale,fast_freshness_window_hours:24,fast_errors:fastErrors,coverage_page:coverageLabel,coverage_requests:coverageRequests,coverage_opens:coverageOpens,coverage_accepted:coverageItems.length,coverage_error:coverageError,coverage_new_eligible:0,next_district:complete?null:D[district]?.[0]||null,next_page:complete?null:page,expected_count:Object.values(totals).reduce((a:any,x:any)=>a+Number(x||0),0),complete});
-  return{ok:true,source_id:2,fetched:fastItems.length+coverageItems.length,new:fastSaved.fresh,fast_lane:fastDue,fast_rejected_stale:fastRejectedStale,coverage_page:coverageLabel,coverage_accepted:coverageItems.length,coverage_new_eligible:0,next:complete?null:{district:D[district]?.[0]||null,page},complete};
+  await markSuccess(source,started,null,fastItems.length+coverageItems.length,fastSaved.fresh+coverageSaved.fresh,{strategy:'7_borough_current_fast_lane_plus_inventory_cursor',transport:'supabase_kleinanzeigen_transport',cycle_id:cycle,fast_lane:fastDue,fast_requests:fastRequests,fast_opens:fastOpens,fast_accepted:fastItems.length,fast_rejected_stale:fastRejectedStale,fast_freshness_window_hours:24,fast_errors:fastErrors,coverage_due:coverageDue,coverage_interval_minutes:10,coverage_page:coverageLabel,coverage_requests:coverageRequests,coverage_opens:coverageOpens,coverage_accepted:coverageItems.length,coverage_error:coverageError,coverage_new_eligible:0,next_district:complete?null:D[district]?.[0]||null,next_page:complete?null:page,expected_count:Object.values(totals).reduce((a:any,x:any)=>a+Number(x||0),0),complete});
+  return{ok:true,source_id:2,fetched:fastItems.length+coverageItems.length,new:fastSaved.fresh,fast_lane:fastDue,fast_rejected_stale:fastRejectedStale,coverage_due:coverageDue,coverage_page:coverageLabel,coverage_accepted:coverageItems.length,coverage_new_eligible:0,next:complete?null:{district:D[district]?.[0]||null,page},complete};
 }catch(e){const t=iso(),{data:st}=await db.from('source_coverage_state').select('consecutive_errors').eq('source_id',2).maybeSingle().throwOnError();await db.from('source_coverage_state').update({status:'running',consecutive_errors:Number(st?.consecutive_errors||0)+1,last_error:String(e).slice(0,1000),backoff_until:null,updated_at:t}).eq('source_id',2).throwOnError();return markFailure(source,started,e)}}
 
 
