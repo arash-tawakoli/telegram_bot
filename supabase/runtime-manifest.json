@@ -413,8 +413,8 @@
       "files": [
         {
           "path": "supabase/functions/source-shadow/index.ts",
-          "sha256": "dc631076eabd7ccd8614aaadf8ba52dad68c421dbfc5e579a2a66412aa1fa1fe",
-          "deployed_sha256": "dc631076eabd7ccd8614aaadf8ba52dad68c421dbfc5e579a2a66412aa1fa1fe"
+          "sha256": "59f374083fac1ffa2b49be6eede2de5d419994713d270d308bd1b7dc6cba9105",
+          "deployed_sha256": "59f374083fac1ffa2b49be6eede2de5d419994713d270d308bd1b7dc6cba9105"
         },
         {
           "path": "supabase/functions/source-worker/shared.ts",
@@ -483,20 +483,20 @@
         },
         {
           "path": "supabase/functions/source-shadow/immomio-object-resolver.mjs",
-          "sha256": "aa8cb7e3fc7a831e62f0e3c0583eb3499e89055e215039fe36fdd333a86ad8b7",
-          "deployed_sha256": "aa8cb7e3fc7a831e62f0e3c0583eb3499e89055e215039fe36fdd333a86ad8b7"
+          "sha256": "91f9059c743de5dfed129a2f0c92d7c256d8e79a4f1108a2f9622eb515b913af",
+          "deployed_sha256": "91f9059c743de5dfed129a2f0c92d7c256d8e79a4f1108a2f9622eb515b913af"
         },
         {
           "path": "supabase/functions/source-shadow/immomio-object-shadow.mjs",
-          "sha256": "fa9549c61ea877cb134d221c525bd50bdbfb63a82050f6af50a0fcb63928fe8e",
-          "deployed_sha256": "fa9549c61ea877cb134d221c525bd50bdbfb63a82050f6af50a0fcb63928fe8e"
+          "sha256": "6677074ec97b8fe1e6a4809153ea1f493f02c5809fd0e86ad4e36b0df80cc4fb",
+          "deployed_sha256": "6677074ec97b8fe1e6a4809153ea1f493f02c5809fd0e86ad4e36b0df80cc4fb"
         }
       ],
       "import_map": false,
       "retired": false,
       "slug": "source-shadow",
       "verify_jwt": false,
-      "version": 12
+      "version": 13
     },
     {
       "entrypoint": "supabase/functions/source-worker/index.ts",
