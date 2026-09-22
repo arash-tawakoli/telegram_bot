@@ -236,7 +236,13 @@ async function handle(req:Request){
   const publicByUser=new Map(rows.map((x:any)=>[String(x.user_id),{participantId:x.public_id,name:[x.bot_users?.first_name,x.bot_users?.last_name].filter(Boolean).join(' '),coach:x.coach?.display_name||null}]));
   const{data,error}=await admin.from('applications').select('id,user_id,status,attempts,last_error,wait_reason,created_at,sent_at,next_attempt_at,listings(title,canonical_url,district,postal_code,city,sources(name))').in('user_id',ids).order('created_at',{ascending:false}).limit(200);
   if(error)throw Error('applications_read_failed');
-  return{applications:(data||[]).map((x:any)=>({...without(x,'user_id'),participant:publicByUser.get(String(x.user_id))||null}))};
+  const appIds=(data||[]).map((x:any)=>x.id),latest=new Map<string,any>();
+  if(appIds.length){
+   const{data:events,error:eventError}=await admin.from('application_events').select('application_id,provider,document_result,status,reason,created_at').in('application_id',appIds).order('created_at',{ascending:false});
+   if(eventError)throw Error('applications_read_failed');
+   for(const event of events||[])if(!latest.has(String(event.application_id)))latest.set(String(event.application_id),event);
+  }
+  return{applications:(data||[]).map((x:any)=>({...without(x,'user_id'),participant:publicByUser.get(String(x.user_id))||null,latestEvent:without(latest.get(String(x.id)),'application_id')}))};
  }
  if(action==='dashboard'){const rows:any[]=await visibleAssignments(a,body.scope==='mine'?'mine':'all'),ids=rows.map(x=>x.user_id);if(!ids.length)return{participants:0,applications:{sent:0,failed:0,pending:0,total:0}};const{data:apps,error}=await admin.from('applications').select('status').in('user_id',ids);if(error)throw Error('dashboard_read_failed');const counts:any={sent:0,failed:0,pending:0,total:0};for(const x of apps||[]){counts.total++;if(x.status==='sent')counts.sent++;else if(x.status==='failed'||x.status==='manual_required')counts.failed++;else counts.pending++}return{participants:ids.length,applications:counts};}
  if(action==='create_coach'){if(a.member.role!=='admin')throw Error('admin_required');const e=email(body.email),password=String(body.password||'');if(password.length<12)throw Error('password_too_short');const{data:created,error}=await admin.auth.admin.createUser({email:e,password,email_confirm:true});if(error||!created.user)throw Error(error?.message||'coach_auth_create_failed');const{data:member,error:me}=await admin.from('coaching_members').insert({auth_user_id:created.user.id,workspace_id:a.member.workspace_id,display_name:clean(body.display_name,120)||e,role:'coach',is_active:true}).select('id,display_name,role').single();if(me){await admin.auth.admin.deleteUser(created.user.id).catch(()=>{});throw Error('coach_member_create_failed');}await audit(a,null,'coach_created',{member_id:member.id});return{ok:true,member:{id:member.id,displayName:member.display_name,role:member.role}};}
@@ -247,7 +253,7 @@ function publicError(error:any){const code=String(error?.message||'coach_api_fai
 
 Deno.serve(async req=>{
  if(req.method==='OPTIONS')return new Response(null,{status:204,headers:cors(req)});
- if(req.method==='GET')return json(req,{ok:true,service:'coach-api',version:4});
+ if(req.method==='GET')return json(req,{ok:true,service:'coach-api',version:5});
  if(req.method!=='POST')return new Response('method not allowed',{status:405,headers:cors(req)});
  try{return json(req,await handle(req));}
  catch(error:any){console.error('coach_api',String(error));const code=publicError(error),status=code==='unauthorized'?401:['coach_forbidden','participant_forbidden','admin_required','workspace_unavailable'].includes(code)?403:400;return json(req,{error:code},status);}
