@@ -344,7 +344,7 @@ async function handle(req:Request){
   const coachId=a.member.role==='admin'&&body.coachMemberId?uuid(body.coachMemberId):a.member.id;
   const requestId=uuid(body.requestId);
   const{data:userId,error}=await admin.rpc('coach_create_participant_idempotent',{p_actor:a.member.id,p_coach:coachId,p_request_id:requestId,p_first_name:clean(body.first_name,120),p_last_name:clean(body.last_name,120),p_email:email(body.email),p_phone:clean(body.phone,80),p_city:clean(body.city,120)||'Hamburg',p_household_size:optionalInteger(body.household_size,1,20)});
-  if(error)throw Error(error.message||'participant_create_failed','request_id_required','request_id_conflict','request_in_progress');
+  if(error)throw Error(error.message||'participant_create_failed');
   const{data:cp,error:cpError}=await admin.from('coaching_participants').select('public_id').eq('user_id',userId).single();if(cpError)throw Error('participant_create_failed');
   return{ok:true,participantId:cp.public_id};
  }
@@ -392,7 +392,7 @@ async function handle(req:Request){
  if(action==='set_coach_active'){if(a.member.role!=='admin')throw Error('admin_required');const id=uuid(body.memberId);if(id===a.member.id&&!body.active)throw Error('cannot_disable_self');const{error}=await admin.from('coaching_members').update({is_active:Boolean(body.active),updated_at:new Date().toISOString()}).eq('id',id).eq('workspace_id',a.member.workspace_id).eq('role','coach');if(error)throw Error('coach_update_failed');await audit(a,null,'coach_status_changed',{member_id:id,active:Boolean(body.active)});return{ok:true};}
  throw Error('invalid_action');
 }
-function publicError(error:any){const code=String(error?.message||'coach_api_failed').slice(0,160);const known=new Set(['unauthorized','coach_forbidden','workspace_unavailable','participant_forbidden','admin_required','invalid_id','invalid_participant','invalid_email','invalid_number','provider_unsupported','invalid_property_type','invalid_location','invalid_search_limits','location_required','invalid_document','invalid_document_type','invalid_document_path','upload_not_found','upload_invalid','document_not_found','document_open_failed','invalid_retention_date','password_too_short','cannot_disable_self','premium_required','import_candidates_failed','import_candidate_invalid','participant_adopt_failed']);return known.has(code)?code:(code.includes('profile_slot_not_allowed')?'profile_slot_not_allowed':'operation_failed');}
+function publicError(error:any){const code=String(error?.message||'coach_api_failed').slice(0,160);const known=new Set(['unauthorized','coach_forbidden','workspace_unavailable','participant_forbidden','admin_required','invalid_id','invalid_participant','invalid_email','invalid_number','provider_unsupported','invalid_property_type','invalid_location','invalid_search_limits','location_required','invalid_document','invalid_document_type','invalid_document_path','upload_not_found','upload_invalid','document_not_found','document_open_failed','invalid_retention_date','password_too_short','cannot_disable_self','premium_required','import_candidates_failed','import_candidate_invalid','participant_adopt_failed','participant_create_failed','request_id_required','request_id_conflict','request_in_progress']);return known.has(code)?code:(code.includes('profile_slot_not_allowed')?'profile_slot_not_allowed':'operation_failed');}
 
 Deno.serve(async req=>{
  if(req.method==='OPTIONS')return new Response(null,{status:204,headers:cors(req)});
