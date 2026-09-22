@@ -200,7 +200,7 @@ async function startConnect(a:any,assignment:any,p:string){
  const userId=assignment.user_id,premium=await effectivePremium([String(userId)]);
  if(premium.get(String(userId))!==true)throw Error('premium_required');
  if(p==='kleinanzeigen'){
-  const result=await internalCall(URL+'/functions/v1/application-worker',{action:'login_beta_bridge',userId,source:2,origin:'coach',returnTarget:'coach',context:{assignment_version:assignment.assignment_version,remote_browser_handoff:true}});
+  const result=await internalCall(URL+'/functions/v1/application-worker',{action:'login_beta_bridge',userId,source:2,origin:'coach',returnTarget:'coach',issuedBy:a.user.id,context:{assignment_version:assignment.assignment_version,remote_browser_handoff:true}});
   if(!result?.ticket)throw Error('auth_flow_create_failed');
   return{url:'https://login.traumwohnunghamburg.de/remote/kleinanzeigen/open?ticket='+encodeURIComponent(String(result.ticket)),expiresInSeconds:600,directProvider:true,remoteBrowser:true};
  }
