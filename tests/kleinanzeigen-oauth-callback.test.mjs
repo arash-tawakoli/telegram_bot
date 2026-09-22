@@ -5,13 +5,13 @@ import {readFileSync} from 'node:fs';
 const worker=readFileSync(new URL('../supabase/functions/application-worker/index.ts',import.meta.url),'utf8');
 const provider=readFileSync(new URL('../supabase/functions/application-worker/providers/kleinanzeigen.ts',import.meta.url),'utf8');
 
-test('Kleinanzeigen login supports own OAuth callback and Safari bridge fallback',()=>{
- assert.match(worker,/loginTransport:configured\?'direct-oauth-callback':'safari-extension-bridge'/);
+test('Kleinanzeigen login is direct OAuth only',()=>{
+ assert.match(worker,/loginTransport:configured\?'direct-oauth-callback':'not-provisioned'/);
  assert.match(worker,/oauth=kleinanzeigen/);
- assert.match(worker,/oauth_bridge=kleinanzeigen/);
  assert.match(worker,/kleinanzeigen_oauth_client_id/);
+ assert.match(worker,/oauth_client_not_provisioned/);
  assert.match(worker,/completeKleinanzeigenCallback/);
- assert.doesNotMatch(worker,/Browserless\.liveURL|production-ams\.browserless\.io|browserless_api_key|puppeteer/);
+ assert.doesNotMatch(worker,/safari-extension-bridge|oauth_bridge=kleinanzeigen|Browserless\.liveURL|puppeteer/);
 });
 
 test('OAuth authorization uses PKCE and configured redirect URI',()=>{
