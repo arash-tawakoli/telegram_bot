@@ -19,7 +19,7 @@ async function processBaseSource(s:Source,connectors:Connector[]){
   const primary = connectors.find((c) => !c.shadow_only) || connectors[0];
   if(primary && ['source-worker/city-catalog','source-worker/wunder-catalog','source-worker/swap-catalog'].includes(String(primary.config?.adapter)))return runCatalog(s,primary);
   if(primary?.config?.adapter==='source-worker/nestpick-public')return runNestpick(s,primary);
-  if(primary && ['source-worker/tag-public','source-worker/urban-public','source-worker/heim-public','source-worker/kaifu-public','source-worker/finken-public'].includes(String(primary.config?.adapter)))
+  if(primary && ['source-worker/tag-public','source-worker/urban-public','source-worker/heim-public','source-worker/kaifu-public','source-worker/finken-public','source-worker/buchdrucker-public'].includes(String(primary.config?.adapter)))
     return runPublicInventory(s,primary);
   if (id === 8 && connectors.length) return runGcp(s, connectors);
   if (primary?.connector_kind === "immomio_tenant") return runImmomio(s, primary, connectors.filter(c=>c!==primary));
