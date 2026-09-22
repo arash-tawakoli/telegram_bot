@@ -413,8 +413,8 @@
       "files": [
         {
           "path": "supabase/functions/source-shadow/index.ts",
-          "sha256": "59f374083fac1ffa2b49be6eede2de5d419994713d270d308bd1b7dc6cba9105",
-          "deployed_sha256": "59f374083fac1ffa2b49be6eede2de5d419994713d270d308bd1b7dc6cba9105"
+          "sha256": "e8024cbdead9962ce5bf5cce6b17db1c6a8ece21079706ab1c45f0f96af91e95",
+          "deployed_sha256": "e8024cbdead9962ce5bf5cce6b17db1c6a8ece21079706ab1c45f0f96af91e95"
         },
         {
           "path": "supabase/functions/source-worker/shared.ts",
@@ -496,7 +496,7 @@
       "retired": false,
       "slug": "source-shadow",
       "verify_jwt": false,
-      "version": 13
+      "version": 14
     },
     {
       "entrypoint": "supabase/functions/source-worker/index.ts",
