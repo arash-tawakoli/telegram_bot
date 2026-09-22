@@ -5,6 +5,7 @@ import {readFileSync} from 'node:fs';
 const coach=readFileSync(new URL('../supabase/functions/coach-api/index.ts',import.meta.url),'utf8');
 const readiness=readFileSync(new URL('../supabase/migrations/20260922131726_coach_portal_readiness_and_adoption.sql',import.meta.url),'utf8');
 const creation=readFileSync(new URL('../supabase/migrations/20260922131850_fix_coach_create_participant_public_id.sql',import.meta.url),'utf8');
+const activeSearch=readFileSync(new URL('../supabase/migrations/20260922134125_recheck_active_search_before_autoapply.sql',import.meta.url),'utf8');
 
 test('coach portal readiness uses canonical premium and profile predicates',()=>{
   assert.match(readiness,/app_private\.user_is_premium/);
@@ -32,4 +33,12 @@ test('admin can adopt an existing bot participant without changing canonical ide
 test('new coaching participants receive an opaque public id at creation time',()=>{
   assert.match(creation,/v_public_id := 'cp_'/);
   assert.match(creation,/public_id/);
+});
+
+
+test('AutoApply rechecks the current active search before final submission',()=>{
+  assert.match(activeSearch,/app_private\.user_listing_matches_active_search/);
+  assert.match(activeSearch,/app_private\.matches_property_filters/);
+  assert.match(activeSearch,/begin_application_submission/);
+  assert.match(activeSearch,/app_private\.user_listing_matches_active_search\(u\.id,l\.id\)/);
 });
