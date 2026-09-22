@@ -30,3 +30,10 @@ test('callback bridge remains PKCE/state bound and one time',()=>{
   assert.match(bridge,/code_verifier/);
   assert.match(bridge,/action:'complete_login'/);
 });
+
+
+test('coach-issued beta flows preserve the authenticated coach issuer',()=>{
+  assert.match(coach,/issuedBy:a\.user\.id/);
+  assert.match(worker,/origin==='coach'\?uuid\(body\.issuedBy\):null/);
+  assert.match(provider,/issued_by:meta\?\.issuedBy\?String\(meta\.issuedBy\):null/);
+});
