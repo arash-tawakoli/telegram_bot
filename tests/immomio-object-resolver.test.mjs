@@ -4,6 +4,8 @@ import {
   normalizeImmomioApply,
   extractImmomioApplyUrlsFromText,
   collectImmomioApplyUrls,
+  normalizeImmomioRedirect,
+  extractImmomioRedirectUrlsFromText,
 } from '../supabase/functions/source-shadow/immomio-object-resolver.mjs';
 
 const id='3baff237-f979-481f-9c14-69f3eadb86fb';
@@ -34,4 +36,14 @@ test('preserves multiple distinct tenant object identities for conflict handling
     other:`https://tenant.immomio.com/de/apply/${id2}`,
   });
   assert.equal(hits.length,2);
+});
+
+
+test('accepts only trusted rdr.immomio.com redirect URLs',()=>{
+  assert.equal(normalizeImmomioRedirect('https://rdr.immomio.com/J9tiu'),'https://rdr.immomio.com/J9tiu');
+  assert.equal(normalizeImmomioRedirect('https://evil.example/J9tiu'),null);
+  assert.deepEqual(
+    extractImmomioRedirectUrlsFromText('Bewerbung: https://rdr.immomio.com/J9tiu'),
+    ['https://rdr.immomio.com/J9tiu'],
+  );
 });
