@@ -24,8 +24,7 @@ async function processOne(){
    db.from('platform_connections').select('status').eq('user_id',application.user_id).eq('provider','immomio').maybeSingle()
   ]);
   if(userError||listingError||connectionError)throw Error('application_read_failed');
-  const {data:autoActive,error:autoError}=await db.rpc('application_auto_apply_active',{p_user:application.user_id,p_listing:application.listing_id});
-  if(autoError||autoActive!==true||!user.is_active||!listing.is_active){await patch({status:'failed',last_error:'not_eligible',wait_reason:null,lease_until:null});return {status:'failed',error:'not_eligible'};}
+  if(!user.auto_apply_enabled||!user.is_active||!listing.is_active){await patch({status:'failed',last_error:'not_eligible',wait_reason:null,lease_until:null});return {status:'failed',error:'not_eligible'};}
   if(connection?.status!=='connected'){await patch({status:'failed',last_error:'provider_disabled',lease_until:null});return {status:'failed',provider:'immomio',error:'provider_disabled'};}
 
   const probe=await immomio('probe',String(user.id),String(listing.id));
