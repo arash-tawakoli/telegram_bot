@@ -17,8 +17,9 @@ Deno.serve(async request=>{
   let probes=0;const results:any[]=[];
   // Small bounded parallel batches; probes never write listings or send messages.
   for(let i=0;i<(sources||[]).length;i+=4)await Promise.all(sources!.slice(i,i+4).map(async source=>{
-   const {data:connectors,error:ce}=await db.from('source_connectors').select('priority,config').eq('source_id',source.id).order('priority').limit(3);
+   const {data:connectors,error:ce}=await db.from('source_connectors').select('priority,config,enabled').eq('source_id',source.id).eq('enabled',true).order('priority').limit(3);
    if(ce)throw ce;
+   const probedTargets=new Set<string>();
    for(const connector of connectors||[]){
     const config=connector.config||{};
     const raw=config.url||config.endpoint||config.search_url||config.path||source.search_url||source.homepage_url;
@@ -26,6 +27,9 @@ Deno.serve(async request=>{
     let reachable=false,count=0,status=0,reason='no_http_target';
     try {
      const target=new URL(raw,source.homepage_url);
+     const targetKey=target.href.replace(/#.*$/,'');
+     if(probedTargets.has(targetKey))continue;
+     probedTargets.add(targetKey);
      if(!['https:','http:'].includes(target.protocol))throw new Error('unsupported URL');
      const response=await fetch(target,{headers:{'user-agent':'TraumwohnungHamburgBot/ShadowAudit','accept':'application/json,text/html,*/*'},signal:AbortSignal.timeout(ids.length?8000:3000)});
      status=response.status;reachable=response.ok;reason=response.ok?'reachable_unverified_inventory':'http_error';
