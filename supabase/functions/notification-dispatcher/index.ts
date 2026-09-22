@@ -487,6 +487,7 @@ Deno.serve(async (req) => {
         "id,status,event_type,dispatch_attempts,preview_progress,recipient:bot_users!delivery_events_recipient_user_id_fkey(id,chat_id,is_active,ui_language,auto_apply_enabled),search_profiles!inner(id,profile_slot,is_active,owner:bot_users!search_profiles_user_id_fkey(id,is_active,plan_override,plan_override_expires_at,referral_bonus_until,auto_apply_enabled)),listings!inner(*,sources(name,button_label,source_type,baseline_completed_at,enabled,runtime_mode,delivery_mode,source_connectors(config,enabled,priority)))",
       )
       .in("status", ["pending", "failed"])
+      .eq("channel", "telegram")
       .eq("delivery_outcome_unknown", false)
       .lt("dispatch_attempts", 5)
       .or(`next_retry_at.is.null,next_retry_at.lte.${now}`)
