@@ -1,0 +1,1 @@
+drop index if exists public.immomio_object_resolution_shadow_due_idx;
