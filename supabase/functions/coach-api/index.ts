@@ -342,8 +342,9 @@ async function handle(req:Request){
  if(action==='participant')return participantDetail(a,participantId(body.participantId));
  if(action==='create_participant'){
   const coachId=a.member.role==='admin'&&body.coachMemberId?uuid(body.coachMemberId):a.member.id;
-  const{data:userId,error}=await admin.rpc('coach_create_participant',{p_actor:a.member.id,p_coach:coachId,p_first_name:clean(body.first_name,120),p_last_name:clean(body.last_name,120),p_email:email(body.email),p_phone:clean(body.phone,80),p_city:clean(body.city,120)||'Hamburg',p_household_size:optionalInteger(body.household_size,1,20)});
-  if(error)throw Error(error.message||'participant_create_failed');
+  const requestId=uuid(body.requestId);
+  const{data:userId,error}=await admin.rpc('coach_create_participant_idempotent',{p_actor:a.member.id,p_coach:coachId,p_request_id:requestId,p_first_name:clean(body.first_name,120),p_last_name:clean(body.last_name,120),p_email:email(body.email),p_phone:clean(body.phone,80),p_city:clean(body.city,120)||'Hamburg',p_household_size:optionalInteger(body.household_size,1,20)});
+  if(error)throw Error(error.message||'participant_create_failed','request_id_required','request_id_conflict','request_in_progress');
   const{data:cp,error:cpError}=await admin.from('coaching_participants').select('public_id').eq('user_id',userId).single();if(cpError)throw Error('participant_create_failed');
   return{ok:true,participantId:cp.public_id};
  }
