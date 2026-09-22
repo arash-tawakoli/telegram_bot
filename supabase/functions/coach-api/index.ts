@@ -169,8 +169,21 @@ async function participantDetail(a:any,publicId:string){
  const safeAssignment={participantId:assignment.public_id,coachMemberId:assignment.coach_member_id,status:assignment.status,retentionMode:assignment.retention_mode,retentionDeleteOn:assignment.retention_delete_on,assignmentVersion:assignment.assignment_version,archivedAt:assignment.archived_at,createdAt:assignment.created_at,updatedAt:assignment.updated_at};
  const ready=readinessView(readiness.get(String(userId)),assignment.status);
  const safeUser={...without(user.data,'telegram_user_id'),telegramConnected:user.data?.telegram_user_id!=null,isPremium:ready.isPremium};
+ const timezone=String(prefs.data?.timezone||'Europe/Berlin');
+ let localDate='';
+ try{
+  const parts=new Intl.DateTimeFormat('en-US',{timeZone:timezone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+  const pick=(type:string)=>parts.find(x=>x.type===type)?.value||'';
+  localDate=pick('year')+'-'+pick('month')+'-'+pick('day');
+ }catch{localDate=new Date().toISOString().slice(0,10)}
+ let quota={localDate,used:0,reserved:0,counted:0,limit:prefs.data?.daily_limit??null};
+ if(localDate){
+  const{data:quotaRows}=await admin.from('applications').select('status,sent_at').eq('user_id',userId).eq('quota_local_date',localDate);
+  const counted=(quotaRows||[]).length,used=(quotaRows||[]).filter((x:any)=>x.status==='sent'||x.sent_at!=null).length;
+  quota={localDate,used,reserved:Math.max(0,counted-used),counted,limit:prefs.data?.daily_limit??null};
+ }
  return{
-   assignment:safeAssignment,user:safeUser,readiness:ready,
+   assignment:safeAssignment,user:safeUser,readiness:ready,quota,
    profile:without(profile.data,'user_id'),
    searchProfiles:(searches.data||[]).map((x:any)=>without(x,'user_id')),
    documents:documents.data||[],connections:connections.data||[],
