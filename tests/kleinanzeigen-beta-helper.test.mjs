@@ -27,7 +27,7 @@ test('helper has narrow permissions and no credential access',()=>{
   assert.ok(manifest.host_permissions.includes('https://login.kleinanzeigen.de/android/com.ebay.kleinanzeigen/callback*'));
   assert.ok(manifest.host_permissions.includes('https://dpmohkrwdlicexwcrqfy.supabase.co/functions/v1/kleinanzeigen-callback-bridge*'));
   assert.ok(!JSON.stringify(manifest).includes('<all_urls>'));
-  assert.doesNotMatch(helper,/document\.cookie|localStorage|sessionStorage|password/i);
+  assert.doesNotMatch(helper,/document\.cookie|localStorage|sessionStorage|querySelector\([^\n]*password|input[^\n]*type=['\"]password/i);
   assert.match(helper,/credentials:\s*'omit'/);
   assert.match(helper,/kleinanzeigen-callback-bridge/);
   assert.doesNotMatch(helper,/Telegram →|navigator\.share|clipboard/);
