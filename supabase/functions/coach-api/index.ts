@@ -8,6 +8,7 @@ const PUBLISHABLE=publishableKeys.default||Deno.env.get('SUPABASE_ANON_KEY')!;
 const admin=createClient(URL,SECRET,{auth:{persistSession:false,autoRefreshToken:false}});
 const ORIGINS=new Set(['https://intern.traumwohnunghamburg.de','http://localhost:4321','http://127.0.0.1:4321']);
 const PROVIDERS=new Set(['immoscout','kleinanzeigen','immomio']);
+const CONNECT_BROKER=`${URL}/functions/v1/platform-connect-broker-v2`;
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PUBLIC_ID=/^cp_[a-f0-9]{24}$/;
 
@@ -21,6 +22,14 @@ function integer(v:any,min:number,max:number){const n=Number(v);if(!Number.isInt
 function optionalInteger(v:any,min:number,max:number){if(v===null||v===undefined||v==='')return null;return integer(v,min,max)}
 function random(bytes=32){const a=crypto.getRandomValues(new Uint8Array(bytes));let s='';for(const b of a)s+=String.fromCharCode(b);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
 function provider(v:any){const p=String(v||'');if(!PROVIDERS.has(p))throw Error('provider_unsupported');return p}
+async function directKleinanzeigenUrl(ticketValue:string){
+ const r=await fetch(CONNECT_BROKER,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'resolve',ticket:ticketValue}),signal:AbortSignal.timeout(15000)});
+ const data=await r.json().catch(()=>null);
+ if(!r.ok||data?.provider!=='kleinanzeigen'||data?.mode!=='provider_web'||!data?.url)throw Error(data?.error||'provider_operation_failed');
+ let u:URL;try{u=new URL(String(data.url))}catch{throw Error('provider_operation_failed')}
+ if(u.protocol!=='https:'||u.hostname!=='login.kleinanzeigen.de'||u.username||u.password)throw Error('provider_operation_failed');
+ return u.href;
+}
 function without<T extends Record<string,any>>(row:T|null|undefined,...keys:string[]){if(!row)return row;const out={...row};for(const k of keys)delete out[k];return out}
 const READINESS_LABELS:Record<string,string>={
  active:'AutoApply aktiv',automation_paused:'Bereit zum Starten',premium_required:'Premium erforderlich',
@@ -206,6 +215,7 @@ async function startConnect(a:any,assignment:any,p:string){
   context:{assignment_version:assignment.assignment_version}
  });
  if(error)throw Error('auth_flow_create_failed');
+ if(p==='kleinanzeigen')return{url:await directKleinanzeigenUrl(state),expiresInSeconds:1800,directProvider:true};
  return{url:'https://login.traumwohnunghamburg.de/connect?ticket='+encodeURIComponent(state),expiresInSeconds:1800};
 }
 async function updateProfile(a:any,assignment:any,input:any){
