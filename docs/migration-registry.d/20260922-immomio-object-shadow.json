@@ -23,6 +23,14 @@
       "registry_sql_sha256": "a79c746f92eb881a711f7c27a7e24a650f95f19d5525c744228dbf9fd8e784d7",
       "export_sql_sha256": "a79c746f92eb881a711f7c27a7e24a650f95f19d5525c744228dbf9fd8e784d7",
       "vault_substitution": false
+    },
+    {
+      "version": "20260922175240",
+      "name": "activate_buchdrucker_verified_immomio_feed",
+      "file": "supabase/migrations/20260922175240_activate_buchdrucker_verified_immomio_feed.sql",
+      "registry_sql_sha256": "35895498eb43256c626461b13707164f45aad3e99de6db861191f86894699d73",
+      "export_sql_sha256": "35895498eb43256c626461b13707164f45aad3e99de6db861191f86894699d73",
+      "vault_substitution": false
     }
   ]
 }
