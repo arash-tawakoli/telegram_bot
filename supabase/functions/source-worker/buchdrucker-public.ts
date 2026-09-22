@@ -7,40 +7,15 @@ import {
   parseFields,
   strip,
 } from './shared.ts';
-
-const APPLY_RE=/https:\/\/tenant\.immomio\.com\/(?:de\/)?apply\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/?(?:[?#][^\s"'<>\\]*)?)?/ig;
-const RDR_RE=/https:\/\/rdr\.immomio\.com\/[A-Za-z0-9_-]{3,128}(?:\/?(?:[?#][^\s"'<>\\]*)?)?/ig;
+import {
+  extractBuchdruckerApplicationRefs,
+  normalizeBuchdruckerApply,
+} from './buchdrucker-refs.mjs';
 
 function xmlValue(block:string,tag:string){
   const safe=tag.replace(/[.*+?^$()|[\]\\]/g,'\\$&');
   const raw=block.match(new RegExp('<'+safe+'\\b[^>]*>([\\s\\S]*?)<\\/'+safe+'>','i'))?.[1]||'';
   return decode(raw.replace(/^\s*<!\[CDATA\[/,'').replace(/\]\]>\s*$/,'').trim());
-}
-function normalizeApply(value:string|null|undefined){
-  if(!value)return null;
-  try{
-    const u=new URL(value);
-    if(u.protocol!=='https:'||u.hostname!=='tenant.immomio.com'||u.port||u.username||u.password)return null;
-    const m=u.pathname.match(/^\/(?:de\/)?apply\/([0-9a-f-]{36})\/?$/i);
-    if(!m)return null;
-    const id=m[1].toLowerCase();
-    return 'https://tenant.immomio.com/apply/'+id;
-  }catch{return null}
-}
-function normalizeRedirect(value:string|null|undefined){
-  if(!value)return null;
-  try{
-    const u=new URL(value);
-    if(u.protocol!=='https:'||u.hostname!=='rdr.immomio.com'||u.port||u.username||u.password)return null;
-    if(!/^\/[A-Za-z0-9_-]{3,128}\/?$/.test(u.pathname))return null;
-    u.hash='';
-    return u.href;
-  }catch{return null}
-}
-export function extractBuchdruckerApplicationRefs(text:string){
-  const applies=[...new Set((text.match(APPLY_RE)||[]).map(normalizeApply).filter((x):x is string=>!!x))];
-  const redirects=[...new Set((text.match(RDR_RE)||[]).map(normalizeRedirect).filter((x):x is string=>!!x))];
-  return {applies,redirects};
 }
 function detailKey(url:string,guid:string){
   if(guid.trim())return guid.trim().slice(0,500);
@@ -90,11 +65,11 @@ async function resolveRedirect(url:string){
     headers:{'user-agent':'TraumwohnungHamburgBot/13.0','accept':'text/html,*/*'},
     signal:AbortSignal.timeout(6000),
   });
-  return normalizeApply(response.url||'');
+  return normalizeBuchdruckerApply(response.url||'');
 }
 async function targetFromText(text:string,finalUrl:string|null=null){
   const refs=extractBuchdruckerApplicationRefs(text),hits=new Set<string>();
-  const final=normalizeApply(finalUrl);if(final)hits.add(final);
+  const final=normalizeBuchdruckerApply(finalUrl);if(final)hits.add(final);
   for(const url of refs.applies)hits.add(url);
   for(const redirect of refs.redirects.slice(0,4)){
     try{const hit=await resolveRedirect(redirect);if(hit)hits.add(hit)}catch{}
