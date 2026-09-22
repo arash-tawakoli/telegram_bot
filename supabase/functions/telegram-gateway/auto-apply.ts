@@ -92,7 +92,7 @@ async function platformPage(user:any,chatId:number,messageId:number,notice='',pr
  if(scout)buttons.push([button('ImmoScout trennen','platforms:disconnect:1')]);
  if(immomio)buttons.push([button('Immomio trennen','platforms:disconnect:3')]);
  buttons.push([button('← Start','home')]);
- const text=`⚡ <b>Automatische Bewerbung</b>\n\n${notice?`${notice}\n\n`:''}👤 Bewerberprofil: ${ready(p)?'✅ vollständig':p?'⚠️ unvollständig':'⚠️ fehlt'}\n\n<b>Plattformen</b>\nKleinanzeigen: ${connectionLabel(klein)}\nImmoScout24: ${connectionLabel(scout)}\nImmomio: ${connectionLabel(immomio)} · 🧪 Sendetest ausstehend\n\nAuto-Bewerbung: ${user.auto_apply_enabled?'✅ aktiv':'aus'}\n\nNach der einmaligen Einrichtung läuft die Bewerbung auf freigegebenen Plattformen automatisch.`;
+ const text=`⚡ <b>Automatische Bewerbung</b>\n\n${notice?`${notice}\n\n`:''}👤 Bewerberprofil: ${ready(p)?'✅ vollständig':p?'⚠️ unvollständig':'⚠️ fehlt'}\n\n<b>Plattformen</b>\nKleinanzeigen: ${connectionLabel(klein)}\nImmoScout24: ${connectionLabel(scout)}\nImmomio: ${connectionLabel(immomio)} · 🧪 Sendetest ausstehend\n\nAuto-Bewerbung: ${prefs.enabled?'✅ aktiv':'aus'}\nFreigaben: ${prefs.immoscout_enabled?'ImmoScout24 ✓':'ImmoScout24 –'} · ${prefs.kleinanzeigen_enabled?'Kleinanzeigen ✓':'Kleinanzeigen –'} · ${prefs.immomio_enabled?'Immomio ✓':'Immomio –'}\n\nNach der einmaligen Einrichtung läuft die Bewerbung nur auf ausdrücklich freigegebenen Plattformen automatisch.`;
  return openAsNew?send(chatId,text,buttons):edit(chatId,messageId,text,buttons);
 }
 
@@ -115,7 +115,16 @@ async function handlePlatforms(user:any,chatId:number,messageId:number,data:stri
  if(action==='profile-field'){
   if(!user.is_premium)return platformPage(user,chatId,messageId,'💎 Bewerberprofile benötigen Premium.');const prompt=fieldPrompt(arg);if(!prompt)return profilePage(user,chatId,messageId);await forceReply(chatId,prompt,PROFILE_FIELDS[arg].label);return;
  }
- if(action==='on'){if(!user.is_premium)return platformPage(user,chatId,messageId,'💎 Auto-Bewerbung benötigt Premium.');try{await patch('bot_users',{id:`eq.${user.id}`},{auto_apply_enabled:true,updated_at:new Date().toISOString()});user.auto_apply_enabled=true;if(previewListingId)await refreshPreviewAutoApply(user,chatId,previewListingId,true);return platformPage(user,chatId,messageId,'✅ Auto-Bewerbung aktiviert.',previewListingId);}catch{return platformPage(user,chatId,messageId,'⚠️ Auto-Bewerbung ist noch nicht freigegeben. Zuerst muss mindestens ein Plattform-Sendetest verifiziert sein.');}}
+ if(action==='provider'&&[1,2,3].includes(source)){
+   if(!user.is_premium)return platformPage(user,chatId,messageId,'💎 Plattformfreigaben benötigen Premium.');
+   const key=source===1?'immoscout':source===2?'kleinanzeigen':'immomio',column=key+'_enabled';
+   const conns=await rows('platform_connections',{user_id:`eq.${user.id}`,provider:`eq.${key}`,select:'status',limit:'1'});
+   if(conns?.[0]?.status!=='connected')return platformPage(user,chatId,messageId,'⚠️ Plattform zuerst verbinden.');
+   const pref=await rows('application_preferences',{user_id:`eq.${user.id}`,select:column,limit:'1'}),next=!(pref?.[0]?.[column]===true);
+   await patch('application_preferences',{user_id:`eq.${user.id}`},{[column]:next,updated_at:new Date().toISOString()});
+   return platformPage(user,chatId,messageId,next?'✅ Plattform für AutoApply freigegeben.':'Plattform für AutoApply pausiert.');
+  }
+  if(action==='on'){if(!user.is_premium)return platformPage(user,chatId,messageId,'💎 Auto-Bewerbung benötigt Premium.');try{await patch('bot_users',{id:`eq.${user.id}`},{auto_apply_enabled:true,updated_at:new Date().toISOString()});user.auto_apply_enabled=true;if(previewListingId)await refreshPreviewAutoApply(user,chatId,previewListingId,true);return platformPage(user,chatId,messageId,'✅ Auto-Bewerbung aktiviert.',previewListingId);}catch{return platformPage(user,chatId,messageId,'⚠️ Auto-Bewerbung ist noch nicht freigegeben. Zuerst muss mindestens ein Plattform-Sendetest verifiziert sein.');}}
  if(action==='off'){await patch('bot_users',{id:`eq.${user.id}`},{auto_apply_enabled:false,updated_at:new Date().toISOString()});user.auto_apply_enabled=false;if(previewListingId)await refreshPreviewAutoApply(user,chatId,previewListingId,false);return platformPage(user,chatId,messageId,'Auto-Bewerbung deaktiviert.',previewListingId);}
  if(action==='login'&&source===1)return edit(chatId,messageId,'🔐 <b>ImmoScout24</b>\n\nDie Verbindung wird ohne offizielle ImmoScout-API über eine gespeicherte Web-Session umgesetzt. Der kontrollierte Login-/Sendetest ist noch ausstehend; deshalb wird aktuell noch keine produktive Session angelegt.',[[button('← Automatische Bewerbung','platforms')]]);
  if(action==='login'&&source===2){
@@ -131,7 +140,7 @@ async function handlePlatforms(user:any,chatId:number,messageId:number,data:stri
   try{const result=await worker('check',user.id,source);const name=source===1?'ImmoScout24':source===2?'Kleinanzeigen':'Immomio';return platformPage(user,chatId,messageId,result.authenticated===true?`✅ ${name}-Verbindung bestätigt.`:result.authenticated===null?`${name}: Verbindung gespeichert; der Sendepfad ist noch nicht freigegeben.`:`⚠️ ${name} bitte erneut verbinden.`);}catch{return platformPage(user,chatId,messageId,'⚠️ Verbindung konnte nicht bestätigt werden.');}
  }
  if(action==='disconnect'&&[1,2,3].includes(source)){
-  try{await worker('disconnect',user.id,source);return platformPage(user,chatId,messageId,'Plattformverbindung gelöscht.');}catch{return platformPage(user,chatId,messageId,'⚠️ Verbindung konnte nicht gelöscht werden.');}
+  try{await worker('disconnect',user.id,source);const key=source===1?'immoscout':source===2?'kleinanzeigen':'immomio';await patch('application_preferences',{user_id:`eq.${user.id}`},{[key+'_enabled']:false,updated_at:new Date().toISOString()}).catch(()=>{});return platformPage(user,chatId,messageId,'Plattformverbindung gelöscht.');}catch{return platformPage(user,chatId,messageId,'⚠️ Verbindung konnte nicht gelöscht werden.');}
  }
  return platformPage(user,chatId,messageId);
 }
