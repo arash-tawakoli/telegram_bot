@@ -35,12 +35,20 @@ async function flowFor(raw:any,allowConsumed=false){
  if(error||!Array.isArray(data)||data.length!==1)throw Error('auth_flow_expired');
  return data[0];
 }
+function normalizedEmail(v:any){const s=clean(v,320).toLowerCase();return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)?s:null}
 async function profile(flow:any){
  const[{data:p},{data:c}]=await Promise.all([
   db.from('applicant_profiles').select('first_name,last_name,email').eq('user_id',flow.user_id).maybeSingle(),
   db.from('platform_connections').select('account_hint').eq('user_id',flow.user_id).eq('provider',flow.provider).maybeSingle()
  ]);
- return{label:participantLabel(p?.first_name,p?.last_name),accountHint:maskEmail(c?.account_hint||p?.email)};
+ const expected=normalizedEmail(p?.email),connected=normalizedEmail(c?.account_hint);
+ return{
+  label:participantLabel(p?.first_name,p?.last_name),
+  expectedAccountHint:maskEmail(expected),
+  connectedAccountHint:maskEmail(connected),
+  accountHint:maskEmail(connected||expected),
+  accountMismatch:Boolean(expected&&connected&&expected!==connected)
+ };
 }
 function kleinUrl(flow:any,cc:string){const u=new URL(KLEIN_AUTHORIZE);for(const[k,v]of Object.entries({client_id:KLEIN_CLIENT_ID,response_type:'code',redirect_uri:KLEIN_REDIRECT,scope:KLEIN_SCOPE,code_challenge:cc,code_challenge_method:'S256',state:String(flow.state),prompt:'login'}))u.searchParams.set(k,String(v));return u.href}
 async function immomioUrl(flow:any,cc:string){
@@ -74,7 +82,7 @@ async function status(raw:any){
  const flow=await flowFor(raw,true),p=await profile(flow);
  const{data:c,error}=await db.from('platform_connections').select('status,last_verified_at,last_error').eq('user_id',flow.user_id).eq('provider',flow.provider).maybeSingle();
  if(error)throw Error('connection_read_failed');
- return{ok:true,provider:flow.provider,status:c?.status||'disconnected',connected:c?.status==='connected',lastVerifiedAt:c?.last_verified_at||null,participantLabel:p.label,accountHint:p.accountHint,origin:flow.origin,returnTarget:flow.return_target};
+ return{ok:true,provider:flow.provider,status:c?.status||'disconnected',connected:c?.status==='connected',lastVerifiedAt:c?.last_verified_at||null,participantLabel:p.label,accountHint:p.accountHint,expectedAccountHint:p.expectedAccountHint,connectedAccountHint:p.connectedAccountHint,accountMismatch:p.accountMismatch,origin:flow.origin,returnTarget:flow.return_target};
 }
 const H={'content-type':'application/json','cache-control':'no-store, max-age=0','x-content-type-options':'nosniff','referrer-policy':'no-referrer','access-control-allow-origin':'https://login.traumwohnunghamburg.de','vary':'Origin'};
 function out(body:any,status=200){return new Response(JSON.stringify(body),{status,headers:H})}
