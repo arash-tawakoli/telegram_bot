@@ -2,6 +2,7 @@ import {
   normalizeImmomioApply,
   extractImmomioApplyUrlsFromText,
   collectImmomioApplyUrls,
+  extractImmomioRedirectUrlsFromText,
 } from './immomio-object-resolver.mjs';
 
 const clamp=(value,min,max,fallback)=>{const n=Number(value);return Number.isFinite(n)?Math.min(max,Math.max(min,Math.trunc(n))):fallback};
@@ -52,6 +53,19 @@ function resolutionRow(listing,status,method,hit,evidenceUrl,evidence,error=null
     evidence:evidence||{},
   };
 }
+async function resolveTrustedRedirects(urls){
+  const hits=new Map(),attempts=[];
+  for(const url of urls.slice(0,4)){
+    const started=Date.now();
+    try{
+      const response=await fetch(url,{method:'GET',redirect:'follow',headers:{'user-agent':'TraumwohnungHamburgBot/ImmomioObjectShadow','accept':'text/html,*/*'},signal:AbortSignal.timeout(3500)});
+      const hit=normalizeImmomioApply(response.url||'');
+      attempts.push({status:response.status,duration_ms:Date.now()-started,resolved:!!hit});
+      if(hit)hits.set(hit.sourceIdentifier,hit);
+    }catch(error){attempts.push({duration_ms:Date.now()-started,error:safeError(error)})}
+  }
+  return {hits:[...hits.values()],attempts};
+}
 async function resolveListingShadow(listing,source,allowFetch){
   const known=knownFieldHits(listing),deep=collectImmomioApplyUrls(listing?.raw||{}),all=new Map();
   for(const hit of [...known,...deep])all.set(hit.sourceIdentifier,hit);
@@ -61,6 +75,12 @@ async function resolveListingShadow(listing,source,allowFetch){
     return resolutionRow(listing,'resolved',method,hit,listing.canonical_url,{network:false,known_hits:known.length,embedded_hits:deep.length},null,method==='existing_target'?168:24);
   }
   if(!allowFetch)return null;
+  const embeddedRedirects=extractImmomioRedirectUrlsFromText(JSON.stringify(listing?.raw||{}));
+  if(embeddedRedirects.length){
+    const resolved=await resolveTrustedRedirects(embeddedRedirects);
+    if(resolved.hits.length>1)return resolutionRow(listing,'conflict','embedded_redirect_conflict',null,listing.canonical_url,{network:true,redirects:embeddedRedirects.length,attempts:resolved.attempts},null,24);
+    if(resolved.hits.length===1)return resolutionRow(listing,'resolved','embedded_immomio_redirect',resolved.hits[0],embeddedRedirects[0],{network:true,redirects:embeddedRedirects.length,attempts:resolved.attempts},null,24);
+  }
   const target=publicListingTarget(listing.canonical_url,source);
   if(!target)return resolutionRow(listing,'skipped','canonical_not_fetchable',null,listing.canonical_url,{network:false},null,24);
   const started=Date.now();
@@ -79,7 +99,14 @@ async function resolveListingShadow(listing,source,allowFetch){
       const redirected=!!normalizeImmomioApply(response.url||'');
       return resolutionRow(listing,'resolved',redirected?'detail_redirect':'detail_page',hits[0],response.url||target,ev,null,24);
     }
-    return resolutionRow(listing,'missing','detail_no_target',null,response.url||target,ev,null,6);
+    const redirects=extractImmomioRedirectUrlsFromText(text);
+    if(redirects.length){
+      const resolved=await resolveTrustedRedirects(redirects);
+      const redirectEvidence={...ev,redirects:redirects.length,redirect_attempts:resolved.attempts};
+      if(resolved.hits.length>1)return resolutionRow(listing,'conflict','detail_redirect_conflict',null,response.url||target,redirectEvidence,null,24);
+      if(resolved.hits.length===1)return resolutionRow(listing,'resolved','detail_immomio_redirect',resolved.hits[0],redirects[0],redirectEvidence,null,24);
+    }
+    return resolutionRow(listing,'missing','detail_no_target',null,response.url||target,{...ev,redirects:redirects.length},null,6);
   }catch(error){
     return resolutionRow(listing,'error','transport_error',null,target,{network:true,duration_ms:Date.now()-started},safeError(error),1);
   }
