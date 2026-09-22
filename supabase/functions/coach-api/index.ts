@@ -222,7 +222,7 @@ async function handle(req:Request){
  }
  if(action==='reassign'){if(a.member.role!=='admin')throw Error('admin_required');const{error}=await admin.rpc('coach_reassign_participant',{p_actor:a.member.id,p_user:uuid(body.userId),p_coach:uuid(body.coachMemberId)});if(error)throw Error(error.message);return{ok:true};}
  if(action==='archive'){
-  const userId=uuid(body.userId);await participantAccess(a,userId,a.member.role!=='admin');
+  const userId=uuid(body.userId);await participantAccess(a,userId,false);
   const next=body.archived===false?'active':'archived';
   const{error}=await admin.from('coaching_participants').update({status:next,archived_at:next==='archived'?new Date().toISOString():null,updated_at:new Date().toISOString()}).eq('user_id',userId).eq('workspace_id',a.member.workspace_id);if(error)throw Error('archive_failed');await audit(a,userId,next==='archived'?'participant_archived':'participant_restored');return{ok:true};
  }
