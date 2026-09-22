@@ -1,5 +1,6 @@
 import {Candidate, Connector, Source, db, decode, deNum, fetchText, iso, markFailure, markSuccess, strip, upsertCandidates} from './shared.ts';
 import {parseKaifuInventory,parseFinkenInventory} from './cooperative-inventory.ts';
+import {parseBuchdruckerInventory} from './buchdrucker-public.ts';
 
 const number = (v: unknown) => v == null || String(v).trim() === '' ? null : deNum(String(v));
 function attr(tag: string, name: string) {
@@ -63,23 +64,25 @@ export async function runPublicInventory(source:Source,connector:Connector) {
   try {
     const adapter=String(connector.config?.adapter||'');
     const response=await fetchText(String(connector.config?.url||''));
-    const parser=({'source-worker/tag-public':parseTagInventory,'source-worker/urban-public':parseUrbanInventory,'source-worker/heim-public':parseHeimInventory,'source-worker/kaifu-public':parseKaifuInventory,'source-worker/finken-public':parseFinkenInventory} as Record<string,(text:string)=>{candidates:Candidate[];enumerated:number;complete:boolean}>)[adapter];
-    if(!parser)throw new Error('Unsupported public inventory adapter');
-    const parsed=parser(response.text);
+    const parser=({'source-worker/tag-public':parseTagInventory,'source-worker/urban-public':parseUrbanInventory,'source-worker/heim-public':parseHeimInventory,'source-worker/kaifu-public':parseKaifuInventory,'source-worker/finken-public':parseFinkenInventory} as Record<string,(text:string)=>{candidates:Candidate[];enumerated:number;complete:boolean;unresolved?:number}>)[adapter];
+    if(!parser&&adapter!=='source-worker/buchdrucker-public')throw new Error('Unsupported public inventory adapter');
+    const parsed=adapter==='source-worker/buchdrucker-public'
+      ? await parseBuchdruckerInventory(response.text,response.url)
+      : parser(response.text);
     const {data:state}=await db.from('source_coverage_state').select('cursor').eq('source_id',source.id).maybeSingle().throwOnError();
     const warmed=!!source.baseline_completed_at&&state?.cursor?.adapter===adapter&&state?.cursor?.url===connector.config.url;
     const fresh=parsed.candidates.filter(c=>warmed&&(source.id!==11||c.raw?.native_new===true));
     const blocked=parsed.candidates.filter(c=>!fresh.includes(c));
     const a=await upsertCandidates(source,fresh,true),b=await upsertCandidates(source,blocked,false);
     if(parsed.complete) {
-      const provider=({'source-worker/tag-public':'tag_public_api','source-worker/urban-public':'urban_living','source-worker/heim-public':'heimstaden_portal','source-worker/kaifu-public':'kaifu_public_api','source-worker/finken-public':'finkenwaerder_public_api'} as Record<string,string>)[adapter];
+      const provider=({'source-worker/tag-public':'tag_public_api','source-worker/urban-public':'urban_living','source-worker/heim-public':'heimstaden_portal','source-worker/kaifu-public':'kaifu_public_api','source-worker/finken-public':'finkenwaerder_public_api','source-worker/buchdrucker-public':'buchdrucker_public'} as Record<string,string>)[adapter];
       const {data:active}=await db.from('listings').select('id,source_listing_key').eq('source_id',source.id).eq('is_active',true).eq('raw->>provider',provider).throwOnError();
       const keys=new Set(parsed.candidates.map(c=>String(c.key)));
       const stale=(active||[]).filter((r:any)=>!keys.has(String(r.source_listing_key))).map((r:any)=>r.id);
       if(stale.length)await db.from('listings').update({is_active:false}).in('id',stale).throwOnError();
     }
     await db.from('source_coverage_state').upsert({source_id:source.id,cycle_id:crypto.randomUUID(),strategy:'verified_public_inventory',status:parsed.complete?'complete':'running',cursor:{adapter,url:connector.config.url},seen_count:parsed.enumerated,request_count:1,cycle_started_at:started,cycle_finished_at:parsed.complete?iso():null,last_complete_at:parsed.complete?iso():null,updated_at:iso(),last_error:null}).throwOnError();
-    await markSuccess(source,started,connector,parsed.candidates.length,a.fresh+b.fresh,{adapter,complete:parsed.complete,enumerated:parsed.enumerated,verified_empty:parsed.enumerated===0||parsed.candidates.length===0,fallback_warmed:warmed});
-    return {ok:true,source_id:source.id,fetched:parsed.candidates.length,new:a.fresh,complete:parsed.complete};
+    await markSuccess(source,started,connector,parsed.candidates.length,a.fresh+b.fresh,{adapter,complete:parsed.complete,enumerated:parsed.enumerated,unresolved:parsed.unresolved??0,verified_empty:parsed.enumerated===0||(parsed.complete&&parsed.candidates.length===0),fallback_warmed:warmed});
+    return {ok:true,source_id:source.id,fetched:parsed.candidates.length,new:a.fresh,complete:parsed.complete,unresolved:parsed.unresolved??0};
   }catch(error){return markFailure(source,started,error);}
 }
