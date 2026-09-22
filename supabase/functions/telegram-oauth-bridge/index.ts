@@ -47,7 +47,7 @@ async function handleProviderLogin(update:any,provider:'kleinanzeigen'|'immomio'
   const {ctx,chatId,messageId,user}=x,name=providerName(provider);
   let url:string,note:string;
   if(provider==='kleinanzeigen'){
-   const result=await internal(APPLICATION_WORKER,{action:'login',userId:String(user.id),source:2,origin:'telegram',returnTarget:'telegram',context:{channel:'telegram'}});
+   const result=await internal(APPLICATION_WORKER,{action:'login_beta_bridge',userId:String(user.id),source:2,origin:'telegram',returnTarget:'telegram',context:{channel:'telegram',beta_callback_helper:true}});
    url=providerUrl(provider,result?.url);
    note='Du wirst direkt zur originalen Kleinanzeigen-Anmeldeseite weitergeleitet. Login und eine eventuell angeforderte Sicherheitsbestätigung erfolgen ausschließlich bei Kleinanzeigen. Danach wird die Verbindung automatisch abgeschlossen.';
   }else{
