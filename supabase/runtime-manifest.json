@@ -413,8 +413,8 @@
       "files": [
         {
           "path": "supabase/functions/source-shadow/index.ts",
-          "sha256": "30c34d8ea3fb4963b358db66aa9d1930e7869e550fdcd24fede75ac4e87953f1",
-          "deployed_sha256": "30c34d8ea3fb4963b358db66aa9d1930e7869e550fdcd24fede75ac4e87953f1"
+          "sha256": "dc631076eabd7ccd8614aaadf8ba52dad68c421dbfc5e579a2a66412aa1fa1fe",
+          "deployed_sha256": "dc631076eabd7ccd8614aaadf8ba52dad68c421dbfc5e579a2a66412aa1fa1fe"
         },
         {
           "path": "supabase/functions/source-worker/shared.ts",
@@ -480,13 +480,23 @@
           "path": "supabase/functions/_shared/hamburg.ts",
           "sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a",
           "deployed_sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a"
+        },
+        {
+          "path": "supabase/functions/source-shadow/immomio-object-resolver.mjs",
+          "sha256": "aa8cb7e3fc7a831e62f0e3c0583eb3499e89055e215039fe36fdd333a86ad8b7",
+          "deployed_sha256": "aa8cb7e3fc7a831e62f0e3c0583eb3499e89055e215039fe36fdd333a86ad8b7"
+        },
+        {
+          "path": "supabase/functions/source-shadow/immomio-object-shadow.mjs",
+          "sha256": "fa9549c61ea877cb134d221c525bd50bdbfb63a82050f6af50a0fcb63928fe8e",
+          "deployed_sha256": "fa9549c61ea877cb134d221c525bd50bdbfb63a82050f6af50a0fcb63928fe8e"
         }
       ],
       "import_map": false,
       "retired": false,
       "slug": "source-shadow",
       "verify_jwt": false,
-      "version": 11
+      "version": 12
     },
     {
       "entrypoint": "supabase/functions/source-worker/index.ts",
