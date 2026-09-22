@@ -267,7 +267,7 @@ async function registerUpload(a:any,assignment:any,input:any){
 async function applicationRows(a:any,scope='all',input:any={}){
  const assignments:any[]=await visibleAssignments(a,scope),ids=assignments.map(x=>x.user_id);
  if(!ids.length)return[];
- const publicByUser=new Map(assignments.map((x:any)=>[String(x.user_id),{participantId:x.public_id,name:[x.bot_users?.first_name,x.bot_users?.last_name].filter(Boolean).join(' '),coach:x.coach?.display_name||null}]));
+ const publicByUser=new Map(assignments.map((x:any)=>[String(x.user_id),{participantId:x.public_id,name:[x.bot_users?.first_name,x.bot_users?.last_name].filter(Boolean).join(' '),coach:x.coach?.display_name||null,coachMemberId:x.coach_member_id}]));
  let q=admin.from('applications').select('id,user_id,status,attempts,last_error,wait_reason,created_at,sent_at,next_attempt_at,listings(title,canonical_url,district,postal_code,city,sources(name))').in('user_id',ids).order('created_at',{ascending:false}).limit(1000);
  const days=filterDays(input.days);q=q.gte('created_at',new Date(Date.now()-days*86400000).toISOString());
  const status=safeFilter(input.status,['pending','processing','sent','failed','manual_required']);
@@ -285,6 +285,7 @@ async function applicationRows(a:any,scope='all',input:any={}){
  if(providerFilter)out=out.filter((x:any)=>x.latestEvent?.provider===providerFilter);
  if(docFilter)out=out.filter((x:any)=>x.latestEvent?.document_result===docFilter);
  const participantFilter=String(input.participantId||'');if(participantFilter&&PUBLIC_ID.test(participantFilter))out=out.filter((x:any)=>x.participant?.participantId===participantFilter);
+ const coachFilter=String(input.coachMemberId||'');if(a.member.role==='admin'&&UUID.test(coachFilter))out=out.filter((x:any)=>x.participant?.coachMemberId===coachFilter);
  return out;
 }
 async function dashboardData(a:any,scope='all',input:any={}){
@@ -381,7 +382,10 @@ async function handle(req:Request){
  if(action==='toggle_document'){const id=uuid(body.documentId),{error}=await admin.from('applicant_documents').update({send_with_auto_apply:Boolean(body.enabled),updated_at:new Date().toISOString()}).eq('id',id).eq('user_id',assignment.user_id);if(error)throw Error('document_update_failed');await audit(a,assignment.user_id,'document_permission_changed',{document_id:id,enabled:Boolean(body.enabled)});return{ok:true};}
  if(action==='delete_document'){const id=uuid(body.documentId),{data,error}=await admin.from('applicant_documents').select('storage_path').eq('id',id).eq('user_id',assignment.user_id).maybeSingle();if(error||!data)throw Error('document_not_found');await admin.storage.from('applicant-documents').remove([data.storage_path]);const del=await admin.from('applicant_documents').delete().eq('id',id).eq('user_id',assignment.user_id);if(del.error)throw Error('document_delete_failed');await audit(a,assignment.user_id,'document_deleted',{document_id:id});return{ok:true};}
  if(action==='application_events'){const appId=uuid(body.applicationId),{data,error}=await admin.from('application_events').select('provider,event_type,status,attempt,reason,document_result,metadata,created_at').eq('application_id',appId).eq('user_id',assignment.user_id).order('created_at');if(error)throw Error('events_read_failed');return{events:data||[]};}
- if(action==='applications')return{applications:await applicationRows(a,body.scope==='mine'?'mine':'all',body)};
+ if(action==='applications'){
+  const rows=await applicationRows(a,body.scope==='mine'?'mine':'all',body),page=Math.max(1,optionalInteger(body.page,1,10000)||1),pageSize=Math.min(100,Math.max(10,optionalInteger(body.pageSize,10,100)||50)),start=(page-1)*pageSize;
+  return{applications:rows.slice(start,start+pageSize),total:rows.length,page,pageSize};
+ }
  if(action==='dashboard')return dashboardData(a,body.scope==='mine'?'mine':'all',body);
  if(action==='create_coach'){if(a.member.role!=='admin')throw Error('admin_required');const e=email(body.email),password=String(body.password||'');if(password.length<12)throw Error('password_too_short');const{data:created,error}=await admin.auth.admin.createUser({email:e,password,email_confirm:true});if(error||!created.user)throw Error(error?.message||'coach_auth_create_failed');const{data:member,error:me}=await admin.from('coaching_members').insert({auth_user_id:created.user.id,workspace_id:a.member.workspace_id,display_name:clean(body.display_name,120)||e,role:'coach',is_active:true}).select('id,display_name,role').single();if(me){await admin.auth.admin.deleteUser(created.user.id).catch(()=>{});throw Error('coach_member_create_failed');}await audit(a,null,'coach_created',{member_id:member.id});return{ok:true,member:{id:member.id,displayName:member.display_name,role:member.role}};}
  if(action==='set_coach_active'){if(a.member.role!=='admin')throw Error('admin_required');const id=uuid(body.memberId);if(id===a.member.id&&!body.active)throw Error('cannot_disable_self');const{error}=await admin.from('coaching_members').update({is_active:Boolean(body.active),updated_at:new Date().toISOString()}).eq('id',id).eq('workspace_id',a.member.workspace_id).eq('role','coach');if(error)throw Error('coach_update_failed');await audit(a,null,'coach_status_changed',{member_id:id,active:Boolean(body.active)});return{ok:true};}
