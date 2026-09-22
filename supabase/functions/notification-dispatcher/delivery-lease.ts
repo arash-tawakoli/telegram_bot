@@ -17,7 +17,6 @@ export async function claimDelivery(
       last_attempt_at: lease.claimedAt,
     })
     .eq("id", event.id)
-    .eq("channel", "telegram")
     .eq("status", event.status)
     .eq("dispatch_attempts", Number(event.dispatch_attempts || 0))
     .select("id")
@@ -35,7 +34,6 @@ export async function finishDelivery(
     .from("delivery_events")
     .update(patch)
     .eq("id", lease.id)
-    .eq("channel", "telegram")
     .eq("status", "processing")
     .eq("dispatch_attempts", lease.attempt)
     .eq("last_attempt_at", lease.claimedAt)
@@ -57,7 +55,6 @@ export async function recoverDeliveries(db: any) {
         "Expired delivery lease; prior Telegram outcome may be unknown",
     })
     .eq("status", "processing")
-    .eq("channel", "telegram")
     .lt("last_attempt_at", new Date(Date.now() - 600_000).toISOString());
   if (error) throw error;
 }
