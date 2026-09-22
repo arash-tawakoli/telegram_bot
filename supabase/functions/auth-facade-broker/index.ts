@@ -81,6 +81,13 @@ async function resolve(value:any){
  if(provider==='kleinanzeigen')return{...base,mode:'credentials',providerWebUrl:kleinUrl(flow,codeChallenge)};
  throw Error('provider_unsupported')
 }
+async function providerWeb(value:any){
+ const flow=await flowFor(value),verifier=String(flow.code_verifier||'');if(!verifier)throw Error('auth_flow_expired');
+ const codeChallenge=await challenge(verifier),provider=String(flow.provider);
+ if(provider==='kleinanzeigen')return{provider,url:kleinUrl(flow,codeChallenge)};
+ if(provider==='immomio')return{provider,url:await immomioUrl(flow,codeChallenge)};
+ throw Error('provider_unsupported')
+}
 function decodeEmail(token:any){try{const p=String(token||'').split('.')[1];if(!p)return null;const json=JSON.parse(atob(p.replace(/-/g,'+').replace(/_/g,'/').padEnd(Math.ceil(p.length/4)*4,'=')));const email=clean(json?.email,320).toLowerCase();return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)?email:null}catch{return null}}
 async function encryptConnection(userId:string,value:any){const raw=unb64(await secret('application_credential_key_v1'));if(raw.length!==32)throw Error('configuration_unavailable');const key=await crypto.subtle.importKey('raw',raw,{name:'AES-GCM'},false,['encrypt']),iv=crypto.getRandomValues(new Uint8Array(12)),plain=enc.encode(JSON.stringify(value)),cipher=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:enc.encode(`${userId}:immomio:v1`)},key,plain));return{credential_ciphertext:b64(cipher),credential_iv:b64(iv),key_version:1}}
 async function verifyImmomio(accessToken:string){const query='query currentUser { user { id email } }';let response:Response;try{response=await fetch(IMMOMIO_GQL,{method:'POST',headers:{'content-type':'application/json','accept':'application/json','origin':IMMOMIO_TENANT,'referer':IMMOMIO_TENANT+'/',authorization:accessToken},body:JSON.stringify({query,variables:{}}),signal:AbortSignal.timeout(20000)})}catch{throw Error('temporary_network_error')}const body=await response.json().catch(()=>null),user=body?.data?.user;if(!response.ok||body?.errors?.length||!user?.id)throw Error('token_exchange_failed');return user}
@@ -129,6 +136,7 @@ Deno.serve(async req=>{try{
  const body=await req.json().catch(()=>({})),action=String(body.action||'');
  if(action==='resolve')return json(await resolve(body.ticket));
  if(action==='status')return json(await status(body.ticket));
+ if(action==='provider_web')return json(await providerWeb(body.ticket));
  if(action==='password_login')return json(await passwordLogin(body.ticket,body.email,body.password));
  if(action==='mfa_start')return json(await mfaStart(body.ticket,body.mfaTicket,body.factorId));
  if(action==='mfa_verify')return json(await mfaVerify(body.ticket,body.mfaTicket,body.factorId,body.passCode));
