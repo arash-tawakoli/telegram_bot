@@ -496,7 +496,7 @@
       "retired": false,
       "slug": "source-shadow",
       "verify_jwt": false,
-      "version": 14
+      "version": 15
     },
     {
       "entrypoint": "supabase/functions/source-worker/index.ts",
