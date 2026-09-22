@@ -12,8 +12,8 @@ const CLIENT_ID='is24-android-de';
 const REDIRECT_URI='immobilienscout24.de:/loginCallback';
 const SCOPE='openid profile offline_access';
 const OAUTH_USER_AGENT='okta-oauth2-kotlin/2.0.3 Android/34';
-const HANDOFF_ORIGIN='https://websitetraumwohnung.vercel.app';
-const HANDOFF_URL=`${HANDOFF_ORIGIN}/connect/immoscout`;
+const HANDOFF_ORIGIN=new URL(Deno.env.get('SUPABASE_URL')!).origin;
+const HANDOFF_URL='';
 const enc=new TextEncoder(),dec=new TextDecoder();
 
 const b64=(bytes:Uint8Array)=>{let s='';for(const b of bytes)s+=String.fromCharCode(b);return btoa(s)};
@@ -53,8 +53,7 @@ async function beginLogin(userId:string){
  await db.from('platform_auth_flows').delete().eq('user_id',userId).eq('provider',PROVIDER).is('consumed_at',null);
  const verifier=random(),state=random().slice(0,43),{error:flowError}=await db.from('platform_auth_flows').insert({user_id:userId,provider:PROVIDER,state,code_verifier:verifier});if(flowError)throw Error('auth_flow_create_failed');
  await mark(userId,'pending',null,{account_hint:email,credential_ciphertext:null,credential_iv:null,key_version:1,expires_at:null,last_verified_at:null});
- const url=new URL(HANDOFF_URL);url.searchParams.set('state',state);
- return{status:'login',url:url.href,requiresCallback:false,automaticCallback:true,bridgeRequired:false,transport:'one-time-password-mfa-pkce-handoff',expiresInSeconds:1800};
+ return{status:'deprecated',error:'provider_hosted_login_required',requiresCallback:false,automaticCallback:false,bridgeRequired:false,transport:'provider-hosted-native-handoff'};
 }
 
 async function authorizeWithSession(flow:any,email:string,sessionToken:string){

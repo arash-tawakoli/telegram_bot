@@ -4,6 +4,7 @@ const KEYS=JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')||'{}');
 const KEY=KEYS.default||Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const WORKER=`${URL}/functions/v1/application-worker`;
 const IMMOMIO_WORKER=`${URL}/functions/v1/immomio-account`;
+const SCOUT_HANDOFF=`${URL}/functions/v1/immoscout-native-handoff`;
 const DISPATCHER=`${URL}/functions/v1/notification-dispatcher?forceFunctionRegion=eu-west-1`;
 const REQUIRED=['first_name','last_name','email','phone','city','household_size'];
 const SETUP_PROMPT='👤 Bewerberprofil · Grundeinrichtung';
@@ -57,7 +58,7 @@ export function isAutoApplyCallback(data:string){
  if(data==='platforms:profile'||data==='platforms:profile-new'||data.startsWith('platforms:profile-field:')||data==='platforms:docs'||data.startsWith('platforms:doc-'))return false;
  return data==='platforms'||data.startsWith('platforms:');
 }
-export function isAutoApplyMessage(update:any){const m=update?.message;if(!m?.text)return false;const text=String(m.text),reply=String(m.reply_to_message?.text||'');return /https:\/\/login\.kleinanzeigen\.de\/android\/com\.ebay\.kleinanzeigen\/callback/i.test(text)||/https:\/\/tenant\.immomio\.com\/de\/auth\/login/i.test(text)||reply.startsWith(SETUP_PROMPT)||reply.startsWith(FIELD_PROMPT_PREFIX);}
+export function isAutoApplyMessage(update:any){const m=update?.message;if(!m?.text)return false;const text=String(m.text),reply=String(m.reply_to_message?.text||'');return /https:\/\/login\.kleinanzeigen\.de\/android\/com\.ebay\.kleinanzeigen\/callback/i.test(text)||/https:\/\/tenant\.immomio\.com\/de\/auth\/login/i.test(text)||/immobilienscout24\.de:\/loginCallback/i.test(text)||reply.startsWith(SETUP_PROMPT)||reply.startsWith(FIELD_PROMPT_PREFIX);}
 
 async function profilePage(user:any,chatId:number,messageId:number,notice=''){
  const p=await profile(user.id);
@@ -75,7 +76,8 @@ async function platformPage(user:any,chatId:number,messageId:number,notice='',pr
   const buttons=[[{text:'💎 Jetzt abonnieren',url:checkout}],[button('← Start','home')]];
   return openAsNew?send(chatId,text,buttons):edit(chatId,messageId,text,buttons);
  }
- const [connections,p]=await Promise.all([rows('platform_connections',{user_id:`eq.${user.id}`,select:'provider,status,account_hint,last_verified_at,last_error'}),profile(user.id)]);
+ const [connections,p,prefsRows]=await Promise.all([rows('platform_connections',{user_id:`eq.${user.id}`,select:'provider,status,account_hint,last_verified_at,last_error'}),profile(user.id),rows('application_preferences',{user_id:`eq.${user.id}`,select:'enabled,immoscout_enabled,kleinanzeigen_enabled,immomio_enabled,daily_limit,timezone,allowed_weekdays,send_window_start,send_window_end',limit:'1'})]);
+ const prefs=prefsRows?.[0]||{enabled:user.auto_apply_enabled===true,immoscout_enabled:false,kleinanzeigen_enabled:false,immomio_enabled:false};
  const conn=(provider:string)=>connections.find((c:any)=>c.provider===provider),klein=conn('kleinanzeigen'),scout=conn('immoscout'),immomio=conn('immomio');
  const buttons:any[]=[
   [button('👤 Bewerberprofil','platforms:profile')],
@@ -92,7 +94,7 @@ async function platformPage(user:any,chatId:number,messageId:number,notice='',pr
  if(scout)buttons.push([button('ImmoScout trennen','platforms:disconnect:1')]);
  if(immomio)buttons.push([button('Immomio trennen','platforms:disconnect:3')]);
  buttons.push([button('← Start','home')]);
- const text=`⚡ <b>Automatische Bewerbung</b>\n\n${notice?`${notice}\n\n`:''}👤 Bewerberprofil: ${ready(p)?'✅ vollständig':p?'⚠️ unvollständig':'⚠️ fehlt'}\n\n<b>Plattformen</b>\nKleinanzeigen: ${connectionLabel(klein)}\nImmoScout24: ${connectionLabel(scout)}\nImmomio: ${connectionLabel(immomio)} · 🧪 Sendetest ausstehend\n\nAuto-Bewerbung: ${user.auto_apply_enabled?'✅ aktiv':'aus'}\n\nNach der einmaligen Einrichtung läuft die Bewerbung auf freigegebenen Plattformen automatisch.`;
+ const text=`⚡ <b>Automatische Bewerbung</b>\n\n${notice?`${notice}\n\n`:''}👤 Bewerberprofil: ${ready(p)?'✅ vollständig':p?'⚠️ unvollständig':'⚠️ fehlt'}\n\n<b>Plattformen</b>\nKleinanzeigen: ${connectionLabel(klein)}\nImmoScout24: ${connectionLabel(scout)}\nImmomio: ${connectionLabel(immomio)} · 🧪 Sendetest ausstehend\n\nAuto-Bewerbung: ${prefs.enabled?'✅ aktiv':'aus'}\nFreigaben: ${prefs.immoscout_enabled?'ImmoScout24 ✓':'ImmoScout24 –'} · ${prefs.kleinanzeigen_enabled?'Kleinanzeigen ✓':'Kleinanzeigen –'} · ${prefs.immomio_enabled?'Immomio ✓':'Immomio –'}\n\nNach der einmaligen Einrichtung läuft die Bewerbung nur auf ausdrücklich freigegebenen Plattformen automatisch.`;
  return openAsNew?send(chatId,text,buttons):edit(chatId,messageId,text,buttons);
 }
 
@@ -100,6 +102,8 @@ function fieldPrompt(name:string){const m=PROFILE_FIELDS[name];if(!m)return null
 function validateField(name:string,input:any){const m=PROFILE_FIELDS[name];if(!m)throw Error('Unbekanntes Profilfeld.');const raw=String(input??'').trim();if(raw==='-'&&!m.required)return null;if(!raw&&m.required)throw Error(`${m.label} darf nicht leer sein.`);if(!raw)return null;if(name==='email'&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw))throw Error('Bitte eine gültige E-Mail-Adresse ein.');if(name==='phone'&&(raw.length<3||raw.length>80))throw Error('Bitte eine gültige Telefonnummer eingeben.');if(name==='postcode'&&!/^\d{5}$/.test(raw))throw Error('Bitte eine fünfstellige PLZ eingeben.');if(m.type==='integer'){const n=Number(raw);if(!Number.isInteger(n)||n<1||n>20)throw Error('Haushaltsgröße muss zwischen 1 und 20 liegen.');return n;}if(m.type==='money'){const n=Number(raw.replace(/\./g,'').replace(',','.'));if(!Number.isFinite(n)||n<0||n>1000000)throw Error('Bitte ein gültiges monatliches Nettoeinkommen eingeben.');return n;}if(m.type==='date'){if(!/^\d{4}-\d{2}-\d{2}$/.test(raw)||Number.isNaN(Date.parse(`${raw}T00:00:00Z`)))throw Error('Bitte das Datum als JJJJ-MM-TT eingeben.');return raw;}if(raw.length>(m.max||4000))throw Error(`${m.label} ist zu lang.`);return raw;}
 function kleinCallbackUrl(text:string){const match=String(text||'').match(/https:\/\/login\.kleinanzeigen\.de\/android\/com\.ebay\.kleinanzeigen\/callback[^\s<>]*/i);if(!match)return null;try{const u=new globalThis.URL(match[0].replace(/&amp;/g,'&').replace(/[\])},.;!?]+$/g,''));return u.hostname==='login.kleinanzeigen.de'&&u.pathname==='/android/com.ebay.kleinanzeigen/callback'&&u.searchParams.get('state')&&(u.searchParams.get('code')||u.searchParams.get('error'))?u.href:null;}catch{return null;}}
 function immomioCallbackUrl(text:string){const match=String(text||'').match(/https:\/\/tenant\.immomio\.com\/de\/auth\/login[^\s<>]*/i);if(!match)return null;try{const u=new globalThis.URL(match[0].replace(/&amp;/g,'&').replace(/[\])},.;!?]+$/g,''));return u.hostname==='tenant.immomio.com'&&u.pathname==='/de/auth/login'&&u.searchParams.get('state')&&u.searchParams.get('code')?u.href:null;}catch{return null;}}
+function scoutCallbackUrl(text:string){const match=String(text||'').match(/immobilienscout24\.de:\/loginCallback[^\s<>]*/i);if(!match)return null;try{const u=new globalThis.URL(match[0].replace(/&amp;/g,'&').replace(/[\])},.;!?]+$/g,''));const params=new URLSearchParams(u.hash.replace(/^#/,'').replace(/^\?/,''));return u.protocol==='immobilienscout24.de:'&&u.pathname==='/loginCallback'&&(params.get('state')||u.searchParams.get('state'))&&(params.get('code')||u.searchParams.get('code')||params.get('error')||u.searchParams.get('error'))?u.href:null;}catch{return null;}}
+
 
 async function handlePlatforms(user:any,chatId:number,messageId:number,data:string){
  const parts=data.split(':'),action=parts[1]||'',arg=parts[2]||'',source=Number(arg),previewListingId=['preview','on','off'].includes(action)&&/^[0-9a-f-]{36}$/i.test(arg)?arg:'';
@@ -115,7 +119,16 @@ async function handlePlatforms(user:any,chatId:number,messageId:number,data:stri
  if(action==='profile-field'){
   if(!user.is_premium)return platformPage(user,chatId,messageId,'💎 Bewerberprofile benötigen Premium.');const prompt=fieldPrompt(arg);if(!prompt)return profilePage(user,chatId,messageId);await forceReply(chatId,prompt,PROFILE_FIELDS[arg].label);return;
  }
- if(action==='on'){if(!user.is_premium)return platformPage(user,chatId,messageId,'💎 Auto-Bewerbung benötigt Premium.');try{await patch('bot_users',{id:`eq.${user.id}`},{auto_apply_enabled:true,updated_at:new Date().toISOString()});user.auto_apply_enabled=true;if(previewListingId)await refreshPreviewAutoApply(user,chatId,previewListingId,true);return platformPage(user,chatId,messageId,'✅ Auto-Bewerbung aktiviert.',previewListingId);}catch{return platformPage(user,chatId,messageId,'⚠️ Auto-Bewerbung ist noch nicht freigegeben. Zuerst muss mindestens ein Plattform-Sendetest verifiziert sein.');}}
+ if(action==='provider'&&[1,2,3].includes(source)){
+   if(!user.is_premium)return platformPage(user,chatId,messageId,'💎 Plattformfreigaben benötigen Premium.');
+   const key=source===1?'immoscout':source===2?'kleinanzeigen':'immomio',column=key+'_enabled';
+   const conns=await rows('platform_connections',{user_id:`eq.${user.id}`,provider:`eq.${key}`,select:'status',limit:'1'});
+   if(conns?.[0]?.status!=='connected')return platformPage(user,chatId,messageId,'⚠️ Plattform zuerst verbinden.');
+   const pref=await rows('application_preferences',{user_id:`eq.${user.id}`,select:column,limit:'1'}),next=!(pref?.[0]?.[column]===true);
+   await patch('application_preferences',{user_id:`eq.${user.id}`},{[column]:next,updated_at:new Date().toISOString()});
+   return platformPage(user,chatId,messageId,next?'✅ Plattform für AutoApply freigegeben.':'Plattform für AutoApply pausiert.');
+  }
+  if(action==='on'){if(!user.is_premium)return platformPage(user,chatId,messageId,'💎 Auto-Bewerbung benötigt Premium.');try{await patch('bot_users',{id:`eq.${user.id}`},{auto_apply_enabled:true,updated_at:new Date().toISOString()});user.auto_apply_enabled=true;if(previewListingId)await refreshPreviewAutoApply(user,chatId,previewListingId,true);return platformPage(user,chatId,messageId,'✅ Auto-Bewerbung aktiviert.',previewListingId);}catch{return platformPage(user,chatId,messageId,'⚠️ Auto-Bewerbung ist noch nicht freigegeben. Zuerst muss mindestens ein Plattform-Sendetest verifiziert sein.');}}
  if(action==='off'){await patch('bot_users',{id:`eq.${user.id}`},{auto_apply_enabled:false,updated_at:new Date().toISOString()});user.auto_apply_enabled=false;if(previewListingId)await refreshPreviewAutoApply(user,chatId,previewListingId,false);return platformPage(user,chatId,messageId,'Auto-Bewerbung deaktiviert.',previewListingId);}
  if(action==='login'&&source===1)return edit(chatId,messageId,'🔐 <b>ImmoScout24</b>\n\nDie Verbindung wird ohne offizielle ImmoScout-API über eine gespeicherte Web-Session umgesetzt. Der kontrollierte Login-/Sendetest ist noch ausstehend; deshalb wird aktuell noch keine produktive Session angelegt.',[[button('← Automatische Bewerbung','platforms')]]);
  if(action==='login'&&source===2){
@@ -131,7 +144,7 @@ async function handlePlatforms(user:any,chatId:number,messageId:number,data:stri
   try{const result=await worker('check',user.id,source);const name=source===1?'ImmoScout24':source===2?'Kleinanzeigen':'Immomio';return platformPage(user,chatId,messageId,result.authenticated===true?`✅ ${name}-Verbindung bestätigt.`:result.authenticated===null?`${name}: Verbindung gespeichert; der Sendepfad ist noch nicht freigegeben.`:`⚠️ ${name} bitte erneut verbinden.`);}catch{return platformPage(user,chatId,messageId,'⚠️ Verbindung konnte nicht bestätigt werden.');}
  }
  if(action==='disconnect'&&[1,2,3].includes(source)){
-  try{await worker('disconnect',user.id,source);return platformPage(user,chatId,messageId,'Plattformverbindung gelöscht.');}catch{return platformPage(user,chatId,messageId,'⚠️ Verbindung konnte nicht gelöscht werden.');}
+  try{await worker('disconnect',user.id,source);const key=source===1?'immoscout':source===2?'kleinanzeigen':'immomio';await patch('application_preferences',{user_id:`eq.${user.id}`},{[key+'_enabled']:false,updated_at:new Date().toISOString()}).catch(()=>{});return platformPage(user,chatId,messageId,'Plattformverbindung gelöscht.');}catch{return platformPage(user,chatId,messageId,'⚠️ Verbindung konnte nicht gelöscht werden.');}
  }
  return platformPage(user,chatId,messageId);
 }
@@ -141,14 +154,14 @@ async function finish(updateId:number,claim:number,ok:boolean,error:string|null=
 
 export async function handleAutoApplyCallback(update:any){const query=update?.callback_query,chat=query?.message?.chat,chatId=Number(chat?.id),messageId=Number(query?.message?.message_id),fromId=Number(query?.from?.id),data=String(query?.data||'');if(!fromId||!chatId||!messageId||chat?.type!=='private'||fromId!==chatId||!isAutoApplyCallback(data))return;let ctx:any=null;try{ctx=await preparedUser(update);if(!ctx)return;const {user,claim,updateId}=ctx,owns=user.is_active&&Number(user.telegram_user_id)===fromId&&Number(user.chat_id)===chatId;if(!owns){await finish(updateId,claim,true);ctx=null;return;}let resolvedData=data;if(data==='platforms'){const rows=query?.message?.reply_markup?.inline_keyboard||[];let listingId='';for(const row of rows)for(const button of row||[]){const m=String(button?.callback_data||'').match(/^save:([0-9a-f-]{36})$/i);if(m){listingId=m[1];break;}}if(listingId){await refreshPreviewAutoApply(user,chatId,listingId,user.auto_apply_enabled===true);resolvedData=`platforms:preview:${listingId}`;}}if(resolvedData==='platforms'||resolvedData.startsWith('platforms:'))await handlePlatforms(user,chatId,messageId,resolvedData);await finish(updateId,claim,true);ctx=null;}catch(error){console.error('auto_apply_callback',String(error));if(ctx)await finish(ctx.updateId,ctx.claim,false,String(error)).catch(()=>{});}}
 
-export async function handleAutoApplyMessage(update:any){const message=update?.message,chat=message?.chat,chatId=Number(chat?.id),fromId=Number(message?.from?.id);if(!fromId||!chatId||chat?.type!=='private'||fromId!==chatId||!isAutoApplyMessage(update))return;let ctx:any=null;try{ctx=await preparedUser(update);if(!ctx)return;const {user,claim,updateId}=ctx,owns=user.is_active&&Number(user.telegram_user_id)===fromId&&Number(user.chat_id)===chatId;if(!owns){await finish(updateId,claim,true);ctx=null;return;}const text=String(message.text||'').trim(),kleinUrl=kleinCallbackUrl(text),immomioUrl=immomioCallbackUrl(text);
- if(kleinUrl||immomioUrl){
-  const source=immomioUrl?3:2,name=source===3?'Immomio':'Kleinanzeigen',url=immomioUrl||kleinUrl;
+export async function handleAutoApplyMessage(update:any){const message=update?.message,chat=message?.chat,chatId=Number(chat?.id),fromId=Number(message?.from?.id);if(!fromId||!chatId||chat?.type!=='private'||fromId!==chatId||!isAutoApplyMessage(update))return;let ctx:any=null;try{ctx=await preparedUser(update);if(!ctx)return;const {user,claim,updateId}=ctx,owns=user.is_active&&Number(user.telegram_user_id)===fromId&&Number(user.chat_id)===chatId;if(!owns){await finish(updateId,claim,true);ctx=null;return;}const text=String(message.text||'').trim(),kleinUrl=kleinCallbackUrl(text),immomioUrl=immomioCallbackUrl(text),scoutUrl=scoutCallbackUrl(text);
+ if(kleinUrl||immomioUrl||scoutUrl){
+  const source=scoutUrl?1:immomioUrl?3:2,name=source===1?'ImmoScout24':source===3?'Immomio':'Kleinanzeigen',url=scoutUrl||immomioUrl||kleinUrl;
   await telegram('deleteMessage',{chat_id:chatId,message_id:message.message_id}).catch(()=>{});
   try{
    if(!user.is_premium)await send(chatId,`💎 ${name}-Verbindungen benötigen Premium.`);
    else{
-    const result=await worker('complete_login',user.id,source,{callbackUrl:url});
+    const result=source===1?await (async()=>{const r=await fetch(SCOUT_HANDOFF,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'complete',userId:user.id,callbackUrl:url}),signal:AbortSignal.timeout(45000)}),data=await r.json().catch(()=>null);if(!r.ok)throw Error(data?.error||`worker:${r.status}`);return data;})():await worker('complete_login',user.id,source,{callbackUrl:url});
     await send(chatId,result.authenticated===true?`✅ <b>${name} verbunden</b>\n\nDie Anmeldung ist verschlüsselt gespeichert. Du musst dich für künftige Bewerbungen nicht erneut anmelden, solange ${name} die Sitzung nicht widerruft.`:`⚠️ ${name} konnte nicht verbunden werden.`,[[button('⚡ Automatische Bewerbung','platforms')]]);
    }
   }catch(error:any){
