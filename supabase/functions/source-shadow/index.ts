@@ -1,11 +1,14 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import {db,internalSecret,parseHtml,collectJson} from '../source-worker/shared.ts';
+import {runImmomioObjectShadow} from './immomio-object-shadow.mjs';
 
 Deno.serve(async request=>{
  try {
   if(request.method!=='POST')return new Response('method not allowed',{status:405});
   if((request.headers.get('x-internal-secret')||'')!==await internalSecret())return new Response('unauthorized',{status:401});
   const body=await request.json().catch(()=>({}));
+  const immomio_object_shadow=body.resolver_disabled===true?{disabled:true}:await runImmomioObjectShadow(db,body);
+  if(body.resolver_only===true)return Response.json({ok:true,immomio_object_shadow});
   const ids=Array.isArray(body.source_ids)?[...new Set(body.source_ids.filter((id:any)=>Number.isInteger(id)&&id>=1&&id<=65))].slice(0,10):[];
   let sourceQuery=db.from('sources').select('id,name,search_url,homepage_url,tier,runtime_mode');
   sourceQuery=ids.length?sourceQuery.in('id',ids):sourceQuery.or('tier.eq.K3,runtime_mode.eq.shadow');
@@ -35,6 +38,6 @@ Deno.serve(async request=>{
     if(!ids.length&&reachable&&count>0)break;
    }
   }));
-  return Response.json({ok:true,probes,results});
+  return Response.json({ok:true,probes,results,immomio_object_shadow});
  } catch(error){return Response.json({ok:false,error:String(error)},{status:500});}
 });
