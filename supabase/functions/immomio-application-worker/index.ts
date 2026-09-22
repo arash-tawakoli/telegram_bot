@@ -24,7 +24,8 @@ async function processOne(){
    db.from('platform_connections').select('status').eq('user_id',application.user_id).eq('provider','immomio').maybeSingle()
   ]);
   if(userError||listingError||connectionError)throw Error('application_read_failed');
-  if(!user.auto_apply_enabled||!user.is_active||!listing.is_active){await patch({status:'failed',last_error:'not_eligible',lease_until:null});return {status:'failed',error:'not_eligible'};}
+  const {data:autoActive,error:autoError}=await db.rpc('application_auto_apply_active',{p_user:application.user_id,p_listing:application.listing_id});
+  if(autoError||autoActive!==true||!user.is_active||!listing.is_active){await patch({status:'failed',last_error:'not_eligible',wait_reason:null,lease_until:null});return {status:'failed',error:'not_eligible'};}
   if(connection?.status!=='connected'){await patch({status:'failed',last_error:'provider_disabled',lease_until:null});return {status:'failed',provider:'immomio',error:'provider_disabled'};}
 
   const probe=await immomio('probe',String(user.id),String(listing.id));
@@ -34,8 +35,9 @@ async function processOne(){
   const {data:authorized,error:authError}=await db.rpc('authorize_immomio_application_send',{p_id:application.id,p_token:application.lease_token,p_source_identifier:probe.sourceIdentifier});
   if(authError){started=true;throw Error('authorization_unconfirmed');}
   if(authorized!==true){
-   const {data:current}=await db.from('applications').select('status,last_error').eq('id',application.id).eq('lease_token',application.lease_token).maybeSingle();
+   const {data:current}=await db.from('applications').select('status,last_error,wait_reason,next_attempt_at').eq('id',application.id).eq('lease_token',application.lease_token).maybeSingle();
    if(current&&['failed','manual_required'].includes(current.status))return {status:current.status,provider:'immomio',error:current.last_error};
+   if(current?.status==='pending'&&current?.wait_reason){await patch({lease_until:null});return {status:'deferred',provider:'immomio',error:current.wait_reason};}
    await patch({status:'failed',last_error:'send_not_authorized',lease_until:null});return {status:'failed',provider:'immomio',error:'send_not_authorized'};
   }
   started=true;
