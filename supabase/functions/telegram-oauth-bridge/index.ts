@@ -22,23 +22,32 @@ function providerName(provider:string){return provider==='kleinanzeigen'?'Kleina
 function providerUrl(provider:string,value:any){let u:any;try{u=new globalThis.URL(String(value||''))}catch{throw Error('provider_url_invalid')}if(u.protocol!=='https:'||u.username||u.password)throw Error('provider_url_invalid');const allowed=provider==='kleinanzeigen'?u.hostname==='login.kleinanzeigen.de':provider==='immomio'?u.hostname==='sso.immomio.com':u.hostname==='login.immobilienscout24.de';if(!allowed)throw Error('provider_url_invalid');return u.href}
 async function validateUser(update:any){const ctx=await prepared(update);if(!ctx)return null;const q=update?.callback_query,chatId=Number(q?.message?.chat?.id),fromId=Number(q?.from?.id),messageId=Number(q?.message?.message_id),user=ctx.user;if(!user||!user.is_active||Number(user.telegram_user_id)!==fromId||Number(user.chat_id)!==chatId)throw Error('user_mismatch');const eligible=await rpc('application_user_eligible',{p_user:user.id});if(eligible!==true)throw Error('premium_required');return{ctx,chatId,messageId,user}}
 
-async function beginProvider(userId:string,provider:'kleinanzeigen'|'immomio'|'immoscout'){
- if(provider==='kleinanzeigen')return internal(APPLICATION_WORKER,{action:'login',userId,source:2});
- if(provider==='immomio')return internal(IMMOMIO_WORKER,{action:'login',userId});
- return internal(SCOUT_HANDOFF,{action:'begin',userId});
+function randomHex(bytes=32){const a=crypto.getRandomValues(new Uint8Array(bytes));return Array.from(a,b=>b.toString(16).padStart(2,'0')).join('')}
+async function createConnectTicket(userId:string,provider:'kleinanzeigen'|'immomio'|'immoscout'){
+ const deleteUrl=new globalThis.URL(`${URL}/rest/v1/platform_auth_flows`);
+ deleteUrl.searchParams.set('user_id',`eq.${userId}`);
+ deleteUrl.searchParams.set('provider',`eq.${provider}`);
+ deleteUrl.searchParams.set('consumed_at','is.null');
+ await fetch(deleteUrl,{method:'DELETE',headers:headers({Prefer:'return=minimal'}),signal:AbortSignal.timeout(15000)});
+ const state=randomHex(24),verifier=randomHex(48);
+ const r=await fetch(`${URL}/rest/v1/platform_auth_flows`,{
+   method:'POST',
+   headers:headers({Prefer:'return=minimal'}),
+   body:JSON.stringify({user_id:userId,provider,state,code_verifier:verifier,origin:'telegram',return_target:'telegram',context:{channel:'telegram'}}),
+   signal:AbortSignal.timeout(15000)
+ });
+ if(!r.ok)throw Error('auth_flow_create_failed');
+ return state;
 }
 
 async function handleProviderLogin(update:any,provider:'kleinanzeigen'|'immomio'|'immoscout'){
  let x:any=null;
  try{
   x=await validateUser(update);if(!x)return;
-  const {ctx,chatId,messageId,user}=x,name=providerName(provider),started=await beginProvider(String(user.id),provider),url=providerUrl(provider,started.url);
-  const note=provider==='kleinanzeigen'
-   ?'Melde dich direkt auf der <b>originalen Kleinanzeigen-Seite</b> an. Passwort, SMS-Code und CAPTCHA bleiben ausschließlich bei Kleinanzeigen. Falls der Rücksprung nicht automatisch erkannt wird, teile die Abschlussseite über <b>Teilen → Telegram → Traumwohnung Hamburg</b>.'
-   :provider==='immomio'
-    ?'Melde dich direkt auf der <b>originalen Immomio-Seite</b> an. Dein Passwort bleibt ausschließlich bei Immomio. Nach erfolgreichem Login landest du auf der Immomio-Abschlussseite <code>robots.txt</code>. Teile genau diese Seite über <b>Teilen → Telegram → Traumwohnung Hamburg</b>.'
-    :'Melde dich direkt auf der <b>originalen ImmoScout24-Seite</b> an. Dein Passwort und MFA-Codes bleiben ausschließlich bei ImmoScout24. Wenn der Browser nach dem Login auf <code>immobilienscout24.de:/loginCallback…</code> weiterleitet, sende bzw. teile diese Rücksprung-URL an <b>Traumwohnung Hamburg</b>.';
-  await editOrSend(chatId,messageId,`🔐 <b>${name} verbinden</b>\n\n${note}`,[[{text:`🌐 ${name}-Login öffnen`,url}],[{text:'← Automatische Bewerbung',callback_data:'platforms'}]]);
+  const {ctx,chatId,messageId,user}=x,name=providerName(provider),ticket=await createConnectTicket(String(user.id),provider);
+  const url=`https://login.traumwohnunghamburg.de/connect?ticket=${encodeURIComponent(ticket)}`;
+  const note='Die Verbindung läuft über die zentrale TraumWohnungHamburg-Anmeldeseite. Dort wird die Zuordnung geprüft und anschließend die originale Anmeldeseite des Anbieters geöffnet. Anbieterpasswörter und MFA-Codes werden nicht im Telegram-Bot gespeichert.';
+  await editOrSend(chatId,messageId,`🔐 <b>${name} verbinden</b>\n\n${note}`,[[{text:`🌐 ${name} verbinden`,url}],[{text:'← Automatische Bewerbung',callback_data:'platforms'}]]);
   await finish(ctx.updateId,ctx.claim,true);x=null;
  }catch(e){
   console.error(`${provider}_login_bridge`,String(e));
