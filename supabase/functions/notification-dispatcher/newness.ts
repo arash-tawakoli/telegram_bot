@@ -73,7 +73,12 @@ export function deliveryNewness(l:any,eventType:any,publishedText:any=null,nowMs
     if(l.raw?.lane!=='fast'||l.fresh_delivery_eligible!==true||sourceAge==null||sourceAge< -5||sourceAge>1440)
       return {ok:false,reason:'kleinanzeigen_not_fast_24h'};
   } else if(Number(l.source_id)===1){
-    if(l.fresh_delivery_eligible!==true||!['fresh_global','fresh_borough'].includes(String(l.raw?.delivery_lane||'')))
+    const lane=String(l.raw?.delivery_lane||'');
+    const proof=l.raw?._newness;
+    const published=Date.parse(String(proof?.source_published_at||''));
+    const proven=lane==='coverage_proven' && proof?.method==='source_timestamp' &&
+      Number.isFinite(published) && nowMs-published>=-5*60*1000 && nowMs-published<=24*60*60*1000;
+    if(l.fresh_delivery_eligible!==true||(!['fresh_global','fresh_borough'].includes(lane)&&!proven))
       return {ok:false,reason:'immoscout_coverage_or_unverified'};
   } else if(l.fresh_delivery_eligible!==true) {
     return {ok:false,reason:'source_worker_newness_unverified'};

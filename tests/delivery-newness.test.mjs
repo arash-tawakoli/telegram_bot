@@ -24,6 +24,10 @@ test('ImmoScout coverage never qualifies as a new delivery',()=>{
   assert.equal(deliveryNewness(fresh,'new_listing',null,now).ok,true);
   assert.equal(deliveryNewness({...fresh,raw:{delivery_lane:'fresh_borough'}},'new_listing',null,now).ok,true);
   assert.equal(deliveryNewness({...fresh,raw:{delivery_lane:'coverage'}},'new_listing',null,now).ok,false);
+  const proven={...fresh,raw:{delivery_lane:'coverage_proven',_newness:{method:'source_timestamp',source_published_at:'2026-09-19T08:30:00Z'}}};
+  assert.equal(deliveryNewness(proven,'new_listing',null,now).ok,true);
+  assert.equal(deliveryNewness({...proven,raw:{...proven.raw,_newness:{method:'source_timestamp',source_published_at:'2026-09-18T08:30:00Z'}}},'new_listing',null,now).ok,false);
+  assert.equal(deliveryNewness({...proven,raw:{...proven.raw,_newness:{method:'poll_delta',previous_success_at:'2026-09-19T08:30:00Z'}}},'new_listing',null,now).ok,false);
 });
 
 test('generic sources need baseline, worker newness and a <=24h first observation',()=>{

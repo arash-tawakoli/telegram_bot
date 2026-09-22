@@ -5,9 +5,9 @@ export function recentInventory(l:any, now=Date.now()) {
   if(!l.is_active || !l.fresh_delivery_eligible || !Number.isFinite(age) || age<0 || age>maxAge)return false;
   const r=l.raw||{};
   return [6,10,19].includes(Number(l.source_id)) ||
-    (r.provider==='immoscout_mcp' && /^fresh/.test(r.delivery_lane||'')) ||
+    (Number(l.source_id)===1 && r.provider==='immoscout_mcp' && (['fresh_global','fresh_borough','coverage_proven'].includes(r.delivery_lane))) ||
     (r.provider==='kleinanzeigen' && r.native_offer===true && r.lane==='fast') ||
-    (r.provider==='immowelt' && r.is_new===true) ||
+    (Number(l.source_id)===3 && r.provider==='immowelt') ||
     r.provider==='immosolve_hpm_rest';
 }
 export function pageAvailability(status:number, same:boolean, html:string) {

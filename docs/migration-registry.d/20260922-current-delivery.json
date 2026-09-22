@@ -1,0 +1,12 @@
+{
+  "migrations": [
+    {
+      "version": "20260922191416",
+      "name": "fast_current_delivery_and_material_rematch",
+      "file": "supabase/migrations/20260922191416_fast_current_delivery_and_material_rematch.sql",
+      "registry_sql_sha256": "6584380c97fd7770b4845ff7dd8646914b401b148d8e15fde49474947c37ab2e",
+      "export_sql_sha256": "6584380c97fd7770b4845ff7dd8646914b401b148d8e15fde49474947c37ab2e",
+      "vault_substitution": false
+    }
+  ]
+}

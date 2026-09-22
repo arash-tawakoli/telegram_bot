@@ -1,5 +1,5 @@
 {
-  "observed_at": "2026-09-20",
+  "observed_at": "2026-09-22",
   "project_id": "dpmohkrwdlicexwcrqfy",
   "snapshot_kind": "repository_with_observed_deployment_hashes",
   "functions": [
@@ -355,8 +355,8 @@
         },
         {
           "path": "supabase/functions/notification-dispatcher/availability.ts",
-          "sha256": "2374df2ec40aa246ae22980140d19febf12cd0e933121b225dbd420a46ba0fc9",
-          "deployed_sha256": "2374df2ec40aa246ae22980140d19febf12cd0e933121b225dbd420a46ba0fc9"
+          "sha256": "26e8eacc9c16a5fe096ff3cd52f03d99548ae935eacf315f6d3926b8306e9936",
+          "deployed_sha256": "26e8eacc9c16a5fe096ff3cd52f03d99548ae935eacf315f6d3926b8306e9936"
         },
         {
           "path": "supabase/functions/notification-dispatcher/preview-delivery.ts",
@@ -390,23 +390,23 @@
         },
         {
           "path": "supabase/functions/notification-dispatcher/newness.ts",
-          "sha256": "57fed32aa6cf9f01d2362d3899be2a3ea120b027da36948da3b18c4c26fcb142",
-          "deployed_sha256": "57fed32aa6cf9f01d2362d3899be2a3ea120b027da36948da3b18c4c26fcb142"
+          "sha256": "8a99d4bf83c155ac84614c0ad817d73f8365abea6fa487cd16c4f561de08bbab",
+          "deployed_sha256": "8a99d4bf83c155ac84614c0ad817d73f8365abea6fa487cd16c4f561de08bbab"
         }
       ],
       "import_map": false,
       "retired": false,
       "slug": "notification-dispatcher",
       "verify_jwt": false,
-      "version": 132,
+      "version": 168,
       "observed_artifact": {
-        "observed_at": "2026-09-21T11:53:50.382Z",
+        "observed_at": "2026-09-22T19:14:57.300Z",
         "format": "compiled_esm",
         "entrypoint": "index.ts",
-        "ezbr_sha256": "33d9d2763b5372969d60bc63031678b0135d9c93193f8e27a8c13a782355d0e5",
-        "verification": "Source verified; version anticipates the repository-triggered Supabase redeploy for this commit."
+        "ezbr_sha256": "f80c8b1d9a77d8ae7e9453f35cbb013f072b98af8a866e790dc0673501c8289c",
+        "verification": "Production v168 source files match the updated repository runtime modules."
       },
-      "deployment_observed_at": "2026-09-21T11:53:50.382Z"
+      "deployment_observed_at": "2026-09-22T19:14:57.300Z"
     },
     {
       "entrypoint": "supabase/functions/source-shadow/index.ts",
@@ -523,8 +523,13 @@
         },
         {
           "path": "supabase/functions/source-worker/scout.ts",
-          "sha256": "a978edc4739bc36cfcdc8c255e36301374a07ed81711c4d1cfbda4a7be514059",
-          "deployed_sha256": null
+          "sha256": "339081d06ff729b8617c1002ab072ead3f502edaabd3f4f24a0ed249c5abc74e",
+          "deployed_sha256": "339081d06ff729b8617c1002ab072ead3f502edaabd3f4f24a0ed249c5abc74e"
+        },
+        {
+          "path": "supabase/functions/source-worker/coverage-newness.ts",
+          "sha256": "f50d6f511b616251a4f87f4f6ad04b38368881261331bb8ce6ef463b526e792d",
+          "deployed_sha256": "f50d6f511b616251a4f87f4f6ad04b38368881261331bb8ce6ef463b526e792d"
         },
         {
           "path": "supabase/functions/source-worker/klein.ts",
@@ -656,16 +661,16 @@
       "retired": false,
       "slug": "source-worker",
       "verify_jwt": false,
-      "version": 83,
-      "deployment_observed_at": "2026-09-21T10:53:23.741Z",
-      "source_sync_note": "Production v83 is a compiled bundle; modular GitHub source has been updated for cross-lane category newness, Immowelt house discovery, Wunderflats/Nestpick/City-Wohnen metadata, and in-process noncoop feed fixes.",
+      "version": 90,
+      "deployment_observed_at": "2026-09-22T19:17:52.411Z",
+      "source_sync_note": "Production v90 compiled bundle is verified; modular source includes timestamp-only ImmoScout coverage promotion.",
       "observed_artifact": {
-        "observed_at": "2026-09-21T10:53:23.741Z",
+        "observed_at": "2026-09-22T19:17:52.411Z",
         "format": "compiled_esm",
         "entrypoint": "index.js",
         "import_map_path": "deno.json",
-        "ezbr_sha256": "a0b2ba7add529cfcb017b71af88e7742bbe44b8f5bebe976e84cec684e9379ce",
-        "verification": "Production v83 metadata synced; modular TypeScript source updated to preserve the known production semantics of the compiled deployment."
+        "ezbr_sha256": "ccee6f029a1c3bdacf0cefa4801d67a2778bdb86bd4a128a52c04bf7270abc48",
+        "verification": "Production v90 bundle byte-matches the verified local bundle and includes timestamp-only ImmoScout coverage promotion."
       }
     },
     {
