@@ -200,7 +200,7 @@ async function startConnect(a:any,assignment:any,p:string){
  const userId=assignment.user_id,premium=await effectivePremium([String(userId)]);
  if(premium.get(String(userId))!==true)throw Error('premium_required');
  if(p==='kleinanzeigen'){
-  const result=await internalCall(URL+'/functions/v1/application-worker',{action:'login',userId,source:2});
+  const result=await internalCall(URL+'/functions/v1/application-worker',{action:'login',userId,source:2,origin:'coach',returnTarget:'coach',context:{assignment_version:assignment.assignment_version}});
   return{url:result.url,expiresInSeconds:1800,directProvider:true};
  }
  await admin.from('platform_auth_flows').update({consumed_at:new Date().toISOString()}).eq('user_id',userId).eq('provider',p).is('consumed_at',null);
