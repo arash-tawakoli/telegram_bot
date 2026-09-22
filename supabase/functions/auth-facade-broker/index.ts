@@ -127,7 +127,7 @@ async function completeWeb(value:any,callbackUrl:any){
  const flow=await flowFor(value),userId=String(flow.user_id);
  if(flow.provider==='immoscout')return internalCall(SCOUT_AUTH,{action:'complete_login',userId,callbackUrl:String(callbackUrl||'')});
  const url=callbackFor(flow,callbackUrl);
- if(flow.provider==='kleinanzeigen')return internalCall(APPLICATION_WORKER,{action:'complete_login',userId,source:2,callbackUrl:url});
+ if(flow.provider==='kleinanzeigen')throw Error('provider_route_required');
  if(flow.provider==='immomio')return internalCall(IMMOMIO_AUTH,{action:'complete_login',userId,callbackUrl:url});
  throw Error('provider_unsupported')
 }
