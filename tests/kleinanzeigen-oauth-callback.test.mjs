@@ -5,8 +5,10 @@ import {readFileSync} from 'node:fs';
 const worker=readFileSync(new URL('../supabase/functions/application-worker/index.ts',import.meta.url),'utf8');
 const provider=readFileSync(new URL('../supabase/functions/application-worker/providers/kleinanzeigen.ts',import.meta.url),'utf8');
 
-test('Kleinanzeigen login is direct OAuth only',()=>{
+test('production Kleinanzeigen login stays direct OAuth while beta helper is explicit',()=>{
  assert.match(worker,/loginTransport:configured\?'direct-oauth-callback':'not-provisioned'/);
+ assert.match(worker,/action==='login_beta_bridge'/);
+ assert.match(worker,/transport:'beta-callback-helper'/);
  assert.match(worker,/oauth=kleinanzeigen/);
  assert.match(worker,/kleinanzeigen_oauth_client_id/);
  assert.match(worker,/oauth_client_not_provisioned/);
