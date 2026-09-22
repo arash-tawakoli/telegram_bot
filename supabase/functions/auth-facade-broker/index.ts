@@ -78,7 +78,7 @@ async function resolve(value:any){
  const base={ok:true,provider,accountHint:hint,participantLabel:info.participantLabel,origin:flow.origin,returnTarget:flow.return_target,expiresAt:flow.expires_at};
  if(provider==='immoscout'||provider==='immomio')return{...base,mode:'credentials'};
  const verifier=String(flow.code_verifier||'');if(!verifier)throw Error('auth_flow_expired');const codeChallenge=await challenge(verifier);
- if(provider==='kleinanzeigen')return{...base,mode:'credentials',providerWebUrl:kleinUrl(flow,codeChallenge)};
+ if(provider==='kleinanzeigen')return{...base,mode:'provider_web',url:kleinUrl(flow,codeChallenge)};
  throw Error('provider_unsupported')
 }
 async function providerWeb(value:any,emailValue:any){
