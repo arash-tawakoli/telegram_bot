@@ -28,18 +28,32 @@ async function verifyToken(value:string){
 async function createPackage(userId:string,applicationId:string){
  const {data:app,error:ae}=await db.from('applications').select('id,user_id').eq('id',applicationId).eq('user_id',userId).maybeSingle();
  if(ae||!app)throw Error('application_not_found');
+
+ const {data:existing,error:existingError}=await db.from('application_document_packages')
+  .select('application_id,user_id,expires_at,revoked_at')
+  .eq('application_id',applicationId).eq('user_id',userId).maybeSingle();
+ if(existingError)throw Error('package_read_failed');
+ if(existing?.revoked_at)throw Error('package_revoked');
+ if(existing&&Date.parse(existing.expires_at)>Date.now()){
+  const {count,error}=await db.from('application_document_package_items')
+   .select('document_id',{count:'exact',head:true}).eq('application_id',applicationId);
+  if(error)throw Error('package_snapshot_failed');
+  const t=await makeToken(userId,applicationId);
+  return{url:base+'/functions/v1/application-package?t='+encodeURIComponent(t),count:Number(count||0),expiresAt:existing.expires_at,reused:true};
+ }
+
  const {data:docs,error:de}=await db.from('applicant_documents')
   .select('id,original_filename,storage_path,mime_type,size_bytes,created_at')
   .eq('user_id',userId).eq('send_with_auto_apply',true).order('created_at',{ascending:true});
  if(de)throw Error('documents_read_failed');
  if(!docs?.length)return{url:null,count:0};
+
  const expiresAt=new Date(Date.now()+30*24*60*60*1000).toISOString();
- const {error:pe}=await db.from('application_document_packages').upsert({
+ const {error:pe}=await db.from('application_document_packages').insert({
   application_id:applicationId,user_id:userId,expires_at:expiresAt,revoked_at:null,updated_at:new Date().toISOString()
- },{onConflict:'application_id'});
+ });
  if(pe)throw Error('package_save_failed');
- const {error:clearError}=await db.from('application_document_package_items').delete().eq('application_id',applicationId);
- if(clearError)throw Error('package_snapshot_failed');
+
  const snapshot=docs.map((d:any,i:number)=>({
   application_id:applicationId,document_id:d.id,ordinal:i,
   original_filename:String(d.original_filename),storage_path:String(d.storage_path),
@@ -47,8 +61,9 @@ async function createPackage(userId:string,applicationId:string){
  }));
  const {error:itemError}=await db.from('application_document_package_items').insert(snapshot);
  if(itemError)throw Error('package_snapshot_failed');
+
  const t=await makeToken(userId,applicationId);
- return{url:base+'/functions/v1/application-package?t='+encodeURIComponent(t),count:docs.length,expiresAt};
+ return{url:base+'/functions/v1/application-package?t='+encodeURIComponent(t),count:docs.length,expiresAt,reused:false};
 }
 async function packagePage(request:Request){
  const u=new URL(request.url),raw=u.searchParams.get('t')||'',ids=await verifyToken(raw);
