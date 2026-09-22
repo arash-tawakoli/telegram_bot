@@ -395,7 +395,7 @@ function publicError(error:any){const code=String(error?.message||'coach_api_fai
 
 Deno.serve(async req=>{
  if(req.method==='OPTIONS')return new Response(null,{status:204,headers:cors(req)});
- if(req.method==='GET')return json(req,{ok:true,service:'coach-api',version:6});
+ if(req.method==='GET')return json(req,{ok:true,service:'coach-api',version:8});
  if(req.method!=='POST')return new Response('method not allowed',{status:405,headers:cors(req)});
  try{return json(req,await handle(req));}
  catch(error:any){console.error('coach_api',String(error));const code=publicError(error),status=code==='unauthorized'?401:['coach_forbidden','participant_forbidden','admin_required','workspace_unavailable'].includes(code)?403:400;return json(req,{error:code},status);}
