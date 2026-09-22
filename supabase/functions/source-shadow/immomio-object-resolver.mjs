@@ -1,6 +1,7 @@
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const PATH_RE = new RegExp(`^/(?:de/)?apply/(${UUID})/?$`, 'i');
 const TEXT_RE = new RegExp(`https:\\/\\/tenant\\.immomio\\.com\\/(?:de\\/)?apply\\/(${UUID})(?:\\/?(?:[?#][^\\s\\"'<>\\\\]*)?)`, 'ig');
+const RDR_TEXT_RE = /https:\/\/rdr\.immomio\.com\/[A-Za-z0-9_-]{3,128}(?:\/?(?:[?#][^\s\"'<>\\]*)?)?/ig;
 
 function cleanText(value) {
   return String(value ?? '')
@@ -60,4 +61,31 @@ export function collectImmomioApplyUrls(value, options = {}) {
   };
   visit(value, 0);
   return [...out.entries()].map(([sourceIdentifier,url])=>({sourceIdentifier,url}));
+}
+
+
+export function normalizeImmomioRedirect(value) {
+  if (typeof value !== 'string' || !value.trim() || value.length > 4096) return null;
+  try {
+    const u = new URL(cleanText(value.trim()));
+    if (u.protocol !== 'https:' || u.hostname.toLowerCase() !== 'rdr.immomio.com' || u.port || u.username || u.password) return null;
+    if (!/^\/[A-Za-z0-9_-]{3,128}\/?$/.test(u.pathname)) return null;
+    u.hash = '';
+    return u.href;
+  } catch {
+    return null;
+  }
+}
+
+export function extractImmomioRedirectUrlsFromText(value) {
+  if (typeof value !== 'string' || !value) return [];
+  const text = cleanText(value.slice(0, 2_000_000));
+  const out = new Set();
+  RDR_TEXT_RE.lastIndex = 0;
+  for (const m of text.matchAll(RDR_TEXT_RE)) {
+    const url = normalizeImmomioRedirect(m[0]);
+    if (url) out.add(url);
+    if (out.size >= 8) break;
+  }
+  return [...out];
 }
