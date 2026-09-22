@@ -39,9 +39,10 @@ async function validateFlowContext(flow:any){
   const expectedVersion=Number(flow.context?.assignment_version);
   const{data:assignment,error:assignmentError}=await db.from('coaching_participants').select('workspace_id,coach_member_id,status,assignment_version').eq('user_id',userId).maybeSingle();
   if(assignmentError||!assignment||assignment.status!=='active'||!Number.isFinite(expectedVersion)||Number(assignment.assignment_version)!==expectedVersion)throw Error('auth_flow_expired');
-  const{data:issuer,error:issuerError}=await db.from('coaching_members').select('id,workspace_id,role,is_active,coaching_workspaces!inner(is_active,operations_paused)').eq('auth_user_id',flow.issued_by).maybeSingle();
-  const workspace:any=(issuer as any)?.coaching_workspaces;
-  if(issuerError||!issuer?.is_active||issuer.workspace_id!==assignment.workspace_id||!workspace?.is_active||workspace?.operations_paused)throw Error('auth_flow_expired');
+  const{data:issuer,error:issuerError}=await db.from('coaching_members').select('id,workspace_id,role,is_active').eq('auth_user_id',flow.issued_by).maybeSingle();
+  if(issuerError||!issuer?.is_active||issuer.workspace_id!==assignment.workspace_id)throw Error('auth_flow_expired');
+  const{data:workspace,error:workspaceError}=await db.from('coaching_workspaces').select('is_active,operations_paused').eq('id',issuer.workspace_id).maybeSingle();
+  if(workspaceError||!workspace?.is_active||workspace.operations_paused)throw Error('auth_flow_expired');
   if(issuer.role!=='admin'&&issuer.id!==assignment.coach_member_id)throw Error('auth_flow_expired');
  }
 }
