@@ -1,0 +1,27 @@
+name: Probe Kleinanzeigen device flow
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/probe-kleinanzeigen-device-flow.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Probe Auth0 device authorization capability
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="$(curl -sS -o /tmp/device.json -w '%{http_code}' \
+            -X POST 'https://login.kleinanzeigen.de/oauth/device/code' \
+            -H 'Content-Type: application/x-www-form-urlencoded' \
+            --data-urlencode 'client_id=uV5j90myVPc2XzEOFuWUD2At17OACEGQ' \
+            --data-urlencode 'scope=openid email profile offline_access')"
+          echo "http_status=$code"
+          jq -c '{supported:(has("device_code") and has("user_code") and (has("verification_uri") or has("verification_uri_complete"))), error:(.error // null), error_description:(.error_description // null), has_verification_uri:(has("verification_uri") or has("verification_uri_complete"))}' /tmp/device.json
