@@ -5,7 +5,6 @@ const KEY=KEYS.default||Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const WORKER=`${URL}/functions/v1/application-worker`;
 const IMMOMIO_WORKER=`${URL}/functions/v1/immomio-account`;
 const SCOUT_HANDOFF=`${URL}/functions/v1/immoscout-native-handoff`;
-const DISPATCHER=`${URL}/functions/v1/notification-dispatcher?forceFunctionRegion=eu-west-1`;
 const REQUIRED=[
  'salutation','first_name','last_name','email','phone','street','house_number','postcode','city',
  'household_size','employment_status','monthly_net_income','pets','move_in_date','schufa_status',
@@ -41,23 +40,6 @@ function esc(v:any){return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt
 async function edit(chatId:number,messageId:number,text:string,inline_keyboard:any[]){try{return await telegram('editMessageText',{chat_id:chatId,message_id:messageId,text,parse_mode:'HTML',disable_web_page_preview:true,reply_markup:{inline_keyboard}});}catch(error:any){const message=String(error?.message||error||'');if(/message is not modified/i.test(message))return null;if(/message to edit not found|message can't be edited|message_id_invalid|there is no text in the message to edit/i.test(message))return telegram('sendMessage',{chat_id:chatId,text,parse_mode:'HTML',disable_web_page_preview:true,reply_markup:{inline_keyboard}});throw error;}}
 async function send(chatId:number,text:string,inline_keyboard?:any[]){return telegram('sendMessage',{chat_id:chatId,text,parse_mode:'HTML',disable_web_page_preview:true,...(inline_keyboard?{reply_markup:{inline_keyboard}}:{})});}
 async function forceReply(chatId:number,text:string,placeholder:string){return telegram('sendMessage',{chat_id:chatId,text,parse_mode:'HTML',disable_web_page_preview:true,reply_markup:{force_reply:true,selective:true,input_field_placeholder:placeholder}});}
-async function previewKeyboard(user:any,listingId:string,enabled:boolean){
- const internal=await secret('internal_worker_secret');
- const r=await fetch(DISPATCHER,{method:'POST',headers:{'content-type':'application/json','x-internal-secret':internal},body:JSON.stringify({dry_run:true,listing_id:listingId,premium:user.is_premium===true,user_id:user.id,auto_apply_enabled:enabled}),signal:AbortSignal.timeout(20000)});
- const data=await r.json().catch(()=>null);
- if(!r.ok||!data?.keyboard)throw Error('preview_keyboard_unavailable');
- return data.keyboard;
-}
-async function refreshPreviewAutoApply(user:any,chatId:number,listingId:string,enabled:boolean){
- if(!/^[0-9a-f-]{36}$/i.test(listingId))return;
- try{
-  const events=await rows('delivery_events',{recipient_user_id:`eq.${user.id}`,listing_id:`eq.${listingId}`,status:'eq.sent',select:'telegram_message_id',order:'sent_at.desc',limit:'1'});
-  const messageId=Number(events?.[0]?.telegram_message_id||0);
-  if(!messageId)return;
-  const reply_markup=await previewKeyboard(user,listingId,enabled);
-  await telegram('editMessageReplyMarkup',{chat_id:chatId,message_id:messageId,reply_markup});
- }catch(error){console.error('preview_auto_apply_refresh',String(error));}
-}
 const ready=(p:any)=>!!p&&REQUIRED.every(k=>String(p[k]??'').trim());
 const shown=(v:any,fallback='–')=>v==null||String(v).trim()===''?fallback:esc(v);
 async function profile(userId:string){return (await rows('applicant_profiles',{user_id:`eq.${userId}`,select:'*',limit:'1'}))[0]||null;}
@@ -78,12 +60,12 @@ async function profilePage(user:any,chatId:number,messageId:number,notice=''){
  return edit(chatId,messageId,text,[[f('first_name','Vorname'),f('last_name','Nachname')],[f('email','E-Mail'),f('phone','Telefon')],[f('salutation','Anrede'),f('household_size','Haushalt')],[f('street','Straße'),f('house_number','Hausnr.')],[f('postcode','PLZ'),f('city','Ort')],[f('employment_status','Beschäftigung'),f('monthly_net_income','Einkommen')],[f('pets','Haustiere'),f('wbs_status','WBS')],[f('move_in_date','Einzugsdatum')],[f('default_message','✍️ Bewerbungstext')],[button('← Automatische Bewerbung','platforms')]]);
 }
 
-async function platformPage(user:any,chatId:number,messageId:number,notice='',previewListingId='',openAsNew=false){
+async function platformPage(user:any,chatId:number,messageId:number,notice=''){
  if(!user.is_premium){
   const checkout=`${PREMIUM_LINK}?client_reference_id=${encodeURIComponent(user.id)}`;
   const text='🔒 <b>Automatische Bewerbung</b>\n\nDie automatische Bewerbung ist mit Premium verfügbar.\n\nMit Premium können passende Bewerbungen automatisch über deine verbundenen Plattformen versendet werden.\n\nNach dem Upgrade kannst du die Einrichtung hier fortsetzen.';
   const buttons=[[{text:'💎 Jetzt abonnieren',url:checkout}],[button('← Zurück','home')]];
-  return openAsNew?send(chatId,text,buttons):edit(chatId,messageId,text,buttons);
+  return edit(chatId,messageId,text,buttons);
  }
  const [connections,prefsRows]=await Promise.all([
   rows('platform_connections',{user_id:`eq.${user.id}`,select:'provider,status'}),
@@ -109,10 +91,10 @@ async function platformPage(user:any,chatId:number,messageId:number,notice='',pr
    button(enabled?'⏸ Pausieren':'▶ Fortsetzen',`platforms:${enabled?'pause':'resume'}:${meta.id}`)
   ]);
  }
- buttons.push([button(prefs.enabled?'⚡ Auto-Bewerbung deaktivieren':'⚡ Auto-Bewerbung aktivieren',prefs.enabled?`platforms:off${previewListingId?':'+previewListingId:''}`:`platforms:on${previewListingId?':'+previewListingId:''}`)]);
+ buttons.push([button(prefs.enabled?'⚡ Auto-Bewerbung deaktivieren':'⚡ Auto-Bewerbung aktivieren',prefs.enabled?'platforms:off':'platforms:on')]);
  buttons.push([button('← Einstellungen','settings')]);
  const text=`⚡ <b>Automatische Bewerbung</b>\n\nVerwalte dein Bewerberprofil und deine Plattformen. Auto-Bewerbungen kannst du jederzeit pro Plattform pausieren.${notice?`\n\n${notice}`:''}`;
- return openAsNew?send(chatId,text,buttons):edit(chatId,messageId,text,buttons);
+ return edit(chatId,messageId,text,buttons);
 }
 
 async function providerPage(user:any,chatId:number,messageId:number,source:number){
@@ -133,8 +115,7 @@ function scoutCallbackUrl(text:string){const match=String(text||'').match(/immob
 
 
 async function handlePlatforms(user:any,chatId:number,messageId:number,data:string){
- const parts=data.split(':'),action=parts[1]||'',arg=parts[2]||'',source=Number(arg),previewListingId=['preview','on','off'].includes(action)&&/^[0-9a-f-]{36}$/i.test(arg)?arg:'';
- if(action==='preview')return platformPage(user,chatId,messageId,'',previewListingId,true);
+ const parts=data.split(':'),action=parts[1]||'',arg=parts[2]||'',source=Number(arg);
  if(!user.is_premium && action!=='disconnect')return platformPage(user,chatId,messageId);
  if(!action)return platformPage(user,chatId,messageId);
  if(action==='profile')return user.is_premium?profilePage(user,chatId,messageId):platformPage(user,chatId,messageId,'💎 Bewerberprofile benötigen Premium.');
@@ -162,17 +143,17 @@ async function handlePlatforms(user:any,chatId:number,messageId:number,data:stri
     const missing=await rpc('application_profile_missing_fields',{p_user:user.id});
     if(Array.isArray(missing)&&missing.length){
      const preview=missing.slice(0,8).map((v:any)=>`• ${esc(v)}`).join('\n'),more=missing.length>8?`\n• … und ${missing.length-8} weitere`:'';
-     return platformPage(user,chatId,messageId,`⚠️ <b>Bewerberprofil unvollständig</b>\n\nVervollständige zuerst alle mit * markierten Pflichtfelder.\n\n${preview}${more}`,previewListingId);
+     return platformPage(user,chatId,messageId,`⚠️ <b>Bewerberprofil unvollständig</b>\n\nVervollständige zuerst alle mit * markierten Pflichtfelder.\n\n${preview}${more}`);
     }
     await rpc('set_application_enabled_shared',{p_user:user.id,p_enabled:true});
     user.auto_apply_enabled=true;
-    if(previewListingId)await refreshPreviewAutoApply(user,chatId,previewListingId,true);
-    return platformPage(user,chatId,messageId,'',previewListingId);
+    
+    return platformPage(user,chatId,messageId,'');
    }catch{
-    return platformPage(user,chatId,messageId,'⚠️ Auto-Bewerbung kann noch nicht aktiviert werden. Prüfe dein Bewerberprofil und verbinde mindestens eine unterstützte Plattform.',previewListingId);
+    return platformPage(user,chatId,messageId,'⚠️ Auto-Bewerbung kann noch nicht aktiviert werden. Prüfe dein Bewerberprofil und verbinde mindestens eine unterstützte Plattform.');
    }
   }
- if(action==='off'){await rpc('set_application_enabled_shared',{p_user:user.id,p_enabled:false});user.auto_apply_enabled=false;if(previewListingId)await refreshPreviewAutoApply(user,chatId,previewListingId,false);return platformPage(user,chatId,messageId,'',previewListingId);}
+ if(action==='off'){await rpc('set_application_enabled_shared',{p_user:user.id,p_enabled:false});user.auto_apply_enabled=false;return platformPage(user,chatId,messageId,'');}
  if(action==='login'&&source===1)return edit(chatId,messageId,'🔐 <b>ImmoScout24</b>\n\nDie Verbindung wird ohne offizielle ImmoScout-API über eine gespeicherte Web-Session umgesetzt. Der kontrollierte Login-/Sendetest ist noch ausstehend; deshalb wird aktuell noch keine produktive Session angelegt.',[[button('← Automatische Bewerbung','platforms')]]);
  if(action==='login'&&source===2){
   if(!user.is_premium)return platformPage(user,chatId,messageId,'💎 Plattform-Verbindungen benötigen Premium.');
@@ -195,7 +176,7 @@ async function handlePlatforms(user:any,chatId:number,messageId:number,data:stri
 async function preparedUser(update:any){const prepared=await rpc('prepare_telegram_update',{p_payload:update}),claim=Number(prepared?.claim??0);if(claim<=0)return null;const user={...(prepared.user||{}),is_premium:premium(prepared.user,prepared.subscription)};return {prepared,claim,user,updateId:Number(update.update_id)};}
 async function finish(updateId:number,claim:number,ok:boolean,error:string|null=null){await rpc('finish_telegram_update',{p_update_id:updateId,p_attempt:claim,p_success:ok,p_error:error});}
 
-export async function handleAutoApplyCallback(update:any){const query=update?.callback_query,chat=query?.message?.chat,chatId=Number(chat?.id),messageId=Number(query?.message?.message_id),fromId=Number(query?.from?.id),data=String(query?.data||'');if(!fromId||!chatId||!messageId||chat?.type!=='private'||fromId!==chatId||!isAutoApplyCallback(data))return;let ctx:any=null;try{ctx=await preparedUser(update);if(!ctx)return;const {user,claim,updateId}=ctx,owns=user.is_active&&Number(user.telegram_user_id)===fromId&&Number(user.chat_id)===chatId;if(!owns){await finish(updateId,claim,true);ctx=null;return;}let resolvedData=data;if(data==='platforms'){const rows=query?.message?.reply_markup?.inline_keyboard||[];let listingId='';for(const row of rows)for(const button of row||[]){const m=String(button?.callback_data||'').match(/^save:([0-9a-f-]{36})$/i);if(m){listingId=m[1];break;}}if(listingId){await refreshPreviewAutoApply(user,chatId,listingId,user.auto_apply_enabled===true);resolvedData=`platforms:preview:${listingId}`;}}if(resolvedData==='platforms'||resolvedData.startsWith('platforms:'))await handlePlatforms(user,chatId,messageId,resolvedData);await finish(updateId,claim,true);ctx=null;}catch(error){console.error('auto_apply_callback',String(error));if(ctx)await finish(ctx.updateId,ctx.claim,false,String(error)).catch(()=>{});}}
+export async function handleAutoApplyCallback(update:any){const query=update?.callback_query,chat=query?.message?.chat,chatId=Number(chat?.id),messageId=Number(query?.message?.message_id),fromId=Number(query?.from?.id),data=String(query?.data||'');if(!fromId||!chatId||!messageId||chat?.type!=='private'||fromId!==chatId||!isAutoApplyCallback(data))return;let ctx:any=null;try{ctx=await preparedUser(update);if(!ctx)return;const {user,claim,updateId}=ctx,owns=user.is_active&&Number(user.telegram_user_id)===fromId&&Number(user.chat_id)===chatId;if(!owns){await finish(updateId,claim,true);ctx=null;return;}if(data==='platforms'||data.startsWith('platforms:'))await handlePlatforms(user,chatId,messageId,data);await finish(updateId,claim,true);ctx=null;}catch(error){console.error('auto_apply_callback',String(error));if(ctx)await finish(ctx.updateId,ctx.claim,false,String(error)).catch(()=>{});}}
 
 export async function handleAutoApplyMessage(update:any){const message=update?.message,chat=message?.chat,chatId=Number(chat?.id),fromId=Number(message?.from?.id);if(!fromId||!chatId||chat?.type!=='private'||fromId!==chatId||!isAutoApplyMessage(update))return;let ctx:any=null;try{ctx=await preparedUser(update);if(!ctx)return;const {user,claim,updateId}=ctx,owns=user.is_active&&Number(user.telegram_user_id)===fromId&&Number(user.chat_id)===chatId;if(!owns){await finish(updateId,claim,true);ctx=null;return;}const text=String(message.text||'').trim(),kleinUrl=kleinCallbackUrl(text),immomioUrl=immomioCallbackUrl(text),scoutUrl=scoutCallbackUrl(text);
  if(kleinUrl||immomioUrl||scoutUrl){
