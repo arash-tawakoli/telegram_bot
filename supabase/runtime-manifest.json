@@ -355,8 +355,8 @@
         },
         {
           "path": "supabase/functions/notification-dispatcher/availability.ts",
-          "sha256": "26e8eacc9c16a5fe096ff3cd52f03d99548ae935eacf315f6d3926b8306e9936",
-          "deployed_sha256": "26e8eacc9c16a5fe096ff3cd52f03d99548ae935eacf315f6d3926b8306e9936"
+          "sha256": "988c94c6cb00d8ab1fa0609997ff2dcc4bc6f32a09cfc5f239571c14d0a90b47",
+          "deployed_sha256": "988c94c6cb00d8ab1fa0609997ff2dcc4bc6f32a09cfc5f239571c14d0a90b47"
         },
         {
           "path": "supabase/functions/notification-dispatcher/preview-delivery.ts",
@@ -390,23 +390,23 @@
         },
         {
           "path": "supabase/functions/notification-dispatcher/newness.ts",
-          "sha256": "8a99d4bf83c155ac84614c0ad817d73f8365abea6fa487cd16c4f561de08bbab",
-          "deployed_sha256": "8a99d4bf83c155ac84614c0ad817d73f8365abea6fa487cd16c4f561de08bbab"
+          "sha256": "3044e4d9192c23f9df4713c2016b6f9704bcbc4ead8499e062a08af6aea1d5d4",
+          "deployed_sha256": "3044e4d9192c23f9df4713c2016b6f9704bcbc4ead8499e062a08af6aea1d5d4"
         }
       ],
       "import_map": false,
       "retired": false,
       "slug": "notification-dispatcher",
       "verify_jwt": false,
-      "version": 168,
+      "version": 170,
       "observed_artifact": {
-        "observed_at": "2026-09-22T19:14:57.300Z",
+        "observed_at": "2026-09-23T08:08:04Z",
         "format": "compiled_esm",
         "entrypoint": "index.ts",
-        "ezbr_sha256": "f80c8b1d9a77d8ae7e9453f35cbb013f072b98af8a866e790dc0673501c8289c",
-        "verification": "Production v168 source files match the updated repository runtime modules."
+        "ezbr_sha256": "7fada089800780f2e1881fdce60336f8ab7d1071e94e2e7b7a97d9006da8f639",
+        "verification": "Production v170 accepts verified ImmoScout map_delta newness and recent-inventory evidence."
       },
-      "deployment_observed_at": "2026-09-22T19:14:57.300Z"
+      "deployment_observed_at": "2026-09-23T08:08:04Z"
     },
     {
       "entrypoint": "supabase/functions/source-shadow/index.ts",
@@ -523,8 +523,8 @@
         },
         {
           "path": "supabase/functions/source-worker/scout.ts",
-          "sha256": "339081d06ff729b8617c1002ab072ead3f502edaabd3f4f24a0ed249c5abc74e",
-          "deployed_sha256": "339081d06ff729b8617c1002ab072ead3f502edaabd3f4f24a0ed249c5abc74e"
+          "sha256": "dbf7c28e718ade7cba5091594225f09dd390503a91e4d5b228352221fc3bd9e8",
+          "deployed_sha256": "dbf7c28e718ade7cba5091594225f09dd390503a91e4d5b228352221fc3bd9e8"
         },
         {
           "path": "supabase/functions/source-worker/coverage-newness.ts",
@@ -661,16 +661,16 @@
       "retired": false,
       "slug": "source-worker",
       "verify_jwt": false,
-      "version": 90,
-      "deployment_observed_at": "2026-09-22T19:17:52.411Z",
-      "source_sync_note": "Production v90 compiled bundle is verified; modular source includes timestamp-only ImmoScout coverage promotion.",
+      "version": 91,
+      "deployment_observed_at": "2026-09-23T08:07:30Z",
+      "source_sync_note": "Production v91 adds stable all-borough ImmoScout map snapshots and promotes never-before-seen map-only IDs as verified map_delta candidates.",
       "observed_artifact": {
-        "observed_at": "2026-09-22T19:17:52.411Z",
+        "observed_at": "2026-09-23T08:07:30Z",
         "format": "compiled_esm",
         "entrypoint": "index.js",
         "import_map_path": "deno.json",
-        "ezbr_sha256": "ccee6f029a1c3bdacf0cefa4801d67a2778bdb86bd4a128a52c04bf7270abc48",
-        "verification": "Production v90 bundle byte-matches the verified local bundle and includes timestamp-only ImmoScout coverage promotion."
+        "ezbr_sha256": "5a2d4fc41e26984d1a6149098abd0971d1ac7b9ef6d2ee970af414130688ab94",
+        "verification": "Production v91 completed successfully with 603 ImmoScout map IDs seeded and zero consecutive source failures."
       }
     },
     {
