@@ -1,14 +1,31 @@
-name: Probe Kleinanzeigen device flow
+name: Probe Kleinanzeigen auth grants
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/probe-kleinanzeigen-device-flow.yml"
 
 permissions:
   contents: read
 
 jobs:
   probe:
-    if: ${{ false }}
     runs-on: ubuntu-latest
+    timeout-minutes: 3
     steps:
-      - run: echo "Disabled after capability probe"
+      - name: Probe non-browser Auth0 grants
+        shell: bash
+        run: |
+          set -euo pipefail
+          probe() {
+            name="$1"; grant="$2"; extra="$3"
+            code="$(curl -sS -o "/tmp/$name.json" -w '%{http_code}' \
+              -X POST 'https://login.kleinanzeigen.de/oauth/token' \
+              -H 'Content-Type: application/json' \
+              --data "{\"grant_type\":\"$grant\",\"client_id\":\"uV5j90myVPc2XzEOFuWUD2At17OACEGQ\",\"username\":\"nonexistent-probe@example.invalid\",\"password\":\"not-a-real-password\",$extra\"scope\":\"openid email profile offline_access\"}")"
+            echo "$name http_status=$code"
+            jq -c '{error:(.error // null), error_description:(.error_description // null), has_access_token:has("access_token"), has_refresh_token:has("refresh_token")}' "/tmp/$name.json"
+          }
+          probe password 'password' ''
+          probe password_realm 'http://auth0.com/oauth/grant-type/password-realm' '"realm":"Username-Password-Authentication",'
