@@ -6,16 +6,25 @@ const WORKER=`${URL}/functions/v1/application-worker`;
 const IMMOMIO_WORKER=`${URL}/functions/v1/immomio-account`;
 const SCOUT_HANDOFF=`${URL}/functions/v1/immoscout-native-handoff`;
 const DISPATCHER=`${URL}/functions/v1/notification-dispatcher?forceFunctionRegion=eu-west-1`;
-const REQUIRED=['first_name','last_name','email','phone','city','household_size'];
+const REQUIRED=[
+ 'salutation','first_name','last_name','email','phone','street','house_number','postcode','city',
+ 'household_size','employment_status','monthly_net_income','pets','move_in_date','schufa_status',
+ 'message_apartment','message_house','message_temporary_wg','message_swap'
+];
 const SETUP_PROMPT='👤 Bewerberprofil · Grundeinrichtung';
 const FIELD_PROMPT_PREFIX='👤 Bewerberprofil · ';
 const PROFILE_FIELDS:Record<string,any>={
- salutation:{label:'Anrede',hint:'z. B. Herr, Frau oder Divers',max:40},
+ salutation:{label:'Anrede',required:true,max:40},
  first_name:{label:'Vorname',required:true,max:120},last_name:{label:'Nachname',required:true,max:120},
- email:{label:'E-Mail',required:true,max:320},phone:{label:'Telefon',required:true,max:80},
- street:{label:'Straße',max:160},house_number:{label:'Hausnummer',max:40},postcode:{label:'PLZ',max:10},city:{label:'Ort',required:true,max:120},
- household_size:{label:'Haushaltsgröße',required:true,type:'integer'},employment_status:{label:'Beschäftigung',max:160},monthly_net_income:{label:'Nettoeinkommen / Monat',type:'money'},
- pets:{label:'Haustiere',max:160},wbs_status:{label:'WBS-Status',max:160},move_in_date:{label:'Einzugsdatum',type:'date'},default_message:{label:'Standard-Bewerbungstext',max:4000}
+ email:{label:'E-Mail-Adresse',required:true,max:320},phone:{label:'Telefonnummer',required:true,max:80},
+ street:{label:'Straße',required:true,max:160},house_number:{label:'Hausnummer',required:true,max:40},postcode:{label:'PLZ',required:true,max:10},city:{label:'Ort',required:true,max:120},
+ household_size:{label:'Haushaltsgröße',required:true,type:'integer'},employment_status:{label:'Beschäftigungsverhältnis',required:true,max:160},monthly_net_income:{label:'Monatliches Nettoeinkommen',required:true,type:'money'},
+ pets:{label:'Haustiere',required:true,max:160},wbs_status:{label:'WBS-Status',max:160},move_in_date:{label:'Gewünschtes Einzugsdatum',required:true,type:'date'},
+ schufa_status:{label:'SCHUFA-Status',required:true,max:40},
+ message_apartment:{label:'Bewerbungstext Wohnung',required:true,max:4000},
+ message_house:{label:'Bewerbungstext Haus',required:true,max:4000},
+ message_temporary_wg:{label:'Bewerbungstext Auf Zeit & WG',required:true,max:4000},
+ message_swap:{label:'Bewerbungstext Tauschwohnung',required:true,max:4000}
 };
 function headers(extra:Record<string,string>={}){return {apikey:KEY,Authorization:`Bearer ${KEY}`,'content-type':'application/json',...extra};}
 async function rpc(name:string,body:Record<string,unknown>){const r=await fetch(`${URL}/rest/v1/rpc/${name}`,{method:'POST',headers:headers(),body:JSON.stringify(body)}),data=await r.json().catch(()=>null);if(!r.ok)throw Error(`${name}:${r.status}`);return data;}
@@ -55,7 +64,7 @@ async function profile(userId:string){return (await rows('applicant_profiles',{u
 function connectionLabel(c:any){const s=c?.status;return s==='connected'?'🟢 verbunden':s==='pending'?'🟡 Anmeldung offen':s==='needs_login'?'🟠 erneut anmelden':s?'🔴 Fehler':'⚪ nicht verbunden';}
 
 export function isAutoApplyCallback(data:string){
- if(data==='platforms:profile'||data==='platforms:profile-new'||data.startsWith('platforms:profile-field:')||data==='platforms:docs'||data.startsWith('platforms:doc-'))return false;
+ if(data==='platforms:profile'||data==='platforms:profile-new'||data.startsWith('platforms:profile-field:')||data.startsWith('platforms:profile-set:')||data==='platforms:docs'||data.startsWith('platforms:doc-'))return false;
  return data==='platforms'||data.startsWith('platforms:');
 }
 export function isAutoApplyMessage(update:any){const m=update?.message;if(!m?.text)return false;const text=String(m.text),reply=String(m.reply_to_message?.text||'');return /https:\/\/login\.kleinanzeigen\.de\/android\/com\.ebay\.kleinanzeigen\/callback/i.test(text)||/https:\/\/tenant\.immomio\.com\/de\/auth\/login/i.test(text)||/immobilienscout24\.de:\/loginCallback/i.test(text)||reply.startsWith(SETUP_PROMPT)||reply.startsWith(FIELD_PROMPT_PREFIX);}
@@ -147,7 +156,22 @@ async function handlePlatforms(user:any,chatId:number,messageId:number,data:stri
    return platformPage(user,chatId,messageId,action==='resume'?'⚠️ Plattform konnte nicht fortgesetzt werden.':'⚠️ Plattform konnte nicht pausiert werden.');
   }
  }
-  if(action==='on'){if(!user.is_premium)return platformPage(user,chatId,messageId,'💎 Auto-Bewerbung benötigt Premium.');try{await rpc('set_application_enabled_shared',{p_user:user.id,p_enabled:true});user.auto_apply_enabled=true;if(previewListingId)await refreshPreviewAutoApply(user,chatId,previewListingId,true);return platformPage(user,chatId,messageId,'',previewListingId);}catch{return platformPage(user,chatId,messageId,'⚠️ Auto-Bewerbung ist noch nicht freigegeben.');}}
+  if(action==='on'){
+   if(!user.is_premium)return platformPage(user,chatId,messageId,'💎 Auto-Bewerbung benötigt Premium.');
+   try{
+    const missing=await rpc('application_profile_missing_fields',{p_user:user.id});
+    if(Array.isArray(missing)&&missing.length){
+     const preview=missing.slice(0,8).map((v:any)=>`• ${esc(v)}`).join('\n'),more=missing.length>8?`\n• … und ${missing.length-8} weitere`:'';
+     return platformPage(user,chatId,messageId,`⚠️ <b>Bewerberprofil unvollständig</b>\n\nVervollständige zuerst alle mit * markierten Pflichtfelder.\n\n${preview}${more}`,previewListingId);
+    }
+    await rpc('set_application_enabled_shared',{p_user:user.id,p_enabled:true});
+    user.auto_apply_enabled=true;
+    if(previewListingId)await refreshPreviewAutoApply(user,chatId,previewListingId,true);
+    return platformPage(user,chatId,messageId,'',previewListingId);
+   }catch{
+    return platformPage(user,chatId,messageId,'⚠️ Auto-Bewerbung kann noch nicht aktiviert werden. Prüfe dein Bewerberprofil und verbinde mindestens eine unterstützte Plattform.',previewListingId);
+   }
+  }
  if(action==='off'){await rpc('set_application_enabled_shared',{p_user:user.id,p_enabled:false});user.auto_apply_enabled=false;if(previewListingId)await refreshPreviewAutoApply(user,chatId,previewListingId,false);return platformPage(user,chatId,messageId,'',previewListingId);}
  if(action==='login'&&source===1)return edit(chatId,messageId,'🔐 <b>ImmoScout24</b>\n\nDie Verbindung wird ohne offizielle ImmoScout-API über eine gespeicherte Web-Session umgesetzt. Der kontrollierte Login-/Sendetest ist noch ausstehend; deshalb wird aktuell noch keine produktive Session angelegt.',[[button('← Automatische Bewerbung','platforms')]]);
  if(action==='login'&&source===2){
