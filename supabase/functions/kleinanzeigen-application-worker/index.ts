@@ -5,7 +5,8 @@ const db=createClient(Deno.env.get('SUPABASE_URL')!,keys.default||Deno.env.get('
 const PROVIDER='kleinanzeigen',DOMAIN='login.kleinanzeigen.de',API='https://api.kleinanzeigen.de',GW='https://gateway.kleinanzeigen.de';
 const PACKAGE_ENDPOINT=Deno.env.get('SUPABASE_URL')!+'/functions/v1/application-package';
 const STATUS_SYNC_ENDPOINT=Deno.env.get('SUPABASE_URL')!+'/functions/v1/notification-dispatcher';
-const CLIENT='uV5j90myVPc2XzEOFuWUD2At17OACEGQ',V='2026.37.1',BASIC='Basic '+btoa('android:TaR60pEttY');
+const CLIENT='uV5j90myVPc2XzEOFuWUD2At17OACEGQ',V='2026.37.1';
+const BASIC='Basic '+btoa(`${await secret('kleinanzeigen_mobile_basic_user')}:${await secret('kleinanzeigen_mobile_basic_password')}`);
 const FIELDS='id,user-id,category,contact-name,displayoptions,status,title,link,poster-type,seller-account-type,ad-address,locations.location.id,locations.location.regions.region.localized-name,otherAttributes.partner-contact-display-name';
 const XCF=(ad:string)=>`/user-contactdetails/api/v1/ad/${encodeURIComponent(ad)}/contact-form`;
 const enc=new TextEncoder(),dec=new TextDecoder(),wait=(ms:number)=>new Promise(r=>setTimeout(r,ms));
