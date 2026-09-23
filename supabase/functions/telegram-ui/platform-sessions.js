@@ -3,24 +3,32 @@ import {db,SUPABASE_URL,secret,send,edit,button,telegram,esc} from './runtime.js
 const privateOwner=(user,chat)=>chat?.type==='private'&&user.is_active
  && Number(chat.id)===Number(user.telegram_user_id)&&Number(chat.id)===Number(user.chat_id);
 
-const REQUIRED=['first_name','last_name','email','phone','city','household_size'];
+const REQUIRED=[
+ 'salutation','first_name','last_name','email','phone','street','house_number','postcode','city',
+ 'household_size','employment_status','monthly_net_income','pets','move_in_date','schufa_status',
+ 'message_apartment','message_house','message_temporary_wg','message_swap'
+];
 const PROFILE_FIELDS={
- salutation:{label:'Anrede',hint:'z. B. Herr, Frau oder Divers',max:40},
+ salutation:{label:'Anrede',required:true,type:'choice',max:40},
  first_name:{label:'Vorname',required:true,max:120},
  last_name:{label:'Nachname',required:true,max:120},
- email:{label:'E-Mail',required:true,max:320},
- phone:{label:'Telefon',required:true,max:80},
- street:{label:'Straße',max:160},
- house_number:{label:'Hausnummer',max:40},
- postcode:{label:'PLZ',max:10},
+ email:{label:'E-Mail-Adresse',required:true,max:320},
+ phone:{label:'Telefonnummer',required:true,max:80},
+ street:{label:'Straße',required:true,max:160},
+ house_number:{label:'Hausnummer',required:true,max:40},
+ postcode:{label:'PLZ',required:true,max:10},
  city:{label:'Ort',required:true,max:120},
  household_size:{label:'Haushaltsgröße',required:true,type:'integer'},
- employment_status:{label:'Beschäftigung',max:160},
- monthly_net_income:{label:'Nettoeinkommen / Monat',type:'money'},
- pets:{label:'Haustiere',max:160},
+ employment_status:{label:'Beschäftigungsverhältnis',required:true,max:160},
+ monthly_net_income:{label:'Monatliches Nettoeinkommen',required:true,type:'money'},
+ pets:{label:'Haustiere',required:true,max:160},
  wbs_status:{label:'WBS-Status',max:160},
- move_in_date:{label:'Einzugsdatum',type:'date'},
- default_message:{label:'Standard-Bewerbungstext',max:4000}
+ move_in_date:{label:'Gewünschtes Einzugsdatum',required:true,type:'date'},
+ schufa_status:{label:'SCHUFA-Status',required:true,type:'choice'},
+ message_apartment:{label:'Bewerbungstext Wohnung',required:true,max:4000},
+ message_house:{label:'Bewerbungstext Haus',required:true,max:4000},
+ message_temporary_wg:{label:'Bewerbungstext Auf Zeit & WG',required:true,max:4000},
+ message_swap:{label:'Bewerbungstext Tauschwohnung',required:true,max:4000}
 };
 const DOCUMENT_BUCKET='applicant-documents';
 const MAX_DOCUMENT_BYTES=6*1024*1024;
@@ -88,8 +96,13 @@ const connectionLabel=row=>{
  if(row.status==='needs_login')return '🟠 erneut anmelden';
  return '🔴 Fehler';
 };
-const profileReady=p=>!!p&&REQUIRED.every(k=>String(p[k]??'').trim());
+const profileReady=p=>!!p&&REQUIRED.every(k=>{
+ if(k==='schufa_status')return ['NOT_SPECIFIED','AVAILABLE','NOT_AVAILABLE'].includes(String(p[k]||''));
+ if(k==='monthly_net_income'||k==='household_size')return p[k]!==null&&p[k]!==undefined&&String(p[k]).trim()!=='';
+ return String(p[k]??'').trim()!=='';
+});
 const shown=(v,fallback='–')=>v==null||String(v).trim()===''?fallback:esc(v);
+const schufaLabel=v=>v==='AVAILABLE'?'Vorhanden (&lt; 3 Monate)':v==='NOT_AVAILABLE'?'Nicht vorhanden':'Keine Angabe';
 
 function normalizeKleinCallback(value){
  let url;try{url=new URL(String(value||'').trim().replace(/[\])},.;!?]+$/g,''));}catch{return null;}
@@ -234,27 +247,36 @@ async function readProfile(userId){
 }
 
 async function renderApplicantProfile(user,chat,messageId,notice=''){
- const [p,docs]=await Promise.all([readProfile(user.id),readDocuments(user.id)]),render=(text,rows)=>messageId?edit(chat.id,messageId,text,{inline_keyboard:rows}):send(chat.id,text,{inline_keyboard:rows});
+ const [p,docs,missingResult]=await Promise.all([
+  readProfile(user.id),
+  readDocuments(user.id),
+  db.rpc('application_profile_missing_fields',{p_user:user.id})
+ ]);
+ const render=(text,rows)=>messageId?edit(chat.id,messageId,text,{inline_keyboard:rows}):send(chat.id,text,{inline_keyboard:rows});
  if(!p){
-  return render(`👤 <b>Bewerberprofil</b>\n\n${notice?`${notice}\n\n`:''}Noch kein Bewerberprofil angelegt. Die Grundeinrichtung erfolgt direkt hier in Telegram – ohne externe Supabase-Seite.`,[
+  return render(`👤 <b>Bewerberprofil</b>\n\n${notice?`${notice}\n\n`:''}Noch kein Bewerberprofil angelegt. Lege zuerst die Grunddaten an und vervollständige danach alle mit * markierten Pflichtfelder.`,[
    [button('➕ Bewerberprofil anlegen','platforms:profile-new')],
    [button('← Automatische Bewerbung','platforms')]
   ]);
  }
- const address=[p.street,p.house_number].filter(Boolean).join(' '),ready=profileReady(p),selectedDocs=docs.filter(d=>d.send_with_auto_apply).length;
- const text=`👤 <b>Bewerberprofil</b>\n\n${notice?`${notice}\n\n`:''}Status: ${ready?'✅ vollständig':'⚠️ unvollständig'}\n\n`+
-  `Anrede: ${shown(p.salutation)}\nVorname: ${shown(p.first_name)}\nNachname: ${shown(p.last_name)}\nE-Mail: ${shown(p.email)}\nTelefon: ${shown(p.phone)}\nAdresse: ${shown(address)}\nPLZ / Ort: ${shown([p.postcode,p.city].filter(Boolean).join(' '))}\nHaushalt: ${shown(p.household_size)}\nBeschäftigung: ${shown(p.employment_status)}\nNettoeinkommen: ${p.monthly_net_income==null?'–':`${shown(p.monthly_net_income)} €`}\nHaustiere: ${shown(p.pets)}\nWBS: ${shown(p.wbs_status)}\nEinzug: ${shown(p.move_in_date)}\nBewerbungstext: ${p.default_message?'✅ hinterlegt':'–'}\nDokumente: ${docs.length} gespeichert · ${selectedDocs} ausgewählt`;
+ if(missingResult.error)throw Error('Profilstatus konnte nicht geladen werden.');
+ const missing=Array.isArray(missingResult.data)?missingResult.data:[],missingSet=new Set(missing),ready=missing.length===0,selectedDocs=docs.filter(d=>d.send_with_auto_apply).length;
+ const req=(label,value)=>`${label} *: ${missingSet.has(label)?'⚠️ fehlt':value}`;
+ const text=`👤 <b>Bewerberprofil</b>\n\n${notice?`${notice}\n\n`:''}<i>* Pflichtfeld für automatische Bewerbungen</i>\n\nStatus: ${ready?'✅ vollständig':`⚠️ ${missing.length} Pflichtangabe${missing.length===1?' fehlt':'n fehlen'}`}\n\n`+
+  `${req('Anrede',shown(p.salutation,'Keine Angabe'))}\n${req('Vorname',shown(p.first_name))}\n${req('Nachname',shown(p.last_name))}\n${req('E-Mail-Adresse',shown(p.email))}\n${req('Telefonnummer',shown(p.phone))}\n${req('Straße',shown(p.street))}\n${req('Hausnummer',shown(p.house_number))}\n${req('PLZ',shown(p.postcode))}\n${req('Ort',shown(p.city))}\n${req('Haushaltsgröße',shown(p.household_size))}\n${req('Beschäftigungsverhältnis',shown(p.employment_status))}\n${req('Monatliches Nettoeinkommen',p.monthly_net_income==null?'–':`${shown(p.monthly_net_income)} €`)}\n${req('Haustiere',shown(p.pets))}\n${req('Gewünschtes Einzugsdatum',shown(p.move_in_date))}\n${req('SCHUFA-Status',schufaLabel(p.schufa_status))}\nWBS-Status: ${shown(p.wbs_status)}\n\n<b>Bewerbungstexte</b>\n${req('Bewerbungstext Wohnung',p.message_apartment?'✅ hinterlegt':'–')}\n${req('Bewerbungstext Haus',p.message_house?'✅ hinterlegt':'–')}\n${req('Bewerbungstext Auf Zeit & WG',p.message_temporary_wg?'✅ hinterlegt':'–')}\n${req('Bewerbungstext Tauschwohnung',p.message_swap?'✅ hinterlegt':'–')}\n\nDokumente: ${docs.length} gespeichert · ${selectedDocs} ausgewählt`;
  const f=(name,label)=>button(label,`platforms:profile-field:${name}`);
  return render(text,[
-  [f('first_name','Vorname'),f('last_name','Nachname')],
-  [f('email','E-Mail'),f('phone','Telefon')],
-  [f('salutation','Anrede'),f('household_size','Haushalt')],
-  [f('street','Straße'),f('house_number','Hausnr.')],
-  [f('postcode','PLZ'),f('city','Ort')],
-  [f('employment_status','Beschäftigung'),f('monthly_net_income','Einkommen')],
-  [f('pets','Haustiere'),f('wbs_status','WBS')],
-  [f('move_in_date','Einzugsdatum')],
-  [f('default_message','✍️ Bewerbungstext')],
+  [f('salutation','Anrede *'),f('schufa_status','SCHUFA *')],
+  [f('first_name','Vorname *'),f('last_name','Nachname *')],
+  [f('email','E-Mail *'),f('phone','Telefon *')],
+  [f('street','Straße *'),f('house_number','Hausnr. *')],
+  [f('postcode','PLZ *'),f('city','Ort *')],
+  [f('household_size','Haushalt *'),f('employment_status','Beschäftigung *')],
+  [f('monthly_net_income','Einkommen *'),f('pets','Haustiere *')],
+  [f('move_in_date','Einzugsdatum *'),f('wbs_status','WBS')],
+  [f('message_apartment','Text Wohnung *'),f('message_house','Text Haus *')],
+  [f('message_temporary_wg','Text Auf Zeit & WG *')],
+  [f('message_swap','Text Tauschwohnung *')],
   [button('📎 Dokumente verwalten','platforms:docs')],
   [button('← Automatische Bewerbung','platforms')]
  ]);
@@ -359,7 +381,7 @@ const AUTO_APPLY_PROVIDERS={
 
 export async function platformSessions(user,chat,messageId,data='platforms'){
  if(!privateOwner(user,chat))return;
- const parts=data.split(':'),action=parts[1]||'',arg=parts[2]||'',source=Number(arg);
+ const parts=data.split(':'),action=parts[1]||'',arg=parts[2]||'',choice=parts.slice(3).join(':'),source=Number(arg);
  const render=(text,rows)=>messageId?edit(chat.id,messageId,text,{inline_keyboard:rows}):send(chat.id,text,{inline_keyboard:rows});
  const back=[[button('← Automatische Bewerbung','platforms')]];
 
@@ -374,8 +396,37 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  }
  if(action==='profile-field'){
   if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
+  if(arg==='salutation'){
+   return render('<b>Anrede *</b>\n\nWähle eine Option.',[
+    [button('Keine Angabe','platforms:profile-set:salutation:NONE'),button('Herr','platforms:profile-set:salutation:Herr')],
+    [button('Frau','platforms:profile-set:salutation:Frau'),button('Firma','platforms:profile-set:salutation:Firma')],
+    [button('← Bewerberprofil','platforms:profile')]
+   ]);
+  }
+  if(arg==='schufa_status'){
+   return render('<b>SCHUFA-Status *</b>\n\nWähle eine Option.',[
+    [button('Keine Angabe','platforms:profile-set:schufa_status:NOT_SPECIFIED')],
+    [button('Vorhanden (< 3 Monate)','platforms:profile-set:schufa_status:AVAILABLE')],
+    [button('Nicht vorhanden','platforms:profile-set:schufa_status:NOT_AVAILABLE')],
+    [button('← Bewerberprofil','platforms:profile')]
+   ]);
+  }
   const prompt=fieldPrompt(arg);if(!prompt)return renderApplicantProfile(user,chat,messageId);
   return send(chat.id,prompt,{force_reply:true,selective:true,input_field_placeholder:PROFILE_FIELDS[arg].label});
+ }
+ if(action==='profile-set'){
+  if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
+  let value=null;
+  if(arg==='salutation'){
+   const allowed={NONE:'Keine Angabe',Herr:'Herr',Frau:'Frau',Firma:'Firma'};
+   value=allowed[choice];if(value===undefined)return renderApplicantProfile(user,chat,messageId);
+  }else if(arg==='schufa_status'){
+   if(!['NOT_SPECIFIED','AVAILABLE','NOT_AVAILABLE'].includes(choice))return renderApplicantProfile(user,chat,messageId);
+   value=choice;
+  }else return renderApplicantProfile(user,chat,messageId);
+  const {error}=await db.from('applicant_profiles').update({[arg]:value,updated_at:new Date().toISOString()}).eq('user_id',user.id);
+  if(error)throw Error('Änderung konnte nicht gespeichert werden.');
+  return renderApplicantProfile(user,chat,messageId);
  }
 
  if(action==='docs'){
@@ -487,13 +538,19 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   const superseded=(newer||[]).some(event=>['platforms:on','platforms:off'].includes(String(event?.payload?.callback_query?.data||'')));
   if(!superseded){
    if(action==='off'){
-    const {error}=await db.from('bot_users').update({auto_apply_enabled:false}).eq('id',user.id);
+    const {error}=await db.rpc('set_application_enabled_shared',{p_user:user.id,p_enabled:false});
     if(error)throw Error('Auto-Bewerbung konnte nicht deaktiviert werden.');
    }
    if(action==='on'){
     if(!user.is_premium)return render('Auto-Bewerbungen benötigen aktives Premium.',back);
-    const {error}=await db.from('bot_users').update({auto_apply_enabled:true}).eq('id',user.id);
-    if(error)return render('Auto-Bewerbungen sind noch nicht freigegeben. Hinterlege zuerst dein Bewerberprofil; mindestens eine Plattform muss technisch verifiziert sein.',back);
+    const {data:missing,error:missingError}=await db.rpc('application_profile_missing_fields',{p_user:user.id});
+    if(missingError)throw Error('Bewerberprofil konnte nicht geprüft werden.');
+    if(Array.isArray(missing)&&missing.length){
+     const preview=missing.slice(0,8).map(v=>`• ${esc(v)}`).join('\n'),more=missing.length>8?`\n• … und ${missing.length-8} weitere`:'';
+     return render(`⚠️ <b>Bewerberprofil unvollständig</b>\n\nVervollständige zuerst alle mit * markierten Pflichtfelder.\n\n${preview}${more}`,[[button('👤 Bewerberprofil vervollständigen','platforms:profile')],...back]);
+    }
+    const {error}=await db.rpc('set_application_enabled_shared',{p_user:user.id,p_enabled:true});
+    if(error)return render('⚠️ Auto-Bewerbung kann noch nicht aktiviert werden. Prüfe dein Bewerberprofil und verbinde mindestens eine unterstützte Plattform.',[[button('👤 Bewerberprofil','platforms:profile')],...back]);
    }
   }
  }
