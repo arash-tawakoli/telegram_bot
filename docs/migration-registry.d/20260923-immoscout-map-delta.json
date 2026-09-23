@@ -1,0 +1,12 @@
+{
+  "migrations": [
+    {
+      "version": "20260923080058",
+      "name": "promote_immoscout_map_delta_delivery",
+      "file": "supabase/migrations/20260923080058_promote_immoscout_map_delta_delivery.sql",
+      "registry_sql_sha256": "e0dca5af9d22d8b5ef1794441fc41c29559cfc93e167e5a80995e3cd8d3543c8",
+      "export_sql_sha256": "e0dca5af9d22d8b5ef1794441fc41c29559cfc93e167e5a80995e3cd8d3543c8",
+      "vault_substitution": false
+    }
+  ]
+}
