@@ -466,8 +466,10 @@ async function syncApplicationStatus(userId:string,listingId:string,tokenOverrid
   let updated=0,skipped=0;
   for(const event of events){
     const state=event.preview_progress&&typeof event.preview_progress==="object"?structuredClone(event.preview_progress):{};
-    if(state.application_status_key===statusKey&&Number(state.preview_ui_revision||0)===2){skipped++;continue;}
-    const operations=Array.isArray(state.operations)?state.operations:[],next=Math.max(0,Math.min(Number(state.next||operations.length),operations.length)),last=operations.length?operations[Math.max(0,next-1)]:null;
+    const operations=Array.isArray(state.operations)?state.operations:[],storedMarkup=JSON.stringify(operations.map((op:any)=>op?.body?.reply_markup||null));
+    const hasLegacyApplicationControls=/Auto-Bewerbung|Automatisch beworben|Plus erforderlich|Bewerbung läuft|Manuell bewerben|Profil vervollständigen|Postfach prüfen|Bereits beworben|Immomio öffnen/.test(storedMarkup);
+    if(state.application_status_key===statusKey&&Number(state.preview_ui_revision||0)===2&&!hasLegacyApplicationControls){skipped++;continue;}
+    const next=Math.max(0,Math.min(Number(state.next||operations.length),operations.length)),last=operations.length?operations[Math.max(0,next-1)]:null;
     const isPhoto=last?.method==="sendPhoto"&&!!last?.body?.caption;
     try{
       await tg(token,isPhoto?"editMessageCaption":"editMessageText",isPhoto
