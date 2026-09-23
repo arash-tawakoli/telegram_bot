@@ -1,5 +1,5 @@
 import { platformSessions, handleAutoApplyMessage } from './platform-sessions.js';
-import { isAdmin, adminGrantLabel, adminPremiumNotice, adminUsers, adminUser, setUserBlocked, deleteUser, setPlanOverride } from "./admin.js";
+import { isAdmin, adminGrantLabel, adminPremiumNotice, adminUsers, adminUser, setUserBlocked, deleteUser, setPlanOverride, ANNOUNCEMENT_PROMPT, createAnnouncementDraft, cancelAnnouncement, sendAnnouncement } from "./admin.js";
 import { homeKeyboard, home, premium, saved, setPaused, toggleSave, referralPage, languagePage, settings } from "./navigation.js";
 import { draftFor, validateDraft, renderTypes, renderLocation, renderBoroughs, renderNeighborhoods, renderRent, renderCustomRent, renderRooms, renderArea, renderReview, renderStep, afterSelection, persistProfile, profileLimit, draftFromProfile, startNewProfile, profileEditMenu, profile, renderStatus, nextSizeStep } from "./profiles.js";
 import { db, PREMIUM_LINK, PROPERTY_TYPES, RENT_PRESETS, ROOM_PRESETS, AREA_PRESETS, NEIGHBORHOODS_PER_PAGE, chatLanguages, button, cancelRow, backRow, secret, telegram, send, sendCelebration, edit, acknowledge, saveState, geography, HELP_TEXT } from "./runtime.js";
@@ -15,6 +15,15 @@ export async function handleMessage(message, user) {
             return;
         return adminUsers(user, chatId);
     }
+    if (command === "/announcement") {
+        if (!isAdmin(user))
+            return;
+        return send(chatId, `${ANNOUNCEMENT_PROMPT}\n\nAntworte auf diese Nachricht mit dem Text, den alle aktiven Bot-Nutzer erhalten sollen.\n\nMaximal 3.500 Zeichen.`, {
+            force_reply: true,
+            selective: true,
+            input_field_placeholder: "Ankündigung schreiben"
+        });
+    }
     if (command === "/start") {
         if (argument.startsWith("ref_") && user.__is_new_user === true) {
             const { error } = await db.rpc("redeem_referral_code", {
@@ -24,20 +33,32 @@ export async function handleMessage(message, user) {
             if (error)
                 console.error("referral_register", error.message);
         }
+        const commands = [
+            { command: "start", description: "Startmenü" },
+            { command: "suche", description: "Suchprofil erstellen" },
+            { command: "profile", description: "Suchprofile anzeigen" },
+            { command: "gespeichert", description: "Gespeicherte Inserate" },
+            { command: "einstellungen", description: "Einstellungen" },
+            { command: "pause", description: "Suche pausieren" },
+            { command: "resume", description: "Suche fortsetzen" },
+            { command: "status", description: "Systemstatus" },
+            { command: "premium", description: "Premium anzeigen" },
+            { command: "hilfe", description: "Hilfe" },
+        ];
         telegram("setMyCommands", {
-            commands: [
-                { command: "start", description: "Startmenü" },
-                { command: "suche", description: "Suchprofil erstellen" },
-                { command: "profile", description: "Suchprofile anzeigen" },
-                { command: "gespeichert", description: "Gespeicherte Inserate" },
-                { command: "einstellungen", description: "Einstellungen" },
-                { command: "pause", description: "Suche pausieren" },
-                { command: "resume", description: "Suche fortsetzen" },
-                { command: "status", description: "Systemstatus" },
-                { command: "premium", description: "Premium anzeigen" },
-                { command: "hilfe", description: "Hilfe" },
-            ],
+            commands,
+            scope: { type: "default" },
         }).catch(() => { });
+        if (isAdmin(user)) {
+            telegram("setMyCommands", {
+                commands: [
+                    ...commands,
+                    { command: "admin", description: "Adminbereich" },
+                    { command: "announcement", description: "Ankündigung senden" },
+                ],
+                scope: { type: "chat", chat_id: chatId },
+            }).catch(() => { });
+        }
         telegram("setChatMenuButton", {
             chat_id: chatId,
             menu_button: { type: "commands" },
@@ -69,6 +90,10 @@ export async function handleMessage(message, user) {
     }
     if (command === "/premium")
         return premium(user, chatId);
+    const repliedText = String(message.reply_to_message?.text || "");
+    if (isAdmin(user) && repliedText.startsWith(ANNOUNCEMENT_PROMPT)) {
+        return createAnnouncementDraft(user, chatId, text);
+    }
     const autoApplyMessage = await handleAutoApplyMessage(user, message);
     if (autoApplyMessage)
         return autoApplyMessage;
@@ -115,6 +140,16 @@ export async function handleCallback(query, user) {
         if (data === "admin:list") {
             EdgeRuntime.waitUntil(ack());
             return adminUsers(user, chatId, messageId);
+        }
+        if (data.startsWith("admin:announcement-send:")) {
+            const announcementId = data.slice("admin:announcement-send:".length);
+            await ack("Ankündigung wird gesendet");
+            return sendAnnouncement(user, chatId, messageId, announcementId);
+        }
+        if (data.startsWith("admin:announcement-cancel:")) {
+            const announcementId = data.slice("admin:announcement-cancel:".length);
+            await ack("Abgebrochen");
+            return cancelAnnouncement(user, chatId, messageId, announcementId);
         }
         if (data.startsWith("admin:user:")) {
             EdgeRuntime.waitUntil(ack());
