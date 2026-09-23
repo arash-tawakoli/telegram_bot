@@ -519,7 +519,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
    button(enabled?'⏸ Pausieren':'▶ Fortsetzen',`platforms:${enabled?'pause':'resume'}:${sourceId}`)
   ]);
  }
- rows.push([button(state.auto_apply_enabled?'Auto-Bewerbung deaktivieren':'⚡ Auto-Bewerbung aktivieren',`platforms:${state.auto_apply_enabled?'off':'on'}`)]);
+ rows.push([button(state.auto_apply_enabled?'⚡ Auto-Bewerbung deaktivieren':'⚡ Auto-Bewerbung aktivieren',`platforms:${state.auto_apply_enabled?'off':'on'}`)]);
  rows.push([button('← Einstellungen','settings')]);
  return render('⚡ <b>Automatische Bewerbung</b>\n\nVerwalte dein Bewerberprofil und deine Plattformen. Auto-Bewerbungen kannst du jederzeit pro Plattform pausieren.',rows);
 }
