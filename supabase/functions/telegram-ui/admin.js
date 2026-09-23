@@ -1,7 +1,7 @@
 import { premium } from "./navigation.js";
 import { purgePlatformSessions } from './platform-sessions.js';
 import { profile } from "./profiles.js";
-import { db, ADMIN_TELEGRAM_USER_IDS, esc, short, button, send, edit } from "./runtime.js";
+import { db, ADMIN_TELEGRAM_USER_IDS, esc, short, button, send, edit, telegram } from "./runtime.js";
 export function isAdmin(user) {
     return ADMIN_TELEGRAM_USER_IDS.has(Number(user?.telegram_user_id));
 }
@@ -241,4 +241,113 @@ export async function setPlanOverride(userId, grant) {
         }
     }
     return target;
+}
+
+
+export const ANNOUNCEMENT_PROMPT = "📢 Admin · Ankündigung";
+
+export async function createAnnouncementDraft(user, chatId, body) {
+    if (!isAdmin(user))
+        return;
+    const text = String(body || "").trim();
+    if (!text)
+        return send(chatId, "Die Ankündigung darf nicht leer sein.");
+    if (text.length > 3500)
+        return send(chatId, "Die Ankündigung darf maximal 3.500 Zeichen lang sein.");
+    const { data: announcement, error } = await db
+        .from("telegram_announcements")
+        .insert({ created_by: user.id, body: text })
+        .select("id,body")
+        .single();
+    if (error)
+        throw error;
+    return send(chatId, `📢 <b>Ankündigung · Vorschau</b>\n\n${esc(text)}\n\nEmpfänger: alle aktiven Bot-Nutzer (Free + Premium).`, {
+        inline_keyboard: [
+            [button("📢 Ankündigung senden", `admin:announcement-send:${announcement.id}`)],
+            [button("Abbrechen", `admin:announcement-cancel:${announcement.id}`)],
+        ],
+    });
+}
+
+export async function cancelAnnouncement(user, chatId, messageId, announcementId) {
+    if (!isAdmin(user))
+        return;
+    const { data, error } = await db
+        .from("telegram_announcements")
+        .update({ status: "cancelled" })
+        .eq("id", announcementId)
+        .eq("status", "draft")
+        .select("id")
+        .maybeSingle();
+    if (error)
+        throw error;
+    return edit(chatId, messageId, data ? "Ankündigung abgebrochen." : "Diese Ankündigung wurde bereits verarbeitet.", {
+        inline_keyboard: [[button("← Admin", "admin:list")]],
+    });
+}
+
+export async function sendAnnouncement(user, chatId, messageId, announcementId) {
+    if (!isAdmin(user))
+        return;
+    const { data: locked, error: lockError } = await db
+        .from("telegram_announcements")
+        .update({ status: "sending" })
+        .eq("id", announcementId)
+        .eq("status", "draft")
+        .select("id,body")
+        .maybeSingle();
+    if (lockError)
+        throw lockError;
+    if (!locked) {
+        return edit(chatId, messageId, "Diese Ankündigung wurde bereits verarbeitet.", {
+            inline_keyboard: [[button("← Admin", "admin:list")]],
+        });
+    }
+
+    const { data: recipients, error: recipientError } = await db
+        .from("bot_users")
+        .select("chat_id")
+        .eq("is_active", true)
+        .not("chat_id", "is", null);
+    if (recipientError)
+        throw recipientError;
+
+    let sent = 0;
+    let failed = 0;
+    const rows = recipients || [];
+    await db.from("telegram_announcements").update({ recipient_count: rows.length }).eq("id", announcementId);
+
+    for (const recipient of rows) {
+        try {
+            await telegram("sendMessage", {
+                chat_id: Number(recipient.chat_id),
+                text: locked.body,
+                link_preview_options: { is_disabled: true },
+            });
+            sent += 1;
+        }
+        catch (error) {
+            failed += 1;
+            console.error("announcement_delivery", Number(recipient.chat_id), String(error));
+        }
+        if (rows.length > 1)
+            await new Promise(resolve => setTimeout(resolve, 45));
+    }
+
+    const status = failed === 0 ? "sent" : "partial";
+    const { error: finishError } = await db
+        .from("telegram_announcements")
+        .update({
+            status,
+            sent_count: sent,
+            failed_count: failed,
+            sent_at: new Date().toISOString(),
+        })
+        .eq("id", announcementId);
+    if (finishError)
+        throw finishError;
+
+    return edit(chatId, messageId, `📢 <b>Ankündigung versendet</b>\n\nEmpfänger: ${rows.length}\nErfolgreich: ${sent}\nFehlgeschlagen: ${failed}`, {
+        inline_keyboard: [[button("← Admin", "admin:list")]],
+    });
 }
