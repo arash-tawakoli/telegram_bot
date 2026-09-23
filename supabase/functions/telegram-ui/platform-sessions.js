@@ -5,9 +5,46 @@ const privateOwner=(user,chat)=>chat?.type==='private'&&user.is_active
 
 const REQUIRED=[
  'salutation','first_name','last_name','email','phone','street','house_number','postcode','city',
- 'household_size','employment_status','monthly_net_income','pets','move_in_date','schufa_status',
+ 'household_type','employment_status','income_range','pets','move_in_preference','schufa_status',
  'message_apartment','message_house','message_temporary_wg','message_swap'
 ];
+const HOUSEHOLD_LABELS={
+ SINGLE:'Einpersonenhaushalt',
+ TWO_ADULTS:'Zwei Erwachsene',
+ FAMILY:'Familie',
+ SHARED_FLAT:'Wohngemeinschaft'
+};
+const INCOME_LABELS={
+ UNDER_500:'Unter 500€',
+ '500_1000':'500€ - 1.000€',
+ '1000_1500':'1.000€ - 1.500€',
+ '1500_2000':'1.500€ - 2.000€',
+ '2000_3000':'2.000€ - 3.000€',
+ '3000_4000':'3.000€ - 4.000€',
+ '4000_5000':'4.000€ - 5.000€',
+ OVER_5000:'Über 5000€'
+};
+const MOVE_IN_LABELS={
+ NOT_SPECIFIED:'Keine Angaben',
+ FLEXIBLE:'Flexibel',
+ IMMEDIATE:'Sofort',
+ EXACT_DATE:'Genaues Datum'
+};
+const EMPLOYMENT_CHOICES={
+ NONE:'Keine Angaben',
+ EMPLOYEE:'Angestellte(r)',
+ WORKER:'Arbeiter(in)',
+ SELF_EMPLOYED:'Selbstständige(r)',
+ CIVIL_SERVANT:'Beamte(r)',
+ APPRENTICE:'Auszubildene(r)',
+ STUDENT:'Studierende(r)',
+ DOCTORAL:'Doktorand(in)',
+ HOMEMAKER:'Hausfrau/mann',
+ JOBSEEKER:'Arbeitssuchende(r)',
+ RETIRED:'Rentner(in)',
+ OTHER:'Sonstiges'
+};
+const PET_CHOICES={NONE:'Keine Angaben',YES:'Ja',NO:'Nein'};
 const PROFILE_FIELDS={
  salutation:{label:'Anrede',required:true,type:'choice',max:40},
  first_name:{label:'Vorname',required:true,max:120},
@@ -18,12 +55,15 @@ const PROFILE_FIELDS={
  house_number:{label:'Hausnummer',required:true,max:40},
  postcode:{label:'PLZ',required:true,max:10},
  city:{label:'Ort',required:true,max:120},
- household_size:{label:'Haushaltsgröße',required:true,type:'integer'},
- employment_status:{label:'Beschäftigungsverhältnis',required:true,max:160},
- monthly_net_income:{label:'Monatliches Nettoeinkommen',required:true,type:'money'},
- pets:{label:'Haustiere',required:true,max:160},
+ household_type:{label:'Haushaltsgröße',required:true,type:'choice'},
+ employment_status:{label:'Beschäftigungsart',required:true,type:'choice',max:160},
+ income_range:{label:'Netto Haushaltseinkommen',required:true,type:'choice'},
+ pets:{label:'Haustiere',required:true,type:'choice',max:160},
  wbs_status:{label:'WBS-Status',max:160},
+ move_in_preference:{label:'Einzugstermin',required:true,type:'choice'},
  move_in_date:{label:'Gewünschtes Einzugsdatum',required:true,type:'date'},
+ household_size:{label:'Haushaltsgröße (Legacy)',type:'integer'},
+ monthly_net_income:{label:'Monatliches Nettoeinkommen (Legacy)',type:'money'},
  schufa_status:{label:'SCHUFA-Status',required:true,type:'choice'},
  message_apartment:{label:'Bewerbungstext Wohnung',required:true,max:4000},
  message_house:{label:'Bewerbungstext Haus',required:true,max:4000},
@@ -98,11 +138,18 @@ const connectionLabel=row=>{
 };
 const profileReady=p=>!!p&&REQUIRED.every(k=>{
  if(k==='schufa_status')return ['NOT_SPECIFIED','AVAILABLE','NOT_AVAILABLE'].includes(String(p[k]||''));
- if(k==='monthly_net_income'||k==='household_size')return p[k]!==null&&p[k]!==undefined&&String(p[k]).trim()!=='';
+ if(k==='household_type')return Object.hasOwn(HOUSEHOLD_LABELS,String(p[k]||''));
+ if(k==='income_range')return Object.hasOwn(INCOME_LABELS,String(p[k]||''));
+ if(k==='move_in_preference')return Object.hasOwn(MOVE_IN_LABELS,String(p[k]||''))&&(p[k]!=='EXACT_DATE'||!!p.move_in_date);
  return String(p[k]??'').trim()!=='';
 });
 const shown=(v,fallback='–')=>v==null||String(v).trim()===''?fallback:esc(v);
 const schufaLabel=v=>v==='AVAILABLE'?'Vorhanden (&lt; 3 Monate)':v==='NOT_AVAILABLE'?'Nicht vorhanden':'Keine Angabe';
+const householdLabel=p=>HOUSEHOLD_LABELS[p?.household_type]||shown(p?.household_size);
+const incomeLabel=p=>INCOME_LABELS[p?.income_range]||(p?.monthly_net_income==null?'–':`${shown(p.monthly_net_income)} €`);
+const moveInLabel=p=>p?.move_in_preference==='EXACT_DATE'
+ ? `Genaues Datum · ${shown(p.move_in_date)}`
+ : MOVE_IN_LABELS[p?.move_in_preference]||shown(p?.move_in_date);
 
 function normalizeKleinCallback(value){
  let url;try{url=new URL(String(value||'').trim().replace(/[\])},.;!?]+$/g,''));}catch{return null;}
@@ -263,7 +310,7 @@ async function renderApplicantProfile(user,chat,messageId,notice=''){
  const missing=Array.isArray(missingResult.data)?missingResult.data:[],missingSet=new Set(missing),ready=missing.length===0,selectedDocs=docs.filter(d=>d.send_with_auto_apply).length;
  const req=(label,value)=>`${label} *: ${missingSet.has(label)?'⚠️ fehlt':value}`;
  const text=`👤 <b>Bewerberprofil</b>\n\n${notice?`${notice}\n\n`:''}<i>* Pflichtfeld für automatische Bewerbungen</i>\n\nStatus: ${ready?'✅ vollständig':`⚠️ ${missing.length} Pflichtangabe${missing.length===1?' fehlt':'n fehlen'}`}\n\n`+
-  `${req('Anrede',shown(p.salutation,'Keine Angabe'))}\n${req('Vorname',shown(p.first_name))}\n${req('Nachname',shown(p.last_name))}\n${req('E-Mail-Adresse',shown(p.email))}\n${req('Telefonnummer',shown(p.phone))}\n${req('Straße',shown(p.street))}\n${req('Hausnummer',shown(p.house_number))}\n${req('PLZ',shown(p.postcode))}\n${req('Ort',shown(p.city))}\n${req('Haushaltsgröße',shown(p.household_size))}\n${req('Beschäftigungsverhältnis',shown(p.employment_status))}\n${req('Monatliches Nettoeinkommen',p.monthly_net_income==null?'–':`${shown(p.monthly_net_income)} €`)}\n${req('Haustiere',shown(p.pets))}\n${req('Gewünschtes Einzugsdatum',shown(p.move_in_date))}\n${req('SCHUFA-Status',schufaLabel(p.schufa_status))}\nWBS-Status: ${shown(p.wbs_status)}\n\n✍️ Bewerbungstext *: ${[p.message_apartment,p.message_house,p.message_temporary_wg,p.message_swap].filter(Boolean).length}/4 hinterlegt\n\nDokumente: ${docs.length} gespeichert · ${selectedDocs} ausgewählt`;
+  `${req('Anrede',shown(p.salutation,'Keine Angabe'))}\n${req('Vorname',shown(p.first_name))}\n${req('Nachname',shown(p.last_name))}\n${req('E-Mail-Adresse',shown(p.email))}\n${req('Telefonnummer',shown(p.phone))}\n${req('Straße',shown(p.street))}\n${req('Hausnummer',shown(p.house_number))}\n${req('PLZ',shown(p.postcode))}\n${req('Ort',shown(p.city))}\n${req('Haushaltsgröße',householdLabel(p))}\n${req('Beschäftigungsart',shown(p.employment_status))}\n${req('Netto Haushaltseinkommen',incomeLabel(p))}\n${req('Haustiere',shown(p.pets))}\n${req('Einzugstermin',moveInLabel(p))}\n${req('SCHUFA-Status',schufaLabel(p.schufa_status))}\nWBS-Status: ${shown(p.wbs_status)}\n\n✍️ Bewerbungstext *: ${[p.message_apartment,p.message_house,p.message_temporary_wg,p.message_swap].filter(Boolean).length}/4 hinterlegt\n\nDokumente: ${docs.length} gespeichert · ${selectedDocs} ausgewählt`;
  const f=(name,label)=>button(label,`platforms:profile-field:${name}`);
  return render(text,[
   [f('salutation','Anrede *'),f('schufa_status','SCHUFA *')],
@@ -271,9 +318,9 @@ async function renderApplicantProfile(user,chat,messageId,notice=''){
   [f('email','E-Mail *'),f('phone','Telefon *')],
   [f('street','Straße *'),f('house_number','Hausnr. *')],
   [f('postcode','PLZ *'),f('city','Ort *')],
-  [f('household_size','Haushalt *'),f('employment_status','Beschäftigung *')],
-  [f('monthly_net_income','Einkommen *'),f('pets','Haustiere *')],
-  [f('move_in_date','Einzugsdatum *')],
+  [f('household_type','Haushalt *'),f('employment_status','Beschäftigung *')],
+  [f('income_range','Einkommen *'),f('pets','Haustiere *')],
+  [f('move_in_preference','Einzugstermin *')],
   [button('✍️ Bewerbungstext','platforms:profile-texts')],
   [button('📎 Dokumente verwalten','platforms:docs')],
   [button('← Automatische Bewerbung','platforms')]
@@ -383,12 +430,17 @@ export async function handleAutoApplyMessage(user,message){
 
  if(replied.startsWith(SETUP_PROMPT)){
   const parts=text.split('|').map(v=>v.trim());
-  if(parts.length!==6)return send(chat.id,'Bitte genau 6 Werte mit <code>|</code> trennen:\nVorname | Nachname | E-Mail | Telefon | Ort | Haushaltsgröße');
+  if(![5,6].includes(parts.length))return send(chat.id,'Bitte genau 5 Werte mit <code>|</code> trennen:\nVorname | Nachname | E-Mail | Telefon | Ort');
   try{
    const values={
     user_id:user.id,
-    first_name:validateField('first_name',parts[0]),last_name:validateField('last_name',parts[1]),email:validateField('email',parts[2]),phone:validateField('phone',parts[3]),city:validateField('city',parts[4]),household_size:validateField('household_size',parts[5]),updated_at:new Date().toISOString()
+    first_name:validateField('first_name',parts[0]),last_name:validateField('last_name',parts[1]),email:validateField('email',parts[2]),phone:validateField('phone',parts[3]),city:validateField('city',parts[4]),updated_at:new Date().toISOString()
    };
+   if(parts.length===6){
+    const legacySize=validateField('household_size',parts[5]);
+    values.household_size=legacySize;
+    values.household_type=legacySize===1?'SINGLE':legacySize===2?'TWO_ADULTS':null;
+   }
    const {error}=await db.from('applicant_profiles').upsert(values,{onConflict:'user_id'});if(error)throw Error('Bewerberprofil konnte nicht gespeichert werden.');
    await Promise.all([telegram('deleteMessage',{chat_id:chat.id,message_id:message.message_id}).catch(()=>{}),message.reply_to_message?.message_id?telegram('deleteMessage',{chat_id:chat.id,message_id:message.reply_to_message.message_id}).catch(()=>{}):null]);
    return send(chat.id,'✅ Bewerberprofil angelegt.',{inline_keyboard:[[button('👤 Profil öffnen','platforms:profile')],[button('← Automatische Bewerbung','platforms')]]});
@@ -400,7 +452,10 @@ export async function handleAutoApplyMessage(user,message){
   const [name]=entry;
   try{
    const current=await readProfile(user.id);if(!current)return send(chat.id,'Bitte zuerst die Grundeinrichtung des Bewerberprofils abschließen.',{inline_keyboard:[[button('➕ Bewerberprofil anlegen','platforms:profile-new')]]});
-   const value=validateField(name,text),{error}=await db.from('applicant_profiles').update({[name]:value,updated_at:new Date().toISOString()}).eq('user_id',user.id);if(error)throw Error('Änderung konnte nicht gespeichert werden.');
+   const value=validateField(name,text),patch=name==='move_in_date'
+    ? {[name]:value,move_in_preference:'EXACT_DATE',updated_at:new Date().toISOString()}
+    : {[name]:value,updated_at:new Date().toISOString()};
+   const {error}=await db.from('applicant_profiles').update(patch).eq('user_id',user.id);if(error)throw Error('Änderung konnte nicht gespeichert werden.');
    await Promise.all([telegram('deleteMessage',{chat_id:chat.id,message_id:message.message_id}).catch(()=>{}),message.reply_to_message?.message_id?telegram('deleteMessage',{chat_id:chat.id,message_id:message.reply_to_message.message_id}).catch(()=>{}):null]);
    const messageField=name.startsWith('message_');
    return send(chat.id,`✅ ${esc(PROFILE_FIELDS[name].label)} gespeichert.`,{inline_keyboard:[[button(messageField?'✍️ Vorschau öffnen':'👤 Bewerberprofil',messageField?`platforms:profile-text:${name}`:'platforms:profile')],[button('← Automatische Bewerbung','platforms')]]});
@@ -428,7 +483,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  if(action==='profile-new'){
   if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
   const existing=await readProfile(user.id);if(existing)return renderApplicantProfile(user,chat,messageId);
-  return send(chat.id,`${SETUP_PROMPT}\n\nAntworte in <b>einer Nachricht</b> mit diesen 6 Angaben, getrennt durch <code>|</code>:\n\n<code>Vorname | Nachname | E-Mail | Telefon | Ort | Haushaltsgröße</code>\n\nBeispiel:\n<code>Max | Mustermann | max@example.de | +49 170 1234567 | Hamburg | 1</code>`,{force_reply:true,selective:true,input_field_placeholder:'Vorname | Nachname | E-Mail | Telefon | Ort | 1'});
+  return send(chat.id,`${SETUP_PROMPT}\n\nAntworte in <b>einer Nachricht</b> mit diesen 5 Angaben, getrennt durch <code>|</code>:\n\n<code>Vorname | Nachname | E-Mail | Telefon | Ort</code>\n\nBeispiel:\n<code>Max | Mustermann | max@example.de | +49 170 1234567 | Hamburg</code>\n\nDie ImmoScout-Auswahlfelder legst du danach direkt über Buttons fest.`,{force_reply:true,selective:true,input_field_placeholder:'Vorname | Nachname | E-Mail | Telefon | Ort'});
  }
  if(action==='profile-texts'){
   if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
@@ -440,10 +495,57 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  }
  if(action==='profile-field'){
   if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
+  const current=await readProfile(user.id);
+  const mark=(value,selected,label)=>value===selected?`✅ ${label}`:label;
   if(arg==='salutation'){
    return render('<b>Anrede *</b>\n\nWähle eine Option.',[
     [button('Keine Angabe','platforms:profile-set:salutation:NONE'),button('Herr','platforms:profile-set:salutation:Herr')],
     [button('Frau','platforms:profile-set:salutation:Frau'),button('Firma','platforms:profile-set:salutation:Firma')],
+    [button('← Bewerberprofil','platforms:profile')]
+   ]);
+  }
+  if(arg==='household_type'){
+   return render('<b>Haushaltsgröße *</b>\n\nWähle eine Option.',[
+    [button(mark('SINGLE',current?.household_type,'Einpersonenhaushalt'),'platforms:profile-set:household_type:SINGLE'),button(mark('TWO_ADULTS',current?.household_type,'Zwei Erwachsene'),'platforms:profile-set:household_type:TWO_ADULTS')],
+    [button(mark('FAMILY',current?.household_type,'Familie'),'platforms:profile-set:household_type:FAMILY'),button(mark('SHARED_FLAT',current?.household_type,'Wohngemeinschaft'),'platforms:profile-set:household_type:SHARED_FLAT')],
+    [button('← Bewerberprofil','platforms:profile')]
+   ]);
+  }
+  if(arg==='employment_status'){
+   const e=current?.employment_status;
+   return render('<b>Beschäftigungsart *</b>\n\nWähle eine Option.',[
+    [button(mark('Keine Angaben',e,'Keine Angaben'),'platforms:profile-set:employment_status:NONE')],
+    [button(mark('Angestellte(r)',e,'Angestellte(r)'),'platforms:profile-set:employment_status:EMPLOYEE'),button(mark('Arbeiter(in)',e,'Arbeiter(in)'),'platforms:profile-set:employment_status:WORKER')],
+    [button(mark('Selbstständige(r)',e,'Selbstständige(r)'),'platforms:profile-set:employment_status:SELF_EMPLOYED'),button(mark('Beamte(r)',e,'Beamte(r)'),'platforms:profile-set:employment_status:CIVIL_SERVANT')],
+    [button(mark('Auszubildene(r)',e,'Auszubildene(r)'),'platforms:profile-set:employment_status:APPRENTICE'),button(mark('Studierende(r)',e,'Studierende(r)'),'platforms:profile-set:employment_status:STUDENT')],
+    [button(mark('Doktorand(in)',e,'Doktorand(in)'),'platforms:profile-set:employment_status:DOCTORAL'),button(mark('Hausfrau/mann',e,'Hausfrau/mann'),'platforms:profile-set:employment_status:HOMEMAKER')],
+    [button(mark('Arbeitssuchende(r)',e,'Arbeitssuchende(r)'),'platforms:profile-set:employment_status:JOBSEEKER'),button(mark('Rentner(in)',e,'Rentner(in)'),'platforms:profile-set:employment_status:RETIRED')],
+    [button(mark('Sonstiges',e,'Sonstiges'),'platforms:profile-set:employment_status:OTHER')],
+    [button('← Bewerberprofil','platforms:profile')]
+   ]);
+  }
+  if(arg==='income_range'){
+   return render('<b>Netto Haushaltseinkommen *</b>\n\nWähle eine Option.',[
+    [button(mark('UNDER_500',current?.income_range,'Unter 500€'),'platforms:profile-set:income_range:UNDER_500'),button(mark('500_1000',current?.income_range,'500€ - 1.000€'),'platforms:profile-set:income_range:500_1000')],
+    [button(mark('1000_1500',current?.income_range,'1.000€ - 1.500€'),'platforms:profile-set:income_range:1000_1500'),button(mark('1500_2000',current?.income_range,'1.500€ - 2.000€'),'platforms:profile-set:income_range:1500_2000')],
+    [button(mark('2000_3000',current?.income_range,'2.000€ - 3.000€'),'platforms:profile-set:income_range:2000_3000'),button(mark('3000_4000',current?.income_range,'3.000€ - 4.000€'),'platforms:profile-set:income_range:3000_4000')],
+    [button(mark('4000_5000',current?.income_range,'4.000€ - 5.000€'),'platforms:profile-set:income_range:4000_5000'),button(mark('OVER_5000',current?.income_range,'Über 5000€'),'platforms:profile-set:income_range:OVER_5000')],
+    [button('← Bewerberprofil','platforms:profile')]
+   ]);
+  }
+  if(arg==='pets'){
+   const p=current?.pets;
+   return render('<b>Haustiere *</b>\n\nWähle eine Option.',[
+    [button(mark('Keine Angaben',p,'Keine Angaben'),'platforms:profile-set:pets:NONE')],
+    [button(mark('Ja',p,'Ja'),'platforms:profile-set:pets:YES'),button(mark('Nein',p,'Nein'),'platforms:profile-set:pets:NO')],
+    [button('← Bewerberprofil','platforms:profile')]
+   ]);
+  }
+  if(arg==='move_in_preference'){
+   const m=current?.move_in_preference;
+   return render('<b>Einzugstermin *</b>\n\nWähle eine Option.',[
+    [button(mark('NOT_SPECIFIED',m,'Keine Angaben'),'platforms:profile-set:move_in_preference:NOT_SPECIFIED'),button(mark('FLEXIBLE',m,'Flexibel'),'platforms:profile-set:move_in_preference:FLEXIBLE')],
+    [button(mark('IMMEDIATE',m,'Sofort'),'platforms:profile-set:move_in_preference:IMMEDIATE'),button(mark('EXACT_DATE',m,'Genaues Datum'),'platforms:profile-set:move_in_preference:EXACT_DATE')],
     [button('← Bewerberprofil','platforms:profile')]
    ]);
   }
@@ -460,15 +562,35 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  }
  if(action==='profile-set'){
   if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
-  let value=null;
+  let patch=null;
   if(arg==='salutation'){
    const allowed={NONE:'Keine Angabe',Herr:'Herr',Frau:'Frau',Firma:'Firma'};
-   value=allowed[choice];if(value===undefined)return renderApplicantProfile(user,chat,messageId);
+   const value=allowed[choice];if(value===undefined)return renderApplicantProfile(user,chat,messageId);
+   patch={salutation:value};
+  }else if(arg==='household_type'){
+   if(!Object.hasOwn(HOUSEHOLD_LABELS,choice))return renderApplicantProfile(user,chat,messageId);
+   patch={household_type:choice,household_size:choice==='SINGLE'?1:choice==='TWO_ADULTS'?2:null};
+  }else if(arg==='employment_status'){
+   const value=EMPLOYMENT_CHOICES[choice];if(value===undefined)return renderApplicantProfile(user,chat,messageId);
+   patch={employment_status:value};
+  }else if(arg==='income_range'){
+   if(!Object.hasOwn(INCOME_LABELS,choice))return renderApplicantProfile(user,chat,messageId);
+   patch={income_range:choice,monthly_net_income:null};
+  }else if(arg==='pets'){
+   const value=PET_CHOICES[choice];if(value===undefined)return renderApplicantProfile(user,chat,messageId);
+   patch={pets:value};
+  }else if(arg==='move_in_preference'){
+   if(!Object.hasOwn(MOVE_IN_LABELS,choice))return renderApplicantProfile(user,chat,messageId);
+   if(choice==='EXACT_DATE'){
+    const prompt=fieldPrompt('move_in_date');
+    return send(chat.id,prompt,{force_reply:true,selective:true,input_field_placeholder:'JJJJ-MM-TT'});
+   }
+   patch={move_in_preference:choice,move_in_date:null};
   }else if(arg==='schufa_status'){
    if(!['NOT_SPECIFIED','AVAILABLE','NOT_AVAILABLE'].includes(choice))return renderApplicantProfile(user,chat,messageId);
-   value=choice;
+   patch={schufa_status:choice};
   }else return renderApplicantProfile(user,chat,messageId);
-  const {error}=await db.from('applicant_profiles').update({[arg]:value,updated_at:new Date().toISOString()}).eq('user_id',user.id);
+  const {error}=await db.from('applicant_profiles').update({...patch,updated_at:new Date().toISOString()}).eq('user_id',user.id);
   if(error)throw Error('Änderung konnte nicht gespeichert werden.');
   return renderApplicantProfile(user,chat,messageId);
  }
