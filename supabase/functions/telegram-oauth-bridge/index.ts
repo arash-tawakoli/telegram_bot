@@ -45,18 +45,16 @@ async function handleProviderLogin(update:any,provider:'kleinanzeigen'|'immomio'
  try{
   x=await validateUser(update);if(!x)return;
   const {ctx,chatId,messageId,user}=x,name=providerName(provider);
-  let url:string,note:string;
+  let url:string;
   if(provider==='kleinanzeigen'){
    const result=await internal(APPLICATION_WORKER,{action:'login_share',userId:String(user.id),source:2,origin:'telegram',returnTarget:'telegram',context:{channel:'telegram',share_flow:true}});
    if(!result?.url)throw Error('auth_flow_create_failed');
    url=providerUrl(provider,result.url);
-   note='<b>1.</b> Öffne Kleinanzeigen und melde dich normal an.\n<b>2.</b> Auf der Abschlussseite tippe auf <b>Teilen</b>.\n<b>3.</b> Wähle <b>Telegram → Traumwohnung Hamburg → Senden</b>.\n\nDer Bot übernimmt den Rücksprung automatisch und löscht die geteilte Login-URL direkt wieder.';
   }else{
    const connect=await createConnectTicket(String(user.id),provider),ticket=connect.state;
    url=`https://login.traumwohnunghamburg.de/connect?ticket=${encodeURIComponent(ticket)}`;
-   note='Die Verbindung läuft über die zentrale TraumWohnungHamburg-Anmeldeseite. Dort wird die Zuordnung geprüft und anschließend die originale Anmeldeseite des Anbieters geöffnet. Anbieterpasswörter und MFA-Codes werden nicht im Telegram-Bot gespeichert.';
   }
-  await editOrSend(chatId,messageId,`🔐 <b>${name} verbinden</b>\n\n${note}`,[[{text:`🌐 ${name} verbinden`,url}],[{text:'← Automatische Bewerbung',callback_data:'platforms'}]]);
+  await editOrSend(chatId,messageId,`🔐 <b>${name} verbinden</b>\n\nMelde dich einmalig an und folge den Schritten.`,[[{text:`🌐 ${name} verbinden`,url}],[{text:'← Automatische Bewerbung',callback_data:'platforms'}]]);
   await finish(ctx.updateId,ctx.claim,true);x=null;
  }catch(e){
   console.error(`${provider}_login_bridge`,String(e));
