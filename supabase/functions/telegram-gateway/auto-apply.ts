@@ -102,7 +102,7 @@ async function platformPage(user:any,chatId:number,messageId:number,notice='',pr
  }
  buttons.push([button(prefs.enabled?'Auto-Bewerbung deaktivieren':'⚡ Auto-Bewerbung aktivieren',prefs.enabled?`platforms:off${previewListingId?':'+previewListingId:''}`:`platforms:on${previewListingId?':'+previewListingId:''}`)]);
  buttons.push([button('← Einstellungen','settings')]);
- const text=`⚡ <b>Automatische Bewerbung</b>${notice?`\n\n${notice}`:''}`;
+ const text=`⚡ <b>Automatische Bewerbung</b>\n\nVerwalte dein Bewerberprofil und deine Plattformen. Auto-Bewerbungen kannst du jederzeit pro Plattform pausieren.${notice?`\n\n${notice}`:''}`;
  return openAsNew?send(chatId,text,buttons):edit(chatId,messageId,text,buttons);
 }
 
