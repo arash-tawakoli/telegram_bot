@@ -273,22 +273,22 @@ function applicationPresentation(app:any,provider:any,lang="de"){
   if(!app||!provider)return null;
   const de=lang!=="en",status=String(app.status||""),error=String(app.last_error||""),state=app.provider_state&&typeof app.provider_state==="object"?app.provider_state:{},name=providerLabel(provider);
   if(status==="sent"){
-    if(provider==="immomio"&&state.followUpRequired==="questions")return{caption:de?"⚠️ <b>Bewerbung versendet · Angaben erforderlich</b>":"⚠️ <b>Application sent · details required</b>",button:de?"⚠️ Angaben erforderlich":"⚠️ Details required",kind:"provider_action"};
-    if(provider==="immomio"&&state.followUpRequired==="sms_verification")return{caption:de?"⚠️ <b>Bewerbung versendet · Bestätigung erforderlich</b>":"⚠️ <b>Application sent · verification required</b>",button:de?"⚠️ Bestätigung erforderlich":"⚠️ Verification required",kind:"provider_action"};
-    return{caption:de?"✅ <b>Automatisch beworben</b>":"✅ <b>Applied automatically</b>",button:de?"✅ Automatisch beworben":"✅ Applied automatically",kind:"sent"};
+    if(provider==="immomio"&&state.followUpRequired==="questions")return{caption:de?"⚠️ <b>Bewerbung versendet · Angaben erforderlich</b>":"⚠️ <b>Application sent · details required</b>"};
+    if(provider==="immomio"&&state.followUpRequired==="sms_verification")return{caption:de?"⚠️ <b>Bewerbung versendet · Bestätigung erforderlich</b>":"⚠️ <b>Application sent · verification required</b>"};
+    return{caption:de?"✅ <b>Automatisch beworben</b>":"✅ <b>Applied automatically</b>"};
   }
-  if(error==="already_applied")return{caption:de?"✅ <b>Bereits beworben</b>":"✅ <b>Already applied</b>",button:de?"✅ Bereits beworben":"✅ Already applied",kind:"already"};
-  if(status==="pending"||status==="processing")return{caption:de?"⏳ <b>Bewerbung wird versendet …</b>":"⏳ <b>Application is being sent …</b>",button:de?"⏳ Bewerbung läuft":"⏳ Application in progress",kind:"progress"};
-  if(error==="plus_required")return{caption:`⚠️ <b>${esc(name)} Plus erforderlich</b>`,button:`⚠️ ${name} Plus erforderlich`,kind:"offer"};
-  if(["needs_login","provider_disabled"].includes(error))return{caption:`🔐 <b>${esc(name)} erneut verbinden</b>`,button:`🔐 ${name} verbinden`,kind:"login"};
-  if(error==="listing_unavailable")return{caption:de?"🚫 <b>Angebot nicht mehr verfügbar</b>":"🚫 <b>Listing no longer available</b>",button:de?"🚫 Nicht mehr verfügbar":"🚫 Unavailable",kind:"unavailable"};
-  if(error.startsWith("required_profile_data_missing"))return{caption:de?"⚠️ <b>Bewerberprofil vervollständigen</b>":"⚠️ <b>Complete applicant profile</b>",button:de?"⚠️ Profil vervollständigen":"⚠️ Complete profile",kind:"profile"};
-  if(error==="conversation_exists")return{caption:de?"💬 <b>Unterhaltung bereits vorhanden</b>":"💬 <b>Conversation already exists</b>",button:de?"💬 Postfach prüfen":"💬 Check inbox",kind:"offer"};
-  if(["submission_unconfirmed","xcf_submit_unconfirmed"].includes(error))return{caption:de?"⚠️ <b>Versand nicht bestätigt</b>":"⚠️ <b>Send not confirmed</b>",button:de?"⚠️ Postfach prüfen":"⚠️ Check inbox",kind:"offer"};
-  if(provider==="immomio"&&["dynamic_questions_required","sms_verification_required","captcha_required"].includes(error))return{caption:de?"⚠️ <b>Aktion in Immomio erforderlich</b>":"⚠️ <b>Action required in Immomio</b>",button:de?"⚠️ Immomio öffnen":"⚠️ Open Immomio",kind:"provider_action"};
-  if(error==="provider_paused")return{caption:de?"⏸ <b>Auto-Bewerbung für diese Plattform pausiert</b>":"⏸ <b>Auto-apply paused for this platform</b>",button:de?"⏸ Auto-Bewerbung pausiert":"⏸ Auto-apply paused",kind:"paused"};
+  if(error==="already_applied")return{caption:de?"✅ <b>Bereits beworben</b>":"✅ <b>Already applied</b>"};
+  if(status==="pending"||status==="processing")return{caption:de?"⏳ <b>Bewerbung wird versendet …</b>":"⏳ <b>Application is being sent …</b>"};
+  if(error==="plus_required")return{caption:`⚠️ <b>${esc(name)} Plus erforderlich</b>`};
+  if(["needs_login","provider_disabled"].includes(error))return{caption:`🔐 <b>${esc(name)} erneut verbinden</b>`};
+  if(error==="listing_unavailable")return{caption:de?"🚫 <b>Angebot nicht mehr verfügbar</b>":"🚫 <b>Listing no longer available</b>"};
+  if(error.startsWith("required_profile_data_missing"))return{caption:de?"⚠️ <b>Bewerberprofil vervollständigen</b>":"⚠️ <b>Complete applicant profile</b>"};
+  if(error==="conversation_exists")return{caption:de?"💬 <b>Unterhaltung bereits vorhanden</b>":"💬 <b>Conversation already exists</b>"};
+  if(["submission_unconfirmed","xcf_submit_unconfirmed"].includes(error))return{caption:de?"⚠️ <b>Versand nicht bestätigt</b>":"⚠️ <b>Send not confirmed</b>"};
+  if(provider==="immomio"&&["dynamic_questions_required","sms_verification_required","captcha_required"].includes(error))return{caption:de?"⚠️ <b>Aktion in Immomio erforderlich</b>":"⚠️ <b>Action required in Immomio</b>"};
+  if(error==="provider_paused")return{caption:de?"⏸ <b>Auto-Bewerbung für diese Plattform pausiert</b>":"⏸ <b>Auto-apply paused for this platform</b>"};
   if(["not_eligible","send_not_authorized","auto_apply_disabled"].includes(error))return null;
-  if(["manual_required","failed"].includes(status))return{caption:de?"⚠️ <b>Manuell bewerben</b>":"⚠️ <b>Apply manually</b>",button:de?"⚠️ Manuell bewerben":"⚠️ Apply manually",kind:"offer"};
+  if(["manual_required","failed"].includes(status))return{caption:de?"⚠️ <b>Manuell bewerben</b>":"⚠️ <b>Apply manually</b>"};
   return null;
 }
 async function applicationState(userId:string,listingId:string){
@@ -297,35 +297,7 @@ async function applicationState(userId:string,listingId:string){
   if(error){console.error("application_status_read_failed",error.message);return null;}
   return data||null;
 }
-async function applicationPreferences(userId:string){
-  if(!/^[0-9a-f-]{36}$/i.test(userId))return null;
-  const {data,error}=await db.from("application_preferences").select("enabled,immoscout_enabled,kleinanzeigen_enabled,immomio_enabled").eq("user_id",userId).maybeSingle();
-  if(error){console.error("application_preferences_read_failed",error.message);return null;}
-  return data||null;
-}
-function providerPreferenceEnabled(provider:string|null,globalEnabled:boolean,prefs:any){
-  if(!globalEnabled||!provider)return false;
-  if(!prefs)return globalEnabled;
-  if(prefs.enabled===false)return false;
-  if(provider==="immoscout")return prefs.immoscout_enabled!==false;
-  if(provider==="kleinanzeigen")return prefs.kleinanzeigen_enabled!==false;
-  if(provider==="immomio")return prefs.immomio_enabled!==false;
-  return false;
-}
-function applicationStatusButton(l:any,lang:string,view:any,provider:string){
-  if(view.kind==="login"){
-    const index=provider==="immoscout"?1:provider==="kleinanzeigen"?2:3;
-    return{text:view.button,callback_data:`platforms:login:${index}`};
-  }
-  if(view.kind==="profile")return{text:view.button,callback_data:"platforms:profile"};
-  if(view.kind==="paused")return{text:view.button,callback_data:"platforms"};
-  if(["offer","provider_action","already","unavailable"].includes(view.kind)){
-    const target=offerTarget(l,lang);
-    return target?.url?{text:view.button,url:target.url}:{text:view.button,callback_data:`platforms:preview:${l.id}`};
-  }
-  return{text:view.button,callback_data:`platforms:preview:${l.id}`};
-}
-function kb(l: any, lang: string, p: boolean, userId = "", autoApplyEnabled = false, app: any = null, prefs: any = null) {
+function kb(l: any, lang: string, p: boolean, userId = "") {
   const checkout=`${PREMIUM_LINK}?client_reference_id=${encodeURIComponent(String(userId))}`;
   const sourceName=sourceButtonName(l);
   const cooperative=String(l.sources?.source_type || "") === "Baugenossenschaft";
@@ -343,23 +315,6 @@ function kb(l: any, lang: string, p: boolean, userId = "", autoApplyEnabled = fa
   const q = mapLoc(l);
   const rows: any[] = [[offer],[save]];
   if (q) rows.push([{text:`🗺️ ${label(lang, "maps")}`,url:`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`}]);
-  const provider=autoApplyProvider(l);
-  if(provider){
-    const view=applicationPresentation(app,provider,lang);
-    if(view)rows.push([applicationStatusButton(l,lang,view,provider)]);
-    else{
-      const providerEnabled=providerPreferenceEnabled(provider,autoApplyEnabled,prefs);
-      const autoApplyText=autoApplyEnabled&&!providerEnabled
-        ? (lang==="de"?"⏸ Auto-Bewerbung • pausiert":"⏸ Auto-apply • paused")
-        : (lang==="de"
-          ? `⚡ Auto-Bewerbung • ${autoApplyEnabled?"aktiv":"inaktiv"}`
-          : `⚡ Auto-apply • ${autoApplyEnabled?"active":"inactive"}`);
-      rows.push([p
-        ? {text:autoApplyText,callback_data:autoApplyEnabled&&!providerEnabled?"platforms":`platforms:preview:${l.id}`}
-        : {text:lang==="de"?"🔒 Auto-Bewerbung • inaktiv":"🔒 Auto-apply • inactive",callback_data:"platforms"}
-      ]);
-    }
-  }
   return { inline_keyboard: rows };
 }
 async function tg(t: string, m: string, b: any) {
@@ -497,22 +452,21 @@ async function uploadOperation(t:string,chat:number,op:any) {
 }
 async function syncApplicationStatus(userId:string,listingId:string,tokenOverride:string|null=null){
   if(!/^[0-9a-f-]{36}$/i.test(userId)||!/^[0-9a-f-]{36}$/i.test(listingId))throw new Error("invalid_sync_target");
-  const [{data:user,error:userError},{data:listing,error:listingError},{data:events,error:eventError},{data:sub,error:subError},app,prefs]=await Promise.all([
-    db.from("bot_users").select("id,chat_id,is_active,ui_language,auto_apply_enabled,plan_override,plan_override_expires_at,referral_bonus_until").eq("id",userId).maybeSingle(),
+  const [{data:user,error:userError},{data:listing,error:listingError},{data:events,error:eventError},{data:sub,error:subError},app]=await Promise.all([
+    db.from("bot_users").select("id,chat_id,is_active,ui_language,plan_override,plan_override_expires_at,referral_bonus_until").eq("id",userId).maybeSingle(),
     db.from("listings").select("*,sources(name,button_label,source_type,baseline_completed_at,enabled,runtime_mode,delivery_mode,source_connectors(config,enabled,priority))").eq("id",listingId).maybeSingle(),
     db.from("delivery_events").select("id,telegram_message_id,preview_progress,created_at").eq("recipient_user_id",userId).eq("listing_id",listingId).eq("event_type","new_listing").eq("channel","telegram").eq("status","sent").not("telegram_message_id","is",null).order("created_at",{ascending:false}).limit(5),
     db.from("user_subscriptions").select("status,current_period_end,updated_at").eq("user_id",userId).in("status",["active","trialing"]).order("updated_at",{ascending:false}).limit(1).maybeSingle(),
     applicationState(userId,listingId),
-    applicationPreferences(userId),
   ]);
   if(userError||listingError||eventError||subError)throw userError||listingError||eventError||subError;
   if(!user||!listing||!events?.length)return{ok:true,updated:0,pending_preview:true};
-  const paid=!!sub&&(!sub.current_period_end||new Date(sub.current_period_end)>new Date()),isPremium=premium(user,paid),rendered=await withHamburgGeo(listing),provider=autoApplyProvider(rendered),providerEnabled=providerPreferenceEnabled(provider,user.auto_apply_enabled===true,prefs),statusKey=JSON.stringify([applicationStatusKey(app),providerEnabled]);
-  const caption=cap(rendered,user.ui_language||"de",app),keyboard=kb(rendered,user.ui_language||"de",isPremium,userId,user.auto_apply_enabled===true,app,prefs),token=tokenOverride||await sec("telegram_bot_token_runtime");
+  const paid=!!sub&&(!sub.current_period_end||new Date(sub.current_period_end)>new Date()),isPremium=premium(user,paid),rendered=await withHamburgGeo(listing),statusKey=applicationStatusKey(app);
+  const caption=cap(rendered,user.ui_language||"de",app),keyboard=kb(rendered,user.ui_language||"de",isPremium,userId),token=tokenOverride||await sec("telegram_bot_token_runtime");
   let updated=0,skipped=0;
   for(const event of events){
     const state=event.preview_progress&&typeof event.preview_progress==="object"?structuredClone(event.preview_progress):{};
-    if(state.application_status_key===statusKey){skipped++;continue;}
+    if(state.application_status_key===statusKey&&JSON.stringify(state.application_keyboard||null)===JSON.stringify(keyboard)){skipped++;continue;}
     const operations=Array.isArray(state.operations)?state.operations:[],next=Math.max(0,Math.min(Number(state.next||operations.length),operations.length)),last=operations.length?operations[Math.max(0,next-1)]:null;
     const isPhoto=last?.method==="sendPhoto"&&!!last?.body?.caption;
     try{
@@ -523,6 +477,7 @@ async function syncApplicationStatus(userId:string,listingId:string,tokenOverrid
       if(!/message is not modified/i.test(String(error?.message||error)))throw error;
     }
     state.application_status_key=statusKey;
+    state.application_keyboard=keyboard;
     if(last?.body){
       if(isPhoto)last.body.caption=caption;
       else if(last?.method==="sendMessage")last.body.text=caption;
@@ -533,12 +488,12 @@ async function syncApplicationStatus(userId:string,listingId:string,tokenOverrid
   }
   return{ok:true,updated,skipped,statusKey};
 }
-async function send(t:string,chat:number,l:any,lang:string,p:boolean,userId:string,autoApplyEnabled:boolean,lease:any,previous:any) {
+async function send(t:string,chat:number,l:any,lang:string,p:boolean,userId:string,lease:any,previous:any) {
   l=await withHamburgGeo(l);
-  const [app,prefs]=await Promise.all([applicationState(userId,String(l.id)),applicationPreferences(userId)]),provider=autoApplyProvider(l),providerEnabled=providerPreferenceEnabled(provider,autoApplyEnabled,prefs),statusKey=JSON.stringify([applicationStatusKey(app),providerEnabled]);
-  const facts=knownFacts(l),operations=previewOperations(facts.images,cap(l,lang,app),kb(l,lang,p,userId,autoApplyEnabled,app,prefs));
+  const app=await applicationState(userId,String(l.id)),statusKey=applicationStatusKey(app);
+  const facts=knownFacts(l),keyboard=kb(l,lang,p,userId),operations=previewOperations(facts.images,cap(l,lang,app),keyboard);
   const result=await deliverPreview(operations,previous,async state=>{
-    const {data,error}=await db.from('delivery_events').update({preview_progress:{...state,application_status_key:statusKey}}).eq('id',lease.id).eq('status','processing').eq('dispatch_attempts',lease.attempt).eq('last_attempt_at',lease.claimedAt).select('id').maybeSingle();
+    const {data,error}=await db.from('delivery_events').update({preview_progress:{...state,application_status_key:statusKey,application_keyboard:keyboard}}).eq('id',lease.id).eq('status','processing').eq('dispatch_attempts',lease.attempt).eq('last_attempt_at',lease.claimedAt).select('id').maybeSingle();
     if(error||!data)throw new Error('Gallery checkpoint could not be saved');
   },(op,upload)=>upload?uploadOperation(t,chat,op):tg(t,op.method,{chat_id:chat,...op.body}));
   return{...result,application_status_key:statusKey};
@@ -562,14 +517,14 @@ Deno.serve(async (req) => {
       let listing=await enrich(data,false);
       listing=await withHamburgGeo(listing);
       const facts=knownFacts(listing),newness=await deliveryNewnessCheck(listing,'new_listing',facts.published_text);
-      const probePremium=input.premium!==false,probeUserId=String(input.user_id||"probe"),probeAutoApply=input.auto_apply_enabled===true,validProbeUser=/^[0-9a-f-]{36}$/i.test(probeUserId),[probeApp,probePrefs]=validProbeUser?await Promise.all([applicationState(probeUserId,String(listing.id)),applicationPreferences(probeUserId)]):[null,null];
+      const probePremium=input.premium!==false,probeUserId=String(input.user_id||"probe"),validProbeUser=/^[0-9a-f-]{36}$/i.test(probeUserId),probeApp=validProbeUser?await applicationState(probeUserId,String(listing.id)):null;
       if(input.probe_image && facts.images.length){
         const response=await fetch(facts.images[0],{headers:{'user-agent':UA,accept:'image/*'},signal:AbortSignal.timeout(6500)});
         const declared_type=response.headers.get('content-type');
-        try{const photo=await sourcePhoto(response);return Response.json({ok:true,dry_run:true,availability:listing._availability,image_probe:{declared_type,validated_type:photo.type,bytes:photo.size},operations:previewOperations(facts.images,cap(listing,'de',probeApp),kb(listing,'de',probePremium,probeUserId,probeAutoApply,probeApp,probePrefs)).map(x=>x.method)});}
+        try{const photo=await sourcePhoto(response);return Response.json({ok:true,dry_run:true,availability:listing._availability,image_probe:{declared_type,validated_type:photo.type,bytes:photo.size},operations:previewOperations(facts.images,cap(listing,'de',probeApp),kb(listing,'de',probePremium,probeUserId)).map(x=>x.method)});}
         catch(e){return Response.json({ok:false,dry_run:true,image_probe:{declared_type,error:String(e)}});}
       }
-      return Response.json({ok:true,dry_run:true,caption:cap(listing,'de',probeApp),keyboard:kb(listing,'de',probePremium,probeUserId,probeAutoApply,probeApp,probePrefs),images:facts.images,availability:listing._availability,newness,address:loc(listing),operations:previewOperations(facts.images,cap(listing,'de',probeApp),kb(listing,'de',probePremium,probeUserId,probeAutoApply,probeApp,probePrefs)).map(x=>x.method)});
+      return Response.json({ok:true,dry_run:true,caption:cap(listing,'de',probeApp),keyboard:kb(listing,'de',probePremium,probeUserId),images:facts.images,availability:listing._availability,newness,address:loc(listing),operations:previewOperations(facts.images,cap(listing,'de',probeApp),kb(listing,'de',probePremium,probeUserId)).map(x=>x.method)});
     }
     if (input.dry_run) {
       const { error } = await db.from("delivery_events").select("id").limit(1);
@@ -685,7 +640,6 @@ Deno.serve(async (req) => {
           recipient.ui_language || "de",
           isPremium,
           String(profileOwner?.id || recipient?.id || ""),
-          profileOwner?.auto_apply_enabled === true || recipient?.auto_apply_enabled === true,
           lease,
           event.preview_progress,
         );
