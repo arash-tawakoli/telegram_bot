@@ -37,6 +37,8 @@ const DOC_PROMPT_PREFIX='📎 Bewerberdokument · ';
 
 const SETUP_PROMPT='👤 Bewerberprofil · Grundeinrichtung';
 const FIELD_PROMPT_PREFIX='👤 Bewerberprofil · ';
+const KLEIN_CALLBACK_ORIGIN='https://login.kleinanzeigen.de';
+const KLEIN_CALLBACK_PATH='/android/com.ebay.kleinanzeigen/callback';
 const IMMOMIO_CALLBACK_ORIGIN='https://tenant.immomio.com';
 const IMMOMIO_CALLBACK_PATH='/assets/manifest.webmanifest';
 
@@ -89,6 +91,13 @@ const connectionLabel=row=>{
 const profileReady=p=>!!p&&REQUIRED.every(k=>String(p[k]??'').trim());
 const shown=(v,fallback='–')=>v==null||String(v).trim()===''?fallback:esc(v);
 
+function normalizeKleinCallback(value){
+ let url;try{url=new URL(String(value||'').trim().replace(/[\])},.;!?]+$/g,''));}catch{return null;}
+ if(url.origin!==KLEIN_CALLBACK_ORIGIN||url.pathname!==KLEIN_CALLBACK_PATH||url.username||url.password||url.port)return null;
+ if(!url.searchParams.get('state'))return null;
+ if(!url.searchParams.get('code')&&!url.searchParams.get('error'))return null;
+ return url.href;
+}
 function normalizeImmomioCallback(value){
  let url;try{url=new URL(String(value||'').trim().replace(/[\])},.;!?]+$/g,''));}catch{return null;}
  if(url.origin!==IMMOMIO_CALLBACK_ORIGIN||url.pathname!==IMMOMIO_CALLBACK_PATH||url.username||url.password||url.port)return null;
@@ -108,6 +117,10 @@ function callbackCandidates(message,regex){
   }
  }
  return candidates;
+}
+export function kleinCallbackFromMessage(message){
+ for(const candidate of callbackCandidates(message,/https:\/\/login\.kleinanzeigen\.de\/android\/com\.ebay\.kleinanzeigen\/callback[^\s<>"']*/gi)){const parsed=normalizeKleinCallback(candidate);if(parsed)return parsed;}
+ return null;
 }
 export function immomioCallbackFromMessage(message){
  for(const candidate of callbackCandidates(message,/https:\/\/tenant\.immomio\.com\/assets\/manifest\.webmanifest[^\s<>"']*/gi)){const parsed=normalizeImmomioCallback(candidate);if(parsed)return parsed;}
@@ -280,15 +293,17 @@ export async function handleAutoApplyMessage(user,message){
  const chat=message?.chat;if(!privateOwner(user,chat))return null;
  const text=String(message?.text||'').trim();
  const replied=String(message?.reply_to_message?.text||'');
- const callbackUrl=immomioCallbackFromMessage(message);
+ const kleinUrl=kleinCallbackFromMessage(message),immomioUrl=immomioCallbackFromMessage(message),callbackUrl=kleinUrl||immomioUrl;
  if(callbackUrl){
-  const source=3,name='Immomio';
+  const source=kleinUrl?2:3,name=kleinUrl?'Kleinanzeigen':'Immomio';
   await telegram('deleteMessage',{chat_id:chat.id,message_id:message.message_id}).catch(()=>{});
-  if(!user.is_premium)return send(chat.id,`💎 Die ${name}-Verbindung benötigt Premium.`,{inline_keyboard:[[button('← Automatische Bewerbung','platforms')]]});
+  if(source===3&&!user.is_premium)return send(chat.id,`💎 Die ${name}-Verbindung benötigt Premium.`,{inline_keyboard:[[button('← Automatische Bewerbung','platforms')]]});
   try{
-   const result=await applicationWorker('complete_login',user.id,source,{callbackUrl});
+   const action=source===2?'complete_shared_login':'complete_login';
+   const result=await applicationWorker(action,user.id,source,{callbackUrl});
    if(result?.authenticated!==true&&result?.status!=='connected')throw Error(`${name} konnte nicht verbunden werden.`);
-   return send(chat.id,`✅ <b>${name} verbunden</b>\n\nDie Anmeldung ist verschlüsselt gespeichert.`,{inline_keyboard:[[button('← Automatische Bewerbung','platforms')]]});
+   const detail=source===2?'Die geteilte Login-URL wurde verarbeitet und direkt wieder gelöscht. Die Verbindung ist gespeichert.':'Die Anmeldung ist verschlüsselt gespeichert.';
+   return send(chat.id,`✅ <b>${name} verbunden</b>\n\n${detail}`,{inline_keyboard:[[button('← Automatische Bewerbung','platforms')]]});
   }catch(error){
    return send(chat.id,`⚠️ ${esc(error.message)}`,{inline_keyboard:[[button(`🔐 ${name} erneut verbinden`,`platforms:login:${source}`)],[button('← Automatische Bewerbung','platforms')]]});
   }
@@ -396,14 +411,18 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   const name=source===1?'ImmoScout24':source===2?'Kleinanzeigen':'Immomio';
   if(source===1&&action==='login')return render('🔐 <b>ImmoScout24</b>\n\nDie Verbindung wird ohne offizielle ImmoScout-API über eine gespeicherte Web-Session umgesetzt. Der kontrollierte Login-/Sendetest ist noch ausstehend; deshalb wird hier aktuell noch keine produktive Session angelegt.',back);
   try{
-   const result=await applicationWorker(action,user.id,source);
+   const workerAction=source===2&&action==='login'?'login_share':action;
+   const extra=workerAction==='login_share'?{origin:'telegram',returnTarget:'telegram',context:{channel:'telegram',share_flow:true}}:{};
+   const result=await applicationWorker(workerAction,user.id,source,extra);
    if(action==='disconnect')return render(`${name}: Verbindung gelöscht.`,back);
    if(action==='login'&&result.url){
     const note=source===3
      ? '<b>1.</b> Öffne Immomio und melde dich normal an.\n<b>2.</b> Auf der Abschlussseite tippe auf <b>Teilen</b>.\n<b>3.</b> Wähle <b>Telegram → Traumwohnung – Hamburg → Senden</b>.\n\nDer Bot übernimmt den Rücksprung automatisch und speichert die Sitzung verschlüsselt.'
-     : result.automaticCallback
-      ? 'Öffne Kleinanzeigen und melde dich ganz normal im Browser an. Nach erfolgreichem Login wird die Verbindung automatisch abgeschlossen. Kein Kopieren, Teilen, Safari-Bridge oder Remote-Browser.'
-      : 'Melde dich einmalig an. Danach bleibt die Verbindung gespeichert.';
+     : source===2&&result.bridgeRequired
+      ? '<b>1.</b> Öffne Kleinanzeigen und melde dich normal an.\n<b>2.</b> Auf der Abschlussseite tippe auf <b>Teilen</b>.\n<b>3.</b> Wähle <b>Telegram → Traumwohnung Hamburg → Senden</b>.\n\nDer Bot erkennt den Rücksprung automatisch und löscht die geteilte Login-URL direkt wieder.'
+      : result.automaticCallback
+       ? 'Öffne Kleinanzeigen und melde dich ganz normal im Browser an. Danach wird die Verbindung automatisch abgeschlossen.'
+       : 'Melde dich einmalig an. Danach bleibt die Verbindung gespeichert.';
     return render(`🔐 <b>${name} verbinden</b>\n\n${note}`,[[{text:`🌐 ${name}-Login öffnen`,url:result.url}],...back]);
    }
    return render(result.authenticated===true?`${name}: ✅ Verbindung bestätigt.`:result.authenticated===false?`${name}: Anmeldung erforderlich.`:`${name}: Verbindung gespeichert, aber noch nicht vollständig verifiziert.`,back);
