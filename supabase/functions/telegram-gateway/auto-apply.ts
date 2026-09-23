@@ -7,9 +7,15 @@ const IMMOMIO_WORKER=`${URL}/functions/v1/immomio-account`;
 const SCOUT_HANDOFF=`${URL}/functions/v1/immoscout-native-handoff`;
 const REQUIRED=[
  'salutation','first_name','last_name','email','phone','street','house_number','postcode','city',
- 'household_size','employment_status','monthly_net_income','pets','move_in_date','schufa_status',
+ 'household_type','employment_status','income_range','pets','move_in_preference','schufa_status',
  'message_apartment','message_house','message_temporary_wg','message_swap'
 ];
+const HOUSEHOLD_LABELS:Record<string,string>={SINGLE:'Einpersonenhaushalt',TWO_ADULTS:'Zwei Erwachsene',FAMILY:'Familie',SHARED_FLAT:'Wohngemeinschaft'};
+const INCOME_LABELS:Record<string,string>={
+ UNDER_500:'Unter 500€','500_1000':'500€ - 1.000€','1000_1500':'1.000€ - 1.500€','1500_2000':'1.500€ - 2.000€',
+ '2000_3000':'2.000€ - 3.000€','3000_4000':'3.000€ - 4.000€','4000_5000':'4.000€ - 5.000€',OVER_5000:'Über 5000€'
+};
+const MOVE_IN_LABELS:Record<string,string>={NOT_SPECIFIED:'Keine Angaben',FLEXIBLE:'Flexibel',IMMEDIATE:'Sofort',EXACT_DATE:'Genaues Datum'};
 const SETUP_PROMPT='👤 Bewerberprofil · Grundeinrichtung';
 const FIELD_PROMPT_PREFIX='👤 Bewerberprofil · ';
 const PROFILE_FIELDS:Record<string,any>={
@@ -17,8 +23,9 @@ const PROFILE_FIELDS:Record<string,any>={
  first_name:{label:'Vorname',required:true,max:120},last_name:{label:'Nachname',required:true,max:120},
  email:{label:'E-Mail-Adresse',required:true,max:320},phone:{label:'Telefonnummer',required:true,max:80},
  street:{label:'Straße',required:true,max:160},house_number:{label:'Hausnummer',required:true,max:40},postcode:{label:'PLZ',required:true,max:10},city:{label:'Ort',required:true,max:120},
- household_size:{label:'Haushaltsgröße',required:true,type:'integer'},employment_status:{label:'Beschäftigungsverhältnis',required:true,max:160},monthly_net_income:{label:'Monatliches Nettoeinkommen',required:true,type:'money'},
- pets:{label:'Haustiere',required:true,max:160},wbs_status:{label:'WBS-Status',max:160},move_in_date:{label:'Gewünschtes Einzugsdatum',required:true,type:'date'},
+ household_type:{label:'Haushaltsgröße',required:true,type:'choice'},employment_status:{label:'Beschäftigungsart',required:true,type:'choice',max:160},income_range:{label:'Netto Haushaltseinkommen',required:true,type:'choice'},
+ pets:{label:'Haustiere',required:true,type:'choice',max:160},wbs_status:{label:'WBS-Status',max:160},move_in_preference:{label:'Einzugstermin',required:true,type:'choice'},move_in_date:{label:'Gewünschtes Einzugsdatum',required:true,type:'date'},
+ household_size:{label:'Haushaltsgröße (Legacy)',type:'integer'},monthly_net_income:{label:'Monatliches Nettoeinkommen (Legacy)',type:'money'},
  schufa_status:{label:'SCHUFA-Status',required:true,max:40},
  message_apartment:{label:'Bewerbungstext Wohnung',required:true,max:4000},
  message_house:{label:'Bewerbungstext Haus',required:true,max:4000},
@@ -40,8 +47,16 @@ function esc(v:any){return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt
 async function edit(chatId:number,messageId:number,text:string,inline_keyboard:any[]){try{return await telegram('editMessageText',{chat_id:chatId,message_id:messageId,text,parse_mode:'HTML',disable_web_page_preview:true,reply_markup:{inline_keyboard}});}catch(error:any){const message=String(error?.message||error||'');if(/message is not modified/i.test(message))return null;if(/message to edit not found|message can't be edited|message_id_invalid|there is no text in the message to edit/i.test(message))return telegram('sendMessage',{chat_id:chatId,text,parse_mode:'HTML',disable_web_page_preview:true,reply_markup:{inline_keyboard}});throw error;}}
 async function send(chatId:number,text:string,inline_keyboard?:any[]){return telegram('sendMessage',{chat_id:chatId,text,parse_mode:'HTML',disable_web_page_preview:true,...(inline_keyboard?{reply_markup:{inline_keyboard}}:{})});}
 async function forceReply(chatId:number,text:string,placeholder:string){return telegram('sendMessage',{chat_id:chatId,text,parse_mode:'HTML',disable_web_page_preview:true,reply_markup:{force_reply:true,selective:true,input_field_placeholder:placeholder}});}
-const ready=(p:any)=>!!p&&REQUIRED.every(k=>String(p[k]??'').trim());
+const ready=(p:any)=>!!p&&REQUIRED.every(k=>{
+ if(k==='household_type')return Object.hasOwn(HOUSEHOLD_LABELS,String(p[k]||''));
+ if(k==='income_range')return Object.hasOwn(INCOME_LABELS,String(p[k]||''));
+ if(k==='move_in_preference')return Object.hasOwn(MOVE_IN_LABELS,String(p[k]||''))&&(p[k]!=='EXACT_DATE'||!!p.move_in_date);
+ return String(p[k]??'').trim();
+});
 const shown=(v:any,fallback='–')=>v==null||String(v).trim()===''?fallback:esc(v);
+const householdLabel=(p:any)=>HOUSEHOLD_LABELS[p?.household_type]||shown(p?.household_size);
+const incomeLabel=(p:any)=>INCOME_LABELS[p?.income_range]||(p?.monthly_net_income==null?'–':`${shown(p.monthly_net_income)} €`);
+const moveInLabel=(p:any)=>p?.move_in_preference==='EXACT_DATE'?`Genaues Datum · ${shown(p.move_in_date)}`:(MOVE_IN_LABELS[p?.move_in_preference]||shown(p?.move_in_date));
 async function profile(userId:string){return (await rows('applicant_profiles',{user_id:`eq.${userId}`,select:'*',limit:'1'}))[0]||null;}
 function connectionLabel(c:any){const s=c?.status;return s==='connected'?'🟢 verbunden':s==='pending'?'🟡 Anmeldung offen':s==='needs_login'?'🟠 erneut anmelden':s?'🔴 Fehler':'⚪ nicht verbunden';}
 
@@ -55,9 +70,9 @@ async function profilePage(user:any,chatId:number,messageId:number,notice=''){
  const p=await profile(user.id);
  if(!p)return edit(chatId,messageId,`👤 <b>Bewerberprofil</b>\n\n${notice?`${notice}\n\n`:''}Noch kein Bewerberprofil angelegt. Die Eingabe erfolgt direkt in Telegram.`,[[button('➕ Bewerberprofil anlegen','platforms:profile-new')],[button('← Automatische Bewerbung','platforms')]]);
  const address=[p.street,p.house_number].filter(Boolean).join(' ');
- const text=`👤 <b>Bewerberprofil</b>\n\n${notice?`${notice}\n\n`:''}Status: ${ready(p)?'✅ vollständig':'⚠️ unvollständig'}\n\nAnrede: ${shown(p.salutation)}\nVorname: ${shown(p.first_name)}\nNachname: ${shown(p.last_name)}\nE-Mail: ${shown(p.email)}\nTelefon: ${shown(p.phone)}\nAdresse: ${shown(address)}\nPLZ / Ort: ${shown([p.postcode,p.city].filter(Boolean).join(' '))}\nHaushalt: ${shown(p.household_size)}\nBeschäftigung: ${shown(p.employment_status)}\nNettoeinkommen: ${p.monthly_net_income==null?'–':`${shown(p.monthly_net_income)} €`}\nHaustiere: ${shown(p.pets)}\nWBS: ${shown(p.wbs_status)}\nEinzug: ${shown(p.move_in_date)}\nBewerbungstext: ${p.default_message?'✅ hinterlegt':'–'}`;
+ const text=`👤 <b>Bewerberprofil</b>\n\n${notice?`${notice}\n\n`:''}Status: ${ready(p)?'✅ vollständig':'⚠️ unvollständig'}\n\nAnrede: ${shown(p.salutation)}\nVorname: ${shown(p.first_name)}\nNachname: ${shown(p.last_name)}\nE-Mail: ${shown(p.email)}\nTelefon: ${shown(p.phone)}\nAdresse: ${shown(address)}\nPLZ / Ort: ${shown([p.postcode,p.city].filter(Boolean).join(' '))}\nHaushaltsgröße: ${householdLabel(p)}\nBeschäftigungsart: ${shown(p.employment_status)}\nNetto Haushaltseinkommen: ${incomeLabel(p)}\nHaustiere: ${shown(p.pets)}\nWBS: ${shown(p.wbs_status)}\nEinzugstermin: ${moveInLabel(p)}\nBewerbungstext: ${[p.message_apartment,p.message_house,p.message_temporary_wg,p.message_swap].filter(Boolean).length}/4 hinterlegt`;
  const f=(n:string,l:string)=>button(l,`platforms:profile-field:${n}`);
- return edit(chatId,messageId,text,[[f('first_name','Vorname'),f('last_name','Nachname')],[f('email','E-Mail'),f('phone','Telefon')],[f('salutation','Anrede'),f('household_size','Haushalt')],[f('street','Straße'),f('house_number','Hausnr.')],[f('postcode','PLZ'),f('city','Ort')],[f('employment_status','Beschäftigung'),f('monthly_net_income','Einkommen')],[f('pets','Haustiere'),f('wbs_status','WBS')],[f('move_in_date','Einzugsdatum')],[f('default_message','✍️ Bewerbungstext')],[button('← Automatische Bewerbung','platforms')]]);
+ return edit(chatId,messageId,text,[[f('first_name','Vorname'),f('last_name','Nachname')],[f('email','E-Mail'),f('phone','Telefon')],[f('salutation','Anrede'),f('household_type','Haushalt')],[f('street','Straße'),f('house_number','Hausnr.')],[f('postcode','PLZ'),f('city','Ort')],[f('employment_status','Beschäftigung'),f('income_range','Einkommen')],[f('pets','Haustiere')],[f('move_in_preference','Einzugstermin')],[button('✍️ Bewerbungstext','platforms:profile-texts')],[button('← Automatische Bewerbung','platforms')]]);
 }
 
 async function platformPage(user:any,chatId:number,messageId:number,notice=''){
@@ -122,7 +137,7 @@ async function handlePlatforms(user:any,chatId:number,messageId:number,data:stri
  if(action==='profile-new'){
   if(!user.is_premium)return platformPage(user,chatId,messageId,'💎 Bewerberprofile benötigen Premium.');
   if(await profile(user.id))return profilePage(user,chatId,messageId);
-  await forceReply(chatId,`${SETUP_PROMPT}\n\nAntworte in <b>einer Nachricht</b> mit diesen 6 Angaben, getrennt durch <code>|</code>:\n\n<code>Vorname | Nachname | E-Mail | Telefon | Ort | Haushaltsgröße</code>\n\nBeispiel:\n<code>Max | Mustermann | max@example.de | +49 170 1234567 | Hamburg | 1</code>`,'Vorname | Nachname | E-Mail | Telefon | Ort | 1');return;
+  await forceReply(chatId,`${SETUP_PROMPT}\n\nAntworte in <b>einer Nachricht</b> mit diesen 5 Angaben, getrennt durch <code>|</code>:\n\n<code>Vorname | Nachname | E-Mail | Telefon | Ort</code>\n\nBeispiel:\n<code>Max | Mustermann | max@example.de | +49 170 1234567 | Hamburg</code>\n\nDie ImmoScout-Auswahlfelder legst du danach direkt über Buttons fest.`,'Vorname | Nachname | E-Mail | Telefon | Ort');return;
  }
  if(action==='profile-field'){
   if(!user.is_premium)return platformPage(user,chatId,messageId,'💎 Bewerberprofile benötigen Premium.');const prompt=fieldPrompt(arg);if(!prompt)return profilePage(user,chatId,messageId);await forceReply(chatId,prompt,PROFILE_FIELDS[arg].label);return;
@@ -195,7 +210,7 @@ export async function handleAutoApplyMessage(update:any){const message=update?.m
   await finish(updateId,claim,true);ctx=null;return;
  }
  const replied=String(message.reply_to_message?.text||'');
- if(replied.startsWith(SETUP_PROMPT)){const parts=text.split('|').map((v:string)=>v.trim());if(parts.length!==6)await send(chatId,'Bitte genau 6 Werte mit <code>|</code> trennen:\nVorname | Nachname | E-Mail | Telefon | Ort | Haushaltsgröße');else try{const values={user_id:user.id,first_name:validateField('first_name',parts[0]),last_name:validateField('last_name',parts[1]),email:validateField('email',parts[2]),phone:validateField('phone',parts[3]),city:validateField('city',parts[4]),household_size:validateField('household_size',parts[5]),updated_at:new Date().toISOString()};await upsert('applicant_profiles','user_id',values);await Promise.all([telegram('deleteMessage',{chat_id:chatId,message_id:message.message_id}).catch(()=>{}),message.reply_to_message?.message_id?telegram('deleteMessage',{chat_id:chatId,message_id:message.reply_to_message.message_id}).catch(()=>{}):null]);await send(chatId,'✅ Bewerberprofil angelegt.',[[button('👤 Profil öffnen','platforms:profile')],[button('← Automatische Bewerbung','platforms')]]);}catch(error:any){await send(chatId,`⚠️ ${esc(error.message)}`);}await finish(updateId,claim,true);ctx=null;return;}
- if(replied.startsWith(FIELD_PROMPT_PREFIX)){const label=replied.slice(FIELD_PROMPT_PREFIX.length).split('\n')[0].trim(),entry=Object.entries(PROFILE_FIELDS).find(([,m]:any)=>m.label===label);if(entry){const [name]=entry;try{if(!await profile(user.id))await send(chatId,'Bitte zuerst die Grundeinrichtung des Bewerberprofils abschließen.',[[button('➕ Bewerberprofil anlegen','platforms:profile-new')]]);else{const value=validateField(name,text);await patch('applicant_profiles',{user_id:`eq.${user.id}`},{[name]:value,updated_at:new Date().toISOString()});await Promise.all([telegram('deleteMessage',{chat_id:chatId,message_id:message.message_id}).catch(()=>{}),message.reply_to_message?.message_id?telegram('deleteMessage',{chat_id:chatId,message_id:message.reply_to_message.message_id}).catch(()=>{}):null]);await send(chatId,`✅ ${esc(PROFILE_FIELDS[name].label)} gespeichert.`,[[button('👤 Bewerberprofil','platforms:profile')],[button('← Automatische Bewerbung','platforms')]]);}}catch(error:any){await send(chatId,`⚠️ ${esc(error.message)}`);}}await finish(updateId,claim,true);ctx=null;return;}
+ if(replied.startsWith(SETUP_PROMPT)){const parts=text.split('|').map((v:string)=>v.trim());if(![5,6].includes(parts.length))await send(chatId,'Bitte genau 5 Werte mit <code>|</code> trennen:\nVorname | Nachname | E-Mail | Telefon | Ort');else try{const values:any={user_id:user.id,first_name:validateField('first_name',parts[0]),last_name:validateField('last_name',parts[1]),email:validateField('email',parts[2]),phone:validateField('phone',parts[3]),city:validateField('city',parts[4]),updated_at:new Date().toISOString()};if(parts.length===6){const legacySize=validateField('household_size',parts[5]);values.household_size=legacySize;values.household_type=legacySize===1?'SINGLE':legacySize===2?'TWO_ADULTS':null;}await upsert('applicant_profiles','user_id',values);await Promise.all([telegram('deleteMessage',{chat_id:chatId,message_id:message.message_id}).catch(()=>{}),message.reply_to_message?.message_id?telegram('deleteMessage',{chat_id:chatId,message_id:message.reply_to_message.message_id}).catch(()=>{}):null]);await send(chatId,'✅ Bewerberprofil angelegt.',[[button('👤 Profil öffnen','platforms:profile')],[button('← Automatische Bewerbung','platforms')]]);}catch(error:any){await send(chatId,`⚠️ ${esc(error.message)}`);}await finish(updateId,claim,true);ctx=null;return;}
+ if(replied.startsWith(FIELD_PROMPT_PREFIX)){const label=replied.slice(FIELD_PROMPT_PREFIX.length).split('\n')[0].trim(),entry=Object.entries(PROFILE_FIELDS).find(([,m]:any)=>m.label===label);if(entry){const [name]=entry;try{if(!await profile(user.id))await send(chatId,'Bitte zuerst die Grundeinrichtung des Bewerberprofils abschließen.',[[button('➕ Bewerberprofil anlegen','platforms:profile-new')]]);else{const value=validateField(name,text),values=name==='move_in_date'?{[name]:value,move_in_preference:'EXACT_DATE',updated_at:new Date().toISOString()}:{[name]:value,updated_at:new Date().toISOString()};await patch('applicant_profiles',{user_id:`eq.${user.id}`},values);await Promise.all([telegram('deleteMessage',{chat_id:chatId,message_id:message.message_id}).catch(()=>{}),message.reply_to_message?.message_id?telegram('deleteMessage',{chat_id:chatId,message_id:message.reply_to_message.message_id}).catch(()=>{}):null]);await send(chatId,`✅ ${esc(PROFILE_FIELDS[name].label)} gespeichert.`,[[button('👤 Bewerberprofil','platforms:profile')],[button('← Automatische Bewerbung','platforms')]]);}}catch(error:any){await send(chatId,`⚠️ ${esc(error.message)}`);}}await finish(updateId,claim,true);ctx=null;return;}
  await finish(updateId,claim,true);ctx=null;
  }catch(error){console.error('auto_apply_message',String(error));if(ctx)await finish(ctx.updateId,ctx.claim,false,String(error)).catch(()=>{});}}
