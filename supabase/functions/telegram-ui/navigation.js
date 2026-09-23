@@ -8,7 +8,7 @@ export function homeKeyboard(user) {
             button(user.is_premium ? "⭐ Gespeichert" : "🔒 ⭐ Gespeichert", "saved"),
             user.is_premium
                 ? button("⚡ Auto-Bewerbung", "platforms")
-                : { text: "🔒 ⚡ Auto-Bewerbung", url: `${PREMIUM_LINK}?client_reference_id=${encodeURIComponent(user.id)}` },
+                : button("🔒 Auto-Bewerbung", "platforms"),
         ],
         [
             button("⚙️ Einstellungen", "settings"),
