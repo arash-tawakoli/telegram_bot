@@ -78,7 +78,10 @@ export function deliveryNewness(l:any,eventType:any,publishedText:any=null,nowMs
     const published=Date.parse(String(proof?.source_published_at||''));
     const proven=lane==='coverage_proven' && proof?.method==='source_timestamp' &&
       Number.isFinite(published) && nowMs-published>=-5*60*1000 && nowMs-published<=24*60*60*1000;
-    if(l.fresh_delivery_eligible!==true||(!['fresh_global','fresh_borough'].includes(lane)&&!proven))
+    const observed=Date.parse(String(proof?.observed_at||''));
+    const mapDelta=lane==='map_delta' && proof?.method==='map_snapshot_delta' &&
+      Number.isFinite(observed) && nowMs-observed>=-5*60*1000 && nowMs-observed<=24*60*60*1000;
+    if(l.fresh_delivery_eligible!==true||(!['fresh_global','fresh_borough'].includes(lane)&&!proven&&!mapDelta))
       return {ok:false,reason:'immoscout_coverage_or_unverified'};
   } else if(l.fresh_delivery_eligible!==true) {
     return {ok:false,reason:'source_worker_newness_unverified'};
