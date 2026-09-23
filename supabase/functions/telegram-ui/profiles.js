@@ -436,7 +436,7 @@ export async function startNewProfile(user, chatId, messageId, requestedSlot) {
         : Array.from({ length: limit }, (_, i) => i + 1).find((value) => !used.has(value));
     if (!slot)
         return profile(user, chatId, messageId);
-    const draft = emptyDraft(slot);
+    const draft = { ...emptyDraft(slot), _revision: Number(user?.onboarding_state?._revision || 0) };
     return renderTypes({ ...user, onboarding_state: draft }, chatId, messageId, draft);
 }
 
