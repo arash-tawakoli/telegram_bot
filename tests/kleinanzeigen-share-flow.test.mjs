@@ -9,7 +9,8 @@ const coach=readFileSync(new URL('../supabase/functions/coach-api/index.ts',impo
 
 test('Kleinanzeigen share callback is recognized and completed server-side',()=>{
  assert.match(sessions,/kleinCallbackFromMessage/);
- assert.match(sessions,/login\.kleinanzeigen\.de\\\/android\\\/com\\\.ebay\\\.kleinanzeigen\\\/callback/);
+ assert.match(sessions,/KLEIN_CALLBACK_ORIGIN='https:\/\/login\.kleinanzeigen\.de'/);
+ assert.match(sessions,/KLEIN_CALLBACK_PATH='\/android\/com\.ebay\.kleinanzeigen\/callback'/);
  assert.match(sessions,/complete_shared_login/);
  assert.match(worker,/action==='complete_shared_login'/);
  assert.match(worker,/completeKleinanzeigenCallback/);
