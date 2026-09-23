@@ -7,6 +7,23 @@ const CORE = `${BASE_URL}/functions/v1/telegram-gateway`;
 const PREMIUM_LINK = "https://buy.stripe.com/dRm9AM7DSajfgYK2qVfYY01";
 const PREMIUM_IMAGE = `${BASE_URL}/storage/v1/object/public/telegram-assets/premium/50-off-hd.jpg?v=20260903hd4`;
 const ADMINS = [8538226539, 414638980];
+const BASE_COMMANDS = [
+  { command: "start", description: "Startmenü" },
+  { command: "suche", description: "Suchprofil erstellen" },
+  { command: "profile", description: "Suchprofile anzeigen" },
+  { command: "gespeichert", description: "Gespeicherte Inserate" },
+  { command: "einstellungen", description: "Einstellungen" },
+  { command: "pause", description: "Suche pausieren" },
+  { command: "resume", description: "Suche fortsetzen" },
+  { command: "status", description: "Systemstatus" },
+  { command: "premium", description: "Premium anzeigen" },
+  { command: "hilfe", description: "Hilfe" },
+];
+const ADMIN_COMMANDS = [
+  ...BASE_COMMANDS,
+  { command: "admin", description: "Adminbereich" },
+  { command: "announcement", description: "Ankündigung senden" },
+];
 
 const COMMAND_ACTIONS: Record<string, string> = {
   "/start": "home", "/hilfe": "help", "/help": "help", "/einstellungen": "settings", "/settings": "settings",
@@ -151,7 +168,11 @@ Deno.serve(async (req: Request) => {
     if (prepared?.fast_eligible === false) { await finish(updateId, attempt, false, "fast_path_language_fallback"); updateId = null; attempt = null; return forwardCore(body, supplied); }
     if (!user.is_active && !ADMINS.includes(Number(user.telegram_user_id))) { finishBackground(updateId, attempt, true); return Response.json({ ok: true, blocked: true }); }
     const chatId = Number(update?.message?.chat?.id); if (!chatId) throw new Error("missing chat id");
-    if (action === "home") { const argument = argumentOf(update); if (argument.startsWith("ref_") && user.__is_new_user) await rpc("redeem_referral_code", { p_referred_user_id: user.id, p_code: argument.slice(4) }).catch((e) => console.error("referral_register", String(e))); EdgeRuntime.waitUntil(telegram("setChatMenuButton", { chat_id: chatId, menu_button: { type: "commands" } }).catch(() => {})); if (user.__is_new_user) EdgeRuntime.waitUntil(notifyAdminsNewUser(user)); }
+    if (action === "home") { const argument = argumentOf(update); if (argument.startsWith("ref_") && user.__is_new_user) await rpc("redeem_referral_code", { p_referred_user_id: user.id, p_code: argument.slice(4) }).catch((e) => console.error("referral_register", String(e))); EdgeRuntime.waitUntil(Promise.all([
+      telegram("setChatMenuButton", { chat_id: chatId, menu_button: { type: "commands" } }).catch(() => {}),
+      telegram("setMyCommands", { commands: BASE_COMMANDS, scope: { type: "default" } }).catch(() => {}),
+      ...(ADMINS.includes(Number(user.telegram_user_id)) ? [telegram("setMyCommands", { commands: ADMIN_COMMANDS, scope: { type: "chat", chat_id: chatId } }).catch(() => {})] : [])
+    ])); if (user.__is_new_user) EdgeRuntime.waitUntil(notifyAdminsNewUser(user)); }
     let response: Response; if (action === "premium" || (action === "saved" && !user.is_premium)) { const premium = premiumContent(user); response = direct("sendPhoto", { chat_id: chatId, photo: PREMIUM_IMAGE, caption: premium.caption, parse_mode: "HTML", reply_markup: premium.reply_markup }); } else { const content = contentFor(action, user, data); if (!content) throw new Error(`unsupported fast action ${action}`); response = direct("sendMessage", textParams(chatId, content.text, content.reply_markup)); }
     finishBackground(updateId, attempt, true, null, { total_ms: Date.now() - requestStarted }); return response;
   } catch (error) { if (updateId !== null && attempt !== null) finishBackground(updateId, attempt, false, String(error), { total_ms: Date.now() - requestStarted }); console.error("telegram_fast", String(error)); return Response.json({ ok: false, error: "telegram_fast_failure" }, { status: 502 }); }
