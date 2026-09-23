@@ -273,7 +273,7 @@ async function renderApplicantProfile(user,chat,messageId,notice=''){
   [f('postcode','PLZ *'),f('city','Ort *')],
   [f('household_size','Haushalt *'),f('employment_status','Beschäftigung *')],
   [f('monthly_net_income','Einkommen *'),f('pets','Haustiere *')],
-  [f('move_in_date','Einzugsdatum *'),f('wbs_status','WBS')],
+  [f('move_in_date','Einzugsdatum *')],
   [button('✍️ Bewerbungstext','platforms:profile-texts')],
   [button('📎 Dokumente verwalten','platforms:docs')],
   [button('← Automatische Bewerbung','platforms')]
@@ -284,19 +284,36 @@ async function renderApplicationTexts(user,chat,messageId){
  const p=await readProfile(user.id);
  if(!p)return renderApplicantProfile(user,chat,messageId,'Bitte zuerst das Bewerberprofil anlegen.');
  const render=(text,rows)=>messageId?edit(chat.id,messageId,text,{inline_keyboard:rows}):send(chat.id,text,{inline_keyboard:rows});
- const preview=value=>{
-  const raw=String(value??'').trim();
-  if(!raw)return '⚠️ <i>fehlt</i>';
-  const max=700,visible=raw.length>max?`${raw.slice(0,max-1)}…`:raw;
-  return `<blockquote>${esc(visible)}</blockquote>${raw.length>max?'\n<i>Vorschau gekürzt</i>':''}`;
- };
- const text=`✍️ <b>Bewerbungstext</b>\n\nLege für jede Wohnform einen eigenen Bewerbungstext fest.\n\n<b>Wohnung *</b>\n${preview(p.message_apartment)}\n\n<b>Haus *</b>\n${preview(p.message_house)}\n\n<b>Auf Zeit &amp; WG *</b>\n${preview(p.message_temporary_wg)}\n\n<b>Tauschwohnung *</b>\n${preview(p.message_swap)}`;
- const f=(name,label)=>button(label,`platforms:profile-field:${name}`);
+ const entry=(name,label,value)=>button(`${String(value??'').trim()?'✅':'⚠️'} ${label}`,`platforms:profile-text:${name}`);
+ const text='✍️ <b>Bewerbungstext</b>\n\nWähle eine Wohnform, um den hinterlegten Bewerbungstext als Vorschau zu öffnen und zu bearbeiten.';
  return render(text,[
-  [f('message_apartment','Wohnung *'),f('message_house','Haus *')],
-  [f('message_temporary_wg','Auf Zeit & WG *')],
-  [f('message_swap','Tauschwohnung *')],
+  [entry('message_house','Haus *',p.message_house),entry('message_apartment','Wohnung *',p.message_apartment)],
+  [entry('message_temporary_wg','Auf Zeit & WG *',p.message_temporary_wg),entry('message_swap','Tauschwohnung *',p.message_swap)],
   [button('← Bewerberprofil','platforms:profile')]
+ ]);
+}
+
+async function renderApplicationTextDetail(user,chat,messageId,name){
+ const allowed=new Set(['message_apartment','message_house','message_temporary_wg','message_swap']);
+ if(!allowed.has(name))return renderApplicationTexts(user,chat,messageId);
+ const p=await readProfile(user.id);
+ if(!p)return renderApplicantProfile(user,chat,messageId,'Bitte zuerst das Bewerberprofil anlegen.');
+ const render=(text,rows)=>messageId?edit(chat.id,messageId,text,{inline_keyboard:rows}):send(chat.id,text,{inline_keyboard:rows});
+ const labels={
+  message_apartment:'Wohnung',
+  message_house:'Haus',
+  message_temporary_wg:'Auf Zeit & WG',
+  message_swap:'Tauschwohnung'
+ };
+ const raw=String(p[name]??'').trim();
+ const max=3200,visible=raw.length>max?`${raw.slice(0,max-1)}…`:raw;
+ const preview=raw
+  ? `<blockquote>${esc(visible)}</blockquote>${raw.length>max?'\n<i>Vorschau gekürzt</i>':''}`
+  : '⚠️ <i>Noch kein Bewerbungstext hinterlegt.</i>';
+ const text=`✍️ <b>Bewerbungstext · ${esc(labels[name])}</b>\n\n${preview}`;
+ return render(text,[
+  [button('✏️ Bewerbungstext bearbeiten',`platforms:profile-field:${name}`)],
+  [button('← Bewerbungstext','platforms:profile-texts')]
  ]);
 }
 
@@ -386,7 +403,7 @@ export async function handleAutoApplyMessage(user,message){
    const value=validateField(name,text),{error}=await db.from('applicant_profiles').update({[name]:value,updated_at:new Date().toISOString()}).eq('user_id',user.id);if(error)throw Error('Änderung konnte nicht gespeichert werden.');
    await Promise.all([telegram('deleteMessage',{chat_id:chat.id,message_id:message.message_id}).catch(()=>{}),message.reply_to_message?.message_id?telegram('deleteMessage',{chat_id:chat.id,message_id:message.reply_to_message.message_id}).catch(()=>{}):null]);
    const messageField=name.startsWith('message_');
-   return send(chat.id,`✅ ${esc(PROFILE_FIELDS[name].label)} gespeichert.`,{inline_keyboard:[[button(messageField?'✍️ Bewerbungstext':'👤 Bewerberprofil',messageField?'platforms:profile-texts':'platforms:profile')],[button('← Automatische Bewerbung','platforms')]]});
+   return send(chat.id,`✅ ${esc(PROFILE_FIELDS[name].label)} gespeichert.`,{inline_keyboard:[[button(messageField?'✍️ Vorschau öffnen':'👤 Bewerberprofil',messageField?`platforms:profile-text:${name}`:'platforms:profile')],[button('← Automatische Bewerbung','platforms')]]});
   }catch(error){return send(chat.id,`⚠️ ${esc(error.message)}`);}
  }
  return null;
@@ -416,6 +433,10 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  if(action==='profile-texts'){
   if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
   return renderApplicationTexts(user,chat,messageId);
+ }
+ if(action==='profile-text'){
+  if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
+  return renderApplicationTextDetail(user,chat,messageId,arg);
  }
  if(action==='profile-field'){
   if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
