@@ -1,0 +1,33 @@
+name: Probe Kleinanzeigen callback variants
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/probe-ka-callback-variants.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Compare redirect URI acceptance
+        shell: bash
+        run: |
+          set -euo pipefail
+          probe(){
+            name="$1"; redirect="$2"
+            url='https://login.kleinanzeigen.de/authorize'
+            query="response_type=code&client_id=uV5j90myVPc2XzEOFuWUD2At17OACEGQ&redirect_uri=$(python3 -c 'import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1],safe=""))' "$redirect")&scope=openid%20email%20profile%20offline_access&code_challenge=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&code_challenge_method=S256&state=probe123&prompt=login"
+            code="$(curl -sS -o "/tmp/$name.body" -D "/tmp/$name.h" -w '%{http_code}' "$url?$query")"
+            loc="$(awk 'BEGIN{IGNORECASE=1} /^location:/{sub(/^location:[[:space:]]*/,""); sub(/\r$/,""); print; exit}' "/tmp/$name.h")"
+            printf '%s\t%s\t%s\n' "$name" "$code" "$loc"
+          }
+          probe official 'https://login.kleinanzeigen.de/android/com.ebay.kleinanzeigen/callback'
+          probe loopback 'http://127.0.0.1:8765/callback'
+          probe custom_auth0 'com.ebay.kleinanzeigen.auth0://login.kleinanzeigen.de/android/com.ebay.kleinanzeigen/callback'
+          probe custom_plain 'com.ebay.kleinanzeigen://login.kleinanzeigen.de/android/com.ebay.kleinanzeigen/callback'
+          probe our_https 'https://login.traumwohnunghamburg.de/callback'
