@@ -1,4 +1,4 @@
-name: Probe Kleinanzeigen auth grants
+name: Probe Kleinanzeigen web-message OAuth
 
 on:
   push:
@@ -14,18 +14,34 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - name: Probe non-browser Auth0 grants
+      - name: Probe web-message response mode
         shell: bash
         run: |
           set -euo pipefail
+          CLIENT='uV5j90myVPc2XzEOFuWUD2At17OACEGQ'
+          ORIG_REDIRECT='https://login.kleinanzeigen.de/android/com.ebay.kleinanzeigen/callback'
+          OUR_REDIRECT='https://intern.traumwohnunghamburg.de/ka-callback'
+          CHALLENGE='AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
           probe() {
-            name="$1"; grant="$2"; extra="$3"
-            code="$(curl -sS -o "/tmp/$name.json" -w '%{http_code}' \
-              -X POST 'https://login.kleinanzeigen.de/oauth/token' \
-              -H 'Content-Type: application/json' \
-              --data "{\"grant_type\":\"$grant\",\"client_id\":\"uV5j90myVPc2XzEOFuWUD2At17OACEGQ\",\"username\":\"nonexistent-probe@example.invalid\",\"password\":\"not-a-real-password\",$extra\"scope\":\"openid email profile offline_access\"}")"
-            echo "$name http_status=$code"
-            jq -c '{error:(.error // null), error_description:(.error_description // null), has_access_token:has("access_token"), has_refresh_token:has("refresh_token")}' "/tmp/$name.json"
+            name="$1"; redirect="$2"; extra="$3"
+            url="https://login.kleinanzeigen.de/authorize?client_id=$CLIENT&response_type=code&redirect_uri=$(python -c 'import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=""))' "$redirect")&scope=openid%20email%20profile%20offline_access&code_challenge=$CHALLENGE&code_challenge_method=S256&state=teststate&prompt=none&response_mode=web_message$extra"
+            code="$(curl -sS -L -o "/tmp/$name.html" -w '%{http_code}' "$url")"
+            echo "$name http_status=$code bytes=$(wc -c < "/tmp/$name.html")"
+            python - "$name" <<'PY'
+import re,sys
+name=sys.argv[1]
+s=open('/tmp/'+name+'.html',encoding='utf-8',errors='ignore').read()
+low=s.lower()
+origins=sorted(set(re.findall(r'https://[a-z0-9.-]+',s,re.I)))[:20]
+print({
+ 'post_message': 'postmessage' in low,
+ 'invalid_redirect': 'invalid redirect' in low or 'redirect_uri' in low and ('not allowed' in low or 'mismatch' in low),
+ 'login_required': 'login_required' in low,
+ 'origins': origins
+})
+PY
           }
-          probe password 'password' ''
-          probe password_realm 'http://auth0.com/oauth/grant-type/password-realm' '"realm":"Username-Password-Authentication",'
+          probe original "$ORIG_REDIRECT" ''
+          probe ours "$OUR_REDIRECT" ''
+          EXTRA="&web_message_uri=$(python -c 'import urllib.parse; print(urllib.parse.quote("https://intern.traumwohnunghamburg.de", safe=""))')"
+          probe original_with_web_message_uri "$ORIG_REDIRECT" "$EXTRA"
