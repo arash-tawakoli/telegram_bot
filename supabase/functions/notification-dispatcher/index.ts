@@ -336,7 +336,7 @@ function kb(l: any, lang: string, p: boolean, userId = "", autoApplyEnabled = fa
         : `⚡ Auto-apply • ${autoApplyEnabled?"active":"inactive"}`;
       rows.push([p
         ? {text:autoApplyText,callback_data:`platforms:preview:${l.id}`}
-        : {text:`🔒 ${autoApplyText}`,url:checkout}
+        : {text:lang==="de"?"🔒 Auto-Bewerbung • inaktiv":"🔒 Auto-apply • inactive",callback_data:"platforms"}
       ]);
     }
   }
