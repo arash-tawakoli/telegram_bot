@@ -94,7 +94,7 @@ async function platformPage(user:any,chatId:number,messageId:number,notice='',pr
  if(scout)buttons.push([button('ImmoScout trennen','platforms:disconnect:1')]);
  if(immomio)buttons.push([button('Immomio trennen','platforms:disconnect:3')]);
  buttons.push([button('← Start','home')]);
- const text=`⚡ <b>Automatische Bewerbung</b>\n\n${notice?`${notice}\n\n`:''}👤 Bewerberprofil: ${ready(p)?'✅ vollständig':p?'⚠️ unvollständig':'⚠️ fehlt'}\n\n<b>Plattformen</b>\nKleinanzeigen: ${connectionLabel(klein)}\nImmoScout24: ${connectionLabel(scout)}\nImmomio: ${connectionLabel(immomio)} · 🧪 Sendetest ausstehend\n\nAuto-Bewerbung: ${prefs.enabled?'✅ aktiv':'aus'}\nFreigaben: ${prefs.immoscout_enabled?'ImmoScout24 ✓':'ImmoScout24 –'} · ${prefs.kleinanzeigen_enabled?'Kleinanzeigen ✓':'Kleinanzeigen –'} · ${prefs.immomio_enabled?'Immomio ✓':'Immomio –'}\n\nNach der einmaligen Einrichtung läuft die Bewerbung nur auf ausdrücklich freigegebenen Plattformen automatisch.`;
+ const text=`⚡ <b>Automatische Bewerbung</b>\n\n${notice?`${notice}\n\n`:''}👤 Bewerberprofil: ${ready(p)?'✅ vollständig':p?'⚠️ unvollständig':'⚠️ fehlt'}\n\n<b>Plattformen</b>\nKleinanzeigen: ${connectionLabel(klein)}\nImmoScout24: ${connectionLabel(scout)}\nImmomio: ${connectionLabel(immomio)} · 🧪 Sendetest ausstehend\n\nAuto-Bewerbung: ${prefs.enabled?'✅ aktiv':'aus'}\nVersand: ${prefs.enabled?'alle verbundenen unterstützten Plattformen':'deaktiviert'}\n\nDer Hauptschalter steuert die automatische Bewerbung zentral.`;
  return openAsNew?send(chatId,text,buttons):edit(chatId,messageId,text,buttons);
 }
 
@@ -120,13 +120,7 @@ async function handlePlatforms(user:any,chatId:number,messageId:number,data:stri
   if(!user.is_premium)return platformPage(user,chatId,messageId,'💎 Bewerberprofile benötigen Premium.');const prompt=fieldPrompt(arg);if(!prompt)return profilePage(user,chatId,messageId);await forceReply(chatId,prompt,PROFILE_FIELDS[arg].label);return;
  }
  if(action==='provider'&&[1,2,3].includes(source)){
-   if(!user.is_premium)return platformPage(user,chatId,messageId,'💎 Plattformfreigaben benötigen Premium.');
-   const key=source===1?'immoscout':source===2?'kleinanzeigen':'immomio',column=key+'_enabled';
-   const conns=await rows('platform_connections',{user_id:`eq.${user.id}`,provider:`eq.${key}`,select:'status',limit:'1'});
-   if(conns?.[0]?.status!=='connected')return platformPage(user,chatId,messageId,'⚠️ Plattform zuerst verbinden.');
-   const pref=await rows('application_preferences',{user_id:`eq.${user.id}`,select:column,limit:'1'}),next=!(pref?.[0]?.[column]===true);
-   await patch('application_preferences',{user_id:`eq.${user.id}`},{[column]:next,updated_at:new Date().toISOString()});
-   return platformPage(user,chatId,messageId,next?'✅ Plattform für AutoApply freigegeben.':'Plattform für AutoApply pausiert.');
+   return platformPage(user,chatId,messageId,'ℹ️ Die Auto-Bewerbung wird zentral über den Hauptschalter gesteuert. Alle verbundenen unterstützten Plattformen werden automatisch berücksichtigt.');
   }
   if(action==='on'){if(!user.is_premium)return platformPage(user,chatId,messageId,'💎 Auto-Bewerbung benötigt Premium.');try{await rpc('set_application_enabled_shared',{p_user:user.id,p_enabled:true});user.auto_apply_enabled=true;if(previewListingId)await refreshPreviewAutoApply(user,chatId,previewListingId,true);return platformPage(user,chatId,messageId,'✅ Auto-Bewerbung aktiviert.',previewListingId);}catch{return platformPage(user,chatId,messageId,'⚠️ Auto-Bewerbung ist noch nicht freigegeben.');}}
  if(action==='off'){await rpc('set_application_enabled_shared',{p_user:user.id,p_enabled:false});user.auto_apply_enabled=false;if(previewListingId)await refreshPreviewAutoApply(user,chatId,previewListingId,false);return platformPage(user,chatId,messageId,'Auto-Bewerbung deaktiviert.',previewListingId);}
