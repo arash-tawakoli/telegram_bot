@@ -34,7 +34,7 @@ function claims(jwt:any){try{const p=String(jwt||'').split('.')[1];return p?JSON
 async function sha(value:any){const d=new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(typeof value==='string'?value:JSON.stringify(value??null))));return Array.from(d).map(x=>x.toString(16).padStart(2,'0')).join('');}
 function exposeId(listing:any){for(const v of[listing?.external_id,listing?.source_listing_key]){const m=String(v||'').match(/\d{6,20}/);if(m)return m[0];}return String(listing?.canonical_url||'').match(/\/expose\/(\d{6,20})/)?.[1]||null;}
 function salutation(v:any){const s=clean(v,40).toLowerCase();if(['herr','male','männlich','maennlich'].includes(s))return'MALE';if(['frau','female','weiblich'].includes(s))return'FEMALE';if(['divers','diverse'].includes(s))return'DIVERS';return'NO_SALUTATION';}
-function petValue(v:any){const s=clean(v,120);if(!s)return null;const n=s.toLowerCase();if(['nein','no','keine','keine haustiere','keine haustiere.'].includes(n))return'NO';if(['ja','yes'].includes(n))return'YES';return s;}
+function petValue(v:any){const s=clean(v,120);if(!s)return null;const n=s.toLowerCase();if(['nein','no','keine','keine haustiere','keine haustiere.'].includes(n))return'Nein';if(['ja','yes'].includes(n))return'Ja';return s;}
 const HOUSEHOLD_VALUES:Record<string,string>={SINGLE:'Einpersonenhaushalt',TWO_ADULTS:'Zwei Erwachsene',FAMILY:'Familie',SHARED_FLAT:'Wohngemeinschaft'};
 const INCOME_VALUES:Record<string,string>={
  UNDER_500:'Unter 500€','500_1000':'500€ - 1.000€','1000_1500':'1.000€ - 1.500€','1500_2000':'1.500€ - 2.000€',
@@ -115,13 +115,21 @@ async function detail(token:string,id:string){
   freemiumDuration:Number(config?.freemiumSettings?.duration||0)
  };
 }
+function diagnosticText(v:any,max=800){return clean(v,max).replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,'[email]').replace(/\+?\d[\d\s().\/-]{6,}\d/g,'[phone]');}
+function providerDiagnostic(status:number,body:any,text:string){
+ const messages=body?.['common.messages'];
+ const rawMessage=messages?.[0]?.message?.message??messages?.message?.message??messages?.message??body?.message?.message??body?.message??text;
+ const rawCode=messages?.[0]?.message?.code??messages?.message?.code??body?.code??null;
+ const message=diagnosticText(rawMessage,800),code=diagnosticText(rawCode,120);
+ return{httpStatus:Number(status||0),code:code||null,message:message||null};
+}
 function officialError(status:number,body:any,text:string){
- const summary=clean(body?.['common.messages']?.[0]?.message?.message||body?.message||text,1000);
- if(/plus subscription|plus erforderlich|plus_required/i.test(summary))return{status:'failed',error:'plus_required'};
- if(status===401||status===403)return{status:'manual_required',error:'needs_login'};
- if(/schema valid|cvc-complex-type|schema validation|validation/i.test(summary))return{status:'manual_required',error:'provider_validation_error'};
- if(status===404||status===410)return{status:'failed',error:'listing_unavailable'};
- return{status:'manual_required',error:status>=500?'provider_http_5xx':`contact_http_${status||0}`};
+ const diagnostic=providerDiagnostic(status,body,text),summary=String(diagnostic.message||'');
+ if(/plus subscription|plus erforderlich|plus_required/i.test(summary))return{status:'failed',error:'plus_required',diagnostic};
+ if(status===401||status===403)return{status:'manual_required',error:'needs_login',diagnostic};
+ if(/schema valid|cvc-complex-type|schema validation|validation/i.test(summary))return{status:'manual_required',error:'provider_validation_error',diagnostic};
+ if(status===404||status===410)return{status:'failed',error:'listing_unavailable',diagnostic};
+ return{status:'manual_required',error:status>=500?'provider_http_5xx':`contact_http_${status||0}`,diagnostic};
 }
 export async function inspectImmoScoutInquiry(input:any){
  const{db,user,profile,listing,message}=input||{},userId=String(user?.id||''),id=exposeId(listing);
