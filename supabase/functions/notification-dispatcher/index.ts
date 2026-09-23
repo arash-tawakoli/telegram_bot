@@ -429,15 +429,19 @@ async function enrich(l: any, persist = true) {
     const same=sameListing(r.url,l.canonical_url);
     const state=pageAvailability(r.status,same,h);
     if(state==='unavailable')return {...out,_availability:state};
-    if(state==='unknown')return {...out,_fetch_debug:{
-      status:r.status,
-      final_url:String(r.url).slice(0,500),
-      same_listing:same,
-      content_type:r.headers.get('content-type'),
-      content_length:h.length,
-      heading:[...h.matchAll(/<(?:title|h1)\b[^>]*>([\s\S]*?)<\/(?:title|h1)>/gi)].slice(0,2).map(m=>m[1].replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim()).join(' | ').slice(0,300),
-      challenge:/captcha|cf-chl-|access denied|verify you are human/i.test(h.slice(0,12000))
-    }};
+    if(state==='unknown'){
+      const debug={
+        status:r.status,
+        final_url:String(r.url).slice(0,500),
+        same_listing:same,
+        content_type:r.headers.get('content-type'),
+        content_length:h.length,
+        heading:[...h.matchAll(/<(?:title|h1)\b[^>]*>([\s\S]*?)<\/(?:title|h1)>/gi)].slice(0,2).map(m=>m[1].replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim()).join(' | ').slice(0,300),
+        challenge:/captcha|cf-chl-|access denied|verify you are human/i.test(h.slice(0,12000))
+      };
+      console.warn('portal_fetch_unknown',JSON.stringify(debug));
+      return {...out,_fetch_debug:debug};
+    }
     out._availability='online';
     facts = htmlFacts(h,l.canonical_url);
     for (const m of h.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
