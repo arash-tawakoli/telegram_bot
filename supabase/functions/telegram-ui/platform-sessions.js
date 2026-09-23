@@ -431,12 +431,25 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  if(action==='pause'||action==='resume'){
   if(!user.is_premium)return render('Auto-Bewerbungen benötigen aktives Premium.',back);
   const meta=AUTO_APPLY_PROVIDERS[source];if(!meta)return;
-  const {error}=await db.rpc('set_application_provider_enabled_shared',{
-   p_user:user.id,
-   p_provider:meta.key,
-   p_enabled:action==='resume'
+  const {data:newer,error:newerError}=await db.from('bot_events')
+   .select('telegram_update_id,payload')
+   .eq('telegram_user_id',user.telegram_user_id)
+   .gt('telegram_update_id',Number(user.request_update_id||0))
+   .order('telegram_update_id',{ascending:false})
+   .limit(20);
+  if(newerError)throw Error('Plattform konnte nicht aktualisiert werden.');
+  const superseded=(newer||[]).some(event=>{
+   const value=String(event?.payload?.callback_query?.data||'');
+   return value===`platforms:pause:${source}`||value===`platforms:resume:${source}`;
   });
-  if(error)throw Error(action==='resume'?'Plattform konnte nicht fortgesetzt werden.':'Plattform konnte nicht pausiert werden.');
+  if(!superseded){
+   const {error}=await db.rpc('set_application_provider_enabled_shared',{
+    p_user:user.id,
+    p_provider:meta.key,
+    p_enabled:action==='resume'
+   });
+   if(error)throw Error(action==='resume'?'Plattform konnte nicht fortgesetzt werden.':'Plattform konnte nicht pausiert werden.');
+  }
  }
 
  if(action==='login'||action==='disconnect'||action==='check'){
