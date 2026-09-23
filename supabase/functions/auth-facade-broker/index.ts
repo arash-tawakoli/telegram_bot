@@ -26,6 +26,16 @@ const unb64=(value:string)=>Uint8Array.from(atob(value),c=>c.charCodeAt(0));
 async function challenge(v:string){return b64url(new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(v))))}
 async function eligible(userId:string){const {data,error}=await db.rpc('application_user_eligible',{p_user:userId});if(error||data!==true)throw Error('premium_required')}
 async function secret(name:string){const {data,error}=await db.rpc('get_bot_secret',{secret_name:name});if(error||!data)throw Error('configuration_unavailable');return String(data)}
+function providerLabel(provider:any){return provider==='kleinanzeigen'?'Kleinanzeigen':provider==='immomio'?'Immomio':'ImmoScout24'}
+async function notifyConnected(flow:any,result:any){
+ if(flow?.return_target!=='telegram'||(result?.authenticated!==true&&result?.status!=='connected'))return;
+ try{
+  const {data:user}=await db.from('bot_users').select('chat_id').eq('id',flow.user_id).maybeSingle();
+  if(!user?.chat_id)return;
+  const token=await secret('telegram_bot_token_runtime'),name=providerLabel(flow.provider);
+  await fetch(`https://api.telegram.org/bot${token}/sendMessage`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({chat_id:user.chat_id,parse_mode:'HTML',text:`✅ <b>${name} verbunden</b>\n\nDein Konto wurde erfolgreich verbunden.`}),signal:AbortSignal.timeout(10000)});
+ }catch(error){console.error('telegram_connection_notice',String(error))}
+}
 function ticket(value:any){const v=String(value||'');if(!/^[A-Za-z0-9_-]{20,100}$/.test(v))throw Error('invalid_ticket');return v}
 async function validateFlowContext(flow:any){
  const userId=String(flow.user_id||'');
@@ -105,10 +115,11 @@ async function scoutPublic(body:any){
  return data
 }
 async function passwordLogin(value:any,emailValue:any,passwordValue:any){
- const flow=await flowFor(value);
- if(flow.provider==='immomio')return immomioPasswordLogin(value,emailValue,passwordValue);
- if(flow.provider==='immoscout')return scoutPublic({action:'password_login',state:String(flow.state),email:emailValue,password:passwordValue});
- throw Error('provider_route_required')
+ const flow=await flowFor(value);let result:any;
+ if(flow.provider==='immomio')result=await immomioPasswordLogin(value,emailValue,passwordValue);
+ else if(flow.provider==='immoscout')result=await scoutPublic({action:'password_login',state:String(flow.state),email:emailValue,password:passwordValue});
+ else throw Error('provider_route_required');
+ await notifyConnected(flow,result);return result
 }
 async function mfaStart(value:any,mfaTicket:any,factorId:any){
  const flow=await flowFor(value);
@@ -118,19 +129,23 @@ async function mfaStart(value:any,mfaTicket:any,factorId:any){
 async function mfaVerify(value:any,mfaTicket:any,factorId:any,passCode:any){
  const flow=await flowFor(value);
  if(flow.provider!=='immoscout')throw Error('provider_interactive_challenge');
- return scoutPublic({action:'mfa_verify',mfaTicket:String(mfaTicket||''),factorId:String(factorId||''),passCode:String(passCode||'')})
+ const result=await scoutPublic({action:'mfa_verify',mfaTicket:String(mfaTicket||''),factorId:String(factorId||''),passCode:String(passCode||'')});
+ await notifyConnected(flow,result);return result
 }
 async function status(value:any){
  const flow=await flowFor(value,true),info=await participantInfo(flow),connection=info.connection;
  return{ok:true,provider:flow.provider,status:connection?.status||'disconnected',connected:connection?.status==='connected',accountHint:connection?.account_hint||null,lastVerifiedAt:connection?.last_verified_at||null,lastError:connection?.last_error||null,participantLabel:info.participantLabel,origin:flow.origin,returnTarget:flow.return_target}
 }
 async function completeWeb(value:any,callbackUrl:any){
- const flow=await flowFor(value),userId=String(flow.user_id);
- if(flow.provider==='immoscout')return internalCall(SCOUT_AUTH,{action:'complete_login',userId,callbackUrl:String(callbackUrl||'')});
- const url=callbackFor(flow,callbackUrl);
- if(flow.provider==='kleinanzeigen')throw Error('provider_route_required');
- if(flow.provider==='immomio')return internalCall(IMMOMIO_AUTH,{action:'complete_login',userId,callbackUrl:url});
- throw Error('provider_unsupported')
+ const flow=await flowFor(value),userId=String(flow.user_id);let result:any;
+ if(flow.provider==='immoscout')result=await internalCall(SCOUT_AUTH,{action:'complete_login',userId,callbackUrl:String(callbackUrl||'')});
+ else{
+  const url=callbackFor(flow,callbackUrl);
+  if(flow.provider==='kleinanzeigen')throw Error('provider_route_required');
+  if(flow.provider==='immomio')result=await internalCall(IMMOMIO_AUTH,{action:'complete_login',userId,callbackUrl:url});
+  else throw Error('provider_unsupported');
+ }
+ await notifyConnected(flow,result);return result
 }
 const HEADERS={'content-type':'application/json','cache-control':'no-store, max-age=0','x-content-type-options':'nosniff','referrer-policy':'no-referrer'};
 function json(body:any,status=200){return new Response(JSON.stringify(body),{status,headers:HEADERS})}
