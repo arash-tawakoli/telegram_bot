@@ -263,7 +263,7 @@ async function renderApplicantProfile(user,chat,messageId,notice=''){
  const missing=Array.isArray(missingResult.data)?missingResult.data:[],missingSet=new Set(missing),ready=missing.length===0,selectedDocs=docs.filter(d=>d.send_with_auto_apply).length;
  const req=(label,value)=>`${label} *: ${missingSet.has(label)?'⚠️ fehlt':value}`;
  const text=`👤 <b>Bewerberprofil</b>\n\n${notice?`${notice}\n\n`:''}<i>* Pflichtfeld für automatische Bewerbungen</i>\n\nStatus: ${ready?'✅ vollständig':`⚠️ ${missing.length} Pflichtangabe${missing.length===1?' fehlt':'n fehlen'}`}\n\n`+
-  `${req('Anrede',shown(p.salutation,'Keine Angabe'))}\n${req('Vorname',shown(p.first_name))}\n${req('Nachname',shown(p.last_name))}\n${req('E-Mail-Adresse',shown(p.email))}\n${req('Telefonnummer',shown(p.phone))}\n${req('Straße',shown(p.street))}\n${req('Hausnummer',shown(p.house_number))}\n${req('PLZ',shown(p.postcode))}\n${req('Ort',shown(p.city))}\n${req('Haushaltsgröße',shown(p.household_size))}\n${req('Beschäftigungsverhältnis',shown(p.employment_status))}\n${req('Monatliches Nettoeinkommen',p.monthly_net_income==null?'–':`${shown(p.monthly_net_income)} €`)}\n${req('Haustiere',shown(p.pets))}\n${req('Gewünschtes Einzugsdatum',shown(p.move_in_date))}\n${req('SCHUFA-Status',schufaLabel(p.schufa_status))}\nWBS-Status: ${shown(p.wbs_status)}\n\n<b>Bewerbungstexte</b>\n${req('Bewerbungstext Wohnung',p.message_apartment?'✅ hinterlegt':'–')}\n${req('Bewerbungstext Haus',p.message_house?'✅ hinterlegt':'–')}\n${req('Bewerbungstext Auf Zeit & WG',p.message_temporary_wg?'✅ hinterlegt':'–')}\n${req('Bewerbungstext Tauschwohnung',p.message_swap?'✅ hinterlegt':'–')}\n\nDokumente: ${docs.length} gespeichert · ${selectedDocs} ausgewählt`;
+  `${req('Anrede',shown(p.salutation,'Keine Angabe'))}\n${req('Vorname',shown(p.first_name))}\n${req('Nachname',shown(p.last_name))}\n${req('E-Mail-Adresse',shown(p.email))}\n${req('Telefonnummer',shown(p.phone))}\n${req('Straße',shown(p.street))}\n${req('Hausnummer',shown(p.house_number))}\n${req('PLZ',shown(p.postcode))}\n${req('Ort',shown(p.city))}\n${req('Haushaltsgröße',shown(p.household_size))}\n${req('Beschäftigungsverhältnis',shown(p.employment_status))}\n${req('Monatliches Nettoeinkommen',p.monthly_net_income==null?'–':`${shown(p.monthly_net_income)} €`)}\n${req('Haustiere',shown(p.pets))}\n${req('Gewünschtes Einzugsdatum',shown(p.move_in_date))}\n${req('SCHUFA-Status',schufaLabel(p.schufa_status))}\nWBS-Status: ${shown(p.wbs_status)}\n\n✍️ Bewerbungstext *: ${[p.message_apartment,p.message_house,p.message_temporary_wg,p.message_swap].filter(Boolean).length}/4 hinterlegt\n\nDokumente: ${docs.length} gespeichert · ${selectedDocs} ausgewählt`;
  const f=(name,label)=>button(label,`platforms:profile-field:${name}`);
  return render(text,[
   [f('salutation','Anrede *'),f('schufa_status','SCHUFA *')],
@@ -274,11 +274,24 @@ async function renderApplicantProfile(user,chat,messageId,notice=''){
   [f('household_size','Haushalt *'),f('employment_status','Beschäftigung *')],
   [f('monthly_net_income','Einkommen *'),f('pets','Haustiere *')],
   [f('move_in_date','Einzugsdatum *'),f('wbs_status','WBS')],
-  [f('message_apartment','Text Wohnung *'),f('message_house','Text Haus *')],
-  [f('message_temporary_wg','Text Auf Zeit & WG *')],
-  [f('message_swap','Text Tauschwohnung *')],
+  [button('✍️ Bewerbungstext','platforms:profile-texts')],
   [button('📎 Dokumente verwalten','platforms:docs')],
   [button('← Automatische Bewerbung','platforms')]
+ ]);
+}
+
+async function renderApplicationTexts(user,chat,messageId){
+ const p=await readProfile(user.id);
+ if(!p)return renderApplicantProfile(user,chat,messageId,'Bitte zuerst das Bewerberprofil anlegen.');
+ const render=(text,rows)=>messageId?edit(chat.id,messageId,text,{inline_keyboard:rows}):send(chat.id,text,{inline_keyboard:rows});
+ const state=value=>String(value??'').trim()?'✅ hinterlegt':'⚠️ fehlt';
+ const text=`✍️ <b>Bewerbungstext</b>\n\nLege für jede Wohnform einen eigenen Bewerbungstext fest.\n\nWohnung *: ${state(p.message_apartment)}\nHaus *: ${state(p.message_house)}\nAuf Zeit & WG *: ${state(p.message_temporary_wg)}\nTauschwohnung *: ${state(p.message_swap)}`;
+ const f=(name,label)=>button(label,`platforms:profile-field:${name}`);
+ return render(text,[
+  [f('message_apartment','Wohnung *'),f('message_house','Haus *')],
+  [f('message_temporary_wg','Auf Zeit & WG *')],
+  [f('message_swap','Tauschwohnung *')],
+  [button('← Bewerberprofil','platforms:profile')]
  ]);
 }
 
@@ -367,7 +380,8 @@ export async function handleAutoApplyMessage(user,message){
    const current=await readProfile(user.id);if(!current)return send(chat.id,'Bitte zuerst die Grundeinrichtung des Bewerberprofils abschließen.',{inline_keyboard:[[button('➕ Bewerberprofil anlegen','platforms:profile-new')]]});
    const value=validateField(name,text),{error}=await db.from('applicant_profiles').update({[name]:value,updated_at:new Date().toISOString()}).eq('user_id',user.id);if(error)throw Error('Änderung konnte nicht gespeichert werden.');
    await Promise.all([telegram('deleteMessage',{chat_id:chat.id,message_id:message.message_id}).catch(()=>{}),message.reply_to_message?.message_id?telegram('deleteMessage',{chat_id:chat.id,message_id:message.reply_to_message.message_id}).catch(()=>{}):null]);
-   return send(chat.id,`✅ ${esc(PROFILE_FIELDS[name].label)} gespeichert.`,{inline_keyboard:[[button('👤 Bewerberprofil','platforms:profile')],[button('← Automatische Bewerbung','platforms')]]});
+   const messageField=name.startsWith('message_');
+   return send(chat.id,`✅ ${esc(PROFILE_FIELDS[name].label)} gespeichert.`,{inline_keyboard:[[button(messageField?'✍️ Bewerbungstext':'👤 Bewerberprofil',messageField?'platforms:profile-texts':'platforms:profile')],[button('← Automatische Bewerbung','platforms')]]});
   }catch(error){return send(chat.id,`⚠️ ${esc(error.message)}`);}
  }
  return null;
@@ -393,6 +407,10 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
   const existing=await readProfile(user.id);if(existing)return renderApplicantProfile(user,chat,messageId);
   return send(chat.id,`${SETUP_PROMPT}\n\nAntworte in <b>einer Nachricht</b> mit diesen 6 Angaben, getrennt durch <code>|</code>:\n\n<code>Vorname | Nachname | E-Mail | Telefon | Ort | Haushaltsgröße</code>\n\nBeispiel:\n<code>Max | Mustermann | max@example.de | +49 170 1234567 | Hamburg | 1</code>`,{force_reply:true,selective:true,input_field_placeholder:'Vorname | Nachname | E-Mail | Telefon | Ort | 1'});
+ }
+ if(action==='profile-texts'){
+  if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
+  return renderApplicationTexts(user,chat,messageId);
  }
  if(action==='profile-field'){
   if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
