@@ -46,7 +46,7 @@ async function profile(userId:string){return (await rows('applicant_profiles',{u
 function connectionLabel(c:any){const s=c?.status;return s==='connected'?'🟢 verbunden':s==='pending'?'🟡 Anmeldung offen':s==='needs_login'?'🟠 erneut anmelden':s?'🔴 Fehler':'⚪ nicht verbunden';}
 
 export function isAutoApplyCallback(data:string){
- if(data==='platforms:profile'||data==='platforms:profile-new'||data.startsWith('platforms:profile-field:')||data.startsWith('platforms:profile-set:')||data==='platforms:docs'||data.startsWith('platforms:doc-'))return false;
+ if(data==='platforms:profile'||data==='platforms:profile-new'||data==='platforms:profile-texts'||data.startsWith('platforms:profile-field:')||data.startsWith('platforms:profile-set:')||data==='platforms:docs'||data.startsWith('platforms:doc-'))return false;
  return data==='platforms'||data.startsWith('platforms:');
 }
 export function isAutoApplyMessage(update:any){const m=update?.message;if(!m?.text)return false;const text=String(m.text),reply=String(m.reply_to_message?.text||'');return /https:\/\/login\.kleinanzeigen\.de\/android\/com\.ebay\.kleinanzeigen\/callback/i.test(text)||/https:\/\/tenant\.immomio\.com\/de\/auth\/login/i.test(text)||/immobilienscout24\.de:\/loginCallback/i.test(text)||reply.startsWith(SETUP_PROMPT)||reply.startsWith(FIELD_PROMPT_PREFIX);}
