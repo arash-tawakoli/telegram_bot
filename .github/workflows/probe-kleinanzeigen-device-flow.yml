@@ -2,7 +2,8 @@ name: Probe Kleinanzeigen web-message OAuth
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
     paths:
       - ".github/workflows/probe-kleinanzeigen-device-flow.yml"
 
@@ -19,29 +20,25 @@ jobs:
         run: |
           set -euo pipefail
           CLIENT='uV5j90myVPc2XzEOFuWUD2At17OACEGQ'
-          ORIG_REDIRECT='https://login.kleinanzeigen.de/android/com.ebay.kleinanzeigen/callback'
-          OUR_REDIRECT='https://intern.traumwohnunghamburg.de/ka-callback'
+          ORIG='https://login.kleinanzeigen.de/android/com.ebay.kleinanzeigen/callback'
+          OURS='https://intern.traumwohnunghamburg.de/ka-callback'
           CHALLENGE='AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
-          probe() {
-            name="$1"; redirect="$2"; extra="$3"
-            url="https://login.kleinanzeigen.de/authorize?client_id=$CLIENT&response_type=code&redirect_uri=$(python -c 'import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=""))' "$redirect")&scope=openid%20email%20profile%20offline_access&code_challenge=$CHALLENGE&code_challenge_method=S256&state=teststate&prompt=none&response_mode=web_message$extra"
+
+          run_probe() {
+            name="$1"
+            redirect="$2"
+            extra="$3"
+            enc_redirect="$(jq -rn --arg v "$redirect" '$v|@uri')"
+            url="https://login.kleinanzeigen.de/authorize?client_id=$CLIENT&response_type=code&redirect_uri=$enc_redirect&scope=openid%20email%20profile%20offline_access&code_challenge=$CHALLENGE&code_challenge_method=S256&state=teststate&prompt=none&response_mode=web_message$extra"
             code="$(curl -sS -L -o "/tmp/$name.html" -w '%{http_code}' "$url")"
             echo "$name http_status=$code bytes=$(wc -c < "/tmp/$name.html")"
-            python - "$name" <<'PY'
-import re,sys
-name=sys.argv[1]
-s=open('/tmp/'+name+'.html',encoding='utf-8',errors='ignore').read()
-low=s.lower()
-origins=sorted(set(re.findall(r'https://[a-z0-9.-]+',s,re.I)))[:20]
-print({
- 'post_message': 'postmessage' in low,
- 'invalid_redirect': 'invalid redirect' in low or 'redirect_uri' in low and ('not allowed' in low or 'mismatch' in low),
- 'login_required': 'login_required' in low,
- 'origins': origins
-})
-PY
+            if grep -qi 'postMessage' "/tmp/$name.html"; then echo "$name post_message=true"; else echo "$name post_message=false"; fi
+            if grep -Eqi 'invalid redirect|redirect_uri.*(not allowed|mismatch)' "/tmp/$name.html"; then echo "$name invalid_redirect=true"; else echo "$name invalid_redirect=false"; fi
+            if grep -qi 'login_required' "/tmp/$name.html"; then echo "$name login_required=true"; else echo "$name login_required=false"; fi
+            grep -Eo 'https://[A-Za-z0-9._-]+' "/tmp/$name.html" | sort -u | head -20 | sed "s/^/$name origin=/" || true
           }
-          probe original "$ORIG_REDIRECT" ''
-          probe ours "$OUR_REDIRECT" ''
-          EXTRA="&web_message_uri=$(python -c 'import urllib.parse; print(urllib.parse.quote("https://intern.traumwohnunghamburg.de", safe=""))')"
-          probe original_with_web_message_uri "$ORIG_REDIRECT" "$EXTRA"
+
+          run_probe original "$ORIG" ''
+          run_probe ours "$OURS" ''
+          WM_URI="$(jq -rn --arg v 'https://intern.traumwohnunghamburg.de' '$v|@uri')"
+          run_probe original_with_web_message_uri "$ORIG" "&web_message_uri=$WM_URI"
