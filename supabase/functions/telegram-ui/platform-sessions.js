@@ -302,8 +302,7 @@ export async function handleAutoApplyMessage(user,message){
    const action=source===2?'complete_shared_login':'complete_login';
    const result=await applicationWorker(action,user.id,source,{callbackUrl});
    if(result?.authenticated!==true&&result?.status!=='connected')throw Error(`${name} konnte nicht verbunden werden.`);
-   const detail=source===2?'Die geteilte Login-URL wurde verarbeitet und direkt wieder gelöscht. Die Verbindung ist gespeichert.':'Die Anmeldung ist verschlüsselt gespeichert.';
-   return send(chat.id,`✅ <b>${name} verbunden</b>\n\n${detail}`,{inline_keyboard:[[button('← Automatische Bewerbung','platforms')]]});
+   return send(chat.id,`✅ <b>${name} verbunden</b>\n\nDein Konto wurde erfolgreich verbunden.`,{inline_keyboard:[[button('← Automatische Bewerbung','platforms')]]});
   }catch(error){
    return send(chat.id,`⚠️ ${esc(error.message)}`,{inline_keyboard:[[button(`🔐 ${name} erneut verbinden`,`platforms:login:${source}`)],[button('← Automatische Bewerbung','platforms')]]});
   }
