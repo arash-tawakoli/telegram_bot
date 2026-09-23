@@ -429,14 +429,26 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   }catch(error){return render(error.message,back);}
  }
 
- if(action==='off'){
-  const {error}=await db.from('bot_users').update({auto_apply_enabled:false}).eq('id',user.id);
-  if(error)throw Error('Auto-Bewerbung konnte nicht deaktiviert werden.');
- }
- if(action==='on'){
-  if(!user.is_premium)return render('Auto-Bewerbungen benötigen aktives Premium.',back);
-  const {error}=await db.from('bot_users').update({auto_apply_enabled:true}).eq('id',user.id);
-  if(error)return render('Auto-Bewerbungen sind noch nicht freigegeben. Hinterlege zuerst dein Bewerberprofil; mindestens eine Plattform muss technisch verifiziert sein.',back);
+ if(action==='off'||action==='on'){
+  const {data:newer,error:newerError}=await db.from('bot_events')
+   .select('telegram_update_id,payload')
+   .eq('telegram_user_id',user.telegram_user_id)
+   .gt('telegram_update_id',Number(user.request_update_id||0))
+   .order('telegram_update_id',{ascending:false})
+   .limit(20);
+  if(newerError)throw Error('Auto-Bewerbung konnte nicht aktualisiert werden.');
+  const superseded=(newer||[]).some(event=>['platforms:on','platforms:off'].includes(String(event?.payload?.callback_query?.data||'')));
+  if(!superseded){
+   if(action==='off'){
+    const {error}=await db.from('bot_users').update({auto_apply_enabled:false}).eq('id',user.id);
+    if(error)throw Error('Auto-Bewerbung konnte nicht deaktiviert werden.');
+   }
+   if(action==='on'){
+    if(!user.is_premium)return render('Auto-Bewerbungen benötigen aktives Premium.',back);
+    const {error}=await db.from('bot_users').update({auto_apply_enabled:true}).eq('id',user.id);
+    if(error)return render('Auto-Bewerbungen sind noch nicht freigegeben. Hinterlege zuerst dein Bewerberprofil; mindestens eine Plattform muss technisch verifiziert sein.',back);
+   }
+  }
  }
 
  const [{data:connections,error},{data:state,error:stateError},{data:applicant,error:applicantError}]=await Promise.all([
