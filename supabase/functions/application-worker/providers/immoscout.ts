@@ -67,7 +67,7 @@ export function resolveImmoScoutField(configKey:string,rawConfig:any,profile:any
  const prefill=providerPrefill(rawConfig);if(prefill!==undefined)return{payload,value:prefill,source:'provider_prefill'};return{payload,value:undefined,source:'unmapped'};
 }
 export function prepareImmoScoutForm(config:any,profile:any,message:string){
- const form:any={'@xmlns':{common:'http://rest.immobilienscout24.de/schema/common/1.0'}},missing:string[]=[],mapped:any[]=[];
+ const form:any={'@xmlns':{common:'http://rest.immobilienscout24.de/schema/common/1.0'}},missing:string[]=[],mapped:any[]=[],values=new Map<string,any>();
  const active=Object.entries(config||{}).filter(([k,v])=>String(k).endsWith('Field')&&['MANDATORY','OPTIONAL'].includes(fieldState(v)));
  if(!active.length)return{form,missing:['contactFormConfiguration'],mapped,configAvailable:false};
  for(const[configKey,rawConfig]of active){
@@ -76,8 +76,17 @@ export function prepareImmoScoutForm(config:any,profile:any,message:string){
   const r=resolveImmoScoutField(configKey,rawConfig,profile,message);
   mapped.push({configKey,payload:r.payload,required,source:r.source});
   if(required&&empty(r.value)){missing.push(r.payload);continue}
-  if(!empty(r.value)||typeof r.value==='boolean')form[r.payload]=r.value;
+  if(!empty(r.value)||typeof r.value==='boolean')values.set(r.payload,r.value);
  }
+ const schemaOrder=[
+  'firstname','lastname','phoneNumber','emailAddress','appointmentRequested','message','address','contactMailCustomStyle',
+  'moveInDate','petsInHousehold','numberOfPersons','employmentRelationship','income','salutation',
+  'schufaInformationProvided','schufaVerificationCode','sendProfile','profileImageUrl','privacyPolicyAccepted',
+  'company','buyReason','ownCapital','hasPreapproval','lotAvailable','numberOfRequiredWorkingPlaces',
+  'plannedInvestment','commercialUsage','applicationPackageCompleted'
+ ];
+ for(const key of schemaOrder)if(values.has(key))form[key]=values.get(key);
+ for(const [key,value] of values)if(!schemaOrder.includes(key))form[key]=value;
  return{form,missing,mapped,configAvailable:true};
 }
 async function detail(token:string,id:string){
