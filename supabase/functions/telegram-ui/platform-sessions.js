@@ -284,8 +284,13 @@ async function renderApplicationTexts(user,chat,messageId){
  const p=await readProfile(user.id);
  if(!p)return renderApplicantProfile(user,chat,messageId,'Bitte zuerst das Bewerberprofil anlegen.');
  const render=(text,rows)=>messageId?edit(chat.id,messageId,text,{inline_keyboard:rows}):send(chat.id,text,{inline_keyboard:rows});
- const state=value=>String(value??'').trim()?'✅ hinterlegt':'⚠️ fehlt';
- const text=`✍️ <b>Bewerbungstext</b>\n\nLege für jede Wohnform einen eigenen Bewerbungstext fest.\n\nWohnung *: ${state(p.message_apartment)}\nHaus *: ${state(p.message_house)}\nAuf Zeit & WG *: ${state(p.message_temporary_wg)}\nTauschwohnung *: ${state(p.message_swap)}`;
+ const preview=value=>{
+  const raw=String(value??'').trim();
+  if(!raw)return '⚠️ <i>fehlt</i>';
+  const max=700,visible=raw.length>max?`${raw.slice(0,max-1)}…`:raw;
+  return `<blockquote>${esc(visible)}</blockquote>${raw.length>max?'\n<i>Vorschau gekürzt</i>':''}`;
+ };
+ const text=`✍️ <b>Bewerbungstext</b>\n\nLege für jede Wohnform einen eigenen Bewerbungstext fest.\n\n<b>Wohnung *</b>\n${preview(p.message_apartment)}\n\n<b>Haus *</b>\n${preview(p.message_house)}\n\n<b>Auf Zeit &amp; WG *</b>\n${preview(p.message_temporary_wg)}\n\n<b>Tauschwohnung *</b>\n${preview(p.message_swap)}`;
  const f=(name,label)=>button(label,`platforms:profile-field:${name}`);
  return render(text,[
   [f('message_apartment','Wohnung *'),f('message_house','Haus *')],
