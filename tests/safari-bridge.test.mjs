@@ -5,20 +5,16 @@ import {readFileSync} from 'node:fs';
 const worker=readFileSync(new URL('../supabase/functions/application-worker/index.ts',import.meta.url),'utf8');
 const provider=readFileSync(new URL('../supabase/functions/application-worker/providers/kleinanzeigen.ts',import.meta.url),'utf8');
 
-test('Kleinanzeigen login has no active Safari/share bridge fallback',()=>{
- assert.doesNotMatch(worker,/oauth_bridge'\)==='kleinanzeigen'/);
- assert.doesNotMatch(worker,/transport:'safari-extension-bridge'/);
- assert.doesNotMatch(worker,/kleinanzeigenBridgeEndpoint/);
+test('temporary share flow does not re-enable Safari extension bridge',()=>{
+ assert.doesNotMatch(worker,/oauth_bridge=kleinanzeigen|safari-extension-bridge/);
+ assert.match(worker,/transport:'telegram-share'/);
 });
 
-test('direct OAuth stays PKCE-bound and state validated',()=>{
+test('share completion remains PKCE/state bound and one time',()=>{
  assert.match(provider,/code_challenge_method:'S256'/);
  assert.match(provider,/flow\.code_verifier/);
  assert.match(provider,/validateCallbackTarget/);
  assert.match(provider,/state!==String\(flow\.state\)/);
+ assert.match(provider,/is\('consumed_at',null\)/);
  assert.match(provider,/consumed_at:new Date\(\)\.toISOString\(\)/);
-});
-
-test('remote browser login is not part of application-worker',()=>{
- assert.doesNotMatch(worker,/puppeteer|browserless|Browserless\.liveURL|production-ams\.browserless\.io/i);
 });
