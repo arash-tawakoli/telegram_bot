@@ -55,10 +55,10 @@ async function handleProviderLogin(update:any,provider:'kleinanzeigen'|'immomio'
    url=`https://login.traumwohnunghamburg.de/connect?ticket=${encodeURIComponent(ticket)}`;
   }
   const copy=provider==='kleinanzeigen'
-   ? `🔐 <b>Kleinanzeigen verbinden</b>\n\n1. Öffne Kleinanzeigen über den Button unten.\n2. Melde dich mit deinem Kleinanzeigen-Konto an.\n3. Tippe anschließend auf <b>Teilen</b> und sende den Link an <b>TraumWohnung Hamburg</b> in Telegram.`
+   ? `🔐 <b>Kleinanzeigen verbinden</b>\n\n1. Tippe unten auf <b>Kleinanzeigen verbinden</b>.\n2. Melde dich an.\n3. Tippe auf <b>Teilen</b> und sende den Link an <b>TraumWohnung Hamburg</b>.`
    : provider==='immomio'
-    ? `🔐 <b>Immomio verbinden</b>\n\n1. Öffne Immomio über den Button unten.\n2. Melde dich mit deinem Immomio-Konto an.\n3. Nach erfolgreicher Anmeldung wird dein Konto automatisch verbunden.`
-    : `🔐 <b>ImmoScout24 verbinden</b>\n\n1. Öffne ImmoScout24 über den Button unten.\n2. Melde dich mit deinem ImmoScout24-Konto an.\n3. Nach erfolgreicher Anmeldung wird dein Konto automatisch verbunden.`;
+    ? `🔐 <b>Immomio verbinden</b>\n\n1. Tippe unten auf <b>Immomio verbinden</b>.\n2. Melde dich an.\n3. Dein Konto wird automatisch verbunden.`
+    : `🔐 <b>ImmoScout24 verbinden</b>\n\n1. Tippe unten auf <b>ImmoScout24 verbinden</b>.\n2. Melde dich an.\n3. Dein Konto wird automatisch verbunden.`;
   await editOrSend(chatId,messageId,copy,[[{text:`🌐 ${name} verbinden`,url}],[{text:'← Automatische Bewerbung',callback_data:'platforms'}]]);
   await finish(ctx.updateId,ctx.claim,true);x=null;
  }catch(e){
