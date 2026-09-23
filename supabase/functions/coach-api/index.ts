@@ -200,9 +200,9 @@ async function startConnect(a:any,assignment:any,p:string){
  const userId=assignment.user_id,premium=await effectivePremium([String(userId)]);
  if(premium.get(String(userId))!==true)throw Error('premium_required');
  if(p==='kleinanzeigen'){
-  const result=await internalCall(URL+'/functions/v1/application-worker',{action:'login_beta_direct',userId,source:2,origin:'coach',returnTarget:'coach',issuedBy:a.user.id,context:{assignment_version:assignment.assignment_version,beta_direct_callback:true}});
+  const result=await internalCall(URL+'/functions/v1/application-worker',{action:'login_share',userId,source:2,origin:'coach',returnTarget:'coach',issuedBy:a.user.id,context:{assignment_version:assignment.assignment_version,share_flow:true}});
   if(!result?.url)throw Error('auth_flow_create_failed');
-  return{url:String(result.url),expiresInSeconds:1800,directProvider:true,betaDirectCallback:true};
+  return{url:String(result.url),expiresInSeconds:1800,directProvider:true,shareFlow:true};
  }
  await admin.from('platform_auth_flows').update({consumed_at:new Date().toISOString()}).eq('user_id',userId).eq('provider',p).is('consumed_at',null);
  const state=random(32),verifier=random(64);
