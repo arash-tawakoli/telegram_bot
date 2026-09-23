@@ -141,6 +141,7 @@ function cap(l: any, lang: string, app: any = null) {
     `🏠 <b>${esc(String(l.title || "Listing").slice(0, 180))}</b>`,
     "",
   ];
+  if(l._saga_recovery===true)lines.push("🟢 <b>"+(lang==="de"?"Noch verfügbar":"Still available")+"</b>","");
   const number = (emoji: string, key: string, value: any, unit = " €") => {
     const n = factNumber(value);
     if (n != null)
@@ -225,7 +226,7 @@ function sourceButtonName(l:any) {
 }
 function offerTarget(l: any, lang: string) {
   const fallback = {url:l.canonical_url, text:label(lang,"offer")};
-  if (l.sources?.source_type !== "Baugenossenschaft") return fallback;
+  const facts=knownFacts(l);
   const tenant = (value:any, registration=false) => {
     if (typeof value !== "string") return null;
     try {
@@ -237,7 +238,9 @@ function offerTarget(l: any, lang: string) {
       return valid ? value : null;
     } catch { return null; }
   };
-  const direct=tenant(l.canonical_url) || tenant(l.raw?.applicationLink);
+  const direct=tenant(facts.applicationLink) || tenant(l.raw?.applicationLink) || tenant(l.canonical_url);
+  if(facts.provider_entity==="SAGA" && direct) return {url:direct,text:label(lang,"offer")};
+  if (l.sources?.source_type !== "Baugenossenschaft") return fallback;
   if(direct) return {url:direct,text:label(lang,"offer")};
   const connectors=[...(l.sources?.source_connectors || [])].filter((c:any)=>c.enabled).sort((a:any,b:any)=>a.priority-b.priority);
   for(const c of connectors) {
@@ -254,6 +257,7 @@ function autoApplyProvider(l:any) {
     raw.applicationUrl,
     raw.application_url,
     raw.tenant_apply_url,
+    l?.applicationLink,
     l?.canonical_url,
   ]){
     if(typeof value!=="string" || value.length>4096 || /[\x00-\x1f\x7f]/.test(value))continue;
@@ -299,11 +303,14 @@ async function applicationState(userId:string,listingId:string){
 }
 function kb(l: any, lang: string, p: boolean, userId = "") {
   const checkout=`${PREMIUM_LINK}?client_reference_id=${encodeURIComponent(String(userId))}`;
-  const sourceName=sourceButtonName(l);
+  const facts=knownFacts(l),saga=facts.provider_entity==="SAGA";
+  const sourceName=saga?"SAGA":sourceButtonName(l);
   const cooperative=String(l.sources?.source_type || "") === "Baugenossenschaft";
-  const normalOfferText=lang==="de"
-    ? `${cooperative ? "🏠 " : ""}Zu ${sourceName}`
-    : `${cooperative ? "🏠 " : ""}${sourceName}`;
+  const normalOfferText=saga
+    ? (lang==="de"?"🏠 SAGA-Angebot":"🏠 SAGA listing")
+    : (lang==="de"
+      ? `${cooperative ? "🏠 " : ""}Zu ${sourceName}`
+      : `${cooperative ? "🏠 " : ""}${sourceName}`);
   const offer = cooperative
     ? (p
         ? { ...offerTarget(l,lang), text: lang==="de" ? "💎 Premium-Angebot" : "💎 Premium listing" }
@@ -438,6 +445,93 @@ async function enrich(l: any, persist = true) {
   } catch(error) {console.error('listing_detail_fetch_failed',String(error).slice(0,200));}
   return out;
 }
+
+function sagaMeta(l:any){
+  const facts=knownFacts(l),provider=String(facts.provider_entity||"");
+  const ref=textValue(facts.saga_object_ref);
+  const application=textValue(facts.applicationLink);
+  return{facts,isSaga:provider==="SAGA",ref,application};
+}
+async function immomioApplicationAvailability(value:any){
+  if(typeof value!=="string")return "missing";
+  const match=value.trim().match(/^https:\/\/tenant\.immomio\.com\/(?:de\/)?apply\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/?$/i);
+  if(!match)return "missing";
+  const id=match[1];
+  try{
+    const response=await fetch("https://gql-ps.immomio.com/tenant/graphql",{
+      method:"POST",headers:{"content-type":"application/json"},
+      body:JSON.stringify({query:"query sagaAvailability($id: ID!) { property(id:$id) { id } }",variables:{id}}),
+      signal:AbortSignal.timeout(6500)
+    });
+    if(response.status===404||response.status===410)return "unavailable";
+    if(!response.ok)return "unknown";
+    const payload=await response.json().catch(()=>null);
+    if(payload?.data?.property?.id===id)return "online";
+    if(payload?.data && payload.data.property===null)return "unavailable";
+    return "unknown";
+  }catch{return "unknown";}
+}
+async function recordSagaProbe(l:any,meta:any,immomioStatus:string,errorMessage:string|null=null){
+  const {data,error}=await db.rpc("record_saga_probe",{
+    p_listing_id:l.id,
+    p_is_saga:meta.isSaga,
+    p_saga_ref:meta.ref,
+    p_application_url:meta.application,
+    p_immomio_status:immomioStatus,
+    p_error:errorMessage
+  });
+  if(error)throw error;
+  return data||{};
+}
+async function hydrateSagaListing(l:any){
+  const meta=sagaMeta(l);
+  if(!meta.isSaga)return{listing:l,meta,status:"not_saga",record:null};
+  if(!meta.ref||!meta.application){
+    const missing=!meta.ref?"missing_saga_reference":"missing_immomio_application";
+    const record=await recordSagaProbe(l,meta,"missing",missing);
+    return{listing:l,meta,status:"missing",record};
+  }
+  const status=await immomioApplicationAvailability(meta.application);
+  const record=await recordSagaProbe(l,meta,status,status==="unknown"?"immomio_availability_unknown":null);
+  return{listing:l,meta,status,record};
+}
+async function sagaAlreadyReceived(userId:string,ref:string,eventId:string){
+  const {data,error}=await db.rpc("saga_delivery_already_received",{
+    p_user_id:userId,p_saga_ref:ref,p_exclude_event_id:eventId
+  });
+  if(error)throw error;
+  return data===true;
+}
+async function probeSagaRecoveryCandidate(){
+  const {data:id,error:idError}=await db.rpc("next_saga_recovery_probe_candidate");
+  if(idError)throw idError;
+  if(!id)return{checked:0};
+  const {data,error}=await db.from("listings")
+    .select("*,sources(name,button_label,source_type,baseline_completed_at,enabled,runtime_mode,delivery_mode,source_connectors(config,enabled,priority))")
+    .eq("id",id).single();
+  if(error)throw error;
+  let listing=await enrich(data);
+  const meta=sagaMeta(listing);
+  if(listing._availability==="unavailable"){
+    await db.from("listings").update({is_active:false}).eq("id",listing.id);
+    await recordSagaProbe(listing,meta,"unavailable","source_unavailable");
+    return{checked:1,is_saga:meta.isSaga,queued:0};
+  }
+  if(listing._availability!=="online" && !meta.isSaga){
+    await recordSagaProbe(listing,meta,"unknown","portal_availability_unknown");
+    return{checked:1,is_saga:false,queued:0};
+  }
+  if(!meta.isSaga){
+    await recordSagaProbe(listing,meta,"not_applicable",null);
+    return{checked:1,is_saga:false,queued:0};
+  }
+  const hydrated=await hydrateSagaListing(listing);
+  if(hydrated.status!=="online")return{checked:1,is_saga:true,queued:0,status:hydrated.status};
+  const {data:queued,error:queueError}=await db.rpc("queue_saga_recovery",{p_listing_id:listing.id});
+  if(queueError)throw queueError;
+  return{checked:1,is_saga:true,queued:Number(queued||0),status:"online"};
+}
+
 async function uploadOperation(t:string,chat:number,op:any) {
   const f=new FormData(); f.set('chat_id',String(chat));
   const media=op.method==='sendMediaGroup'?op.body.media:[{type:'photo',media:op.body.photo}];
@@ -545,6 +639,7 @@ Deno.serve(async (req) => {
     if (!locked) return Response.json({ ok: true, busy: true });
     acquired = true;
     const deadline = Date.now() + 50_000;
+    try{await probeSagaRecoveryCandidate();}catch(error){console.error("saga_recovery_probe_failed",String(error).slice(0,300));}
     await recoverDeliveries(db);
     const now = new Date().toISOString();
     const { data: events, error } = await db
@@ -615,7 +710,24 @@ Deno.serve(async (req) => {
           task = enrich(raw);
           cache.set(String(raw.id), task);
         }
-        const listing = await task;
+        let listing = await task;
+        const saga=await hydrateSagaListing(listing);
+        if(saga.meta.ref && await sagaAlreadyReceived(String(recipient.id),saga.meta.ref,String(event.id))){
+          await finishDelivery(db,lease,{status:'skipped',next_retry_at:null,error_message:'SAGA object already delivered via another portal'});
+          skipped++;continue;
+        }
+        if(String(event.event_type)==='still_active'){
+          if(!saga.meta.isSaga || !saga.meta.ref || !saga.meta.application){
+            await finishDelivery(db,lease,{status:'skipped',next_retry_at:null,error_message:'SAGA recovery metadata incomplete'});
+            skipped++;continue;
+          }
+          if(saga.status==='unavailable'){
+            await finishDelivery(db,lease,{status:'skipped',next_retry_at:null,error_message:'Immomio confirms SAGA application unavailable'});
+            skipped++;continue;
+          }
+          if(saga.status!=='online')throw new TelegramFailure('SAGA Immomio availability could not be verified; retry later',false,false,300);
+          listing={...listing,_saga_recovery:true};
+        }
         const newness=await deliveryNewnessCheck(listing,event.event_type,knownFacts(listing).published_text);
         if(!newness.ok){
           await finishDelivery(db,lease,{status:'skipped',next_retry_at:null,error_message:`Newness guard: ${newness.reason}`});
