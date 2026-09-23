@@ -135,7 +135,7 @@ async function withHamburgGeo(l:any) {
     return match ? {...l,district:match.district,borough:match.borough} : {...l,district};
   }catch{return {...l,district};}
 }
-function cap(l: any, lang: string) {
+function cap(l: any, lang: string, app: any = null) {
   l = knownFacts(l);
   const lines = [
     `🏠 <b>${esc(String(l.title || "Listing").slice(0, 180))}</b>`,
@@ -215,6 +215,8 @@ function cap(l: any, lang: string) {
   }
   for(const [key,value] of Object.entries(l.extra_facts||{}))if(present(value))lines.push(`<b>${esc(key)}:</b> ${esc(value)}`);
   if (loc(l)) lines.push(`📍 <b>${label(lang, "address")}:</b> ${esc(loc(l))}`);
+  const applicationView=applicationPresentation(app,autoApplyProvider(l),lang);
+  if(applicationView?.caption)lines.push("",applicationView.caption);
   return lines.join("\n").trim();
 }
 function sourceButtonName(l:any) {
@@ -265,7 +267,48 @@ function autoApplyProvider(l:any) {
   if(sourceId===2)return "kleinanzeigen";
   return null;
 }
-function kb(l: any, lang: string, p: boolean, userId = "", autoApplyEnabled = false) {
+function providerLabel(provider:any){return provider==="immoscout"?"ImmoScout24":provider==="kleinanzeigen"?"Kleinanzeigen":provider==="immomio"?"Immomio":String(provider||"Plattform");}
+function applicationStatusKey(app:any){return app?JSON.stringify([app.status||null,app.last_error||null,app.wait_reason||null,app.provider_state||{}]):"none";}
+function applicationPresentation(app:any,provider:any,lang="de"){
+  if(!app||!provider)return null;
+  const de=lang!=="en",status=String(app.status||""),error=String(app.last_error||""),state=app.provider_state&&typeof app.provider_state==="object"?app.provider_state:{},name=providerLabel(provider);
+  if(status==="sent"){
+    if(provider==="immomio"&&state.followUpRequired==="questions")return{caption:de?"⚠️ <b>Bewerbung versendet · Angaben erforderlich</b>":"⚠️ <b>Application sent · details required</b>",button:de?"⚠️ Angaben erforderlich":"⚠️ Details required",kind:"provider_action"};
+    if(provider==="immomio"&&state.followUpRequired==="sms_verification")return{caption:de?"⚠️ <b>Bewerbung versendet · Bestätigung erforderlich</b>":"⚠️ <b>Application sent · verification required</b>",button:de?"⚠️ Bestätigung erforderlich":"⚠️ Verification required",kind:"provider_action"};
+    return{caption:de?"✅ <b>Automatisch beworben</b>":"✅ <b>Applied automatically</b>",button:de?"✅ Automatisch beworben":"✅ Applied automatically",kind:"sent"};
+  }
+  if(error==="already_applied")return{caption:de?"✅ <b>Bereits beworben</b>":"✅ <b>Already applied</b>",button:de?"✅ Bereits beworben":"✅ Already applied",kind:"already"};
+  if(status==="pending"||status==="processing")return{caption:de?"⏳ <b>Bewerbung wird versendet …</b>":"⏳ <b>Application is being sent …</b>",button:de?"⏳ Bewerbung läuft":"⏳ Application in progress",kind:"progress"};
+  if(error==="plus_required")return{caption:`⚠️ <b>${esc(name)} Plus erforderlich</b>`,button:`⚠️ ${name} Plus erforderlich`,kind:"offer"};
+  if(["needs_login","provider_disabled"].includes(error))return{caption:`🔐 <b>${esc(name)} erneut verbinden</b>`,button:`🔐 ${name} verbinden`,kind:"login"};
+  if(error==="listing_unavailable")return{caption:de?"🚫 <b>Angebot nicht mehr verfügbar</b>":"🚫 <b>Listing no longer available</b>",button:de?"🚫 Nicht mehr verfügbar":"🚫 Unavailable",kind:"unavailable"};
+  if(error.startsWith("required_profile_data_missing"))return{caption:de?"⚠️ <b>Bewerberprofil vervollständigen</b>":"⚠️ <b>Complete applicant profile</b>",button:de?"⚠️ Profil vervollständigen":"⚠️ Complete profile",kind:"profile"};
+  if(error==="conversation_exists")return{caption:de?"💬 <b>Unterhaltung bereits vorhanden</b>":"💬 <b>Conversation already exists</b>",button:de?"💬 Postfach prüfen":"💬 Check inbox",kind:"offer"};
+  if(["submission_unconfirmed","xcf_submit_unconfirmed"].includes(error))return{caption:de?"⚠️ <b>Versand nicht bestätigt</b>":"⚠️ <b>Send not confirmed</b>",button:de?"⚠️ Postfach prüfen":"⚠️ Check inbox",kind:"offer"};
+  if(provider==="immomio"&&["dynamic_questions_required","sms_verification_required","captcha_required"].includes(error))return{caption:de?"⚠️ <b>Aktion in Immomio erforderlich</b>":"⚠️ <b>Action required in Immomio</b>",button:de?"⚠️ Immomio öffnen":"⚠️ Open Immomio",kind:"provider_action"};
+  if(["not_eligible","send_not_authorized"].includes(error))return null;
+  if(["manual_required","failed"].includes(status))return{caption:de?"⚠️ <b>Manuell bewerben</b>":"⚠️ <b>Apply manually</b>",button:de?"⚠️ Manuell bewerben":"⚠️ Apply manually",kind:"offer"};
+  return null;
+}
+async function applicationState(userId:string,listingId:string){
+  if(!/^[0-9a-f-]{36}$/i.test(userId)||!/^[0-9a-f-]{36}$/i.test(listingId))return null;
+  const {data,error}=await db.from("applications").select("status,last_error,wait_reason,sent_at,provider_state,created_at").eq("user_id",userId).eq("listing_id",listingId).order("created_at",{ascending:false}).limit(1).maybeSingle();
+  if(error){console.error("application_status_read_failed",error.message);return null;}
+  return data||null;
+}
+function applicationStatusButton(l:any,lang:string,view:any,provider:string){
+  if(view.kind==="login"){
+    const index=provider==="immoscout"?1:provider==="kleinanzeigen"?2:3;
+    return{text:view.button,callback_data:`platforms:login:${index}`};
+  }
+  if(view.kind==="profile")return{text:view.button,callback_data:"platforms:profile"};
+  if(["offer","provider_action","already","unavailable"].includes(view.kind)){
+    const target=offerTarget(l,lang);
+    return target?.url?{text:view.button,url:target.url}:{text:view.button,callback_data:`platforms:preview:${l.id}`};
+  }
+  return{text:view.button,callback_data:`platforms:preview:${l.id}`};
+}
+function kb(l: any, lang: string, p: boolean, userId = "", autoApplyEnabled = false, app: any = null) {
   const checkout=`${PREMIUM_LINK}?client_reference_id=${encodeURIComponent(String(userId))}`;
   const sourceName=sourceButtonName(l);
   const cooperative=String(l.sources?.source_type || "") === "Baugenossenschaft";
@@ -283,14 +326,19 @@ function kb(l: any, lang: string, p: boolean, userId = "", autoApplyEnabled = fa
   const q = mapLoc(l);
   const rows: any[] = [[offer],[save]];
   if (q) rows.push([{text:`🗺️ ${label(lang, "maps")}`,url:`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`}]);
-  if(autoApplyProvider(l)){
-    const autoApplyText=lang==="de"
-      ? `⚡ Auto-Bewerbung • ${autoApplyEnabled?"aktiv":"inaktiv"}`
-      : `⚡ Auto-apply • ${autoApplyEnabled?"active":"inactive"}`;
-    rows.push([p
-      ? {text:autoApplyText,callback_data:`platforms:preview:${l.id}`}
-      : {text:`🔒 ${autoApplyText}`,url:checkout}
-    ]);
+  const provider=autoApplyProvider(l);
+  if(provider){
+    const view=applicationPresentation(app,provider,lang);
+    if(view)rows.push([applicationStatusButton(l,lang,view,provider)]);
+    else{
+      const autoApplyText=lang==="de"
+        ? `⚡ Auto-Bewerbung • ${autoApplyEnabled?"aktiv":"inaktiv"}`
+        : `⚡ Auto-apply • ${autoApplyEnabled?"active":"inactive"}`;
+      rows.push([p
+        ? {text:autoApplyText,callback_data:`platforms:preview:${l.id}`}
+        : {text:`🔒 ${autoApplyText}`,url:checkout}
+      ]);
+    }
   }
   return { inline_keyboard: rows };
 }
@@ -427,13 +475,52 @@ async function uploadOperation(t:string,chat:number,op:any) {
   else for(const [k,v] of Object.entries(op.body))if(k!=='photo')f.set(k,typeof v==='string'?v:JSON.stringify(v));
   return telegramRequest(`https://api.telegram.org/bot${t}/${op.method}`,{method:'POST',body:f});
 }
+async function syncApplicationStatus(userId:string,listingId:string,tokenOverride:string|null=null){
+  if(!/^[0-9a-f-]{36}$/i.test(userId)||!/^[0-9a-f-]{36}$/i.test(listingId))throw new Error("invalid_sync_target");
+  const [{data:user,error:userError},{data:listing,error:listingError},{data:events,error:eventError},{data:sub,error:subError},app]=await Promise.all([
+    db.from("bot_users").select("id,chat_id,is_active,ui_language,auto_apply_enabled,plan_override,plan_override_expires_at,referral_bonus_until").eq("id",userId).maybeSingle(),
+    db.from("listings").select("*,sources(name,button_label,source_type,baseline_completed_at,enabled,runtime_mode,delivery_mode,source_connectors(config,enabled,priority))").eq("id",listingId).maybeSingle(),
+    db.from("delivery_events").select("id,telegram_message_id,preview_progress,created_at").eq("recipient_user_id",userId).eq("listing_id",listingId).eq("event_type","new_listing").eq("channel","telegram").eq("status","sent").not("telegram_message_id","is",null).order("created_at",{ascending:false}).limit(5),
+    db.from("user_subscriptions").select("status,current_period_end,updated_at").eq("user_id",userId).in("status",["active","trialing"]).order("updated_at",{ascending:false}).limit(1).maybeSingle(),
+    applicationState(userId,listingId),
+  ]);
+  if(userError||listingError||eventError||subError)throw userError||listingError||eventError||subError;
+  if(!user||!listing||!events?.length)return{ok:true,updated:0,pending_preview:true};
+  const paid=!!sub&&(!sub.current_period_end||new Date(sub.current_period_end)>new Date()),isPremium=premium(user,paid),rendered=await withHamburgGeo(listing),statusKey=applicationStatusKey(app);
+  const caption=cap(rendered,user.ui_language||"de",app),keyboard=kb(rendered,user.ui_language||"de",isPremium,userId,user.auto_apply_enabled===true,app),token=tokenOverride||await sec("telegram_bot_token_runtime");
+  let updated=0,skipped=0;
+  for(const event of events){
+    const state=event.preview_progress&&typeof event.preview_progress==="object"?structuredClone(event.preview_progress):{};
+    if(state.application_status_key===statusKey){skipped++;continue;}
+    const operations=Array.isArray(state.operations)?state.operations:[],next=Math.max(0,Math.min(Number(state.next||operations.length),operations.length)),last=operations.length?operations[Math.max(0,next-1)]:null;
+    const isPhoto=last?.method==="sendPhoto"&&!!last?.body?.caption;
+    try{
+      await tg(token,isPhoto?"editMessageCaption":"editMessageText",isPhoto
+        ?{chat_id:Number(user.chat_id),message_id:Number(event.telegram_message_id),caption,parse_mode:"HTML",reply_markup:keyboard}
+        :{chat_id:Number(user.chat_id),message_id:Number(event.telegram_message_id),text:caption,parse_mode:"HTML",disable_web_page_preview:true,reply_markup:keyboard});
+    }catch(error:any){
+      if(!/message is not modified/i.test(String(error?.message||error)))throw error;
+    }
+    state.application_status_key=statusKey;
+    if(last?.body){
+      if(isPhoto)last.body.caption=caption;
+      else if(last?.method==="sendMessage")last.body.text=caption;
+      last.body.reply_markup=keyboard;
+    }
+    await db.from("delivery_events").update({preview_progress:state}).eq("id",event.id);
+    updated++;
+  }
+  return{ok:true,updated,skipped,statusKey};
+}
 async function send(t:string,chat:number,l:any,lang:string,p:boolean,userId:string,autoApplyEnabled:boolean,lease:any,previous:any) {
   l=await withHamburgGeo(l);
-  const facts=knownFacts(l),operations=previewOperations(facts.images,cap(l,lang),kb(l,lang,p,userId,autoApplyEnabled));
-  return deliverPreview(operations,previous,async state=>{
-    const {data,error}=await db.from('delivery_events').update({preview_progress:state}).eq('id',lease.id).eq('status','processing').eq('dispatch_attempts',lease.attempt).eq('last_attempt_at',lease.claimedAt).select('id').maybeSingle();
+  const app=await applicationState(userId,String(l.id)),statusKey=applicationStatusKey(app);
+  const facts=knownFacts(l),operations=previewOperations(facts.images,cap(l,lang,app),kb(l,lang,p,userId,autoApplyEnabled,app));
+  const result=await deliverPreview(operations,previous,async state=>{
+    const {data,error}=await db.from('delivery_events').update({preview_progress:{...state,application_status_key:statusKey}}).eq('id',lease.id).eq('status','processing').eq('dispatch_attempts',lease.attempt).eq('last_attempt_at',lease.claimedAt).select('id').maybeSingle();
     if(error||!data)throw new Error('Gallery checkpoint could not be saved');
   },(op,upload)=>upload?uploadOperation(t,chat,op):tg(t,op.method,{chat_id:chat,...op.body}));
+  return{...result,application_status_key:statusKey};
 }
 Deno.serve(async (req) => {
   const owner = crypto.randomUUID();
@@ -447,20 +534,21 @@ Deno.serve(async (req) => {
     )
       return new Response("unauthorized", { status: 401 });
     const input = await req.json().catch(() => ({}));
+    if (input.action === "sync_application_status") return Response.json(await syncApplicationStatus(String(input.userId||""),String(input.listingId||"")));
     if (input.dry_run && input.listing_id) {
       const {data,error}=await db.from('listings').select('*,sources(name,button_label,source_type,baseline_completed_at,enabled,runtime_mode,delivery_mode,source_connectors(config,enabled,priority))').eq('id',input.listing_id).single();
       if(error)throw error;
       let listing=await enrich(data,false);
       listing=await withHamburgGeo(listing);
       const facts=knownFacts(listing),newness=await deliveryNewnessCheck(listing,'new_listing',facts.published_text);
-      const probePremium=input.premium!==false,probeUserId=String(input.user_id||"probe"),probeAutoApply=input.auto_apply_enabled===true;
+      const probePremium=input.premium!==false,probeUserId=String(input.user_id||"probe"),probeAutoApply=input.auto_apply_enabled===true,probeApp=/^[0-9a-f-]{36}$/i.test(probeUserId)?await applicationState(probeUserId,String(listing.id)):null;
       if(input.probe_image && facts.images.length){
         const response=await fetch(facts.images[0],{headers:{'user-agent':UA,accept:'image/*'},signal:AbortSignal.timeout(6500)});
         const declared_type=response.headers.get('content-type');
-        try{const photo=await sourcePhoto(response);return Response.json({ok:true,dry_run:true,availability:listing._availability,image_probe:{declared_type,validated_type:photo.type,bytes:photo.size},operations:previewOperations(facts.images,cap(listing,'de'),kb(listing,'de',probePremium,probeUserId,probeAutoApply)).map(x=>x.method)});}
+        try{const photo=await sourcePhoto(response);return Response.json({ok:true,dry_run:true,availability:listing._availability,image_probe:{declared_type,validated_type:photo.type,bytes:photo.size},operations:previewOperations(facts.images,cap(listing,'de',probeApp),kb(listing,'de',probePremium,probeUserId,probeAutoApply,probeApp)).map(x=>x.method)});}
         catch(e){return Response.json({ok:false,dry_run:true,image_probe:{declared_type,error:String(e)}});}
       }
-      return Response.json({ok:true,dry_run:true,caption:cap(listing,'de'),keyboard:kb(listing,'de',probePremium,probeUserId,probeAutoApply),images:facts.images,availability:listing._availability,newness,address:loc(listing),operations:previewOperations(facts.images,cap(listing,'de'),kb(listing,'de',probePremium,probeUserId,probeAutoApply)).map(x=>x.method)});
+      return Response.json({ok:true,dry_run:true,caption:cap(listing,'de',probeApp),keyboard:kb(listing,'de',probePremium,probeUserId,probeAutoApply,probeApp),images:facts.images,availability:listing._availability,newness,address:loc(listing),operations:previewOperations(facts.images,cap(listing,'de',probeApp),kb(listing,'de',probePremium,probeUserId,probeAutoApply,probeApp)).map(x=>x.method)});
     }
     if (input.dry_run) {
       const { error } = await db.from("delivery_events").select("id").limit(1);
@@ -616,6 +704,7 @@ Deno.serve(async (req) => {
         error_message: null,
         next_retry_at: null,
       });
+      try{await syncApplicationStatus(String(recipient?.id||profileOwner?.id||""),String(raw.id),token);}catch(error){console.error("application_status_sync_after_delivery_failed",String(error).slice(0,200));}
       sent++;
     }
     return Response.json({ ok: true, totals: { sent, failed, skipped } });
