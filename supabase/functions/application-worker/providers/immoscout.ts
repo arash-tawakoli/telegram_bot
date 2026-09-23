@@ -52,7 +52,7 @@ function snake(v:string){return v.replace(/([a-z0-9])([A-Z])/g,'$1_$2').replace(
 function providerPrefill(raw:any){if(!raw||typeof raw!=='object')return undefined;for(const k of['prefillValue','defaultValue','initialValue'])if(raw[k]!==undefined&&raw[k]!==null&&raw[k]!=='')return raw[k];return undefined;}
 function metadataKeys(configKey:string,rawConfig:any){const values:any[]=[configKey,payloadName(configKey)];if(rawConfig&&typeof rawConfig==='object')for(const k of['name','key','id','label','title','fieldName','payloadName','property','semanticName','apiName']){const v=rawConfig[k];if(typeof v==='string'&&v.trim())values.push(v);}return [...new Set(values.map(canonical).filter(Boolean))];}
 export function resolveImmoScoutField(configKey:string,rawConfig:any,profile:any,message:string){
- const payload=payloadName(configKey),address={'@xsi.type':'common:Address',city:clean(profile?.city,160),street:clean(profile?.street,160),postcode:clean(profile?.postcode,40),houseNumber:clean(profile?.house_number,40)};
+ const payload=payloadName(configKey),address={'@xsi.type':'common:Address',street:clean(profile?.street,160),houseNumber:clean(profile?.house_number,40),postcode:clean(profile?.postcode,40),city:clean(profile?.city,160)};
  const known:Record<string,()=>any>={
   moveindate:()=>moveInValue(profile),desiredmoveindate:()=>moveInValue(profile),einzugsdatum:()=>moveInValue(profile),gewunschteeinzugsdatum:()=>moveInValue(profile),
   petsinhousehold:()=>petValue(profile?.pets),pets:()=>petValue(profile?.pets),pet:()=>petValue(profile?.pets),haustiere:()=>petValue(profile?.pets),haustier:()=>petValue(profile?.pets),
@@ -119,7 +119,7 @@ function diagnosticText(v:any,max=800){return clean(v,max).replace(/[A-Z0-9._%+-
 function providerDiagnostic(status:number,body:any,text:string){
  const messages=body?.['common.messages'];
  const rawMessage=messages?.[0]?.message?.message??messages?.message?.message??messages?.message??body?.message?.message??body?.message??text;
- const rawCode=messages?.[0]?.message?.code??messages?.message?.code??body?.code??null;
+ const rawCode=messages?.[0]?.message?.messageCode??messages?.[0]?.message?.code??messages?.message?.messageCode??messages?.message?.code??body?.messageCode??body?.code??null;
  const message=diagnosticText(rawMessage,800),code=diagnosticText(rawCode,120);
  return{httpStatus:Number(status||0),code:code||null,message:message||null};
 }
