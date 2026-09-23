@@ -4,16 +4,23 @@ import {readFileSync} from 'node:fs';
 
 const sessions=readFileSync(new URL('../supabase/functions/telegram-ui/platform-sessions.js',import.meta.url),'utf8');
 const worker=readFileSync(new URL('../supabase/functions/application-worker/index.ts',import.meta.url),'utf8');
+const telegram=readFileSync(new URL('../supabase/functions/telegram-oauth-bridge/index.ts',import.meta.url),'utf8');
+const coach=readFileSync(new URL('../supabase/functions/coach-api/index.ts',import.meta.url),'utf8');
 
-test('Kleinanzeigen no longer uses Telegram share callback completion',()=>{
- assert.doesNotMatch(sessions,/kleinCallbackFromMessage/);
- assert.doesNotMatch(sessions,/Telegram → Traumwohnung Hamburg/);
- assert.doesNotMatch(sessions,/android\/com\.ebay\.kleinanzeigen\/callback[^\n]*complete_login/);
- assert.doesNotMatch(worker,/transport:'safari-extension-bridge'/);
+test('Kleinanzeigen share callback is recognized and completed server-side',()=>{
+ assert.match(sessions,/kleinCallbackFromMessage/);
+ assert.match(sessions,/login\.kleinanzeigen\.de\\\/android\\\/com\\\.ebay\\\.kleinanzeigen\\\/callback/);
+ assert.match(sessions,/complete_shared_login/);
+ assert.match(worker,/action==='complete_shared_login'/);
+ assert.match(worker,/completeKleinanzeigenCallback/);
 });
 
-test('Kleinanzeigen requires direct provider OAuth callback',()=>{
- assert.match(worker,/oauth_client_not_provisioned/);
- assert.match(worker,/direct-oauth-callback/);
- assert.match(worker,/oauth=kleinanzeigen/);
+test('Telegram and coach start the temporary share flow',()=>{
+ assert.match(worker,/action==='login_share'/);
+ assert.match(worker,/transport:'telegram-share'/);
+ assert.match(telegram,/action:'login_share'/);
+ assert.match(telegram,/Telegram → Traumwohnung Hamburg/);
+ assert.match(coach,/action:'login_share'/);
+ assert.doesNotMatch(telegram,/remote\/kleinanzeigen\/open/);
+ assert.doesNotMatch(coach,/remote\/kleinanzeigen\/open/);
 });
