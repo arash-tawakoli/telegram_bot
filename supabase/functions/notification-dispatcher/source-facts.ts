@@ -72,6 +72,9 @@ export function structuredFacts(raw: any, base: string): any {
   const r = raw || {}, h = r.provider === 'immosolve_hpm_rest' ? r.detail?.immoObject?.labels : null;
   const node = h || r.entry || r.listing || r.property?.data || r.property || r;
   const out: any = {};
+  if (r.provider_entity === 'SAGA') out.provider_entity = 'SAGA';
+  if (present(r.saga_object_ref)) out.saga_object_ref = String(r.saga_object_ref);
+  if (present(r.applicationLink)) out.applicationLink = String(r.applicationLink);
   let sourceHostname='';
   try{sourceHostname=new URL(base).hostname}catch{}
   // Cost/area containers are known property containers, not arbitrary recursion.
@@ -266,6 +269,14 @@ export function htmlFacts(html: string, base: string): any {
   };
   // Explicit label/value pairs only. No street-name regex over descriptions.
   const clean=html.replace(/<(script|style|nav|footer)\b[^>]*>[\s\S]*?<\/\1>/gi,'');
+  const pageText=decode(clean.replace(/<[^>]+>/g,' ')).replace(/\s+/g,' ').trim();
+  const sagaProvider=/(?:Vermietungshotline der\s+)?SAGA Unternehmensgruppe/i.test(pageText);
+  const sagaRefRaw=pageText.match(/\b(?:Objektreferenz|Referenznummer)\s*:?\s*(MO\s*\d{4}\s*\/\s*[A-Za-z0-9.-]+\s*\/\s*[A-Za-z0-9.-]+)/i)?.[1]||null;
+  const linkText=html.replace(/\\\//g,'/').replace(/&amp;/gi,'&').replace(/\\u0026/gi,'&');
+  const sagaApplication=linkText.match(/https:\/\/tenant\.immomio\.com\/(?:de\/)?apply\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/?/i)?.[0]||null;
+  if(sagaProvider)out.provider_entity='SAGA';
+  if(sagaProvider && sagaRefRaw)out.saga_object_ref=sagaRefRaw.toUpperCase().replace(/\s*\/\s*/g,'/').replace(/\s+/g,' ').trim();
+  if(sagaProvider && sagaApplication)out.applicationLink=sagaApplication;
   for(const m of clean.matchAll(/<dt\b[^>]*>([\s\S]*?)<\/dt>\s*<dd\b[^>]*>([\s\S]*?)<\/dd>/gi))apply(m[1],m[2]);
   for(const m of clean.matchAll(/<tr\b[^>]*>\s*<t[hd]\b[^>]*>([\s\S]*?)<\/t[hd]>\s*<td\b[^>]*>([\s\S]*?)<\/td>\s*<\/tr>/gi))apply(m[1],m[2]);
   for(const m of clean.matchAll(/<li\b[^>]*class=["'][^"']*addetailslist--detail[^"']*["'][^>]*>([^<]*)<span\b[^>]*>([\s\S]*?)<\/span>\s*<\/li>/gi))apply(m[1],m[2]);
