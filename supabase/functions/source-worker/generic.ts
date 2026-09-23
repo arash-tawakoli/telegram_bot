@@ -146,6 +146,11 @@ function immoweltCards(html: string, base: string) {
       f = parseFields(`${titleAttr} ${imgAlt} ${text}`),
       image = immoweltCardImage(v, base),
       isNew = /data-testid=["']cardmfe-tag-testid-new["']/i.test(v),
+      sagaProvider = /(?:Vermietungshotline der\s+)?SAGA Unternehmensgruppe/i.test(v),
+      sagaRefMatch = v.match(/\bMO\s*2000\s*\/\s*([A-Za-z0-9.-]+)\s*\/\s*([A-Za-z0-9.]+)/i),
+      sagaRef = sagaRefMatch
+        ? `MO 2000/${sagaRefMatch[1]}/${sagaRefMatch[2]}`.toUpperCase()
+        : null,
       title = (titleAttr || imgAlt || "Wohnungsangebot").slice(0, 240);
     out.push({
       url: href,
@@ -166,6 +171,8 @@ function immoweltCards(html: string, base: string) {
         title: titleAttr,
         alt: imgAlt,
         is_new: isNew,
+        ...(sagaProvider ? { provider_entity: "SAGA" } : {}),
+        ...(sagaRef ? { saga_object_ref: sagaRef } : {}),
       },
     });
   }
