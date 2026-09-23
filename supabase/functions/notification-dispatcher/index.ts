@@ -466,7 +466,7 @@ async function syncApplicationStatus(userId:string,listingId:string,tokenOverrid
   let updated=0,skipped=0;
   for(const event of events){
     const state=event.preview_progress&&typeof event.preview_progress==="object"?structuredClone(event.preview_progress):{};
-    if(state.application_status_key===statusKey&&JSON.stringify(state.application_keyboard||null)===JSON.stringify(keyboard)){skipped++;continue;}
+    if(state.application_status_key===statusKey&&Number(state.preview_ui_revision||0)===2){skipped++;continue;}
     const operations=Array.isArray(state.operations)?state.operations:[],next=Math.max(0,Math.min(Number(state.next||operations.length),operations.length)),last=operations.length?operations[Math.max(0,next-1)]:null;
     const isPhoto=last?.method==="sendPhoto"&&!!last?.body?.caption;
     try{
@@ -477,7 +477,7 @@ async function syncApplicationStatus(userId:string,listingId:string,tokenOverrid
       if(!/message is not modified/i.test(String(error?.message||error)))throw error;
     }
     state.application_status_key=statusKey;
-    state.application_keyboard=keyboard;
+    state.preview_ui_revision=2;
     if(last?.body){
       if(isPhoto)last.body.caption=caption;
       else if(last?.method==="sendMessage")last.body.text=caption;
@@ -493,7 +493,7 @@ async function send(t:string,chat:number,l:any,lang:string,p:boolean,userId:stri
   const app=await applicationState(userId,String(l.id)),statusKey=applicationStatusKey(app);
   const facts=knownFacts(l),keyboard=kb(l,lang,p,userId),operations=previewOperations(facts.images,cap(l,lang,app),keyboard);
   const result=await deliverPreview(operations,previous,async state=>{
-    const {data,error}=await db.from('delivery_events').update({preview_progress:{...state,application_status_key:statusKey,application_keyboard:keyboard}}).eq('id',lease.id).eq('status','processing').eq('dispatch_attempts',lease.attempt).eq('last_attempt_at',lease.claimedAt).select('id').maybeSingle();
+    const {data,error}=await db.from('delivery_events').update({preview_progress:{...state,application_status_key:statusKey,preview_ui_revision:2}}).eq('id',lease.id).eq('status','processing').eq('dispatch_attempts',lease.attempt).eq('last_attempt_at',lease.claimedAt).select('id').maybeSingle();
     if(error||!data)throw new Error('Gallery checkpoint could not be saved');
   },(op,upload)=>upload?uploadOperation(t,chat,op):tg(t,op.method,{chat_id:chat,...op.body}));
   return{...result,application_status_key:statusKey};
@@ -548,7 +548,7 @@ Deno.serve(async (req) => {
     const { data: events, error } = await db
       .from("delivery_events")
       .select(
-        "id,status,event_type,dispatch_attempts,preview_progress,recipient:bot_users!delivery_events_recipient_user_id_fkey(id,chat_id,is_active,ui_language,auto_apply_enabled),search_profiles!inner(id,profile_slot,is_active,owner:bot_users!search_profiles_user_id_fkey(id,is_active,plan_override,plan_override_expires_at,referral_bonus_until,auto_apply_enabled)),listings!inner(*,sources(name,button_label,source_type,baseline_completed_at,enabled,runtime_mode,delivery_mode,source_connectors(config,enabled,priority)))",
+        "id,status,event_type,dispatch_attempts,preview_progress,recipient:bot_users!delivery_events_recipient_user_id_fkey(id,chat_id,is_active,ui_language),search_profiles!inner(id,profile_slot,is_active,owner:bot_users!search_profiles_user_id_fkey(id,is_active,plan_override,plan_override_expires_at,referral_bonus_until)),listings!inner(*,sources(name,button_label,source_type,baseline_completed_at,enabled,runtime_mode,delivery_mode,source_connectors(config,enabled,priority)))",
       )
       .in("status", ["pending", "failed"])
       .eq("channel", "telegram")
