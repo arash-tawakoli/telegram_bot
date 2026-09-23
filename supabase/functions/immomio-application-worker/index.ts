@@ -7,7 +7,8 @@ const IMMOMIO=`${base}/functions/v1/immomio-account`;
 
 async function secret(name:string){const {data,error}=await db.rpc('get_bot_secret',{secret_name:name});if(error||!data)throw Error('configuration_unavailable');return String(data);}
 const clean=(v:any,max=200)=>String(v??'').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
-async function notify(chatId:any,text:string){if(!chatId)return;try{const token=await secret('telegram_bot_token_runtime');await fetch(`https://api.telegram.org/bot${token}/sendMessage`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({chat_id:chatId,text}),signal:AbortSignal.timeout(15000)});}catch{}}
+const escHtml=(v:any)=>String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+async function notify(chatId:any,text:string,html=false){if(!chatId)return;try{const token=await secret('telegram_bot_token_runtime');await fetch(`https://api.telegram.org/bot${token}/sendMessage`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({chat_id:chatId,text,...(html?{parse_mode:'HTML'}:{})}),signal:AbortSignal.timeout(15000)});}catch{}}
 async function immomio(action:string,userId:string,listingId:string,extra:Record<string,unknown>={}){const internal=await secret('internal_worker_secret');const r=await fetch(IMMOMIO,{method:'POST',headers:{'content-type':'application/json','x-internal-secret':internal},body:JSON.stringify({action,userId,listingId,...extra}),signal:AbortSignal.timeout(45000)});const data=await r.json().catch(()=>null);if(!r.ok)throw Error(data?.error||`immomio_worker_${r.status}`);return data;}
 
 async function processOne(){
@@ -46,11 +47,11 @@ async function processOne(){
   const error=result?.error?clean(result.error,120):null;
   await patch({status,last_error:error,...(status==='sent'?{sent_at:new Date().toISOString()}:{}),lease_until:null});
   if(status==='sent'){
-   let text=`✅ Bewerbung automatisch versendet\n\n${clean(listing.title,120)}`;
-   if(result?.followUpRequired==='questions')text+='\n\nℹ️ Immomio hat nach dem Versand noch Folgefragen offen.';
-   await notify(user.chat_id,text);
+   await notify(user.chat_id,`✅ Deine Bewerbung wurde automatisch versendet.\n\n🏠 ${escHtml(clean(listing.title,120))}\n🌐 Plattform: Immomio\n\n<i>Bitte prüfe regelmäßig dein <b>E-Mail-Postfach</b> und dein <b>Postfach auf der Plattform</b> auf Rückmeldungen.</i>`,true);
   }else if(error==='needs_login'){
    await notify(user.chat_id,'🔐 Immomio muss erneut verbunden werden.');
+  }else if(['failed','manual_required'].includes(status)){
+   await notify(user.chat_id,`❌ Deine Bewerbung konnte nicht automatisch versendet werden.\n\n🏠 ${escHtml(clean(listing.title,120))}\n🌐 Plattform: Immomio\n\n<i>Bitte öffne das Angebot und versende deine Bewerbung gegebenenfalls manuell.</i>`,true);
   }
   return {status,provider:'immomio',error};
  }catch(error:any){
