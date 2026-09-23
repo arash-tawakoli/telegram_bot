@@ -351,6 +351,12 @@ export async function handleAutoApplyMessage(user,message){
  return null;
 }
 
+const AUTO_APPLY_PROVIDERS={
+  1:{key:'immoscout',name:'ImmoScout24',field:'immoscout_enabled'},
+  2:{key:'kleinanzeigen',name:'Kleinanzeigen',field:'kleinanzeigen_enabled'},
+  3:{key:'immomio',name:'Immomio',field:'immomio_enabled'}
+};
+
 export async function platformSessions(user,chat,messageId,data='platforms'){
  if(!privateOwner(user,chat))return;
  const parts=data.split(':'),action=parts[1]||'',arg=parts[2]||'',source=Number(arg);
@@ -404,6 +410,35 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   }catch(error){return renderApplicantDocuments(user,chat,messageId,`⚠️ ${esc(error.message)}`);}
  }
 
+ if(action==='provider'){
+  if(!user.is_premium)return render('Auto-Bewerbungen benötigen aktives Premium.',back);
+  const meta=AUTO_APPLY_PROVIDERS[source];if(!meta)return;
+  const {data:connection,error}=await db.from('platform_connections').select('provider,status').eq('user_id',user.id).eq('provider',meta.key).maybeSingle();
+  if(error)throw Error('Plattform konnte nicht geladen werden.');
+  if(connection?.status!=='connected'){
+   return render(`<b>${meta.name}</b>\n\nKonto nicht verbunden.`,[
+    [button(`🔐 ${meta.name} verbinden`,`platforms:login:${source}`)],
+    ...back
+   ]);
+  }
+  return render(`<b>${meta.name}</b>\n\nKonto verbunden.`,[
+   [button('Verbindung prüfen',`platforms:check:${source}`)],
+   [button('Verbindung trennen',`platforms:disconnect:${source}`)],
+   ...back
+  ]);
+ }
+
+ if(action==='pause'||action==='resume'){
+  if(!user.is_premium)return render('Auto-Bewerbungen benötigen aktives Premium.',back);
+  const meta=AUTO_APPLY_PROVIDERS[source];if(!meta)return;
+  const {error}=await db.rpc('set_application_provider_enabled_shared',{
+   p_user:user.id,
+   p_provider:meta.key,
+   p_enabled:action==='resume'
+  });
+  if(error)throw Error(action==='resume'?'Plattform konnte nicht fortgesetzt werden.':'Plattform konnte nicht pausiert werden.');
+ }
+
  if(action==='login'||action==='disconnect'||action==='check'){
   if(![1,2,3].includes(source))return;
   if(action!=='disconnect'&&!user.is_premium)return render('Zum Verbinden ist Premium erforderlich.',back);
@@ -450,22 +485,28 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   }
  }
 
- const [{data:connections,error},{data:state,error:stateError},{data:applicant,error:applicantError}]=await Promise.all([
-  db.from('platform_connections').select('provider,status,account_hint,last_verified_at,last_error').eq('user_id',user.id),
+ const [{data:connections,error},{data:state,error:stateError},{data:prefs,error:prefsError}]=await Promise.all([
+  db.from('platform_connections').select('provider,status').eq('user_id',user.id),
   db.from('bot_users').select('auto_apply_enabled').eq('id',user.id).single(),
-  db.from('applicant_profiles').select('*').eq('user_id',user.id).maybeSingle()
+  db.from('application_preferences').select('enabled,immoscout_enabled,kleinanzeigen_enabled,immomio_enabled').eq('user_id',user.id).maybeSingle()
  ]);
- if(error||stateError||applicantError)throw Error('Auto-Bewerbung konnte nicht geladen werden.');
- const scout=connections?.find(r=>r.provider==='immoscout'),klein=connections?.find(r=>r.provider==='kleinanzeigen'),immomio=connections?.find(r=>r.provider==='immomio'),ready=profileReady(applicant);
- const text=`⚡ <b>Automatische Bewerbung</b>\n\n👤 Bewerberprofil: ${ready?'✅ vollständig':applicant?'⚠️ unvollständig':'⚠️ fehlt'}\n\n<b>Plattformen</b>\nKleinanzeigen: ${connectionLabel(klein)} · 🧪 Sendetest ausstehend\nImmoScout24: ${connectionLabel(scout)} · 🧪 Sendetest ausstehend\nImmomio: ${connectionLabel(immomio)} · 🧪 Sendetest ausstehend\n\nAuto-Bewerbung: ${state.auto_apply_enabled?'✅ aktiv':'aus'}\n\nNach der einmaligen Einrichtung läuft die Bewerbung auf freigegebenen Plattformen vollständig automatisch.`;
- const rows=[
-  [button('👤 Bewerberprofil','platforms:profile')],
-  ...(user.is_premium?[[button(klein?.status==='connected'?'✅ Kleinanzeigen verbunden':'🔐 Kleinanzeigen verbinden','platforms:login:2')],[button('✅ Kleinanzeigen prüfen','platforms:check:2')],[button('🔐 ImmoScout24 verbinden','platforms:login:1')],[button(immomio?.status==='connected'?'✅ Immomio verbunden':'🔐 Immomio verbinden','platforms:login:3')],[button('✅ Immomio prüfen','platforms:check:3')]]:[]),
-  ...(klein?[[button('Kleinanzeigen trennen','platforms:disconnect:2')]]:[]),
-  ...(scout?[[button('ImmoScout24 trennen','platforms:disconnect:1')]]:[]),
-  ...(immomio?[[button('Immomio trennen','platforms:disconnect:3')]]:[]),
-  [button(state.auto_apply_enabled?'Auto-Bewerbung deaktivieren':'⚡ Auto-Bewerbung aktivieren',`platforms:${state.auto_apply_enabled?'off':'on'}`)],
-  [button('← Einstellungen','settings')]
- ];
- return render(text,rows);
+ if(error||stateError||prefsError)throw Error('Auto-Bewerbung konnte nicht geladen werden.');
+ const connection=(key)=>connections?.find(r=>r.provider===key);
+ const providerEnabled=(meta)=>prefs?.[meta.field]??state.auto_apply_enabled;
+ const rows=[[button('👤 Bewerberprofil','platforms:profile')]];
+ for(const sourceId of [1,2,3]){
+  const meta=AUTO_APPLY_PROVIDERS[sourceId],connected=connection(meta.key)?.status==='connected';
+  if(!connected){
+   rows.push([button(`🔐 ${meta.name} verbinden`,`platforms:login:${sourceId}`)]);
+   continue;
+  }
+  const enabled=providerEnabled(meta);
+  rows.push([
+   button(`✅ ${meta.name}`,`platforms:provider:${sourceId}`),
+   button(enabled?'⏸ Pausieren':'▶ Fortsetzen',`platforms:${enabled?'pause':'resume'}:${sourceId}`)
+  ]);
+ }
+ rows.push([button(state.auto_apply_enabled?'Auto-Bewerbung deaktivieren':'⚡ Auto-Bewerbung aktivieren',`platforms:${state.auto_apply_enabled?'off':'on'}`)]);
+ rows.push([button('← Einstellungen','settings')]);
+ return render('⚡ <b>Automatische Bewerbung</b>',rows);
 }
