@@ -426,9 +426,18 @@ async function enrich(l: any, persist = true) {
     }else{
     const r = await fetch(String(l.canonical_url), {redirect:'follow',headers:{'user-agent':UA,accept:'text/html,application/xhtml+xml,application/json','accept-language':'de-DE,de;q=0.9'},signal:AbortSignal.timeout(6500)});
     const h = await r.text();
-    const state=pageAvailability(r.status,sameListing(r.url,l.canonical_url),h);
+    const same=sameListing(r.url,l.canonical_url);
+    const state=pageAvailability(r.status,same,h);
     if(state==='unavailable')return {...out,_availability:state};
-    if(state==='unknown')return out;
+    if(state==='unknown')return {...out,_fetch_debug:{
+      status:r.status,
+      final_url:String(r.url).slice(0,500),
+      same_listing:same,
+      content_type:r.headers.get('content-type'),
+      content_length:h.length,
+      heading:[...h.matchAll(/<(?:title|h1)\b[^>]*>([\s\S]*?)<\/(?:title|h1)>/gi)].slice(0,2).map(m=>m[1].replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim()).join(' | ').slice(0,300),
+      challenge:/captcha|cf-chl-|access denied|verify you are human/i.test(h.slice(0,12000))
+    }};
     out._availability='online';
     facts = htmlFacts(h,l.canonical_url);
     for (const m of h.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
@@ -620,7 +629,7 @@ Deno.serve(async (req) => {
         try{const photo=await sourcePhoto(response);return Response.json({ok:true,dry_run:true,availability:listing._availability,image_probe:{declared_type,validated_type:photo.type,bytes:photo.size},operations:previewOperations(facts.images,cap(listing,'de',probeApp),kb(listing,'de',probePremium,probeUserId)).map(x=>x.method)});}
         catch(e){return Response.json({ok:false,dry_run:true,image_probe:{declared_type,error:String(e)}});}
       }
-      return Response.json({ok:true,dry_run:true,caption:cap(listing,'de',probeApp),keyboard:kb(listing,'de',probePremium,probeUserId),images:facts.images,availability:listing._availability,newness,address:loc(listing),operations:previewOperations(facts.images,cap(listing,'de',probeApp),kb(listing,'de',probePremium,probeUserId)).map(x=>x.method)});
+      return Response.json({ok:true,dry_run:true,caption:cap(listing,'de',probeApp),keyboard:kb(listing,'de',probePremium,probeUserId),images:facts.images,availability:listing._availability,newness,address:loc(listing),fetch_debug:listing._fetch_debug||null,operations:previewOperations(facts.images,cap(listing,'de',probeApp),kb(listing,'de',probePremium,probeUserId)).map(x=>x.method)});
     }
     if (input.dry_run) {
       const { error } = await db.from("delivery_events").select("id").limit(1);
