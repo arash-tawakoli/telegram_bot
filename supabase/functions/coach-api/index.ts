@@ -229,6 +229,16 @@ async function updateProfile(a:any,assignment:any,input:any){
   move_in_preference:clean(input.move_in_preference??c.move_in_preference,40)||null,move_in_date:input.move_in_date??c.move_in_date??null,default_message:clean(input.default_message??c.default_message,4000)||null,message_apartment:clean(input.message_apartment??c.message_apartment,4000)||null,message_house:clean(input.message_house??c.message_house,4000)||null,message_temporary_wg:clean(input.message_temporary_wg??c.message_temporary_wg,4000)||null,message_swap:clean(input.message_swap??c.message_swap,4000)||null,
   schufa_status:clean(input.schufa_status??c.schufa_status??'NOT_SPECIFIED',80),phone_call_desired:Boolean(input.phone_call_desired??c.phone_call_desired??false),updated_at:new Date().toISOString()
  };
+ const has=(key:string)=>Object.prototype.hasOwnProperty.call(input,key);
+ if(row.household_type&&!['SINGLE','TWO_ADULTS','FAMILY','SHARED_FLAT'].includes(String(row.household_type)))throw Error('profile_household_type_invalid');
+ if(row.income_range&&!['UNDER_500','500_1000','1000_1500','1500_2000','2000_3000','3000_4000','4000_5000','OVER_5000'].includes(String(row.income_range)))throw Error('profile_income_range_invalid');
+ if(row.move_in_preference&&!['NOT_SPECIFIED','FLEXIBLE','IMMEDIATE','EXACT_DATE'].includes(String(row.move_in_preference)))throw Error('profile_move_in_preference_invalid');
+ if(row.schufa_status&&!['NOT_SPECIFIED','AVAILABLE','NOT_AVAILABLE'].includes(String(row.schufa_status)))throw Error('profile_schufa_invalid');
+ if(has('household_type'))row.household_size=row.household_type==='SINGLE'?1:row.household_type==='TWO_ADULTS'?2:null;
+ if(has('income_range'))row.monthly_net_income=null;
+ if(has('move_in_preference')&&row.move_in_preference!=='EXACT_DATE')row.move_in_date=null;
+ if(row.move_in_preference==='EXACT_DATE'&&!row.move_in_date)throw Error('profile_move_in_date_required');
+ if(row.move_in_date&&!/^\d{4}-\d{2}-\d{2}$/.test(String(row.move_in_date)))throw Error('profile_move_in_date_invalid');
  if(!row.first_name||!row.last_name||!row.phone)throw Error('profile_required_fields');
  const{error}=await admin.from('applicant_profiles').upsert(row,{onConflict:'user_id'});if(error)throw Error('profile_save_failed');
  await admin.from('bot_users').update({first_name:row.first_name,last_name:row.last_name,updated_at:new Date().toISOString()}).eq('id',userId);
