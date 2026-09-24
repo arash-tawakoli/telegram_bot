@@ -126,6 +126,31 @@ function immoweltCardWarm(text: string) {
   const n = Number(value);
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
+function portalCooperativeIdentity(value: string) {
+  const plain = strip(value).replace(/\s+/g, " ").trim();
+  const rules: Array<{ entity:string; provider:RegExp; ref?:RegExp }> = [
+    {entity:"SAGA",provider:/(?:Vermietungshotline der\s+)?SAGA Unternehmensgruppe/i,ref:/\b(MO\s*2000\s*\/\s*[A-Za-z0-9.-]+\s*\/\s*[A-Za-z0-9.-]+)\b/i},
+    {entity:"Finkenwärder-Hoffnung",provider:/(?:Baugenossenschaft\s+)?Finkenw(?:ä|ae)rder[-\s]+Hoffnung(?:\s+eG)?/i},
+    {entity:"GEWOBA Nord",provider:/GEWOBA\s+Nord(?:\s+Baugenossenschaft(?:\s+eG)?)?/i},
+    {entity:"NEUE LÜBECKER",provider:/NEUE\s+LÜBECKER(?:\s+Norddeutsche\s+Baugenossenschaft(?:\s+eG)?)?/i},
+    {entity:"Bauverein Reiherstieg",provider:/Bauverein\s+Reiherstieg(?:\s+eG)?/i},
+    {entity:"VHW",provider:/(?:Vereinigte\s+Hamburger\s+Wohnungsbaugenossenschaft|\bVHW\b)(?:\s+eG)?/i},
+    {entity:"mgf Gartenstadt Farmsen",provider:/(?:mgf\s+)?Gartenstadt\s+Farmsen(?:\s+eG)?/i},
+    {entity:"HARABAU",provider:/(?:Hamburg[-\s]+Rahlstedter\s+Baugenossenschaft|\bHARABAU\b)(?:\s+eG)?/i},
+  ];
+  const labelled = /(?:Objektreferenz|Referenznummer|Objektnummer|Objekt[-\s]?(?:Nr\.?|ID)|Angebotsnummer)\s*:?\s*([A-Za-z0-9][A-Za-z0-9./_-]{3,80})/i;
+  for (const rule of rules) {
+    if (!rule.provider.test(plain) && !rule.provider.test(value)) continue;
+    let ref = rule.ref?.exec(plain)?.[1] || labelled.exec(plain)?.[1] || null;
+    if (!ref && ["Finkenwärder-Hoffnung","Bauverein Reiherstieg","VHW","mgf Gartenstadt Farmsen","HARABAU"].includes(rule.entity))
+      ref = plain.match(/\b\d+(?:\.\d+){3,}\b/)?.[0] || null;
+    if (ref) ref = ref.toUpperCase().replace(/\s*\/\s*/g,"/").replace(/\s+/g," ").trim();
+    const applicationLink=value.replace(/\\\//g,"/").replace(/&amp;/gi,"&")
+      .match(/https:\/\/tenant\.immomio\.com\/(?:de\/)?apply\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/?/i)?.[0] || null;
+    return {provider_entity:rule.entity,provider_object_ref:ref,applicationLink};
+  }
+  return {provider_entity:null,provider_object_ref:null,applicationLink:null};
+}
 function immoweltCards(html: string, base: string) {
   const out: Candidate[] = [];
   for (const v of html.split('<div id="classified-card-').slice(1)) {
@@ -146,11 +171,7 @@ function immoweltCards(html: string, base: string) {
       f = parseFields(`${titleAttr} ${imgAlt} ${text}`),
       image = immoweltCardImage(v, base),
       isNew = /data-testid=["']cardmfe-tag-testid-new["']/i.test(v),
-      sagaProvider = /(?:Vermietungshotline der\s+)?SAGA Unternehmensgruppe/i.test(v),
-      sagaRefMatch = v.match(/\bMO\s*2000\s*\/\s*([A-Za-z0-9.-]+)\s*\/\s*([A-Za-z0-9.]+)/i),
-      sagaRef = sagaRefMatch
-        ? `MO 2000/${sagaRefMatch[1]}/${sagaRefMatch[2]}`.toUpperCase()
-        : null,
+      cooperative = portalCooperativeIdentity(v),
       title = (titleAttr || imgAlt || "Wohnungsangebot").slice(0, 240);
     out.push({
       url: href,
@@ -171,8 +192,10 @@ function immoweltCards(html: string, base: string) {
         title: titleAttr,
         alt: imgAlt,
         is_new: isNew,
-        ...(sagaProvider ? { provider_entity: "SAGA" } : {}),
-        ...(sagaRef ? { saga_object_ref: sagaRef } : {}),
+        ...(cooperative.provider_entity ? { provider_entity: cooperative.provider_entity } : {}),
+        ...(cooperative.provider_object_ref ? { provider_object_ref: cooperative.provider_object_ref } : {}),
+        ...(cooperative.provider_entity === "SAGA" && cooperative.provider_object_ref ? { saga_object_ref: cooperative.provider_object_ref } : {}),
+        ...(cooperative.applicationLink ? { applicationLink: cooperative.applicationLink } : {}),
       },
     });
   }
