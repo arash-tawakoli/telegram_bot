@@ -60,6 +60,27 @@ const IMMOWELT_ROOM_SITEMAPS = [1, 2, 3, 4, 5, 6].map(
   (n) =>
     `https://www.immowelt.de/sitemaps/RENT_APARTMENT_ROOMS-MIN${n}-MAX${n}_FLATSHARING-NEW-BUILD-STOCK-SWAP-APARTMENT/rent_apartment_rooms-min${n}-max${n}_flatsharing-new-build-stock-swap-apartment_1.xml`,
 );
+type CooperativeRegistryRow={provider_entity:string;aliases:string[];source_id:number|null};
+let cooperativeRegistry:CooperativeRegistryRow[]=[];
+let cooperativeRegistryLoadedAt=0;
+function normalizeProviderText(value:string){return strip(value).normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("de-DE").replace(/[^a-z0-9äöüß]+/g," ").replace(/\s+/g," ").trim()}
+async function loadCooperativeRegistry(){
+  if(cooperativeRegistry.length && Date.now()-cooperativeRegistryLoadedAt<5*60*1000)return;
+  const {data,error}=await db.from("cooperative_provider_registry").select("provider_entity,aliases,source_id").eq("active",true);
+  if(error)return;
+  cooperativeRegistry=(data||[]).map((r:any)=>({provider_entity:String(r.provider_entity),aliases:Array.isArray(r.aliases)?r.aliases.map(String):[],source_id:r.source_id==null?null:Number(r.source_id)}));
+  cooperativeRegistryLoadedAt=Date.now();
+}
+function registryCooperativeIdentity(value:string){
+  const hay=normalizeProviderText(value);
+  for(const row of cooperativeRegistry){
+    for(const alias of row.aliases){
+      const needle=normalizeProviderText(alias);
+      if(needle.length>=5 && hay.includes(needle))return row.provider_entity;
+    }
+  }
+  return null;
+}
 function pageUrl(base: string, page: number, sourceId: number) {
   const u = new URL(base);
   if (sourceId === 21)
@@ -156,6 +177,14 @@ function portalCooperativeIdentity(value: string) {
     const applicationLink=value.replace(/\\\//g,"/").replace(/&amp;/gi,"&")
       .match(/https:\/\/tenant\.immomio\.com\/(?:de\/)?apply\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/?/i)?.[0] || null;
     return {provider_entity:rule.entity,provider_object_ref:ref,applicationLink};
+  }
+  const dynamicEntity=registryCooperativeIdentity(value);
+  if(dynamicEntity){
+    let ref=labelled.exec(plain)?.[1]||null;
+    if(ref)ref=ref.toUpperCase().replace(/\s*\/\s*/g,"/").replace(/\s+/g," ").trim();
+    const applicationLink=value.replace(/\\\//g,"/").replace(/&amp;/gi,"&")
+      .match(/https:\/\/tenant\.immomio\.com\/(?:de\/)?apply\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/?/i)?.[0]||null;
+    return {provider_entity:dynamicEntity,provider_object_ref:ref,applicationLink};
   }
   return {provider_entity:null,provider_object_ref:null,applicationLink:null};
 }
@@ -536,10 +565,11 @@ async function runMeinestadtMirrorMonitor(
     indexed_inventory_count: max,
   };
 }
-export async function runImmoweltCategory(source:Source,stream:any){if(stream?.category!=='house')throw new Error('unsupported Immowelt category stream');const url=String(stream.url),first=await fetchText(url),firstCards=immoweltCards(first.text,first.url);if(!firstCards.length&&!/0\s+(?:angebote|treffer)|keine\s+(?:angebote|immobilien)/i.test(strip(first.text)))throw new Error('Immowelt house parser found no recognizable listing cards');let pages=Math.max(1,maxPage(first.text)),total=immoweltTotal(first.text);if(pages===1&&total&&firstCards.length)pages=Math.max(1,Math.ceil(total/firstCards.length));pages=Math.min(pages,12);const all=[...firstCards];if(pages>1){const rest=await Promise.all(Array.from({length:pages-1},(_,i)=>fetchText(pageUrl(url,i+2,3))));for(const r of rest)all.push(...immoweltCards(r.text,r.url))}const key=(c:Candidate)=>String(c.key||c.url?.split('/').filter(Boolean).at(-1)||'').slice(0,500),rows=[...new Map(all.map(c=>[key(c),c])).values()].filter(c=>/\b(Haus|Einfamilienhaus|Reihenhaus|Doppelhaus|Doppelhaushälfte|Villa|Bungalow|Stadthaus)\b/i.test(String(c.title||'')+' '+String(c.raw?.alt||'')));const saved=await persistCategoryListings(source,stream,rows,true);return{requests:pages,candidates:saved.seen,fresh:saved.fresh,cursor:{url:first.url,pages,total,parsed:all.length,accepted:saved.seen,last_checked_at:iso(),complete:true}}}
+export async function runImmoweltCategory(source:Source,stream:any){if(stream?.category!=='house')throw new Error('unsupported Immowelt category stream');await loadCooperativeRegistry();const url=String(stream.url),first=await fetchText(url),firstCards=immoweltCards(first.text,first.url);if(!firstCards.length&&!/0\s+(?:angebote|treffer)|keine\s+(?:angebote|immobilien)/i.test(strip(first.text)))throw new Error('Immowelt house parser found no recognizable listing cards');let pages=Math.max(1,maxPage(first.text)),total=immoweltTotal(first.text);if(pages===1&&total&&firstCards.length)pages=Math.max(1,Math.ceil(total/firstCards.length));pages=Math.min(pages,12);const all=[...firstCards];if(pages>1){const rest=await Promise.all(Array.from({length:pages-1},(_,i)=>fetchText(pageUrl(url,i+2,3))));for(const r of rest)all.push(...immoweltCards(r.text,r.url))}const key=(c:Candidate)=>String(c.key||c.url?.split('/').filter(Boolean).at(-1)||'').slice(0,500),rows=[...new Map(all.map(c=>[key(c),c])).values()].filter(c=>/\b(Haus|Einfamilienhaus|Reihenhaus|Doppelhaus|Doppelhaushälfte|Villa|Bungalow|Stadthaus)\b/i.test(String(c.title||'')+' '+String(c.raw?.alt||'')));const saved=await persistCategoryListings(source,stream,rows,true);return{requests:pages,candidates:saved.seen,fresh:saved.fresh,cursor:{url:first.url,pages,total,parsed:all.length,accepted:saved.seen,last_checked_at:iso(),complete:true}}}
 export async function runGeneric(source: Source, connectors: Connector[]) {
   const started = iso();
   try {
+    if(source.id===3 || connectors.some(c=>String(c.config?.portal||"").toLowerCase()==="immowelt"))await loadCooperativeRegistry();
     if (source.id === 4) return await runSagaIndex(source, connectors);
     if (source.id === 31) return await runGwgMirrorMonitor(source, connectors);
     if (source.id === 14)
