@@ -490,6 +490,11 @@ async function hydrateSagaListing(l:any){
   if(!meta.ref||!meta.application){
     const missing=!meta.ref?"missing_saga_reference":"missing_immomio_application";
     const record=await recordSagaProbe(l,meta,"missing",missing);
+    const inherited=typeof record?.application_url==="string" ? record.application_url : null;
+    if(meta.ref && inherited && record?.immomio_status==="online"){
+      const listing={...l,raw:{...(l.raw||{}),provider_entity:"SAGA",saga_object_ref:meta.ref,applicationLink:inherited}};
+      return{listing,meta:sagaMeta(listing),status:"online",record};
+    }
     return{listing:l,meta,status:"missing",record};
   }
   const status=await immomioApplicationAvailability(meta.application);
@@ -513,7 +518,7 @@ async function probeSagaRecoveryCandidate(){
   if(error)throw error;
   const listing=data;
   const meta=sagaMeta(listing);
-  if(!meta.isSaga || !meta.ref || !meta.application){
+  if(!meta.isSaga || !meta.ref){
     return{checked:1,is_saga:meta.isSaga,queued:0,status:"missing"};
   }
   const hydrated=await hydrateSagaListing(listing);
@@ -703,6 +708,7 @@ Deno.serve(async (req) => {
         }
         let listing = await task;
         const saga=await hydrateSagaListing(listing);
+        listing=saga.listing;
         if(saga.meta.ref && await sagaAlreadyReceived(String(recipient.id),saga.meta.ref,String(event.id))){
           await finishDelivery(db,lease,{status:'skipped',next_retry_at:null,error_message:'SAGA object already delivered via another portal'});
           skipped++;continue;
