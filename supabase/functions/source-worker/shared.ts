@@ -599,7 +599,7 @@ async function normalize(
     image_url: c.image || null,
     cross_source_hash: basis ? await sha(basis) : null,
     raw: c.raw || {},
-    fresh_delivery_eligible: freshDeliveryEligible,
+    fresh_delivery_eligible: freshDeliveryEligible && c.raw?.provider_registry_mode !== "passive",
     last_seen_at: iso(),
     is_active: true,
   };
