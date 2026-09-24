@@ -60,7 +60,7 @@ const IMMOWELT_ROOM_SITEMAPS = [1, 2, 3, 4, 5, 6].map(
   (n) =>
     `https://www.immowelt.de/sitemaps/RENT_APARTMENT_ROOMS-MIN${n}-MAX${n}_FLATSHARING-NEW-BUILD-STOCK-SWAP-APARTMENT/rent_apartment_rooms-min${n}-max${n}_flatsharing-new-build-stock-swap-apartment_1.xml`,
 );
-type CooperativeRegistryRow={provider_entity:string;aliases:string[];source_id:number|null};
+type CooperativeRegistryRow={provider_entity:string;needles:string[];source_id:number|null};
 let cooperativeRegistry:CooperativeRegistryRow[]=[];
 let cooperativeRegistryLoadedAt=0;
 function normalizeProviderText(value:string){return strip(value).normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("de-DE").replace(/[^a-z0-9äöüß]+/g," ").replace(/\s+/g," ").trim()}
@@ -68,17 +68,12 @@ async function loadCooperativeRegistry(){
   if(cooperativeRegistry.length && Date.now()-cooperativeRegistryLoadedAt<5*60*1000)return;
   const {data,error}=await db.from("cooperative_provider_registry").select("provider_entity,aliases,source_id").eq("active",true);
   if(error)return;
-  cooperativeRegistry=(data||[]).map((r:any)=>({provider_entity:String(r.provider_entity),aliases:Array.isArray(r.aliases)?r.aliases.map(String):[],source_id:r.source_id==null?null:Number(r.source_id)}));
+  cooperativeRegistry=(data||[]).map((r:any)=>({provider_entity:String(r.provider_entity),needles:Array.isArray(r.aliases)?r.aliases.map((x:any)=>normalizeProviderText(String(x))).filter((x:string)=>x.length>=5):[],source_id:r.source_id==null?null:Number(r.source_id)}));
   cooperativeRegistryLoadedAt=Date.now();
 }
 function registryCooperativeIdentity(value:string){
   const hay=normalizeProviderText(value);
-  for(const row of cooperativeRegistry){
-    for(const alias of row.aliases){
-      const needle=normalizeProviderText(alias);
-      if(needle.length>=5 && hay.includes(needle))return row.provider_entity;
-    }
-  }
+  for(const row of cooperativeRegistry)for(const needle of row.needles)if(hay.includes(needle))return row.provider_entity;
   return null;
 }
 function pageUrl(base: string, page: number, sourceId: number) {
