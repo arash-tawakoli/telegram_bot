@@ -122,7 +122,7 @@ export async function purgePlatformSessions(userId){
  await db.from('applicant_documents').delete().eq('user_id',userId);
  const {data,error}=await db.from('platform_connections').select('provider').eq('user_id',userId);
  if(error)throw Error('Plattformverbindungen konnten nicht geladen werden.');
- const sourceFor={immoscout:1,kleinanzeigen:2,immomio:3};
+ const sourceFor={immoscout:1,kleinanzeigen:2,immomio:3,immowelt:4};
  for(const row of data||[]){const source=sourceFor[row.provider];if(source)await applicationWorker('disconnect',userId,source).catch(()=>{});}
  await db.from('platform_connections').delete().eq('user_id',userId);
  await db.from('platform_auth_flows').delete().eq('user_id',userId);
@@ -467,7 +467,8 @@ export async function handleAutoApplyMessage(user,message){
 const AUTO_APPLY_PROVIDERS={
   1:{key:'immoscout',name:'ImmoScout24',field:'immoscout_enabled'},
   2:{key:'kleinanzeigen',name:'Kleinanzeigen',field:'kleinanzeigen_enabled'},
-  3:{key:'immomio',name:'Immomio',field:'immomio_enabled'}
+  3:{key:'immomio',name:'Immomio',field:'immomio_enabled'},
+  4:{key:'immowelt',name:'Immowelt',field:'immowelt_enabled'}
 };
 
 export async function platformSessions(user,chat,messageId,data='platforms'){
@@ -670,13 +671,13 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  }
 
  if(action==='login'||action==='disconnect'||action==='check'){
-  if(![1,2,3].includes(source))return;
+  if(![1,2,3,4].includes(source))return;
   if(action!=='disconnect'&&!user.is_premium)return render('Zum Verbinden ist Premium erforderlich.',back);
-  const name=source===1?'ImmoScout24':source===2?'Kleinanzeigen':'Immomio';
+  const name=source===1?'ImmoScout24':source===2?'Kleinanzeigen':source===3?'Immomio':'Immowelt';
   if(source===1&&action==='login')return render('🔐 <b>ImmoScout24</b>\n\nDie Verbindung wird ohne offizielle ImmoScout-API über eine gespeicherte Web-Session umgesetzt. Der kontrollierte Login-/Sendetest ist noch ausstehend; deshalb wird hier aktuell noch keine produktive Session angelegt.',back);
   try{
    const workerAction=source===2&&action==='login'?'login_share':action;
-   const extra=workerAction==='login_share'?{origin:'telegram',returnTarget:'telegram',context:{channel:'telegram',share_flow:true}}:{};
+   const extra=workerAction==='login_share'?{origin:'telegram',returnTarget:'telegram',context:{channel:'telegram',share_flow:true}}:source===4&&action==='login'?{origin:'telegram',returnTarget:'telegram',context:{channel:'telegram'}}:{};
    const result=await applicationWorker(workerAction,user.id,source,extra);
    if(action==='disconnect')return render(`${name}: Verbindung gelöscht.`,back);
    if(action==='login'&&result.url){
@@ -724,13 +725,13 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  const [{data:connections,error},{data:state,error:stateError},{data:prefs,error:prefsError}]=await Promise.all([
   db.from('platform_connections').select('provider,status').eq('user_id',user.id),
   db.from('bot_users').select('auto_apply_enabled').eq('id',user.id).single(),
-  db.from('application_preferences').select('enabled,immoscout_enabled,kleinanzeigen_enabled,immomio_enabled').eq('user_id',user.id).maybeSingle()
+  db.from('application_preferences').select('enabled,immoscout_enabled,kleinanzeigen_enabled,immomio_enabled,immowelt_enabled').eq('user_id',user.id).maybeSingle()
  ]);
  if(error||stateError||prefsError)throw Error('Auto-Bewerbung konnte nicht geladen werden.');
  const connection=(key)=>connections?.find(r=>r.provider===key);
  const providerEnabled=(meta)=>prefs?.[meta.field]??state.auto_apply_enabled;
  const rows=[[button('👤 Bewerberprofil','platforms:profile')]];
- for(const sourceId of [1,2,3]){
+ for(const sourceId of [1,2,3,4]){
   const meta=AUTO_APPLY_PROVIDERS[sourceId],connected=connection(meta.key)?.status==='connected';
   if(!connected){
    rows.push([button(`🔐 ${meta.name} verbinden`,`platforms:login:${sourceId}`)]);
