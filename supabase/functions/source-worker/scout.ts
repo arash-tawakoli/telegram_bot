@@ -3,7 +3,7 @@ import {coverageTimestampProof} from './coverage-newness.ts';
 import {Candidate,Source,db,deNum,iso,markFailure,markSuccess,upsertCandidates,UA} from './shared.ts';
 const MCP='https://app.chatgpt.immobilienscout24.de/v2/mcp',PROTO='2025-06-18';
 const BOROUGHS=['Hamburg-Mitte','Altona','Eimsbüttel','Hamburg-Nord','Wandsbek','Bergedorf','Harburg'];
-type CooperativeRegistryRow={provider_entity:string;aliases:string[]};
+type CooperativeRegistryRow={provider_entity:string;needles:string[]};
 let cooperativeRegistry:CooperativeRegistryRow[]=[];
 let cooperativeRegistryLoadedAt=0;
 function normalizeProviderText(value:string){return String(value||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("de-DE").replace(/[^a-z0-9äöüß]+/g," ").replace(/\s+/g," ").trim()}
@@ -11,15 +11,12 @@ async function loadCooperativeRegistry(){
   if(cooperativeRegistry.length&&Date.now()-cooperativeRegistryLoadedAt<5*60*1000)return;
   const {data,error}=await db.from("cooperative_provider_registry").select("provider_entity,aliases").eq("active",true);
   if(error)return;
-  cooperativeRegistry=(data||[]).map((r:any)=>({provider_entity:String(r.provider_entity),aliases:Array.isArray(r.aliases)?r.aliases.map(String):[]}));
+  cooperativeRegistry=(data||[]).map((r:any)=>({provider_entity:String(r.provider_entity),needles:Array.isArray(r.aliases)?r.aliases.map((x:any)=>normalizeProviderText(String(x))).filter((x:string)=>x.length>=5):[]}));
   cooperativeRegistryLoadedAt=Date.now();
 }
 function registryCooperativeIdentity(value:string){
   const hay=normalizeProviderText(value);
-  for(const row of cooperativeRegistry)for(const alias of row.aliases){
-    const needle=normalizeProviderText(alias);
-    if(needle.length>=5&&hay.includes(needle))return row.provider_entity;
-  }
+  for(const row of cooperativeRegistry)for(const needle of row.needles)if(hay.includes(needle))return row.provider_entity;
   return null;
 }
 async function post(payload:any){const r=await fetch(MCP,{method:'POST',headers:{'content-type':'application/json','accept':'application/json, text/event-stream','mcp-protocol-version':PROTO,'user-agent':UA},body:JSON.stringify(payload),signal:AbortSignal.timeout(10000)}),b=await r.text();if(!r.ok)throw new Error(`MCP HTTP ${r.status}`);let j:any=null;if(b.trim().startsWith('{'))j=JSON.parse(b);else for(const line of b.split(/\r?\n/))if(line.startsWith('data:'))try{j=JSON.parse(line.slice(5).trim())}catch{}if(j?.error)throw new Error(j.error.message||'MCP error');return j}
