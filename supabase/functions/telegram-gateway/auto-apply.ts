@@ -84,13 +84,14 @@ async function platformPage(user:any,chatId:number,messageId:number,notice=''){
  }
  const [connections,prefsRows]=await Promise.all([
   rows('platform_connections',{user_id:`eq.${user.id}`,select:'provider,status'}),
-  rows('application_preferences',{user_id:`eq.${user.id}`,select:'enabled,immoscout_enabled,kleinanzeigen_enabled,immomio_enabled',limit:'1'})
+  rows('application_preferences',{user_id:`eq.${user.id}`,select:'enabled,immoscout_enabled,kleinanzeigen_enabled,immomio_enabled,immowelt_enabled',limit:'1'})
  ]);
- const prefs=prefsRows?.[0]||{enabled:user.auto_apply_enabled===true,immoscout_enabled:user.auto_apply_enabled===true,kleinanzeigen_enabled:user.auto_apply_enabled===true,immomio_enabled:user.auto_apply_enabled===true};
+ const prefs=prefsRows?.[0]||{enabled:user.auto_apply_enabled===true,immoscout_enabled:user.auto_apply_enabled===true,kleinanzeigen_enabled:user.auto_apply_enabled===true,immomio_enabled:user.auto_apply_enabled===true,immowelt_enabled:false};
  const providerMeta=[
   {id:1,key:'immoscout',name:'ImmoScout24',field:'immoscout_enabled'},
   {id:2,key:'kleinanzeigen',name:'Kleinanzeigen',field:'kleinanzeigen_enabled'},
-  {id:3,key:'immomio',name:'Immomio',field:'immomio_enabled'}
+  {id:3,key:'immomio',name:'Immomio',field:'immomio_enabled'},
+  {id:4,key:'immowelt',name:'Immowelt',field:'immowelt_enabled'}
  ];
  const conn=(provider:string)=>connections.find((item:any)=>item.provider===provider);
  const buttons:any[]=[[button('👤 Bewerberprofil','platforms:profile')]];
@@ -113,7 +114,7 @@ async function platformPage(user:any,chatId:number,messageId:number,notice=''){
 }
 
 async function providerPage(user:any,chatId:number,messageId:number,source:number){
- const meta=source===1?{key:'immoscout',name:'ImmoScout24'}:source===2?{key:'kleinanzeigen',name:'Kleinanzeigen'}:source===3?{key:'immomio',name:'Immomio'}:null;
+ const meta=source===1?{key:'immoscout',name:'ImmoScout24'}:source===2?{key:'kleinanzeigen',name:'Kleinanzeigen'}:source===3?{key:'immomio',name:'Immomio'}:source===4?{key:'immowelt',name:'Immowelt'}:null;
  if(!meta)return platformPage(user,chatId,messageId);
  const connection=(await rows('platform_connections',{user_id:`eq.${user.id}`,provider:`eq.${meta.key}`,select:'provider,status',limit:'1'}))[0]||null;
  if(connection?.status!=='connected'){
@@ -142,9 +143,9 @@ async function handlePlatforms(user:any,chatId:number,messageId:number,data:stri
  if(action==='profile-field'){
   if(!user.is_premium)return platformPage(user,chatId,messageId,'💎 Bewerberprofile benötigen Premium.');const prompt=fieldPrompt(arg);if(!prompt)return profilePage(user,chatId,messageId);await forceReply(chatId,prompt,PROFILE_FIELDS[arg].label);return;
  }
- if(action==='provider'&&[1,2,3].includes(source))return providerPage(user,chatId,messageId,source);
- if((action==='pause'||action==='resume')&&[1,2,3].includes(source)){
-  const provider=source===1?'immoscout':source===2?'kleinanzeigen':'immomio';
+ if(action==='provider'&&[1,2,3,4].includes(source))return providerPage(user,chatId,messageId,source);
+ if((action==='pause'||action==='resume')&&[1,2,3,4].includes(source)){
+  const provider=source===1?'immoscout':source===2?'kleinanzeigen':source===3?'immomio':'immowelt';
   try{
    await rpc('set_application_provider_enabled_shared',{p_user:user.id,p_provider:provider,p_enabled:action==='resume'});
    return platformPage(user,chatId,messageId);
@@ -178,12 +179,19 @@ async function handlePlatforms(user:any,chatId:number,messageId:number,data:stri
   if(!user.is_premium)return platformPage(user,chatId,messageId,'💎 Plattform-Verbindungen benötigen Premium.');
   try{const result=await worker('login',user.id,3);return edit(chatId,messageId,'🔐 <b>Immomio verbinden</b>\n\n<b>1.</b> Öffne Immomio und melde dich mit deinem normalen Immomio-Konto an.\n<b>2.</b> Nach erfolgreichem Login bleibst du auf einer normalen Immomio-Seite – es wird keine Datei mehr heruntergeladen.\n<b>3.</b> Tippe dort auf <b>Teilen → Telegram → Traumwohnung – Hamburg → Senden</b>.\n\nDer Bot übernimmt den Rücksprung automatisch, speichert nur die verschlüsselte Sitzung und löscht die geteilte Login-URL wieder. Dein Passwort bleibt ausschließlich bei Immomio.',[[{text:'🌐 Immomio-Login öffnen',url:result.url}],[button('← Automatische Bewerbung','platforms')]]);}catch(error:any){const note=error?.message==='immomio_email_required'?'Im Bewerberprofil fehlt eine gültige E-Mail-Adresse.':'Immomio-Login konnte nicht gestartet werden.';return platformPage(user,chatId,messageId,`⚠️ ${note}`);}
  }
- if(action==='check'&&[1,2,3].includes(source)){
+ if(action==='login'&&source===4){
   if(!user.is_premium)return platformPage(user,chatId,messageId,'💎 Plattform-Verbindungen benötigen Premium.');
-  try{const result=await worker('check',user.id,source);const name=source===1?'ImmoScout24':source===2?'Kleinanzeigen':'Immomio';return platformPage(user,chatId,messageId,result.authenticated===true?`✅ ${name}-Verbindung bestätigt.`:result.authenticated===null?`${name}: Verbindung gespeichert; der Sendepfad ist noch nicht freigegeben.`:`⚠️ ${name} bitte erneut verbinden.`);}catch{return platformPage(user,chatId,messageId,'⚠️ Verbindung konnte nicht bestätigt werden.');}
+  try{
+   const result=await worker('login',user.id,4,{origin:'telegram',returnTarget:'telegram',context:{channel:'telegram'}});
+   return edit(chatId,messageId,'🔐 <b>Immowelt verbinden</b>\n\nÖffne den sicheren Login und melde dich einmalig mit deinem Immowelt-Konto an. Das Passwort wird nicht gespeichert; nach erfolgreicher Anmeldung wird nur die verschlüsselte Sitzung übernommen. Zusätzliche Sicherheitsprüfungen werden nicht umgangen.',[[{text:'🌐 Immowelt-Login öffnen',url:result.url}],[button('← Automatische Bewerbung','platforms')]]);
+  }catch{return platformPage(user,chatId,messageId,'⚠️ Immowelt-Login konnte nicht gestartet werden.');}
  }
- if(action==='disconnect'&&[1,2,3].includes(source)){
-  try{await worker('disconnect',user.id,source);const key=source===1?'immoscout':source===2?'kleinanzeigen':'immomio';await patch('application_preferences',{user_id:`eq.${user.id}`},{[key+'_enabled']:false,updated_at:new Date().toISOString()}).catch(()=>{});return platformPage(user,chatId,messageId,'Plattformverbindung gelöscht.');}catch{return platformPage(user,chatId,messageId,'⚠️ Verbindung konnte nicht gelöscht werden.');}
+ if(action==='check'&&[1,2,3,4].includes(source)){
+  if(!user.is_premium)return platformPage(user,chatId,messageId,'💎 Plattform-Verbindungen benötigen Premium.');
+  try{const result=await worker('check',user.id,source);const name=source===1?'ImmoScout24':source===2?'Kleinanzeigen':source===3?'Immomio':'Immowelt';return platformPage(user,chatId,messageId,result.authenticated===true?`✅ ${name}-Verbindung bestätigt.`:result.authenticated===null?`${name}: Verbindung gespeichert; der Sendepfad ist noch nicht freigegeben.`:`⚠️ ${name} bitte erneut verbinden.`);}catch{return platformPage(user,chatId,messageId,'⚠️ Verbindung konnte nicht bestätigt werden.');}
+ }
+ if(action==='disconnect'&&[1,2,3,4].includes(source)){
+  try{await worker('disconnect',user.id,source);const key=source===1?'immoscout':source===2?'kleinanzeigen':source===3?'immomio':'immowelt';await patch('application_preferences',{user_id:`eq.${user.id}`},{[key+'_enabled']:false,updated_at:new Date().toISOString()}).catch(()=>{});return platformPage(user,chatId,messageId,'Plattformverbindung gelöscht.');}catch{return platformPage(user,chatId,messageId,'⚠️ Verbindung konnte nicht gelöscht werden.');}
  }
  return platformPage(user,chatId,messageId);
 }
