@@ -39,6 +39,38 @@ function enrichedMessage(profile:any,message:any){
  return [base,details.length?'Weitere Angaben:\n'+details.join('\n'):''].filter(Boolean).join('\n\n').slice(0,7000);
 }
 
+
+async function optionalSecret(db:any,name:string){
+ try{const{data,error}=await db.rpc('get_bot_secret',{secret_name:name});if(error||!data)return null;return String(data)}catch{return null}
+}
+function decodeXmlEntities(value:string){return String(value||'').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&amp;/g,'&')}
+async function immoweltEstateGuid(db:any,onlineId:any){
+ const existing=String(onlineId||'').trim();if(!existing)return{guid:null,error:'provider_identifier_missing'};
+ const apiKey=await optionalSecret(db,'immowelt_api_key');if(!apiKey)return{guid:null,error:'provider_credentials_missing'};
+ const soap=`<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+ <soap:Header>
+  <ExposeAuthenticationHeader xmlns="http://immowelt.de/services"><ApiKey>${xml(apiKey)}</ApiKey></ExposeAuthenticationHeader>
+ </soap:Header>
+ <soap:Body>
+  <GetEstateExposeByOnlineID xmlns="http://immowelt.de/services"><OnlineID>${xml(existing)}</OnlineID></GetEstateExposeByOnlineID>
+ </soap:Body>
+</soap:Envelope>`;
+ let response:Response,text='';
+ try{
+  response=await fetch('https://api.immowelt.de/WebServices/EstateExpose.asmx',{method:'POST',headers:{'content-type':'text/xml; charset=utf-8','soapaction':'"http://immowelt.de/services/GetEstateExposeByOnlineID"','accept':'text/xml,application/xml'},body:soap,signal:AbortSignal.timeout(30000)});
+  text=await response.text().catch(()=>'');
+ }catch{return{guid:null,error:'temporary_network_error'}}
+ if(!response.ok)return{guid:null,error:response.status===401||response.status===403?'provider_credentials_invalid':'provider_contract_unverified'};
+ if(/UnauthorizedAccessException|authentication|Authentifizierung|keine Zugriffsrechte/i.test(text))return{guid:null,error:'provider_credentials_invalid'};
+ const status=(text.match(/<Status>\s*([^<]+)\s*<\/Status>/i)||[])[1]||'';
+ if(status&&status.toUpperCase()!=='OK')return{guid:null,error:'listing_unavailable'};
+ const escaped=(text.match(/<XmlExpose>([\s\S]*?)<\/XmlExpose>/i)||[])[1]||'';
+ const exposed=decodeXmlEntities(escaped);
+ const guid=(exposed.match(/<estate\b[^>]*\bguid=["']([0-9A-Fa-f-]{32,36})["']/i)||[])[1]||'';
+ if(!guid)return{guid:null,error:'provider_identifier_unresolved'};
+ return{guid,error:null};
+}
 export async function sendImmoweltApplication(input:any){
  const{db,user,profile,listing,message,authorize}=input||{},userId=String(user?.id||''),url=String(listing?.canonical_url||'');
  if(!userId||!/^https:\/\/www\.immowelt\.de\/expose\//i.test(url))return{success:false,status:'manual_required',error:'provider_contract_unverified'};
@@ -50,6 +82,9 @@ export async function sendImmoweltApplication(input:any){
  const name=[String(profile?.first_name||'').trim(),String(profile?.last_name||'').trim()].filter(Boolean).join(' ');
  const phone=validPhone(profile?.phone),street=[String(profile?.street||'').trim(),String(profile?.house_number||'').trim()].filter(Boolean).join(' ');
  const fullMessage=enrichedMessage(profile,message);
+ const identifier=String(listing?.source_listing_key||listing?.external_id||'').trim();
+ const resolved=await immoweltEstateGuid(db,identifier);
+ if(!resolved.guid)return{success:false,status:'manual_required',error:resolved.error||'provider_identifier_unresolved',diagnostic:{provider:'immowelt',transport:'estate_expose_resolver',onlineId:identifier||null}};
  const soap=`<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
  <soap:Body>
@@ -60,7 +95,7 @@ export async function sendImmoweltApplication(input:any){
     <ExposeKey>${xml(listing?.source_listing_key||listing?.external_id||'')}</ExposeKey>
     <OnlyUseLinkToDetail>false</OnlyUseLinkToDetail>
     <OnlyMailToCustomer>false</OnlyMailToCustomer>
-    <EstateGuid></EstateGuid>
+    <EstateGuid>${xml(resolved.guid)}</EstateGuid>
     <Enquirer>
      <Name>${xml(name)}</Name>
      <EMail>${xml(email)}</EMail>
@@ -85,7 +120,7 @@ export async function sendImmoweltApplication(input:any){
   return{success:false,status:'manual_required',error:'submission_unconfirmed',diagnostic:{provider:'immowelt',transport:'communication_service',authorized:true}};
  }
  const success=response.ok&&/<SendContactMailResult>\s*true\s*<\/SendContactMailResult>/i.test(text);
- if(success)return{success:true,status:'sent',confirmation:'immowelt_communication_service',diagnostic:{provider:'immowelt',transport:'communication_service',httpStatus:response.status,profileFields:['salutation','first_name','last_name','email','street','house_number','postcode','city','household_type','employment_status','income_range','move_in_preference','move_in_date'],phoneIncluded:!!phone}};
+ if(success)return{success:true,status:'sent',confirmation:'immowelt_communication_service',diagnostic:{provider:'immowelt',transport:'estate_expose+communication_service',httpStatus:response.status,onlineId:identifier,estateGuidResolved:true,profileFields:['salutation','first_name','last_name','email','street','house_number','postcode','city','household_type','employment_status','income_range','move_in_preference','move_in_date'],phoneIncluded:!!phone}};
  const explicitFalse=/<SendContactMailResult>\s*false\s*<\/SendContactMailResult>/i.test(text);
  return{success:false,status:'manual_required',error:explicitFalse?'provider_rejected':'submission_unconfirmed',diagnostic:{provider:'immowelt',transport:'communication_service',httpStatus:response.status,authorized:true}};
 }
