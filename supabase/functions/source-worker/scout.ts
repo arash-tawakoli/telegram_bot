@@ -3,21 +3,21 @@ import {coverageTimestampProof} from './coverage-newness.ts';
 import {Candidate,Source,db,deNum,iso,markFailure,markSuccess,upsertCandidates,UA} from './shared.ts';
 const MCP='https://app.chatgpt.immobilienscout24.de/v2/mcp',PROTO='2025-06-18';
 const BOROUGHS=['Hamburg-Mitte','Altona','Eimsbüttel','Hamburg-Nord','Wandsbek','Bergedorf','Harburg'];
-type CooperativeRegistryRow={provider_entity:string;needles:string[]};
+type CooperativeRegistryRow={provider_entity:string;source_id:number|null;registry_mode:string;needles:string[]};
 let cooperativeRegistry:CooperativeRegistryRow[]=[];
 let cooperativeRegistryLoadedAt=0;
 function normalizeProviderText(value:string){return String(value||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("de-DE").replace(/[^a-z0-9äöüß]+/g," ").replace(/\s+/g," ").trim()}
 async function loadCooperativeRegistry(){
   if(cooperativeRegistry.length&&Date.now()-cooperativeRegistryLoadedAt<5*60*1000)return;
-  const {data,error}=await db.from("cooperative_provider_registry").select("provider_entity,aliases").eq("active",true);
+  const {data,error}=await db.from("cooperative_provider_registry").select("provider_entity,source_id,registry_mode,aliases").eq("active",true);
   if(error)return;
-  cooperativeRegistry=(data||[]).map((r:any)=>({provider_entity:String(r.provider_entity),needles:Array.isArray(r.aliases)?r.aliases.map((x:any)=>normalizeProviderText(String(x))).filter((x:string)=>x.length>=5):[]}));
+  cooperativeRegistry=(data||[]).map((r:any)=>({provider_entity:String(r.provider_entity),source_id:r.source_id==null?null:Number(r.source_id),registry_mode:String(r.registry_mode||"passive"),needles:Array.isArray(r.aliases)?r.aliases.map((x:any)=>normalizeProviderText(String(x))).filter((x:string)=>x.length>=5):[]}));
   cooperativeRegistryLoadedAt=Date.now();
 }
 function registryCooperativeIdentity(value:string){
   if(!/(?:genossenschaft|bauverein|saga|gewoba|harabau|altoba|fluwog|markthof)/i.test(value))return null;
   const hay=normalizeProviderText(value);
-  for(const row of cooperativeRegistry)for(const needle of row.needles)if(hay.includes(needle))return row.provider_entity;
+  for(const row of cooperativeRegistry)for(const needle of row.needles)if(hay.includes(needle))return row;
   return null;
 }
 async function post(payload:any){const r=await fetch(MCP,{method:'POST',headers:{'content-type':'application/json','accept':'application/json, text/event-stream','mcp-protocol-version':PROTO,'user-agent':UA},body:JSON.stringify(payload),signal:AbortSignal.timeout(10000)}),b=await r.text();if(!r.ok)throw new Error(`MCP HTTP ${r.status}`);let j:any=null;if(b.trim().startsWith('{'))j=JSON.parse(b);else for(const line of b.split(/\r?\n/))if(line.startsWith('data:'))try{j=JSON.parse(line.slice(5).trim())}catch{}if(j?.error)throw new Error(j.error.message||'MCP error');return j}
@@ -54,16 +54,17 @@ function scoutCooperativeIdentity(e:any){
     const ref=text.match(/(?:Objektreferenz|Referenznummer|Objektnummer|Objekt[-\\s]?(?:Nr\\.?|ID)|Angebotsnummer)[^A-Za-z0-9]{0,12}([A-Za-z0-9][A-Za-z0-9./_-]{3,80})/i)?.[1]
       || (entity==="SAGA"?text.match(/\\b(MO\\s*2000\\s*\\/\\s*[A-Za-z0-9.-]+\\s*\\/\\s*[A-Za-z0-9.-]+)\\b/i)?.[1]:null)
       || null;
-    return {provider_entity:entity,provider_object_ref:ref?ref.toUpperCase().replace(/\\s*\\/\\s*/g,"/").replace(/\\s+/g," ").trim():null};
+    const row=cooperativeRegistry.find(r=>r.provider_entity===entity);
+    return {provider_entity:entity,provider_object_ref:ref?ref.toUpperCase().replace(/\\s*\\/\\s*/g,"/").replace(/\\s+/g," ").trim():null,provider_registry_mode:row?.registry_mode||"source",provider_source_id:row?.source_id??null};
   }
-  const dynamicEntity=registryCooperativeIdentity(text);
-  if(dynamicEntity){
+  const dynamicRow=registryCooperativeIdentity(text);
+  if(dynamicRow){
     const ref=e?.providerObjectRef||e?.objectReference||e?.referenceNumber||e?.externalReference||e?.objectNumber||e?.reference||null;
-    return {provider_entity:dynamicEntity,provider_object_ref:ref?String(ref).toUpperCase().trim():null};
+    return {provider_entity:dynamicRow.provider_entity,provider_object_ref:ref?String(ref).toUpperCase().trim():null,provider_registry_mode:dynamicRow.registry_mode,provider_source_id:dynamicRow.source_id};
   }
-  return {provider_entity:null,provider_object_ref:null};
+  return {provider_entity:null,provider_object_ref:null,provider_registry_mode:null,provider_source_id:null};
 }
-function candidates(entries:any[],q:string):Candidate[]{return entries.map(e=>{const id=entryId(e),a=e.address||{},cooperative=scoutCooperativeIdentity(e);return{key:id,url:e.exposeUrl||`https://www.immobilienscout24.de/expose/${id}`,title:e.title||`ImmobilienScout24 ${id}`,address:[a.street,a.houseNumber].filter(Boolean).join(' ')||null,district:a.quarter||null,zip:a.postcode||null,warm:deNum(e.totalRent),cold:deNum(e.price?.value),additional:deNum(e.serviceCharge),heating:deNum(e.heatingCosts),rooms:deNum(e.rooms),area:deNum(e.size),image:Array.isArray(e.titlePictureUrls)?e.titlePictureUrls[0]?.href?.replace(/%WIDTH%/g,'1200').replace(/%HEIGHT%/g,'800'):null,raw:{provider:'immoscout_mcp',query:q,entry:e,...(cooperative.provider_entity?{provider_entity:cooperative.provider_entity}:{}),...(cooperative.provider_object_ref?{provider_object_ref:cooperative.provider_object_ref}:{}),...(cooperative.provider_entity==="SAGA"&&cooperative.provider_object_ref?{saga_object_ref:cooperative.provider_object_ref}:{}),...(cooperative.provider_entity&&(!cooperative.provider_object_ref)?{portal_enrichment_pending:true}:{})}}})}
+function candidates(entries:any[],q:string):Candidate[]{return entries.map(e=>{const id=entryId(e),a=e.address||{},cooperative=scoutCooperativeIdentity(e);return{key:id,url:e.exposeUrl||`https://www.immobilienscout24.de/expose/${id}`,title:e.title||`ImmobilienScout24 ${id}`,address:[a.street,a.houseNumber].filter(Boolean).join(' ')||null,district:a.quarter||null,zip:a.postcode||null,warm:deNum(e.totalRent),cold:deNum(e.price?.value),additional:deNum(e.serviceCharge),heating:deNum(e.heatingCosts),rooms:deNum(e.rooms),area:deNum(e.size),image:Array.isArray(e.titlePictureUrls)?e.titlePictureUrls[0]?.href?.replace(/%WIDTH%/g,'1200').replace(/%HEIGHT%/g,'800'):null,raw:{provider:'immoscout_mcp',query:q,entry:e,...(cooperative.provider_entity?{provider_entity:cooperative.provider_entity}:{}),...(cooperative.provider_object_ref?{provider_object_ref:cooperative.provider_object_ref}:{}),...(cooperative.provider_entity==="SAGA"&&cooperative.provider_object_ref?{saga_object_ref:cooperative.provider_object_ref}:{}),...(cooperative.provider_entity&&(!cooperative.provider_object_ref)?{portal_enrichment_pending:true}:{}),...(cooperative.provider_registry_mode?{provider_registry_mode:cooperative.provider_registry_mode}:{}),...(cooperative.provider_source_id!=null?{provider_source_id:cooperative.provider_source_id}:{})}}})}
 function propagateDetails(items:Candidate[]){const known=new Map<string,{warm:number|null;additional:number|null;heating:number|null}>();for(const c of items){const k=String(c.key||'');if(!k)continue;const p=known.get(k)||{warm:null,additional:null,heating:null};known.set(k,{warm:c.warm??p.warm,additional:c.additional??p.additional,heating:c.heating??p.heating})}return items.map(c=>{const p=known.get(String(c.key||''));return p?{...c,warm:c.warm??p.warm,additional:c.additional??p.additional,heating:c.heating??p.heating}:c})}
 async function preserveKnown(sourceId:number,items:Candidate[]){const keys=[...new Set(items.map(c=>String(c.key||'')).filter(Boolean))],known=new Map<string,any>();for(let i=0;i<keys.length;i+=300){const{data,error}=await db.from('listings').select('source_listing_key,warm_rent,additional_costs,heating_costs').eq('source_id',sourceId).in('source_listing_key',keys.slice(i,i+300)).throwOnError();if(error)throw error;for(const x of data||[])known.set(String(x.source_listing_key),x)}return items.map(c=>{const x=known.get(String(c.key||''));return x?{...c,warm:c.warm??deNum(x.warm_rent),additional:c.additional??deNum(x.additional_costs),heating:c.heating??deNum(x.heating_costs)}:c})}
 export async function runScout(source:Source){const started=iso();try{await loadCooperativeRegistry();await init();let{data:st}=await db.from('source_coverage_state').select('*').eq('source_id',source.id).maybeSingle().throwOnError();let cycle=st?.status==='running'?String(st.cycle_id):crypto.randomUUID(),cursor:any=st?.status==='running'?(st.cursor||{}):{};if(st?.status!=='running'){cursor={queue:BOROUGHS.map(b=>({borough:b,min:null,max:null,depth:0})),processed:0,fresh_borough_index:Number(st?.cursor?.fresh_borough_index||0),map_seen_ids:Array.isArray(st?.cursor?.map_seen_ids)?st.cursor.map_seen_ids:[]};await db.from('source_coverage_state').upsert({source_id:source.id,cycle_id:cycle,strategy:'adaptive_partition',status:'running',cursor,cycle_started_at:started,seen_count:0,request_count:0,updated_at:started}).throwOnError()}
