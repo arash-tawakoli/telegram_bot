@@ -72,6 +72,7 @@ async function loadCooperativeRegistry(){
   cooperativeRegistryLoadedAt=Date.now();
 }
 function registryCooperativeIdentity(value:string){
+  if(!/(?:genossenschaft|bauverein|saga|gewoba|harabau|altoba|fluwog|markthof)/i.test(value))return null;
   const hay=normalizeProviderText(value);
   for(const row of cooperativeRegistry)for(const needle of row.needles)if(hay.includes(needle))return row.provider_entity;
   return null;
