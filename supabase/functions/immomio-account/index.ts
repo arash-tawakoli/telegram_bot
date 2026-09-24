@@ -55,7 +55,7 @@ Deno.serve(async req=>{
   if(req.headers.get('x-internal-secret')!==await secret('internal_worker_secret'))return new Response('unauthorized',{status:401});
   return Response.json(await handleAction(await req.json()));
  }catch(e:any){
-  const safe=new Set(['configuration_unavailable','premium_required','invalid_user','invalid_action','application_read_failed','application_target_conflict','application_link_missing','listing_unavailable','immomio_email_required','immomio_sso_failed','immomio_sso_contract_changed','auth_flow_create_failed','invalid_callback_url','auth_flow_expired','token_exchange_failed','needs_login','send_not_authorized','submission_unconfirmed']);
+  const safe=new Set(['configuration_unavailable','premium_required','invalid_user','invalid_action','application_read_failed','application_target_conflict','application_link_missing','listing_unavailable','immomio_email_required','immomio_sso_failed','immomio_sso_contract_changed','auth_flow_create_failed','invalid_callback_url','auth_flow_expired','token_exchange_failed','needs_login','send_not_authorized','submission_unconfirmed','temporary_network_error']);
   return Response.json({error:safe.has(e?.message)?e.message:'immomio_operation_failed'},{status:503});
  }
 });
