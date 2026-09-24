@@ -244,7 +244,7 @@ function offerTarget(l: any, lang: string) {
     } catch { return null; }
   };
   const direct=tenant(facts.applicationLink) || tenant(l.raw?.applicationLink) || tenant(l.canonical_url);
-  if(facts.provider_entity==="SAGA" && direct) return {url:direct,text:label(lang,"offer")};
+  if(present(facts.provider_entity) && direct) return {url:direct,text:label(lang,"offer")};
   if (l.sources?.source_type !== "Baugenossenschaft") return fallback;
   if(direct) return {url:direct,text:label(lang,"offer")};
   const connectors=[...(l.sources?.source_connectors || [])].filter((c:any)=>c.enabled).sort((a:any,b:any)=>a.priority-b.priority);
