@@ -143,6 +143,46 @@ function immoweltCardWarm(text: string) {
   const n = Number(value);
   return Number.isFinite(n) && n >= 0 ? n : null;
 }
+type CooperativeRegistryRow={provider_entity:string;source_id:number|null;aliases:string[];hamburg_only:boolean;registry_mode:string};
+let cooperativeRegistryPromise:Promise<CooperativeRegistryRow[]>|null=null;
+function providerNorm(value:any){return String(value??"").toLocaleLowerCase("de-DE").replace(/[._–—-]+/g," ").replace(/\s+/g," ").trim()}
+function providerAliasMatch(haystack:string,alias:string){
+  const h=providerNorm(haystack),a=providerNorm(alias);
+  if(!a||a.length<3)return false;
+  if(a.length<=5){
+    const esc=a.replace(/[.*+?^${}()|[\]\\]/g,"\\function portalCooperativeIdentity(value: string) {");
+    return new RegExp("(^|[^a-z0-9äöüß])"+esc+"([^a-z0-9äöüß]|$)","i").test(h);
+  }
+  return h.includes(a);
+}
+async function cooperativeRegistry(){
+  if(!cooperativeRegistryPromise)cooperativeRegistryPromise=(async()=>{
+    const {data,error}=await db.from("cooperative_provider_registry")
+      .select("provider_entity,source_id,aliases,hamburg_only,registry_mode")
+      .eq("active",true);
+    if(error)throw error;
+    return (data||[]) as CooperativeRegistryRow[];
+  })();
+  return cooperativeRegistryPromise;
+}
+async function applyCooperativeRegistry(items:Candidate[]){
+  const registry=await cooperativeRegistry();
+  return items.map(c=>{
+    const raw:any={...(c.raw||{})};
+    const haystack=[c.title,c.address,raw._provider_text,raw.provider_entity,raw.entry?JSON.stringify(raw.entry):""].filter(Boolean).join(" ");
+    let row=raw.provider_entity?registry.find(r=>r.provider_entity===raw.provider_entity):undefined;
+    if(!row){
+      row=registry.find(r=>(r.aliases||[]).some(a=>providerAliasMatch(haystack,a)));
+      if(row)raw.provider_entity=row.provider_entity;
+    }
+    delete raw._provider_text;
+    if(!row)return {...c,raw};
+    raw.provider_registry_mode=row.registry_mode;
+    if(row.source_id!=null)raw.provider_source_id=row.source_id;
+    if(!raw.provider_object_ref||!raw.applicationLink)raw.portal_enrichment_pending=true;
+    return {...c,raw};
+  });
+}
 function portalCooperativeIdentity(value: string) {
   const plain = strip(value).replace(/\s+/g, " ").trim();
   const rules: Array<{ entity:string; provider:RegExp; ref?:RegExp }> = [
@@ -225,6 +265,7 @@ function immoweltCards(html: string, base: string) {
         title: titleAttr,
         alt: imgAlt,
         is_new: isNew,
+        _provider_text: text,
         ...(cooperative.provider_entity ? { provider_entity: cooperative.provider_entity } : {}),
         ...(cooperative.provider_object_ref ? { provider_object_ref: cooperative.provider_object_ref } : {}),
         ...(cooperative.provider_entity === "SAGA" && cooperative.provider_object_ref ? { saga_object_ref: cooperative.provider_object_ref } : {}),
@@ -293,6 +334,7 @@ async function parseOne(source: Source, c: Connector, url: string) {
       : jsonLd.length
         ? jsonLd
         : parseHtml(r.text, r.url);
+  out=await applyCooperativeRegistry(out);
   const configuredProvider=String(c.config?.provider_entity||"").trim();
   if(configuredProvider){
     out=out.map(x=>({
