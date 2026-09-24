@@ -16,12 +16,30 @@ export async function disconnectImmowelt(db:any,userId:string){
  return{status:'disconnected'};
 }
 
-export async function sendImmoweltApplication(_input:any){
+export async function sendImmoweltApplication(input:any){
+ const{db,user,profile,listing}=input||{},userId=String(user?.id||''),url=String(listing?.canonical_url||'');
+ if(!userId||!/^https:\/\/www\.immowelt\.de\/expose\//i.test(url))return{success:false,status:'manual_required',error:'provider_contract_unverified'};
+ let connection:any;try{connection=await getConnection(db,userId,PROVIDER)}catch{return{success:false,status:'manual_required',error:'connection_read_failed'}}
+ if(!connection)return{success:false,status:'manual_required',error:'needs_login'};
+ const{data:secretValue,error:secretError}=await db.rpc('get_bot_secret',{secret_name:'internal_worker_secret'});
+ if(secretError||!secretValue)return{success:false,status:'manual_required',error:'configuration_unavailable'};
+ let response:Response,data:any=null;
+ try{
+  response=await fetch('https://login.traumwohnunghamburg.de/internal/immowelt/application-probe',{
+   method:'POST',
+   headers:{'content-type':'application/json','x-immowelt-transport-secret':String(secretValue)},
+   body:JSON.stringify({listingUrl:url,session:connection.credentials,profile}),
+   signal:AbortSignal.timeout(55000)
+  });
+  data=await response.json().catch(()=>null);
+ }catch{throw Error('temporary_network_error')}
+ if(response.status===401)return{success:false,status:'manual_required',error:'needs_login',diagnostic:{provider:'immowelt',probe:data||null}};
+ if(!response.ok)return{success:false,status:'manual_required',error:data?.error||'provider_contract_unverified',diagnostic:{provider:'immowelt',probe:data||null}};
  return{
   success:false,
   status:'manual_required',
   error:'provider_transport_unverified',
-  diagnostic:{provider:'immowelt',reason:'contact_transport_not_promoted'}
+  diagnostic:{provider:'immowelt',reason:'contact_contract_probed',probe:data}
  };
 }
 
