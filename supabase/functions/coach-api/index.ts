@@ -222,11 +222,11 @@ async function updateProfile(a:any,assignment:any,input:any){
   user_id:userId,first_name:clean(input.first_name??c.first_name,120),last_name:clean(input.last_name??c.last_name,120),
   email:email(input.email??c.email),phone:clean(input.phone??c.phone,80),city:clean(input.city??c.city??'Hamburg',120)||'Hamburg',
   salutation:clean(input.salutation??c.salutation,40)||null,street:clean(input.street??c.street,160)||null,house_number:clean(input.house_number??c.house_number,40)||null,
-  postcode:clean(input.postcode??c.postcode,10)||null,household_size:optionalInteger(input.household_size??c.household_size,1,20),
+  postcode:clean(input.postcode??c.postcode,10)||null,household_size:optionalInteger(input.household_size??c.household_size,1,20),household_type:clean(input.household_type??c.household_type,40)||null,
   employment_status:clean(input.employment_status??c.employment_status,160)||null,
-  monthly_net_income:input.monthly_net_income===null||input.monthly_net_income===''?null:Number(input.monthly_net_income??c.monthly_net_income),
+  monthly_net_income:input.monthly_net_income===null||input.monthly_net_income===''?null:Number(input.monthly_net_income??c.monthly_net_income),income_range:clean(input.income_range??c.income_range,40)||null,
   pets:clean(input.pets??c.pets,160)||null,wbs_status:clean(input.wbs_status??c.wbs_status,160)||null,
-  move_in_date:input.move_in_date??c.move_in_date??null,default_message:clean(input.default_message??c.default_message,4000)||null,
+  move_in_preference:clean(input.move_in_preference??c.move_in_preference,40)||null,move_in_date:input.move_in_date??c.move_in_date??null,default_message:clean(input.default_message??c.default_message,4000)||null,message_apartment:clean(input.message_apartment??c.message_apartment,4000)||null,message_house:clean(input.message_house??c.message_house,4000)||null,message_temporary_wg:clean(input.message_temporary_wg??c.message_temporary_wg,4000)||null,message_swap:clean(input.message_swap??c.message_swap,4000)||null,
   schufa_status:clean(input.schufa_status??c.schufa_status??'NOT_SPECIFIED',80),phone_call_desired:Boolean(input.phone_call_desired??c.phone_call_desired??false),updated_at:new Date().toISOString()
  };
  if(!row.first_name||!row.last_name||!row.phone)throw Error('profile_required_fields');
