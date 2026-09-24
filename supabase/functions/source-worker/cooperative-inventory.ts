@@ -27,7 +27,7 @@ export function parseFinkenInventory(text:string){
     if(!x.id||!x.city||!x.postalcode)throw new Error('Finkenwaerder apartment schema missing');
     if(x.city.toLowerCase()!=='hamburg'||!hhZip(x.postalcode)||!(deNum(x.numberOfRooms)!>0))continue;
     if(!/^https:\/\/tenant\.immomio\.com\/(?:de\/)?apply\/[0-9a-f-]{36}$/i.test(x.applicationLink))throw new Error('Finkenwaerder application identity missing');
-    candidates.push({key:x.id,url:x.applicationLink,title:x.altText||`Wohnung ${x.street}`,address:[x.street,x.houseNumber,x.postalcode,'Hamburg'].filter(Boolean).join(' '),district:x.district,zip:x.postalcode,cold:deNum(x.baseRent),rooms:deNum(x.numberOfRooms),area:deNum(x.overallSpace),raw:{provider:'finkenwaerder_public_api'}});
+    candidates.push({key:x.id,url:x.applicationLink,title:x.altText||`Wohnung ${x.street}`,address:[x.street,x.houseNumber,x.postalcode,'Hamburg'].filter(Boolean).join(' '),district:x.district,zip:x.postalcode,cold:deNum(x.baseRent),rooms:deNum(x.numberOfRooms),area:deNum(x.overallSpace),raw:{provider:'finkenwaerder_public_api',provider_entity:'Finkenwärder-Hoffnung',applicationLink:x.applicationLink,...((x.providerObjectRef||x.objectReference||x.reference||x.externalId||x.objectNumber||x.refId)?{provider_object_ref:String(x.providerObjectRef||x.objectReference||x.reference||x.externalId||x.objectNumber||x.refId)}:{})}});
   }
   return {candidates,enumerated:rows.length,complete:true};
 }
