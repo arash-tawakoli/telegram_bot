@@ -9,7 +9,7 @@ Deno.serve(async request=>{
   const body=await request.json().catch(()=>({}));
   const immomio_object_shadow=body.resolver_disabled===true?{disabled:true}:await runImmomioObjectShadow(db,body);
   if(body.resolver_only===true)return Response.json({ok:true,immomio_object_shadow});
-  const ids=Array.isArray(body.source_ids)?[...new Set(body.source_ids.filter((id:any)=>Number.isInteger(id)&&id>=1&&id<=65))].slice(0,10):[];
+  const ids=Array.isArray(body.source_ids)?[...new Set(body.source_ids.filter((id:any)=>Number.isInteger(id)&&id>=1&&id<=10000))].slice(0,10):[];
   let sourceQuery=db.from('sources').select('id,name,search_url,homepage_url,tier,runtime_mode');
   sourceQuery=ids.length?sourceQuery.in('id',ids):sourceQuery.or('tier.eq.K3,runtime_mode.eq.shadow');
   const {data:sources,error}=await sourceQuery;
