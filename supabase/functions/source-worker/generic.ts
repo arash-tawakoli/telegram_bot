@@ -177,6 +177,8 @@ async function applyCooperativeRegistry(items:Candidate[]){
     }
     delete raw._provider_text;
     if(!row)return {...c,raw};
+    delete raw.cooperative_candidate;
+    delete raw.cooperative_candidate_text;
     raw.provider_registry_mode=row.registry_mode;
     if(row.source_id!=null)raw.provider_source_id=row.source_id;
     if(!raw.provider_object_ref||!raw.applicationLink)raw.portal_enrichment_pending=true;
@@ -237,6 +239,7 @@ function immoweltCards(html: string, base: string) {
       image = immoweltCardImage(v, base),
       isNew = /data-testid=["']cardmfe-tag-testid-new["']/i.test(v),
       cooperative = portalCooperativeIdentity(v),
+      cooperativeCandidate = !cooperative.provider_entity && /\b(?:Baugenossenschaft|Wohnungsgenossenschaft|Wohnungsbaugenossenschaft|Wohngenossenschaft|Mietergenossenschaft|Bauverein)\b/i.test(text),
       title = (titleAttr || imgAlt || "Wohnungsangebot").slice(0, 240);
     out.push({
       url: href,
@@ -263,6 +266,7 @@ function immoweltCards(html: string, base: string) {
         ...(cooperative.provider_entity === "SAGA" && cooperative.provider_object_ref ? { saga_object_ref: cooperative.provider_object_ref } : {}),
         ...(cooperative.applicationLink ? { applicationLink: cooperative.applicationLink } : {}),
         ...(cooperative.provider_entity && (!cooperative.provider_object_ref || !cooperative.applicationLink) ? { portal_enrichment_pending: true } : {}),
+        ...(cooperativeCandidate ? { cooperative_candidate: true, cooperative_candidate_text: text.slice(0, 1200) } : {}),
       },
     });
   }
