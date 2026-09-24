@@ -93,7 +93,12 @@ function knownFacts(l: any) {
   const direct = structuredFacts(l.raw, l.canonical_url);
   const evidence = l.raw?.provider === 'immosolve_hpm_rest' ? null : l.enrichment_evidence?.preview;
   const detail = evidence && evidence.canonical_url === l.canonical_url ? evidence.facts || {} : {};
+  const sagaProbe=l.enrichment_evidence?.saga_probe || {};
+  const sagaShared=l.enrichment_evidence?.saga_shared || {};
   const out = {...l, ...direct, ...detail};
+  if(!present(out.provider_entity) && (sagaProbe.is_saga===true || sagaProbe.is_saga==="true" || sagaShared.verified===true))out.provider_entity="SAGA";
+  if(!present(out.saga_object_ref))out.saga_object_ref=textValue(sagaProbe.saga_object_ref);
+  if(!present(out.applicationLink))out.applicationLink=textValue(sagaProbe.application_url) ?? textValue(sagaShared.application_url);
   // Old DB values can include inferred addresses, default types and calculated rents.
   out.address = loc(l);
   out.district = textValue(detail.district) ?? textValue(direct.district) ?? textValue(l.district);
