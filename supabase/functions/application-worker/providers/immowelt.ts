@@ -57,7 +57,7 @@ export async function sendImmoweltApplication(input:any){
    <request>
     <Domain>traumwohnunghamburg.de</Domain>
     <LinkToDetail>${xml(url)}</LinkToDetail>
-    <ExposeKey></ExposeKey>
+    <ExposeKey>${xml(listing?.source_listing_key||listing?.external_id||'')}</ExposeKey>
     <OnlyUseLinkToDetail>true</OnlyUseLinkToDetail>
     <OnlyMailToCustomer>false</OnlyMailToCustomer>
     <EstateGuid></EstateGuid>
