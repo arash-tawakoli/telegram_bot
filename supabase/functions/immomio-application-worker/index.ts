@@ -10,6 +10,7 @@ async function secret(name:string){const {data,error}=await db.rpc('get_bot_secr
 const clean=(v:any,max=200)=>String(v??'').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,max);
 async function syncListingStatus(userId:string,listingId:string){try{const internal=await secret('internal_worker_secret');await fetch(STATUS_SYNC,{method:'POST',headers:{'content-type':'application/json','x-internal-secret':internal},body:JSON.stringify({action:'sync_application_status',userId,listingId}),signal:AbortSignal.timeout(15000)});}catch{}}
 async function immomio(action:string,userId:string,listingId:string,extra:Record<string,unknown>={}){const internal=await secret('internal_worker_secret');const r=await fetch(IMMOMIO,{method:'POST',headers:{'content-type':'application/json','x-internal-secret':internal},body:JSON.stringify({action,userId,listingId,...extra}),signal:AbortSignal.timeout(45000)});const data=await r.json().catch(()=>null);if(!r.ok)throw Error(data?.error||`immomio_worker_${r.status}`);return data;}
+async function immomioRequestStarted(applicationId:string){const {data,error}=await db.rpc('immomio_application_request_started',{p_application:applicationId});if(error)return null;return data===true;}
 
 async function processOne(){
  const {data:claimed,error:claimError}=await db.rpc('claim_immomio_application');
@@ -52,11 +53,17 @@ async function processOne(){
   return {status,provider:'immomio',error};
  }catch(error:any){
   const code=String(error?.message||'application_preparation_failed');
-  const retry=!started&&['temporary_network_error','TimeoutError'].includes(error?.name==='TimeoutError'?'TimeoutError':code)&&Number(application.attempts||0)<2,finalError=started?'submission_unconfirmed':retry?'temporary_network_error':clean(code,120);
-  await patch({status:started?'manual_required':retry?'pending':'failed',last_error:finalError,provider_state:{provider:'immomio'},next_attempt_at:retry?new Date(Date.now()+60000*(Number(application.attempts||0)+1)).toISOString():null,lease_until:null});
+  const attempts=Number(application.attempts||0);
+  const requestStarted=started?await immomioRequestStarted(String(application.id)):false;
+  const transientBeforeAuthorization=!started&&['temporary_network_error','TimeoutError','immomio_operation_failed'].includes(error?.name==='TimeoutError'?'TimeoutError':code);
+  const safePreSubmitRetry=started&&requestStarted===false;
+  const retry=(transientBeforeAuthorization||safePreSubmitRetry)&&attempts<3;
+  const terminalStatus=(started&&requestStarted!==false)?'manual_required':retry?'pending':'failed';
+  const finalError=terminalStatus==='manual_required'?'submission_unconfirmed':retry?'temporary_network_error':clean(code,120);
+  const retryPatch=retry?{submission_started_at:null,next_attempt_at:new Date(Date.now()+60000*Math.max(1,attempts+1)).toISOString(),wait_reason:null}:{};
+  await patch({status:terminalStatus,last_error:finalError,provider_state:{provider:'immomio',requestStarted},...retryPatch,lease_until:null});
   await syncListingStatus(String(application.user_id),String(application.listing_id));
-  
-  return {status:started?'manual_required':retry?'pending':'failed',provider:'immomio',error:finalError};
+  return {status:terminalStatus,provider:'immomio',error:finalError,requestStarted};
  }
 }
 
