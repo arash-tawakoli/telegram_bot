@@ -292,6 +292,7 @@ export function htmlFacts(html: string, base: string): any {
   const labelledRef=pageText.match(/\b(?:Objektreferenz|Referenznummer|Objektnummer|Objekt[-\s]?(?:Nr\.?|ID)|Angebotsnummer)\s*:?\s*([A-Za-z0-9][A-Za-z0-9./_-]{3,80})/i)?.[1]||null;
   const linkText=html.replace(/\\\//g,'/').replace(/&amp;/gi,'&').replace(/\\u0026/gi,'&');
   const application=linkText.match(/https:\/\/tenant\.immomio\.com\/(?:de\/)?apply\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/?/i)?.[0]||null;
+  if(application)out.applicationLink=application;
   for(const [entity,provider,refPattern] of providerRules){
     if(!provider.test(pageText))continue;
     out.provider_entity=entity;
