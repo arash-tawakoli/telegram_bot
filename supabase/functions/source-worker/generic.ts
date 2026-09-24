@@ -214,14 +214,6 @@ function portalCooperativeIdentity(value: string) {
       .match(/https:\/\/tenant\.immomio\.com\/(?:de\/)?apply\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/?/i)?.[0] || null;
     return {provider_entity:rule.entity,provider_object_ref:ref,applicationLink};
   }
-  const dynamicEntity=registryCooperativeIdentity(value);
-  if(dynamicEntity){
-    let ref=labelled.exec(plain)?.[1]||null;
-    if(ref)ref=ref.toUpperCase().replace(/\s*\/\s*/g,"/").replace(/\s+/g," ").trim();
-    const applicationLink=value.replace(/\\\//g,"/").replace(/&amp;/gi,"&")
-      .match(/https:\/\/tenant\.immomio\.com\/(?:de\/)?apply\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/?/i)?.[0]||null;
-    return {provider_entity:dynamicEntity,provider_object_ref:ref,applicationLink};
-  }
   return {provider_entity:null,provider_object_ref:null,applicationLink:null};
 }
 function immoweltCards(html: string, base: string) {
