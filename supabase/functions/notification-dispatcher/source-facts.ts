@@ -72,7 +72,8 @@ export function structuredFacts(raw: any, base: string): any {
   const r = raw || {}, h = r.provider === 'immosolve_hpm_rest' ? r.detail?.immoObject?.labels : null;
   const node = h || r.entry || r.listing || r.property?.data || r.property || r;
   const out: any = {};
-  if (r.provider_entity === 'SAGA') out.provider_entity = 'SAGA';
+  if (present(r.provider_entity)) out.provider_entity = String(r.provider_entity);
+  if (present(r.provider_object_ref)) out.provider_object_ref = String(r.provider_object_ref);
   if (present(r.saga_object_ref)) out.saga_object_ref = String(r.saga_object_ref);
   if (present(r.applicationLink)) out.applicationLink = String(r.applicationLink);
   let sourceHostname='';
@@ -270,13 +271,39 @@ export function htmlFacts(html: string, base: string): any {
   // Explicit label/value pairs only. No street-name regex over descriptions.
   const clean=html.replace(/<(script|style|nav|footer)\b[^>]*>[\s\S]*?<\/\1>/gi,'');
   const pageText=decode(clean.replace(/<[^>]+>/g,' ')).replace(/\s+/g,' ').trim();
-  const sagaProvider=/(?:Vermietungshotline der\s+)?SAGA Unternehmensgruppe/i.test(pageText);
-  const sagaRefRaw=pageText.match(/\b(?:Objektreferenz|Referenznummer)\s*:?\s*(MO\s*\d{4}\s*\/\s*[A-Za-z0-9.-]+\s*\/\s*[A-Za-z0-9.-]+)/i)?.[1]||null;
+  const providerRules:Array<[string,RegExp,RegExp?]>=[
+    ['SAGA',/(?:Vermietungshotline der\s+)?SAGA Unternehmensgruppe/i,/\b(MO\s*\d{4}\s*\/\s*[A-Za-z0-9.-]+\s*\/\s*[A-Za-z0-9.-]+)\b/i],
+    ['Finkenwärder-Hoffnung',/(?:Baugenossenschaft\s+)?Finkenw(?:ä|ae)rder[-\s]+Hoffnung(?:\s+eG)?/i],
+    ['GEWOBA Nord',/GEWOBA\s+Nord(?:\s+Baugenossenschaft(?:\s+eG)?)?/i],
+    ['NEUE LÜBECKER',/NEUE\s+LÜBECKER(?:\s+Norddeutsche\s+Baugenossenschaft(?:\s+eG)?)?/i],
+    ['Bauverein Reiherstieg',/Bauverein\s+Reiherstieg(?:\s+eG)?/i],
+    ['VHW',/(?:Vereinigte\s+Hamburger\s+Wohnungsbaugenossenschaft|\bVHW\b)(?:\s+eG)?/i],
+    ['mgf Gartenstadt Farmsen',/(?:mgf\s+)?Gartenstadt\s+Farmsen(?:\s+eG)?/i],
+    ['HARABAU',/(?:Hamburg[-\s]+Rahlstedter\s+Baugenossenschaft|\bHARABAU\b)(?:\s+eG)?/i],
+    ['Baugenossenschaft der Buchdrucker',/Baugenossenschaft\s+der\s+Buchdrucker(?:\s+eG)?/i],
+    ['FLUWOG-NORDMARK',/(?:Baugenossenschaft\s+)?FLUWOG[-\s]*NORDMARK(?:\s+eG)?/i],
+    ['Gartenstadt Hamburg',/(?:Wohnungsgenossenschaft\s+)?Gartenstadt\s+Hamburg(?:\s+eG)?/i],
+    ['WG von 1904',/(?:Wohnungsgenossenschaft\s+von\s+1904|\bWG\s+von\s+1904\b)(?:\s+eG)?/i],
+    ['WHW 1897',/(?:Wohnungsgenossenschaft\s+Hamburg[-\s]*Wandsbek\s+von\s+1897|\bWHW\s*1897\b)/i],
+    ['ADLERSHORST',/ADLERSHORST\s+Baugenossenschaft(?:\s+eG)?/i],
+    ['Wohnwarft eG',/Wohnwarft(?:\s+eG)?/i],
+    ['Falkenried-Terrassen',/(?:Baugenossenschaft\s+)?Falkenried[-\s]+Terrassen(?:\s+eG)?/i],
+  ];
+  const labelledRef=pageText.match(/\b(?:Objektreferenz|Referenznummer|Objektnummer|Objekt[-\s]?(?:Nr\.?|ID)|Angebotsnummer)\s*:?\s*([A-Za-z0-9][A-Za-z0-9./_-]{3,80})/i)?.[1]||null;
   const linkText=html.replace(/\\\//g,'/').replace(/&amp;/gi,'&').replace(/\\u0026/gi,'&');
-  const sagaApplication=linkText.match(/https:\/\/tenant\.immomio\.com\/(?:de\/)?apply\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/?/i)?.[0]||null;
-  if(sagaProvider)out.provider_entity='SAGA';
-  if(sagaProvider && sagaRefRaw)out.saga_object_ref=sagaRefRaw.toUpperCase().replace(/\s*\/\s*/g,'/').replace(/\s+/g,' ').trim();
-  if(sagaProvider && sagaApplication)out.applicationLink=sagaApplication;
+  const application=linkText.match(/https:\/\/tenant\.immomio\.com\/(?:de\/)?apply\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/?/i)?.[0]||null;
+  for(const [entity,provider,refPattern] of providerRules){
+    if(!provider.test(pageText))continue;
+    out.provider_entity=entity;
+    const rawRef=refPattern?.exec(pageText)?.[1]||labelledRef;
+    if(rawRef){
+      const normalized=rawRef.toUpperCase().replace(/\s*\/\s*/g,'/').replace(/\s+/g,' ').trim();
+      out.provider_object_ref=normalized;
+      if(entity==='SAGA')out.saga_object_ref=normalized;
+    }
+    if(application)out.applicationLink=application;
+    break;
+  }
   for(const m of clean.matchAll(/<dt\b[^>]*>([\s\S]*?)<\/dt>\s*<dd\b[^>]*>([\s\S]*?)<\/dd>/gi))apply(m[1],m[2]);
   for(const m of clean.matchAll(/<tr\b[^>]*>\s*<t[hd]\b[^>]*>([\s\S]*?)<\/t[hd]>\s*<td\b[^>]*>([\s\S]*?)<\/td>\s*<\/tr>/gi))apply(m[1],m[2]);
   for(const m of clean.matchAll(/<li\b[^>]*class=["'][^"']*addetailslist--detail[^"']*["'][^>]*>([^<]*)<span\b[^>]*>([\s\S]*?)<\/span>\s*<\/li>/gi))apply(m[1],m[2]);
