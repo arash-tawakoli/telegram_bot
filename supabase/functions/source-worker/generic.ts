@@ -150,7 +150,7 @@ function providerAliasMatch(haystack:string,alias:string){
   const h=providerNorm(haystack),a=providerNorm(alias);
   if(!a||a.length<3)return false;
   if(a.length<=5){
-    const esc=a.replace(/[.*+?^${}()|[\]\\]/g,"\\function portalCooperativeIdentity(value: string) {");
+    const esc=a.replace(/[.*+?^${}()|[\]\\]/g,"\\    const esc=a.replace(/[.*+?^${}()|[\]\\]/g,"\\function portalCooperativeIdentity(value: string) {");");
     return new RegExp("(^|[^a-z0-9äöüß])"+esc+"([^a-z0-9äöüß]|$)","i").test(h);
   }
   return h.includes(a);
