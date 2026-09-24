@@ -137,6 +137,14 @@ function portalCooperativeIdentity(value: string) {
     {entity:"VHW",provider:/(?:Vereinigte\s+Hamburger\s+Wohnungsbaugenossenschaft|\bVHW\b)(?:\s+eG)?/i},
     {entity:"mgf Gartenstadt Farmsen",provider:/(?:mgf\s+)?Gartenstadt\s+Farmsen(?:\s+eG)?/i},
     {entity:"HARABAU",provider:/(?:Hamburg[-\s]+Rahlstedter\s+Baugenossenschaft|\bHARABAU\b)(?:\s+eG)?/i},
+    {entity:"Baugenossenschaft der Buchdrucker",provider:/Baugenossenschaft\s+der\s+Buchdrucker(?:\s+eG)?/i},
+    {entity:"FLUWOG-NORDMARK",provider:/(?:Baugenossenschaft\s+)?FLUWOG[-\s]*NORDMARK(?:\s+eG)?/i},
+    {entity:"Gartenstadt Hamburg",provider:/(?:Wohnungsgenossenschaft\s+)?Gartenstadt\s+Hamburg(?:\s+eG)?/i},
+    {entity:"WG von 1904",provider:/(?:Wohnungsgenossenschaft\s+von\s+1904|\bWG\s+von\s+1904\b)(?:\s+eG)?/i},
+    {entity:"WHW 1897",provider:/(?:Wohnungsgenossenschaft\s+Hamburg[-\s]*Wandsbek\s+von\s+1897|\bWHW\s*1897\b)/i},
+    {entity:"ADLERSHORST",provider:/ADLERSHORST\s+Baugenossenschaft(?:\s+eG)?/i},
+    {entity:"Wohnwarft eG",provider:/Wohnwarft(?:\s+eG)?/i},
+    {entity:"Falkenried-Terrassen",provider:/(?:Baugenossenschaft\s+)?Falkenried[-\s]+Terrassen(?:\s+eG)?/i},
   ];
   const labelled = /(?:Objektreferenz|Referenznummer|Objektnummer|Objekt[-\s]?(?:Nr\.?|ID)|Angebotsnummer)\s*:?\s*([A-Za-z0-9][A-Za-z0-9./_-]{3,80})/i;
   for (const rule of rules) {
@@ -196,6 +204,7 @@ function immoweltCards(html: string, base: string) {
         ...(cooperative.provider_object_ref ? { provider_object_ref: cooperative.provider_object_ref } : {}),
         ...(cooperative.provider_entity === "SAGA" && cooperative.provider_object_ref ? { saga_object_ref: cooperative.provider_object_ref } : {}),
         ...(cooperative.applicationLink ? { applicationLink: cooperative.applicationLink } : {}),
+        ...(cooperative.provider_entity && (!cooperative.provider_object_ref || !cooperative.applicationLink) ? { portal_enrichment_pending: true } : {}),
       },
     });
   }
@@ -253,16 +262,33 @@ async function parseOne(source: Source, c: Connector, url: string) {
     try {
       collectJson(JSON.parse(m[1]), r.url, jsonLd);
     } catch {}
-  const out =
-    source.id === 3
+  let out =
+    source.id === 3 || /(^|\\.)immowelt\\.de$/i.test(new URL(r.url).hostname)
       ? immoweltCards(r.text, r.url)
       : jsonLd.length
         ? jsonLd
         : parseHtml(r.text, r.url);
+  const configuredProvider=String(c.config?.provider_entity||"").trim();
+  if(configuredProvider){
+    out=out.map(x=>({
+      ...x,
+      raw:{
+        ...(x.raw||{}),
+        provider_entity:x.raw?.provider_entity||configuredProvider,
+        ...(!x.raw?.provider_object_ref || !x.raw?.applicationLink ? {portal_enrichment_pending:true}:{})
+      }
+    }));
+  }
+  if(c.config?.hamburg_only===true)out=out.filter(x=>!!x.zip&&HH_ZIPS.has(String(x.zip)));
+  if(c.config?.residential_only===true)out=out.filter(x=>{
+    const t=String(x.title||"")+" "+String(x.raw?.alt||"");
+    return /(Wohnung|Apartment|Penthouse|Maisonette|Zimmer)/i.test(t)
+      && !/(Garage|Stellplatz|Parkplatz|Gewerbe|Büro|Praxis|Lager|Grundstück)/i.test(t);
+  });
   return {
     cands: refine(source, out),
     url: r.url,
-    total: source.id === 3 ? immoweltTotal(r.text) : null,
+    total: source.id === 3 || /(^|\\.)immowelt\\.de$/i.test(new URL(r.url).hostname) ? immoweltTotal(r.text) : null,
   };
 }
 function targetFor(source: Source, c: Connector) {
