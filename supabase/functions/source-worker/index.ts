@@ -12,8 +12,55 @@ import { runNestpick } from "./nestpick.ts";
 import { runCatalog } from "./catalog.ts";
 import { runCategoryStreams } from "./category.ts";
 
+async function runPortalRegistryMirror(s:Source){
+  const started=new Date().toISOString();
+  const portalSourceIds=[1,3];
+  const {data,error,count}=await db
+    .from("listings")
+    .select("last_seen_at",{count:"exact"})
+    .in("source_id",portalSourceIds)
+    .eq("is_active",true)
+    .contains("raw",{provider_source_id:s.id})
+    .order("last_seen_at",{ascending:false})
+    .limit(1);
+  if(error)throw new Error(`portal registry mirror: ${error.message}`);
+  const mapped=Math.max(0,Number(count||0));
+  const lastPortalSeenAt=data?.[0]?.last_seen_at||null;
+  const finished=new Date().toISOString();
+  const {error:recordError}=await db.rpc("record_crawl_result",{
+    p_source_id:s.id,
+    p_started_at:started,
+    p_finished_at:finished,
+    p_success:true,
+    p_connector_priority:1,
+    p_connector_label:"portal registry mirror",
+    p_fetched_count:mapped,
+    p_inserted_count:0,
+    p_metadata:{
+      architecture:"v3",
+      outcome:mapped>0?"success_with_portal_listing":"success_no_portal_inventory",
+      strategy:"portal_registry_mirror",
+      mirror_source_ids:portalSourceIds,
+      provider_source_id:s.id,
+      last_portal_seen_at:lastPortalSeenAt,
+      complete:false,
+    },
+    p_error:null,
+  });
+  if(recordError)throw new Error(`portal registry mirror telemetry: ${recordError.message}`);
+  return{
+    ok:true,
+    source_id:s.id,
+    fetched:mapped,
+    new:0,
+    complete:false,
+    mirror_source_ids:portalSourceIds,
+    last_portal_seen_at:lastPortalSeenAt,
+  };
+}
 async function processBaseSource(s:Source,connectors:Connector[]){
   const id=s.id;
+  if(s.coverage_strategy==="portal_registry_mirror")return runPortalRegistryMirror(s);
   if (id === 1) return runScout(s);
   if (id === 2) return runKlein(s);
   const primary = connectors.find((c) => !c.shadow_only) || connectors[0];
