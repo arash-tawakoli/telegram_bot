@@ -42,7 +42,7 @@ function cookieHeader(credentials:any,urlValue:string){
 
 function decodeHtml(v:string){return String(v||'').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#39;/g,"'").replace(/&lt;/g,'<').replace(/&gt;/g,'>')}
 function attr(tag:string,name:string){const m=tag.match(new RegExp('\\b'+name+'\\s*=\\s*["\\\']([^"\\\']*)["\\\']','i'));return m?decodeHtml(m[1]):null}
-function compactText(v:string,max=240){return String(v||'').replace(/<script[\\s\\S]*?<\\/script>/gi,' ').replace(/<style[\\s\\S]*?<\\/style>/gi,' ').replace(/<[^>]+>/g,' ').replace(/\\s+/g,' ').trim().slice(0,max)}
+function compactText(v:string,max=240){return String(v||'').replace(/<script[\s\S]*?<\/script>/gi,' ').replace(/<style[\s\S]*?<\/style>/gi,' ').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().slice(0,max)}
 
 async function listingHtml(connection:any,url:string){
  const headers:any={
@@ -84,7 +84,7 @@ function describeContactContract(html:string){
   const open=(m[0].match(/^<form\b[^>]*>/i)||[''])[0];
   return{action:attr(open,'action'),method:attr(open,'method'),text:compactText(m[0],500),fieldNames:[...m[0].matchAll(/<(?:input|select|textarea)\b[^>]*>/gi)].map(x=>attr(x[0],'name')).filter(Boolean).slice(0,80)};
  });
- const urls=[...html.matchAll(/https?:\\/\\/[^"'<>\\s]+/gi)].map(m=>m[0]).filter(u=>/lead|contact|inquir|message|aviv|api/i.test(u)).slice(0,60);
+ const urls=[...html.matchAll(/https?:\/\/[^"'<>\s]+/gi)].map(m=>m[0]).filter(u=>/lead|contact|inquir|message|aviv|api/i.test(u)).slice(0,60);
  return{
   htmlLength:html.length,
   detectedFields:detected,
