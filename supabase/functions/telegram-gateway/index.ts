@@ -67,7 +67,7 @@ Deno.serve(async req=>{
   if(!(await validWebhookSecret(supplied)))return new Response('unauthorized',{status:401});
   const expected=supplied,body=await req.text(),update=parsed(body),callback=String(update?.callback_query?.data||''),callbackId=String(update?.callback_query?.id||'');
 
-  if(callbackId&&['platforms:login:1','platforms:login:2','platforms:login:3'].includes(callback)){
+  if(callbackId&&['platforms:login:1','platforms:login:2','platforms:login:3','platforms:login:4'].includes(callback)){
    EdgeRuntime.waitUntil(forward(body,expected,OAUTH_BRIDGE).then(r=>{if(!r.ok)console.error('telegram_oauth_bridge',r.status)}).catch(e=>console.error('telegram_oauth_bridge',String(e))));
    return direct('answerCallbackQuery',{callback_query_id:callbackId});
   }
