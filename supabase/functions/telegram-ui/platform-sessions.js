@@ -8,38 +8,48 @@ const REQUIRED=[
  'household_type','employment_status','income_range','pets','move_in_preference','schufa_status',
  'message_apartment','message_house','message_temporary_wg','message_swap'
 ];
+const SALUTATION_LABELS={MR:'Herr',MS:'Frau',DIVERSE:'Divers',NEUTRAL:'Neutral',NOT_SPECIFIED:'Keine Angabe',COMPANY:'Firma'};
 const HOUSEHOLD_LABELS={
  SINGLE:'Einpersonenhaushalt',
  TWO_ADULTS:'Zwei Erwachsene',
  FAMILY:'Familie',
- SHARED_FLAT:'Wohngemeinschaft'
+ SHARED_FLAT:'Wohngemeinschaft',
+ NOT_SPECIFIED:'Keine Angabe'
 };
 const INCOME_LABELS={
- UNDER_500:'Unter 500€',
- '500_1000':'500€ - 1.000€',
- '1000_1500':'1.000€ - 1.500€',
- '1500_2000':'1.500€ - 2.000€',
- '2000_3000':'2.000€ - 3.000€',
- '3000_4000':'3.000€ - 4.000€',
- '4000_5000':'4.000€ - 5.000€',
- OVER_5000:'Über 5000€'
+ UNDER_500:'Unter 500 €',
+ '500_1000':'500 € - 1.000 €',
+ '1000_1500':'1.000 € - 1.500 €',
+ '1500_2000':'1.500 € - 2.000 €',
+ '2000_3000':'2.000 € - 3.000 €',
+ '3000_4000':'3.000 € - 4.000 €',
+ '4000_5000':'4.000 € - 5.000 €',
+ OVER_5000:'Über 5.000 € (bitte präzisieren)',
+ '5000_6000':'5.000 € - 6.000 €',
+ '6000_7000':'6.000 € - 7.000 €',
+ OVER_7000:'Über 7.000 €',
+ HOUSING_BENEFIT:'Ich beziehe Wohngeld',
+ NOT_SPECIFIED:'Keine Angabe'
 };
 const MOVE_IN_LABELS={
- NOT_SPECIFIED:'Keine Angaben',
+ NOT_SPECIFIED:'Keine Angabe',
  FLEXIBLE:'Flexibel',
- IMMEDIATE:'Sofort',
+ IMMEDIATE:'So bald wie möglich',
+ WITHIN_1_MONTH:'Innerhalb 1 Monat',
+ WITHIN_3_MONTHS:'Innerhalb 3 Monate',
+ AFTER_3_MONTHS:'Später als 3 Monate',
  EXACT_DATE:'Genaues Datum'
 };
 const EMPLOYMENT_CHOICES={
- NONE:'Keine Angaben',
+ NOT_SPECIFIED:'Keine Angabe',
  EMPLOYEE:'Angestellte(r)',
  WORKER:'Arbeiter(in)',
  SELF_EMPLOYED:'Selbstständige(r)',
  CIVIL_SERVANT:'Beamte(r)',
- APPRENTICE:'Auszubildene(r)',
+ APPRENTICE:'Auszubildende(r)',
  STUDENT:'Studierende(r)',
  DOCTORAL:'Doktorand(in)',
- HOMEMAKER:'Hausfrau/mann',
+ HOMEMAKER:'Hausfrau/-mann',
  JOBSEEKER:'Arbeitssuchende(r)',
  RETIRED:'Rentner(in)',
  OTHER:'Sonstiges'
@@ -55,9 +65,9 @@ const PROFILE_FIELDS={
  house_number:{label:'Hausnummer',required:true,max:40},
  postcode:{label:'PLZ',required:true,max:10},
  city:{label:'Ort',required:true,max:120},
- household_type:{label:'Haushaltsgröße',required:true,type:'choice'},
- employment_status:{label:'Beschäftigungsart',required:true,type:'choice',max:160},
- income_range:{label:'Netto Haushaltseinkommen',required:true,type:'choice'},
+ household_type:{label:'Haushaltstyp',required:true,type:'choice'},
+ employment_status:{label:'Beschäftigungsstatus',required:true,type:'choice',max:160},
+ income_range:{label:'Haushalts-Nettoeinkommen',required:true,type:'choice'},
  pets:{label:'Haustiere',required:true,type:'choice',max:160},
  wbs_status:{label:'WBS-Status',max:160},
  move_in_preference:{label:'Einzugstermin',required:true,type:'choice'},
@@ -138,12 +148,16 @@ const connectionLabel=row=>{
 };
 const profileReady=p=>!!p&&REQUIRED.every(k=>{
  if(k==='schufa_status')return ['NOT_SPECIFIED','AVAILABLE','NOT_AVAILABLE'].includes(String(p[k]||''));
+ if(k==='salutation')return Object.hasOwn(SALUTATION_LABELS,String(p[k]||''));
+ if(k==='employment_status')return Object.hasOwn(EMPLOYMENT_CHOICES,String(p[k]||''));
  if(k==='household_type')return Object.hasOwn(HOUSEHOLD_LABELS,String(p[k]||''));
  if(k==='income_range')return Object.hasOwn(INCOME_LABELS,String(p[k]||''));
  if(k==='move_in_preference')return Object.hasOwn(MOVE_IN_LABELS,String(p[k]||''))&&(p[k]!=='EXACT_DATE'||!!p.move_in_date);
  return String(p[k]??'').trim()!=='';
 });
 const shown=(v,fallback='–')=>v==null||String(v).trim()===''?fallback:esc(v);
+const salutationLabel=v=>SALUTATION_LABELS[v]||shown(v,'Keine Angabe');
+const employmentLabel=v=>EMPLOYMENT_CHOICES[v]||shown(v,'Keine Angabe');
 const schufaLabel=v=>v==='AVAILABLE'?'Vorhanden (&lt; 3 Monate)':v==='NOT_AVAILABLE'?'Nicht vorhanden':'Keine Angabe';
 const householdLabel=p=>HOUSEHOLD_LABELS[p?.household_type]||shown(p?.household_size);
 const incomeLabel=p=>INCOME_LABELS[p?.income_range]||(p?.monthly_net_income==null?'–':`${shown(p.monthly_net_income)} €`);
@@ -310,7 +324,7 @@ async function renderApplicantProfile(user,chat,messageId,notice=''){
  const missing=Array.isArray(missingResult.data)?missingResult.data:[],missingSet=new Set(missing),ready=missing.length===0,selectedDocs=docs.filter(d=>d.send_with_auto_apply).length;
  const req=(label,value)=>`${label} *: ${missingSet.has(label)?'⚠️ fehlt':value}`;
  const text=`👤 <b>Bewerberprofil</b>\n\n${notice?`${notice}\n\n`:''}<i>* Pflichtfeld für automatische Bewerbungen</i>\n\nStatus: ${ready?'✅ vollständig':`⚠️ ${missing.length} Pflichtangabe${missing.length===1?' fehlt':'n fehlen'}`}\n\n`+
-  `${req('Anrede',shown(p.salutation,'Keine Angabe'))}\n${req('Vorname',shown(p.first_name))}\n${req('Nachname',shown(p.last_name))}\n${req('E-Mail-Adresse',shown(p.email))}\n${req('Telefonnummer',shown(p.phone))}\n${req('Straße',shown(p.street))}\n${req('Hausnummer',shown(p.house_number))}\n${req('PLZ',shown(p.postcode))}\n${req('Ort',shown(p.city))}\n${req('Haushaltsgröße',householdLabel(p))}\n${req('Beschäftigungsart',shown(p.employment_status))}\n${req('Netto Haushaltseinkommen',incomeLabel(p))}\n${req('Haustiere',shown(p.pets))}\n${req('Einzugstermin',moveInLabel(p))}\n${req('SCHUFA-Status',schufaLabel(p.schufa_status))}\nWBS-Status: ${shown(p.wbs_status)}\n\n✍️ Bewerbungstext *: ${[p.message_apartment,p.message_house,p.message_temporary_wg,p.message_swap].filter(Boolean).length}/4 hinterlegt\n\nDokumente: ${docs.length} gespeichert · ${selectedDocs} ausgewählt`;
+  `${req('Anrede',salutationLabel(p.salutation))}\n${req('Vorname',shown(p.first_name))}\n${req('Nachname',shown(p.last_name))}\n${req('E-Mail-Adresse',shown(p.email))}\n${req('Telefonnummer',shown(p.phone))}\n${req('Straße',shown(p.street))}\n${req('Hausnummer',shown(p.house_number))}\n${req('PLZ',shown(p.postcode))}\n${req('Ort',shown(p.city))}\n${req('Haushaltsgröße',householdLabel(p))}\n${req('Beschäftigungsart',employmentLabel(p.employment_status))}\n${req('Netto Haushaltseinkommen',incomeLabel(p))}\n${req('Haustiere',shown(p.pets))}\n${req('Einzugstermin',moveInLabel(p))}\n${req('SCHUFA-Status',schufaLabel(p.schufa_status))}\nWBS-Status: ${shown(p.wbs_status)}\n\n✍️ Bewerbungstext *: ${[p.message_apartment,p.message_house,p.message_temporary_wg,p.message_swap].filter(Boolean).length}/4 hinterlegt\n\nDokumente: ${docs.length} gespeichert · ${selectedDocs} ausgewählt`;
  const f=(name,label)=>button(label,`platforms:profile-field:${name}`);
  return render(text,[
   [f('salutation','Anrede *'),f('schufa_status','SCHUFA *')],
@@ -499,38 +513,44 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   const current=await readProfile(user.id);
   const mark=(value,selected,label)=>value===selected?`✅ ${label}`:label;
   if(arg==='salutation'){
+   const s=current?.salutation;
    return render('<b>Anrede *</b>\n\nWähle eine Option.',[
-    [button('Keine Angabe','platforms:profile-set:salutation:NONE'),button('Herr','platforms:profile-set:salutation:Herr')],
-    [button('Frau','platforms:profile-set:salutation:Frau'),button('Firma','platforms:profile-set:salutation:Firma')],
+    [button(mark('MR',s,'Herr'),'platforms:profile-set:salutation:MR'),button(mark('MS',s,'Frau'),'platforms:profile-set:salutation:MS')],
+    [button(mark('DIVERSE',s,'Divers'),'platforms:profile-set:salutation:DIVERSE'),button(mark('NEUTRAL',s,'Neutral'),'platforms:profile-set:salutation:NEUTRAL')],
+    [button(mark('NOT_SPECIFIED',s,'Keine Angabe'),'platforms:profile-set:salutation:NOT_SPECIFIED')],
     [button('← Bewerberprofil','platforms:profile')]
    ]);
   }
   if(arg==='household_type'){
-   return render('<b>Haushaltsgröße *</b>\n\nWähle eine Option.',[
+   return render('<b>Haushaltstyp *</b>\n\nWähle eine Option.',[
     [button(mark('SINGLE',current?.household_type,'Einpersonenhaushalt'),'platforms:profile-set:household_type:SINGLE'),button(mark('TWO_ADULTS',current?.household_type,'Zwei Erwachsene'),'platforms:profile-set:household_type:TWO_ADULTS')],
     [button(mark('FAMILY',current?.household_type,'Familie'),'platforms:profile-set:household_type:FAMILY'),button(mark('SHARED_FLAT',current?.household_type,'Wohngemeinschaft'),'platforms:profile-set:household_type:SHARED_FLAT')],
+    [button(mark('NOT_SPECIFIED',current?.household_type,'Keine Angabe'),'platforms:profile-set:household_type:NOT_SPECIFIED')],
     [button('← Bewerberprofil','platforms:profile')]
    ]);
   }
   if(arg==='employment_status'){
    const e=current?.employment_status;
-   return render('<b>Beschäftigungsart *</b>\n\nWähle eine Option.',[
-    [button(mark('Keine Angaben',e,'Keine Angaben'),'platforms:profile-set:employment_status:NONE')],
-    [button(mark('Angestellte(r)',e,'Angestellte(r)'),'platforms:profile-set:employment_status:EMPLOYEE'),button(mark('Arbeiter(in)',e,'Arbeiter(in)'),'platforms:profile-set:employment_status:WORKER')],
-    [button(mark('Selbstständige(r)',e,'Selbstständige(r)'),'platforms:profile-set:employment_status:SELF_EMPLOYED'),button(mark('Beamte(r)',e,'Beamte(r)'),'platforms:profile-set:employment_status:CIVIL_SERVANT')],
-    [button(mark('Auszubildene(r)',e,'Auszubildene(r)'),'platforms:profile-set:employment_status:APPRENTICE'),button(mark('Studierende(r)',e,'Studierende(r)'),'platforms:profile-set:employment_status:STUDENT')],
-    [button(mark('Doktorand(in)',e,'Doktorand(in)'),'platforms:profile-set:employment_status:DOCTORAL'),button(mark('Hausfrau/mann',e,'Hausfrau/mann'),'platforms:profile-set:employment_status:HOMEMAKER')],
-    [button(mark('Arbeitssuchende(r)',e,'Arbeitssuchende(r)'),'platforms:profile-set:employment_status:JOBSEEKER'),button(mark('Rentner(in)',e,'Rentner(in)'),'platforms:profile-set:employment_status:RETIRED')],
-    [button(mark('Sonstiges',e,'Sonstiges'),'platforms:profile-set:employment_status:OTHER')],
+   return render('<b>Beschäftigungsstatus *</b>\n\nWähle eine Option.',[
+    [button(mark('NOT_SPECIFIED',e,'Keine Angabe'),'platforms:profile-set:employment_status:NOT_SPECIFIED')],
+    [button(mark('EMPLOYEE',e,'Angestellte(r)'),'platforms:profile-set:employment_status:EMPLOYEE'),button(mark('WORKER',e,'Arbeiter(in)'),'platforms:profile-set:employment_status:WORKER')],
+    [button(mark('SELF_EMPLOYED',e,'Selbstständige(r)'),'platforms:profile-set:employment_status:SELF_EMPLOYED'),button(mark('CIVIL_SERVANT',e,'Beamte(r)'),'platforms:profile-set:employment_status:CIVIL_SERVANT')],
+    [button(mark('APPRENTICE',e,'Auszubildende(r)'),'platforms:profile-set:employment_status:APPRENTICE'),button(mark('STUDENT',e,'Studierende(r)'),'platforms:profile-set:employment_status:STUDENT')],
+    [button(mark('DOCTORAL',e,'Doktorand(in)'),'platforms:profile-set:employment_status:DOCTORAL'),button(mark('HOMEMAKER',e,'Hausfrau/-mann'),'platforms:profile-set:employment_status:HOMEMAKER')],
+    [button(mark('JOBSEEKER',e,'Arbeitssuchende(r)'),'platforms:profile-set:employment_status:JOBSEEKER'),button(mark('RETIRED',e,'Rentner(in)'),'platforms:profile-set:employment_status:RETIRED')],
+    [button(mark('OTHER',e,'Sonstiges'),'platforms:profile-set:employment_status:OTHER')],
     [button('← Bewerberprofil','platforms:profile')]
    ]);
   }
   if(arg==='income_range'){
-   return render('<b>Netto Haushaltseinkommen *</b>\n\nWähle eine Option.',[
-    [button(mark('UNDER_500',current?.income_range,'Unter 500€'),'platforms:profile-set:income_range:UNDER_500'),button(mark('500_1000',current?.income_range,'500€ - 1.000€'),'platforms:profile-set:income_range:500_1000')],
-    [button(mark('1000_1500',current?.income_range,'1.000€ - 1.500€'),'platforms:profile-set:income_range:1000_1500'),button(mark('1500_2000',current?.income_range,'1.500€ - 2.000€'),'platforms:profile-set:income_range:1500_2000')],
-    [button(mark('2000_3000',current?.income_range,'2.000€ - 3.000€'),'platforms:profile-set:income_range:2000_3000'),button(mark('3000_4000',current?.income_range,'3.000€ - 4.000€'),'platforms:profile-set:income_range:3000_4000')],
-    [button(mark('4000_5000',current?.income_range,'4.000€ - 5.000€'),'platforms:profile-set:income_range:4000_5000'),button(mark('OVER_5000',current?.income_range,'Über 5000€'),'platforms:profile-set:income_range:OVER_5000')],
+   return render('<b>Haushalts-Nettoeinkommen *</b>\n\nWähle eine Option.',[
+    [button(mark('HOUSING_BENEFIT',current?.income_range,'Ich beziehe Wohngeld'),'platforms:profile-set:income_range:HOUSING_BENEFIT')],
+    [button(mark('UNDER_500',current?.income_range,'Unter 500 €'),'platforms:profile-set:income_range:UNDER_500'),button(mark('500_1000',current?.income_range,'500 € - 1.000 €'),'platforms:profile-set:income_range:500_1000')],
+    [button(mark('1000_1500',current?.income_range,'1.000 € - 1.500 €'),'platforms:profile-set:income_range:1000_1500'),button(mark('1500_2000',current?.income_range,'1.500 € - 2.000 €'),'platforms:profile-set:income_range:1500_2000')],
+    [button(mark('2000_3000',current?.income_range,'2.000 € - 3.000 €'),'platforms:profile-set:income_range:2000_3000'),button(mark('3000_4000',current?.income_range,'3.000 € - 4.000 €'),'platforms:profile-set:income_range:3000_4000')],
+    [button(mark('4000_5000',current?.income_range,'4.000 € - 5.000 €'),'platforms:profile-set:income_range:4000_5000'),button(mark('5000_6000',current?.income_range,'5.000 € - 6.000 €'),'platforms:profile-set:income_range:5000_6000')],
+    [button(mark('6000_7000',current?.income_range,'6.000 € - 7.000 €'),'platforms:profile-set:income_range:6000_7000'),button(mark('OVER_7000',current?.income_range,'Über 7.000 €'),'platforms:profile-set:income_range:OVER_7000')],
+    [button(mark('NOT_SPECIFIED',current?.income_range,'Keine Angabe'),'platforms:profile-set:income_range:NOT_SPECIFIED')],
     [button('← Bewerberprofil','platforms:profile')]
    ]);
   }
@@ -544,9 +564,11 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   }
   if(arg==='move_in_preference'){
    const m=current?.move_in_preference;
-   return render('<b>Einzugstermin *</b>\n\nWähle eine Option.',[
-    [button(mark('NOT_SPECIFIED',m,'Keine Angaben'),'platforms:profile-set:move_in_preference:NOT_SPECIFIED'),button(mark('FLEXIBLE',m,'Flexibel'),'platforms:profile-set:move_in_preference:FLEXIBLE')],
-    [button(mark('IMMEDIATE',m,'Sofort'),'platforms:profile-set:move_in_preference:IMMEDIATE'),button(mark('EXACT_DATE',m,'Genaues Datum'),'platforms:profile-set:move_in_preference:EXACT_DATE')],
+   return render('<b>Gewünschtes Einzugsdatum *</b>\n\nWähle eine Option.',[
+    [button(mark('IMMEDIATE',m,'So bald wie möglich'),'platforms:profile-set:move_in_preference:IMMEDIATE'),button(mark('WITHIN_1_MONTH',m,'< 1 Monat'),'platforms:profile-set:move_in_preference:WITHIN_1_MONTH')],
+    [button(mark('WITHIN_3_MONTHS',m,'< 3 Monate'),'platforms:profile-set:move_in_preference:WITHIN_3_MONTHS'),button(mark('AFTER_3_MONTHS',m,'> 3 Monate'),'platforms:profile-set:move_in_preference:AFTER_3_MONTHS')],
+    [button(mark('FLEXIBLE',m,'Flexibel'),'platforms:profile-set:move_in_preference:FLEXIBLE'),button(mark('EXACT_DATE',m,'Genaues Datum'),'platforms:profile-set:move_in_preference:EXACT_DATE')],
+    [button(mark('NOT_SPECIFIED',m,'Keine Angabe'),'platforms:profile-set:move_in_preference:NOT_SPECIFIED')],
     [button('← Bewerberprofil','platforms:profile')]
    ]);
   }
@@ -565,15 +587,14 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
   let patch=null;
   if(arg==='salutation'){
-   const allowed={NONE:'Keine Angabe',Herr:'Herr',Frau:'Frau',Firma:'Firma'};
-   const value=allowed[choice];if(value===undefined)return renderApplicantProfile(user,chat,messageId);
-   patch={salutation:value};
+   if(!Object.hasOwn(SALUTATION_LABELS,choice))return renderApplicantProfile(user,chat,messageId);
+   patch={salutation:choice};
   }else if(arg==='household_type'){
    if(!Object.hasOwn(HOUSEHOLD_LABELS,choice))return renderApplicantProfile(user,chat,messageId);
    patch={household_type:choice,household_size:choice==='SINGLE'?1:choice==='TWO_ADULTS'?2:null};
   }else if(arg==='employment_status'){
-   const value=EMPLOYMENT_CHOICES[choice];if(value===undefined)return renderApplicantProfile(user,chat,messageId);
-   patch={employment_status:value};
+   if(!Object.hasOwn(EMPLOYMENT_CHOICES,choice))return renderApplicantProfile(user,chat,messageId);
+   patch={employment_status:choice};
   }else if(arg==='income_range'){
    if(!Object.hasOwn(INCOME_LABELS,choice))return renderApplicantProfile(user,chat,messageId);
    patch={income_range:choice,monthly_net_income:null};
