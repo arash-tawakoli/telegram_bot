@@ -30,7 +30,7 @@ function maybeMarkup(update:any,view:string,rows:any[],full:any){
  return full;
 }
 export function likelyFastAction(a:string){
- return ["home","settings","help","profile","profiles","pause","resume","status","referral","language","saved","premium"].includes(a)
+ return ["home","settings","help","profile","profiles","pause","resume","status","referral","language","saved"].includes(a)
  || /^(profile:view:[1-4]|profile:delete:[1-4]|profile:delete-confirm:[1-4]|profile:(pause|resume):[1-4]|saved:\d+)$/.test(a);
 }
 export function renderFast(x:any,update:any){
