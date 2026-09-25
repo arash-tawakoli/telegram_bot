@@ -6,12 +6,12 @@ const profiles=readFileSync(new URL('../supabase/functions/telegram-ui/profiles.
 const handlers=readFileSync(new URL('../supabase/functions/telegram-ui/handlers.js',import.meta.url),'utf8');
 const runtime=readFileSync(new URL('../supabase/functions/telegram-ui/runtime.js',import.meta.url),'utf8');
 
-test('WG profiles use their own room-area criterion',()=>{
-  assert.match(profiles,/ROOM_AREA_PRESETS/);
-  assert.match(profiles,/property_types\.includes\("WG"\)/);
-  assert.match(profiles,/renderRoomArea/);
-  assert.match(profiles,/min_room_area_sqm/);
-  assert.match(handlers,/roomarea:/);
+test('all categories use the unified warm-rent, rooms and area flow',()=>{
+  assert.match(profiles,/property_types\.length !== 1/);
+  assert.match(profiles,/min_rooms/);
+  assert.match(profiles,/min_area_sqm/);
+  assert.doesNotMatch(profiles,/renderRoomArea/);
+  assert.doesNotMatch(handlers,/roomarea:/);
 });
 
 test('profile persistence uses the leased atomic RPC when available',()=>{
