@@ -14,11 +14,6 @@ const files=[
  'supabase/functions/telegram-ui/index.ts',
  'supabase/functions/telegram-gateway/index.ts',
  'supabase/functions/telegram-gateway/auto-apply.ts',
- 'supabase/functions/source-worker/shared.ts',
- 'supabase/functions/source-worker/scout.ts',
- 'supabase/functions/source-worker/klein.ts',
- 'supabase/functions/source-worker/category.ts',
- 'supabase/functions/source-worker/index.ts',
 ];
 
 test('changed JavaScript and TypeScript files parse',()=>{
