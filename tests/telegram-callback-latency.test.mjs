@@ -94,24 +94,23 @@ test('core callback handler skips duplicate Telegram ACK after upstream pre-ACK'
   assert.equal(homes,1); assert.equal(acks,0); assert.equal(tasks.length,1); await Promise.all(tasks);
 });
 
-test('telegram-gateway static German navigation returns UI before DB telemetry finishes', async () => {
+test('telegram-gateway normalizes legacy German callbacks and serves current UI path', async () => {
   const source=readFileSync(new URL('../supabase/functions/telegram-gateway/index.ts',import.meta.url),'utf8');
-  let handler, resolveMetric; const tasks=[]; let fastCalls=0;
-  const blockedMetric=new Promise(resolve=>{resolveMetric=resolve});
+  let handler, resolveAck; const tasks=[]; let seenAction='';
+  const ackBlocked=new Promise(resolve=>{resolveAck=resolve});
   const scope={Deno:{serve(fn){handler=fn},env:{get(){return 'eu-west-1'}}},Response,Request,URL,Number,String,JSON,console,Promise,Date,
     EdgeRuntime:{waitUntil(p){tasks.push(p)}},secret:async()=> 's',secretCache:new Map(),validWebhookSecret:async()=>true,parsed:JSON.parse,
     direct:(method,params)=>Response.json({method,...params}),forwardToCore:async()=>new Response('{}'),
-    isAutoApplyCallback:()=>false,isAutoApplyMessage:()=>false,isStaticFastAction:a=>a==='home:de',likelyFastAction:()=>false,
-    acknowledge:async()=>5,fastAction:async()=>{fastCalls++;return{}},
-    renderStaticFast:()=>({method:'editMessageText',chat_id:3,message_id:9,text:'home',reply_markup:{inline_keyboard:[]}}),
-    recordStaticNav:()=>blockedMetric};
+    likelyFastAction:a=>{seenAction=a;return true},acknowledge:()=>ackBlocked,
+    fastAction:async update=>({fast:true,claim:1,critical:false,view:'home',user:{id:'u'},is_premium:false}),
+    renderFast:()=>({method:'editMessageText',chat_id:3,message_id:9,text:'home',reply_markup:{inline_keyboard:[]}}),
+    recordMetric:async()=>{}};
   vm.runInNewContext(stripTypeScriptTypes(source.slice(source.indexOf('Deno.serve(')),{mode:'strip'}),scope);
   const response=await Promise.race([handler(request('home:de')),timeout(80)]);
   const body=await response.json();
   assert.equal(body.method,'editMessageText');
-  assert.equal(fastCalls,0);
-  assert.equal(tasks.length,1);
-  resolveMetric(true);
+  assert.equal(seenAction,'home');
+  resolveAck(5);
   await Promise.all(tasks);
 });
 
