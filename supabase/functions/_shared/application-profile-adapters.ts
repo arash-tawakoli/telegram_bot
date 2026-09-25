@@ -193,3 +193,17 @@ export function profileCanonicalSnapshot(profile:any){
   move_in_preference:canonicalMoveIn(profile?.move_in_preference)
  };
 }
+
+export function profileAdapterSelfTest(){
+ const checks={
+  neutralToImmowelt:providerSalutation('immowelt','NEUTRAL')==='Neutral',
+  neutralToImmoScout:providerSalutation('immoscout','NEUTRAL')==='NO_SALUTATION',
+  mrToImmowelt:providerSalutation('immowelt','MR')==='Herr',
+  mrToImmoScout:providerSalutation('immoscout','MR')==='MALE',
+  noHouseholdToImmowelt:providerHousehold('immowelt','NOT_SPECIFIED')==='Ich möchte keine Angabe machen',
+  doctoralToImmowelt:providerEmployment('immowelt','DOCTORAL')==='Sonstiges',
+  housingBenefitToImmowelt:providerIncome('immowelt','HOUSING_BENEFIT')==='Ich beziehe Wohngeld',
+  legacyOver5000RequiresRefinement:providerIncome('immowelt','OVER_5000')===null
+ };
+ return{ok:Object.values(checks).every(Boolean),checks};
+}
