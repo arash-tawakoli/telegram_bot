@@ -1,15 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {isStaticFastAction,likelyFastAction,renderFast,renderStaticFast} from '../supabase/functions/telegram-gateway/fast-ui.ts';
+import {likelyFastAction,renderFast} from '../supabase/functions/telegram-gateway/fast-ui.ts';
+import {readFileSync} from 'node:fs';
 
 const update={callback_query:{message:{chat:{id:1},message_id:2}}};
 const base={fast:true,claim:1,user:{id:'u',ui_language:'de'},is_premium:false,state:{property_types:['Haus'],location_mode:'all_hamburg',max_warm_rent:2000,min_rooms:2,min_area_sqm:50},data:{}};
 
-test('common navigation and onboarding actions are fast-path eligible',()=>{
- for(const a of ['home','settings','profile','new','type:Haus','type:done','loc:all','rent:2000','rooms:2','area:50','status','referral','saved']){
+test('stable navigation stays fast while onboarding uses the canonical Telegram UI',()=>{
+ for(const a of ['home','settings','profile','status','referral','saved','premium','profile:view:1','profile:pause:1']){
   assert.equal(likelyFastAction(a),true,a);
  }
- for(const a of ['platforms','platforms:login:3','apply:123','admin:list','lang:en','portal']){
+ for(const a of ['new','draft','cancel','types','location','boroughs','neighborhoods','rent','rent:custom','loc:all','rent:2000','rooms:2','area:50','profile:save','platforms','platforms:login:3','apply:123','admin:list','lang:en','portal']){
   assert.equal(likelyFastAction(a),false,a);
  }
 });
@@ -62,17 +63,17 @@ test('borough selection uses markup-only updates',()=>{
  assert.match(r.reply_markup.inline_keyboard[0][0].text,/✅/);
 });
 
-test('German home settings and help use DB-free locale-tagged navigation',()=>{
- for(const action of ['home:de','settings:de','help:de'])assert.equal(isStaticFastAction(action),true,action);
- for(const action of ['home','settings','help','home:en'])assert.equal(isStaticFastAction(action),false,action);
- const home=renderStaticFast('home:de',update);
- assert.equal(home.method,'editMessageText');
- const callbacks=home.reply_markup.inline_keyboard.flat().map(x=>x.callback_data).filter(Boolean);
- assert.ok(callbacks.includes('settings:de'));
- assert.ok(callbacks.includes('help:de'));
- assert.equal(callbacks.includes('home'),false);
- const settings=renderStaticFast('settings:de',update);
- assert.equal(settings.reply_markup.inline_keyboard.at(-1)[0].callback_data,'home:de');
- const help=renderStaticFast('help:de',update);
- assert.equal(help.reply_markup.inline_keyboard[0][0].callback_data,'home:de');
+test('legacy locale-tagged buttons are normalized before current UI rendering',()=>{
+ const gateway=readFileSync(new URL('../supabase/functions/telegram-gateway/index.ts',import.meta.url),'utf8');
+ assert.match(gateway,/callback==='home:de'\?'home'/);
+ assert.match(gateway,/callback==='settings:de'\?'settings'/);
+ assert.match(gateway,/callback==='help:de'\?'help'/);
+ assert.doesNotMatch(gateway,/renderStaticFast/);
+});
+
+test('auto-apply UI is served by the canonical platform-sessions handler',()=>{
+ const gateway=readFileSync(new URL('../supabase/functions/telegram-gateway/index.ts',import.meta.url),'utf8');
+ assert.doesNotMatch(gateway,/handleAutoApplyCallback|handleAutoApplyMessage|isAutoApplyCallback|isAutoApplyMessage/);
+ const core=readFileSync(new URL('../supabase/functions/telegram-ui/handlers.js',import.meta.url),'utf8');
+ assert.match(core,/platformSessions\(user,query\.message\.chat/);
 });
