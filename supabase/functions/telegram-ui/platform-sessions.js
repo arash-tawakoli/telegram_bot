@@ -315,26 +315,27 @@ async function renderApplicantProfile(user,chat,messageId,notice=''){
  ]);
  const render=(text,rows)=>messageId?edit(chat.id,messageId,text,{inline_keyboard:rows}):send(chat.id,text,{inline_keyboard:rows});
  if(!p){
-  return render(`👤 <b>Bewerberprofil</b>\n\n${notice?`${notice}\n\n`:''}Noch kein Bewerberprofil angelegt. Lege zuerst die Grunddaten an und vervollständige danach alle mit * markierten Pflichtfelder.`,[
+  return render(`👤 <b>Bewerberprofil</b>\n\n${notice?`${notice}\n\n`:''}Noch kein Bewerberprofil angelegt. Lege zuerst Vorname, Nachname und E-Mail als Basis an. Weitere Angaben werden je Plattform und Angebot geprüft.`,[
    [button('➕ Bewerberprofil anlegen','platforms:profile-new')],
    [button('← Automatische Bewerbung','platforms')]
   ]);
  }
  if(missingResult.error)throw Error('Profilstatus konnte nicht geladen werden.');
  const missing=Array.isArray(missingResult.data)?missingResult.data:[],missingSet=new Set(missing),ready=missing.length===0,selectedDocs=docs.filter(d=>d.send_with_auto_apply).length;
- const req=(label,value)=>`${label} *: ${missingSet.has(label)?'⚠️ fehlt':value}`;
- const text=`👤 <b>Bewerberprofil</b>\n\n${notice?`${notice}\n\n`:''}<i>* Pflichtfeld für automatische Bewerbungen</i>\n\nStatus: ${ready?'✅ vollständig':`⚠️ ${missing.length} Pflichtangabe${missing.length===1?' fehlt':'n fehlen'}`}\n\n`+
-  `${req('Anrede',salutationLabel(p.salutation))}\n${req('Vorname',shown(p.first_name))}\n${req('Nachname',shown(p.last_name))}\n${req('E-Mail-Adresse',shown(p.email))}\n${req('Telefonnummer',shown(p.phone))}\n${req('Straße',shown(p.street))}\n${req('Hausnummer',shown(p.house_number))}\n${req('PLZ',shown(p.postcode))}\n${req('Ort',shown(p.city))}\n${req('Haushaltsgröße',householdLabel(p))}\n${req('Beschäftigungsart',employmentLabel(p.employment_status))}\n${req('Netto Haushaltseinkommen',incomeLabel(p))}\n${req('Haustiere',shown(p.pets))}\n${req('Einzugstermin',moveInLabel(p))}\n${req('SCHUFA-Status',schufaLabel(p.schufa_status))}\nWBS-Status: ${shown(p.wbs_status)}\n\n✍️ Bewerbungstext *: ${[p.message_apartment,p.message_house,p.message_temporary_wg,p.message_swap].filter(Boolean).length}/4 hinterlegt\n\nDokumente: ${docs.length} gespeichert · ${selectedDocs} ausgewählt`;
+ const baseKeys=new Set(['Vorname','Nachname','E-Mail-Adresse']);
+ const req=(label,value)=>`${label}${baseKeys.has(label)?' *':''}: ${missingSet.has(label)?'⚠️ fehlt':value}`;
+ const text=`👤 <b>Bewerberprofil</b>\n\n${notice?`${notice}\n\n`:''}<i>* globale Basisangabe. Weitere Pflichtfelder werden pro Plattform und Angebot geprüft.</i>\n\nProfilabdeckung: ${ready?'✅ vollständig':`⚠️ ${missing.length} Angabe${missing.length===1?' offen':'n offen'}`}\n\n`+
+  `${req('Anrede',salutationLabel(p.salutation))}\n${req('Vorname',shown(p.first_name))}\n${req('Nachname',shown(p.last_name))}\n${req('E-Mail-Adresse',shown(p.email))}\n${req('Telefonnummer',shown(p.phone))}\n${req('Straße',shown(p.street))}\n${req('Hausnummer',shown(p.house_number))}\n${req('PLZ',shown(p.postcode))}\n${req('Ort',shown(p.city))}\n${req('Haushaltstyp',householdLabel(p))}\n${req('Beschäftigungsstatus',employmentLabel(p.employment_status))}\n${req('Haushalts-Nettoeinkommen',incomeLabel(p))}\n${req('Haustiere',shown(p.pets))}\n${req('Einzugstermin',moveInLabel(p))}\n${req('SCHUFA-Status',schufaLabel(p.schufa_status))}\nWBS-Status: ${shown(p.wbs_status)}\n\n✍️ Bewerbungstexte: ${[p.message_apartment,p.message_house,p.message_temporary_wg,p.message_swap].filter(Boolean).length}/4 hinterlegt\n\nDokumente: ${docs.length} gespeichert · ${selectedDocs} ausgewählt`;
  const f=(name,label)=>button(label,`platforms:profile-field:${name}`);
  return render(text,[
-  [f('salutation','Anrede *'),f('schufa_status','SCHUFA *')],
+  [f('salutation','Anrede'),f('schufa_status','SCHUFA')],
   [f('first_name','Vorname *'),f('last_name','Nachname *')],
-  [f('email','E-Mail *'),f('phone','Telefon *')],
-  [f('street','Straße *'),f('house_number','Hausnr. *')],
-  [f('postcode','PLZ *'),f('city','Ort *')],
-  [f('household_type','Haushalt *'),f('employment_status','Beschäftigung *')],
-  [f('income_range','Einkommen *'),f('pets','Haustiere *')],
-  [f('move_in_preference','Einzugstermin *')],
+  [f('email','E-Mail *'),f('phone','Telefon')],
+  [f('street','Straße'),f('house_number','Hausnr.')],
+  [f('postcode','PLZ'),f('city','Ort')],
+  [f('household_type','Haushalt'),f('employment_status','Beschäftigung')],
+  [f('income_range','Einkommen'),f('pets','Haustiere')],
+  [f('move_in_preference','Einzugstermin')],
   [button('✍️ Bewerbungstext','platforms:profile-texts')],
   [button('📎 Dokumente verwalten','platforms:docs')],
   [button('← Automatische Bewerbung','platforms')]
