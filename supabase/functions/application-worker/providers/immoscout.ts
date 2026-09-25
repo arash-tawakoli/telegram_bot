@@ -1,4 +1,5 @@
 import {saveConnection,getConnection,markConnection,deleteConnection} from '../credentials.ts';
+import {providerSalutation,providerHousehold,providerEmployment,providerIncome,providerMoveIn} from '../../_shared/application-profile-adapters.ts';
 
 const PROVIDER='immoscout';
 const CLIENT_ID='is24-android-de';
@@ -33,16 +34,11 @@ export async function disconnectImmoScout(db:any,userId:string){await deleteConn
 function claims(jwt:any){try{const p=String(jwt||'').split('.')[1];return p?JSON.parse(atob(p.replace(/-/g,'+').replace(/_/g,'/').padEnd(Math.ceil(p.length/4)*4,'='))):{};}catch{return {};}}
 async function sha(value:any){const d=new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(typeof value==='string'?value:JSON.stringify(value??null))));return Array.from(d).map(x=>x.toString(16).padStart(2,'0')).join('');}
 function exposeId(listing:any){for(const v of[listing?.external_id,listing?.source_listing_key]){const m=String(v||'').match(/\d{6,20}/);if(m)return m[0];}return String(listing?.canonical_url||'').match(/\/expose\/(\d{6,20})/)?.[1]||null;}
-function salutation(v:any){const s=clean(v,40).toLowerCase();if(['herr','male','männlich','maennlich'].includes(s))return'MALE';if(['frau','female','weiblich'].includes(s))return'FEMALE';if(['divers','diverse'].includes(s))return'DIVERS';return'NO_SALUTATION';}
+function salutation(v:any){return providerSalutation('immoscout',v);}
 function petValue(v:any){const s=clean(v,120);if(!s)return null;const n=s.toLowerCase();if(['nein','no','keine','keine haustiere','keine haustiere.'].includes(n))return'Nein';if(['ja','yes'].includes(n))return'Ja';return s;}
-const HOUSEHOLD_VALUES:Record<string,string>={SINGLE:'Einpersonenhaushalt',TWO_ADULTS:'Zwei Erwachsene',FAMILY:'Familie',SHARED_FLAT:'Wohngemeinschaft'};
-const INCOME_VALUES:Record<string,string>={
- UNDER_500:'Unter 500€','500_1000':'500€ - 1.000€','1000_1500':'1.000€ - 1.500€','1500_2000':'1.500€ - 2.000€',
- '2000_3000':'2.000€ - 3.000€','3000_4000':'3.000€ - 4.000€','4000_5000':'4.000€ - 5.000€',OVER_5000:'Über 5000€'
-};
-function moveInValue(profile:any){const p=String(profile?.move_in_preference||'');if(p==='NOT_SPECIFIED')return'Keine Angaben';if(p==='FLEXIBLE')return'Flexibel';if(p==='IMMEDIATE')return'Sofort';if(p==='EXACT_DATE')return profile?.move_in_date?String(profile.move_in_date):null;return profile?.move_in_date?String(profile.move_in_date):null;}
-function householdValue(profile:any){return HOUSEHOLD_VALUES[String(profile?.household_type||'')]??(profile?.household_size!=null?String(profile.household_size):null);}
-function incomeValue(profile:any){return INCOME_VALUES[String(profile?.income_range||'')]??(profile?.monthly_net_income!=null?String(profile.monthly_net_income):null);}
+function moveInValue(profile:any){return providerMoveIn('immoscout',profile);}
+function householdValue(profile:any){return providerHousehold('immoscout',profile?.household_type)??(profile?.household_size!=null?String(profile.household_size):null);}
+function incomeValue(profile:any){return providerIncome('immoscout',profile?.income_range)??(profile?.monthly_net_income!=null?String(profile.monthly_net_income):null);}
 function phoneValue(v:any){let s=clean(v,120).replace(/[^0-9+]/g,'');if(!s)return null;if(s.startsWith('00'))s=`+${s.slice(2)}`;else if(s.startsWith('0'))s=`+49${s.slice(1)}`;else if(/^49\d+$/.test(s))s=`+${s}`;const digits=s.replace(/\D/g,'');if(!s.startsWith('+')||digits.length<8||digits.length>15)return null;return `+${digits}`;}
 function fieldState(v:any){if(v&&typeof v==='object'){if(v.required===true)return'MANDATORY';if(v.required===false)return'OPTIONAL';v=v.state??v.status??v.requirement??v.mode;}return clean(v,40).toUpperCase();}
 function empty(v:any){if(v==null)return true;if(typeof v==='string')return !v.trim();if(typeof v==='object'&&!Array.isArray(v))return Object.keys(v).length===0||Object.values(v).some(empty);return false;}
@@ -57,7 +53,7 @@ export function resolveImmoScoutField(configKey:string,rawConfig:any,profile:any
   moveindate:()=>moveInValue(profile),desiredmoveindate:()=>moveInValue(profile),einzugsdatum:()=>moveInValue(profile),gewunschteeinzugsdatum:()=>moveInValue(profile),
   petsinhousehold:()=>petValue(profile?.pets),pets:()=>petValue(profile?.pets),pet:()=>petValue(profile?.pets),haustiere:()=>petValue(profile?.pets),haustier:()=>petValue(profile?.pets),
   numberofpersons:()=>householdValue(profile),numberofresidents:()=>householdValue(profile),householdsize:()=>householdValue(profile),residents:()=>householdValue(profile),personenanzahl:()=>householdValue(profile),anzahlpersonen:()=>householdValue(profile),personenimhaushalt:()=>householdValue(profile),haushaltsgrosse:()=>householdValue(profile),
-  employmentrelationship:()=>clean(profile?.employment_status,160)||null,employmentstatus:()=>clean(profile?.employment_status,160)||null,occupation:()=>clean(profile?.employment_status,160)||null,profession:()=>clean(profile?.employment_status,160)||null,beschaftigungsstatus:()=>clean(profile?.employment_status,160)||null,arbeitsverhaltnis:()=>clean(profile?.employment_status,160)||null,berufstatigkeit:()=>clean(profile?.employment_status,160)||null,
+  employmentrelationship:()=>providerEmployment('immoscout',profile?.employment_status),employmentstatus:()=>providerEmployment('immoscout',profile?.employment_status),occupation:()=>providerEmployment('immoscout',profile?.employment_status),profession:()=>providerEmployment('immoscout',profile?.employment_status),beschaftigungsstatus:()=>providerEmployment('immoscout',profile?.employment_status),arbeitsverhaltnis:()=>providerEmployment('immoscout',profile?.employment_status),berufstatigkeit:()=>providerEmployment('immoscout',profile?.employment_status),
   income:()=>incomeValue(profile),incomeamount:()=>incomeValue(profile),monthlyincome:()=>incomeValue(profile),monthlynetincome:()=>incomeValue(profile),netincome:()=>incomeValue(profile),einkommen:()=>incomeValue(profile),nettoeinkommen:()=>incomeValue(profile),monatlichesnettoeinkommen:()=>incomeValue(profile),
   firstname:()=>clean(profile?.first_name,160)||null,contactfirstname:()=>clean(profile?.first_name,160)||null,givenname:()=>clean(profile?.first_name,160)||null,vorname:()=>clean(profile?.first_name,160)||null,
   lastname:()=>clean(profile?.last_name,160)||null,contactlastname:()=>clean(profile?.last_name,160)||null,surname:()=>clean(profile?.last_name,160)||null,familyname:()=>clean(profile?.last_name,160)||null,nachname:()=>clean(profile?.last_name,160)||null,
