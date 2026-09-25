@@ -88,9 +88,13 @@ async function immomioUrl(flow:any,codeChallenge:string,emailValue:any){const em
 async function resolve(value:any){
  const flow=await flowFor(value),provider=String(flow.provider),hint=await accountHint(flow),info=await participantInfo(flow);
  const base={ok:true,provider,accountHint:hint,participantLabel:info.participantLabel,origin:flow.origin,returnTarget:flow.return_target,expiresAt:flow.expires_at};
- if(provider==='immoscout'||provider==='immomio'||provider==='immowelt')return{...base,mode:'credentials'};
+ if(provider==='immoscout'||provider==='immowelt')return{...base,mode:'credentials'};
  const verifier=String(flow.code_verifier||'');if(!verifier)throw Error('auth_flow_expired');const codeChallenge=await challenge(verifier);
  if(provider==='kleinanzeigen')return{...base,mode:'provider_web',url:kleinUrl(flow,codeChallenge),requiresManualCallback:false,callbackTransport:'remote-browser-handoff'};
+ if(provider==='immomio'){
+  const email=clean(info.profileEmail,320);
+  return{...base,mode:'provider_web',url:await immomioUrl(flow,codeChallenge,email),requiresManualCallback:true,callbackTransport:'provider-pkce'};
+ }
  throw Error('provider_unsupported')
 }
 async function providerWeb(value:any,emailValue:any){
@@ -121,7 +125,7 @@ async function scoutPublic(body:any){
 }
 async function passwordLogin(value:any,emailValue:any,passwordValue:any){
  const flow=await flowFor(value);let result:any;
- if(flow.provider==='immomio')result=await immomioPasswordLogin(value,emailValue,passwordValue);
+ if(flow.provider==='immomio')throw Error('provider_route_required');
  else if(flow.provider==='immoscout')result=await scoutPublic({action:'password_login',state:String(flow.state),email:emailValue,password:passwordValue});
  else if(flow.provider==='immowelt'){
   result=await internalCall(IMMOWELT_AUTH,{action:'password_login',state:String(flow.state),email:emailValue,password:passwordValue});
