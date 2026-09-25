@@ -56,29 +56,29 @@ const EMPLOYMENT_CHOICES={
 };
 const PET_CHOICES={NONE:'Keine Angaben',YES:'Ja',NO:'Nein'};
 const PROFILE_FIELDS={
- salutation:{label:'Anrede',required:true,type:'choice',max:40},
+ salutation:{label:'Anrede',type:'choice',max:40},
  first_name:{label:'Vorname',required:true,max:120},
  last_name:{label:'Nachname',required:true,max:120},
  email:{label:'E-Mail-Adresse',required:true,max:320},
- phone:{label:'Telefonnummer',required:true,max:80},
- street:{label:'Straße',required:true,max:160},
- house_number:{label:'Hausnummer',required:true,max:40},
- postcode:{label:'PLZ',required:true,max:10},
- city:{label:'Ort',required:true,max:120},
- household_type:{label:'Haushaltstyp',required:true,type:'choice'},
- employment_status:{label:'Beschäftigungsstatus',required:true,type:'choice',max:160},
- income_range:{label:'Haushalts-Nettoeinkommen',required:true,type:'choice'},
- pets:{label:'Haustiere',required:true,type:'choice',max:160},
+ phone:{label:'Telefonnummer',max:80},
+ street:{label:'Straße',max:160},
+ house_number:{label:'Hausnummer',max:40},
+ postcode:{label:'PLZ',max:10},
+ city:{label:'Ort',max:120},
+ household_type:{label:'Haushaltstyp',type:'choice'},
+ employment_status:{label:'Beschäftigungsstatus',type:'choice',max:160},
+ income_range:{label:'Haushalts-Nettoeinkommen',type:'choice'},
+ pets:{label:'Haustiere',type:'choice',max:160},
  wbs_status:{label:'WBS-Status',max:160},
- move_in_preference:{label:'Einzugstermin',required:true,type:'choice'},
+ move_in_preference:{label:'Einzugstermin',type:'choice'},
  move_in_date:{label:'Gewünschtes Einzugsdatum',required:true,type:'date'},
  household_size:{label:'Haushaltsgröße (Legacy)',type:'integer'},
  monthly_net_income:{label:'Monatliches Nettoeinkommen (Legacy)',type:'money'},
- schufa_status:{label:'SCHUFA-Status',required:true,type:'choice'},
- message_apartment:{label:'Bewerbungstext Wohnung',required:true,max:4000},
- message_house:{label:'Bewerbungstext Haus',required:true,max:4000},
- message_temporary_wg:{label:'Bewerbungstext Auf Zeit & WG',required:true,max:4000},
- message_swap:{label:'Bewerbungstext Tauschwohnung',required:true,max:4000}
+ schufa_status:{label:'SCHUFA-Status',type:'choice'},
+ message_apartment:{label:'Bewerbungstext Wohnung',max:4000},
+ message_house:{label:'Bewerbungstext Haus',max:4000},
+ message_temporary_wg:{label:'Bewerbungstext Auf Zeit & WG',max:4000},
+ message_swap:{label:'Bewerbungstext Tauschwohnung',max:4000}
 };
 const DOCUMENT_BUCKET='applicant-documents';
 const MAX_DOCUMENT_BYTES=6*1024*1024;
@@ -349,8 +349,8 @@ async function renderApplicationTexts(user,chat,messageId){
  const entry=(name,label,value)=>button(`${String(value??'').trim()?'✅':'⚠️'} ${label}`,`platforms:profile-text:${name}`);
  const text='✍️ <b>Bewerbungstext</b>\n\nWähle eine Wohnform, um den hinterlegten Bewerbungstext als Vorschau zu öffnen und zu bearbeiten.';
  return render(text,[
-  [entry('message_house','Haus *',p.message_house),entry('message_apartment','Wohnung *',p.message_apartment)],
-  [entry('message_temporary_wg','Auf Zeit & WG *',p.message_temporary_wg),entry('message_swap','Tauschwohnung *',p.message_swap)],
+  [entry('message_house','Haus',p.message_house),entry('message_apartment','Wohnung',p.message_apartment)],
+  [entry('message_temporary_wg','Auf Zeit & WG',p.message_temporary_wg),entry('message_swap','Tauschwohnung',p.message_swap)],
   [button('← Bewerberprofil','platforms:profile')]
  ]);
 }
@@ -445,11 +445,11 @@ export async function handleAutoApplyMessage(user,message){
 
  if(replied.startsWith(SETUP_PROMPT)){
   const parts=text.split('|').map(v=>v.trim());
-  if(![5,6].includes(parts.length))return send(chat.id,'Bitte genau 5 Werte mit <code>|</code> trennen:\nVorname | Nachname | E-Mail | Telefon | Ort');
+  if(![3,5,6].includes(parts.length))return send(chat.id,'Bitte 3 Werte mit <code>|</code> trennen:\nVorname | Nachname | E-Mail');
   try{
    const values={
     user_id:user.id,
-    first_name:validateField('first_name',parts[0]),last_name:validateField('last_name',parts[1]),email:validateField('email',parts[2]),phone:validateField('phone',parts[3]),city:validateField('city',parts[4]),updated_at:new Date().toISOString()
+    first_name:validateField('first_name',parts[0]),last_name:validateField('last_name',parts[1]),email:validateField('email',parts[2]),...(parts.length>=5?{phone:validateField('phone',parts[3]),city:validateField('city',parts[4])}:{}),updated_at:new Date().toISOString()
    };
    if(parts.length===6){
     const legacySize=validateField('household_size',parts[5]);
@@ -499,7 +499,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  if(action==='profile-new'){
   if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
   const existing=await readProfile(user.id);if(existing)return renderApplicantProfile(user,chat,messageId);
-  return send(chat.id,`${SETUP_PROMPT}\n\nAntworte in <b>einer Nachricht</b> mit diesen 5 Angaben, getrennt durch <code>|</code>:\n\n<code>Vorname | Nachname | E-Mail | Telefon | Ort</code>\n\nBeispiel:\n<code>Max | Mustermann | max@example.de | +49 170 1234567 | Hamburg</code>\n\nDie ImmoScout-Auswahlfelder legst du danach direkt über Buttons fest.`,{force_reply:true,selective:true,input_field_placeholder:'Vorname | Nachname | E-Mail | Telefon | Ort'});
+  return send(chat.id,`${SETUP_PROMPT}\n\nAntworte in <b>einer Nachricht</b> mit diesen 3 Basisangaben, getrennt durch <code>|</code>:\n\n<code>Vorname | Nachname | E-Mail</code>\n\nBeispiel:\n<code>Max | Mustermann | max@example.de</code>\n\nWeitere Angaben ergänzt du anschließend im Bewerberprofil. Welche davon Pflicht sind, wird je Plattform und Angebot geprüft.`,{force_reply:true,selective:true,input_field_placeholder:'Vorname | Nachname | E-Mail'});
  }
  if(action==='profile-texts'){
   if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
@@ -515,7 +515,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   const mark=(value,selected,label)=>value===selected?`✅ ${label}`:label;
   if(arg==='salutation'){
    const s=current?.salutation;
-   return render('<b>Anrede *</b>\n\nWähle eine Option.',[
+   return render('<b>Anrede</b>\n\nWähle eine Option.',[
     [button(mark('MR',s,'Herr'),'platforms:profile-set:salutation:MR'),button(mark('MS',s,'Frau'),'platforms:profile-set:salutation:MS')],
     [button(mark('DIVERSE',s,'Divers'),'platforms:profile-set:salutation:DIVERSE'),button(mark('NEUTRAL',s,'Neutral'),'platforms:profile-set:salutation:NEUTRAL')],
     [button(mark('NOT_SPECIFIED',s,'Keine Angabe'),'platforms:profile-set:salutation:NOT_SPECIFIED')],
@@ -523,7 +523,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
    ]);
   }
   if(arg==='household_type'){
-   return render('<b>Haushaltstyp *</b>\n\nWähle eine Option.',[
+   return render('<b>Haushaltstyp</b>\n\nWähle eine Option.',[
     [button(mark('SINGLE',current?.household_type,'Einpersonenhaushalt'),'platforms:profile-set:household_type:SINGLE'),button(mark('TWO_ADULTS',current?.household_type,'Zwei Erwachsene'),'platforms:profile-set:household_type:TWO_ADULTS')],
     [button(mark('FAMILY',current?.household_type,'Familie'),'platforms:profile-set:household_type:FAMILY'),button(mark('SHARED_FLAT',current?.household_type,'Wohngemeinschaft'),'platforms:profile-set:household_type:SHARED_FLAT')],
     [button(mark('NOT_SPECIFIED',current?.household_type,'Keine Angabe'),'platforms:profile-set:household_type:NOT_SPECIFIED')],
@@ -532,7 +532,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   }
   if(arg==='employment_status'){
    const e=current?.employment_status;
-   return render('<b>Beschäftigungsstatus *</b>\n\nWähle eine Option.',[
+   return render('<b>Beschäftigungsstatus</b>\n\nWähle eine Option.',[
     [button(mark('NOT_SPECIFIED',e,'Keine Angabe'),'platforms:profile-set:employment_status:NOT_SPECIFIED')],
     [button(mark('EMPLOYEE',e,'Angestellte(r)'),'platforms:profile-set:employment_status:EMPLOYEE'),button(mark('WORKER',e,'Arbeiter(in)'),'platforms:profile-set:employment_status:WORKER')],
     [button(mark('SELF_EMPLOYED',e,'Selbstständige(r)'),'platforms:profile-set:employment_status:SELF_EMPLOYED'),button(mark('CIVIL_SERVANT',e,'Beamte(r)'),'platforms:profile-set:employment_status:CIVIL_SERVANT')],
@@ -544,7 +544,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
    ]);
   }
   if(arg==='income_range'){
-   return render('<b>Haushalts-Nettoeinkommen *</b>\n\nWähle eine Option.',[
+   return render('<b>Haushalts-Nettoeinkommen</b>\n\nWähle eine Option.',[
     [button(mark('HOUSING_BENEFIT',current?.income_range,'Ich beziehe Wohngeld'),'platforms:profile-set:income_range:HOUSING_BENEFIT')],
     [button(mark('UNDER_500',current?.income_range,'Unter 500 €'),'platforms:profile-set:income_range:UNDER_500'),button(mark('500_1000',current?.income_range,'500 € - 1.000 €'),'platforms:profile-set:income_range:500_1000')],
     [button(mark('1000_1500',current?.income_range,'1.000 € - 1.500 €'),'platforms:profile-set:income_range:1000_1500'),button(mark('1500_2000',current?.income_range,'1.500 € - 2.000 €'),'platforms:profile-set:income_range:1500_2000')],
@@ -565,7 +565,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   }
   if(arg==='move_in_preference'){
    const m=current?.move_in_preference;
-   return render('<b>Gewünschtes Einzugsdatum *</b>\n\nWähle eine Option.',[
+   return render('<b>Gewünschtes Einzugsdatum</b>\n\nWähle eine Option.',[
     [button(mark('IMMEDIATE',m,'So bald wie möglich'),'platforms:profile-set:move_in_preference:IMMEDIATE'),button(mark('WITHIN_1_MONTH',m,'< 1 Monat'),'platforms:profile-set:move_in_preference:WITHIN_1_MONTH')],
     [button(mark('WITHIN_3_MONTHS',m,'< 3 Monate'),'platforms:profile-set:move_in_preference:WITHIN_3_MONTHS'),button(mark('AFTER_3_MONTHS',m,'> 3 Monate'),'platforms:profile-set:move_in_preference:AFTER_3_MONTHS')],
     [button(mark('FLEXIBLE',m,'Flexibel'),'platforms:profile-set:move_in_preference:FLEXIBLE'),button(mark('EXACT_DATE',m,'Genaues Datum'),'platforms:profile-set:move_in_preference:EXACT_DATE')],
