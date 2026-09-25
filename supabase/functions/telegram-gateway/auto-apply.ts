@@ -166,7 +166,7 @@ async function handlePlatforms(user:any,chatId:number,messageId:number,data:stri
     
     return platformPage(user,chatId,messageId,'');
    }catch{
-    return platformPage(user,chatId,messageId,'⚠️ Auto-Bewerbung kann noch nicht aktiviert werden. Prüfe dein Bewerberprofil und verbinde mindestens eine unterstützte Plattform.');
+    return platformPage(user,chatId,messageId,'⏳ <b>Immowelt ist verbunden.</b>\n\nDein Bewerberprofil ist vollständig. Die automatische Bewerbung für Immowelt wird freigegeben, sobald der technische Versandtest erfolgreich bestätigt wurde.');
    }
   }
  if(action==='off'){await rpc('set_application_enabled_shared',{p_user:user.id,p_enabled:false});user.auto_apply_enabled=false;return platformPage(user,chatId,messageId,'');}
