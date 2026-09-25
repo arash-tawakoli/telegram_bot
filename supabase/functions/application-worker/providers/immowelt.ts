@@ -1,4 +1,5 @@
 import {getConnection,deleteConnection} from '../credentials.ts';
+import {providerStaticMissing,providerSalutation,providerHousehold,providerEmployment,providerIncome,providerMoveIn} from '../../_shared/application-profile-adapters.ts';
 
 const PROVIDER='immowelt';
 
@@ -18,22 +19,14 @@ export async function disconnectImmowelt(db:any,userId:string){
 
 function xml(value:any){return String(value??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;')}
 function validPhone(value:any){const s=String(value||'').trim(),digits=s.replace(/\D/g,'');return digits.length>=7&&!/^0+$/.test(digits)?s:''}
-function householdLabel(value:any){return({SINGLE:'Einpersonenhaushalt',TWO_ADULTS:'Zweipersonenhaushalt',FAMILY:'Familienhaushalt',SHARED_FLAT:'Wohngemeinschaft'} as any)[String(value||'')]||String(value||'')}
-function incomeLabel(value:any){return({UNDER_500:'unter 500 €','500_1000':'500–1.000 €','1000_1500':'1.000–1.500 €','1500_2000':'1.500–2.000 €','2000_3000':'2.000–3.000 €','3000_4000':'3.000–4.000 €','4000_5000':'4.000–5.000 €',OVER_5000:'über 5.000 €'} as any)[String(value||'')]||String(value||'')}
-function moveInLabel(profile:any){const pref=String(profile?.move_in_preference||'');if(pref==='IMMEDIATE')return'ab sofort';if(pref==='FLEXIBLE')return'flexibel';if(pref==='EXACT_DATE'&&profile?.move_in_date)return String(profile.move_in_date);return String(profile?.move_in_date||pref||'')}
-function requiredImmoweltProfile(profile:any){
- const missing:string[]=[];
- const fields=[['Anrede',profile?.salutation],['Vorname',profile?.first_name],['Nachname',profile?.last_name],['E-Mail-Adresse',profile?.email],['Haushaltstyp',profile?.household_type],['Beschäftigungsstatus',profile?.employment_status],['Haushalts-Nettoeinkommen',profile?.income_range],['Einzugsdatum',moveInLabel(profile)]];
- for(const[name,value]of fields)if(!String(value||'').trim())missing.push(name);
- if(profile?.move_in_preference==='EXACT_DATE'&&!profile?.move_in_date&&!missing.includes('Einzugsdatum'))missing.push('Einzugsdatum');
- return missing;
-}
+function requiredImmoweltProfile(profile:any,message?:string){return providerStaticMissing('immowelt',profile,message)}
 function enrichedMessage(profile:any,message:any){
  const details=[
-  'Haushaltstyp: '+householdLabel(profile?.household_type),
-  'Beschäftigungsstatus: '+String(profile?.employment_status||''),
-  'Haushalts-Nettoeinkommen: '+incomeLabel(profile?.income_range),
-  'Gewünschtes Einzugsdatum: '+moveInLabel(profile)
+  'Anrede: '+String(providerSalutation('immowelt',profile?.salutation)||''),
+  'Haushaltstyp: '+String(providerHousehold('immowelt',profile?.household_type)||''),
+  'Beschäftigungsstatus: '+String(providerEmployment('immowelt',profile?.employment_status)||''),
+  'Haushalts-Nettoeinkommen: '+String(providerIncome('immowelt',profile?.income_range)||''),
+  'Gewünschtes Einzugsdatum: '+String(providerMoveIn('immowelt',profile)||'')
  ].filter(x=>!/:\s*$/.test(x));
  const base=String(message||'').trim();
  return [base,details.length?'Weitere Angaben:\n'+details.join('\n'):''].filter(Boolean).join('\n\n').slice(0,7000);
@@ -74,7 +67,7 @@ async function immoweltEstateGuid(db:any,onlineId:any){
 export async function sendImmoweltApplication(input:any){
  const{db,user,profile,listing,message,authorize}=input||{},userId=String(user?.id||''),url=String(listing?.canonical_url||'');
  if(!userId||!/^https:\/\/www\.immowelt\.de\/expose\//i.test(url))return{success:false,status:'manual_required',error:'provider_contract_unverified'};
- const missing=requiredImmoweltProfile(profile);if(missing.length)return{success:false,status:'manual_required',error:'required_profile_data_missing',diagnostic:{provider:'immowelt',missing}};
+ const missing=requiredImmoweltProfile(profile,message);if(missing.length)return{success:false,status:'manual_required',error:'required_profile_data_missing',diagnostic:{provider:'immowelt',missing}};
  let connection:any;try{connection=await getConnection(db,userId,PROVIDER)}catch{return{success:false,status:'manual_required',error:'connection_read_failed'}}
  if(!connection)return{success:false,status:'manual_required',error:'needs_login'};
  const cookies=Array.isArray(connection.credentials?.cookies)?connection.credentials.cookies:[];if(!cookies.length)return{success:false,status:'manual_required',error:'needs_login'};
