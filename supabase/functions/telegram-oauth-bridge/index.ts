@@ -50,6 +50,10 @@ async function handleProviderLogin(update:any,provider:'kleinanzeigen'|'immomio'
    const result=await internal(APPLICATION_WORKER,{action:'login_share',userId:String(user.id),source:2,origin:'telegram',returnTarget:'telegram',context:{channel:'telegram',share_flow:true}});
    if(!result?.url)throw Error('auth_flow_create_failed');
    url=providerUrl(provider,result.url);
+  }else if(provider==='immomio'){
+   const result=await internal(IMMOMIO_WORKER,{action:'login',userId:String(user.id)});
+   if(!result?.url)throw Error('auth_flow_create_failed');
+   url=providerUrl(provider,result.url);
   }else{
    const connect=await createConnectTicket(String(user.id),provider),ticket=connect.state;
    url=`https://login.traumwohnunghamburg.de/connect?ticket=${encodeURIComponent(ticket)}`;
@@ -57,7 +61,7 @@ async function handleProviderLogin(update:any,provider:'kleinanzeigen'|'immomio'
   const copy=provider==='kleinanzeigen'
    ? `🔐 <b>Kleinanzeigen verbinden</b>\n\n1. Tippe unten auf <b>Kleinanzeigen verbinden</b>.\n2. Melde dich an.\n3. Tippe auf <b>Teilen</b> und sende den Link an <b>TraumWohnung Hamburg</b>.`
    : provider==='immomio'
-    ? `🔐 <b>Immomio verbinden</b>\n\n1. Tippe unten auf <b>Immomio verbinden</b>.\n2. Melde dich an.\n3. Dein Konto wird automatisch verbunden.`
+    ? `🔐 <b>Immomio verbinden</b>\n\n1. Tippe unten auf <b>Immomio verbinden</b>.\n2. Melde dich direkt bei Immomio an.\n3. Nach dem Login öffnet sich die Immomio-Seite. Tippe dort auf <b>Teilen → Telegram → TraumWohnung Hamburg → Senden</b>.\n\nDein Passwort bleibt ausschließlich bei Immomio.`
     : provider==='immowelt'
      ? `🔐 <b>Immowelt verbinden</b>\n\n1. Tippe unten auf <b>Immowelt verbinden</b>.\n2. Melde dich an.\n3. Dein Konto wird automatisch verbunden.`
      : `🔐 <b>ImmoScout24 verbinden</b>\n\n1. Tippe unten auf <b>ImmoScout24 verbinden</b>.\n2. Melde dich an.\n3. Dein Konto wird automatisch verbunden.`;
