@@ -720,7 +720,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
      return render(`⚠️ <b>Bewerberprofil unvollständig</b>\n\nVervollständige zuerst alle mit * markierten Pflichtfelder.\n\n${preview}${more}`,[[button('👤 Bewerberprofil vervollständigen','platforms:profile')],...back]);
     }
     const {error}=await db.rpc('set_application_enabled_shared',{p_user:user.id,p_enabled:true});
-    if(error)return render('⚠️ Auto-Bewerbung kann noch nicht aktiviert werden. Prüfe dein Bewerberprofil und verbinde mindestens eine unterstützte Plattform.',[[button('👤 Bewerberprofil','platforms:profile')],...back]);
+    if(error)return render('⏳ <b>Immowelt ist verbunden.</b>\n\nDein Bewerberprofil ist vollständig. Die automatische Bewerbung für Immowelt wird freigegeben, sobald der technische Versandtest erfolgreich bestätigt wurde.',[[button('👤 Bewerberprofil','platforms:profile')],...back]);
    }
   }
  }
