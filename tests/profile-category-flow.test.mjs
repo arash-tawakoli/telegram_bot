@@ -11,7 +11,7 @@ test('all categories use the unified warm-rent, rooms and area flow',()=>{
   assert.match(profiles,/min_rooms/);
   assert.match(profiles,/min_area_sqm/);
   assert.doesNotMatch(profiles,/renderRoomArea/);
-  assert.doesNotMatch(handlers,/roomarea:/);
+  assert.match(handlers,/renderRooms/);
 });
 
 test('profile persistence uses the leased atomic RPC when available',()=>{
