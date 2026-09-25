@@ -56,21 +56,23 @@ function profileApi(){
  return api;
 }
 
-test('WG validates its own room size without whole-apartment room filters',()=>{
- const a=profileApi(),d=a.emptyDraft();
- Object.assign(d,{property_types:['WG'],location_mode:'all_hamburg',max_warm_rent:800,min_room_area_sqm:10});
- assert.equal(a.validateDraft(d),null);
- assert.equal(a.includesWG(d),true);assert.equal(a.includesWholeHome(d),false);assert.equal(a.nextSizeStep(d),'roomarea');
+test('all four property categories use the unified warm-rent rooms and area flow',()=>{
+ const a=profileApi();
+ for(const type of ['Wohnung','Haus','WG','Tauschwohnung']){
+  const d=a.emptyDraft();
+  Object.assign(d,{property_types:[type],location_mode:'all_hamburg',max_warm_rent:1250,min_rooms:2,min_area_sqm:50});
+  assert.equal(a.validateDraft(d),null,type);
+  assert.equal(a.nextSizeStep(d),'rooms',type);
+ }
+ const wg=a.emptyDraft();
+ Object.assign(wg,{property_types:['WG'],location_mode:'all_hamburg',max_warm_rent:800,min_area_sqm:20});
+ assert.equal(a.validateDraft(wg),'rooms');
 });
 
-test('house and mixed searches keep correct sizing requirements',()=>{
- const a=profileApi(),h=a.emptyDraft();
- Object.assign(h,{property_types:['Haus'],location_mode:'all_hamburg',max_warm_rent:1250,min_rooms:3,min_area_sqm:70});
- assert.equal(a.validateDraft(h),null);assert.equal(a.nextSizeStep(h),'rooms');
- const mixed=a.emptyDraft();
+test('search profiles stay single-category',()=>{
+ const a=profileApi(),mixed=a.emptyDraft();
  Object.assign(mixed,{property_types:['WG','Haus'],location_mode:'all_hamburg',max_warm_rent:1250,min_rooms:3,min_area_sqm:70});
- assert.equal(a.validateDraft(mixed),'roomarea');
- mixed.min_room_area_sqm=12;assert.equal(a.validateDraft(mixed),null);
+ assert.equal(a.validateDraft(mixed),'types');
 });
 
 test('type chooser is compact 2x2 and preserves all four canonical values',async()=>{
