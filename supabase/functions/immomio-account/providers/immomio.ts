@@ -4,7 +4,7 @@ const APPLY=/^https:\/\/tenant\.immomio\.com\/apply\/[0-9a-f-]{36}\/?(?:[?#].*)?
 const GQL='https://gql-ps.immomio.com/tenant/graphql',TENANT_ORIGIN='https://tenant.immomio.com',OAUTH_REDIRECT='https://tenant.immomio.com/de/auth/login',EXPECTED_KEYCLOAK_HOST='sso.immomio.com',EXPECTED_REALM='immomio',EXPECTED_CLIENT_ID='immomio-oidc-web',LOGIN_METHOD='DEFAULT';
 const BASE_HEADERS={'content-type':'application/json','accept':'application/json','origin':TENANT_ORIGIN,'referer':`${TENANT_ORIGIN}/`,'user-agent':'TraumWohnungHamburg/1.0'};
 const FILE_UPLOAD='https://gql-ps.immomio.com/tenant/fileUpload';
-const USER_PROFILE_QUERY=`query currentUserProfile { user { id address { street houseNumber city country region zipCode } profile profileCompleteness } }`;
+const USER_PROFILE_QUERY=`query currentUserProfile { user { id address { street houseNumber city country region zipCode } profile } }`;
 const SAVE_USER_MUTATION=`mutation saveUser($user: PropertySearcherUserInput!) { saveUser(user: $user) { id profile profileCompleteness } }`;
 const DOCUMENT_TYPE_MAP:Record<string,string>={
   wbs:'WB_CERTIFICATE',
