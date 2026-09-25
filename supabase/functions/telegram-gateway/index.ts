@@ -1,6 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import {handleAutoApplyCallback,handleAutoApplyMessage,isAutoApplyCallback,isAutoApplyMessage} from './auto-apply.ts';
-import {isStaticFastAction,likelyFastAction,renderFast,renderStaticFast} from './fast-ui.ts';
+import {likelyFastAction,renderFast} from './fast-ui.ts';
 
 const URL=Deno.env.get('SUPABASE_URL')!;
 const KEYS=JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')||'{}');
@@ -49,7 +48,6 @@ async function telegram(method:string,params:Record<string,unknown>){
 }
 async function acknowledge(id:string){const started=Date.now();try{await telegram('answerCallbackQuery',{callback_query_id:id});return Date.now()-started}catch(error){console.error('telegram_fast_ack',String(error));return null}}
 async function recordMetric(updateId:number,metrics:Record<string,number|string>){try{await rpc('record_telegram_fast_metric',{p_update_id:updateId,p_metrics:metrics})}catch(error){console.error('telegram_fast_metric',String(error))}}
-async function recordStaticNav(update:any,metrics:Record<string,number|string>){try{await rpc('record_telegram_static_nav',{p_payload:update,p_metrics:metrics})}catch(error){console.error('telegram_static_metric',String(error))}}
 async function forward(body:string,expected:string,target:string,extraHeaders:Record<string,string>={}){
  const r=await fetch(target,{method:'POST',headers:{'content-type':'application/json','x-telegram-bot-api-secret-token':expected,...extraHeaders},body,signal:AbortSignal.timeout(50000)});
  return new Response(await r.text(),{status:r.status,headers:{'content-type':r.headers.get('content-type')||'application/json'}});
@@ -65,34 +63,16 @@ Deno.serve(async req=>{
   if(req.method!=='POST')return new Response('method not allowed',{status:405});
   const supplied=req.headers.get('x-telegram-bot-api-secret-token')||'';
   if(!(await validWebhookSecret(supplied)))return new Response('unauthorized',{status:401});
-  const expected=supplied,body=await req.text(),update=parsed(body),callback=String(update?.callback_query?.data||''),callbackId=String(update?.callback_query?.id||'');
+  const expected=supplied;let body=await req.text();const update=parsed(body);let callback=String(update?.callback_query?.data||'');const callbackId=String(update?.callback_query?.id||'');
+  const legacyCallback=callback==='home:de'?'home':callback==='settings:de'?'settings':callback==='help:de'?'help':callback;
+  if(legacyCallback!==callback&&update?.callback_query){update.callback_query.data=legacyCallback;callback=legacyCallback;body=JSON.stringify(update);}
 
   if(callbackId&&['platforms:login:1','platforms:login:2','platforms:login:3','platforms:login:4'].includes(callback)){
    EdgeRuntime.waitUntil(forward(body,expected,OAUTH_BRIDGE).then(r=>{if(!r.ok)console.error('telegram_oauth_bridge',r.status)}).catch(e=>console.error('telegram_oauth_bridge',String(e))));
    return direct('answerCallbackQuery',{callback_query_id:callbackId});
   }
 
-  const autoCallback=typeof isAutoApplyCallback==='function'&&isAutoApplyCallback(callback);
-  if(callbackId&&autoCallback){
-   EdgeRuntime.waitUntil(handleAutoApplyCallback(update).catch(e=>console.error('telegram_auto_apply_callback',String(e))));
-   return direct('answerCallbackQuery',{callback_query_id:callbackId});
-  }
-  const autoMessage=typeof isAutoApplyMessage==='function'&&isAutoApplyMessage(update);
-  if(autoMessage){
-   EdgeRuntime.waitUntil(handleAutoApplyMessage(update).catch(e=>console.error('telegram_auto_apply_message',String(e))));
-   return Response.json({ok:true});
-  }
-
   if(callbackId&&callback==='noop')return direct('answerCallbackQuery',{callback_query_id:callbackId});
-
-  if(callbackId&&isStaticFastAction(callback)){
-   const renderStarted=Date.now(),rendered=renderStaticFast(callback,update),renderMs=Date.now()-renderStarted;
-   if(rendered){
-    const ackPromise=acknowledge(callbackId),responseMs=Date.now()-requestStarted,region=String(Deno.env.get('SB_REGION')||'unknown');
-    EdgeRuntime.waitUntil((async()=>{const ackMs=await ackPromise;await recordStaticNav(update,{db_ms:0,render_ms:renderMs,ack_ms:Number(ackMs||0),response_ms:responseMs,telegram_ms:0,total_ms:responseMs,rpc_count:0,telegram_count:2,fast_path:2,edge_region:region})})());
-    return Response.json(rendered);
-   }
-  }
 
   if(callbackId&&likelyFastAction(callback)){
    const ackPromise=acknowledge(callbackId),dbStarted=Date.now();
