@@ -24,7 +24,7 @@ function provider(v:any){const p=String(v||'');if(!PROVIDERS.has(p))throw Error(
 function without<T extends Record<string,any>>(row:T|null|undefined,...keys:string[]){if(!row)return row;const out={...row};for(const k of keys)delete out[k];return out}
 const READINESS_LABELS:Record<string,string>={
  active:'AutoApply aktiv',automation_paused:'Bereit zum Starten',premium_required:'Premium erforderlich',
- profile_incomplete:'Bewerberprofil ergänzen',search_missing:'Suchprofil anlegen',provider_missing:'Konto verbinden',
+ profile_incomplete:'Basisangaben ergänzen',search_missing:'Suchprofil anlegen',provider_missing:'Konto verbinden',
  provider_not_enabled:'Plattform für AutoApply freigeben',provider_not_ready:'Plattform erneut verbinden',
  archived:'Teilnehmer archiviert',pending_deletion:'Löschung geplant'
 };
@@ -230,16 +230,18 @@ async function updateProfile(a:any,assignment:any,input:any){
   schufa_status:clean(input.schufa_status??c.schufa_status??'NOT_SPECIFIED',80),phone_call_desired:Boolean(input.phone_call_desired??c.phone_call_desired??false),updated_at:new Date().toISOString()
  };
  const has=(key:string)=>Object.prototype.hasOwnProperty.call(input,key);
- if(row.household_type&&!['SINGLE','TWO_ADULTS','FAMILY','SHARED_FLAT'].includes(String(row.household_type)))throw Error('profile_household_type_invalid');
- if(row.income_range&&!['UNDER_500','500_1000','1000_1500','1500_2000','2000_3000','3000_4000','4000_5000','OVER_5000'].includes(String(row.income_range)))throw Error('profile_income_range_invalid');
- if(row.move_in_preference&&!['NOT_SPECIFIED','FLEXIBLE','IMMEDIATE','EXACT_DATE'].includes(String(row.move_in_preference)))throw Error('profile_move_in_preference_invalid');
+ if(row.salutation&&!['MR','MS','DIVERSE','NEUTRAL','NOT_SPECIFIED','COMPANY'].includes(String(row.salutation)))throw Error('profile_salutation_invalid');
+ if(row.household_type&&!['SINGLE','TWO_ADULTS','FAMILY','SHARED_FLAT','NOT_SPECIFIED'].includes(String(row.household_type)))throw Error('profile_household_type_invalid');
+ if(row.employment_status&&!['EMPLOYEE','WORKER','SELF_EMPLOYED','CIVIL_SERVANT','APPRENTICE','STUDENT','DOCTORAL','HOMEMAKER','JOBSEEKER','RETIRED','OTHER','NOT_SPECIFIED'].includes(String(row.employment_status)))throw Error('profile_employment_status_invalid');
+ if(row.income_range&&!['UNDER_500','500_1000','1000_1500','1500_2000','2000_3000','3000_4000','4000_5000','OVER_5000','5000_6000','6000_7000','OVER_7000','HOUSING_BENEFIT','NOT_SPECIFIED'].includes(String(row.income_range)))throw Error('profile_income_range_invalid');
+ if(row.move_in_preference&&!['NOT_SPECIFIED','FLEXIBLE','IMMEDIATE','EXACT_DATE','WITHIN_1_MONTH','WITHIN_3_MONTHS','AFTER_3_MONTHS'].includes(String(row.move_in_preference)))throw Error('profile_move_in_preference_invalid');
  if(row.schufa_status&&!['NOT_SPECIFIED','AVAILABLE','NOT_AVAILABLE'].includes(String(row.schufa_status)))throw Error('profile_schufa_invalid');
  if(has('household_type'))row.household_size=row.household_type==='SINGLE'?1:row.household_type==='TWO_ADULTS'?2:null;
  if(has('income_range'))row.monthly_net_income=null;
  if(has('move_in_preference')&&row.move_in_preference!=='EXACT_DATE')row.move_in_date=null;
  if(row.move_in_preference==='EXACT_DATE'&&!row.move_in_date)throw Error('profile_move_in_date_required');
  if(row.move_in_date&&!/^\d{4}-\d{2}-\d{2}$/.test(String(row.move_in_date)))throw Error('profile_move_in_date_invalid');
- if(!row.first_name||!row.last_name||!row.phone)throw Error('profile_required_fields');
+ if(!row.first_name||!row.last_name||!row.email)throw Error('profile_required_fields');
  const{error}=await admin.from('applicant_profiles').upsert(row,{onConflict:'user_id'});if(error)throw Error('profile_save_failed');
  await admin.from('bot_users').update({first_name:row.first_name,last_name:row.last_name,updated_at:new Date().toISOString()}).eq('id',userId);
  await audit(a,userId,'profile_updated');return{ok:true};
