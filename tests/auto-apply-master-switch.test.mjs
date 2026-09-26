@@ -22,6 +22,6 @@ test('disabling auto-apply cancels unsent pending work',()=>{
 test('Telegram uses shared global and per-provider AutoApply controls',()=>{
   assert.ok(ui.includes("set_application_enabled_shared"));
   assert.ok(ui.includes("set_application_provider_enabled_shared"));
-  assert.ok(ui.includes("providerEnabled=meta=>prefs?.[meta.field]??state.auto_apply_enabled"));
+  assert.ok(ui.includes("providerEnabled=(meta)=>prefs?.[meta.field]??state.auto_apply_enabled"));
   assert.ok(ui.includes("platforms:${enabled?'pause':'resume'}:${sourceId}"));
 });
