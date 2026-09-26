@@ -81,11 +81,7 @@ export async function sendImmoweltApplication(input:any){
  <soap:Body>
   <SendContactMail xmlns="http://immowelt.de/services">
    <request>
-    <Domain>immowelt.de</Domain>
     <LinkToDetail>${xml(url)}</LinkToDetail>
-    <ExposeKey></ExposeKey>
-    <OnlyUseLinkToDetail>true</OnlyUseLinkToDetail>
-    <OnlyMailToCustomer>false</OnlyMailToCustomer>
     <EstateGuid></EstateGuid>
     <Enquirer>
      <Name>${xml(name)}</Name>
@@ -94,9 +90,11 @@ export async function sendImmoweltApplication(input:any){
      <Street>${xml(street)}</Street>
      <Zip>${xml(profile?.postcode||'')}</Zip>
      <City>${xml(profile?.city||'')}</City>
-     <Mobile></Mobile><Fax></Fax>
+     <Mobile></Mobile>
+     <Fax></Fax>
     </Enquirer>
     <Message>${xml(fullMessage)}</Message>
+    <Domain>immowelt.de</Domain>
     <SubjectType>Anfrage zur Immobilie</SubjectType>
    </request>
   </SendContactMail>
