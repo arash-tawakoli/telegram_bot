@@ -490,7 +490,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  if(action==='profile-new'){
   if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
   const existing=await readProfile(user.id);if(existing)return renderApplicantProfile(user,chat,messageId);
-  return send(chat.id,`${SETUP_PROMPT}\n\nAntworte in <b>einer Nachricht</b> mit Vorname und Nachname, getrennt durch <code>|</code>. Optional kannst du die E-Mail ergänzen:\n\n<code>Vorname | Nachname</code>\noder\n<code>Vorname | Nachname | E-Mail</code>\n\nBeispiel:\n<code>Max | Mustermann | max@example.de</code>\n\nE-Mail ist nur für Immowelt erforderlich. Weitere Pflichtangaben werden je Plattform und Inserat geprüft.`,{force_reply:true,selective:true,input_field_placeholder:'Vorname | Nachname | E-Mail optional'});
+  return send(chat.id,`${SETUP_PROMPT}\n\nAntworte in <b>einer Nachricht</b> mit Vorname und Nachname, getrennt durch <code>|</code>. Optional kannst du die E-Mail ergänzen:\n\n<code>Vorname | Nachname</code>\noder\n<code>Vorname | Nachname | E-Mail</code>\n\nBeispiel:\n<code>Max | Mustermann | max@example.de</code>\n\nE-Mail ist für die Immowelt-Bewerbung erforderlich und wird zum Verbinden des Immomio-Kontos benötigt. Für ImmoScout24 und Kleinanzeigen ist sie optional; Immomio verlangt sie nicht im Bewerbungsversand. Weitere Formularpflichten werden je Plattform und Inserat geprüft.`,{force_reply:true,selective:true,input_field_placeholder:'Vorname | Nachname | E-Mail optional'});
  }
  if(action==='profile-texts'){
   if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
