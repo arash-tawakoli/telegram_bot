@@ -164,6 +164,7 @@ function prepareRequiredForm(form:any,profile:any,message:string){
  const schema=form?.schema??{},required=Array.isArray(schema?.required)?schema.required.map((x:any)=>String(x)):[],prefill=form?.data&&typeof form.data==='object'?form.data:{},payload:any={},missing:any[]=[],unsupported:any[]=[],fields:any[]=[];
  const properties=schema?.properties&&typeof schema.properties==='object'?schema.properties:{};
  const optionalMessageFields=Object.keys(properties).filter((key:string)=>/message|nachricht|bewerbungstext/i.test(key+' '+formLabel(form?.uiSchema,key)));
+ if(!optionalMessageFields.length)unsupported.push({id:'message',label:'Nachricht',type:'string'});
  const formKeys=[...new Set([...required,...optionalMessageFields])];
  for(const key of formKeys){
   const isRequired=required.includes(key),prop=properties[key]??{},label=formLabel(form?.uiSchema,key),type=String(prop?.type||''),raw=semanticValue(key,profile,message,prefill,prop,label),value=normalizeSchemaValue(prop,raw,key);
