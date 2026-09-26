@@ -269,8 +269,10 @@ export function providerStaticMissing(provider:ApplicationProvider,profile:any,m
  const selected=(label:string,value:any)=>{if(value==null)missing.push(label);};
  add('Vorname',profile?.first_name);
  add('Nachname',profile?.last_name);
- if(provider==='immowelt'){
+ if(provider==='immoscout'||provider==='immowelt'){
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean(profile?.email)))missing.push('E-Mail-Adresse');
+ }
+ if(provider==='immowelt'){
   add('Straße',profile?.street);
   add('Hausnummer',profile?.house_number);
   if(!/^\d{5}$/.test(clean(profile?.postcode)))missing.push('PLZ');
@@ -292,12 +294,10 @@ export function providerStaticMissing(provider:ApplicationProvider,profile:any,m
  }
  if(provider==='immoscout'){
   selected('Anrede',canonicalSalutation(profile?.salutation));
-  selected('Haushaltstyp',canonicalHousehold(profile?.household_type));
-  selected('Beschäftigungsstatus',canonicalEmployment(profile?.employment_status));
-  selected('Haushalts-Nettoeinkommen',canonicalIncome(profile?.income_range));
-  const moveIn=canonicalMoveIn(profile?.move_in_preference);
-  selected('Einzugsdatum',moveIn);
-  if(moveIn==='EXACT_DATE'&&dateOrdinal(profile?.move_in_date)==null)missing.push('Gewünschtes Einzugsdatum');
+  add('Straße',profile?.street);
+  add('Hausnummer',profile?.house_number);
+  if(!/^\d{5}$/.test(clean(profile?.postcode)))missing.push('PLZ');
+  add('Ort',profile?.city);
  }
  if(message!==undefined&&!clean(message))missing.push('Bewerbungstext');
  return [...new Set(missing)];
