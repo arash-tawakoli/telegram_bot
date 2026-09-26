@@ -122,6 +122,56 @@ export function resolveProviderFormEnum(prop, raw, semantic = '') {
   return undefined;
 }
 
+function clipOption(value) {
+  if (value == null) return '';
+  const text = typeof value === 'string' ? value : JSON.stringify(value);
+  return String(text ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, 120);
+}
+
+function findControl(uiSchema, key) {
+  let found = null;
+  const suffix = `/properties/${String(key)}`;
+  const walk = value => {
+    if (!value || typeof value !== 'object' || found) return;
+    if (Array.isArray(value)) {
+      for (const child of value) walk(child);
+      return;
+    }
+    if (value.type === 'Control' && String(value.scope || '').endsWith(suffix)) {
+      found = value;
+      return;
+    }
+    for (const child of Object.values(value)) walk(child);
+  };
+  walk(uiSchema);
+  return found;
+}
+
+export function summarizeFormOptions(prop, uiSchema, key) {
+  const enumValues = Array.isArray(prop?.enum) ? prop.enum : [];
+  const enumNames = prop?.enumNames || prop?.['x-enumNames'] || prop?.['x-enum-names'] || [];
+  const oneOf = Array.isArray(prop?.oneOf) ? prop.oneOf : [];
+  const anyOf = Array.isArray(prop?.anyOf) ? prop.anyOf : [];
+  const control = findControl(uiSchema, key);
+  const uiEnumOptions = control?.options?.enumOptions ?? control?.options?.choices ?? [];
+  const option = (value, label = '') => ({ value: clipOption(value), label: clipOption(label) });
+  const values = enumValues.slice(0, 32).map((value, index) => {
+    const matched = [...oneOf, ...anyOf].find(item => String(item?.const ?? item?.value ?? '') === String(value));
+    const ui = Array.isArray(uiEnumOptions) ? uiEnumOptions[index] : null;
+    return option(value, enumNames[index] ?? matched?.title ?? matched?.label ?? ui?.label ?? ui?.title ?? '');
+  });
+  const alternatives = list => list.slice(0, 32).map(item => option(item?.const ?? item?.value ?? item?.enum?.[0], item?.title ?? item?.label ?? item?.description ?? ''));
+  const uiOptions = Array.isArray(uiEnumOptions) ? uiEnumOptions.slice(0, 32).map(item => option(item?.value ?? item?.const, item?.label ?? item?.title ?? '')) : [];
+  return {
+    schemaKeys: Object.keys(prop || {}).slice(0, 24),
+    enum: values,
+    oneOf: alternatives(oneOf),
+    anyOf: alternatives(anyOf),
+    uiOptions,
+    uiControlKeys: Object.keys(control || {}).slice(0, 24),
+  };
+}
+
 export function isProviderFormCandidates(value) {
   return !!value?.[marker];
 }
