@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
 const migration=readFileSync(new URL('../supabase/migrations/20260923114300_master_auto_apply_switch.sql',import.meta.url),'utf8');
-const ui=readFileSync(new URL('../supabase/functions/telegram-gateway/auto-apply.ts',import.meta.url),'utf8');
+const ui=readFileSync(new URL('../supabase/functions/telegram-ui/platform-sessions.js',import.meta.url),'utf8');
 
 test('master switch is authoritative for supported providers',()=>{
   assert.match(migration,/select p\.enabled/);
@@ -19,8 +19,9 @@ test('disabling auto-apply cancels unsent pending work',()=>{
   assert.match(migration,/submission_started_at is null/);
 });
 
-test('Telegram no longer exposes an independent provider toggle',()=>{
-  assert.match(ui,/zentral über den Hauptschalter gesteuert/);
-  assert.match(ui,/alle verbundenen unterstützten Plattformen/);
-  assert.doesNotMatch(ui,/Plattform für AutoApply freigegeben/);
+test('Telegram uses shared global and per-provider AutoApply controls',()=>{
+  assert.ok(ui.includes("set_application_enabled_shared"));
+  assert.ok(ui.includes("set_application_provider_enabled_shared"));
+  assert.ok(ui.includes("providerEnabled=meta=>prefs?.[meta.field]??state.auto_apply_enabled"));
+  assert.ok(ui.includes("platforms:${enabled?'pause':'resume'}:${sourceId}"));
 });
