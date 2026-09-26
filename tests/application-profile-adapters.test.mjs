@@ -99,7 +99,7 @@ test('static readiness follows each portal form and treats optional profile valu
     house_number: '4',
     postcode: '20095',
     city: 'Hamburg',
-    salutation: null,
+    salutation: 'MR',
     household_type: null,
     employment_status: null,
     income_range: null,
@@ -108,6 +108,10 @@ test('static readiness follows each portal form and treats optional profile valu
     schufa_status: null
   };
   assert.deepEqual([...adapters.providerStaticMissing('immowelt', immowelt, 'Immowelt message')], []);
+  assert.deepEqual(
+    [...adapters.providerStaticMissing('immowelt', {...immowelt, salutation: null}, 'Message')],
+    ['Anrede']
+  );
   assert.deepEqual(
     [...adapters.providerStaticMissing('immowelt', {...immowelt, email: ''}, 'Message')],
     ['E-Mail-Adresse']
