@@ -55,7 +55,7 @@ const PROFILE_FIELDS={
  salutation:{label:'Anrede',type:'choice',max:40},
  first_name:{label:'Vorname',required:true,max:120},
  last_name:{label:'Nachname',required:true,max:120},
- email:{label:'E-Mail-Adresse',max:320,hint:'Immowelt: Pflichtfeld beim Bewerben. Immomio: nötig zum Verbinden des Kontos; beim Bewerben kein Feld.'},
+ email:{label:'E-Mail-Adresse',max:320,hint:'ImmoScout24 und Immowelt: Pflichtfeld beim Bewerben. Kleinanzeigen prüft das konkrete Formular. Immomio: nötig zum Verbinden des Kontos; beim Bewerben kein Feld.'},
  phone:{label:'Telefonnummer',max:80},
  street:{label:'Straße',max:160},
  house_number:{label:'Hausnummer',max:40},
@@ -302,7 +302,7 @@ async function renderApplicantProfile(user,chat,messageId,notice=''){
  ]);
  const render=(text,rows)=>messageId?edit(chat.id,messageId,text,{inline_keyboard:rows}):send(chat.id,text,{inline_keyboard:rows});
  if(!p){
-  return render(`👤 <b>Bewerberprofil</b>\n\n${notice?`${notice}\n\n`:''}Noch kein Bewerberprofil angelegt. Lege zuerst Vorname und Nachname an. E-Mail ist nur für Immowelt erforderlich; weitere Pflichtangaben werden pro Plattform und Inserat geprüft.`,[
+  return render(`👤 <b>Bewerberprofil</b>\n\n${notice?`${notice}\n\n`:''}Noch kein Bewerberprofil angelegt. Lege zuerst Vorname und Nachname an. E-Mail ist für ImmoScout24 und Immowelt erforderlich; für Kleinanzeigen wird das konkrete Formular geprüft. Zum Verbinden des Immomio-Kontos wird sie ebenfalls benötigt, beim Immomio-Bewerbungsversand gibt es aber kein E-Mail-Feld. Weitere Pflichtangaben werden pro Plattform und Inserat geprüft.`,[
    [button('➕ Bewerberprofil anlegen','platforms:profile-new')],
    [button('← Automatische Bewerbung','platforms')]
   ]);
@@ -316,12 +316,12 @@ async function renderApplicantProfile(user,chat,messageId,notice=''){
   return `${name}: ${fields.length?`⚠️ ${fields.join(', ')}`:'✅ feste Profilfelder vollständig'}`;
  };
  const text=`👤 <b>Bewerberprofil</b>\n\n${notice?`${notice}\n\n`:''}<i>* globale Basisangabe. Weitere Pflichtfelder werden pro Plattform und Angebot geprüft.</i>\n\nProfilbasis (Vorname/Nachname): ${ready?'✅ vollständig':`⚠️ ${missing.length} Angabe${missing.length===1?' offen':'n offen'}`}\n\n`+
-  `${req('Anrede',salutationLabel(p.salutation))}\n${req('Vorname',shown(p.first_name))}\n${req('Nachname',shown(p.last_name))}\nE-Mail-Adresse (Immowelt-Pflicht; für Immomio-Kontoverbindung nötig): ${shown(p.email)}\n${req('Telefonnummer',shown(p.phone))}\n${req('Straße',shown(p.street))}\n${req('Hausnummer',shown(p.house_number))}\n${req('PLZ',shown(p.postcode))}\n${req('Ort',shown(p.city))}\n${req('Haushaltstyp',householdLabel(p))}\n${req('Beschäftigungsstatus',employmentLabel(p.employment_status))}\n${req('Haushalts-Nettoeinkommen',incomeLabel(p))}\n${req('Haustiere',shown(p.pets))}\n${req('Einzugstermin',moveInLabel(p))}\n${req('SCHUFA-Status',schufaLabel(p.schufa_status))}\nWBS-Status: ${shown(p.wbs_status)}\n\n✍️ Bewerbungstexte: ${[p.message_apartment,p.message_house,p.message_temporary_wg,p.message_swap].filter(Boolean).length}/4 hinterlegt\n${[p.message_apartment,p.message_house,p.message_temporary_wg,p.message_swap].filter(v=>!String(v||'').trim()).length?'⚠️ Ein passender Text ist vor jedem Versand über ImmoScout24, Kleinanzeigen oder Immowelt Pflicht; Immomio erhält keinen Nachrichtentext.':'✅ Ein passender Text wird bei ImmoScout24, Kleinanzeigen und Immowelt mitgesendet; Immomio erhält keinen Nachrichtentext.'}\n\n<b>Pflichtfelder pro Portal</b>\n${portalReady('ImmoScout24','immoscout')}\n${portalReady('Kleinanzeigen','kleinanzeigen')}\n${portalReady('Immowelt','immowelt')}\nImmomio: Sonderfall · keine Bewerberangaben und kein Nachrichtentext beim Versand.\n<i>Die konkrete Formular-Konfiguration wird beim Versand zusätzlich geprüft.</i>\n\nDokumente: ${docs.length} gespeichert · ${selectedDocs} ausgewählt`;
+  `${req('Anrede',salutationLabel(p.salutation))}\n${req('Vorname',shown(p.first_name))}\n${req('Nachname',shown(p.last_name))}\nE-Mail-Adresse (ImmoScout24-/Immowelt-Pflicht; Kleinanzeigen je Formular; Immomio-Kontoverbindung): ${shown(p.email)}\n${req('Telefonnummer',shown(p.phone))}\n${req('Straße',shown(p.street))}\n${req('Hausnummer',shown(p.house_number))}\n${req('PLZ',shown(p.postcode))}\n${req('Ort',shown(p.city))}\n${req('Haushaltstyp',householdLabel(p))}\n${req('Beschäftigungsstatus',employmentLabel(p.employment_status))}\n${req('Haushalts-Nettoeinkommen',incomeLabel(p))}\n${req('Haustiere',shown(p.pets))}\n${req('Einzugstermin',moveInLabel(p))}\n${req('SCHUFA-Status',schufaLabel(p.schufa_status))}\nWBS-Status: ${shown(p.wbs_status)}\n\n✍️ Bewerbungstexte: ${[p.message_apartment,p.message_house,p.message_temporary_wg,p.message_swap].filter(Boolean).length}/4 hinterlegt\n${[p.message_apartment,p.message_house,p.message_temporary_wg,p.message_swap].filter(v=>!String(v||'').trim()).length?'⚠️ Ein passender Text ist vor jedem Versand über ImmoScout24, Kleinanzeigen oder Immowelt Pflicht; Immomio erhält keinen Nachrichtentext.':'✅ Ein passender Text wird bei ImmoScout24, Kleinanzeigen und Immowelt mitgesendet; Immomio erhält keinen Nachrichtentext.'}\n\n<b>Pflichtfelder pro Portal</b>\n${portalReady('ImmoScout24','immoscout')}\n${portalReady('Kleinanzeigen','kleinanzeigen')}\n${portalReady('Immowelt','immowelt')}\nImmomio: Sonderfall · keine Bewerberangaben und kein Nachrichtentext beim Versand.\n<i>Die konkrete Formular-Konfiguration wird beim Versand zusätzlich geprüft.</i>\n\nDokumente: ${docs.length} gespeichert · ${selectedDocs} ausgewählt`;
  const f=(name,label)=>button(label,`platforms:profile-field:${name}`);
  return render(text,[
   [f('salutation','Anrede'),f('schufa_status','SCHUFA')],
   [f('first_name','Vorname *'),f('last_name','Nachname *')],
-  [f('email','E-Mail (Immowelt / Immomio-Konto)'),f('phone','Telefon')],
+  [f('email','E-Mail (Scout / Immowelt / Immomio-Konto)'),f('phone','Telefon')],
   [f('street','Straße'),f('house_number','Hausnr.')],
   [f('postcode','PLZ'),f('city','Ort')],
   [f('household_type','Haushalt'),f('employment_status','Beschäftigung')],
@@ -436,7 +436,7 @@ export async function handleAutoApplyMessage(user,message){
 
  if(replied.startsWith(SETUP_PROMPT)){
   const parts=text.split('|').map(v=>v.trim());
- if(![2,3,5,6].includes(parts.length))return send(chat.id,'Bitte <code>Vorname | Nachname</code> eingeben; optional kannst du die E-Mail als dritten Wert ergänzen. Für Immowelt ist die E-Mail erforderlich.');
+ if(![2,3,5,6].includes(parts.length))return send(chat.id,'Bitte <code>Vorname | Nachname</code> eingeben; optional kannst du die E-Mail als dritten Wert ergänzen. Für ImmoScout24 und Immowelt ist die E-Mail erforderlich; Kleinanzeigen prüft die Formularpflichten beim Versand.');
   try{
    const values={
     user_id:user.id,
@@ -490,7 +490,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  if(action==='profile-new'){
   if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
   const existing=await readProfile(user.id);if(existing)return renderApplicantProfile(user,chat,messageId);
-  return send(chat.id,`${SETUP_PROMPT}\n\nAntworte in <b>einer Nachricht</b> mit Vorname und Nachname, getrennt durch <code>|</code>. Optional kannst du die E-Mail ergänzen:\n\n<code>Vorname | Nachname</code>\noder\n<code>Vorname | Nachname | E-Mail</code>\n\nBeispiel:\n<code>Max | Mustermann | max@example.de</code>\n\nE-Mail ist für die Immowelt-Bewerbung erforderlich und wird zum Verbinden des Immomio-Kontos benötigt. Für ImmoScout24 und Kleinanzeigen ist sie optional; Immomio verlangt sie nicht im Bewerbungsversand. Weitere Formularpflichten werden je Plattform und Inserat geprüft.`,{force_reply:true,selective:true,input_field_placeholder:'Vorname | Nachname | E-Mail optional'});
+  return send(chat.id,`${SETUP_PROMPT}\n\nAntworte in <b>einer Nachricht</b> mit Vorname und Nachname, getrennt durch <code>|</code>. Optional kannst du die E-Mail ergänzen:\n\n<code>Vorname | Nachname</code>\noder\n<code>Vorname | Nachname | E-Mail</code>\n\nBeispiel:\n<code>Max | Mustermann | max@example.de</code>\n\nE-Mail bleibt im allgemeinen Profil optional, wird aber für Bewerbungen über ImmoScout24 und Immowelt benötigt. Kleinanzeigen prüft, ob das konkrete Formular eine E-Mail verlangt. Zum Verbinden des Immomio-Kontos wird sie ebenfalls gebraucht; beim Immomio-Bewerbungsversand gibt es kein E-Mail-Feld. Weitere Formularpflichten werden je Plattform und Inserat geprüft.`,{force_reply:true,selective:true,input_field_placeholder:'Vorname | Nachname | E-Mail optional'});
  }
  if(action==='profile-texts'){
   if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
