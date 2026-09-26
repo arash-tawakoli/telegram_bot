@@ -30,10 +30,11 @@ test('legacy one-click application modules and callback handlers are removed',()
   assert.equal(existsSync(new URL('../supabase/functions/telegram-ui/application.js',import.meta.url)),false);
   assert.equal(existsSync(new URL('../supabase/functions/telegram-ui/application-message.js',import.meta.url)),false);
   const handlers=readFileSync(new URL('../supabase/functions/telegram-ui/handlers.js',import.meta.url),'utf8');
-  const gateway=readFileSync(new URL('../supabase/functions/telegram-gateway/auto-apply.ts',import.meta.url),'utf8');
+  const platformSessions=readFileSync(new URL('../supabase/functions/telegram-ui/platform-sessions.js',import.meta.url),'utf8');
   assert.doesNotMatch(handlers,/quickApplication|enqueue_application_now|startsWith\(['"]apply:/);
-  assert.doesNotMatch(gateway,/handleApply|enqueue_application_now|startsWith\(['"]apply:|callback_data.*apply:/);
-  assert.match(gateway,/data==='platforms'\|\|data\.startsWith\('platforms:'\)/);
+  assert.doesNotMatch(platformSessions,/handleApply|enqueue_application_now|startsWith\(['"]apply:|callback_data.*apply:/);
+  assert.match(platformSessions,/data==='platforms'\|\|data\.startsWith\('platforms:'\)/);
+  assert.equal(existsSync(new URL('../supabase/functions/telegram-gateway/auto-apply.ts',import.meta.url)),false);
 });
 
 test('preview labels use the requested German button names',()=>{
