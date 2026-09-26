@@ -273,6 +273,7 @@ export function providerStaticMissing(provider:ApplicationProvider,profile:any,m
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean(profile?.email)))missing.push('E-Mail-Adresse');
  }
  if(provider==='immowelt'){
+  selected('Anrede',canonicalSalutation(profile?.salutation));
   add('Straße',profile?.street);
   add('Hausnummer',profile?.house_number);
   if(!/^\d{5}$/.test(clean(profile?.postcode)))missing.push('PLZ');
@@ -349,6 +350,7 @@ export function profileAdapterSelfTest(){
   over5000ToImmowelt:providerIncome('immowelt','OVER_5000')==='Ich möchte keine Angabe machen',
   noMoveInToKleinanzeigen:providerMoveIn('kleinanzeigen',{move_in_preference:'NOT_SPECIFIED'})==='Keine Angabe',
   immomioHasNoRequirements:providerStaticMissing('immomio',{},'').length===0,
+   immoweltRequiresSalutation:providerStaticMissing('immowelt',{first_name:'Alex',last_name:'Example',email:'alex@example.com'},'Message').includes('Anrede'),
   noAnswerToImmoScoutIsOmitted:providerSalutation('immoscout','NEUTRAL')===null,
   immomioHasNoSalutation:providerSalutation('immomio','MR')===null
  };
