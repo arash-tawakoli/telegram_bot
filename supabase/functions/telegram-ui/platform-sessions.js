@@ -1,13 +1,9 @@
 import {db,SUPABASE_URL,secret,send,edit,button,telegram,esc} from './runtime.js';
+import {providerStaticMissing} from '../_shared/application-profile-adapters.ts';
 
 const privateOwner=(user,chat)=>chat?.type==='private'&&user.is_active
  && Number(chat.id)===Number(user.telegram_user_id)&&Number(chat.id)===Number(user.chat_id);
 
-const REQUIRED=[
- 'salutation','first_name','last_name','email','phone','street','house_number','postcode','city',
- 'household_type','employment_status','income_range','pets','move_in_preference','schufa_status',
- 'message_apartment','message_house','message_temporary_wg','message_swap'
-];
 const SALUTATION_LABELS={MR:'Herr',MS:'Frau',DIVERSE:'Divers',NEUTRAL:'Neutral',NOT_SPECIFIED:'Keine Angabe',COMPANY:'Firma'};
 const HOUSEHOLD_LABELS={
  SINGLE:'Einpersonenhaushalt',
@@ -59,7 +55,7 @@ const PROFILE_FIELDS={
  salutation:{label:'Anrede',type:'choice',max:40},
  first_name:{label:'Vorname',required:true,max:120},
  last_name:{label:'Nachname',required:true,max:120},
- email:{label:'E-Mail-Adresse',required:true,max:320},
+ email:{label:'E-Mail-Adresse',max:320,hint:'Für Immowelt erforderlich; bei den anderen Portalen optional.'},
  phone:{label:'Telefonnummer',max:80},
  street:{label:'Straße',max:160},
  house_number:{label:'Hausnummer',max:40},
@@ -146,15 +142,6 @@ const connectionLabel=row=>{
  if(row.status==='needs_login')return '🟠 erneut anmelden';
  return '🔴 Fehler';
 };
-const profileReady=p=>!!p&&REQUIRED.every(k=>{
- if(k==='schufa_status')return ['NOT_SPECIFIED','AVAILABLE','NOT_AVAILABLE'].includes(String(p[k]||''));
- if(k==='salutation')return Object.hasOwn(SALUTATION_LABELS,String(p[k]||''));
- if(k==='employment_status')return Object.hasOwn(EMPLOYMENT_CHOICES,String(p[k]||''));
- if(k==='household_type')return Object.hasOwn(HOUSEHOLD_LABELS,String(p[k]||''));
- if(k==='income_range')return Object.hasOwn(INCOME_LABELS,String(p[k]||''));
- if(k==='move_in_preference')return Object.hasOwn(MOVE_IN_LABELS,String(p[k]||''))&&(p[k]!=='EXACT_DATE'||!!p.move_in_date);
- return String(p[k]??'').trim()!=='';
-});
 const shown=(v,fallback='–')=>v==null||String(v).trim()===''?fallback:esc(v);
 const salutationLabel=v=>SALUTATION_LABELS[v]||shown(v,'Keine Angabe');
 const employmentLabel=v=>EMPLOYMENT_CHOICES[v]||shown(v,'Keine Angabe');
@@ -315,22 +302,26 @@ async function renderApplicantProfile(user,chat,messageId,notice=''){
  ]);
  const render=(text,rows)=>messageId?edit(chat.id,messageId,text,{inline_keyboard:rows}):send(chat.id,text,{inline_keyboard:rows});
  if(!p){
-  return render(`👤 <b>Bewerberprofil</b>\n\n${notice?`${notice}\n\n`:''}Noch kein Bewerberprofil angelegt. Lege zuerst Vorname, Nachname und E-Mail als Basis an. Weitere Angaben werden je Plattform und Angebot geprüft.`,[
+  return render(`👤 <b>Bewerberprofil</b>\n\n${notice?`${notice}\n\n`:''}Noch kein Bewerberprofil angelegt. Lege zuerst Vorname und Nachname an. E-Mail ist nur für Immowelt erforderlich; weitere Pflichtangaben werden pro Plattform und Inserat geprüft.`,[
    [button('➕ Bewerberprofil anlegen','platforms:profile-new')],
    [button('← Automatische Bewerbung','platforms')]
   ]);
  }
  if(missingResult.error)throw Error('Profilstatus konnte nicht geladen werden.');
  const missing=Array.isArray(missingResult.data)?missingResult.data:[],missingSet=new Set(missing),ready=missing.length===0,selectedDocs=docs.filter(d=>d.send_with_auto_apply).length;
- const baseKeys=new Set(['Vorname','Nachname','E-Mail-Adresse']);
+ const baseKeys=new Set(['Vorname','Nachname']);
  const req=(label,value)=>`${label}${baseKeys.has(label)?' *':''}: ${missingSet.has(label)?'⚠️ fehlt':value}`;
- const text=`👤 <b>Bewerberprofil</b>\n\n${notice?`${notice}\n\n`:''}<i>* globale Basisangabe. Weitere Pflichtfelder werden pro Plattform und Angebot geprüft.</i>\n\nProfilabdeckung: ${ready?'✅ vollständig':`⚠️ ${missing.length} Angabe${missing.length===1?' offen':'n offen'}`}\n\n`+
-  `${req('Anrede',salutationLabel(p.salutation))}\n${req('Vorname',shown(p.first_name))}\n${req('Nachname',shown(p.last_name))}\n${req('E-Mail-Adresse',shown(p.email))}\n${req('Telefonnummer',shown(p.phone))}\n${req('Straße',shown(p.street))}\n${req('Hausnummer',shown(p.house_number))}\n${req('PLZ',shown(p.postcode))}\n${req('Ort',shown(p.city))}\n${req('Haushaltstyp',householdLabel(p))}\n${req('Beschäftigungsstatus',employmentLabel(p.employment_status))}\n${req('Haushalts-Nettoeinkommen',incomeLabel(p))}\n${req('Haustiere',shown(p.pets))}\n${req('Einzugstermin',moveInLabel(p))}\n${req('SCHUFA-Status',schufaLabel(p.schufa_status))}\nWBS-Status: ${shown(p.wbs_status)}\n\n✍️ Bewerbungstexte: ${[p.message_apartment,p.message_house,p.message_temporary_wg,p.message_swap].filter(Boolean).length}/4 hinterlegt\n\nDokumente: ${docs.length} gespeichert · ${selectedDocs} ausgewählt`;
+ const portalReady=(name,provider)=>{
+  const fields=providerStaticMissing(provider,p);
+  return `${name}: ${fields.length?`⚠️ ${fields.join(', ')}`:'✅ feste Profilfelder vollständig'}`;
+ };
+ const text=`👤 <b>Bewerberprofil</b>\n\n${notice?`${notice}\n\n`:''}<i>* globale Basisangabe. Weitere Pflichtfelder werden pro Plattform und Angebot geprüft.</i>\n\nProfilbasis (Vorname/Nachname): ${ready?'✅ vollständig':`⚠️ ${missing.length} Angabe${missing.length===1?' offen':'n offen'}`}\n\n`+
+  `${req('Anrede',salutationLabel(p.salutation))}\n${req('Vorname',shown(p.first_name))}\n${req('Nachname',shown(p.last_name))}\nE-Mail-Adresse (Immowelt-Pflicht): ${shown(p.email)}\n${req('Telefonnummer',shown(p.phone))}\n${req('Straße',shown(p.street))}\n${req('Hausnummer',shown(p.house_number))}\n${req('PLZ',shown(p.postcode))}\n${req('Ort',shown(p.city))}\n${req('Haushaltstyp',householdLabel(p))}\n${req('Beschäftigungsstatus',employmentLabel(p.employment_status))}\n${req('Haushalts-Nettoeinkommen',incomeLabel(p))}\n${req('Haustiere',shown(p.pets))}\n${req('Einzugstermin',moveInLabel(p))}\n${req('SCHUFA-Status',schufaLabel(p.schufa_status))}\nWBS-Status: ${shown(p.wbs_status)}\n\n✍️ Bewerbungstexte: ${[p.message_apartment,p.message_house,p.message_temporary_wg,p.message_swap].filter(Boolean).length}/4 hinterlegt\n${[p.message_apartment,p.message_house,p.message_temporary_wg,p.message_swap].filter(v=>!String(v||'').trim()).length?'⚠️ Ein passender Text ist vor jedem Versand über ImmoScout24, Kleinanzeigen oder Immowelt Pflicht; Immomio erhält keinen Nachrichtentext.':'✅ Ein passender Text wird bei ImmoScout24, Kleinanzeigen und Immowelt mitgesendet; Immomio erhält keinen Nachrichtentext.'}\n\n<b>Pflichtfelder pro Portal</b>\n${portalReady('ImmoScout24','immoscout')}\n${portalReady('Kleinanzeigen','kleinanzeigen')}\n${portalReady('Immowelt','immowelt')}\nImmomio: Sonderfall · keine Bewerberangaben und kein Nachrichtentext beim Versand.\n<i>Die konkrete Formular-Konfiguration wird beim Versand zusätzlich geprüft.</i>\n\nDokumente: ${docs.length} gespeichert · ${selectedDocs} ausgewählt`;
  const f=(name,label)=>button(label,`platforms:profile-field:${name}`);
  return render(text,[
   [f('salutation','Anrede'),f('schufa_status','SCHUFA')],
   [f('first_name','Vorname *'),f('last_name','Nachname *')],
-  [f('email','E-Mail *'),f('phone','Telefon')],
+  [f('email','E-Mail (Immowelt)'),f('phone','Telefon')],
   [f('street','Straße'),f('house_number','Hausnr.')],
   [f('postcode','PLZ'),f('city','Ort')],
   [f('household_type','Haushalt'),f('employment_status','Beschäftigung')],
@@ -445,11 +436,11 @@ export async function handleAutoApplyMessage(user,message){
 
  if(replied.startsWith(SETUP_PROMPT)){
   const parts=text.split('|').map(v=>v.trim());
-  if(![3,5,6].includes(parts.length))return send(chat.id,'Bitte 3 Werte mit <code>|</code> trennen:\nVorname | Nachname | E-Mail');
+ if(![2,3,5,6].includes(parts.length))return send(chat.id,'Bitte <code>Vorname | Nachname</code> eingeben; optional kannst du die E-Mail als dritten Wert ergänzen. Für Immowelt ist die E-Mail erforderlich.');
   try{
    const values={
     user_id:user.id,
-    first_name:validateField('first_name',parts[0]),last_name:validateField('last_name',parts[1]),email:validateField('email',parts[2]),...(parts.length>=5?{phone:validateField('phone',parts[3]),city:validateField('city',parts[4])}:{}),updated_at:new Date().toISOString()
+    first_name:validateField('first_name',parts[0]),last_name:validateField('last_name',parts[1]),email:parts.length>=3?validateField('email',parts[2]):null,...(parts.length>=5?{phone:validateField('phone',parts[3]),city:validateField('city',parts[4])}:{}),updated_at:new Date().toISOString()
    };
    if(parts.length===6){
     const legacySize=validateField('household_size',parts[5]);
@@ -499,7 +490,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  if(action==='profile-new'){
   if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
   const existing=await readProfile(user.id);if(existing)return renderApplicantProfile(user,chat,messageId);
-  return send(chat.id,`${SETUP_PROMPT}\n\nAntworte in <b>einer Nachricht</b> mit diesen 3 Basisangaben, getrennt durch <code>|</code>:\n\n<code>Vorname | Nachname | E-Mail</code>\n\nBeispiel:\n<code>Max | Mustermann | max@example.de</code>\n\nWeitere Angaben ergänzt du anschließend im Bewerberprofil. Welche davon Pflicht sind, wird je Plattform und Angebot geprüft.`,{force_reply:true,selective:true,input_field_placeholder:'Vorname | Nachname | E-Mail'});
+  return send(chat.id,`${SETUP_PROMPT}\n\nAntworte in <b>einer Nachricht</b> mit Vorname und Nachname, getrennt durch <code>|</code>. Optional kannst du die E-Mail ergänzen:\n\n<code>Vorname | Nachname</code>\noder\n<code>Vorname | Nachname | E-Mail</code>\n\nBeispiel:\n<code>Max | Mustermann | max@example.de</code>\n\nE-Mail ist nur für Immowelt erforderlich. Weitere Pflichtangaben werden je Plattform und Inserat geprüft.`,{force_reply:true,selective:true,input_field_placeholder:'Vorname | Nachname | E-Mail optional'});
  }
  if(action==='profile-texts'){
   if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
@@ -518,7 +509,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
    return render('<b>Anrede</b>\n\nWähle eine Option.',[
     [button(mark('MR',s,'Herr'),'platforms:profile-set:salutation:MR'),button(mark('MS',s,'Frau'),'platforms:profile-set:salutation:MS')],
     [button(mark('DIVERSE',s,'Divers'),'platforms:profile-set:salutation:DIVERSE'),button(mark('NEUTRAL',s,'Neutral'),'platforms:profile-set:salutation:NEUTRAL')],
-    [button(mark('NOT_SPECIFIED',s,'Keine Angabe'),'platforms:profile-set:salutation:NOT_SPECIFIED')],
+    [button(mark('NOT_SPECIFIED',s,'Keine Angabe'),'platforms:profile-set:salutation:NOT_SPECIFIED'),button(mark('COMPANY',s,'Firma'),'platforms:profile-set:salutation:COMPANY')],
     [button('← Bewerberprofil','platforms:profile')]
    ]);
   }
@@ -557,7 +548,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   }
   if(arg==='pets'){
    const p=current?.pets;
-   return render('<b>Haustiere *</b>\n\nWähle eine Option.',[
+   return render('<b>Haustiere</b>\n\nWähle eine Option.',[
     [button(mark('Keine Angaben',p,'Keine Angaben'),'platforms:profile-set:pets:NONE')],
     [button(mark('Ja',p,'Ja'),'platforms:profile-set:pets:YES'),button(mark('Nein',p,'Nein'),'platforms:profile-set:pets:NO')],
     [button('← Bewerberprofil','platforms:profile')]
@@ -574,7 +565,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
    ]);
   }
   if(arg==='schufa_status'){
-   return render('<b>SCHUFA-Status *</b>\n\nWähle eine Option.',[
+   return render('<b>SCHUFA-Status</b>\n\nWähle eine Option.',[
     [button('Keine Angabe','platforms:profile-set:schufa_status:NOT_SPECIFIED')],
     [button('Vorhanden (< 3 Monate)','platforms:profile-set:schufa_status:AVAILABLE')],
     [button('Nicht vorhanden','platforms:profile-set:schufa_status:NOT_AVAILABLE')],
@@ -742,7 +733,15 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
      return render(`⚠️ <b>Bewerberprofil unvollständig</b>\n\nVervollständige zuerst alle mit * markierten Pflichtfelder.\n\n${preview}${more}`,[[button('👤 Bewerberprofil vervollständigen','platforms:profile')],...back]);
     }
     const {error}=await db.rpc('set_application_enabled_shared',{p_user:user.id,p_enabled:true});
-    if(error)return render('⏳ <b>Immowelt ist verbunden.</b>\n\nDein Bewerberprofil ist vollständig. Die automatische Bewerbung für Immowelt wird freigegeben, sobald der technische Versandtest erfolgreich bestätigt wurde.',[[button('👤 Bewerberprofil','platforms:profile')],...back]);
+    if(error){
+     const reason=String(error.message||'');
+     const message=reason.includes('provider_required')
+      ? 'Verbinde zuerst mindestens eine Bewerbungsplattform.'
+      : reason.includes('profile_incomplete')
+       ? 'Im Bewerberprofil fehlen noch Vorname oder Nachname.'
+       : 'Der globale Auto-Bewerbungs-Schalter konnte nicht gespeichert werden. Bitte prüfe die Verbindung und versuche es erneut.';
+     return render(`⚠️ <b>Auto-Bewerbung nicht aktiviert</b>\n\n${message}`,[[button('👤 Bewerberprofil','platforms:profile')],...back]);
+    }
    }
   }
  }
