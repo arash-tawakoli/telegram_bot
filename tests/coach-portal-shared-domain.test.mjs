@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
 const coach=readFileSync(new URL('../supabase/functions/coach-api/index.ts',import.meta.url),'utf8');
-const autoApply=readFileSync(new URL('../supabase/functions/telegram-gateway/auto-apply.ts',import.meta.url),'utf8');
+const autoApply=readFileSync(new URL('../supabase/functions/telegram-ui/platform-sessions.js',import.meta.url),'utf8');
 const oauth=readFileSync(new URL('../supabase/functions/telegram-oauth-bridge/index.ts',import.meta.url),'utf8');
 const migration=readFileSync(new URL('../supabase/migrations/20260922114316_unify_coach_portal_telegram_domain_logic.sql',import.meta.url),'utf8');
 
@@ -17,7 +17,8 @@ test('coach portal and Telegram share premium and search-profile domain rules',(
 
 test('global AutoApply state is written through the shared application_preferences writer',()=>{
   assert.match(autoApply,/set_application_enabled_shared/);
-  assert.match(autoApply,/prefs\.enabled\?'⏸ Auto-Bewerbung pausieren'/);
+  assert.ok(autoApply.includes("set_application_provider_enabled_shared"));
+  assert.ok(autoApply.includes("providerEnabled=meta=>prefs?.[meta.field]??state.auto_apply_enabled"));
   assert.match(migration,/public\.set_application_enabled_shared/);
 });
 
