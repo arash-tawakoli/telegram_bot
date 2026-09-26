@@ -23,7 +23,7 @@ test('dispatcher no longer creates a manual quick-application action',()=>{
   const delivery=readFileSync(new URL('../supabase/functions/notification-dispatcher/preview-delivery.ts',import.meta.url),'utf8');
   assert.doesNotMatch(dispatcher,/quickApplyButton|application-message\.js|Schnellbewerbung|callback_data:\s*[`'"]apply:/);
   assert.doesNotMatch(delivery,/startsWith\(['"]apply:|Schnellbewerbung/);
-  assert.match(dispatcher,/callback_data:`platforms:preview:\$\{l\.id\}`/);
+  assert.ok(delivery.includes("callback_data:'platforms'"));
 });
 
 test('legacy one-click application modules and callback handlers are removed',()=>{
@@ -33,7 +33,7 @@ test('legacy one-click application modules and callback handlers are removed',()
   const platformSessions=readFileSync(new URL('../supabase/functions/telegram-ui/platform-sessions.js',import.meta.url),'utf8');
   assert.doesNotMatch(handlers,/quickApplication|enqueue_application_now|startsWith\(['"]apply:/);
   assert.doesNotMatch(platformSessions,/handleApply|enqueue_application_now|startsWith\(['"]apply:|callback_data.*apply:/);
-  assert.match(platformSessions,/data==='platforms'\|\|data\.startsWith\('platforms:'\)/);
+  assert.ok(handlers.includes("if (data === 'platforms' || data.startsWith('platforms:'))"));
   assert.equal(existsSync(new URL('../supabase/functions/telegram-gateway/auto-apply.ts',import.meta.url)),false);
 });
 
