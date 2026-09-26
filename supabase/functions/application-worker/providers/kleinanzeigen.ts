@@ -1,5 +1,5 @@
 import {saveConnection,getConnection,markConnection,deleteConnection} from '../credentials.ts';
-import {providerEnumCandidates,providerSalutation,providerEmployment,providerHousehold,providerIncome,providerMoveIn} from '../../_shared/application-profile-adapters.ts';
+import {providerEnumCandidates,providerSalutation,providerEmployment,providerHousehold,providerIncome,providerMoveIn,canonicalSalutation,canonicalHousehold,canonicalEmployment,canonicalIncome,canonicalSchufa,canonicalMoveIn} from '../../_shared/application-profile-adapters.ts';
 
 const DOMAIN='login.kleinanzeigen.de';
 const API_HOST='https://api.kleinanzeigen.de';
@@ -74,13 +74,106 @@ function formControls(ui:any){const out:any[]=[];const walk=(v:any)=>{if(!v||typ
 function formLabel(ui:any,key:string){const suffix=`/properties/${key}`;return norm(formControls(ui).find((c:any)=>String(c.scope).endsWith(suffix))?.label||key)}
 function ownValue(obj:any,key:string){return obj&&Object.prototype.hasOwnProperty.call(obj,key)?obj[key]:undefined}
 function booleanValue(raw:any){if(typeof raw==='boolean')return raw;if(raw===1||raw==='1')return true;if(raw===0||raw==='0')return false;const v=norm(raw).toLowerCase();if(['true','yes','ja','on'].includes(v))return true;if(['false','no','nein','off'].includes(v))return false;return undefined}
-function enumValue(prop:any,raw:any){const values=Array.isArray(prop?.enum)?prop.enum.map((x:any)=>String(x)):[];if(Array.isArray(raw)){for(const candidate of raw){const hit=enumValue(prop,candidate);if(hit!==undefined)return hit}return undefined}if(!values.length)return raw;const text=norm(raw);if(!text)return values.includes('NOT_SPECIFIED')?'NOT_SPECIFIED':undefined;const direct=values.find((x:string)=>x.toLowerCase()===text.toLowerCase());if(direct)return direct;for(const option of Array.isArray(prop?.oneOf)?prop.oneOf:[]){const c=String(option?.const??''),title=norm(option?.title);if(c&&values.includes(c)&&(c.toLowerCase()===text.toLowerCase()||title.toLowerCase()===text.toLowerCase()))return c}const aliases:Record<string,string[]>= {MALE:['herr','male','männlich','maennlich'],FEMALE:['frau','female','weiblich'],DIVERS:['divers','diverse'],NOT_SPECIFIED:['keine angabe','keine angaben','nicht angegeben','not specified']};for(const value of values){if((aliases[value]||[]).some(x=>x===text.toLowerCase()))return value}return undefined}
+function formChoices(prop:any){
+ const values=Array.isArray(prop?.enum)?prop.enum:[];
+ const alternatives=[...(Array.isArray(prop?.oneOf)?prop.oneOf:[]),...(Array.isArray(prop?.anyOf)?prop.anyOf:[])];
+ const enumNames=prop?.enumNames||prop?.['x-enumNames']||prop?.['x-enum-names']||[];
+ const enumOptions=prop?.enumOptions||prop?.options?.enumOptions||[];
+ if(values.length)return values.map((value:any,index:number)=>{
+  const match=alternatives.find((item:any)=>String(item?.const??item?.value??'')===String(value));
+  return{value,labels:[enumNames[index],enumOptions[index]?.label,enumOptions[index]?.title,match?.title,match?.label,match?.description].filter((x:any)=>x!=null)};
+ });
+ if(alternatives.length)return alternatives.map((item:any)=>({value:item?.const??item?.value??item?.enum?.[0],labels:[item?.title,item?.label,item?.description].filter((x:any)=>x!=null)})).filter((x:any)=>x.value!=null);
+ if(enumOptions.length)return enumOptions.map((item:any)=>({value:item?.value??item?.const,labels:[item?.label,item?.title].filter((x:any)=>x!=null)})).filter((x:any)=>x.value!=null);
+ return[];
+}
+function formFieldKind(key:string){
+ const k=String(key||'').toLowerCase();
+ if(/salutation|anrede/.test(k))return'salutation';
+ if(/schufa/.test(k))return'schufa';
+ if(/pet|haustier/.test(k))return'pets';
+ if(/household|haushalt|numberofpersons|personen/.test(k))return'household';
+ if(/employment|beruf|job|occupation/.test(k))return'employment';
+ if(/income|einkommen/.test(k))return'income';
+ if(/move.?in|einzug/.test(k))return'movein';
+ return'';
+}
+function canonicalFormChoice(kind:string,value:any){
+ if(kind==='salutation')return canonicalSalutation(value);
+ if(kind==='household')return canonicalHousehold(value);
+ if(kind==='employment')return canonicalEmployment(value);
+ if(kind==='income')return canonicalIncome(value);
+ if(kind==='schufa')return canonicalSchufa(value);
+ if(kind==='movein')return canonicalMoveIn(value);
+ if(kind==='pets'){
+  const n=norm(value);
+  if(/keine angabe|not specified|no answer/.test(n))return'NOT_SPECIFIED';
+  if(/keine haustiere|keine tiere|no pets|^nein$|^no$/.test(n))return'NO_PETS';
+  if(/^ja$|^yes$|^true$/.test(n))return'PETS';
+ }
+ return null;
+}
+function enumValue(prop:any,raw:any,semantic=''){
+ const choices=formChoices(prop);
+ if(Array.isArray(raw)){
+  for(const candidate of raw){const hit=enumValue(prop,candidate,semantic);if(hit!==undefined)return hit}
+  return undefined;
+ }
+ if(!choices.length)return raw;
+ if(raw==null||String(raw).trim()==='')return undefined;
+ const target=norm(raw),kind=formFieldKind(semantic),canonical=canonicalFormChoice(kind,raw);
+ const found=choices.find((option:any)=>{
+  if(norm(option.value)===target||option.labels.some((label:any)=>norm(label)===target))return true;
+  if(!canonical)return false;
+  return canonicalFormChoice(kind,option.value)===canonical||option.labels.some((label:any)=>canonicalFormChoice(kind,label)===canonical);
+ });
+ return found?.value;
+}
 function profileHouseholdValue(profile:any,prop:any){const type=String(prop?.type||'');if(['integer','number'].includes(type)&&profile?.household_size!=null)return profile.household_size;return providerEnumCandidates('kleinanzeigen','household',profile)}
 function profileIncomeValue(profile:any,prop:any){const type=String(prop?.type||'');if(['integer','number'].includes(type)&&profile?.monthly_net_income!=null)return profile.monthly_net_income;return providerEnumCandidates('kleinanzeigen','income',profile)}
-function profileMoveInValue(profile:any,prop:any){const format=String(prop?.format||'').toLowerCase();if(format==='date'&&profile?.move_in_preference==='EXACT_DATE')return profile?.move_in_date??null;return providerEnumCandidates('kleinanzeigen','move_in',profile)}
-function semanticValue(key:string,profile:any,message:string,prefill:any,prop:any={}){const k=key.toLowerCase();if(k==='message'||/nachricht/.test(k))return message;if(/currentschufainformation|schufa/.test(k))return profile?.schufa_status??ownValue(prefill,key)??'NOT_SPECIFIED';if(/phone.?call.?desired|callback|rückruf|ruckruf/.test(k))return profile?.phone_call_desired??ownValue(prefill,key)??false;if(/contact.?first.?name|first.?name|vorname/.test(k))return profile?.first_name??null;if(/contact.?last.?name|last.?name|nachname/.test(k))return profile?.last_name??null;if(/contact.?name|profile.?name|display.?name|nickname/.test(k))return ownValue(prefill,key)??prefill?.contactName??null;if(/salutation|anrede/.test(k))return providerEnumCandidates('kleinanzeigen','salutation',profile);if(/phone|telefon/.test(k))return profile?.phone??null;if(/email|mail/.test(k))return profile?.email??null;if(/household|haushalt/.test(k))return profileHouseholdValue(profile,prop);if(/income|einkommen/.test(k))return profileIncomeValue(profile,prop);if(/move.?in|einzug/.test(k))return profileMoveInValue(profile,prop);if(/employment|beruf|job/.test(k))return providerEnumCandidates('kleinanzeigen','employment',profile);if(/pet|haustier/.test(k))return profile?.pets??null;if(/\bwbs\b|wohnungsberechtigung/.test(k))return profile?.wbs_status??null;if(/house.?number|hausnummer/.test(k))return profile?.house_number??null;if(/street|strasse|straße/.test(k))return profile?.street??null;if(/postcode|postal|\bplz\b/.test(k))return profile?.postcode??null;if(/city|stadt/.test(k))return profile?.city??null;return ownValue(prefill,key)}
-function normalizeSchemaValue(prop:any,raw:any){const type=String(prop?.type||'');if(type==='boolean')return booleanValue(raw);if(Array.isArray(prop?.enum)&&prop.enum.length)return enumValue(prop,raw);if(Array.isArray(raw))return raw[0];return raw}
-function prepareRequiredForm(form:any,profile:any,message:string){const schema=form?.schema??{},required=Array.isArray(schema?.required)?schema.required.map((x:any)=>String(x)):[],prefill=form?.data&&typeof form.data==='object'?form.data:{},payload:any={},missing:any[]=[],unsupported:any[]=[],fields:any[]=[];for(const key of required){const prop=schema?.properties?.[key]??{},label=formLabel(form?.uiSchema,key),type=String(prop?.type||''),raw=semanticValue(key,profile,message,prefill,prop),value=normalizeSchemaValue(prop,raw);fields.push({id:key,label,type,required:true});if(value===undefined){unsupported.push({id:key,label,type});continue}if(value===null||(typeof value==='string'&&norm(value)==='')){missing.push({id:key,label,type});continue}payload[key]=value}return{payload,fields,missing,unsupported}}
+function profileMoveInValue(profile:any,prop:any){const format=String(prop?.format||'').toLowerCase();if(format==='date'&&profile?.move_in_preference==='EXACT_DATE')return null;return providerEnumCandidates('kleinanzeigen','move_in',profile)}
+function semanticValue(key:string,profile:any,message:string,prefill:any,prop:any={},label=''){
+ const k=(String(key)+' '+String(label)).toLowerCase();
+ if(/message|nachricht|bewerbungstext/.test(k))return message;
+ if(/currentschufainformation|schufa/.test(k))return providerEnumCandidates('kleinanzeigen','schufa',{...profile,schufa_status:profile?.schufa_status??ownValue(prefill,key)??'NOT_SPECIFIED'});
+ if(/phone.?call.?desired|callback|rückruf|ruckruf/.test(k))return profile?.phone_call_desired??ownValue(prefill,key)??false;
+ if(/contact.?first.?name|first.?name|vorname/.test(k))return profile?.first_name??null;
+ if(/contact.?last.?name|last.?name|nachname/.test(k))return profile?.last_name??null;
+ if(/contact.?name|profile.?name|display.?name|nickname/.test(k))return ownValue(prefill,key)??prefill?.contactName??null;
+ if(/salutation|anrede/.test(k))return providerEnumCandidates('kleinanzeigen','salutation',profile);
+ if(/phone|telefon/.test(k))return profile?.phone??null;
+ if(/email|mail/.test(k))return profile?.email??null;
+ if(/household|haushalt/.test(k))return profileHouseholdValue(profile,prop);
+ if(/income|einkommen/.test(k))return profileIncomeValue(profile,prop);
+ if(/move.?in|einzug/.test(k))return profileMoveInValue(profile,prop);
+ if(/employment|beruf|job/.test(k))return providerEnumCandidates('kleinanzeigen','employment',profile);
+ if(/pet|haustier/.test(k))return providerEnumCandidates('kleinanzeigen','pets',profile);
+ if(/\bwbs\b|wohnungsberechtigung/.test(k))return profile?.wbs_status??null;
+ if(/house.?number|hausnummer/.test(k))return profile?.house_number??null;
+ if(/street.*(?:number|nr)|streetnumber|addressline|strasse.*(?:nummer|nr)|straße.*(?:nummer|nr)/.test(k)){
+  const street=String(profile?.street||'').trim(),number=String(profile?.house_number||'').trim();
+  return street&&number?street+' '+number:null;
+ }
+ if(/street|strasse|straße/.test(k))return profile?.street??null;
+ if(/postcode|postal|\bplz\b/.test(k))return profile?.postcode??null;
+ if(/city|stadt/.test(k))return profile?.city??null;
+ return ownValue(prefill,key);
+}
+function normalizeSchemaValue(prop:any,raw:any,semantic=''){const type=String(prop?.type||'');if(type==='boolean')return booleanValue(raw);if(formChoices(prop).length)return enumValue(prop,raw,semantic);if(Array.isArray(raw))return raw[0];return raw}
+function prepareRequiredForm(form:any,profile:any,message:string){
+ const schema=form?.schema??{},required=Array.isArray(schema?.required)?schema.required.map((x:any)=>String(x)):[],prefill=form?.data&&typeof form.data==='object'?form.data:{},payload:any={},missing:any[]=[],unsupported:any[]=[],fields:any[]=[];
+ const properties=schema?.properties&&typeof schema.properties==='object'?schema.properties:{};
+ const optionalMessageFields=Object.keys(properties).filter((key:string)=>/message|nachricht|bewerbungstext/i.test(key+' '+formLabel(form?.uiSchema,key)));
+ const formKeys=[...new Set([...required,...optionalMessageFields])];
+ for(const key of formKeys){
+  const isRequired=required.includes(key),prop=properties[key]??{},label=formLabel(form?.uiSchema,key),type=String(prop?.type||''),raw=semanticValue(key,profile,message,prefill,prop,label),value=normalizeSchemaValue(prop,raw,key);
+  fields.push({id:key,label,type,required:isRequired});
+  if(value===undefined){if(isRequired)unsupported.push({id:key,label,type});continue}
+  if(value===null||(typeof value==='string'&&norm(value)==='')){if(isRequired)missing.push({id:key,label,type});continue}
+  payload[key]=value
+ }
+ return{payload,fields,missing,unsupported}
+}
 async function adLookup(adId:string,xapp:string){return apiRequest(`${API_HOST}/api/ads/${encodeURIComponent(adId)}.json`,{method:'GET',headers:publicApiHeaders(xapp,AD_FIELDS)})}
 async function contactForm(acct:any,adId:string){const url=`${GATEWAY_HOST}${XCF_PATH(adId)}`,r=await apiRequest(url,{method:'GET',headers:gatewayHeaders(acct.token,acct.xapp)});if(r.response.status===401||r.response.status===403)throw Error('needs_login');if(!r.response.ok){if(r.response.status===429||r.response.status>=500)throw Error('temporary_network_error');throw Error(`contact_form_${r.response.status}`)}if(!r.json?.schema||!r.json?.uiSchema)throw Error('provider_contract_unverified');return r.json}
 async function contactFormWithRetry(acct:any,adId:string){try{return await contactForm(acct,adId)}catch(e:any){if(e?.message==='needs_login'||e?.message==='temporary_network_error')throw e;await wait(750);return contactForm(acct,adId)}}
