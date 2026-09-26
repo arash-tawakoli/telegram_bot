@@ -1,5 +1,5 @@
 import {getConnection,deleteConnection} from '../credentials.ts';
-import {providerStaticMissing,providerSalutation,providerHousehold,providerEmployment,providerIncome,providerMoveIn} from '../../_shared/application-profile-adapters.ts';
+import {providerStaticMissing,providerSalutation,providerHousehold,providerEmployment,providerIncome,providerMoveIn,providerPets} from '../../_shared/application-profile-adapters.ts';
 
 const PROVIDER='immowelt';
 
@@ -26,6 +26,7 @@ function enrichedMessage(profile:any,message:any){
   'Haushaltstyp: '+String(providerHousehold('immowelt',profile?.household_type)||''),
   'Beschäftigungsstatus: '+String(providerEmployment('immowelt',profile?.employment_status)||''),
   'Haushalts-Nettoeinkommen: '+String(providerIncome('immowelt',profile?.income_range)||''),
+  'Haustiere: '+String(providerPets('immowelt',profile?.pets)||''),
   'Gewünschtes Einzugsdatum: '+String(providerMoveIn('immowelt',profile)||'')
  ].filter(x=>!/:\s*$/.test(x));
  const base=String(message||'').trim();
