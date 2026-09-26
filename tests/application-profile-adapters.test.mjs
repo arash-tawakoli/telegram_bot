@@ -81,12 +81,86 @@ test('household, employment and income values use each portal’s available labe
 
 test('Schufa and pet values are translated where the contact form supports them', () => {
   assert.equal(adapters.providerSchufa('kleinanzeigen', 'PRESENT_RECENT'), 'Vorhanden (< 3 Monate)');
+  assert.equal(adapters.providerSchufa('kleinanzeigen', 'AVAILABLE'), 'Vorhanden (< 3 Monate)');
   assert.equal(adapters.providerSchufa('kleinanzeigen', 'NOT_AVAILABLE'), 'Nicht vorhanden');
   assert.equal(adapters.providerSchufa('immoscout', 'PRESENT_RECENT'), null);
-  assert.equal(adapters.providerPets('kleinanzeigen', 'Hund'), 'Hund');
+  assert.equal(adapters.providerPets('kleinanzeigen', 'Hund'), 'Ja');
   assert.equal(adapters.providerPets('kleinanzeigen', 'Hamster'), null);
   assert.equal(adapters.providerPets('immowelt', 'Hamster'), 'Nein');
   assert.equal(adapters.providerPets('immoscout', 'Hund'), 'Ja');
+});
+
+test('static readiness follows each portal form and treats optional profile values as optional', () => {
+  const identity = {first_name: 'Alex', last_name: 'Example'};
+  const immowelt = {
+    ...identity,
+    email: 'alex@example.com',
+    street: 'Musterstraße',
+    house_number: '4',
+    postcode: '20095',
+    city: 'Hamburg',
+    salutation: null,
+    household_type: null,
+    employment_status: null,
+    income_range: null,
+    pets: null,
+    move_in_preference: null,
+    schufa_status: null
+  };
+  assert.deepEqual([...adapters.providerStaticMissing('immowelt', immowelt, 'Immowelt message')], []);
+  assert.deepEqual(
+    [...adapters.providerStaticMissing('immowelt', {...immowelt, email: ''}, 'Message')],
+    ['E-Mail-Adresse']
+  );
+  assert.deepEqual(
+    [...adapters.providerStaticMissing('immowelt', {...immowelt, street: '', house_number: '', postcode: ''}, 'Message')],
+    ['Straße', 'Hausnummer', 'PLZ']
+  );
+
+  const kleinanzeigen = {
+    ...identity,
+    salutation: 'NOT_SPECIFIED',
+    street: 'Musterstraße',
+    house_number: '4',
+    postcode: '20095',
+    city: 'Hamburg',
+    schufa_status: 'NOT_SPECIFIED',
+    household_type: 'NOT_SPECIFIED',
+    employment_status: 'NOT_SPECIFIED',
+    income_range: 'NOT_SPECIFIED',
+    move_in_preference: 'NOT_SPECIFIED'
+  };
+  assert.deepEqual([...adapters.providerStaticMissing('kleinanzeigen', kleinanzeigen, 'Kleinanzeigen message')], []);
+  assert.deepEqual(
+    [...adapters.providerStaticMissing('kleinanzeigen', {...kleinanzeigen, email: '', phone: '', pets: ''}, 'Message')],
+    []
+  );
+  assert.deepEqual(
+    [...adapters.providerStaticMissing('kleinanzeigen', {...kleinanzeigen, city: '', income_range: null}, 'Message')],
+    ['Ort', 'Haushalts-Nettoeinkommen']
+  );
+
+  const scout = {
+    ...identity,
+    salutation: 'NEUTRAL',
+    household_type: 'NOT_SPECIFIED',
+    employment_status: 'NOT_SPECIFIED',
+    income_range: 'NOT_SPECIFIED',
+    move_in_preference: 'NOT_SPECIFIED'
+  };
+  assert.deepEqual([...adapters.providerStaticMissing('immoscout', scout, 'ImmoScout message')], []);
+  assert.deepEqual(
+    [...adapters.providerStaticMissing('immoscout', {...scout, email: '', street: '', phone: ''}, 'Message')],
+    []
+  );
+  assert.deepEqual([...adapters.providerStaticMissing('immoscout', identity, '')], [
+    'Anrede', 'Haushaltstyp', 'Beschäftigungsstatus', 'Haushalts-Nettoeinkommen', 'Einzugsdatum', 'Bewerbungstext'
+  ]);
+  assert.ok([...adapters.providerStaticMissing('kleinanzeigen', {
+    ...kleinanzeigen,
+    move_in_preference: 'EXACT_DATE',
+    move_in_date: '2026-02-30'
+  }, 'Template')].includes('Gewünschtes Einzugsdatum'));
 });
 
 test('exact move-in dates are handled as portal choices using the Berlin calendar day', () => {
@@ -200,7 +274,7 @@ test('Kleinanzeigen maps required contact fields and includes an optional messag
         employment: {type: 'string', enum: ['other', 'employee'], enumNames: ['Sonstiges', 'Angestellte(r)']},
         income: {type: 'string', enum: ['low', 'middle'], enumNames: ['500€ - 1.000€', '1.000€ - 1.500€']},
         household: {type: 'string', enum: ['single', 'pair'], enumNames: ['Einpersonenhaushalt', 'Zweipersonenhaushalt']},
-        pets: {type: 'string'},
+        pets: {type: 'string', enum: ['na', 'yes', 'no'], enumNames: ['Keine Angaben', 'Ja', 'Nein']},
         moveIn: {type: 'string', enum: ['unknown', 'flexible', 'soon'], enumNames: ['Keine Angabe', 'Flexibel', 'Sofort']},
         streetNumber: {type: 'string'},
         message: {type: 'string'}
@@ -234,10 +308,22 @@ test('Kleinanzeigen maps required contact fields and includes an optional messag
   assert.equal(result.payload.employment, 'other');
   assert.equal(result.payload.income, 'low');
   assert.equal(result.payload.household, 'pair');
-  assert.equal(result.payload.pets, 'Hund');
+  assert.equal(result.payload.pets, 'yes');
   assert.equal(result.payload.moveIn, 'unknown');
   assert.equal(result.payload.streetNumber, 'Musterstraße 4');
   assert.equal(result.payload.message, 'Template message');
+});
+
+test('Kleinanzeigen fails closed if the contact form has no message field', () => {
+  const result = kleinanzeigen.prepareRequiredForm({
+    schema: {required: ['contactFirstName'], properties: {contactFirstName: {type: 'string'}}},
+    uiSchema: {elements: []},
+    data: {}
+  }, {first_name: 'Alex'}, 'Template message');
+  assert.equal(result.unsupported.length, 1);
+  assert.equal(result.unsupported[0].id, 'message');
+  assert.equal(result.unsupported[0].label, 'Nachricht');
+  assert.equal(result.unsupported[0].type, 'string');
 });
 
 test('ImmoMio has no application-stage profile mapping or message requirement', () => {
