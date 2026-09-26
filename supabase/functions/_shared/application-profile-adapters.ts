@@ -80,6 +80,7 @@ export function canonicalMoveIn(value:any){
 }
 export function canonicalSchufa(value:any){
  const raw=clean(value);if(!raw)return'NOT_SPECIFIED';
+ if(raw==='AVAILABLE')return'PRESENT_RECENT';
  if(['PRESENT_RECENT','NOT_AVAILABLE','NOT_SPECIFIED'].includes(raw))return raw;
  const n=norm(raw);
  if(/keine angabe|not specified|no answer/.test(n))return'NOT_SPECIFIED';
@@ -204,8 +205,7 @@ export function providerPets(provider:ApplicationProvider,value:any){
  if(provider==='kleinanzeigen'){
   if(pet.kind==='NOT_SPECIFIED'||pet.kind==='SMALL_ONLY')return null;
   if(pet.kind==='NO_PETS')return'Nein';
-  if(pet.kind==='YES')return'Ja';
-  return pet.raw;
+  return'Ja';
  }
  if(pet.kind==='NOT_SPECIFIED')return'Keine Angaben';
  if(pet.kind==='NO_PETS'||pet.kind==='SMALL_ONLY')return'Nein';
@@ -265,19 +265,40 @@ export function providerEnumCandidates(provider:ApplicationProvider,semantic:str
 export function providerStaticMissing(provider:ApplicationProvider,profile:any,message?:string){
  if(provider==='immomio')return[];
  const missing:string[]=[];
- const required:[string,any][]=[
-  ['Vorname',profile?.first_name],['Nachname',profile?.last_name],['E-Mail-Adresse',profile?.email]
- ];
+ const add=(label:string,value:any)=>{if(!clean(value))missing.push(label);};
+ const selected=(label:string,value:any)=>{if(value==null)missing.push(label);};
+ add('Vorname',profile?.first_name);
+ add('Nachname',profile?.last_name);
  if(provider==='immowelt'){
-  required.unshift(['Anrede',providerSalutation('immowelt',profile?.salutation)]);
-  required.push(
-   ['Haushaltstyp',providerHousehold('immowelt',profile?.household_type)],
-   ['Beschäftigungsstatus',providerEmployment('immowelt',profile?.employment_status)],
-   ['Haushalts-Nettoeinkommen',providerIncome('immowelt',profile?.income_range)],
-   ['Gewünschtes Einzugsdatum',providerMoveIn('immowelt',profile)]
-  );
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean(profile?.email)))missing.push('E-Mail-Adresse');
+  add('Straße',profile?.street);
+  add('Hausnummer',profile?.house_number);
+  if(!/^\d{5}$/.test(clean(profile?.postcode)))missing.push('PLZ');
+  add('Ort',profile?.city);
  }
- for(const [label,value] of required)if(!clean(value))missing.push(label);
+ if(provider==='kleinanzeigen'){
+  selected('Anrede',canonicalSalutation(profile?.salutation));
+  add('Straße',profile?.street);
+  add('Hausnummer',profile?.house_number);
+  if(!/^\d{5}$/.test(clean(profile?.postcode)))missing.push('PLZ');
+  add('Ort',profile?.city);
+  selected('SCHUFA-Status',canonicalSchufa(profile?.schufa_status));
+  selected('Haushaltstyp',canonicalHousehold(profile?.household_type));
+  selected('Beschäftigungsstatus',canonicalEmployment(profile?.employment_status));
+  selected('Haushalts-Nettoeinkommen',canonicalIncome(profile?.income_range));
+  const moveIn=canonicalMoveIn(profile?.move_in_preference);
+  selected('Einzugstermin',moveIn);
+  if(moveIn==='EXACT_DATE'&&dateOrdinal(profile?.move_in_date)==null)missing.push('Gewünschtes Einzugsdatum');
+ }
+ if(provider==='immoscout'){
+  selected('Anrede',canonicalSalutation(profile?.salutation));
+  selected('Haushaltstyp',canonicalHousehold(profile?.household_type));
+  selected('Beschäftigungsstatus',canonicalEmployment(profile?.employment_status));
+  selected('Haushalts-Nettoeinkommen',canonicalIncome(profile?.income_range));
+  const moveIn=canonicalMoveIn(profile?.move_in_preference);
+  selected('Einzugsdatum',moveIn);
+  if(moveIn==='EXACT_DATE'&&dateOrdinal(profile?.move_in_date)==null)missing.push('Gewünschtes Einzugsdatum');
+ }
  if(message!==undefined&&!clean(message))missing.push('Bewerbungstext');
  return [...new Set(missing)];
 }
