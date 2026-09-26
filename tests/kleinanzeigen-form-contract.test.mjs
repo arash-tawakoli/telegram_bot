@@ -21,6 +21,38 @@ test('Kleinanzeigen income range maps by exact provider range and rejects mismat
 });
 
 
+test('Kleinanzeigen profile income buckets map to the exact live XCF enum values', () => {
+  const profileToProvider = {
+    UNDER_500: 'LESS_THAN_500_EUR',
+    '500_1000': 'EUR_500_TO_1000',
+    '1000_1500': 'EUR_1000_TO_1500',
+    '1500_2000': 'EUR_1500_TO_2000',
+    '2000_3000': 'EUR_2000_TO_3000',
+    '3000_4000': 'EUR_3000_TO_4000',
+    '4000_5000': 'EUR_4000_TO_5000',
+    OVER_5000: 'MORE_THAN_5000_EUR',
+  };
+  const labels = ['Unter 500€', '500€ - 1.000€', '1.000€ - 1.500€', '1.500€ - 2.000€', '2.000€ - 3.000€', '3.000€ - 4.000€', '4.000€ - 5.000€', 'Über 5.000€'];
+  const values = Object.values(profileToProvider);
+  const prop = { type: 'string', enum: values, oneOf: values.map((value, i) => ({ value, label: labels[i] })) };
+  const display = {
+    UNDER_500: 'Unter 500€',
+    '500_1000': '500€ - 1.000€',
+    '1000_1500': '1.000€ - 1.500€',
+    '1500_2000': '1.500€ - 2.000€',
+    '2000_3000': '2.000€ - 3.000€',
+    '3000_4000': '3.000€ - 4.000€',
+    '4000_5000': '4.000€ - 5.000€',
+    OVER_5000: 'Über 5000€',
+  };
+  for (const [profileRange, providerValue] of Object.entries(profileToProvider)) {
+    const raw = providerFormCandidates('income', profileRange, display[profileRange]);
+    assert.equal(resolveProviderFormEnum(prop, raw, 'income'), providerValue);
+  }
+  const worker = readFileSync(new URL('../supabase/functions/kleinanzeigen-application-worker/index.ts', import.meta.url), 'utf8');
+  assert.ok(worker.includes("else if(/income|einkommen/i.test(k))v=pval(k,p,a,locationId,prop);"));
+});
+
 test('read-only form diagnostics expose schema choices and omit profile values', () => {
   const summary = summarizeFormOptions(
     { type: 'string', enum: ['MALE', 'FEMALE'], enumNames: ['Herr', 'Frau'] },
