@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { readFileSync } from 'node:fs';
 import { providerFormCandidates, resolveProviderFormEnum, summarizeFormOptions } from '../supabase/functions/kleinanzeigen-application-worker/form-contract.mjs';
 
 test('Kleinanzeigen salutation maps only to a live allowed value or matching form label', () => {
@@ -29,4 +30,14 @@ test('read-only form diagnostics expose schema choices and omit profile values',
   assert.deepEqual(summary.enum, [{ value: 'MALE', label: 'Herr' }, { value: 'FEMALE', label: 'Frau' }]);
   assert.deepEqual(summary.uiOptions, [{ value: 'MALE', label: 'Herr' }]);
   assert.ok(!JSON.stringify(summary).includes('profile'));
+});
+
+
+test('diagnostic-only worker path returns before authorization and send', () => {
+  const worker = readFileSync(new URL('../supabase/functions/kleinanzeigen-application-worker/index.ts', import.meta.url), 'utf8');
+  const guard = worker.indexOf("if(app.provider_state?.diagnostic_only===true)");
+  const diagnosticReturn = worker.indexOf("return{status:'manual_required',provider:'kleinanzeigen',diagnosticOnly:true", guard);
+  const authorize = worker.indexOf("const authorize=async()=>{", guard);
+  const send = worker.indexOf("const result:any=await send({...x,authorize", guard);
+  assert.ok(guard >= 0 && diagnosticReturn > guard && diagnosticReturn < authorize && diagnosticReturn < send);
 });
