@@ -27,6 +27,17 @@ const SALUTATION_LABELS = {
   COMPANY: ['Firma', 'COMPANY'],
 };
 
+const INCOME_PROVIDER_CODES = {
+  UNDER_500: 'LESS_THAN_500_EUR',
+  '500_1000': 'EUR_500_TO_1000',
+  '1000_1500': 'EUR_1000_TO_1500',
+  '1500_2000': 'EUR_1500_TO_2000',
+  '2000_3000': 'EUR_2000_TO_3000',
+  '3000_4000': 'EUR_3000_TO_4000',
+  '4000_5000': 'EUR_4000_TO_5000',
+  OVER_5000: 'MORE_THAN_5000_EUR',
+};
+
 export function providerFormCandidates(semantic, value, displayValue = null) {
   const kind = String(semantic || '').toLowerCase();
   if (kind === 'salutation') {
@@ -36,7 +47,8 @@ export function providerFormCandidates(semantic, value, displayValue = null) {
     return { [marker]: true, candidates, fallback: displayValue ?? SALUTATION_LABELS[group][0] };
   }
   if (kind === 'income') {
-    const candidates = [...new Set([displayValue, value].filter(v => v != null && String(v).trim() !== ''))];
+    const providerCode = INCOME_PROVIDER_CODES[String(value ?? '').trim().toUpperCase()];
+    const candidates = [...new Set([providerCode, displayValue, value].filter(v => v != null && String(v).trim() !== ''))];
     return candidates.length ? { [marker]: true, candidates, fallback: displayValue ?? value } : null;
   }
   return value;
