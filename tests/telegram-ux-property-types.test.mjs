@@ -13,7 +13,6 @@ const files=[
  'supabase/functions/telegram-ui/navigation.js',
  'supabase/functions/telegram-ui/index.ts',
  'supabase/functions/telegram-gateway/index.ts',
- 'supabase/functions/telegram-gateway/auto-apply.ts',
 ];
 
 test('changed JavaScript and TypeScript files parse',()=>{
