@@ -38,6 +38,13 @@ const INCOME_PROVIDER_CODES = {
   OVER_5000: 'MORE_THAN_5000_EUR',
 };
 
+export function applicantProfileFieldKind(key) {
+  const normalizedKey = String(key ?? '').toLowerCase();
+  if (/income|einkommen/.test(normalizedKey)) return 'income';
+  if (/household|haushalt|personen/.test(normalizedKey)) return 'household';
+  return null;
+}
+
 export function providerFormCandidates(semantic, value, displayValue = null) {
   const kind = String(semantic || '').toLowerCase();
   if (kind === 'salutation') {

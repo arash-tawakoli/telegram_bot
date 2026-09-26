@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
-import { providerFormCandidates, resolveProviderFormEnum, summarizeFormOptions } from '../supabase/functions/kleinanzeigen-application-worker/form-contract.mjs';
+import { applicantProfileFieldKind, providerFormCandidates, resolveProviderFormEnum, summarizeFormOptions } from '../supabase/functions/kleinanzeigen-application-worker/form-contract.mjs';
 
 test('Kleinanzeigen salutation maps only to a live allowed value or matching form label', () => {
   const value = providerFormCandidates('salutation', 'MR');
@@ -49,8 +49,8 @@ test('Kleinanzeigen profile income buckets map to the exact live XCF enum values
     const raw = providerFormCandidates('income', profileRange, display[profileRange]);
     assert.equal(resolveProviderFormEnum(prop, raw, 'income'), providerValue);
   }
-  const worker = readFileSync(new URL('../supabase/functions/kleinanzeigen-application-worker/index.ts', import.meta.url), 'utf8');
-  assert.ok(worker.includes("else if(/income|einkommen/i.test(k))v=pval(k,p,a,locationId,prop);"));
+  assert.equal(applicantProfileFieldKind('householdNetIncome'), 'income');
+  assert.equal(applicantProfileFieldKind('numberOfPersonsInHousehold'), 'household');
 });
 
 test('read-only form diagnostics expose schema choices and omit profile values', () => {
