@@ -18,7 +18,7 @@ test('coach portal and Telegram share premium and search-profile domain rules',(
 test('global AutoApply state is written through the shared application_preferences writer',()=>{
   assert.match(autoApply,/set_application_enabled_shared/);
   assert.ok(autoApply.includes("set_application_provider_enabled_shared"));
-  assert.ok(autoApply.includes("providerEnabled=meta=>prefs?.[meta.field]??state.auto_apply_enabled"));
+  assert.ok(autoApply.includes("providerEnabled=(meta)=>prefs?.[meta.field]??state.auto_apply_enabled"));
   assert.match(migration,/public\.set_application_enabled_shared/);
 });
 
