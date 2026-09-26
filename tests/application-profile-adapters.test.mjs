@@ -143,18 +143,19 @@ test('static readiness follows each portal form and treats optional profile valu
   const scout = {
     ...identity,
     salutation: 'NEUTRAL',
-    household_type: 'NOT_SPECIFIED',
-    employment_status: 'NOT_SPECIFIED',
-    income_range: 'NOT_SPECIFIED',
-    move_in_preference: 'NOT_SPECIFIED'
+    email: 'alex@example.com',
+    street: 'Musterstraße',
+    house_number: '4',
+    postcode: '20095',
+    city: 'Hamburg'
   };
   assert.deepEqual([...adapters.providerStaticMissing('immoscout', scout, 'ImmoScout message')], []);
   assert.deepEqual(
-    [...adapters.providerStaticMissing('immoscout', {...scout, email: '', street: '', phone: ''}, 'Message')],
-    []
+    [...adapters.providerStaticMissing('immoscout', {...scout, email: '', street: '', house_number: '', postcode: '', city: '', phone: ''}, 'Message')],
+    ['E-Mail-Adresse', 'Straße', 'Hausnummer', 'PLZ', 'Ort']
   );
   assert.deepEqual([...adapters.providerStaticMissing('immoscout', identity, '')], [
-    'Anrede', 'Haushaltstyp', 'Beschäftigungsstatus', 'Haushalts-Nettoeinkommen', 'Einzugsdatum', 'Bewerbungstext'
+    'E-Mail-Adresse', 'Anrede', 'Straße', 'Hausnummer', 'PLZ', 'Ort', 'Bewerbungstext'
   ]);
   assert.ok([...adapters.providerStaticMissing('kleinanzeigen', {
     ...kleinanzeigen,
