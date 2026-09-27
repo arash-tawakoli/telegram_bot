@@ -20,18 +20,6 @@ async function handleAction(body:any){
   if(error)throw Error('application_read_failed');return {ok:true,sources:data};
  }
  await eligible(userId);
- if(body.action==='send_test_target'){
-  const testUser='7cd8650c-5082-4638-98f1-b3e928c57429';
-  const testTargets=new Set(['fc514228-198b-47e2-bc0e-6dbfcfb2e55d','c7daee35-5268-48fa-9788-bb3237d03a5f','8b5e19fe-3b97-4e38-9e2d-91512c3ab555']);
-  const sourceIdentifier=String(body.sourceIdentifier||'').toLowerCase();
-  if(body.confirm!=='SEND_ONE_IMMOMIO_TEST'||userId!==testUser||!testTargets.has(sourceIdentifier))throw Error('send_not_authorized');
-  const {data:bot,error:botError}=await db.from('bot_users').select('is_active,auto_apply_enabled').eq('id',userId).maybeSingle();
-  if(botError||!bot?.is_active||bot.auto_apply_enabled!==false)throw Error('send_not_authorized');
-  const url=`https://tenant.immomio.com/de/apply/${sourceIdentifier}`;
-  const listing={id:`immomio-test-${sourceIdentifier}`,source_id:0,canonical_url:url,title:'Immomio-Einzeltest',is_active:true,raw:{applicationLink:url}};
-  const result=await sendImmomioApplication({db,user:{id:userId},listing,authorize:async()=>true});
-  return {...result,testOnly:true,sourceIdentifier};
- }
  if(body.action==='login'){
   const {data,error}=await db.from('applicant_profiles').select('email').eq('user_id',userId).single();
   if(error||!data?.email)throw Error('immomio_email_required');return await beginImmomioLogin(db,userId,data.email);
