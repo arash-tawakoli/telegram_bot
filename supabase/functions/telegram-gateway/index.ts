@@ -55,7 +55,7 @@ async function forward(body:string,expected:string,target:string,extraHeaders:Re
 async function forwardToCore(body:string,expected:string,callbackAcked=false){
  return forward(body,expected,CORE,{'x-callback-acked':callbackAcked?'1':'0'});
 }
-async function fastAction(update:any){return rpc('telegram_fast_action_v2',{p_payload:update})}
+async function fastAction(update:any,action:string){const name=/^(platforms:profile-new|platforms:profile-field:(first_name|last_name|email|phone|street|house_number|postcode|city|wbs_status|move_in_date|message_apartment|message_house|message_temporary_wg|message_swap)|platforms:doc-upload:(wbs|urgency_certificate|guarantee|schufa|income_proof|rent_clearance|other))$/.test(action)?'telegram_fast_applicant_prompt_v1':/^platforms:profile-set:(salutation|household_type|employment_status|income_range|pets|move_in_preference|schufa_status):[A-Z0-9_]+$/.test(action)&&action!=='platforms:profile-set:move_in_preference:EXACT_DATE'?'telegram_fast_applicant_write_v1':/^(platforms:(profile|profile-texts|docs)|platforms:profile-text:(message_apartment|message_house|message_temporary_wg|message_swap)|platforms:profile-field:(salutation|household_type|employment_status|income_range|pets|move_in_preference|schufa_status))$/.test(action)?'telegram_fast_applicant_read_v1':/^save:[0-9a-fA-F-]{36}$/.test(action)?'telegram_fast_save_v1':/^profile:edit(?::[1-4]|-field:[1-4]:(types|location|rent|roomarea|rooms|area))$/.test(action)?'telegram_fast_profile_edit_v1':/^(type:(Wohnung|Haus|WG|Tauschwohnung)|edit:(types|location|rent|rooms|area))$/.test(action)?'telegram_fast_search_extra_v1':/^platforms(?::(on|off|pause:[1-4]|resume:[1-4]|provider:[1-4]))?$/.test(action)?'telegram_fast_platform_action_v1':'telegram_fast_action_v2';return rpc(name,{p_payload:update})}
 
 Deno.serve(async req=>{
  const requestStarted=Date.now();
@@ -77,7 +77,7 @@ Deno.serve(async req=>{
   if(callbackId&&likelyFastAction(callback)){
    const ackPromise=acknowledge(callbackId),dbStarted=Date.now();
    try{
-    const fast=await fastAction(update),dbMs=Date.now()-dbStarted;
+    const fast=await fastAction(update,callback),dbMs=Date.now()-dbStarted;
     if(fast?.fast===true&&Number(fast?.claim||0)===0)return direct('answerCallbackQuery',{callback_query_id:callbackId});
     if(fast?.fast===true&&Number(fast?.claim||0)>0&&!fast?.blocked){
       const renderStarted=Date.now(),rendered=renderFast(fast,update),renderMs=Date.now()-renderStarted;
