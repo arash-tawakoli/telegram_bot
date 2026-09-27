@@ -274,9 +274,10 @@ function autoApplyProvider(l:any) {
   const sourceId=Number(l?.source_id);
   if(sourceId===1)return "immoscout";
   if(sourceId===2)return "kleinanzeigen";
+  if(sourceId===3)return "immowelt";
   return null;
 }
-function providerLabel(provider:any){return provider==="immoscout"?"ImmoScout24":provider==="kleinanzeigen"?"Kleinanzeigen":provider==="immomio"?"Immomio":String(provider||"Plattform");}
+function providerLabel(provider:any){return provider==="immoscout"?"ImmoScout24":provider==="kleinanzeigen"?"Kleinanzeigen":provider==="immomio"?"Immomio":provider==="immowelt"?"Immowelt":String(provider||"Plattform");}
 function applicationStatusKey(app:any){return app?JSON.stringify([app.status||null,app.last_error||null,app.wait_reason||null,app.provider_state||{}]):"none";}
 function applicationPresentation(app:any,provider:any,lang="de"){
   if(!app||!provider)return null;
