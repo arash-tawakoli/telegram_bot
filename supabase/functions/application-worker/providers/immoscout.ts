@@ -1,7 +1,8 @@
 import {saveConnection,getConnection,markConnection,deleteConnection} from '../credentials.ts';
-import {providerSalutation,providerHousehold,providerEmployment,providerIncome,providerMoveIn} from '../../_shared/application-profile-adapters.ts';
+import {providerSalutation,providerHousehold,providerEmployment,providerMoveIn,providerPets,canonicalSalutation,canonicalHousehold,canonicalEmployment,canonicalIncome,canonicalMoveIn} from '../../_shared/application-profile-adapters.ts';
 
 const PROVIDER='immoscout';
+const OPTIONAL_PROFILE_FIELDS=new Set(['firstname','contactfirstname','givenname','vorname','lastname','contactlastname','surname','familyname','nachname','phonenumber','phone','mobilephone','mobilenumber','telephone','telefonnummer','telefon','mobilnummer','handynummer','emailaddress','email','emailadresse','address','anschrift','adresse','street','strasse','housenumber','hausnummer','postcode','postalcode','zipcode','plz','postleitzahl','city','stadt','ort','moveindate','desiredmoveindate','einzugsdatum','gewunschteeinzugsdatum','petsinhousehold','pets','pet','haustiere','haustier','numberofpersons','numberofresidents','householdsize','residents','personenanzahl','anzahlpersonen','personenimhaushalt','haushaltsgrosse','numberofadults','numberofchildren','employmentrelationship','employmentstatus','occupation','profession','beschaftigungsstatus','arbeitsverhaltnis','berufstatigkeit','income','incomeamount','monthlyincome','monthlynetincome','netincome','einkommen','nettoeinkommen','monatlichesnettoeinkommen','salutation','anrede','message','contactmessage','messagetext','nachricht','bewerbungstext','kontaktnachricht']);
 const CLIENT_ID='is24-android-de';
 const TOKEN='https://login.immobilienscout24.de/oauth2/aus1227au6oBg6hGH417/v1/token';
 const UA='ImmoScout24_1458_34_._';
@@ -35,10 +36,20 @@ function claims(jwt:any){try{const p=String(jwt||'').split('.')[1];return p?JSON
 async function sha(value:any){const d=new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(typeof value==='string'?value:JSON.stringify(value??null))));return Array.from(d).map(x=>x.toString(16).padStart(2,'0')).join('');}
 function exposeId(listing:any){for(const v of[listing?.external_id,listing?.source_listing_key]){const m=String(v||'').match(/\d{6,20}/);if(m)return m[0];}return String(listing?.canonical_url||'').match(/\/expose\/(\d{6,20})/)?.[1]||null;}
 function salutation(v:any){return providerSalutation('immoscout',v);}
-function petValue(v:any){const s=clean(v,120);if(!s)return null;const n=s.toLowerCase();if(['nein','no','keine','keine haustiere','keine haustiere.'].includes(n))return'Nein';if(['ja','yes'].includes(n))return'Ja';return s;}
+function petValue(v:any){return providerPets('immoscout',v);}
 function moveInValue(profile:any){return providerMoveIn('immoscout',profile);}
-function householdValue(profile:any){return providerHousehold('immoscout',profile?.household_type)??(profile?.household_size!=null?String(profile.household_size):null);}
-function incomeValue(profile:any){return providerIncome('immoscout',profile?.income_range)??(profile?.monthly_net_income!=null?String(profile.monthly_net_income):null);}
+function explicitProfileCount(profile:any,keys:string[]){
+ for(const key of keys){const value=profile?.[key];if(value!==undefined&&value!==null&&String(value).trim()!==''&&Number.isFinite(Number(value)))return Number(value);}
+ return null;
+}
+function householdValue(profile:any,fieldKey=''){
+ const key=canonical(fieldKey);
+ if(/numberofadults|adultcount|adults/.test(key))return explicitProfileCount(profile,['adults_count','adult_count','number_of_adults','numberOfAdults']);
+ if(/numberofchildren|childcount|children/.test(key))return explicitProfileCount(profile,['children_count','child_count','number_of_children','numberOfChildren']);
+ if(/numberofpersons|numberofresidents|personenanzahl|anzahlpersonen/.test(key))return explicitProfileCount(profile,['household_size','household_count','number_of_persons','number_of_residents']);
+ return providerHousehold('immoscout',profile?.household_type);
+}
+function incomeValue(profile:any){const amount=profile?.monthly_net_income;if(amount===undefined||amount===null||String(amount).trim()===''||!Number.isFinite(Number(amount)))return null;return String(Math.round(Number(amount)));}
 function phoneValue(v:any){let s=clean(v,120).replace(/[^0-9+]/g,'');if(!s)return null;if(s.startsWith('00'))s=`+${s.slice(2)}`;else if(s.startsWith('0'))s=`+49${s.slice(1)}`;else if(/^49\d+$/.test(s))s=`+${s}`;const digits=s.replace(/\D/g,'');if(!s.startsWith('+')||digits.length<8||digits.length>15)return null;return `+${digits}`;}
 function fieldState(v:any){if(v&&typeof v==='object'){if(v.required===true)return'MANDATORY';if(v.required===false)return'OPTIONAL';v=v.state??v.status??v.requirement??v.mode;}return clean(v,40).toUpperCase();}
 function empty(v:any){if(v==null)return true;if(typeof v==='string')return !v.trim();if(typeof v==='object'&&!Array.isArray(v))return Object.keys(v).length===0||Object.values(v).some(empty);return false;}
@@ -46,13 +57,23 @@ function canonical(v:any){return String(v??'').replace(/ß/g,'ss').normalize('NF
 function payloadName(configKey:string){return configKey.replace(/Field$/i,'').replace(/^[A-Z]/,x=>x.toLowerCase());}
 function snake(v:string){return v.replace(/([a-z0-9])([A-Z])/g,'$1_$2').replace(/[^a-zA-Z0-9]+/g,'_').toLowerCase();}
 function providerPrefill(raw:any){if(!raw||typeof raw!=='object')return undefined;for(const k of['prefillValue','defaultValue','initialValue'])if(raw[k]!==undefined&&raw[k]!==null&&raw[k]!=='')return raw[k];return undefined;}
+function immoScoutExplicitOmit(configKey:string,rawConfig:any,profile:any){
+ const keys=metadataKeys(configKey,rawConfig);
+ if(keys.some((key:string)=>['numberofpersons','numberofresidents'].includes(key)))return true;
+ if(keys.some((key:string)=>/salutation|anrede/.test(key)))return['DIVERSE','NEUTRAL','NOT_SPECIFIED'].includes(canonicalSalutation(profile?.salutation));
+ if(keys.some((key:string)=>/household|haushalt|numberofpersons|personen/.test(key)))return canonicalHousehold(profile?.household_type)==='NOT_SPECIFIED';
+ if(keys.some((key:string)=>/employment|beruf|job|occupation/.test(key)))return canonicalEmployment(profile?.employment_status)==='NOT_SPECIFIED';
+ if(keys.some((key:string)=>/income|einkommen/.test(key)))return canonicalIncome(profile?.income_range)==='NOT_SPECIFIED';
+ if(keys.some((key:string)=>/move.?in|einzug/.test(key)))return canonicalMoveIn(profile?.move_in_preference)==='NOT_SPECIFIED';
+ return false;
+}
 function metadataKeys(configKey:string,rawConfig:any){const values:any[]=[configKey,payloadName(configKey)];if(rawConfig&&typeof rawConfig==='object')for(const k of['name','key','id','label','title','fieldName','payloadName','property','semanticName','apiName']){const v=rawConfig[k];if(typeof v==='string'&&v.trim())values.push(v);}return [...new Set(values.map(canonical).filter(Boolean))];}
 export function resolveImmoScoutField(configKey:string,rawConfig:any,profile:any,message:string){
- const payload=payloadName(configKey),address={'@xsi.type':'common:Address',street:clean(profile?.street,160),houseNumber:clean(profile?.house_number,40),postcode:clean(profile?.postcode,40),city:clean(profile?.city,160)};
+ const payload=/message|nachricht|bewerbungstext/i.test(canonical(configKey))?'message':payloadName(configKey),address={'@xsi.type':'common:Address',street:clean(profile?.street,160),houseNumber:clean(profile?.house_number,40),postcode:clean(profile?.postcode,40),city:clean(profile?.city,160)};
  const known:Record<string,()=>any>={
   moveindate:()=>moveInValue(profile),desiredmoveindate:()=>moveInValue(profile),einzugsdatum:()=>moveInValue(profile),gewunschteeinzugsdatum:()=>moveInValue(profile),
   petsinhousehold:()=>petValue(profile?.pets),pets:()=>petValue(profile?.pets),pet:()=>petValue(profile?.pets),haustiere:()=>petValue(profile?.pets),haustier:()=>petValue(profile?.pets),
-  numberofpersons:()=>householdValue(profile),numberofresidents:()=>householdValue(profile),householdsize:()=>householdValue(profile),residents:()=>householdValue(profile),personenanzahl:()=>householdValue(profile),anzahlpersonen:()=>householdValue(profile),personenimhaushalt:()=>householdValue(profile),haushaltsgrosse:()=>householdValue(profile),
+  numberofpersons:()=>householdValue(profile,configKey),numberofresidents:()=>householdValue(profile,configKey),householdsize:()=>householdValue(profile,configKey),residents:()=>householdValue(profile,configKey),personenanzahl:()=>householdValue(profile,configKey),anzahlpersonen:()=>householdValue(profile,configKey),personenimhaushalt:()=>householdValue(profile,configKey),haushaltsgrosse:()=>householdValue(profile,configKey),numberofadults:()=>householdValue(profile,configKey),numberofchildren:()=>householdValue(profile,configKey),
   employmentrelationship:()=>providerEmployment('immoscout',profile?.employment_status),employmentstatus:()=>providerEmployment('immoscout',profile?.employment_status),occupation:()=>providerEmployment('immoscout',profile?.employment_status),profession:()=>providerEmployment('immoscout',profile?.employment_status),beschaftigungsstatus:()=>providerEmployment('immoscout',profile?.employment_status),arbeitsverhaltnis:()=>providerEmployment('immoscout',profile?.employment_status),berufstatigkeit:()=>providerEmployment('immoscout',profile?.employment_status),
   income:()=>incomeValue(profile),incomeamount:()=>incomeValue(profile),monthlyincome:()=>incomeValue(profile),monthlynetincome:()=>incomeValue(profile),netincome:()=>incomeValue(profile),einkommen:()=>incomeValue(profile),nettoeinkommen:()=>incomeValue(profile),monatlichesnettoeinkommen:()=>incomeValue(profile),
   firstname:()=>clean(profile?.first_name,160)||null,contactfirstname:()=>clean(profile?.first_name,160)||null,givenname:()=>clean(profile?.first_name,160)||null,vorname:()=>clean(profile?.first_name,160)||null,
@@ -65,7 +86,7 @@ export function resolveImmoScoutField(configKey:string,rawConfig:any,profile:any
   phonecalldesired:()=>profile?.phone_call_desired===true,callbackdesired:()=>profile?.phone_call_desired===true,ruckruf:()=>profile?.phone_call_desired===true,ruckrufgewunscht:()=>profile?.phone_call_desired===true,
   wbs:()=>clean(profile?.wbs_status,120)||null,wbsstatus:()=>clean(profile?.wbs_status,120)||null,housingeligibility:()=>clean(profile?.wbs_status,120)||null,wohnberechtigungsschein:()=>clean(profile?.wbs_status,120)||null
  };
- const candidates=metadataKeys(configKey,rawConfig);for(const c of candidates)if(known[c])return{payload,value:known[c](),source:'semantic'};
+ const candidates=metadataKeys(configKey,rawConfig);for(const c of candidates)if(known[c])return{payload,value:known[c](),source:'semantic',omit:immoScoutExplicitOmit(configKey,rawConfig,profile)};
  const directKeys=[payload,snake(payload),configKey,snake(configKey.replace(/Field$/i,''))];for(const k of directKeys)if(Object.prototype.hasOwnProperty.call(profile||{},k)&&profile[k]!==undefined)return{payload,value:profile[k],source:'profile'};
  const normalizedProfileKey=Object.keys(profile||{}).find(k=>candidates.includes(canonical(k)));if(normalizedProfileKey)return{payload,value:profile[normalizedProfileKey],source:'profile'};
  const prefill=providerPrefill(rawConfig);if(prefill!==undefined)return{payload,value:prefill,source:'provider_prefill'};return{payload,value:undefined,source:'unmapped'};
@@ -76,12 +97,14 @@ export function prepareImmoScoutForm(config:any,profile:any,message:string){
  if(!active.length)return{form,missing:['contactFormConfiguration'],mapped,configAvailable:false};
  for(const[configKey,rawConfig]of active){
   const required=fieldState(rawConfig)==='MANDATORY',name=String(configKey).replace(/Field$/,'');
-  if(!required&&name!=='message')continue;
+  if(!required&&name!=='message'&&!OPTIONAL_PROFILE_FIELDS.has(canonical(name)))continue;
   const r=resolveImmoScoutField(configKey,rawConfig,profile,message);
-  mapped.push({configKey,payload:r.payload,required,source:r.source});
+  mapped.push({configKey,payload:r.payload,required,source:r.source,...(r.omit||(!required&&empty(r.value)&&typeof r.value!=='boolean')?{omitted:true}:{})});
+  if(r.omit){if(required&&['numberofpersons','numberofresidents'].includes(canonical(name)))missing.push(r.payload);continue;}
   if(required&&empty(r.value)){missing.push(r.payload);continue}
   if(!empty(r.value)||typeof r.value==='boolean')values.set(r.payload,r.value);
  }
+ const messageText=String(message||'').trim();if(messageText&&!values.has('message')){values.set('message',messageText);mapped.push({configKey:'messageField',payload:'message',required:false,source:'application-template'});}
  const schemaOrder=[
   'firstname','lastname','phoneNumber','emailAddress','appointmentRequested','message','address','contactMailCustomStyle',
   'moveInDate','petsInHousehold','numberOfPersons','employmentRelationship','income','salutation',
@@ -104,11 +127,12 @@ async function detail(token:string,id:string){
  if(!response.ok||!body){if(response.status===429||response.status>=500)throw Error('temporary_network_error');throw Error('provider_contract_unverified')}
  const expose=body?.['expose.expose']??body?.expose??body,
   config=expose?.contactFormConfiguration??{};
+ const freemium=config?.freemiumSettings||{},freemiumDuration=Number(freemium?.duration||0),dateStarted=Date.parse(String(freemium?.dateStarted||'')),freemiumActive=freemium?.freemiumPeriodActive===true||String(freemium?.freemiumPeriodActive||'').toLowerCase()==='true'||(freemiumDuration>0&&Number.isFinite(dateStarted)&&dateStarted+freemiumDuration*3600000>Date.now());
  return{
   contactFormType:expose?.['@contactFormType']??null,
   formFieldConfig:config,
   premiumRequired:String(config?.premiumProfileRequired||'false').toLowerCase()==='true',
-  freemiumDuration:Number(config?.freemiumSettings?.duration||0)
+  freemiumDuration,freemiumActive
  };
 }
 function diagnosticText(v:any,max=800){return clean(v,max).replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,'[email]').replace(/\+?\d[\d\s().\/-]{6,}\d/g,'[phone]');}
@@ -133,7 +157,7 @@ export async function inspectImmoScoutInquiry(input:any){
  try{
   const credentials=await session(db,userId),before=await detail(String(credentials.access_token),id),
    prepared=prepareImmoScoutForm(before.formFieldConfig,profile,String(message||'')),
-   blocked=before.premiumRequired||before.freemiumDuration>0;
+   blocked=before.premiumRequired||before.freemiumActive;
   return{
    ok:prepared.missing.length===0,
    ready:prepared.missing.length===0&&!blocked,
@@ -141,6 +165,7 @@ export async function inspectImmoScoutInquiry(input:any){
    contactFormType:before.contactFormType,
    premiumRequired:before.premiumRequired,
    freemiumDuration:before.freemiumDuration,
+   freemiumActive:before.freemiumActive,
    missing:prepared.missing,
    mappedFields:prepared.mapped,
    formKeys:Object.keys(prepared.form),
@@ -162,7 +187,7 @@ export async function sendImmoScoutApplication(input:any){
   if(error?.message==='needs_login'){await markConnection(db,userId,PROVIDER,'needs_login','session_invalid').catch(()=>{});return{success:false,status:'manual_required',error:'needs_login'}}
   return{success:false,status:'manual_required',error:'provider_contract_unverified'};
  }
- if(before.premiumRequired||before.freemiumDuration>0)return{success:false,status:'failed',error:'plus_required'};
+ if(before.premiumRequired||before.freemiumActive)return{success:false,status:'failed',error:'plus_required'};
  const prepared=prepareImmoScoutForm(before.formFieldConfig,profile,message);
  if(prepared.missing.length)return{success:false,status:'manual_required',error:`required_profile_data_missing:${prepared.missing.join(',')}`};
  if(typeof authorize!=='function'||await authorize()!==true)return{success:false,status:'failed',error:'send_not_authorized'};
