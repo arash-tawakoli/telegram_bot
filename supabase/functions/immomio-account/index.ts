@@ -29,7 +29,8 @@ async function handleAction(body:any){
   if(botError||!bot?.is_active||bot.auto_apply_enabled!==false)throw Error('send_not_authorized');
   const url=`https://tenant.immomio.com/de/apply/${sourceIdentifier}`;
   const listing={id:`immomio-test-${sourceIdentifier}`,source_id:0,canonical_url:url,title:'Immomio-Einzeltest',is_active:true,raw:{applicationLink:url}};
-  return {...await sendImmomioApplication({db,user:{id:userId},listing,authorize:async()=>true}),testOnly:true,sourceIdentifier};
+  const result=await sendImmomioApplication({db,user:{id:userId},listing,authorize:async()=>true});
+  return {...result,testOnly:true,sourceIdentifier};
  }
  if(body.action==='login'){
   const {data,error}=await db.from('applicant_profiles').select('email').eq('user_id',userId).single();
