@@ -1,6 +1,6 @@
 // @ts-nocheck
 import {saveConnection,getConnection,markConnection,deleteConnection} from '../credentials.ts';
-const APPLY=/^https:\/\/tenant\.immomio\.com\/apply\/[0-9a-f-]{36}\/?(?:[?#].*)?$/i;
+const APPLY=/^https:\/\/tenant\.immomio\.com\/(?:de\/)?apply\/[0-9a-f-]{36}\/?(?:[?#].*)?$/i;
 const GQL='https://gql-ps.immomio.com/tenant/graphql',TENANT_ORIGIN='https://tenant.immomio.com',OAUTH_REDIRECT='https://tenant.immomio.com/de/auth/login',EXPECTED_KEYCLOAK_HOST='sso.immomio.com',EXPECTED_REALM='immomio',EXPECTED_CLIENT_ID='immomio-oidc-web',LOGIN_METHOD='DEFAULT';
 const BASE_HEADERS={'content-type':'application/json','accept':'application/json','origin':TENANT_ORIGIN,'referer':`${TENANT_ORIGIN}/`,'user-agent':'TraumWohnungHamburg/1.0'};
 const FILE_UPLOAD='https://gql-ps.immomio.com/tenant/fileUpload';
