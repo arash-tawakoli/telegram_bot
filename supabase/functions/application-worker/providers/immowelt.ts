@@ -1,5 +1,5 @@
 import {getConnection,deleteConnection} from '../credentials.ts';
-import {providerStaticMissing,providerSalutation,providerHousehold,providerEmployment,providerIncome,providerMoveIn} from '../../_shared/application-profile-adapters.ts';
+import {providerStaticMissing,providerSalutation,providerHousehold,providerEmployment,providerIncome,providerMoveIn,providerPets} from '../../_shared/application-profile-adapters.ts';
 
 const PROVIDER='immowelt';
 
@@ -26,6 +26,7 @@ function enrichedMessage(profile:any,message:any){
   'Haushaltstyp: '+String(providerHousehold('immowelt',profile?.household_type)||''),
   'Beschäftigungsstatus: '+String(providerEmployment('immowelt',profile?.employment_status)||''),
   'Haushalts-Nettoeinkommen: '+String(providerIncome('immowelt',profile?.income_range)||''),
+  'Haustiere: '+String(providerPets('immowelt',profile?.pets)||''),
   'Gewünschtes Einzugsdatum: '+String(providerMoveIn('immowelt',profile)||'')
  ].filter(x=>!/:\s*$/.test(x));
  const base=String(message||'').trim();
@@ -64,6 +65,13 @@ async function immoweltEstateGuid(db:any,onlineId:any){
  if(!guid)return{guid:null,error:'provider_identifier_unresolved'};
  return{guid,error:null};
 }
+function immoweltExposeIdentifiers(url:string,fallback:string){
+ try{
+  const raw=new URL(url).pathname.match(/\/expose\/([^/?#]+)/i)?.[1]||String(fallback||'').trim();
+  const value=decodeURIComponent(raw),compact=value.replace(/[{}-]/g,'').toUpperCase();
+  return{estateGuid:/^[0-9A-F]{32}$/.test(compact)?compact:null,onlineId:value||String(fallback||'').trim()};
+ }catch{return{estateGuid:null,onlineId:String(fallback||'').trim()}}
+}
 export async function sendImmoweltApplication(input:any){
  const{db,user,profile,listing,message,authorize}=input||{},userId=String(user?.id||''),url=String(listing?.canonical_url||'');
  if(!userId||!/^https:\/\/www\.immowelt\.de\/expose\//i.test(url))return{success:false,status:'manual_required',error:'provider_contract_unverified'};
@@ -75,14 +83,21 @@ export async function sendImmoweltApplication(input:any){
  const name=[String(profile?.first_name||'').trim(),String(profile?.last_name||'').trim()].filter(Boolean).join(' ');
  const phone=validPhone(profile?.phone),street=[String(profile?.street||'').trim(),String(profile?.house_number||'').trim()].filter(Boolean).join(' ');
  const fullMessage=enrichedMessage(profile,message);
- const identifier=String(listing?.source_listing_key||listing?.external_id||'').trim();
+ const identifier=String(listing?.source_listing_key||listing?.external_id||'').trim(),ids=immoweltExposeIdentifiers(url,identifier);
+ let estateGuid=ids.estateGuid;
+ if(!estateGuid){
+  const resolved=await immoweltEstateGuid(db,ids.onlineId||identifier);
+  if(!resolved.guid)return{success:false,status:'manual_required',error:resolved.error||'provider_identifier_unresolved',diagnostic:{provider:'immowelt',transport:'estate_guid_lookup',onlineId:ids.onlineId||identifier}};
+  estateGuid=String(resolved.guid).replace(/[{}-]/g,'').toUpperCase();
+  if(!/^[0-9A-F]{32}$/.test(estateGuid))return{success:false,status:'manual_required',error:'provider_identifier_unresolved',diagnostic:{provider:'immowelt',transport:'estate_guid_lookup',onlineId:ids.onlineId||identifier}};
+ }
  const soap=`<?xml version="1.0" encoding="utf-8"?>
 <soap:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
  <soap:Body>
   <SendContactMail xmlns="http://immowelt.de/services">
    <request>
     <LinkToDetail>${xml(url)}</LinkToDetail>
-    <EstateGuid></EstateGuid>
+    <EstateGuid>${xml(estateGuid)}</EstateGuid>
     <Enquirer>
      <Name>${xml(name)}</Name>
      <EMail>${xml(email)}</EMail>
@@ -109,7 +124,7 @@ export async function sendImmoweltApplication(input:any){
   return{success:false,status:'manual_required',error:'submission_unconfirmed',diagnostic:{provider:'immowelt',transport:'communication_service',authorized:true}};
  }
  const success=response.ok&&/<SendContactMailResult>\s*true\s*<\/SendContactMailResult>/i.test(text);
- if(success)return{success:true,status:'sent',confirmation:'immowelt_communication_service',diagnostic:{provider:'immowelt',transport:'communication_service_link_to_detail',httpStatus:response.status,onlineId:identifier,profileFields:['salutation','first_name','last_name','email','street','house_number','postcode','city','household_type','employment_status','income_range','move_in_preference','move_in_date'],phoneIncluded:!!phone}};
+ if(success)return{success:true,status:'sent',confirmation:'immowelt_communication_service',diagnostic:{provider:'immowelt',transport:'communication_service_link_to_detail',httpStatus:response.status,onlineId:identifier,profileFields:['salutation','first_name','last_name','email','street','house_number','postcode','city','household_type','employment_status','income_range','move_in_preference','move_in_date'],phoneIncluded:!!phone,estateGuidProvided:true}};
  const explicitFalse=/<SendContactMailResult>\s*false\s*<\/SendContactMailResult>/i.test(text);
- return{success:false,status:'manual_required',error:explicitFalse?'provider_rejected':'submission_unconfirmed',diagnostic:{provider:'immowelt',transport:'communication_service',httpStatus:response.status,authorized:true}};
+ return{success:false,status:'manual_required',error:explicitFalse?'provider_rejected':'submission_unconfirmed',diagnostic:{provider:'immowelt',transport:'communication_service',httpStatus:response.status,authorized:true,soapResult:explicitFalse?'false':'missing',estateGuidProvided:true,onlineId:ids.onlineId||identifier}};
 }
