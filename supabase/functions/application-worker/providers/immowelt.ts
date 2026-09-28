@@ -140,19 +140,26 @@ async function immoweltFallbackSession(db:any,userId:string,connection:any){
  const expiration=Number(immoweltCookieValue(cookies,'oauth.access.expiration'));
  const fresh=!!token&&(!Number.isFinite(expiration)||expiration>Date.now()/1000+60);
  if(fresh)return{ok:true,token,cookies,userAgent,refreshed:false,httpStatus:null};
- let response:Response;
+ let response:Response|null=null,url='https://signin.immowelt.de/refresh';
  try{
-  response=await fetch('https://signin.immowelt.de/refresh',{
-   method:'GET',
-   headers:{
-    accept:'*/*',origin:'https://www.immowelt.de',referer:'https://www.immowelt.de/',
-    'user-agent':userAgent,'cookie':immoweltCookieHeader(cookies)
-   },
-   signal:AbortSignal.timeout(20000)
-  });
+  for(let hop=0;hop<8;hop++){
+   response=await fetch(url,{
+    method:'GET',
+    headers:{
+     accept:'*/*',origin:'https://www.immowelt.de',referer:'https://www.immowelt.de/',
+     'user-agent':userAgent,'cookie':immoweltCookieHeader(cookies)
+    },
+    redirect:'manual',
+    signal:AbortSignal.timeout(20000)
+   });
+   cookies=mergeImmoweltSetCookies(cookies,response.headers);
+   if(response.status<300||response.status>=400)break;
+   const location=response.headers.get('location');
+   if(!location)return{ok:false,error:'session_refresh_failed',cookies,userAgent,refreshed:false,httpStatus:response.status};
+   url=new URL(location,url).href;
+  }
  }catch{return{ok:false,error:'session_refresh_failed',cookies,userAgent,refreshed:false,httpStatus:null}}
- if(!response.ok)return{ok:false,error:'session_refresh_failed',cookies,userAgent,refreshed:false,httpStatus:response.status};
- cookies=mergeImmoweltSetCookies(cookies,response.headers);
+ if(!response||!response.ok)return{ok:false,error:'session_refresh_failed',cookies,userAgent,refreshed:false,httpStatus:response?.status||null};
  token=immoweltCookieValue(cookies,'oauth.access.token');
  if(token){try{await saveConnection(db,userId,PROVIDER,{cookies,userAgent},{account_hint:connection?.row?.account_hint||null})}catch{}}
  return token?{ok:true,token,cookies,userAgent,refreshed:true,httpStatus:response.status}:{ok:false,error:'session_token_missing',cookies,userAgent,refreshed:true,httpStatus:response.status};
