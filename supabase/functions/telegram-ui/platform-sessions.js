@@ -689,8 +689,15 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   const name=source===1?'ImmoScout24':source===2?'Kleinanzeigen':source===3?'Immomio':'Immowelt';
   if(source===1&&action==='login')return render('🔐 <b>ImmoScout24</b>\n\nDie Verbindung wird ohne offizielle ImmoScout-API über eine gespeicherte Web-Session umgesetzt. Der kontrollierte Login-/Sendetest ist noch ausstehend; deshalb wird hier aktuell noch keine produktive Session angelegt.',back);
   try{
-   const workerAction=source===2&&action==='login'?'login_share':action;
-   const extra=workerAction==='login_share'?{origin:'telegram',returnTarget:'telegram',context:{channel:'telegram',share_flow:true}}:source===4&&action==='login'?{origin:'telegram',returnTarget:'telegram',context:{channel:'telegram'}}:{};
+   let workerAction=action;
+   if(source===2&&action==='login'){
+    let health=null;
+    try{health=await applicationWorker('health',user.id,source);}catch{}
+    workerAction=health?.kleinanzeigenOAuthClientProvisioned===true?'login':'login_share';
+   }
+   const extra=source===2&&action==='login'
+    ?{origin:'telegram',returnTarget:'telegram',context:{channel:'telegram',...(workerAction==='login_share'?{share_flow:true}:{direct_oauth:true})}}
+    :source===4&&action==='login'?{origin:'telegram',returnTarget:'telegram',context:{channel:'telegram'}}:{};
    const result=await applicationWorker(workerAction,user.id,source,extra);
    if(action==='disconnect')return render(`${name}: Verbindung gelöscht.`,back);
    if(action==='login'&&result.url){
