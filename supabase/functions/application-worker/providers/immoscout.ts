@@ -42,11 +42,28 @@ function explicitProfileCount(profile:any,keys:string[]){
  for(const key of keys){const value=profile?.[key];if(value!==undefined&&value!==null&&String(value).trim()!==''&&Number.isFinite(Number(value)))return Number(value);}
  return null;
 }
+function householdCounts(profile:any){
+ const explicitAdults=explicitProfileCount(profile,['adults_count','adult_count','number_of_adults','numberOfAdults']);
+ const explicitKids=explicitProfileCount(profile,['children_count','child_count','number_of_children','numberOfChildren','kids_count','number_of_kids','numberOfKids']);
+ const size=explicitProfileCount(profile,['household_size','household_count','number_of_persons','number_of_residents']);
+ const kind=canonicalHousehold(profile?.household_type);
+ let adults=explicitAdults,kids=explicitKids;
+ if(adults==null){
+  if(kind==='SINGLE')adults=1;
+  else if(kind==='TWO_ADULTS')adults=2;
+  else if(kind==='SHARED_FLAT'&&size!=null)adults=size;
+  else if(kind==='FAMILY'&&size!=null&&kids!=null)adults=Math.max(1,size-kids);
+ }
+ if(kids==null){
+  if(kind==='SINGLE'||kind==='TWO_ADULTS'||kind==='SHARED_FLAT')kids=0;
+  else if(kind==='FAMILY'&&size!=null&&adults!=null)kids=Math.max(0,size-adults);
+ }
+ return{adults,kids};
+}
 function householdValue(profile:any,fieldKey=''){
- const key=canonical(fieldKey);
- if(/numberofadults|adultcount|adults/.test(key))return explicitProfileCount(profile,['adults_count','adult_count','number_of_adults','numberOfAdults']);
- if(/numberofchildren|childcount|children/.test(key))return explicitProfileCount(profile,['children_count','child_count','number_of_children','numberOfChildren']);
- if(/numberofpersons|numberofresidents|personenanzahl|anzahlpersonen/.test(key))return explicitProfileCount(profile,['household_size','household_count','number_of_persons','number_of_residents']);
+ const key=canonical(fieldKey),counts=householdCounts(profile);
+ if(/numberofadults|adultcount|adults|numberofpersons|numberofresidents|householdsize|residents|personenanzahl|anzahlpersonen|personenimhaushalt|haushaltsgrosse/.test(key))return counts.adults;
+ if(/numberofchildren|numberofkids|kidcount|childcount|children|kids/.test(key))return counts.kids;
  return providerHousehold('immoscout',profile?.household_type);
 }
 function incomeValue(profile:any){const amount=profile?.monthly_net_income;if(amount!==undefined&&amount!==null&&String(amount).trim()!==''&&Number.isFinite(Number(amount)))return String(Math.round(Number(amount)));return providerIncome('immoscout',profile?.income_range);}
@@ -68,7 +85,7 @@ function immoScoutExplicitOmit(configKey:string,rawConfig:any,profile:any){
 }
 function metadataKeys(configKey:string,rawConfig:any){const values:any[]=[configKey,payloadName(configKey)];if(rawConfig&&typeof rawConfig==='object')for(const k of['name','key','id','label','title','fieldName','payloadName','property','semanticName','apiName']){const v=rawConfig[k];if(typeof v==='string'&&v.trim())values.push(v);}return [...new Set(values.map(canonical).filter(Boolean))];}
 export function resolveImmoScoutField(configKey:string,rawConfig:any,profile:any,message:string){
- const payload=/message|nachricht|bewerbungstext/i.test(canonical(configKey))?'message':payloadName(configKey),address={'@xsi.type':'common:Address',street:clean(profile?.street,160),houseNumber:clean(profile?.house_number,40),postcode:clean(profile?.postcode,40),city:clean(profile?.city,160)};
+ const semantic=canonical(configKey),payload=/message|nachricht|bewerbungstext/i.test(semantic)?'message':/numberofpersons|numberofresidents|householdsize|residents|personenanzahl|anzahlpersonen|personenimhaushalt|haushaltsgrosse|numberofadults|adultcount|adults/.test(semantic)?'numberOfAdults':/numberofchildren|numberofkids|kidcount|childcount|children|kids/.test(semantic)?'numberOfKids':payloadName(configKey),address={'@xsi.type':'common:Address',street:clean(profile?.street,160),houseNumber:clean(profile?.house_number,40),postcode:clean(profile?.postcode,40),city:clean(profile?.city,160)};
  const known:Record<string,()=>any>={
   moveindate:()=>moveInValue(profile),desiredmoveindate:()=>moveInValue(profile),einzugsdatum:()=>moveInValue(profile),gewunschteeinzugsdatum:()=>moveInValue(profile),
   petsinhousehold:()=>petValue(profile?.pets),pets:()=>petValue(profile?.pets),pet:()=>petValue(profile?.pets),haustiere:()=>petValue(profile?.pets),haustier:()=>petValue(profile?.pets),
@@ -106,10 +123,13 @@ export function prepareImmoScoutForm(config:any,profile:any,message:string){
  const messageText=String(message||'').trim();if(messageText&&!values.has('message')){values.set('message',messageText);mapped.push({configKey:'messageField',payload:'message',required:false,source:'application-template'});}
  const schemaOrder=[
   'firstname','lastname','phoneNumber','emailAddress','appointmentRequested','message','address','contactMailCustomStyle',
-  'moveInDate','petsInHousehold','numberOfPersons','employmentRelationship','income','salutation',
-  'schufaInformationProvided','schufaVerificationCode','sendProfile','profileImageUrl','privacyPolicyAccepted',
+  'moveInDate','petsInHousehold','employmentRelationship','income','salutation',
+  'schufaInformationProvided','schufaVerificationCode','sendProfile','profileImageUrl','profileType','privacyPolicyAccepted',
   'company','buyReason','ownCapital','hasPreapproval','lotAvailable','numberOfRequiredWorkingPlaces',
-  'plannedInvestment','commercialUsage','applicationPackageCompleted'
+  'plannedInvestment','commercialUsage','applicationPackageCompleted','homeOwner','forCommercialPurposes','commercialPurposes',
+  'hasPets','incomeAmount','employmentStatus','rentArrears','insolvencyProcess','smoker','numberOfAdults','numberOfKids',
+  'letterOfComfort','entOfApartment','liabilityInsurance','isTenantNetworkListing','onDemandDocuments','requestedDocuments',
+  'depositGuaranteeAccepted'
  ];
  for(const key of schemaOrder)if(values.has(key))form[key]=values.get(key);
  for(const [key,value] of values)if(!schemaOrder.includes(key))form[key]=value;
