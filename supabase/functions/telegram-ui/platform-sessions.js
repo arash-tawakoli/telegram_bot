@@ -302,7 +302,7 @@ async function renderApplicantProfile(user,chat,messageId,notice=''){
  ]);
  const render=(text,rows)=>messageId?edit(chat.id,messageId,text,{inline_keyboard:rows}):send(chat.id,text,{inline_keyboard:rows});
  if(!p){
-  return render(`👤 <b>Bewerberprofil</b>\n\n${notice?`${notice}\n\n`:''}Noch kein Bewerberprofil angelegt. Lege zuerst Vorname und Nachname an. E-Mail ist für ImmoScout24 und Immowelt erforderlich; für Kleinanzeigen wird das konkrete Formular geprüft. Zum Verbinden des Immomio-Kontos wird sie ebenfalls benötigt, beim Immomio-Bewerbungsversand gibt es aber kein E-Mail-Feld. Weitere Pflichtangaben werden pro Plattform und Inserat geprüft.`,[
+  return render(`👤 <b>Bewerberprofil</b>\n\n${notice?`${notice}\n\n`:''}Noch kein Bewerberprofil angelegt. Lege zuerst Vorname und Nachname an.`,[
    [button('➕ Bewerberprofil anlegen','platforms:profile-new')],
    [button('← Automatische Bewerbung','platforms')]
   ]);
@@ -311,17 +311,14 @@ async function renderApplicantProfile(user,chat,messageId,notice=''){
  const missing=Array.isArray(missingResult.data)?missingResult.data:[],missingSet=new Set(missing),ready=missing.length===0,selectedDocs=docs.filter(d=>d.send_with_auto_apply).length;
  const baseKeys=new Set(['Vorname','Nachname']);
  const req=(label,value)=>`${label}${baseKeys.has(label)?' *':''}: ${missingSet.has(label)?'⚠️ fehlt':value}`;
- const portalReady=(name,provider)=>{
-  const fields=providerStaticMissing(provider,p);
-  return `${name}: ${fields.length?`⚠️ ${fields.join(', ')}`:'✅ feste Profilfelder vollständig'}`;
- };
- const text=`👤 <b>Bewerberprofil</b>\n\n${notice?`${notice}\n\n`:''}<i>* globale Basisangabe. Weitere Pflichtfelder werden pro Plattform und Angebot geprüft.</i>\n\nProfilbasis (Vorname/Nachname): ${ready?'✅ vollständig':`⚠️ ${missing.length} Angabe${missing.length===1?' offen':'n offen'}`}\n\n`+
-  `${req('Anrede',salutationLabel(p.salutation))}\n${req('Vorname',shown(p.first_name))}\n${req('Nachname',shown(p.last_name))}\nE-Mail-Adresse (ImmoScout24-/Immowelt-Pflicht; Kleinanzeigen je Formular; Immomio-Kontoverbindung): ${shown(p.email)}\n${req('Telefonnummer',shown(p.phone))}\n${req('Straße',shown(p.street))}\n${req('Hausnummer',shown(p.house_number))}\n${req('PLZ',shown(p.postcode))}\n${req('Ort',shown(p.city))}\n${req('Haushaltstyp',householdLabel(p))}\n${req('Beschäftigungsstatus',employmentLabel(p.employment_status))}\n${req('Haushalts-Nettoeinkommen',incomeLabel(p))}\n${req('Haustiere',shown(p.pets))}\n${req('Einzugstermin',moveInLabel(p))}\n${req('SCHUFA-Status',schufaLabel(p.schufa_status))}\nWBS-Status: ${shown(p.wbs_status)}\n\n✍️ Bewerbungstexte: ${[p.message_apartment,p.message_house,p.message_temporary_wg,p.message_swap].filter(Boolean).length}/4 hinterlegt\n${[p.message_apartment,p.message_house,p.message_temporary_wg,p.message_swap].filter(v=>!String(v||'').trim()).length?'⚠️ Ein passender Text ist vor jedem Versand über ImmoScout24, Kleinanzeigen oder Immowelt Pflicht; Immomio erhält keinen Nachrichtentext.':'✅ Ein passender Text wird bei ImmoScout24, Kleinanzeigen und Immowelt mitgesendet; Immomio erhält keinen Nachrichtentext.'}\n\n<b>Pflichtfelder pro Portal</b>\n${portalReady('ImmoScout24','immoscout')}\n${portalReady('Kleinanzeigen','kleinanzeigen')}\n${portalReady('Immowelt','immowelt')}\nImmomio: Sonderfall · keine Bewerberangaben und kein Nachrichtentext beim Versand.\n<i>Die konkrete Formular-Konfiguration wird beim Versand zusätzlich geprüft.</i>\n\nDokumente: ${docs.length} gespeichert · ${selectedDocs} ausgewählt`;
+ const messageCount=[p.message_apartment,p.message_house,p.message_temporary_wg,p.message_swap].filter(v=>String(v||'').trim()).length;
+ const text=`👤 <b>Bewerberprofil</b>\n\n${notice?`${notice}\n\n`:''}Profilstatus: ${ready?'✅ vollständig':`⚠️ ${missing.length} Basisangabe${missing.length===1?' offen':'n offen'}`}\n\n`+
+  `${req('Anrede',salutationLabel(p.salutation))}\n${req('Vorname',shown(p.first_name))}\n${req('Nachname',shown(p.last_name))}\nE-Mail: ${shown(p.email)}\n${req('Telefonnummer',shown(p.phone))}\n${req('Straße',shown(p.street))}\n${req('Hausnummer',shown(p.house_number))}\n${req('PLZ',shown(p.postcode))}\n${req('Ort',shown(p.city))}\n${req('Haushaltstyp',householdLabel(p))}\n${req('Beschäftigungsstatus',employmentLabel(p.employment_status))}\n${req('Haushalts-Nettoeinkommen',incomeLabel(p))}\n${req('Haustiere',shown(p.pets))}\n${req('Einzugstermin',moveInLabel(p))}\n${req('SCHUFA-Status',schufaLabel(p.schufa_status))}\nWBS-Status: ${shown(p.wbs_status)}\n\n✍️ Bewerbungstexte: ${messageCount}/4\n📎 Dokumente: ${docs.length} gespeichert · ${selectedDocs} ausgewählt`;
  const f=(name,label)=>button(label,`platforms:profile-field:${name}`);
  return render(text,[
   [f('salutation','Anrede'),f('schufa_status','SCHUFA')],
   [f('first_name','Vorname *'),f('last_name','Nachname *')],
-  [f('email','E-Mail (Scout / Immowelt / Immomio-Konto)'),f('phone','Telefon')],
+  [f('email','E-Mail'),f('phone','Telefon')],
   [f('street','Straße'),f('house_number','Hausnr.')],
   [f('postcode','PLZ'),f('city','Ort')],
   [f('household_type','Haushalt'),f('employment_status','Beschäftigung')],
