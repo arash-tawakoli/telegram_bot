@@ -40,3 +40,10 @@ test('navigation updates do not wait for empty Telegram acknowledgement; save re
  await scope.handleCallback({id:'q',data:'home',message:{chat:{id:1},message_id:2}},{});
  assert.equal(edited,true);assert.equal(tasks.length,1);pendingResolve();await Promise.all(tasks);
 });
+
+
+test('platform login opens provider auth inside Telegram WebApp instead of a direct URL button',()=>{
+ const platforms=readFileSync(new URL('platform-sessions.js',root),'utf8');
+ assert.match(platforms,/\{text:loginLabel,web_app:\{url:result\.url\}\}/);
+ assert.doesNotMatch(platforms,/\{text:loginLabel,url:result\.url\}/);
+});
