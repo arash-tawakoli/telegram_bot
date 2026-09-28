@@ -1,4 +1,4 @@
-import {getConnection,deleteConnection} from '../credentials.ts';
+import {getConnection,saveConnection,deleteConnection} from '../credentials.ts';
 import {providerStaticMissing,providerSalutation,providerHousehold,providerEmployment,providerIncome,providerMoveIn,providerPets} from '../../_shared/application-profile-adapters.ts';
 
 const PROVIDER='immowelt';
@@ -133,7 +133,7 @@ function immoweltContactCodes(profile:any){
  };
  return Object.values(codes).every(Boolean)?codes:null;
 }
-async function immoweltFallbackSession(connection:any){
+async function immoweltFallbackSession(db:any,userId:string,connection:any){
  let cookies=Array.isArray(connection?.credentials?.cookies)?connection.credentials.cookies:[];
  const userAgent=String(connection?.credentials?.userAgent||'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/131.0 Mobile Safari/537.36');
  let token=immoweltCookieValue(cookies,'oauth.access.token');
@@ -154,13 +154,14 @@ async function immoweltFallbackSession(connection:any){
  if(!response.ok)return{ok:false,error:'session_refresh_failed',cookies,userAgent,refreshed:false,httpStatus:response.status};
  cookies=mergeImmoweltSetCookies(cookies,response.headers);
  token=immoweltCookieValue(cookies,'oauth.access.token');
+ if(token){try{await saveConnection(db,userId,PROVIDER,{cookies,userAgent},{account_hint:connection?.row?.account_hint||null})}catch{}}
  return token?{ok:true,token,cookies,userAgent,refreshed:true,httpStatus:response.status}:{ok:false,error:'session_token_missing',cookies,userAgent,refreshed:true,httpStatus:response.status};
 }
 async function sendImmoweltSessionFallback(input:any){
- const{connection,profile,listing,fullMessage}=input||{};
+ const{db,userId,connection,profile,listing,fullMessage}=input||{};
  const codes=immoweltContactCodes(profile);
  if(!codes)return{success:false,error:'session_fallback_profile_unmapped',diagnostic:{transport:'contact_request_service_session_fallback',profileMapped:false}};
- const session=await immoweltFallbackSession(connection);
+ const session=await immoweltFallbackSession(db,String(userId||''),connection);
  if(!session.ok)return{success:false,error:session.error||'session_fallback_unavailable',diagnostic:{transport:'contact_request_service_session_fallback',sessionRefreshed:!!session.refreshed,refreshHttpStatus:session.httpStatus||null}};
  const classifiedId=String(listing?.source_listing_key||listing?.external_id||'').trim();
  if(!classifiedId)return{success:false,error:'provider_identifier_missing',diagnostic:{transport:'contact_request_service_session_fallback'}};
@@ -269,7 +270,7 @@ export async function sendImmoweltApplication(input:any){
  if(success)return{success:true,status:'sent',confirmation:'immowelt_communication_service',diagnostic:{provider:'immowelt',transport:'communication_service_link_to_detail',httpStatus:response.status,onlineId:identifier,profileFields:['salutation','first_name','last_name','email','street','house_number','postcode','city','household_type','employment_status','income_range','move_in_preference','move_in_date'],phoneIncluded:!!phone,estateGuidProvided:true}};
  const explicitFalse=/<SendContactMailResult>\s*false\s*<\/SendContactMailResult>/i.test(text);
  if(explicitFalse){
-  const fallback=await sendImmoweltSessionFallback({connection,profile,listing,fullMessage});
+  const fallback=await sendImmoweltSessionFallback({db,userId,connection,profile,listing,fullMessage});
   if(fallback?.success)return fallback;
   return{success:false,status:'manual_required',error:'provider_rejected',diagnostic:{provider:'immowelt',transport:'communication_service',httpStatus:response.status,authorized:true,soapResult:'false',estateGuidProvided:true,onlineId:ids.onlineId||identifier,sessionFallback:fallback?.diagnostic||{error:fallback?.error||'session_fallback_unavailable'}}};
  }
