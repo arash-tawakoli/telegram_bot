@@ -33,3 +33,10 @@ test('ImmoScout Plus blocks produce a single explicit Telegram notice path',()=>
   assert.match(plusNotice,/Automatische Bewerbung nicht zugestellt/);
   assert.match(plusNotice,/ImmoScout Plus erforderlich/);
 });
+
+
+test('ImmoScout mandatory household size and income reuse the completed profile instead of reporting them missing',()=>{
+  assert.match(provider,/numberofpersons:\(\)=>householdValue\(profile,configKey\)/);
+  assert.doesNotMatch(provider,/\['numberofpersons','numberofresidents'\]\.includes\(key\)\)\)return true/);
+  assert.match(provider,/return providerIncome\('immoscout',profile\?\.income_range\)/);
+});
