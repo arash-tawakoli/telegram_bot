@@ -1,5 +1,5 @@
 import {saveConnection,getConnection,markConnection,deleteConnection} from '../credentials.ts';
-import {providerSalutation,providerHousehold,providerEmployment,providerMoveIn,providerPets,canonicalSalutation,canonicalHousehold,canonicalEmployment,canonicalIncome,canonicalMoveIn} from '../../_shared/application-profile-adapters.ts';
+import {providerSalutation,providerHousehold,providerEmployment,providerIncome,providerMoveIn,providerPets,canonicalSalutation,canonicalHousehold,canonicalEmployment,canonicalIncome,canonicalMoveIn} from '../../_shared/application-profile-adapters.ts';
 
 const PROVIDER='immoscout';
 const OPTIONAL_PROFILE_FIELDS=new Set(['firstname','contactfirstname','givenname','vorname','lastname','contactlastname','surname','familyname','nachname','phonenumber','phone','mobilephone','mobilenumber','telephone','telefonnummer','telefon','mobilnummer','handynummer','emailaddress','email','emailadresse','address','anschrift','adresse','street','strasse','housenumber','hausnummer','postcode','postalcode','zipcode','plz','postleitzahl','city','stadt','ort','moveindate','desiredmoveindate','einzugsdatum','gewunschteeinzugsdatum','petsinhousehold','pets','pet','haustiere','haustier','numberofpersons','numberofresidents','householdsize','residents','personenanzahl','anzahlpersonen','personenimhaushalt','haushaltsgrosse','numberofadults','numberofchildren','employmentrelationship','employmentstatus','occupation','profession','beschaftigungsstatus','arbeitsverhaltnis','berufstatigkeit','income','incomeamount','monthlyincome','monthlynetincome','netincome','einkommen','nettoeinkommen','monatlichesnettoeinkommen','salutation','anrede','message','contactmessage','messagetext','nachricht','bewerbungstext','kontaktnachricht']);
@@ -49,7 +49,7 @@ function householdValue(profile:any,fieldKey=''){
  if(/numberofpersons|numberofresidents|personenanzahl|anzahlpersonen/.test(key))return explicitProfileCount(profile,['household_size','household_count','number_of_persons','number_of_residents']);
  return providerHousehold('immoscout',profile?.household_type);
 }
-function incomeValue(profile:any){const amount=profile?.monthly_net_income;if(amount===undefined||amount===null||String(amount).trim()===''||!Number.isFinite(Number(amount)))return null;return String(Math.round(Number(amount)));}
+function incomeValue(profile:any){const amount=profile?.monthly_net_income;if(amount!==undefined&&amount!==null&&String(amount).trim()!==''&&Number.isFinite(Number(amount)))return String(Math.round(Number(amount)));return providerIncome('immoscout',profile?.income_range);}
 function phoneValue(v:any){let s=clean(v,120).replace(/[^0-9+]/g,'');if(!s)return null;if(s.startsWith('00'))s=`+${s.slice(2)}`;else if(s.startsWith('0'))s=`+49${s.slice(1)}`;else if(/^49\d+$/.test(s))s=`+${s}`;const digits=s.replace(/\D/g,'');if(!s.startsWith('+')||digits.length<8||digits.length>15)return null;return `+${digits}`;}
 function fieldState(v:any){if(v&&typeof v==='object'){if(v.required===true)return'MANDATORY';if(v.required===false)return'OPTIONAL';v=v.state??v.status??v.requirement??v.mode;}return clean(v,40).toUpperCase();}
 function empty(v:any){if(v==null)return true;if(typeof v==='string')return !v.trim();if(typeof v==='object'&&!Array.isArray(v))return Object.keys(v).length===0||Object.values(v).some(empty);return false;}
@@ -59,7 +59,6 @@ function snake(v:string){return v.replace(/([a-z0-9])([A-Z])/g,'$1_$2').replace(
 function providerPrefill(raw:any){if(!raw||typeof raw!=='object')return undefined;for(const k of['prefillValue','defaultValue','initialValue'])if(raw[k]!==undefined&&raw[k]!==null&&raw[k]!=='')return raw[k];return undefined;}
 function immoScoutExplicitOmit(configKey:string,rawConfig:any,profile:any){
  const keys=metadataKeys(configKey,rawConfig);
- if(keys.some((key:string)=>['numberofpersons','numberofresidents'].includes(key)))return true;
  if(keys.some((key:string)=>/salutation|anrede/.test(key)))return['DIVERSE','NEUTRAL','NOT_SPECIFIED'].includes(canonicalSalutation(profile?.salutation));
  if(keys.some((key:string)=>/household|haushalt|numberofpersons|personen/.test(key)))return canonicalHousehold(profile?.household_type)==='NOT_SPECIFIED';
  if(keys.some((key:string)=>/employment|beruf|job|occupation/.test(key)))return canonicalEmployment(profile?.employment_status)==='NOT_SPECIFIED';
