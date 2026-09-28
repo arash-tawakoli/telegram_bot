@@ -38,7 +38,7 @@ test('ImmoScout Plus blocks produce a single explicit Telegram notice path',()=>
 test('ImmoScout mandatory household size and income reuse the completed profile instead of reporting them missing',()=>{
   assert.match(provider,/numberofpersons:\(\)=>householdValue\(profile,configKey\)/);
   assert.doesNotMatch(provider,/\['numberofpersons','numberofresidents'\]\.includes\(key\)\)\)return true/);
-  assert.match(provider,/return providerIncome\('immoscout',profile\?\.income_range\)/);
+  assert.match(provider,/return Math\.round\(Number\(amount\)\);return null/);
 });
 
 
@@ -49,4 +49,10 @@ test('ImmoScout legacy household aliases normalize to current schema fields and 
   assert.doesNotMatch(provider,/'numberOfPersons'/);
   assert.match(provider,/kind==='SINGLE'\)adults=1/);
   assert.match(provider,/kind==='TWO_ADULTS'\)adults=2/);
+});
+
+
+test('ImmoScout numeric income fields never serialize a range label as an integer',()=>{
+  assert.doesNotMatch(provider,/return providerIncome\('immoscout',profile\?\.income_range\)/);
+  assert.match(provider,/function incomeValue\(profile:any\).*Math\.round\(Number\(amount\)\).*return null/s);
 });
