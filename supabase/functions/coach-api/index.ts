@@ -17,6 +17,7 @@ function clean(v:any,max=500){return String(v??'').replace(/[\u0000-\u001f\u007f
 function uuid(v:any){const s=String(v||'');if(!UUID.test(s))throw Error('invalid_id');return s}
 function participantId(v:any){const s=String(v||'');if(!PUBLIC_ID.test(s))throw Error('invalid_participant');return s}
 function email(v:any){const s=clean(v,320).toLowerCase();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s))throw Error('invalid_email');return s}
+function profileEmail(v:any){return clean(v,320)?email(v):null}
 function integer(v:any,min:number,max:number){const n=Number(v);if(!Number.isInteger(n)||n<min||n>max)throw Error('invalid_number');return n}
 function optionalInteger(v:any,min:number,max:number){if(v===null||v===undefined||v==='')return null;return integer(v,min,max)}
 function random(bytes=32){const a=crypto.getRandomValues(new Uint8Array(bytes));let s='';for(const b of a)s+=String.fromCharCode(b);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
@@ -218,9 +219,10 @@ async function updateProfile(a:any,assignment:any,input:any){
  const userId=assignment.user_id,current=await admin.from('applicant_profiles').select('*').eq('user_id',userId).maybeSingle();
  if(current.error)throw Error('profile_read_failed');
  const c=current.data||{};
+ const has=(key:string)=>Object.prototype.hasOwnProperty.call(input,key);
  const row:any={
   user_id:userId,first_name:clean(input.first_name??c.first_name,120),last_name:clean(input.last_name??c.last_name,120),
-  email:email(input.email??c.email),phone:clean(input.phone??c.phone,80),city:clean(input.city??c.city??'Hamburg',120)||'Hamburg',
+  email:profileEmail(has('email')?input.email:c.email),phone:clean(input.phone??c.phone,80),city:clean(input.city??c.city??'Hamburg',120)||'Hamburg',
   salutation:clean(input.salutation??c.salutation,40)||null,street:clean(input.street??c.street,160)||null,house_number:clean(input.house_number??c.house_number,40)||null,
   postcode:clean(input.postcode??c.postcode,10)||null,household_size:optionalInteger(input.household_size??c.household_size,1,20),household_type:clean(input.household_type??c.household_type,40)||null,
   employment_status:clean(input.employment_status??c.employment_status,160)||null,
@@ -229,7 +231,6 @@ async function updateProfile(a:any,assignment:any,input:any){
   move_in_preference:clean(input.move_in_preference??c.move_in_preference,40)||null,move_in_date:input.move_in_date??c.move_in_date??null,default_message:clean(input.default_message??c.default_message,4000)||null,message_apartment:clean(input.message_apartment??c.message_apartment,4000)||null,message_house:clean(input.message_house??c.message_house,4000)||null,message_temporary_wg:clean(input.message_temporary_wg??c.message_temporary_wg,4000)||null,message_swap:clean(input.message_swap??c.message_swap,4000)||null,
   schufa_status:clean(input.schufa_status??c.schufa_status??'NOT_SPECIFIED',80),phone_call_desired:Boolean(input.phone_call_desired??c.phone_call_desired??false),updated_at:new Date().toISOString()
  };
- const has=(key:string)=>Object.prototype.hasOwnProperty.call(input,key);
  if(row.salutation&&!['MR','MS','DIVERSE','NEUTRAL','NOT_SPECIFIED','COMPANY'].includes(String(row.salutation)))throw Error('profile_salutation_invalid');
  if(row.household_type&&!['SINGLE','TWO_ADULTS','FAMILY','SHARED_FLAT','NOT_SPECIFIED'].includes(String(row.household_type)))throw Error('profile_household_type_invalid');
  if(row.employment_status&&!['EMPLOYEE','WORKER','SELF_EMPLOYED','CIVIL_SERVANT','APPRENTICE','STUDENT','DOCTORAL','HOMEMAKER','JOBSEEKER','RETIRED','OTHER','NOT_SPECIFIED'].includes(String(row.employment_status)))throw Error('profile_employment_status_invalid');
@@ -241,7 +242,7 @@ async function updateProfile(a:any,assignment:any,input:any){
  if(has('move_in_preference')&&row.move_in_preference!=='EXACT_DATE')row.move_in_date=null;
  if(row.move_in_preference==='EXACT_DATE'&&!row.move_in_date)throw Error('profile_move_in_date_required');
  if(row.move_in_date&&!/^\d{4}-\d{2}-\d{2}$/.test(String(row.move_in_date)))throw Error('profile_move_in_date_invalid');
- if(!row.first_name||!row.last_name||!row.email)throw Error('profile_required_fields');
+ if(!row.first_name||!row.last_name)throw Error('profile_required_fields');
  const{error}=await admin.from('applicant_profiles').upsert(row,{onConflict:'user_id'});if(error)throw Error('profile_save_failed');
  await admin.from('bot_users').update({first_name:row.first_name,last_name:row.last_name,updated_at:new Date().toISOString()}).eq('id',userId);
  await audit(a,userId,'profile_updated');return{ok:true};
@@ -298,7 +299,7 @@ async function applicationRows(a:any,scope='all',input:any={}){
   for(const event of events||[])if(!latest.has(String(event.application_id)))latest.set(String(event.application_id),event);
  }
  let out=(data||[]).map((x:any)=>({...without(x,'user_id'),participant:publicByUser.get(String(x.user_id))||null,latestEvent:without(latest.get(String(x.id)),'application_id')}));
- const providerFilter=safeFilter(input.provider,['immoscout','kleinanzeigen','immomio']);
+ const providerFilter=safeFilter(input.provider,['immoscout','kleinanzeigen','immomio','immowelt']);
  const docFilter=safeFilter(input.documentResult,['native_uploaded','link_included','not_provided','not_supported','transfer_failed']);
  if(providerFilter)out=out.filter((x:any)=>x.latestEvent?.provider===providerFilter);
  if(docFilter)out=out.filter((x:any)=>x.latestEvent?.document_result===docFilter);
@@ -306,10 +307,36 @@ async function applicationRows(a:any,scope='all',input:any={}){
  const coachFilter=String(input.coachMemberId||'');if(a.member.role==='admin'&&UUID.test(coachFilter))out=out.filter((x:any)=>x.participant?.coachMemberId===coachFilter);
  return out;
 }
+async function operationsSummary(days:number){
+ const since=new Date(Date.now()-days*86400000).toISOString();
+ const crawl=(success:boolean)=>admin.from('crawl_runs').select('id',{count:'exact',head:true}).gte('started_at',since).eq('success',success);
+ const delivery=(status:string)=>admin.from('delivery_events').select('id',{count:'exact',head:true}).gte('created_at',since).eq('channel','telegram').eq('status',status);
+ try{
+  const [sources,crawlOk,crawlFailed,sent,failed,skipped,pending]=await Promise.all([
+   admin.from('sources').select('enabled,runtime_mode',{count:'exact'}),
+   crawl(true),crawl(false),delivery('sent'),delivery('failed'),delivery('skipped'),delivery('pending')
+  ]);
+  if([sources,crawlOk,crawlFailed,sent,failed,skipped,pending].some(x=>x.error))throw Error('operations_read_failed');
+  const rows:any[]=sources.data||[];
+  if(sources.count!=null&&sources.count!==rows.length)throw Error('source_inventory_truncated');
+  return{
+   periodDays:days,asOf:new Date().toISOString(),
+   sources:{
+    total:rows.length,enabled:rows.filter(x=>x.enabled).length,
+    live:rows.filter(x=>x.enabled&&x.runtime_mode==='live').length,
+    shadow:rows.filter(x=>x.enabled&&x.runtime_mode==='shadow').length,
+    disabled:rows.filter(x=>!x.enabled).length
+   },
+   crawls:{successful:crawlOk.count||0,failed:crawlFailed.count||0},
+   telegramDeliveries:{sent:sent.count||0,failed:failed.count||0,skipped:skipped.count||0,pending:pending.count||0}
+  };
+ }catch(error){console.error('coach_operations_summary',String(error));return null}
+}
 async function dashboardData(a:any,scope='all',input:any={}){
- const [participants,applications]=await Promise.all([participantSummary(a,scope),applicationRows(a,scope,{days:filterDays(input.days)})]);
+ const days=filterDays(input.days);
+ const [participants,applications,operations]=await Promise.all([participantSummary(a,scope),applicationRows(a,scope,{days}),operationsSummary(days)]);
  const metrics:any={total:0,sent:0,failed:0,pending:0,manualRequired:0};
- const providers:any={immoscout:0,kleinanzeigen:0,immomio:0,unknown:0};
+ const providers:any={immoscout:0,kleinanzeigen:0,immomio:0,immowelt:0,unknown:0};
  const documents:any={native_uploaded:0,link_included:0,not_provided:0,not_supported:0,transfer_failed:0,unknown:0};
  const waits:any={};
  for(const x of applications){
@@ -318,16 +345,16 @@ async function dashboardData(a:any,scope='all',input:any={}){
   const d=x.latestEvent?.document_result;documents[d in documents?d:'unknown']++;
   if(x.wait_reason)waits[x.wait_reason]=(waits[x.wait_reason]||0)+1;
  }
- const connections={immoscout:0,kleinanzeigen:0,immomio:0};
+ const connections={immoscout:0,kleinanzeigen:0,immomio:0,immowelt:0};
  for(const p of participants)for(const provider of p.readiness?.connectedProviders||[])if(provider in connections)(connections as any)[provider]++;
  const attention=participants.filter((p:any)=>p.readiness?.primaryCode!=='active').slice(0,12).map((p:any)=>({
   participantId:p.participantId,name:[p.participant.firstName,p.participant.lastName].filter(Boolean).join(' '),
   coach:p.coach?.display_name||null,status:p.readiness?.primaryCode,label:p.readiness?.label,actionTab:p.readiness?.actionTab
  }));
  return{
-  periodDays:filterDays(input.days),participants:participants.length,premium:participants.filter((p:any)=>p.participant.isPremium).length,
+  periodDays:days,participants:participants.length,premium:participants.filter((p:any)=>p.participant.isPremium).length,
   automationActive:participants.filter((p:any)=>p.readiness?.primaryCode==='active').length,
-  applications:metrics,providers,documents,connections,waitReasons:waits,attention,recentApplications:applications.slice(0,8)
+  applications:metrics,providers,documents,connections,operations,waitReasons:waits,attention,recentApplications:applications.slice(0,8)
  };
 }
 async function importCandidates(a:any,includeUserId=false){
@@ -382,7 +409,7 @@ async function handle(req:Request){
  if(action==='set_search_active'){const id=uuid(body.profileId),userId=assignment.user_id;const{error}=await admin.from('search_profiles').update({is_active:Boolean(body.active),updated_at:new Date().toISOString()}).eq('id',id).eq('user_id',userId);if(error)throw Error('search_update_failed');await audit(a,userId,body.active?'search_profile_resumed':'search_profile_paused',{profile_id:id});return{ok:true};}
  if(action==='delete_search'){const id=uuid(body.profileId),userId=assignment.user_id;const{error}=await admin.from('search_profiles').delete().eq('id',id).eq('user_id',userId);if(error)throw Error('search_delete_failed');await audit(a,userId,'search_profile_deleted',{profile_id:id});return{ok:true};}
  if(action==='set_plan'){const{error}=await admin.rpc('coach_set_plan',{p_actor:a.member.id,p_user:assignment.user_id,p_plan:String(body.plan||'')});if(error)throw Error(error.message);return{ok:true};}
- if(action==='set_preferences'){const p=body.preferences||{},weekdays=Array.isArray(p.allowed_weekdays)?p.allowed_weekdays.map((x:any)=>integer(x,1,7)):null;const{error}=await admin.rpc('coach_set_application_preferences',{p_actor:a.member.id,p_user:assignment.user_id,p_enabled:Boolean(p.enabled),p_daily_limit:optionalInteger(p.daily_limit,1,1000),p_timezone:clean(p.timezone,80)||'Europe/Berlin',p_weekdays:weekdays,p_window_start:p.send_window_start||null,p_window_end:p.send_window_end||null,p_immoscout:Boolean(p.immoscout_enabled),p_kleinanzeigen:Boolean(p.kleinanzeigen_enabled),p_immomio:Boolean(p.immomio_enabled)});if(error)throw Error(error.message);if(Object.prototype.hasOwnProperty.call(p,'immowelt_enabled')){const{error:iw}=await admin.from('application_preferences').update({immowelt_enabled:Boolean(p.immowelt_enabled)}).eq('user_id',assignment.user_id);if(iw)throw Error('preferences_save_failed')}return{ok:true};}
+ if(action==='set_preferences'){const p=body.preferences||{},weekdays=Array.isArray(p.allowed_weekdays)?p.allowed_weekdays.map((x:any)=>integer(x,1,7)):null;const{error}=await admin.rpc('coach_set_application_preferences',{p_actor:a.member.id,p_user:assignment.user_id,p_enabled:Boolean(p.enabled),p_daily_limit:optionalInteger(p.daily_limit,1,1000),p_timezone:clean(p.timezone,80)||'Europe/Berlin',p_weekdays:weekdays,p_window_start:p.send_window_start||null,p_window_end:p.send_window_end||null,p_immoscout:Boolean(p.immoscout_enabled),p_kleinanzeigen:Boolean(p.kleinanzeigen_enabled),p_immomio:Boolean(p.immomio_enabled),p_immowelt:Object.prototype.hasOwnProperty.call(p,'immowelt_enabled')?Boolean(p.immowelt_enabled):null});if(error)throw Error(error.message);return{ok:true};}
  if(action==='reassign'){const{error}=await admin.rpc('coach_reassign_participant',{p_actor:a.member.id,p_user:assignment.user_id,p_coach:uuid(body.coachMemberId)});if(error)throw Error(error.message);return{ok:true};}
  if(action==='archive'){const next=body.archived===false?'active':'archived';const{error}=await admin.from('coaching_participants').update({status:next,archived_at:next==='archived'?new Date().toISOString():null,updated_at:new Date().toISOString()}).eq('user_id',assignment.user_id).eq('workspace_id',a.member.workspace_id);if(error)throw Error('archive_failed');await audit(a,assignment.user_id,next==='archived'?'participant_archived':'participant_restored');return{ok:true};}
  if(action==='retention'){const mode=body.mode==='delete_on_date'?'delete_on_date':'manual',date=mode==='delete_on_date'?String(body.delete_on||''):null;if(mode==='delete_on_date'&&!/^\d{4}-\d{2}-\d{2}$/.test(date||''))throw Error('invalid_retention_date');const{error}=await admin.from('coaching_participants').update({retention_mode:mode,retention_delete_on:date,status:mode==='delete_on_date'?'pending_deletion':'active',updated_at:new Date().toISOString()}).eq('user_id',assignment.user_id);if(error)throw Error('retention_save_failed');await audit(a,assignment.user_id,'retention_changed',{mode,delete_on:date});return{ok:true};}
@@ -401,6 +428,14 @@ async function handle(req:Request){
  if(action==='toggle_document'){const id=uuid(body.documentId),{error}=await admin.from('applicant_documents').update({send_with_auto_apply:Boolean(body.enabled),updated_at:new Date().toISOString()}).eq('id',id).eq('user_id',assignment.user_id);if(error)throw Error('document_update_failed');await audit(a,assignment.user_id,'document_permission_changed',{document_id:id,enabled:Boolean(body.enabled)});return{ok:true};}
  if(action==='delete_document'){const id=uuid(body.documentId),{data,error}=await admin.from('applicant_documents').select('storage_path').eq('id',id).eq('user_id',assignment.user_id).maybeSingle();if(error||!data)throw Error('document_not_found');await admin.storage.from('applicant-documents').remove([data.storage_path]);const del=await admin.from('applicant_documents').delete().eq('id',id).eq('user_id',assignment.user_id);if(del.error)throw Error('document_delete_failed');await audit(a,assignment.user_id,'document_deleted',{document_id:id});return{ok:true};}
  if(action==='application_events'){const appId=uuid(body.applicationId),{data,error}=await admin.from('application_events').select('provider,event_type,status,attempt,reason,document_result,metadata,created_at').eq('application_id',appId).eq('user_id',assignment.user_id).order('created_at');if(error)throw Error('events_read_failed');return{events:data||[]};}
+ if(action==='saved_listings'){
+  const page=optionalInteger(body.page,1,10000)||1,pageSize=20;
+  const{data,error,count}=await admin.from('saved_listings')
+   .select('id,created_at,listings(title,canonical_url,district,postal_code,city,warm_rent,rooms,area_sqm,is_active,sources(name))',{count:'exact'})
+   .eq('user_id',assignment.user_id).order('created_at',{ascending:false}).range((page-1)*pageSize,page*pageSize-1);
+  if(error)throw Error('saved_listings_read_failed');
+  return{listings:data||[],total:count||0,page,pageSize};
+ }
  if(action==='applications'){
   const rows=await applicationRows(a,body.scope==='mine'?'mine':'all',body),page=Math.max(1,optionalInteger(body.page,1,10000)||1),pageSize=Math.min(100,Math.max(10,optionalInteger(body.pageSize,10,100)||50)),start=(page-1)*pageSize;
   return{applications:rows.slice(start,start+pageSize),total:rows.length,page,pageSize};
@@ -410,7 +445,7 @@ async function handle(req:Request){
  if(action==='set_coach_active'){if(a.member.role!=='admin')throw Error('admin_required');const id=uuid(body.memberId);if(id===a.member.id&&!body.active)throw Error('cannot_disable_self');const{error}=await admin.from('coaching_members').update({is_active:Boolean(body.active),updated_at:new Date().toISOString()}).eq('id',id).eq('workspace_id',a.member.workspace_id).eq('role','coach');if(error)throw Error('coach_update_failed');await audit(a,null,'coach_status_changed',{member_id:id,active:Boolean(body.active)});return{ok:true};}
  throw Error('invalid_action');
 }
-function publicError(error:any){const code=String(error?.message||'coach_api_failed').slice(0,160);const known=new Set(['unauthorized','coach_forbidden','workspace_unavailable','participant_forbidden','admin_required','invalid_id','invalid_participant','invalid_email','invalid_number','provider_unsupported','invalid_property_type','invalid_location','invalid_search_limits','location_required','invalid_document','invalid_document_type','invalid_document_path','upload_not_found','upload_invalid','document_not_found','document_open_failed','invalid_retention_date','password_too_short','cannot_disable_self','premium_required','import_candidates_failed','import_candidate_invalid','participant_adopt_failed','participant_create_failed','request_id_required','request_id_conflict','request_in_progress','oauth_client_not_provisioned']);return known.has(code)?code:(code.includes('profile_slot_not_allowed')?'profile_slot_not_allowed':'operation_failed');}
+function publicError(error:any){const code=String(error?.message||'coach_api_failed').slice(0,160);const known=new Set(['unauthorized','coach_forbidden','workspace_unavailable','participant_forbidden','admin_required','invalid_id','invalid_participant','invalid_email','invalid_number','provider_unsupported','invalid_property_type','invalid_location','invalid_search_limits','location_required','invalid_document','invalid_document_type','invalid_document_path','upload_not_found','upload_invalid','document_not_found','document_open_failed','invalid_retention_date','password_too_short','cannot_disable_self','premium_required','profile_incomplete','provider_required','participant_unavailable','saved_listings_read_failed','import_candidates_failed','import_candidate_invalid','participant_adopt_failed','participant_create_failed','request_id_required','request_id_conflict','request_in_progress','oauth_client_not_provisioned']);return known.has(code)?code:(code.includes('profile_slot_not_allowed')?'profile_slot_not_allowed':'operation_failed');}
 
 Deno.serve(async req=>{
  if(req.method==='OPTIONS')return new Response(null,{status:204,headers:cors(req)});
