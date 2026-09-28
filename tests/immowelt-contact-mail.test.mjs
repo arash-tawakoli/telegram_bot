@@ -18,3 +18,19 @@ test('ImmoWelt SendContactMail follows the documented ContactMailRequest sequenc
   assert.ok(request.includes('<EMail>${xml(email)}</EMail>'));
   assert.doesNotMatch(request, /<ExposeKey>|<OnlyUseLinkToDetail>|<OnlyMailToCustomer>/);
 });
+
+
+test('ImmoWelt explicit SOAP rejection falls back once to the authenticated contact-request service', () => {
+  const explicitFalse = source.indexOf('const explicitFalse=');
+  const guardedFallback = source.indexOf('if(explicitFalse)', explicitFalse);
+  const fallbackCall = source.indexOf('await sendImmoweltSessionFallback', guardedFallback);
+  const ambiguousFailure = source.indexOf("error:'submission_unconfirmed'", fallbackCall);
+
+  assert.ok(explicitFalse >= 0 && guardedFallback > explicitFalse && fallbackCall > guardedFallback);
+  assert.ok(ambiguousFailure > fallbackCall);
+  assert.match(source, /https:\/\/www\.immowelt\.de\/contact-request-service\/contacting/);
+  assert.match(source, /https:\/\/signin\.immowelt\.de\/refresh/);
+  assert.match(source, /oauth\.access\.token/);
+  assert.match(source, /authorization:'Bearer '/);
+  assert.match(source, /confirmation:'immowelt_contact_request_service'/);
+});
