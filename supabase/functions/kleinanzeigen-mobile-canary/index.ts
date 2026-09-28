@@ -32,9 +32,89 @@ function b64url(bytes: Uint8Array) {
   return btoa(raw).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
 
+function randomTicket(bytes = 32) {
+  return b64url(crypto.getRandomValues(new Uint8Array(bytes)));
+}
+
 async function pkceChallenge(verifier: string) {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
   return b64url(new Uint8Array(digest));
+}
+
+async function secret(name: string) {
+  const { data, error } = await db.rpc('get_bot_secret', { secret_name: name });
+  if (error || !data) throw Error('configuration_unavailable');
+  return String(data);
+}
+
+async function adminUser(userId: string) {
+  const { data: user, error } = await db
+    .from('bot_users')
+    .select('id,telegram_user_id')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (error || !user || Number(user.telegram_user_id) !== ADMIN_TELEGRAM_USER_ID) {
+    throw Error('canary_not_allowed');
+  }
+  return user;
+}
+
+async function startCanary(request: Request) {
+  const supplied = String(request.headers.get('x-internal-secret') || '');
+  const expected = await secret('internal_worker_secret');
+  if (!supplied || supplied !== expected) return json({ ok: false, error: 'unauthorized' }, 401);
+
+  let body: any;
+  try { body = await request.json(); } catch { return json({ ok: false, error: 'invalid_request' }, 400); }
+
+  const userId = String(body?.userId || '');
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId)) {
+    return json({ ok: false, error: 'invalid_user' }, 400);
+  }
+
+  try {
+    await adminUser(userId);
+
+    await db
+      .from('platform_auth_flows')
+      .delete()
+      .eq('user_id', userId)
+      .eq('provider', 'kleinanzeigen')
+      .contains('context', { mobile_canary: true })
+      .is('consumed_at', null);
+
+    const verifier = randomTicket(32);
+    const state = randomTicket(24);
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+
+    const { error } = await db.from('platform_auth_flows').insert({
+      user_id: userId,
+      provider: 'kleinanzeigen',
+      state,
+      code_verifier: verifier,
+      origin: 'telegram',
+      return_target: 'telegram',
+      expires_at: expiresAt,
+      context: {
+        channel: 'telegram',
+        mobile_canary: true,
+        canary_preserve_connection: true
+      }
+    });
+    if (error) throw Error('auth_flow_create_failed');
+
+    return json({
+      ok: true,
+      state,
+      expiresAt,
+      handoffUrl: `${base}/functions/v1/kleinanzeigen-mobile-canary?state=${encodeURIComponent(state)}`
+    });
+  } catch (error: any) {
+    const code = String(error?.message || 'canary_unavailable');
+    const safe = ['canary_not_allowed', 'auth_flow_create_failed'].includes(code) ? code : 'canary_unavailable';
+    return json({ ok: false, error: safe }, safe === 'canary_not_allowed' ? 403 : 400);
+  }
 }
 
 async function loadAdminFlow(state: string) {
@@ -50,17 +130,7 @@ async function loadAdminFlow(state: string) {
 
   if (error || !flow || !flow.code_verifier) throw Error('auth_flow_expired');
   if (Date.parse(String(flow.expires_at || '')) <= Date.now()) throw Error('auth_flow_expired');
-
-  const { data: user, error: userError } = await db
-    .from('bot_users')
-    .select('telegram_user_id')
-    .eq('id', flow.user_id)
-    .maybeSingle();
-
-  if (userError || Number(user?.telegram_user_id) !== ADMIN_TELEGRAM_USER_ID) {
-    throw Error('canary_not_allowed');
-  }
-
+  await adminUser(String(flow.user_id));
   if (flow?.context?.mobile_canary !== true) throw Error('canary_not_allowed');
 
   return flow;
@@ -85,8 +155,6 @@ async function authorizationUrl(flow: any) {
 
 function handoffPage(state: string, loginUrl: string) {
   const deepLink = `${APP_SCHEME}://start?state=${encodeURIComponent(state)}`;
-  const telegramFallback = 'https://t.me/traumwohnunghamburgbot';
-
   return `<!doctype html>
 <html lang="de">
 <head>
@@ -110,11 +178,11 @@ function handoffPage(state: string, loginUrl: string) {
 <main>
   <div class="card">
     <h1>🧪 Kleinanzeigen Admin-Canary</h1>
-    <p>Die mobile Test-App wird geöffnet. Nach dem Kleinanzeigen-Login soll der Rücksprung automatisch an Telegram übergeben werden.</p>
+    <p>Die mobile Test-App wird geöffnet. Deine bestehende Kleinanzeigen-Verbindung bleibt bis zu einem erfolgreichen Test unverändert.</p>
     <a class="primary" href="${deepLink}">Canary-App öffnen</a>
     <a class="secondary" href="${loginUrl}">Fallback: normalen Login öffnen</a>
-    <a class="secondary" href="${telegramFallback}">Zurück zu Telegram</a>
-    <p class="small">Nur für den Admin-Test. Der bestehende Share-Flow bleibt als Fallback erhalten.</p>
+    <a class="secondary" href="https://t.me/traumwohnunghamburgbot">Zurück zu Telegram</a>
+    <p class="small">Nur für den Admin-Test. Ein Abbruch verändert die bestehende Verbindung nicht.</p>
   </div>
 </main>
 <script>
@@ -126,6 +194,7 @@ function handoffPage(state: string, loginUrl: string) {
 }
 
 Deno.serve(async (request) => {
+  if (request.method === 'POST') return startCanary(request);
   if (request.method !== 'GET') return json({ ok: false, error: 'method_not_allowed' }, 405);
 
   const url = new URL(request.url);
