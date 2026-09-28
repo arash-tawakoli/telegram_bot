@@ -40,3 +40,13 @@ test('ImmoScout mandatory household size and income reuse the completed profile 
   assert.doesNotMatch(provider,/\['numberofpersons','numberofresidents'\]\.includes\(key\)\)\)return true/);
   assert.match(provider,/return providerIncome\('immoscout',profile\?\.income_range\)/);
 });
+
+
+test('ImmoScout legacy household aliases normalize to current schema fields and order',()=>{
+  assert.match(provider,/numberofpersons\|numberofresidents\|householdsize\|residents/);
+  assert.match(provider,/\?'numberOfAdults':\/numberofchildren\|numberofkids/);
+  assert.match(provider,/'incomeAmount','employmentStatus','rentArrears','insolvencyProcess','smoker','numberOfAdults','numberOfKids'/);
+  assert.doesNotMatch(provider,/'numberOfPersons'/);
+  assert.match(provider,/kind==='SINGLE'\)adults=1/);
+  assert.match(provider,/kind==='TWO_ADULTS'\)adults=2/);
+});
