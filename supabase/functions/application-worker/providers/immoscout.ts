@@ -66,7 +66,7 @@ function householdValue(profile:any,fieldKey=''){
  if(/numberofchildren|numberofkids|kidcount|childcount|children|kids/.test(key))return counts.kids;
  return providerHousehold('immoscout',profile?.household_type);
 }
-function incomeValue(profile:any){const amount=profile?.monthly_net_income;if(amount!==undefined&&amount!==null&&String(amount).trim()!==''&&Number.isFinite(Number(amount)))return String(Math.round(Number(amount)));return providerIncome('immoscout',profile?.income_range);}
+function incomeValue(profile:any){const amount=profile?.monthly_net_income;if(amount!==undefined&&amount!==null&&String(amount).trim()!==''&&Number.isFinite(Number(amount)))return Math.round(Number(amount));return null;}
 function phoneValue(v:any){let s=clean(v,120).replace(/[^0-9+]/g,'');if(!s)return null;if(s.startsWith('00'))s=`+${s.slice(2)}`;else if(s.startsWith('0'))s=`+49${s.slice(1)}`;else if(/^49\d+$/.test(s))s=`+${s}`;const digits=s.replace(/\D/g,'');if(!s.startsWith('+')||digits.length<8||digits.length>15)return null;return `+${digits}`;}
 function fieldState(v:any){if(v&&typeof v==='object'){if(v.required===true)return'MANDATORY';if(v.required===false)return'OPTIONAL';v=v.state??v.status??v.requirement??v.mode;}return clean(v,40).toUpperCase();}
 function empty(v:any){if(v==null)return true;if(typeof v==='string')return !v.trim();if(typeof v==='object'&&!Array.isArray(v))return Object.keys(v).length===0||Object.values(v).some(empty);return false;}
