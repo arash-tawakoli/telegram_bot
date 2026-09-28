@@ -72,6 +72,148 @@ function immoweltExposeIdentifiers(url:string,fallback:string){
   return{estateGuid:/^[0-9A-F]{32}$/.test(compact)?compact:null,onlineId:value||String(fallback||'').trim()};
  }catch{return{estateGuid:null,onlineId:String(fallback||'').trim()}}
 }
+
+function activeImmoweltCookies(cookies:any[]){
+ const now=Date.now()/1000;
+ return (Array.isArray(cookies)?cookies:[]).filter((c:any)=>c&&c.name&&c.value&&(Number(c.expires||-1)<0||Number(c.expires||-1)>now));
+}
+function immoweltCookieValue(cookies:any[],name:string){
+ const rows=activeImmoweltCookies(cookies).filter((c:any)=>String(c.name)===name);
+ return rows.length?String(rows[rows.length-1].value||''):'';
+}
+function immoweltCookieHeader(cookies:any[]){
+ return activeImmoweltCookies(cookies).map((c:any)=>String(c.name)+'='+String(c.value)).join('; ');
+}
+function mergeImmoweltSetCookies(cookies:any[],headers:Headers){
+ const out=(Array.isArray(cookies)?cookies:[]).map((c:any)=>({...c}));
+ let lines:string[]=[];
+ try{lines=(headers as any).getSetCookie?.()||[]}catch{}
+ if(!lines.length){const single=headers.get('set-cookie');if(single)lines=[single]}
+ for(const line of lines){
+  const parts=String(line||'').split(';').map(x=>x.trim()).filter(Boolean),first=parts.shift()||'',eq=first.indexOf('=');
+  if(eq<=0)continue;
+  const name=first.slice(0,eq).trim(),value=first.slice(eq+1);
+  let domain='.immowelt.de',path='/',expires=-1,maxAge:null|number=null,secure=true,httpOnly=false,sameSite:any=undefined;
+  for(const p of parts){
+   const j=p.indexOf('='),key=(j<0?p:p.slice(0,j)).trim().toLowerCase(),v=j<0?'':p.slice(j+1).trim();
+   if(key==='domain'&&v)domain=v;
+   else if(key==='path'&&v)path=v;
+   else if(key==='max-age')maxAge=Number(v);
+   else if(key==='expires'){const ms=Date.parse(v);if(Number.isFinite(ms))expires=Math.floor(ms/1000)}
+   else if(key==='secure')secure=true;
+   else if(key==='httponly')httpOnly=true;
+   else if(key==='samesite'&&v)sameSite=v;
+  }
+  if(maxAge!==null&&Number.isFinite(maxAge))expires=maxAge<=0?0:Math.floor(Date.now()/1000+maxAge);
+  for(let i=out.length-1;i>=0;i--)if(String(out[i]?.name||'')===name)out.splice(i,1);
+  if(value&&expires!==0)out.push({name,value,domain,path,expires,httpOnly,secure,sameSite});
+ }
+ return out;
+}
+function immoweltContactCodes(profile:any){
+ const salutation=providerSalutation('immowelt',profile?.salutation);
+ const household=providerHousehold('immowelt',profile?.household_type);
+ const employment=providerEmployment('immowelt',profile?.employment_status);
+ const income=providerIncome('immowelt',profile?.income_range);
+ const moveIn=providerMoveIn('immowelt',profile);
+ const salutationCode:Record<string,string>={Herr:'mr',Frau:'ms'};
+ const householdCode:Record<string,string>={Einpersonenhaushalt:'1','Zwei Erwachsene':'2'};
+ const employmentCode:Record<string,string>={'Angestellte(r)':'1','Studierende(r)':'6'};
+ const incomeCode:Record<string,string>={
+  '< €1.000':'1','1.000 € - 2.000 €':'2','2.000 € - 3.000 €':'3','3.000 € - 4.000 €':'4',
+  '4.000 € - 5.000 €':'5','5.000 € - 6.000 €':'6','6.000 € - 7.000 €':'7','> 7.000 €':'8'
+ };
+ const moveInCode:Record<string,string>={'So bald wie möglich':'1','<1 Monat':'2','<3 Monate':'3','>3 Monate':'4'};
+ const codes={
+  salutation:salutationCode[String(salutation||'')],
+  householdType:householdCode[String(household||'')],
+  workStatus:employmentCode[String(employment||'')],
+  netMonthlyIncome:incomeCode[String(income||'')],
+  preferredMoveInDate:moveInCode[String(moveIn||'')]
+ };
+ return Object.values(codes).every(Boolean)?codes:null;
+}
+async function immoweltFallbackSession(connection:any){
+ let cookies=Array.isArray(connection?.credentials?.cookies)?connection.credentials.cookies:[];
+ const userAgent=String(connection?.credentials?.userAgent||'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/131.0 Mobile Safari/537.36');
+ let token=immoweltCookieValue(cookies,'oauth.access.token');
+ const expiration=Number(immoweltCookieValue(cookies,'oauth.access.expiration'));
+ const fresh=!!token&&(!Number.isFinite(expiration)||expiration>Date.now()/1000+60);
+ if(fresh)return{ok:true,token,cookies,userAgent,refreshed:false,httpStatus:null};
+ let response:Response;
+ try{
+  response=await fetch('https://signin.immowelt.de/refresh',{
+   method:'GET',
+   headers:{
+    accept:'*/*',origin:'https://www.immowelt.de',referer:'https://www.immowelt.de/',
+    'user-agent':userAgent,'cookie':immoweltCookieHeader(cookies)
+   },
+   signal:AbortSignal.timeout(20000)
+  });
+ }catch{return{ok:false,error:'session_refresh_failed',cookies,userAgent,refreshed:false,httpStatus:null}}
+ if(!response.ok)return{ok:false,error:'session_refresh_failed',cookies,userAgent,refreshed:false,httpStatus:response.status};
+ cookies=mergeImmoweltSetCookies(cookies,response.headers);
+ token=immoweltCookieValue(cookies,'oauth.access.token');
+ return token?{ok:true,token,cookies,userAgent,refreshed:true,httpStatus:response.status}:{ok:false,error:'session_token_missing',cookies,userAgent,refreshed:true,httpStatus:response.status};
+}
+async function sendImmoweltSessionFallback(input:any){
+ const{connection,profile,listing,fullMessage}=input||{};
+ const codes=immoweltContactCodes(profile);
+ if(!codes)return{success:false,error:'session_fallback_profile_unmapped',diagnostic:{transport:'contact_request_service_session_fallback',profileMapped:false}};
+ const session=await immoweltFallbackSession(connection);
+ if(!session.ok)return{success:false,error:session.error||'session_fallback_unavailable',diagnostic:{transport:'contact_request_service_session_fallback',sessionRefreshed:!!session.refreshed,refreshHttpStatus:session.httpStatus||null}};
+ const classifiedId=String(listing?.source_listing_key||listing?.external_id||'').trim();
+ if(!classifiedId)return{success:false,error:'provider_identifier_missing',diagnostic:{transport:'contact_request_service_session_fallback'}};
+ const payload={
+  salutation:codes.salutation,
+  firstName:String(profile?.first_name||'').trim(),
+  lastName:String(profile?.last_name||'').trim(),
+  email:String(profile?.email||'').trim(),
+  phoneNumber:validPhone(profile?.phone),
+  message:String(fullMessage||'').trim(),
+  isOwner:false,
+  newsletterOptout:false,
+  newsletterOptInPreference:'email-sms',
+  householdType:codes.householdType,
+  workStatus:codes.workStatus,
+  netMonthlyIncome:codes.netMonthlyIncome,
+  preferredMoveInDate:codes.preferredMoveInDate,
+  fullName:'',
+  language:'de',
+  classifiedId,
+  brand:'immowelt',
+  houseHoldType:codes.householdType,
+  totalNetIncomeBeforeTaxRange:codes.netMonthlyIncome,
+  platform:'Website'
+ };
+ let response:Response,text='';
+ try{
+  response=await fetch('https://www.immowelt.de/contact-request-service/contacting',{
+   method:'POST',
+   headers:{
+    accept:'application/json',
+    'content-type':'text/plain;charset=UTF-8',
+    origin:'https://www.immowelt.de',
+    referer:'https://www.immowelt.de/',
+    authorization:'Bearer '+String(session.token),
+    'user-agent':String(session.userAgent),
+    cookie:immoweltCookieHeader(session.cookies)
+   },
+   body:JSON.stringify(payload),
+   signal:AbortSignal.timeout(30000)
+  });
+  text=await response.text().catch(()=>'');
+ }catch{return{success:false,error:'session_fallback_network_error',diagnostic:{transport:'contact_request_service_session_fallback',sessionRefreshed:!!session.refreshed}}}
+ if(response.status===200||response.status===201)return{
+  success:true,status:'sent',confirmation:'immowelt_contact_request_service',
+  diagnostic:{provider:'immowelt',transport:'contact_request_service_session_fallback',httpStatus:response.status,classifiedId,sessionRefreshed:!!session.refreshed}
+ };
+ return{
+  success:false,error:response.status===401||response.status===403?'session_fallback_auth_rejected':'session_fallback_rejected',
+  diagnostic:{transport:'contact_request_service_session_fallback',httpStatus:response.status,classifiedId,sessionRefreshed:!!session.refreshed,responsePresent:!!text}
+ };
+}
+
 export async function sendImmoweltApplication(input:any){
  const{db,user,profile,listing,message,authorize}=input||{},userId=String(user?.id||''),url=String(listing?.canonical_url||'');
  if(!userId||!/^https:\/\/www\.immowelt\.de\/expose\//i.test(url))return{success:false,status:'manual_required',error:'provider_contract_unverified'};
@@ -126,5 +268,10 @@ export async function sendImmoweltApplication(input:any){
  const success=response.ok&&/<SendContactMailResult>\s*true\s*<\/SendContactMailResult>/i.test(text);
  if(success)return{success:true,status:'sent',confirmation:'immowelt_communication_service',diagnostic:{provider:'immowelt',transport:'communication_service_link_to_detail',httpStatus:response.status,onlineId:identifier,profileFields:['salutation','first_name','last_name','email','street','house_number','postcode','city','household_type','employment_status','income_range','move_in_preference','move_in_date'],phoneIncluded:!!phone,estateGuidProvided:true}};
  const explicitFalse=/<SendContactMailResult>\s*false\s*<\/SendContactMailResult>/i.test(text);
- return{success:false,status:'manual_required',error:explicitFalse?'provider_rejected':'submission_unconfirmed',diagnostic:{provider:'immowelt',transport:'communication_service',httpStatus:response.status,authorized:true,soapResult:explicitFalse?'false':'missing',estateGuidProvided:true,onlineId:ids.onlineId||identifier}};
+ if(explicitFalse){
+  const fallback=await sendImmoweltSessionFallback({connection,profile,listing,fullMessage});
+  if(fallback?.success)return fallback;
+  return{success:false,status:'manual_required',error:'provider_rejected',diagnostic:{provider:'immowelt',transport:'communication_service',httpStatus:response.status,authorized:true,soapResult:'false',estateGuidProvided:true,onlineId:ids.onlineId||identifier,sessionFallback:fallback?.diagnostic||{error:fallback?.error||'session_fallback_unavailable'}}};
+ }
+ return{success:false,status:'manual_required',error:'submission_unconfirmed',diagnostic:{provider:'immowelt',transport:'communication_service',httpStatus:response.status,authorized:true,soapResult:'missing',estateGuidProvided:true,onlineId:ids.onlineId||identifier}};
 }
