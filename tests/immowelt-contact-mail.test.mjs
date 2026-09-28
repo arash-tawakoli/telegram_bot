@@ -34,3 +34,18 @@ test('ImmoWelt explicit SOAP rejection falls back once to the authenticated cont
   assert.match(source, /authorization:'Bearer '/);
   assert.match(source, /confirmation:'immowelt_contact_request_service'/);
 });
+
+
+test('ImmoWelt session refresh preserves Set-Cookie values across redirect hops', () => {
+  const sessionStart = source.indexOf('async function immoweltFallbackSession');
+  const sessionEnd = source.indexOf('async function sendImmoweltSessionFallback', sessionStart);
+  const session = source.slice(sessionStart, sessionEnd);
+
+  assert.match(session, /redirect:'manual'/);
+  assert.match(session, /for\(let hop=0;hop<8;hop\+\+\)/);
+  const merge = session.indexOf('cookies=mergeImmoweltSetCookies(cookies,response.headers);');
+  const location = session.indexOf("const location=response.headers.get('location');");
+  const follow = session.indexOf('url=new URL(location,url).href;');
+  assert.ok(merge >= 0 && location > merge && follow > location);
+  assert.match(session, /oauth\.access\.token/);
+});
