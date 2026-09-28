@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "TraumWohnung Kleinanzeigen Callback Relay (Canary)",
+  "version": "0.1.0",
+  "description": "Admin-only canary relay for the existing Kleinanzeigen OAuth callback flow.",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "https://login.kleinanzeigen.de/android/com.ebay.kleinanzeigen/callback*",
+    "https://dpmohkrwdlicexwcrqfy.supabase.co/functions/v1/kleinanzeigen-callback-bridge"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://login.kleinanzeigen.de/android/com.ebay.kleinanzeigen/callback*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "action": {
+    "default_title": "Kleinanzeigen Callback Relay Canary"
+  }
+}
