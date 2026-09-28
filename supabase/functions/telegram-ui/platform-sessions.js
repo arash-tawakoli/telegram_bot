@@ -95,6 +95,8 @@ const KLEIN_CALLBACK_ORIGIN='https://login.kleinanzeigen.de';
 const KLEIN_CALLBACK_PATH='/android/com.ebay.kleinanzeigen/callback';
 const IMMOMIO_CALLBACK_ORIGIN='https://tenant.immomio.com';
 const IMMOMIO_CALLBACK_PATH='/assets/manifest.webmanifest';
+const MOBILE_KLEIN_CANARY_ADMIN_ID=8538226539;
+const MOBILE_KLEIN_CANARY_ENDPOINT=`${SUPABASE_URL}/functions/v1/kleinanzeigen-mobile-canary`;
 
 export async function applicationWorker(action,userId,source,extra={}){
  let response;
@@ -689,12 +691,19 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   const name=source===1?'ImmoScout24':source===2?'Kleinanzeigen':source===3?'Immomio':'Immowelt';
   if(source===1&&action==='login')return render('🔐 <b>ImmoScout24</b>\n\nDie Verbindung wird ohne offizielle ImmoScout-API über eine gespeicherte Web-Session umgesetzt. Der kontrollierte Login-/Sendetest ist noch ausstehend; deshalb wird hier aktuell noch keine produktive Session angelegt.',back);
   try{
+   const mobileKleinCanary=source===2&&action==='login'&&Number(user.telegram_user_id)===MOBILE_KLEIN_CANARY_ADMIN_ID;
    const workerAction=source===2&&action==='login'?'login_share':action;
-   const extra=workerAction==='login_share'?{origin:'telegram',returnTarget:'telegram',context:{channel:'telegram',share_flow:true}}:source===4&&action==='login'?{origin:'telegram',returnTarget:'telegram',context:{channel:'telegram'}}:{};
+   const extra=workerAction==='login_share'?{origin:'telegram',returnTarget:'telegram',context:{channel:'telegram',share_flow:true,...(mobileKleinCanary?{mobile_canary:true}:{})}}:source===4&&action==='login'?{origin:'telegram',returnTarget:'telegram',context:{channel:'telegram'}}:{};
    const result=await applicationWorker(workerAction,user.id,source,extra);
    if(action==='disconnect')return render(`${name}: Verbindung gelöscht.`,back);
    if(action==='login'&&result.url){
-    const note=source===4
+    let mobileCanaryUrl=null;
+    if(mobileKleinCanary){
+     try{const state=new URL(result.url).searchParams.get('state');if(state)mobileCanaryUrl=`${MOBILE_KLEIN_CANARY_ENDPOINT}?state=${encodeURIComponent(state)}`;}catch{}
+    }
+    const note=mobileCanaryUrl
+     ? '<b>Admin-Canary</b> · Tippe auf <b>Mobile Test öffnen</b>. Die Test-App übernimmt den Kleinanzeigen-Login und soll den Rücksprung danach automatisch an den Bot übergeben. Falls die Test-App nicht greift, bleibt der normale Share-Flow als Fallback bestehen.'
+     : source===4
      ? '<b>1.</b> Tippe unten auf <b>Immowelt verbinden</b>.\n<b>2.</b> Melde dich mit deinem Konto an.\n<b>3.</b> Dein Konto wird automatisch verbunden.\n\nNach erfolgreicher Anmeldung wird dein Konto als <b>verbunden</b> angezeigt.'
      : source===3
       ? '<b>1.</b> Öffne Immomio und melde dich normal an.\n<b>2.</b> Auf der Abschlussseite tippe auf <b>Teilen</b>.\n<b>3.</b> Wähle <b>Telegram → Traumwohnung – Hamburg → Senden</b>.\n\nDer Bot übernimmt den Rücksprung automatisch und speichert die Sitzung verschlüsselt.'
@@ -704,7 +713,8 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
         ? 'Öffne Kleinanzeigen und melde dich ganz normal im Browser an. Danach wird die Verbindung automatisch abgeschlossen.'
         : 'Melde dich einmalig an. Danach bleibt die Verbindung gespeichert.';
     const loginLabel=source===4?`🌐 ${name} verbinden`:`🌐 ${name}-Login öffnen`;
-    return render(`🔐 <b>${name} verbinden</b>\n\n${note}`,[[{text:loginLabel,web_app:{url:result.url}}],...back]);
+    const loginButton=mobileCanaryUrl?{text:'🧪 Mobile Test öffnen',url:mobileCanaryUrl}:{text:loginLabel,web_app:{url:result.url}};
+    return render(`🔐 <b>${name} verbinden</b>\n\n${note}`,[[loginButton],...back]);
    }
    return render(result.authenticated===true?`${name}: ✅ Verbindung bestätigt.`:result.authenticated===false?`${name}: Anmeldung erforderlich.`:`${name}: Verbindung gespeichert, aber noch nicht vollständig verifiziert.`,back);
   }catch(error){return render(error.message,back);}
