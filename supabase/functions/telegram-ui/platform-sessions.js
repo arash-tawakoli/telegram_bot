@@ -1,4 +1,4 @@
-import {db,SUPABASE_URL,secret,send,edit,button,telegram,esc} from './runtime.js';
+import {db,SUPABASE_URL,secret,send,edit,button,telegram,esc,ADMIN_TELEGRAM_USER_IDS} from './runtime.js';
 import {providerStaticMissing} from '../_shared/application-profile-adapters.ts';
 
 const privateOwner=(user,chat)=>chat?.type==='private'&&user.is_active
@@ -694,7 +694,10 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
    const result=await applicationWorker(workerAction,user.id,source,extra);
    if(action==='disconnect')return render(`${name}: Verbindung gelöscht.`,back);
    if(action==='login'&&result.url){
-    const note=source===4
+    const adminKleinRelayCanary=source===2&&ADMIN_TELEGRAM_USER_IDS.has(Number(user.telegram_user_id));
+    const note=adminKleinRelayCanary
+     ? '<b>Admin-Canary</b> · Öffne den Login im Desktop-Browser mit installiertem Callback-Relay. Nach erfolgreichem Login wird der Rücksprung automatisch übernommen. Falls der Relay nicht greift, bleibt <b>Teilen → Telegram</b> als Fallback verfügbar.'
+     : source===4
      ? '<b>1.</b> Tippe unten auf <b>Immowelt verbinden</b>.\n<b>2.</b> Melde dich mit deinem Konto an.\n<b>3.</b> Dein Konto wird automatisch verbunden.\n\nNach erfolgreicher Anmeldung wird dein Konto als <b>verbunden</b> angezeigt.'
      : source===3
       ? '<b>1.</b> Öffne Immomio und melde dich normal an.\n<b>2.</b> Auf der Abschlussseite tippe auf <b>Teilen</b>.\n<b>3.</b> Wähle <b>Telegram → Traumwohnung – Hamburg → Senden</b>.\n\nDer Bot übernimmt den Rücksprung automatisch und speichert die Sitzung verschlüsselt.'
@@ -704,7 +707,8 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
         ? 'Öffne Kleinanzeigen und melde dich ganz normal im Browser an. Danach wird die Verbindung automatisch abgeschlossen.'
         : 'Melde dich einmalig an. Danach bleibt die Verbindung gespeichert.';
     const loginLabel=source===4?`🌐 ${name} verbinden`:`🌐 ${name}-Login öffnen`;
-    return render(`🔐 <b>${name} verbinden</b>\n\n${note}`,[[{text:loginLabel,web_app:{url:result.url}}],...back]);
+    const loginButton=adminKleinRelayCanary?{text:`🧪 ${name}-Canary öffnen`,url:result.url}:{text:loginLabel,web_app:{url:result.url}};
+    return render(`🔐 <b>${name} verbinden</b>\n\n${note}`,[[loginButton],...back]);
    }
    return render(result.authenticated===true?`${name}: ✅ Verbindung bestätigt.`:result.authenticated===false?`${name}: Anmeldung erforderlich.`:`${name}: Verbindung gespeichert, aber noch nicht vollständig verifiziert.`,back);
   }catch(error){return render(error.message,back);}
