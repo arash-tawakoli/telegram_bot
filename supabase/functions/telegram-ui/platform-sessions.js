@@ -119,6 +119,21 @@ export async function applicationWorker(action,userId,source,extra={}){
  return result;
 }
 
+async function startMobileKleinCanary(userId){
+ let response;
+ try{
+  response=await fetch(MOBILE_KLEIN_CANARY_ENDPOINT,{
+   method:'POST',
+   headers:{'Content-Type':'application/json','x-internal-secret':await secret('internal_worker_secret')},
+   body:JSON.stringify({userId}),
+   signal:AbortSignal.timeout(15000)
+  });
+ }catch{throw Error('Mobile Canary ist gerade nicht erreichbar.');}
+ const result=await response.json().catch(()=>null);
+ if(!response.ok||!result?.handoffUrl)throw Error('Mobile Canary konnte nicht gestartet werden.');
+ return result;
+}
+
 export async function purgePlatformSessions(userId){
  const {data:documents,error:documentError}=await db.from('applicant_documents').select('storage_path').eq('user_id',userId);
  if(documentError)throw Error('Bewerberdokumente konnten nicht geladen werden.');
@@ -643,22 +658,33 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   }catch(error){return renderApplicantDocuments(user,chat,messageId,`⚠️ ${esc(error.message)}`);}
  }
 
+ if(action==='mobile-canary'){
+  if(source!==2||Number(user.telegram_user_id)!==MOBILE_KLEIN_CANARY_ADMIN_ID)return;
+  if(!user.is_premium)return render('Der Kleinanzeigen-Canary benötigt Premium.',back);
+  try{
+   const result=await startMobileKleinCanary(user.id);
+   return render('🧪 <b>Kleinanzeigen Mobile Canary</b>\n\nDeine bestehende Kleinanzeigen-Verbindung bleibt während dieses Tests unverändert. Öffne den mobilen Test und melde dich normal bei Kleinanzeigen an. Nur bei erfolgreichem Abschluss werden die neuen Zugangstokens gespeichert.\n\nFalls der Canary nicht funktioniert, kannst du zurückgehen; die bestehende Verbindung bleibt erhalten.',[[{text:'🧪 Mobile Test öffnen',url:result.handoffUrl}],...back]);
+  }catch(error){return render(`⚠️ ${esc(error.message)}`,back);}
+ }
+
  if(action==='provider'){
   if(!user.is_premium)return render('Auto-Bewerbungen benötigen aktives Premium.',back);
   const meta=AUTO_APPLY_PROVIDERS[source];if(!meta)return;
   const {data:connection,error}=await db.from('platform_connections').select('provider,status').eq('user_id',user.id).eq('provider',meta.key).maybeSingle();
   if(error)throw Error('Plattform konnte nicht geladen werden.');
+  const mobileCanary=source===2&&Number(user.telegram_user_id)===MOBILE_KLEIN_CANARY_ADMIN_ID;
   if(connection?.status!=='connected'){
-   return render(`<b>${meta.name}</b>\n\nKonto nicht verbunden.`,[
-    [button(`🔐 ${meta.name} verbinden`,`platforms:login:${source}`)],
-    ...back
-   ]);
+   const rows=[[button(`🔐 ${meta.name} verbinden`,`platforms:login:${source}`)]];
+   if(mobileCanary)rows.push([button('🧪 Mobile Canary testen','platforms:mobile-canary:2')]);
+   return render(`<b>${meta.name}</b>\n\nKonto nicht verbunden.`,[...rows,...back]);
   }
-  return render(`<b>${meta.name}</b>\n\nKonto verbunden.`,[
+  const rows=[
    [button('Verbindung prüfen',`platforms:check:${source}`)],
+   ...(mobileCanary?[[button('🧪 Mobile Canary testen','platforms:mobile-canary:2')]]:[]),
    [button('Verbindung trennen',`platforms:disconnect:${source}`)],
    ...back
-  ]);
+  ];
+  return render(`<b>${meta.name}</b>\n\nKonto verbunden.`,rows);
  }
 
  if(action==='pause'||action==='resume'){
@@ -691,19 +717,12 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   const name=source===1?'ImmoScout24':source===2?'Kleinanzeigen':source===3?'Immomio':'Immowelt';
   if(source===1&&action==='login')return render('🔐 <b>ImmoScout24</b>\n\nDie Verbindung wird ohne offizielle ImmoScout-API über eine gespeicherte Web-Session umgesetzt. Der kontrollierte Login-/Sendetest ist noch ausstehend; deshalb wird hier aktuell noch keine produktive Session angelegt.',back);
   try{
-   const mobileKleinCanary=source===2&&action==='login'&&Number(user.telegram_user_id)===MOBILE_KLEIN_CANARY_ADMIN_ID;
    const workerAction=source===2&&action==='login'?'login_share':action;
-   const extra=workerAction==='login_share'?{origin:'telegram',returnTarget:'telegram',context:{channel:'telegram',share_flow:true,...(mobileKleinCanary?{mobile_canary:true}:{})}}:source===4&&action==='login'?{origin:'telegram',returnTarget:'telegram',context:{channel:'telegram'}}:{};
+   const extra=workerAction==='login_share'?{origin:'telegram',returnTarget:'telegram',context:{channel:'telegram',share_flow:true}}:source===4&&action==='login'?{origin:'telegram',returnTarget:'telegram',context:{channel:'telegram'}}:{};
    const result=await applicationWorker(workerAction,user.id,source,extra);
    if(action==='disconnect')return render(`${name}: Verbindung gelöscht.`,back);
    if(action==='login'&&result.url){
-    let mobileCanaryUrl=null;
-    if(mobileKleinCanary){
-     try{const state=new URL(result.url).searchParams.get('state');if(state)mobileCanaryUrl=`${MOBILE_KLEIN_CANARY_ENDPOINT}?state=${encodeURIComponent(state)}`;}catch{}
-    }
-    const note=mobileCanaryUrl
-     ? '<b>Admin-Canary</b> · Tippe auf <b>Mobile Test öffnen</b>. Die Test-App übernimmt den Kleinanzeigen-Login und soll den Rücksprung danach automatisch an den Bot übergeben. Falls die Test-App nicht greift, bleibt der normale Share-Flow als Fallback bestehen.'
-     : source===4
+    const note=source===4
      ? '<b>1.</b> Tippe unten auf <b>Immowelt verbinden</b>.\n<b>2.</b> Melde dich mit deinem Konto an.\n<b>3.</b> Dein Konto wird automatisch verbunden.\n\nNach erfolgreicher Anmeldung wird dein Konto als <b>verbunden</b> angezeigt.'
      : source===3
       ? '<b>1.</b> Öffne Immomio und melde dich normal an.\n<b>2.</b> Auf der Abschlussseite tippe auf <b>Teilen</b>.\n<b>3.</b> Wähle <b>Telegram → Traumwohnung – Hamburg → Senden</b>.\n\nDer Bot übernimmt den Rücksprung automatisch und speichert die Sitzung verschlüsselt.'
@@ -713,8 +732,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
         ? 'Öffne Kleinanzeigen und melde dich ganz normal im Browser an. Danach wird die Verbindung automatisch abgeschlossen.'
         : 'Melde dich einmalig an. Danach bleibt die Verbindung gespeichert.';
     const loginLabel=source===4?`🌐 ${name} verbinden`:`🌐 ${name}-Login öffnen`;
-    const loginButton=mobileCanaryUrl?{text:'🧪 Mobile Test öffnen',url:mobileCanaryUrl}:{text:loginLabel,web_app:{url:result.url}};
-    return render(`🔐 <b>${name} verbinden</b>\n\n${note}`,[[loginButton],...back]);
+    return render(`🔐 <b>${name} verbinden</b>\n\n${note}`,[[{text:loginLabel,web_app:{url:result.url}}],...back]);
    }
    return render(result.authenticated===true?`${name}: ✅ Verbindung bestätigt.`:result.authenticated===false?`${name}: Anmeldung erforderlich.`:`${name}: Verbindung gespeichert, aber noch nicht vollständig verifiziert.`,back);
   }catch(error){return render(error.message,back);}
@@ -768,7 +786,9 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  for(const sourceId of [1,2,3,4]){
   const meta=AUTO_APPLY_PROVIDERS[sourceId],connected=connection(meta.key)?.status==='connected';
   if(!connected){
-   rows.push([button(`🔐 ${meta.name} verbinden`,`platforms:login:${sourceId}`)]);
+   const connectRow=[button(`🔐 ${meta.name} verbinden`,`platforms:login:${sourceId}`)];
+   if(sourceId===2&&Number(user.telegram_user_id)===MOBILE_KLEIN_CANARY_ADMIN_ID)connectRow.push(button('🧪 Canary','platforms:mobile-canary:2'));
+   rows.push(connectRow);
    continue;
   }
   const enabled=providerEnabled(meta);
