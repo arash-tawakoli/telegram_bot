@@ -35,6 +35,15 @@ async function syncTelegramCommands(user, chatId) {
             scope: { type: "default" },
             language_code: "de",
         }),
+        telegram("setMyCommands", {
+            commands: PUBLIC_COMMANDS,
+            scope: { type: "all_private_chats" },
+        }),
+        telegram("setMyCommands", {
+            commands: PUBLIC_COMMANDS,
+            scope: { type: "all_private_chats" },
+            language_code: "de",
+        }),
         telegram("setChatMenuButton", {
             chat_id: chatId,
             menu_button: { type: "commands" },
