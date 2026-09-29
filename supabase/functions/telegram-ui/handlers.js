@@ -59,6 +59,11 @@ export async function handleMessage(message, user) {
                 scope: { type: "chat", chat_id: chatId },
             }).catch(() => { });
         }
+        else {
+            telegram("deleteMyCommands", {
+                scope: { type: "chat", chat_id: chatId },
+            }).catch(() => { });
+        }
         telegram("setChatMenuButton", {
             chat_id: chatId,
             menu_button: { type: "commands" },
