@@ -9,7 +9,8 @@ test('Kleinanzeigen distinguishes private and commercial seller accounts',()=>{
   assert.match(worker,/seller-account-type/);
   assert.match(worker,/sellerKind/);
   assert.match(worker,/provider_accepted_commercial_xcf/);
-  assert.match(worker,/Gewerblicher Anbieter: Die Rückmeldung kann auch per E-Mail erfolgen/);
+  assert.match(worker,/kind==='commercial'/);
+  assert.match(worker,/confirmation:'provider_accepted_commercial_xcf'/);
 });
 
 test('commercial property contact forms resolve address and location dynamically',()=>{
