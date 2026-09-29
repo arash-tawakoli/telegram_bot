@@ -98,7 +98,8 @@ function knownFacts(l: any) {
   const out = {...l, ...direct, ...detail};
   if(!present(out.provider_entity) && (sagaProbe.is_saga===true || sagaProbe.is_saga==="true" || sagaShared.verified===true))out.provider_entity="SAGA";
   if(!present(out.saga_object_ref))out.saga_object_ref=textValue(sagaProbe.saga_object_ref);
-  if(!present(out.applicationLink))out.applicationLink=textValue(sagaProbe.application_url) ?? textValue(sagaShared.application_url);
+  const portalTargetChecked=[1,3].includes(Number(l.source_id)) && l.raw?.portal_application_target_checked===true;
+  if(!present(out.applicationLink) && !portalTargetChecked)out.applicationLink=textValue(sagaProbe.application_url) ?? textValue(sagaShared.application_url);
   // Old DB values can include inferred addresses, default types and calculated rents.
   out.address = loc(l);
   out.district = textValue(detail.district) ?? textValue(direct.district) ?? textValue(l.district);
@@ -230,7 +231,7 @@ function sourceButtonName(l:any) {
   return raw.replace(/^Zu\s+/i,"").replace(/\.(?:de|com|net|org)$/i,"").replace(/\s+Hamburg$/i,"").trim()||"Angebot";
 }
 function offerTarget(l: any, lang: string) {
-  const fallback = {url:l.canonical_url, text:label(lang,"offer")};
+  const fallback = {url:l.canonical_url, text:label(lang,"offer"), target:"portal"};
   const facts=knownFacts(l);
   const tenant = (value:any, registration=false) => {
     if (typeof value !== "string") return null;
@@ -240,17 +241,16 @@ function offerTarget(l: any, lang: string) {
       const valid=registration
         ? /^\/(?:de\/)?auth\/register\/propertyLocation\/?$/.test(u.pathname) && !!u.searchParams.get("token")
         : /^\/(?:de\/)?apply\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/?$/i.test(u.pathname);
-      return valid ? value : null;
+      return valid ? u.href : null;
     } catch { return null; }
   };
   const direct=tenant(facts.applicationLink) || tenant(l.raw?.applicationLink) || tenant(l.canonical_url);
-  if(present(facts.provider_entity) && direct) return {url:direct,text:label(lang,"offer")};
+  if(direct) return {url:direct,text:label(lang,"offer"),target:"immomio_apply"};
   if (l.sources?.source_type !== "Baugenossenschaft") return fallback;
-  if(direct) return {url:direct,text:label(lang,"offer")};
   const connectors=[...(l.sources?.source_connectors || [])].filter((c:any)=>c.enabled).sort((a:any,b:any)=>a.priority-b.priority);
   for(const c of connectors) {
     const portal=tenant(c.config?.tenant_registration_url,true);
-    if(portal) return {url:portal,text:label(lang,"offer")};
+    if(portal) return {url:portal,text:label(lang,"offer"),target:"immomio_registration"};
   }
   return fallback;
 }
@@ -312,16 +312,20 @@ function kb(l: any, lang: string, p: boolean, userId = "") {
   const facts=knownFacts(l),saga=facts.provider_entity==="SAGA";
   const sourceName=saga?"SAGA":sourceButtonName(l);
   const cooperative=String(l.sources?.source_type || "") === "Baugenossenschaft";
-  const normalOfferText=saga
-    ? (lang==="de"?"🏠 SAGA-Angebot":"🏠 SAGA listing")
-    : (lang==="de"
-      ? `${cooperative ? "🏠 " : ""}Zu ${sourceName}`
-      : `${cooperative ? "🏠 " : ""}${sourceName}`);
+  const target=offerTarget(l,lang);
+  const normalOfferText=target.target==="immomio_apply"
+    ? (lang==="de"?"Zu Immomio":"Open Immomio")
+    : saga
+      ? (lang==="de"?"🏠 SAGA-Angebot":"🏠 SAGA listing")
+      : (lang==="de"
+        ? `${cooperative ? "🏠 " : ""}Zu ${sourceName}`
+        : `${cooperative ? "🏠 " : ""}${sourceName}`);
   const offer = cooperative
     ? (p
-        ? { ...offerTarget(l,lang), text: lang==="de" ? "💎 Premium-Angebot" : "💎 Premium listing" }
+        ? { ...target, text: lang==="de" ? "💎 Premium-Angebot" : "💎 Premium listing" }
         : { text: lang==="de" ? "🔒 💎 Premium-Angebot" : "🔒 💎 Premium listing", url: checkout })
-    : { ...offerTarget(l,lang), text: normalOfferText };
+    : { ...target, text: normalOfferText };
+  delete (offer as any).target;
   const save = p
     ? { text: `⭐ ${label(lang, "save")}`, callback_data: `save:${l.id}` }
     : { text: `⭐ ${label(lang, "save")}`, callback_data: "premium" };
@@ -445,9 +449,31 @@ async function enrich(l: any, persist = true) {
     if(facts.source_unavailable)return {...out,_availability:'unavailable'};
     const evidence={...l.enrichment_evidence,preview:{version:3,canonical_url:l.canonical_url,checked_at:new Date().toISOString(),source_seen_at:l.last_seen_at,facts}};
     out.enrichment_evidence=evidence;
+    const portalTargetCheck=[1,3].includes(Number(l.source_id));
+    let persistedRaw=l.raw||{};
+    if(portalTargetCheck){
+      persistedRaw={...persistedRaw,portal_application_target_checked:true};
+      const directTenant=typeof facts.applicationLink==="string" && /^https:\/\/tenant\.immomio\.com\/(?:de\/)?apply\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/?$/i.test(facts.applicationLink)
+        ? facts.applicationLink
+        : null;
+      if(directTenant){
+        persistedRaw.applicationLink=directTenant;
+        persistedRaw.applicationLinkSource="portal_detail";
+      }else if(persistedRaw.applicationLinkSource==="portal_detail"){
+        const {applicationLink:_removed,applicationLinkSource:_removedSource,...rest}=persistedRaw;
+        persistedRaw=rest;
+      }
+      out.raw=persistedRaw;
+    }
     if (persist) {
-      const {error}=await db.from('listings').update({enrichment_evidence:evidence}).eq('id',l.id);
+      const payload:any={enrichment_evidence:evidence};
+      if(portalTargetCheck)payload.raw=persistedRaw;
+      const {error}=await db.from('listings').update(payload).eq('id',l.id);
       if(error)console.error('preview_persist_failed',error.message);
+      else if(portalTargetCheck){
+        const {error:reconcileError}=await db.rpc('reconcile_listing_applications',{p_listing_id:l.id});
+        if(reconcileError)console.error('portal_application_reconcile_failed',reconcileError.message);
+      }
     }
   } catch(error) {console.error('listing_detail_fetch_failed',String(error).slice(0,200));}
   return out;
@@ -497,7 +523,8 @@ async function hydrateSagaListing(l:any){
     const missing=!meta.ref?"missing_saga_reference":"missing_immomio_application";
     const record=await recordSagaProbe(l,meta,"missing",missing);
     const inherited=typeof record?.application_url==="string" ? record.application_url : null;
-    if(meta.ref && inherited && record?.immomio_status==="online"){
+    const portalTargetChecked=[1,3].includes(Number(l.source_id)) && l.raw?.portal_application_target_checked===true;
+    if(!portalTargetChecked && meta.ref && inherited && record?.immomio_status==="online"){
       const listing={...l,raw:{...(l.raw||{}),provider_entity:"SAGA",saga_object_ref:meta.ref,applicationLink:inherited}};
       return{listing,meta:sagaMeta(listing),status:"online",record};
     }
