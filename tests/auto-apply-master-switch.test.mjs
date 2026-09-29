@@ -19,8 +19,11 @@ test('disabling auto-apply cancels unsent pending work',()=>{
   assert.match(migration,/submission_started_at is null/);
 });
 
-test('Telegram no longer exposes an independent provider toggle',()=>{
-  assert.match(ui,/zentral über den Hauptschalter gesteuert/);
-  assert.match(ui,/alle verbundenen unterstützten Plattformen/);
-  assert.doesNotMatch(ui,/Plattform für AutoApply freigegeben/);
+test('Telegram uses the shared global switch and shared per-provider pause controls',()=>{
+  assert.match(ui,/set_application_enabled_shared/);
+  assert.match(ui,/set_application_provider_enabled_shared/);
+  assert.match(ui,/Auto-Bewerbung deaktivieren/);
+  assert.match(ui,/Auto-Bewerbung aktivieren/);
+  assert.match(ui,/Pausieren/);
+  assert.match(ui,/Fortsetzen/);
 });
