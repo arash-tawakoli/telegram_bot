@@ -7,7 +7,7 @@ const ui=readFileSync(new URL('../supabase/functions/telegram-gateway/auto-apply
 
 test('master switch is authoritative for supported providers',()=>{
   assert.match(migration,/select p\.enabled/);
-  assert.match(migration,/p_provider in \('immoscout','kleinanzeigen','immomio'\)/);
+  assert.match(migration,/p_provider not in \('immoscout','kleinanzeigen','immomio'\)/);
   assert.match(migration,/immoscout_enabled=excluded\.immoscout_enabled/);
   assert.match(migration,/kleinanzeigen_enabled=excluded\.kleinanzeigen_enabled/);
   assert.match(migration,/immomio_enabled=excluded\.immomio_enabled/);
