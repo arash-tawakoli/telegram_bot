@@ -46,3 +46,15 @@ export async function deleteConnection(db:any,userId:string,provider:string){
  const {error}=await db.from('platform_connections').delete().eq('user_id',userId).eq('provider',provider);
  if(error)throw Error('disconnect_failed');
 }
+
+
+export async function recordRefreshResult(db:any,userId:string,provider:string,success:boolean,error:string|null=null,expiresAt:string|null=null){
+ const {error:rpcError}=await db.rpc('record_platform_connection_refresh',{
+  p_user:userId,
+  p_provider:provider,
+  p_success:success,
+  p_error:error,
+  p_expires_at:expiresAt
+ });
+ if(rpcError)console.error('connection_refresh_telemetry',provider,rpcError.message);
+}
