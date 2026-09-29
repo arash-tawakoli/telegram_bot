@@ -290,8 +290,20 @@ export function htmlFacts(html: string, base: string): any {
     ['Falkenried-Terrassen',/(?:Baugenossenschaft\s+)?Falkenried[-\s]+Terrassen(?:\s+eG)?/i],
   ];
   const labelledRef=pageText.match(/\b(?:Objektreferenz|Referenznummer|Objektnummer|Objekt[-\s]?(?:Nr\.?|ID)|Angebotsnummer)\s*:?\s*([A-Za-z0-9][A-Za-z0-9./_-]{3,80})/i)?.[1]||null;
-  const linkText=html.replace(/\\\//g,'/').replace(/&amp;/gi,'&').replace(/\\u0026/gi,'&');
-  const application=linkText.match(/https:\/\/tenant\.immomio\.com\/(?:de\/)?apply\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/?/i)?.[0]||null;
+  const linkText=html
+    .replace(/\\u003a/gi,':')
+    .replace(/\\u002f/gi,'/')
+    .replace(/\\\//g,'/')
+    .replace(/&#x3a;|&#58;/gi,':')
+    .replace(/&#x2f;|&#47;/gi,'/')
+    .replace(/&amp;/gi,'&')
+    .replace(/\\u0026/gi,'&');
+  const directApplication=linkText.match(/https:\/\/tenant\.immomio\.com\/(?:de\/)?apply\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/?/i)?.[0]||null;
+  const encodedApplication=html.match(/https%3a%2f%2ftenant\.immomio\.com%2f(?:de%2f)?apply%2f[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}%2f?/i)?.[0]||null;
+  let application=directApplication;
+  if(!application&&encodedApplication){
+    try{application=decodeURIComponent(encodedApplication)}catch{}
+  }
   if(application)out.applicationLink=application;
   for(const [entity,provider,refPattern] of providerRules){
     if(!provider.test(pageText))continue;
