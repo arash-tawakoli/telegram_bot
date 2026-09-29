@@ -1,4 +1,5 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.112.4';
+import {providerStaticMissing} from '../_shared/application-profile-adapters.ts';
 
 const URL=Deno.env.get('SUPABASE_URL')!;
 const secretKeys=JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')||'{}');
@@ -17,6 +18,7 @@ function clean(v:any,max=500){return String(v??'').replace(/[\u0000-\u001f\u007f
 function uuid(v:any){const s=String(v||'');if(!UUID.test(s))throw Error('invalid_id');return s}
 function participantId(v:any){const s=String(v||'');if(!PUBLIC_ID.test(s))throw Error('invalid_participant');return s}
 function email(v:any){const s=clean(v,320).toLowerCase();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s))throw Error('invalid_email');return s}
+function optionalEmail(v:any){const s=clean(v,320).toLowerCase();return s?email(s):null}
 function integer(v:any,min:number,max:number){const n=Number(v);if(!Number.isInteger(n)||n<min||n>max)throw Error('invalid_number');return n}
 function optionalInteger(v:any,min:number,max:number){if(v===null||v===undefined||v==='')return null;return integer(v,min,max)}
 function random(bytes=32){const a=crypto.getRandomValues(new Uint8Array(bytes));let s='';for(const b of a)s+=String.fromCharCode(b);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
@@ -28,6 +30,14 @@ const READINESS_LABELS:Record<string,string>={
  provider_not_enabled:'Plattform für AutoApply freigeben',provider_not_ready:'Plattform erneut verbinden',
  archived:'Teilnehmer archiviert',pending_deletion:'Löschung geplant'
 };
+const PROFILE_PROVIDERS=['immoscout','kleinanzeigen','immomio','immowelt'] as const;
+function providerProfileReadiness(profile:any){
+ const current=profile||{};
+ return Object.fromEntries(PROFILE_PROVIDERS.map(provider=>{
+  const missing=providerStaticMissing(provider,current);
+  return [provider,{ready:missing.length===0,missing}];
+ }));
+}
 function readinessView(row:any,status='active'){
  const connected=Array.isArray(row?.connected_providers)?row.connected_providers:[],enabled=Array.isArray(row?.enabled_providers)?row.enabled_providers:[],ready=Array.isArray(row?.ready_providers)?row.ready_providers:[];
  const blockers:string[]=[];
@@ -184,7 +194,7 @@ async function participantDetail(a:any,publicId:string){
  }
  return{
    assignment:safeAssignment,user:safeUser,readiness:ready,quota,
-   profile:without(profile.data,'user_id'),
+   profile:without(profile.data,'user_id'),providerProfileReadiness:providerProfileReadiness(profile.data),
    searchProfiles:(searches.data||[]).map((x:any)=>without(x,'user_id')),
    documents:documents.data||[],connections:connections.data||[],
    preferences:without(prefs.data,'user_id'),
@@ -201,9 +211,11 @@ async function startConnect(a:any,assignment:any,p:string){
  const userId=assignment.user_id,premium=await effectivePremium([String(userId)]);
  if(premium.get(String(userId))!==true)throw Error('premium_required');
  if(p==='kleinanzeigen'){
-  const result=await internalCall(URL+'/functions/v1/application-worker',{action:'login_share',userId,source:2,origin:'coach',returnTarget:'coach',issuedBy:a.user.id,context:{assignment_version:assignment.assignment_version,share_flow:true}});
+  const health=await internalCall(URL+'/functions/v1/application-worker',{action:'health'}).catch(()=>null);
+  const direct=health?.kleinanzeigenOAuthClientProvisioned===true;
+  const result=await internalCall(URL+'/functions/v1/application-worker',{action:direct?'login':'login_share',userId,source:2,origin:'coach',returnTarget:'coach',issuedBy:a.user.id,context:{assignment_version:assignment.assignment_version,...(direct?{direct_oauth:true}:{share_flow:true})}});
   if(!result?.url)throw Error('auth_flow_create_failed');
-  return{url:String(result.url),expiresInSeconds:1800,directProvider:true,shareFlow:true};
+  return{url:String(result.url),expiresInSeconds:1800,directProvider:true,shareFlow:!direct,automaticCallback:direct,bridgeRequired:!direct};
  }
  await admin.from('platform_auth_flows').update({consumed_at:new Date().toISOString()}).eq('user_id',userId).eq('provider',p).is('consumed_at',null);
  const state=random(32),verifier=random(64);
@@ -220,7 +232,7 @@ async function updateProfile(a:any,assignment:any,input:any){
  const c=current.data||{};
  const row:any={
   user_id:userId,first_name:clean(input.first_name??c.first_name,120),last_name:clean(input.last_name??c.last_name,120),
-  email:email(input.email??c.email),phone:clean(input.phone??c.phone,80),city:clean(input.city??c.city??'Hamburg',120)||'Hamburg',
+  email:optionalEmail(input.email??c.email),phone:clean(input.phone??c.phone,80)||null,city:clean(input.city??c.city??'Hamburg',120)||'Hamburg',
   salutation:clean(input.salutation??c.salutation,40)||null,street:clean(input.street??c.street,160)||null,house_number:clean(input.house_number??c.house_number,40)||null,
   postcode:clean(input.postcode??c.postcode,10)||null,household_size:optionalInteger(input.household_size??c.household_size,1,20),household_type:clean(input.household_type??c.household_type,40)||null,
   employment_status:clean(input.employment_status??c.employment_status,160)||null,
@@ -241,7 +253,7 @@ async function updateProfile(a:any,assignment:any,input:any){
  if(has('move_in_preference')&&row.move_in_preference!=='EXACT_DATE')row.move_in_date=null;
  if(row.move_in_preference==='EXACT_DATE'&&!row.move_in_date)throw Error('profile_move_in_date_required');
  if(row.move_in_date&&!/^\d{4}-\d{2}-\d{2}$/.test(String(row.move_in_date)))throw Error('profile_move_in_date_invalid');
- if(!row.first_name||!row.last_name||!row.email)throw Error('profile_required_fields');
+ if(!row.first_name||!row.last_name)throw Error('profile_required_fields');
  const{error}=await admin.from('applicant_profiles').upsert(row,{onConflict:'user_id'});if(error)throw Error('profile_save_failed');
  await admin.from('bot_users').update({first_name:row.first_name,last_name:row.last_name,updated_at:new Date().toISOString()}).eq('id',userId);
  await audit(a,userId,'profile_updated');return{ok:true};
@@ -298,7 +310,7 @@ async function applicationRows(a:any,scope='all',input:any={}){
   for(const event of events||[])if(!latest.has(String(event.application_id)))latest.set(String(event.application_id),event);
  }
  let out=(data||[]).map((x:any)=>({...without(x,'user_id'),participant:publicByUser.get(String(x.user_id))||null,latestEvent:without(latest.get(String(x.id)),'application_id')}));
- const providerFilter=safeFilter(input.provider,['immoscout','kleinanzeigen','immomio']);
+ const providerFilter=safeFilter(input.provider,['immoscout','kleinanzeigen','immomio','immowelt']);
  const docFilter=safeFilter(input.documentResult,['native_uploaded','link_included','not_provided','not_supported','transfer_failed']);
  if(providerFilter)out=out.filter((x:any)=>x.latestEvent?.provider===providerFilter);
  if(docFilter)out=out.filter((x:any)=>x.latestEvent?.document_result===docFilter);
@@ -309,7 +321,7 @@ async function applicationRows(a:any,scope='all',input:any={}){
 async function dashboardData(a:any,scope='all',input:any={}){
  const [participants,applications]=await Promise.all([participantSummary(a,scope),applicationRows(a,scope,{days:filterDays(input.days)})]);
  const metrics:any={total:0,sent:0,failed:0,pending:0,manualRequired:0};
- const providers:any={immoscout:0,kleinanzeigen:0,immomio:0,unknown:0};
+ const providers:any={immoscout:0,kleinanzeigen:0,immomio:0,immowelt:0,unknown:0};
  const documents:any={native_uploaded:0,link_included:0,not_provided:0,not_supported:0,transfer_failed:0,unknown:0};
  const waits:any={};
  for(const x of applications){
@@ -318,7 +330,7 @@ async function dashboardData(a:any,scope='all',input:any={}){
   const d=x.latestEvent?.document_result;documents[d in documents?d:'unknown']++;
   if(x.wait_reason)waits[x.wait_reason]=(waits[x.wait_reason]||0)+1;
  }
- const connections={immoscout:0,kleinanzeigen:0,immomio:0};
+ const connections={immoscout:0,kleinanzeigen:0,immomio:0,immowelt:0};
  for(const p of participants)for(const provider of p.readiness?.connectedProviders||[])if(provider in connections)(connections as any)[provider]++;
  const attention=participants.filter((p:any)=>p.readiness?.primaryCode!=='active').slice(0,12).map((p:any)=>({
   participantId:p.participantId,name:[p.participant.firstName,p.participant.lastName].filter(Boolean).join(' '),
@@ -361,7 +373,7 @@ async function handle(req:Request){
  if(action==='create_participant'){
   const coachId=a.member.role==='admin'&&body.coachMemberId?uuid(body.coachMemberId):a.member.id;
   const requestId=uuid(body.requestId);
-  const{data:userId,error}=await admin.rpc('coach_create_participant_idempotent',{p_actor:a.member.id,p_coach:coachId,p_request_id:requestId,p_first_name:clean(body.first_name,120),p_last_name:clean(body.last_name,120),p_email:email(body.email),p_phone:clean(body.phone,80),p_city:clean(body.city,120)||'Hamburg',p_household_size:optionalInteger(body.household_size,1,20)});
+  const{data:userId,error}=await admin.rpc('coach_create_participant_idempotent',{p_actor:a.member.id,p_coach:coachId,p_request_id:requestId,p_first_name:clean(body.first_name,120),p_last_name:clean(body.last_name,120),p_email:optionalEmail(body.email),p_phone:clean(body.phone,80)||null,p_city:clean(body.city,120)||'Hamburg',p_household_size:optionalInteger(body.household_size,1,20)});
   if(error)throw Error(error.message||'participant_create_failed');
   const{data:cp,error:cpError}=await admin.from('coaching_participants').select('public_id').eq('user_id',userId).single();if(cpError)throw Error('participant_create_failed');
   return{ok:true,participantId:cp.public_id};
@@ -382,7 +394,7 @@ async function handle(req:Request){
  if(action==='set_search_active'){const id=uuid(body.profileId),userId=assignment.user_id;const{error}=await admin.from('search_profiles').update({is_active:Boolean(body.active),updated_at:new Date().toISOString()}).eq('id',id).eq('user_id',userId);if(error)throw Error('search_update_failed');await audit(a,userId,body.active?'search_profile_resumed':'search_profile_paused',{profile_id:id});return{ok:true};}
  if(action==='delete_search'){const id=uuid(body.profileId),userId=assignment.user_id;const{error}=await admin.from('search_profiles').delete().eq('id',id).eq('user_id',userId);if(error)throw Error('search_delete_failed');await audit(a,userId,'search_profile_deleted',{profile_id:id});return{ok:true};}
  if(action==='set_plan'){const{error}=await admin.rpc('coach_set_plan',{p_actor:a.member.id,p_user:assignment.user_id,p_plan:String(body.plan||'')});if(error)throw Error(error.message);return{ok:true};}
- if(action==='set_preferences'){const p=body.preferences||{},weekdays=Array.isArray(p.allowed_weekdays)?p.allowed_weekdays.map((x:any)=>integer(x,1,7)):null;const{error}=await admin.rpc('coach_set_application_preferences',{p_actor:a.member.id,p_user:assignment.user_id,p_enabled:Boolean(p.enabled),p_daily_limit:optionalInteger(p.daily_limit,1,1000),p_timezone:clean(p.timezone,80)||'Europe/Berlin',p_weekdays:weekdays,p_window_start:p.send_window_start||null,p_window_end:p.send_window_end||null,p_immoscout:Boolean(p.immoscout_enabled),p_kleinanzeigen:Boolean(p.kleinanzeigen_enabled),p_immomio:Boolean(p.immomio_enabled)});if(error)throw Error(error.message);if(Object.prototype.hasOwnProperty.call(p,'immowelt_enabled')){const{error:iw}=await admin.from('application_preferences').update({immowelt_enabled:Boolean(p.immowelt_enabled)}).eq('user_id',assignment.user_id);if(iw)throw Error('preferences_save_failed')}return{ok:true};}
+ if(action==='set_preferences'){const p=body.preferences||{},weekdays=Array.isArray(p.allowed_weekdays)?p.allowed_weekdays.map((x:any)=>integer(x,1,7)):null;const{error}=await admin.rpc('coach_set_application_preferences',{p_actor:a.member.id,p_user:assignment.user_id,p_enabled:Boolean(p.enabled),p_daily_limit:optionalInteger(p.daily_limit,1,1000),p_timezone:clean(p.timezone,80)||'Europe/Berlin',p_weekdays:weekdays,p_window_start:p.send_window_start||null,p_window_end:p.send_window_end||null,p_immoscout:Boolean(p.immoscout_enabled),p_kleinanzeigen:Boolean(p.kleinanzeigen_enabled),p_immomio:Boolean(p.immomio_enabled),p_immowelt:Boolean(p.immowelt_enabled)});if(error)throw Error(error.message);return{ok:true};}
  if(action==='reassign'){const{error}=await admin.rpc('coach_reassign_participant',{p_actor:a.member.id,p_user:assignment.user_id,p_coach:uuid(body.coachMemberId)});if(error)throw Error(error.message);return{ok:true};}
  if(action==='archive'){const next=body.archived===false?'active':'archived';const{error}=await admin.from('coaching_participants').update({status:next,archived_at:next==='archived'?new Date().toISOString():null,updated_at:new Date().toISOString()}).eq('user_id',assignment.user_id).eq('workspace_id',a.member.workspace_id);if(error)throw Error('archive_failed');await audit(a,assignment.user_id,next==='archived'?'participant_archived':'participant_restored');return{ok:true};}
  if(action==='retention'){const mode=body.mode==='delete_on_date'?'delete_on_date':'manual',date=mode==='delete_on_date'?String(body.delete_on||''):null;if(mode==='delete_on_date'&&!/^\d{4}-\d{2}-\d{2}$/.test(date||''))throw Error('invalid_retention_date');const{error}=await admin.from('coaching_participants').update({retention_mode:mode,retention_delete_on:date,status:mode==='delete_on_date'?'pending_deletion':'active',updated_at:new Date().toISOString()}).eq('user_id',assignment.user_id);if(error)throw Error('retention_save_failed');await audit(a,assignment.user_id,'retention_changed',{mode,delete_on:date});return{ok:true};}
