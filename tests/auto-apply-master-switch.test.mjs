@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
-const migration=readFileSync(new URL('../supabase/migrations/20260923114300_master_auto_apply_switch.sql',import.meta.url),'utf8');
+const migration=readFileSync(new URL('../supabase/migrations/20260923180115_provider_specific_auto_apply_pause.sql',import.meta.url),'utf8');
 const ui=readFileSync(new URL('../supabase/functions/telegram-gateway/auto-apply.ts',import.meta.url),'utf8');
 
 test('master switch is authoritative for supported providers',()=>{
