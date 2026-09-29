@@ -309,17 +309,15 @@ async function applicationState(userId:string,listingId:string){
 }
 function kb(l: any, lang: string, p: boolean, userId = "") {
   const checkout=`${PREMIUM_LINK}?client_reference_id=${encodeURIComponent(String(userId))}`;
-  const facts=knownFacts(l),saga=facts.provider_entity==="SAGA";
-  const sourceName=saga?"SAGA":sourceButtonName(l);
+  const facts=knownFacts(l);
+  const sourceName=sourceButtonName(l);
   const cooperative=String(l.sources?.source_type || "") === "Baugenossenschaft";
   const target=offerTarget(l,lang);
   const normalOfferText=target.target==="immomio_apply"
     ? (lang==="de"?"Zu Immomio":"Open Immomio")
-    : saga
-      ? (lang==="de"?"🏠 SAGA-Angebot":"🏠 SAGA listing")
-      : (lang==="de"
-        ? `${cooperative ? "🏠 " : ""}Zu ${sourceName}`
-        : `${cooperative ? "🏠 " : ""}${sourceName}`);
+    : (lang==="de"
+      ? `${cooperative ? "🏠 " : ""}Zu ${sourceName}`
+      : `${cooperative ? "🏠 " : ""}${sourceName}`);
   const offer = cooperative
     ? (p
         ? { ...target, text: lang==="de" ? "💎 Premium-Angebot" : "💎 Premium listing" }
