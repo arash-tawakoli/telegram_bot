@@ -1,0 +1,92 @@
+{
+  "migrations": [
+    {
+      "version": "20260922090608",
+      "name": "force_baugenossenschaften_to_wohnung_filter",
+      "file": "supabase/migrations/20260922090608_force_baugenossenschaften_to_wohnung_filter.sql",
+      "registry_sql_sha256": "65e528c4a09b3e8f29bf6d6af89eb0ad0607db675b8b340abac63509838fb882",
+      "export_sql_sha256": "65e528c4a09b3e8f29bf6d6af89eb0ad0607db675b8b340abac63509838fb882",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260922090833",
+      "name": "coach_admin_bootstrap",
+      "file": "supabase/migrations/20260922090833_coach_admin_bootstrap.sql",
+      "registry_sql_sha256": "cd810d64633f9a0bf39bf0cb352c39e2f8f343878607e58b6a7848342200cca0",
+      "export_sql_sha256": "cd810d64633f9a0bf39bf0cb352c39e2f8f343878607e58b6a7848342200cca0",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260922102805",
+      "name": "adaptive_quiet_source_polling",
+      "file": "supabase/migrations/20260922102805_adaptive_quiet_source_polling.sql",
+      "registry_sql_sha256": "4e9433351127ccbfc6a98329d2d0b43fa80c12defc473e02da592f6975c13fe0",
+      "export_sql_sha256": "4e9433351127ccbfc6a98329d2d0b43fa80c12defc473e02da592f6975c13fe0",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260922114316",
+      "name": "unify_coach_portal_telegram_domain_logic",
+      "file": "supabase/migrations/20260922114316_unify_coach_portal_telegram_domain_logic.sql",
+      "registry_sql_sha256": "bbc133ee02e21a560fa9db4c9e7a4015269d5d76cbe999789136e7bb1f7cf71a",
+      "export_sql_sha256": "bbc133ee02e21a560fa9db4c9e7a4015269d5d76cbe999789136e7bb1f7cf71a",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260922131726",
+      "name": "coach_portal_readiness_and_adoption",
+      "file": "supabase/migrations/20260922131726_coach_portal_readiness_and_adoption.sql",
+      "registry_sql_sha256": "f39e5fd432138fc9810c3fd51271aae8f198be1e36fb145bcff3842705de0a61",
+      "export_sql_sha256": "f39e5fd432138fc9810c3fd51271aae8f198be1e36fb145bcff3842705de0a61",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260922131850",
+      "name": "fix_coach_create_participant_public_id",
+      "file": "supabase/migrations/20260922131850_fix_coach_create_participant_public_id.sql",
+      "registry_sql_sha256": "2079e1c5c06fc6ff84c61abd8e80cac932e20028290f5466d9a2b248a57ad1ad",
+      "export_sql_sha256": "2079e1c5c06fc6ff84c61abd8e80cac932e20028290f5466d9a2b248a57ad1ad",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260922134125",
+      "name": "recheck_active_search_before_autoapply",
+      "file": "supabase/migrations/20260922134125_recheck_active_search_before_autoapply.sql",
+      "registry_sql_sha256": "124e5c1a0cb7847c2930da29d838766ad237e662d593339e1015a1c00462334a",
+      "export_sql_sha256": "124e5c1a0cb7847c2930da29d838766ad237e662d593339e1015a1c00462334a",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260922135543",
+      "name": "idempotent_coach_participant_creation",
+      "file": "supabase/migrations/20260922135543_idempotent_coach_participant_creation.sql",
+      "registry_sql_sha256": "1a604151248a2127e12e2e3871463206347eb012cf9fb1c8240e91b19be03ea3",
+      "export_sql_sha256": "1a604151248a2127e12e2e3871463206347eb012cf9fb1c8240e91b19be03ea3",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260923164541",
+      "name": "remove_duplicate_immoscout_plus_notification_trigger",
+      "file": "supabase/migrations/20260923164541_remove_duplicate_immoscout_plus_notification_trigger.sql",
+      "registry_sql_sha256": "366bac87cacb3ccd2475bf79658e2e34e1664222a9f2107b9f29593b2d1e3556",
+      "export_sql_sha256": "366bac87cacb3ccd2475bf79658e2e34e1664222a9f2107b9f29593b2d1e3556",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260923173538",
+      "name": "add_application_provider_state",
+      "file": "supabase/migrations/20260923173538_add_application_provider_state.sql",
+      "registry_sql_sha256": "d7d5d86688e86464e2a6232728f48639aeb7f790f04ab6e462d3936645d3bfc2",
+      "export_sql_sha256": "d7d5d86688e86464e2a6232728f48639aeb7f790f04ab6e462d3936645d3bfc2",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260923180115",
+      "name": "provider_specific_auto_apply_pause",
+      "file": "supabase/migrations/20260923180115_provider_specific_auto_apply_pause.sql",
+      "registry_sql_sha256": "2bc6fa3968c300447d70d5125d08e22b83da377c2f0543233a5b34e33ab98f39",
+      "export_sql_sha256": "2bc6fa3968c300447d70d5125d08e22b83da377c2f0543233a5b34e33ab98f39",
+      "vault_substitution": false
+    }
+  ]
+}
