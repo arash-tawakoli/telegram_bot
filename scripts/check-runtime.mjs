@@ -3,6 +3,7 @@ import {createHash} from 'node:crypto';
 import {posix,resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 const hash=s=>createHash('sha256').update(s).digest('hex');
+const gitBlobHash=s=>createHash('sha1').update(`blob ${Buffer.byteLength(s)}\0`).update(s).digest('hex');
 export async function verifyRuntime(runtime,read=readFile,options={}){
  const strictHashes=options.strictHashes!==false;
  const slugs=new Set();
@@ -20,8 +21,11 @@ export async function verifyRuntime(runtime,read=readFile,options={}){
   for(const file of fn.files){
    if(!/^supabase\/(functions|deployed-support)\//.test(file.path)||posix.normalize(file.path)!==file.path)throw new Error(`Invalid runtime path: ${file.path}`);
    const text=String(await read(file.path));
-   if(hash(text)!==file.sha256)drift(`Runtime drift: ${fn.slug}/${file.path}`);
-   if(file.deployed_sha256!==file.sha256)drift(`Recorded deployment drift: ${fn.slug}/${file.path}`);
+   const sourceHash=file.git_blob_sha?gitBlobHash(text):hash(text);
+   const recordedHash=file.git_blob_sha||file.sha256;
+   const deployedHash=file.deployed_git_blob_sha||file.deployed_sha256;
+   if(sourceHash!==recordedHash)drift(`Runtime drift: ${fn.slug}/${file.path}`);
+   if(deployedHash!==recordedHash)drift(`Recorded deployment drift: ${fn.slug}/${file.path}`);
    for(const match of text.matchAll(/\b(?:from\s*|import\s*\(\s*|import\s*)["'](https?:[^"']+)["']/g)){
     const url=new URL(match[1]);
     if([...url.searchParams.keys()].some(key=>/^(token|access_token|auth|apikey|api_key)$/i.test(key)))throw new Error(`Credential-bearing runtime import: ${fn.slug}/${file.path}`);
