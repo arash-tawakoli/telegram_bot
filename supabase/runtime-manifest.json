@@ -665,6 +665,16 @@
           "path": "supabase/functions/source-worker/category-persist.ts",
           "sha256": "97da274915467e156987e26942992061c157e74726bf7a8bbdab509f3d9845cd",
           "deployed_sha256": null
+        },
+        {
+          "path": "supabase/functions/source-worker/buchdrucker-public.ts",
+          "sha256": "fb4f57f8b3c2a3e4088d13cb0c68b48b27bbfcb77b0419abd57e75fe04d692e5",
+          "deployed_sha256": null
+        },
+        {
+          "path": "supabase/functions/source-worker/buchdrucker-refs.mjs",
+          "sha256": "dd50feba88a1e633013c966404371cd638e253c4f182a570cfe6cd679a92a9f7",
+          "deployed_sha256": null
         }
       ],
       "import_map": true,
