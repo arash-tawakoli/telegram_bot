@@ -513,13 +513,13 @@
       "files": [
         {
           "path": "supabase/functions/source-worker/index.ts",
-          "sha256": "f30bd5ecfdc061b084ddd0c25f177761b36b0604b3415f81f1fb9463745ef672",
-          "deployed_sha256": "9a112b65c76ca59935dd468ed784273af5735566f9d224e637b9c833d03ac0dc"
+          "sha256": "785c8983ee9b9400b13c60860114fa92985bd50b324095efbf98a0fdb710371e",
+          "deployed_sha256": "785c8983ee9b9400b13c60860114fa92985bd50b324095efbf98a0fdb710371e"
         },
         {
           "path": "supabase/functions/source-worker/shared.ts",
-          "sha256": "7e9701d98a19a41d07eddfce89278049593104954819d2512e432d029a62fa98",
-          "deployed_sha256": "36ee9017df1f663a79319ef3b72f0b140311876fcfaf2996bbb1f93c4b892592"
+          "sha256": "f9a7dea392346caca89f020f4b5d3350b018a95354bf9156d6d9913cddfb55e4",
+          "deployed_sha256": "f9a7dea392346caca89f020f4b5d3350b018a95354bf9156d6d9913cddfb55e4"
         },
         {
           "path": "supabase/functions/source-worker/provider-fetch.ts",
@@ -533,8 +533,8 @@
         },
         {
           "path": "supabase/functions/source-worker/scout.ts",
-          "sha256": "dbf7c28e718ade7cba5091594225f09dd390503a91e4d5b228352221fc3bd9e8",
-          "deployed_sha256": "dbf7c28e718ade7cba5091594225f09dd390503a91e4d5b228352221fc3bd9e8"
+          "sha256": "767fe92cb57c6c2ffac20088c0b950cf661425d48ee5b89cb891bf0c4d259f08",
+          "deployed_sha256": "767fe92cb57c6c2ffac20088c0b950cf661425d48ee5b89cb891bf0c4d259f08"
         },
         {
           "path": "supabase/functions/source-worker/coverage-newness.ts",
@@ -543,13 +543,13 @@
         },
         {
           "path": "supabase/functions/source-worker/klein.ts",
-          "sha256": "edb4dfc799e862d5280580be8c5276c6286eb01e34faadd68f0b9edb2b2533c3",
-          "deployed_sha256": null
+          "sha256": "00559709cebaaf19d7354f677ee9616ed3f51e75cf3ef53e6d1433b3bd469232",
+          "deployed_sha256": "00559709cebaaf19d7354f677ee9616ed3f51e75cf3ef53e6d1433b3bd469232"
         },
         {
           "path": "supabase/functions/kleinanzeigen-transport/fetch-page.ts",
-          "sha256": "4cdcdf1056e7b2ac182e07cfb0a24223f0ebd51d5a461e953d20e2696499aebd",
-          "deployed_sha256": "4cdcdf1056e7b2ac182e07cfb0a24223f0ebd51d5a461e953d20e2696499aebd"
+          "sha256": "ff9c7723574f2fb335b7a9ca82720800d68342bd83d3068345adbe88caafb9c0",
+          "deployed_sha256": "ff9c7723574f2fb335b7a9ca82720800d68342bd83d3068345adbe88caafb9c0"
         },
         {
           "path": "supabase/functions/source-worker/gcp.ts",
@@ -558,8 +558,8 @@
         },
         {
           "path": "supabase/functions/source-worker/immomio.ts",
-          "sha256": "642fdf73c0a113de49a6a14d21042a7cb1f71d51f6feba78f8db760eed3e2ede",
-          "deployed_sha256": "642fdf73c0a113de49a6a14d21042a7cb1f71d51f6feba78f8db760eed3e2ede"
+          "sha256": "fbd12e7e8526bfca3fbc34c8549d6d00301c0e18d362e9a731a87b8fa5973528",
+          "deployed_sha256": "fbd12e7e8526bfca3fbc34c8549d6d00301c0e18d362e9a731a87b8fa5973528"
         },
         {
           "path": "supabase/functions/source-worker/immomio-inventory.ts",
@@ -573,8 +573,8 @@
         },
         {
           "path": "supabase/functions/source-worker/generic.ts",
-          "sha256": "c4d5f669577819358e02435bb6ad1218754353cabe94625dcee4f759fa7d8757",
-          "deployed_sha256": null
+          "sha256": "c16ff976338e5c89ef5adbac8d467497738364098993166b2851b1bda06011b1",
+          "deployed_sha256": "c16ff976338e5c89ef5adbac8d467497738364098993166b2851b1bda06011b1"
         },
         {
           "path": "supabase/functions/source-worker/job-runner.ts",
@@ -583,23 +583,23 @@
         },
         {
           "path": "supabase/functions/source-worker/public-inventory.ts",
-          "sha256": "0458f6b13c80e57906de9edd645fe63c9fb6379cb12df6be9b53f6bef5b91802",
-          "deployed_sha256": "0458f6b13c80e57906de9edd645fe63c9fb6379cb12df6be9b53f6bef5b91802"
+          "sha256": "89fff372475de9730c01f7d27228c04981cdc3e57b34412cf7225a67d679635a",
+          "deployed_sha256": "89fff372475de9730c01f7d27228c04981cdc3e57b34412cf7225a67d679635a"
         },
         {
           "path": "supabase/functions/source-worker/cooperative-inventory.ts",
-          "sha256": "d95a3cc50cc10de670ca92a5273ee0a527521ef2e5f24f5b9fe6e47e1ae55a76",
-          "deployed_sha256": "d95a3cc50cc10de670ca92a5273ee0a527521ef2e5f24f5b9fe6e47e1ae55a76"
+          "sha256": "7150e164c1782543e73faa888a244356d0c511a9d6df5ac446f70fc2471d8468",
+          "deployed_sha256": "7150e164c1782543e73faa888a244356d0c511a9d6df5ac446f70fc2471d8468"
         },
         {
           "path": "supabase/functions/source-worker/nestpick.ts",
-          "sha256": "42e38df5c5827c0e3789405bc6f1503219e625bd8c670794308e84b69bf73cdb",
-          "deployed_sha256": null
+          "sha256": "1b91b6ab49905cb10a06ba07ec489e4c9e2cd2e9d36b3ed9ffe631f7113213e5",
+          "deployed_sha256": "1b91b6ab49905cb10a06ba07ec489e4c9e2cd2e9d36b3ed9ffe631f7113213e5"
         },
         {
           "path": "supabase/functions/source-worker/catalog.ts",
           "sha256": "c8db39946b6a0e0d2b1407302d5e777f03c2233890eda95bc850f9b2cc30e9a6",
-          "deployed_sha256": null
+          "deployed_sha256": "c8db39946b6a0e0d2b1407302d5e777f03c2233890eda95bc850f9b2cc30e9a6"
         },
         {
           "path": "supabase/functions/covivio-feed/handler.ts",
@@ -624,12 +624,12 @@
         {
           "path": "supabase/functions/noncoop-feed/handler.ts",
           "sha256": "e39e7408af779fc5effd3c359914922ffe00c8f2ced02669243fbb312c7885f3",
-          "deployed_sha256": null
+          "deployed_sha256": "e39e7408af779fc5effd3c359914922ffe00c8f2ced02669243fbb312c7885f3"
         },
         {
           "path": "supabase/functions/noncoop-new-feed/handler.ts",
           "sha256": "2fb560ed373739a95472c33acd218b227f78160c41c921afb1fd38d7fa0f700d",
-          "deployed_sha256": null
+          "deployed_sha256": "2fb560ed373739a95472c33acd218b227f78160c41c921afb1fd38d7fa0f700d"
         },
         {
           "path": "supabase/functions/spacest-feed/handler.ts",
@@ -654,43 +654,43 @@
         {
           "path": "supabase/functions/_shared/hamburg.ts",
           "sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a",
-          "deployed_sha256": null
+          "deployed_sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a"
         },
         {
           "path": "supabase/functions/source-worker/category.ts",
           "sha256": "0cd4bbf49218fe768366dec5c3693b51b39e5781b7d26f93c83b0abcad179c26",
-          "deployed_sha256": null
+          "deployed_sha256": "0cd4bbf49218fe768366dec5c3693b51b39e5781b7d26f93c83b0abcad179c26"
         },
         {
           "path": "supabase/functions/source-worker/category-persist.ts",
           "sha256": "97da274915467e156987e26942992061c157e74726bf7a8bbdab509f3d9845cd",
-          "deployed_sha256": null
+          "deployed_sha256": "97da274915467e156987e26942992061c157e74726bf7a8bbdab509f3d9845cd"
         },
         {
           "path": "supabase/functions/source-worker/buchdrucker-public.ts",
           "sha256": "fb4f57f8b3c2a3e4088d13cb0c68b48b27bbfcb77b0419abd57e75fe04d692e5",
-          "deployed_sha256": null
+          "deployed_sha256": "fb4f57f8b3c2a3e4088d13cb0c68b48b27bbfcb77b0419abd57e75fe04d692e5"
         },
         {
           "path": "supabase/functions/source-worker/buchdrucker-refs.mjs",
           "sha256": "dd50feba88a1e633013c966404371cd638e253c4f182a570cfe6cd679a92a9f7",
-          "deployed_sha256": null
+          "deployed_sha256": "dd50feba88a1e633013c966404371cd638e253c4f182a570cfe6cd679a92a9f7"
         }
       ],
       "import_map": true,
       "retired": false,
       "slug": "source-worker",
       "verify_jwt": false,
-      "version": 91,
-      "deployment_observed_at": "2026-09-23T08:07:30Z",
-      "source_sync_note": "Production v91 adds stable all-borough ImmoScout map snapshots and promotes never-before-seen map-only IDs as verified map_delta candidates.",
+      "version": 102,
+      "deployment_observed_at": "2026-09-29T21:24:38.730Z",
+      "source_sync_note": "Production v102 deployed from GitHub main after architecture repair and migration reconciliation.",
       "observed_artifact": {
-        "observed_at": "2026-09-23T08:07:30Z",
+        "observed_at": "2026-09-29T21:24:38.730Z",
         "format": "compiled_esm",
-        "entrypoint": "index.js",
-        "import_map_path": "deno.json",
-        "ezbr_sha256": "5a2d4fc41e26984d1a6149098abd0971d1ac7b9ef6d2ee970af414130688ab94",
-        "verification": "Production v91 completed successfully with 603 ImmoScout map IDs seeded and zero consecutive source failures."
+        "entrypoint": "source-worker/index.ts",
+        "import_map_path": "source-worker/deno.json",
+        "ezbr_sha256": "db5759d2299fa8ee6137bac31639c7e7d588c6f3f5f02b741ab3a2b959709e4c",
+        "verification": "Production v102 deployed from the exact GitHub main source bundle."
       }
     },
     {
