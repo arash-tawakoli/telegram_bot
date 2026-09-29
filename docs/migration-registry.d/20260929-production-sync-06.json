@@ -1,0 +1,92 @@
+{
+  "migrations": [
+    {
+      "version": "20260925102128",
+      "name": "provider_specific_application_profile_gates",
+      "file": "supabase/migrations/20260925102128_provider_specific_application_profile_gates.sql",
+      "registry_sql_sha256": "e1ccf9c995bade425803fb80f71a4acae58e379e58adb9ffc36fb01737cd91dd",
+      "export_sql_sha256": "e1ccf9c995bade425803fb80f71a4acae58e379e58adb9ffc36fb01737cd91dd",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260925102900",
+      "name": "coach_provider_specific_profile_readiness",
+      "file": "supabase/migrations/20260925102900_coach_provider_specific_profile_readiness.sql",
+      "registry_sql_sha256": "a1506d65f4d7175e342f3d79a2293b2c69e4d6318d580ee4e1688dc952d32eb9",
+      "export_sql_sha256": "a1506d65f4d7175e342f3d79a2293b2c69e4d6318d580ee4e1688dc952d32eb9",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260926231436",
+      "name": "portal_specific_profile_readiness_20260926231006",
+      "file": "supabase/migrations/20260926231436_portal_specific_profile_readiness_20260926231006.sql",
+      "registry_sql_sha256": "0b783af96184a069f9a59e187a4fffeaadf4fdfa59184111cc3461335ef9d0b7",
+      "export_sql_sha256": "0b783af96184a069f9a59e187a4fffeaadf4fdfa59184111cc3461335ef9d0b7",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260927205041",
+      "name": "verify_immowelt_auto_apply_transport_v1",
+      "file": "supabase/migrations/20260927205041_verify_immowelt_auto_apply_transport_v1.sql",
+      "registry_sql_sha256": "59c5020ad8fae52e569f9cd6eaf965712f7a3f1c2d1ac2be37cb7c919cbb9324",
+      "export_sql_sha256": "59c5020ad8fae52e569f9cd6eaf965712f7a3f1c2d1ac2be37cb7c919cbb9324",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260927234128",
+      "name": "telegram_ui_fast_paths_v1",
+      "file": "supabase/migrations/20260927234128_telegram_ui_fast_paths_v1.sql",
+      "registry_sql_sha256": "d011351daccebcda5baa0923ca6b1d5ff6cc77eba93f36350771de776c5103c8",
+      "export_sql_sha256": "d011351daccebcda5baa0923ca6b1d5ff6cc77eba93f36350771de776c5103c8",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260929002703",
+      "name": "sync_coach_portal_telegram_parity",
+      "file": "supabase/migrations/20260929002703_sync_coach_portal_telegram_parity.sql",
+      "registry_sql_sha256": "e5dede82dd99697e0bc5fe91fec46d14ec9f6034e9726e198dc4642c7b0cf6cb",
+      "export_sql_sha256": "e5dede82dd99697e0bc5fe91fec46d14ec9f6034e9726e198dc4642c7b0cf6cb",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260929084904",
+      "name": "unify_applicant_profile_ui_v1",
+      "file": "supabase/migrations/20260929084904_unify_applicant_profile_ui_v1.sql",
+      "registry_sql_sha256": "2c3cc83783b648bc9061030f24c466b5aaade04f44eea91531ea42eca3228286",
+      "export_sql_sha256": "2c3cc83783b648bc9061030f24c466b5aaade04f44eea91531ea42eca3228286",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260929135628",
+      "name": "coach_portal_analytics",
+      "file": "supabase/migrations/20260929135628_coach_portal_analytics.sql",
+      "registry_sql_sha256": "d2184e1bda5b761bc04c616d1302ee416f6d3f863e484192dbf63da205b58594",
+      "export_sql_sha256": "d2184e1bda5b761bc04c616d1302ee416f6d3f863e484192dbf63da205b58594",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260929135640",
+      "name": "fix_telegram_applicant_profile_open",
+      "file": "supabase/migrations/20260929135640_fix_telegram_applicant_profile_open.sql",
+      "registry_sql_sha256": "676ace1434cbf422bff89acb009252ac39e29fe4c40c7ea4309e689a8da1ad2f",
+      "export_sql_sha256": "676ace1434cbf422bff89acb009252ac39e29fe4c40c7ea4309e689a8da1ad2f",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260929152121",
+      "name": "platform_connection_refresh_lifecycle",
+      "file": "supabase/migrations/20260929152121_platform_connection_refresh_lifecycle.sql",
+      "registry_sql_sha256": "38534c414062d9f2a478c03c1da198696179498f85a5ed587af674013d4ebf60",
+      "export_sql_sha256": "38534c414062d9f2a478c03c1da198696179498f85a5ed587af674013d4ebf60",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260929200655",
+      "name": "resolve_portal_immomio_before_telegram_auto_apply",
+      "file": "supabase/migrations/20260929200655_resolve_portal_immomio_before_telegram_auto_apply.sql",
+      "registry_sql_sha256": "e5414d2ec64117cafba2463331fb44b0f94bc1794dc38d5694cd8aa5ec8956d4",
+      "export_sql_sha256": "e5414d2ec64117cafba2463331fb44b0f94bc1794dc38d5694cd8aa5ec8956d4",
+      "vault_substitution": false
+    }
+  ]
+}
