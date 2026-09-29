@@ -8,13 +8,8 @@
       "files": [
         {
           "path": "supabase/functions/application-worker/index.ts",
-          "sha256": "88ba427ecc4fc70223fd0267261e055c2a47155098d9167570216ecedb524608",
-          "deployed_sha256": "88ba427ecc4fc70223fd0267261e055c2a47155098d9167570216ecedb524608"
-        },
-        {
-          "path": "supabase/functions/application-worker/credentials.ts",
-          "sha256": "fa566446453563ecdbd7d1166656454612d115ec6a92c8316890ac77175f0eb9",
-          "deployed_sha256": "fa566446453563ecdbd7d1166656454612d115ec6a92c8316890ac77175f0eb9"
+          "sha256": "1ab635da0ea4d60c9ad3225baff95c1214ea047acdc88b4e502d3faf2674630a",
+          "deployed_sha256": "1ab635da0ea4d60c9ad3225baff95c1214ea047acdc88b4e502d3faf2674630a"
         },
         {
           "path": "supabase/functions/application-worker/profile-page.ts",
@@ -23,37 +18,52 @@
         },
         {
           "path": "supabase/functions/application-worker/providers/kleinanzeigen.ts",
-          "sha256": "1aabf44d7b2accb949711abf6ce6ceee51552e9a70420ad75d6860fc284a2dc3",
-          "deployed_sha256": "1aabf44d7b2accb949711abf6ce6ceee51552e9a70420ad75d6860fc284a2dc3"
+          "sha256": "462c0fc27c3182f5c3de965332b7d91a2904af88aff6ee38f11197099491d459",
+          "deployed_sha256": "462c0fc27c3182f5c3de965332b7d91a2904af88aff6ee38f11197099491d459"
+        },
+        {
+          "path": "supabase/functions/application-worker/credentials.ts",
+          "sha256": "f7dd03cc75db8d9a0e1e6a56bcab0b60cb0db7769b8a33bcf4ec39900d205541",
+          "deployed_sha256": "f7dd03cc75db8d9a0e1e6a56bcab0b60cb0db7769b8a33bcf4ec39900d205541"
+        },
+        {
+          "path": "supabase/functions/_shared/application-profile-adapters.ts",
+          "sha256": "561eef88785b5d442dbf95d42123cac1236ce0e55094bf59cf65aea099c00f64",
+          "deployed_sha256": "561eef88785b5d442dbf95d42123cac1236ce0e55094bf59cf65aea099c00f64"
         },
         {
           "path": "supabase/functions/application-worker/providers/immoscout.ts",
-          "sha256": "88dc34f234b22877a7e6f585e4066bea6432aa1c84ff3e487140655fcc2f3e75",
-          "deployed_sha256": "88dc34f234b22877a7e6f585e4066bea6432aa1c84ff3e487140655fcc2f3e75"
+          "sha256": "da9830fa3c74d4fd06befecd6b232cc65145725ed9d98f2411fc6423094e3b21",
+          "deployed_sha256": "da9830fa3c74d4fd06befecd6b232cc65145725ed9d98f2411fc6423094e3b21"
+        },
+        {
+          "path": "supabase/functions/application-worker/providers/immowelt.ts",
+          "sha256": "53291cce64c1970f0dd969ca1fc5db2e0e2cc2eed2743c54fb34c96abbbf4d01",
+          "deployed_sha256": "53291cce64c1970f0dd969ca1fc5db2e0e2cc2eed2743c54fb34c96abbbf4d01"
         },
         {
           "path": "supabase/functions/application-worker/providers/immomio.ts",
-          "sha256": "62ba5118da5fd1f9044e2a29434e6cc23bd15b67a18e7fc3788a38ad35c8d5d9",
-          "deployed_sha256": "62ba5118da5fd1f9044e2a29434e6cc23bd15b67a18e7fc3788a38ad35c8d5d9"
+          "sha256": "43c80dff38303dd0af13475c95437593bb532ea85a69bf1e4fdf76354de6d0da",
+          "deployed_sha256": "43c80dff38303dd0af13475c95437593bb532ea85a69bf1e4fdf76354de6d0da"
         },
         {
           "path": "supabase/functions/application-worker/providers/router.ts",
-          "sha256": "f7c6356a8363980c246794ebc986c18c37e58ef06b71384dad6a9e5209df5d2f",
-          "deployed_sha256": "f7c6356a8363980c246794ebc986c18c37e58ef06b71384dad6a9e5209df5d2f"
+          "sha256": "c7f00c006239b9d2f6bea535e1dbfc33152c8c8b364bf770adbd957a26de0a1b",
+          "deployed_sha256": "c7f00c006239b9d2f6bea535e1dbfc33152c8c8b364bf770adbd957a26de0a1b"
         }
       ],
       "import_map": false,
       "retired": false,
       "slug": "application-worker",
       "verify_jwt": false,
-      "version": 64,
-      "deployment_observed_at": "2026-09-21T11:53:50.382Z",
+      "version": 155,
+      "deployment_observed_at": "2026-09-29T19:24:22.783Z",
       "observed_artifact": {
-        "observed_at": "2026-09-21T11:53:50.382Z",
+        "observed_at": "2026-09-29T19:24:22.783Z",
         "format": "compiled_esm",
-        "entrypoint": "index.ts",
+        "entrypoint": "application-worker/index.ts",
         "ezbr_sha256": "92ba478bfd64ef1537501b6d4d61ea6790eef5dc8493a3bb9d88038fa40b6e60",
-        "verification": "Source verified; version anticipates the repository-triggered Supabase redeploy for this commit."
+        "verification": "Production v155 verified byte-for-byte against GitHub main on 2026-09-29."
       }
     },
     {
