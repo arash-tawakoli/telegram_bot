@@ -1,3 +1,4 @@
+
 create or replace function app_private.canonical_provider_entity(p_value text)
 returns text
 language sql
@@ -265,6 +266,7 @@ begin
   update public.listing_dedupe_groups
   set preferred_listing_id=v_winner,updated_at=now()
   where id=p_group_id and preferred_listing_id is distinct from v_winner;
+
   return v_winner;
 end;
 $function$;
