@@ -295,9 +295,24 @@ async function readProfile(userId){
  return data||null;
 }
 
+async function ensureApplicantProfile(userId){
+ const current=await readProfile(userId);
+ if(current)return current;
+ const {error}=await db.from('applicant_profiles').upsert({
+  user_id:userId,
+  first_name:'',
+  last_name:'',
+  updated_at:new Date().toISOString()
+ },{onConflict:'user_id',ignoreDuplicates:true});
+ if(error)throw Error('Bewerberprofil konnte nicht vorbereitet werden.');
+ const created=await readProfile(userId);
+ if(!created)throw Error('Bewerberprofil konnte nicht vorbereitet werden.');
+ return created;
+}
+
 async function renderApplicantProfile(user,chat,messageId,notice=''){
  const [p,docs,missingResult]=await Promise.all([
-  readProfile(user.id),
+  ensureApplicantProfile(user.id),
   readDocuments(user.id),
   db.rpc('application_profile_missing_fields',{p_user:user.id})
  ]);
@@ -332,8 +347,7 @@ async function renderApplicantProfile(user,chat,messageId,notice=''){
 }
 
 async function renderApplicationTexts(user,chat,messageId){
- const p=await readProfile(user.id);
- if(!p)return renderApplicantProfile(user,chat,messageId,'Bitte zuerst das Bewerberprofil anlegen.');
+ const p=await ensureApplicantProfile(user.id);
  const render=(text,rows)=>messageId?edit(chat.id,messageId,text,{inline_keyboard:rows}):send(chat.id,text,{inline_keyboard:rows});
  const entry=(name,label,value)=>button(`${String(value??'').trim()?'✅':'⚠️'} ${label}`,`platforms:profile-text:${name}`);
  const text='✍️ <b>Bewerbungstext</b>\n\nWähle eine Wohnform, um den hinterlegten Bewerbungstext als Vorschau zu öffnen und zu bearbeiten.';
@@ -347,8 +361,7 @@ async function renderApplicationTexts(user,chat,messageId){
 async function renderApplicationTextDetail(user,chat,messageId,name){
  const allowed=new Set(['message_apartment','message_house','message_temporary_wg','message_swap']);
  if(!allowed.has(name))return renderApplicationTexts(user,chat,messageId);
- const p=await readProfile(user.id);
- if(!p)return renderApplicantProfile(user,chat,messageId,'Bitte zuerst das Bewerberprofil anlegen.');
+ const p=await ensureApplicantProfile(user.id);
  const render=(text,rows)=>messageId?edit(chat.id,messageId,text,{inline_keyboard:rows}):send(chat.id,text,{inline_keyboard:rows});
  const labels={
   message_apartment:'Wohnung',
@@ -455,7 +468,7 @@ export async function handleAutoApplyMessage(user,message){
   const entry=Object.entries(PROFILE_FIELDS).find(([,meta])=>meta.label===label);if(!entry)return null;
   const [name]=entry;
   try{
-   const current=await readProfile(user.id);if(!current)return send(chat.id,'Bitte zuerst die Grundeinrichtung des Bewerberprofils abschließen.',{inline_keyboard:[[button('➕ Bewerberprofil anlegen','platforms:profile-new')]]});
+   await ensureApplicantProfile(user.id);
    const value=validateField(name,text),patch=name==='move_in_date'
     ? {[name]:value,move_in_preference:'EXACT_DATE',updated_at:new Date().toISOString()}
     : {[name]:value,updated_at:new Date().toISOString()};
@@ -487,8 +500,8 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  }
  if(action==='profile-new'){
   if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
-  const existing=await readProfile(user.id);if(existing)return renderApplicantProfile(user,chat,messageId);
-  return send(chat.id,`${SETUP_PROMPT}\n\nAntworte in <b>einer Nachricht</b> mit Vorname und Nachname, getrennt durch <code>|</code>. Optional kannst du die E-Mail ergänzen:\n\n<code>Vorname | Nachname</code>\noder\n<code>Vorname | Nachname | E-Mail</code>\n\nBeispiel:\n<code>Max | Mustermann | max@example.de</code>\n\nE-Mail bleibt im allgemeinen Profil optional, wird aber für Bewerbungen über ImmoScout24 und Immowelt benötigt. Kleinanzeigen prüft, ob das konkrete Formular eine E-Mail verlangt. Zum Verbinden des Immomio-Kontos wird sie ebenfalls gebraucht; beim Immomio-Bewerbungsversand gibt es kein E-Mail-Feld. Weitere Formularpflichten werden je Plattform und Inserat geprüft.`,{force_reply:true,selective:true,input_field_placeholder:'Vorname | Nachname | E-Mail optional'});
+  await ensureApplicantProfile(user.id);
+  return renderApplicantProfile(user,chat,messageId);
  }
  if(action==='profile-texts'){
   if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
@@ -500,7 +513,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  }
  if(action==='profile-field'){
   if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
-  const current=await readProfile(user.id);
+  const current=await ensureApplicantProfile(user.id);
   const mark=(value,selected,label)=>value===selected?`✅ ${label}`:label;
   if(arg==='salutation'){
    const s=current?.salutation;
@@ -575,6 +588,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  }
  if(action==='profile-set'){
   if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
+  await ensureApplicantProfile(user.id);
   let patch=null;
   if(arg==='salutation'){
    if(!Object.hasOwn(SALUTATION_LABELS,choice))return renderApplicantProfile(user,chat,messageId);
@@ -614,7 +628,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  if(action==='doc-upload'){
   if(!user.is_premium)return render('Bewerberdokumente für Auto-Bewerbungen benötigen Premium.',back);
   const meta=DOCUMENT_TYPES[arg];if(!meta)return renderApplicantDocuments(user,chat,messageId);
-  const profile=await readProfile(user.id);if(!profile)return renderApplicantProfile(user,chat,messageId,'Bitte zuerst das Bewerberprofil anlegen.');
+  await ensureApplicantProfile(user.id);
   const incomeHint=arg==='income_proof'?'\nFür die letzten drei Monate kannst du diesen Upload dreimal nacheinander verwenden.':'';
   return send(chat.id,`${DOC_PROMPT_PREFIX}${meta.label}\n\nSende die Datei als <b>Antwort auf diese Nachricht</b>.\n\nErlaubt: PDF, JPG oder PNG · maximal 6 MB.${incomeHint}\nNeue Dateien sind zunächst nicht für Auto-Bewerbungen freigegeben.`,{force_reply:true,selective:true,input_field_placeholder:'Datei senden'});
  }
