@@ -132,7 +132,8 @@ export async function purgePlatformSessions(userId){
  for(const row of data||[]){const source=sourceFor[row.provider];if(source)await applicationWorker('disconnect',userId,source).catch(()=>{});}
  await db.from('platform_connections').delete().eq('user_id',userId);
  await db.from('platform_auth_flows').delete().eq('user_id',userId);
- await db.from('platform_sessions').delete().eq('user_id',userId).catch(()=>{});
+ const {error:sessionError}=await db.from('platform_sessions').delete().eq('user_id',userId);
+ if(sessionError)throw Error('Plattformsitzungen konnten nicht gelöscht werden.');
 }
 
 const connectionLabel=row=>{
