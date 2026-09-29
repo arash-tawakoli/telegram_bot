@@ -18,7 +18,7 @@ test('coach portal and Telegram share premium and search-profile domain rules',(
 
 test('global AutoApply state is written through the shared application_preferences writer',()=>{
   assert.match(autoApply,/set_application_enabled_shared/);
-  assert.match(autoApply,/prefs\.enabled\?'⏸ Auto-Bewerbung pausieren'/);
+  assert.match(autoApply,/prefs\.enabled\?'⚡ Auto-Bewerbung deaktivieren':'⚡ Auto-Bewerbung aktivieren'/);
   assert.match(migration,/public\.set_application_enabled_shared/);
 });
 
