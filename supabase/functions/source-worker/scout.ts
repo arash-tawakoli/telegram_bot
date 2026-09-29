@@ -32,30 +32,30 @@ function children(x:any){const lo=x.min==null?null:Number(x.min),hi=x.max==null?
 function scoutCooperativeIdentity(e:any){
   const text=JSON.stringify(e||{});
   const rules=[
-    ["SAGA",/(?:Vermietungshotline der\\s+)?SAGA Unternehmensgruppe/i],
-    ["Finkenwärder-Hoffnung",/(?:Baugenossenschaft\\s+)?Finkenw(?:ä|ae)rder[-\\s]+Hoffnung/i],
-    ["GEWOBA Nord",/GEWOBA\\s+Nord/i],
-    ["NEUE LÜBECKER",/NEUE\\s+LÜBECKER/i],
-    ["Bauverein Reiherstieg",/Bauverein\\s+Reiherstieg/i],
-    ["VHW",/(?:Vereinigte\\s+Hamburger\\s+Wohnungsbaugenossenschaft|\\bVHW\\b)/i],
-    ["mgf Gartenstadt Farmsen",/(?:mgf\\s+)?Gartenstadt\\s+Farmsen/i],
-    ["HARABAU",/(?:Hamburg[-\\s]+Rahlstedter\\s+Baugenossenschaft|\\bHARABAU\\b)/i],
-    ["Baugenossenschaft der Buchdrucker",/Baugenossenschaft\\s+der\\s+Buchdrucker/i],
-    ["FLUWOG-NORDMARK",/(?:Baugenossenschaft\\s+)?FLUWOG[-\\s]*NORDMARK/i],
-    ["Gartenstadt Hamburg",/(?:Wohnungsgenossenschaft\\s+)?Gartenstadt\\s+Hamburg/i],
-    ["WG von 1904",/(?:Wohnungsgenossenschaft\\s+von\\s+1904|\\bWG\\s+von\\s+1904\\b)/i],
-    ["WHW 1897",/(?:Wohnungsgenossenschaft\\s+Hamburg[-\\s]*Wandsbek\\s+von\\s+1897|\\bWHW\\s*1897\\b)/i],
-    ["ADLERSHORST",/ADLERSHORST\\s+Baugenossenschaft/i],
-    ["Wohnwarft eG",/Wohnwarft(?:\\s+eG)?/i],
-    ["Falkenried-Terrassen",/(?:Baugenossenschaft\\s+)?Falkenried[-\\s]+Terrassen/i],
+    ["SAGA",/(?:Vermietungshotline der\s+)?SAGA Unternehmensgruppe/i],
+    ["Finkenwärder-Hoffnung",/(?:Baugenossenschaft\s+)?Finkenw(?:ä|ae)rder[-\s]+Hoffnung/i],
+    ["GEWOBA Nord",/GEWOBA\s+Nord/i],
+    ["NEUE LÜBECKER",/NEUE\s+LÜBECKER/i],
+    ["Bauverein Reiherstieg",/Bauverein\s+Reiherstieg/i],
+    ["VHW",/(?:Vereinigte\s+Hamburger\s+Wohnungsbaugenossenschaft|\bVHW\b)/i],
+    ["mgf Gartenstadt Farmsen",/(?:mgf\s+)?Gartenstadt\s+Farmsen/i],
+    ["HARABAU",/(?:Hamburg[-\s]+Rahlstedter\s+Baugenossenschaft|\bHARABAU\b)/i],
+    ["Baugenossenschaft der Buchdrucker",/Baugenossenschaft\s+der\s+Buchdrucker/i],
+    ["FLUWOG-NORDMARK",/(?:Baugenossenschaft\s+)?FLUWOG[-\s]*NORDMARK/i],
+    ["Gartenstadt Hamburg",/(?:Wohnungsgenossenschaft\s+)?Gartenstadt\s+Hamburg/i],
+    ["WG von 1904",/(?:Wohnungsgenossenschaft\s+von\s+1904|\bWG\s+von\s+1904\b)/i],
+    ["WHW 1897",/(?:Wohnungsgenossenschaft\s+Hamburg[-\s]*Wandsbek\s+von\s+1897|\bWHW\s*1897\b)/i],
+    ["ADLERSHORST",/ADLERSHORST\s+Baugenossenschaft/i],
+    ["Wohnwarft eG",/Wohnwarft(?:\s+eG)?/i],
+    ["Falkenried-Terrassen",/(?:Baugenossenschaft\s+)?Falkenried[-\s]+Terrassen/i],
   ] as const;
   for(const [entity,re] of rules){
     if(!re.test(text))continue;
-    const ref=text.match(/(?:Objektreferenz|Referenznummer|Objektnummer|Objekt[-\\s]?(?:Nr\\.?|ID)|Angebotsnummer)[^A-Za-z0-9]{0,12}([A-Za-z0-9][A-Za-z0-9._\/-]{3,80})/i)?.[1]
-      || (entity==="SAGA"?text.match(/\\b(MO\\s*2000\\s*\\/\\s*[A-Za-z0-9.-]+\\s*\\/\\s*[A-Za-z0-9.-]+)\\b/i)?.[1]:null)
+    const ref=text.match(/(?:Objektreferenz|Referenznummer|Objektnummer|Objekt[-\s]?(?:Nr\.?|ID)|Angebotsnummer)[^A-Za-z0-9]{0,12}([A-Za-z0-9][A-Za-z0-9._/-]{3,80})/i)?.[1]
+      || (entity==="SAGA"?text.match(/\b(MO\s*2000\s*\/\s*[A-Za-z0-9.-]+\s*\/\s*[A-Za-z0-9.-]+)\b/i)?.[1]:null)
       || null;
     const row=cooperativeRegistry.find(r=>r.provider_entity===entity);
-    return {provider_entity:entity,provider_object_ref:ref?ref.toUpperCase().replace(/\\s*\\/\\s*/g,"/").replace(/\\s+/g," ").trim():null,provider_registry_mode:row?.registry_mode||"source",provider_source_id:row?.source_id??null};
+    return {provider_entity:entity,provider_object_ref:ref?ref.toUpperCase().replace(/\s*\/\s*/g,"/").replace(/\s+/g," ").trim():null,provider_registry_mode:row?.registry_mode||"source",provider_source_id:row?.source_id??null};
   }
   const dynamicRow=registryCooperativeIdentity(text);
   if(dynamicRow){
