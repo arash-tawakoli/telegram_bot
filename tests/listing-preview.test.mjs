@@ -235,7 +235,7 @@ test('checked portal listings do not inherit a tenant link from another SAGA por
 
 test('portal detail extraction detects escaped and percent-encoded tenant links',()=>{
  const uuid='12345678-1234-1234-1234-123456789012';
- const escaped=facts.htmlFacts('<script>var x="https:\\u003A\\u002F\\u002Ftenant.immomio.com\\u002Fapply\\u002F'+uuid+'"</script>',base);
+ const escaped=facts.htmlFacts('<script>var x="https\\u003A\\u002F\\u002Ftenant.immomio.com\\u002Fapply\\u002F'+uuid+'"</script>',base);
  assert.equal(escaped.applicationLink,'https://tenant.immomio.com/apply/'+uuid);
  const encoded=facts.htmlFacts('<div data-url="https%3A%2F%2Ftenant.immomio.com%2Fapply%2F'+uuid+'"></div>',base);
  assert.equal(encoded.applicationLink,'https://tenant.immomio.com/apply/'+uuid);
