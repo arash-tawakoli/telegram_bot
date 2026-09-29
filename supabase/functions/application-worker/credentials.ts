@@ -8,3 +8,14 @@ export async function saveConnection(db:any,userId:string,provider:string,creden
 export async function getConnection(db:any,userId:string,provider:string){const {data,error}=await db.from('platform_connections').select('*').eq('user_id',userId).eq('provider',provider).maybeSingle();if(error)throw Error('connection_read_failed');return data?{row:data,credentials:await decryptCredentials(db,data)}:null;}
 export async function markConnection(db:any,userId:string,provider:string,status:string,lastError:string|null=null,patch:any={}){const {error}=await db.from('platform_connections').upsert({user_id:userId,provider,status,last_error:lastError,updated_at:new Date().toISOString(),...patch},{onConflict:'user_id,provider'});if(error)throw Error('connection_update_failed');}
 export async function deleteConnection(db:any,userId:string,provider:string){const {error}=await db.from('platform_connections').delete().eq('user_id',userId).eq('provider',provider);if(error)throw Error('disconnect_failed');}
+
+export async function recordRefreshResult(db:any,userId:string,provider:string,success:boolean,error:string|null=null,expiresAt:string|null=null){
+ const {error:rpcError}=await db.rpc('record_platform_connection_refresh',{
+  p_user:userId,
+  p_provider:provider,
+  p_success:success,
+  p_error:error,
+  p_expires_at:expiresAt
+ });
+ if(rpcError)console.error('connection_refresh_telemetry',provider,rpcError.message);
+}
