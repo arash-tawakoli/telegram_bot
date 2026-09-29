@@ -56,3 +56,11 @@ test('new coaching participants use the same minimal global profile basis as Tel
   assert.match(coach,/optionalEmail\(body\.email\)/);
   assert.match(coach,/if\(!row\.first_name\|\|!row\.last_name\)/);
 });
+
+
+test('coach profile updates preserve explicit null so optional values can be cleared',()=>{
+  assert.match(coach,/const value=\(key:string,fallback:any\)=>has\(key\)\?input\[key\]:fallback/);
+  assert.match(coach,/email:optionalEmail\(value\('email',c\.email\)\)/);
+  assert.match(coach,/phone:clean\(value\('phone',c\.phone\),80\)\|\|null/);
+  assert.match(coach,/salutation:clean\(value\('salutation',c\.salutation\),40\)\|\|null/);
+});
