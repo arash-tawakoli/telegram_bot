@@ -67,3 +67,36 @@ test('ImmoWelt retries authentication at most once after an auth rejection', () 
   assert.match(fallback, /attempt\.response\.status===401\|\|attempt\.response\.status===403/);
   assert.match(fallback, /attempt\.response\.status===401\)await markConnection/);
 });
+
+
+test('Immowelt fallback resolves profile options dynamically from listing context', () => {
+  assert.match(source, /resolveImmoweltDynamicContactContext/);
+  assert.match(source, /immoweltOptionPairs/);
+  assert.match(source, /providerEnumCandidates\('immowelt'/);
+  assert.match(source, /profileMappingMode:'dynamic-first'/);
+  assert.match(source, /dynamicOptionsDetected/);
+  assert.match(source, /unmappedOptionalFields/);
+  assert.doesNotMatch(source, /if\(!codes\)return\{success:false,error:'session_fallback_profile_unmapped'/);
+});
+
+test('Immowelt fallback can omit unsupported optional profile fields instead of aborting', () => {
+  const fallbackStart = source.indexOf('async function sendImmoweltSessionFallback');
+  const fallbackEnd = source.indexOf('export async function sendImmoweltApplication', fallbackStart);
+  const fallback = source.slice(fallbackStart, fallbackEnd);
+  assert.match(fallback, /if\(values\.householdType\)/);
+  assert.match(fallback, /if\(values\.workStatus\)/);
+  assert.match(fallback, /if\(values\.netMonthlyIncome\)/);
+  assert.match(fallback, /if\(values\.preferredMoveInDate\)/);
+  assert.match(fallback, /profileMapped:true/);
+});
+
+test('Immowelt contact context can resolve a listing-specific classified id before submit', () => {
+  assert.match(source, /immoweltClassifiedIdFromText/);
+  assert.match(source, /classifiedIdSource/);
+  assert.match(source, /page-matched-listing|page-unique|page-dominant/);
+  const fallbackStart = source.indexOf('async function sendImmoweltSessionFallback');
+  const fallbackEnd = source.indexOf('export async function sendImmoweltApplication', fallbackStart);
+  const fallback = source.slice(fallbackStart, fallbackEnd);
+  assert.match(fallback, /const context=await immoweltContactContext/);
+  assert.match(fallback, /const classifiedId=String\(context\.classifiedId/);
+});
