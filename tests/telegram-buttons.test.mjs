@@ -47,3 +47,12 @@ test('platform login opens provider auth inside Telegram WebApp instead of a dir
  assert.match(platforms,/\{text:loginLabel,web_app:\{url:result\.url\}\}/);
  assert.doesNotMatch(platforms,/\{text:loginLabel,url:result\.url\}/);
 });
+
+
+test('command menu parity keeps German users on the canonical command list',()=>{
+ const handlers=readFileSync(new URL('../supabase/functions/telegram-ui/handlers.js',import.meta.url),'utf8');
+ assert.match(handlers,/language_code:\s*"de"/);
+ assert.match(handlers,/command === "\/start" \|\| command === "\/commands"/);
+ assert.match(handlers,/command:\s*"suche"/);
+ assert.match(handlers,/command:\s*"premium"/);
+});
