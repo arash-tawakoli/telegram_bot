@@ -1,4 +1,4 @@
-import {saveConnection,getConnection,markConnection,deleteConnection} from '../credentials.ts';
+import {saveConnection,getConnection,markConnection,deleteConnection,recordRefreshResult} from '../credentials.ts';
 import {providerEnumCandidates,providerSalutation,providerEmployment,providerHousehold,providerIncome,providerMoveIn} from '../../_shared/application-profile-adapters.ts';
 
 const DOMAIN='login.kleinanzeigen.de';
@@ -55,7 +55,29 @@ export async function beginKleinanzeigenLogin(db:any,userId:string,config?:Klein
 async function finishKleinanzeigenLogin(db:any,flow:any,redirectUrl:string,config?:KleinanzeigenOAuthConfig|null){const oauth=oauthConfig(config);let url:URL;try{url=new URL(redirectUrl.trim())}catch{throw Error('invalid_callback_url')}validateCallbackTarget(url,oauth.redirectUri);const code=url.searchParams.get('code'),state=url.searchParams.get('state');if(!code||!state||state!==String(flow.state))throw Error('invalid_callback_url');const{response,token}=await tokenRequest(db,oauth.clientId,{grant_type:'authorization_code',code,code_verifier:flow.code_verifier,redirect_uri:oauth.redirectUri});if(!response.ok||!token?.access_token||!token?.refresh_token)throw Error('token_exchange_failed');const expiresAt=new Date(Date.now()+Number(token.expires_in||600)*1000).toISOString();let accountHint:string|null=null;if(token.id_token){try{const p=token.id_token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/');accountHint=JSON.parse(atob(p.padEnd(Math.ceil(p.length/4)*4,'='))).email||null}catch{}}await saveConnection(db,flow.user_id,'kleinanzeigen',{access_token:token.access_token,refresh_token:token.refresh_token,expires_at:expiresAt,oauth_client_id:oauth.clientId,oauth_redirect_uri:oauth.redirectUri,x_ebayk_app:`${crypto.randomUUID()}${Date.now()}`},{account_hint:accountHint,expires_at:expiresAt});await db.from('platform_auth_flows').update({consumed_at:new Date().toISOString()}).eq('id',flow.id);return{status:'connected',authenticated:true,accountHint,userId:String(flow.user_id)}}
 export async function completeKleinanzeigenLogin(db:any,userId:string,redirectUrl:string,config?:KleinanzeigenOAuthConfig|null){let url:URL;try{url=new URL(redirectUrl.trim())}catch{throw Error('invalid_callback_url')}const state=url.searchParams.get('state');if(!state)throw Error('invalid_callback_url');const{data:flow,error}=await db.from('platform_auth_flows').select('*').eq('user_id',userId).eq('provider','kleinanzeigen').eq('state',state).is('consumed_at',null).gt('expires_at',new Date().toISOString()).maybeSingle();if(error||!flow)throw Error('auth_flow_expired');return finishKleinanzeigenLogin(db,flow,url.href,config)}
 export async function completeKleinanzeigenCallback(db:any,redirectUrl:string,config?:KleinanzeigenOAuthConfig|null){let url:URL;try{url=new URL(redirectUrl.trim())}catch{throw Error('invalid_callback_url')}const oauth=oauthConfig(config);validateCallbackTarget(url,oauth.redirectUri);const state=url.searchParams.get('state');if(!state)throw Error('invalid_callback_url');const{data:flow,error}=await db.from('platform_auth_flows').select('*').eq('provider','kleinanzeigen').eq('state',state).is('consumed_at',null).gt('expires_at',new Date().toISOString()).maybeSingle();if(error||!flow)throw Error('auth_flow_expired');if(url.searchParams.get('error')){await markConnection(db,String(flow.user_id),'kleinanzeigen','needs_login',String(url.searchParams.get('error')).slice(0,120)).catch(()=>{});throw Error('oauth_login_failed')}return finishKleinanzeigenLogin(db,flow,url.href,oauth)}
-async function refresh(db:any,userId:string,connection:any){const credentials=connection.credentials||{};if(credentials.access_token&&Date.parse(credentials.expires_at||'')>Date.now()+60000)return credentials;if(!credentials.refresh_token)throw Error('needs_login');const clientId=String(credentials.oauth_client_id||LEGACY_CLIENT_ID),{response,token}=await tokenRequest(db,clientId,{grant_type:'refresh_token',refresh_token:credentials.refresh_token});if(!response.ok||!token?.access_token){await markConnection(db,userId,'kleinanzeigen','needs_login','refresh_failed');throw Error('needs_login')}const updated={...credentials,access_token:token.access_token,refresh_token:token.refresh_token||credentials.refresh_token,expires_at:new Date(Date.now()+Number(token.expires_in||600)*1000).toISOString(),oauth_client_id:clientId,x_ebayk_app:credentials.x_ebayk_app||`${crypto.randomUUID()}${Date.now()}`};await saveConnection(db,userId,'kleinanzeigen',updated,{expires_at:updated.expires_at,account_hint:connection.row.account_hint});return updated}
+async function refresh(db:any,userId:string,connection:any,force=false){
+ const credentials=connection.credentials||{};
+ if(!force&&credentials.access_token&&Date.parse(credentials.expires_at||'')>Date.now()+60000)return credentials;
+ if(!credentials.refresh_token)throw Error('needs_login');
+ const clientId=String(credentials.oauth_client_id||LEGACY_CLIENT_ID);
+ let response:Response,token:any=null;
+ try{
+  const result=await tokenRequest(db,clientId,{grant_type:'refresh_token',refresh_token:credentials.refresh_token});
+  response=result.response;token=result.token;
+ }catch(error:any){
+  await recordRefreshResult(db,userId,'kleinanzeigen',false,'refresh_network_error').catch(()=>{});
+  throw error;
+ }
+ if(!response.ok||!token?.access_token){
+  await recordRefreshResult(db,userId,'kleinanzeigen',false,`refresh_http_${response.status}`).catch(()=>{});
+  await markConnection(db,userId,'kleinanzeigen','needs_login','refresh_failed');
+  throw Error('needs_login');
+ }
+ const updated={...credentials,access_token:token.access_token,refresh_token:token.refresh_token||credentials.refresh_token,expires_at:new Date(Date.now()+Number(token.expires_in||600)*1000).toISOString(),oauth_client_id:clientId,x_ebayk_app:credentials.x_ebayk_app||`${crypto.randomUUID()}${Date.now()}`};
+ await saveConnection(db,userId,'kleinanzeigen',updated,{expires_at:updated.expires_at,account_hint:connection.row.account_hint});
+ await recordRefreshResult(db,userId,'kleinanzeigen',true,null,updated.expires_at).catch(()=>{});
+ return updated;
+}
 export async function disconnectKleinanzeigen(db:any,userId:string){await deleteConnection(db,userId,'kleinanzeigen');return{status:'disconnected'}}
 export async function kleinanzeigenAccessToken(db:any,userId:string){const c=await getConnection(db,userId,'kleinanzeigen');if(!c)throw Error('needs_login');return(await refresh(db,userId,c)).access_token}
 function appBaseHeaders(xapp:string,xIn?:string){const h:any={'X-EBAYK-APP':xapp,'X-ECG-USER-AGENT':`ebayk-android-app-${APP_VERSION}`,'X-ECG-USER-VERSION':APP_VERSION,'User-Agent':`Kleinanzeigen/${APP_VERSION} (Android 13; Pixel 7)`,'Accept':'application/json','Accept-Language':'de-DE'};if(xIn)h['X-ECG-IN']=xIn;return h}
@@ -67,8 +89,37 @@ function unwrapPayload(body:any){if(!body||typeof body!=='object')return{};const
 function adOwnerId(body:any){const a=unwrapPayload(body);return String(scalar(a?.['user-id']??a?.userId??a?.user?.id)||'')}
 function categoryId(body:any){const a=unwrapPayload(body);return String(scalar(a?.category?.id??a?.categoryId??a?.['category-id'])||'')}
 async function apiRequest(url:string,init:RequestInit={}){try{const response=await fetch(url,{...init,signal:AbortSignal.timeout(30000)}),text=await response.text();let json:any=null;try{json=JSON.parse(text)}catch{}return{response,json,text}}catch(error:any){if(error?.name==='TimeoutError'||error?.name==='AbortError')throw Error('temporary_network_error');throw Error('temporary_network_error')}}
-async function session(db:any,userId:string){const c=await getConnection(db,userId,'kleinanzeigen');if(!c)throw Error('needs_login');const credentials=await refresh(db,userId,c),email=String(c.row.account_hint||'').trim();if(!email)throw Error('needs_login');const xapp=String(credentials.x_ebayk_app||`${crypto.randomUUID()}${Date.now()}`);if(!credentials.x_ebayk_app){const updated={...credentials,x_ebayk_app:xapp};await saveConnection(db,userId,'kleinanzeigen',updated,{expires_at:updated.expires_at,account_hint:c.row.account_hint})}return{token:String(credentials.access_token),email,xapp}}
-async function account(db:any,userId:string){const s=await session(db,userId);const r=await apiRequest(`${API_HOST}/api/users/${encodeURIComponent(s.email)}/profile.json`,{method:'GET',headers:legacyMainApiHeaders(s.token,s.email,s.xapp)});if(r.response.status===401||r.response.status===403){await markConnection(db,userId,'kleinanzeigen','needs_login','profile_auth_failed').catch(()=>{});throw Error('needs_login')}if(!r.response.ok){if(r.response.status===429||r.response.status>=500)throw Error('temporary_network_error');throw Error('provider_contract_unverified')}const p=unwrapPayload(r.json),id=scalar(p?.data?.id??p?.id??r.json?.data?.id??r.json?.id??r.json?.value?.id);if(!id)throw Error('provider_contract_unverified');return{...s,id:String(id),authMode:'legacy' as const}}
+async function session(db:any,userId:string,force=false){
+ const c=await getConnection(db,userId,'kleinanzeigen');
+ if(!c)throw Error('needs_login');
+ const credentials=await refresh(db,userId,c,force),email=String(c.row.account_hint||'').trim();
+ if(!email)throw Error('needs_login');
+ const xapp=String(credentials.x_ebayk_app||`${crypto.randomUUID()}${Date.now()}`);
+ if(!credentials.x_ebayk_app){
+  const updated={...credentials,x_ebayk_app:xapp};
+  await saveConnection(db,userId,'kleinanzeigen',updated,{expires_at:updated.expires_at,account_hint:c.row.account_hint});
+ }
+ return{token:String(credentials.access_token),email,xapp};
+}
+async function account(db:any,userId:string,force=false){
+ let s=await session(db,userId,force);
+ let r=await apiRequest(`${API_HOST}/api/users/${encodeURIComponent(s.email)}/profile.json`,{method:'GET',headers:legacyMainApiHeaders(s.token,s.email,s.xapp)});
+ if((r.response.status===401||r.response.status===403)&&!force){
+  s=await session(db,userId,true);
+  r=await apiRequest(`${API_HOST}/api/users/${encodeURIComponent(s.email)}/profile.json`,{method:'GET',headers:legacyMainApiHeaders(s.token,s.email,s.xapp)});
+ }
+ if(r.response.status===401||r.response.status===403){
+  await markConnection(db,userId,'kleinanzeigen','needs_login','profile_auth_failed').catch(()=>{});
+  throw Error('needs_login');
+ }
+ if(!r.response.ok){
+  if(r.response.status===429||r.response.status>=500)throw Error('temporary_network_error');
+  throw Error('provider_contract_unverified');
+ }
+ const p=unwrapPayload(r.json),id=scalar(p?.data?.id??p?.id??r.json?.data?.id??r.json?.id??r.json?.value?.id);
+ if(!id)throw Error('provider_contract_unverified');
+ return{...s,id:String(id),authMode:'legacy' as const};
+}
 export async function checkKleinanzeigenConnection(db:any,userId:string){const c=await getConnection(db,userId,'kleinanzeigen');if(!c)return{authenticated:false};try{const a=await account(db,userId);return{authenticated:true,authMode:a.authMode,clientVersion:APP_VERSION}}catch{return{authenticated:false}}}
 function formControls(ui:any){const out:any[]=[];const walk=(v:any)=>{if(!v||typeof v!=='object')return;if(Array.isArray(v)){for(const x of v)walk(x);return}if(v.type==='Control'&&typeof v.scope==='string')out.push(v);for(const x of Object.values(v))if(x&&typeof x==='object')walk(x)};walk(ui);return out}
 function formLabel(ui:any,key:string){const suffix=`/properties/${key}`;return norm(formControls(ui).find((c:any)=>String(c.scope).endsWith(suffix))?.label||key)}
@@ -92,5 +143,62 @@ function messageText(m:any){return norm(m?.message??m?.text??m?.textShort??m?.bo
 function isOutbound(m:any){const d=String(m?.boundness??m?.direction??'').toUpperCase();return d.includes('OUT')||d==='SENT'}
 async function openConversation(acct:any,cid:string){const r=await apiRequest(`${GATEWAY_HOST}/messagebox/api/users/${encodeURIComponent(acct.id)}/conversations/${encodeURIComponent(cid)}?contentWarnings=true`,{method:'PUT',headers:gatewayHeaders(acct.token,acct.xapp)});return r.response.ok?r.json:null}
 async function verifyConversation(acct:any,cid:string,message:string){const wanted=norm(message);for(const delay of[500,900,1600,2600,4200]){await wait(delay);const body=await openConversation(acct,cid);if(messageRows(body).some((m:any)=>isOutbound(m)&&messageText(m)===wanted))return true}return false}
-export async function inspectKleinanzeigenInquiry(input:any){const{db,user,profile,listing,message}=input||{},userId=String(user?.id||''),adId=String(listing?.external_id||listing?.source_listing_key||'').match(/\d{6,20}/)?.[0]||'';if(!userId||!adId||!message)return{ok:false,error:'provider_contract_unverified'};const acct=await account(db,userId),ad=await adLookup(adId,acct.xapp);if(!ad.response.ok)return{ok:false,error:`ad_lookup_${ad.response.status}`};if(adOwnerId(ad.json)&&adOwnerId(ad.json)===acct.id)return{ok:false,error:'self_listing'};const form=await contactForm(acct,adId),prepared=prepareRequiredForm(form,profile,message);return{ok:!prepared.missing.length&&!prepared.unsupported.length,clientVersion:APP_VERSION,authMode:acct.authMode,action:'XCF',categoryId:categoryId(ad.json),requiredFields:prepared.fields,missing:prepared.missing,unsupported:prepared.unsupported,dynamicConfigDetected:true}}
-export async function sendKleinanzeigenApplication(input:any){const{db,user,profile,listing,message,authorize}=input||{},userId=String(user?.id||''),adId=String(listing?.external_id||listing?.source_listing_key||'').match(/\d{6,20}/)?.[0]||'';if(!userId||!adId||!message)return{success:false,status:'manual_required',error:'provider_contract_unverified'};let acct:any;try{acct=await account(db,userId)}catch(e:any){return{success:false,status:'manual_required',error:e?.message==='needs_login'?'needs_login':'provider_contract_unverified'}}const ad=await adLookup(adId,acct.xapp);if(ad.response.status===404)return{success:false,status:'failed',error:'listing_unavailable'};if(!ad.response.ok){if(ad.response.status===429||ad.response.status>=500)throw Error('temporary_network_error');return{success:false,status:'manual_required',error:'provider_contract_unverified'}}const owner=adOwnerId(ad.json);if(owner&&owner===acct.id)return{success:false,status:'failed',error:'self_listing'};let form:any;try{form=await contactFormWithRetry(acct,adId)}catch(e:any){if(e?.message==='temporary_network_error')throw e;return{success:false,status:'manual_required',error:e?.message==='needs_login'?'needs_login':'contact_form_unavailable'}}const prepared=prepareRequiredForm(form,profile,message);if(prepared.unsupported.length)return{success:false,status:'manual_required',error:'required_field_contract_unverified'};if(prepared.missing.length)return{success:false,status:'manual_required',error:'required_profile_data_missing'};if(typeof authorize!=='function'||await authorize()!==true)return{success:false,status:'failed',error:'send_not_authorized'};const url=new URL(`${GATEWAY_HOST}${XCF_PATH(adId)}`),source=dmhSource(listing);if(source)url.searchParams.set('dmh_source',source);const headers:any={...gatewayHeaders(acct.token,acct.xapp,true),'X-EBAYK-WENKSE-SESSION-ID':wenkseSessionId()};const submit=await apiRequest(url.href,{method:'POST',headers,body:JSON.stringify(prepared.payload)});if(submit.response.status===401||submit.response.status===403){await markConnection(db,userId,'kleinanzeigen','needs_login',`xcf_submit_${submit.response.status}`).catch(()=>{});return{success:false,status:'manual_required',error:'needs_login'}}if(!submit.response.ok)return{success:false,status:'manual_required',error:`xcf_submit_${submit.response.status}`};const cid=createdConversationId(submit.json);if(!cid)return{success:false,status:'manual_required',error:'xcf_conversation_id_missing'};if(await verifyConversation(acct,cid,message))return{success:true,status:'sent'};return{success:false,status:'manual_required',error:'xcf_submit_unconfirmed'}}
+export async function inspectKleinanzeigenInquiry(input:any){
+ const{db,user,profile,listing,message}=input||{},userId=String(user?.id||''),adId=String(listing?.external_id||listing?.source_listing_key||'').match(/\d{6,20}/)?.[0]||'';
+ if(!userId||!adId||!message)return{ok:false,error:'provider_contract_unverified'};
+ let acct=await account(db,userId),ad=await adLookup(adId,acct.xapp);
+ if(!ad.response.ok)return{ok:false,error:`ad_lookup_${ad.response.status}`};
+ if(adOwnerId(ad.json)&&adOwnerId(ad.json)===acct.id)return{ok:false,error:'self_listing'};
+ let form:any;
+ try{form=await contactForm(acct,adId)}
+ catch(e:any){
+  if(e?.message!=='needs_login')throw e;
+  acct=await account(db,userId,true);
+  form=await contactForm(acct,adId);
+ }
+ const prepared=prepareRequiredForm(form,profile,message);
+ return{ok:!prepared.missing.length&&!prepared.unsupported.length,clientVersion:APP_VERSION,authMode:acct.authMode,action:'XCF',categoryId:categoryId(ad.json),requiredFields:prepared.fields,missing:prepared.missing,unsupported:prepared.unsupported,dynamicConfigDetected:true};
+}
+export async function sendKleinanzeigenApplication(input:any){
+ const{db,user,profile,listing,message,authorize}=input||{},userId=String(user?.id||''),adId=String(listing?.external_id||listing?.source_listing_key||'').match(/\d{6,20}/)?.[0]||'';
+ if(!userId||!adId||!message)return{success:false,status:'manual_required',error:'provider_contract_unverified'};
+ let acct:any;
+ try{acct=await account(db,userId)}catch(e:any){return{success:false,status:'manual_required',error:e?.message==='needs_login'?'needs_login':'provider_contract_unverified'}}
+ const ad=await adLookup(adId,acct.xapp);
+ if(ad.response.status===404)return{success:false,status:'failed',error:'listing_unavailable'};
+ if(!ad.response.ok){if(ad.response.status===429||ad.response.status>=500)throw Error('temporary_network_error');return{success:false,status:'manual_required',error:'provider_contract_unverified'}}
+ const owner=adOwnerId(ad.json);if(owner&&owner===acct.id)return{success:false,status:'failed',error:'self_listing'};
+ let form:any;
+ try{form=await contactFormWithRetry(acct,adId)}
+ catch(e:any){
+  if(e?.message==='temporary_network_error')throw e;
+  if(e?.message==='needs_login'){
+   try{acct=await account(db,userId,true);form=await contactFormWithRetry(acct,adId)}
+   catch(refreshError:any){return{success:false,status:'manual_required',error:refreshError?.message==='needs_login'?'needs_login':'contact_form_unavailable'}}
+  }else return{success:false,status:'manual_required',error:'contact_form_unavailable'};
+ }
+ const prepared=prepareRequiredForm(form,profile,message);
+ if(prepared.unsupported.length)return{success:false,status:'manual_required',error:'required_field_contract_unverified'};
+ if(prepared.missing.length)return{success:false,status:'manual_required',error:'required_profile_data_missing'};
+ if(typeof authorize!=='function'||await authorize()!==true)return{success:false,status:'failed',error:'send_not_authorized'};
+ const url=new URL(`${GATEWAY_HOST}${XCF_PATH(adId)}`),source=dmhSource(listing);
+ if(source)url.searchParams.set('dmh_source',source);
+ const submitOnce=(current:any)=>apiRequest(url.href,{method:'POST',headers:{...gatewayHeaders(current.token,current.xapp,true),'X-EBAYK-WENKSE-SESSION-ID':wenkseSessionId()},body:JSON.stringify(prepared.payload)});
+ let submit=await submitOnce(acct);
+ if(submit.response.status===401||submit.response.status===403){
+  try{acct=await account(db,userId,true);submit=await submitOnce(acct)}
+  catch{
+   await markConnection(db,userId,'kleinanzeigen','needs_login','xcf_refresh_failed').catch(()=>{});
+   return{success:false,status:'manual_required',error:'needs_login'};
+  }
+ }
+ if(submit.response.status===401||submit.response.status===403){
+  await markConnection(db,userId,'kleinanzeigen','needs_login',`xcf_submit_${submit.response.status}`).catch(()=>{});
+  return{success:false,status:'manual_required',error:'needs_login'};
+ }
+ if(!submit.response.ok)return{success:false,status:'manual_required',error:`xcf_submit_${submit.response.status}`};
+ const cid=createdConversationId(submit.json);
+ if(!cid)return{success:false,status:'manual_required',error:'xcf_conversation_id_missing'};
+ if(await verifyConversation(acct,cid,message))return{success:true,status:'sent'};
+ return{success:false,status:'manual_required',error:'xcf_submit_unconfirmed'};
+}
