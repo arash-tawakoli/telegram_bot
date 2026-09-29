@@ -299,7 +299,7 @@ export function htmlFacts(html: string, base: string): any {
     .replace(/&amp;/gi,'&')
     .replace(/\\u0026/gi,'&');
   const directApplication=linkText.match(/https:\/\/tenant\.immomio\.com\/(?:de\/)?apply\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/?/i)?.[0]||null;
-  const encodedApplication=html.match(/https%3a%2f%2ftenant\.immomio\.com%2f(?:de%2f)?apply%2f[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}%2f?/i)?.[0]||null;
+  const encodedApplication=html.match(/https%3a%2f%2ftenant\.immomio\.com%2f(?:de%2f)?apply%2f[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}(?:%2f)?/i)?.[0]||null;
   let application=directApplication;
   if(!application&&encodedApplication){
     try{application=decodeURIComponent(encodedApplication)}catch{}
