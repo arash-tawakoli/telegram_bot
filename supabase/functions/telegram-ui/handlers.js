@@ -3,6 +3,73 @@ import { isAdmin, adminGrantLabel, adminPremiumNotice, adminUsers, adminUser, se
 import { homeKeyboard, home, premium, saved, setPaused, toggleSave, referralPage, languagePage, settings } from "./navigation.js";
 import { draftFor, validateDraft, renderTypes, renderLocation, renderBoroughs, renderNeighborhoods, renderRent, renderCustomRent, renderRooms, renderArea, renderReview, renderStep, afterSelection, persistProfile, profileLimit, draftFromProfile, startNewProfile, profileEditMenu, profile, renderStatus, nextSizeStep } from "./profiles.js";
 import { db, PREMIUM_LINK, PROPERTY_TYPES, RENT_PRESETS, ROOM_PRESETS, AREA_PRESETS, NEIGHBORHOODS_PER_PAGE, chatLanguages, button, cancelRow, backRow, secret, telegram, send, sendCelebration, edit, acknowledge, saveState, geography, HELP_TEXT } from "./runtime.js";
+
+const PUBLIC_COMMANDS = [
+    { command: "start", description: "Startmenü" },
+    { command: "suche", description: "Suchprofil erstellen" },
+    { command: "profile", description: "Suchprofile anzeigen" },
+    { command: "gespeichert", description: "Gespeicherte Inserate" },
+    { command: "einstellungen", description: "Einstellungen" },
+    { command: "pause", description: "Suche pausieren" },
+    { command: "resume", description: "Suche fortsetzen" },
+    { command: "status", description: "Systemstatus" },
+    { command: "premium", description: "Premium anzeigen" },
+    { command: "hilfe", description: "Hilfe" },
+];
+
+const ADMIN_COMMANDS = [
+    ...PUBLIC_COMMANDS,
+    { command: "admin", description: "Adminbereich" },
+    { command: "announcement", description: "Ankündigung senden" },
+];
+
+async function syncTelegramCommands(user, chatId) {
+    const admin = isAdmin(user);
+    const requests = [
+        telegram("setMyCommands", {
+            commands: PUBLIC_COMMANDS,
+            scope: { type: "default" },
+        }),
+        telegram("setMyCommands", {
+            commands: PUBLIC_COMMANDS,
+            scope: { type: "default" },
+            language_code: "de",
+        }),
+        telegram("setChatMenuButton", {
+            chat_id: chatId,
+            menu_button: { type: "commands" },
+        }),
+    ];
+    if (admin) {
+        requests.push(
+            telegram("setMyCommands", {
+                commands: ADMIN_COMMANDS,
+                scope: { type: "chat", chat_id: chatId },
+            }),
+            telegram("setMyCommands", {
+                commands: ADMIN_COMMANDS,
+                scope: { type: "chat", chat_id: chatId },
+                language_code: "de",
+            }),
+        );
+    }
+    else {
+        requests.push(
+            telegram("deleteMyCommands", {
+                scope: { type: "chat", chat_id: chatId },
+            }),
+            telegram("deleteMyCommands", {
+                scope: { type: "chat", chat_id: chatId },
+                language_code: "de",
+            }),
+        );
+    }
+    const results = await Promise.allSettled(requests);
+    for (const result of results) {
+        if (result.status === "rejected")
+            console.error("telegram_command_sync", String(result.reason));
+    }
+}
 export async function handleMessage(message, user) {
     const chatId = Number(message.chat.id);
     const text = String(message.text || "").trim();
@@ -24,8 +91,8 @@ export async function handleMessage(message, user) {
             input_field_placeholder: "Ankündigung schreiben"
         });
     }
-    if (command === "/start") {
-        if (argument.startsWith("ref_") && user.__is_new_user === true) {
+    if (command === "/start" || command === "/commands") {
+        if (command === "/start" && argument.startsWith("ref_") && user.__is_new_user === true) {
             const { error } = await db.rpc("redeem_referral_code", {
                 p_referred_user_id: user.id,
                 p_code: argument.slice(4),
@@ -33,41 +100,7 @@ export async function handleMessage(message, user) {
             if (error)
                 console.error("referral_register", error.message);
         }
-        const commands = [
-            { command: "start", description: "Startmenü" },
-            { command: "suche", description: "Suchprofil erstellen" },
-            { command: "profile", description: "Suchprofile anzeigen" },
-            { command: "gespeichert", description: "Gespeicherte Inserate" },
-            { command: "einstellungen", description: "Einstellungen" },
-            { command: "pause", description: "Suche pausieren" },
-            { command: "resume", description: "Suche fortsetzen" },
-            { command: "status", description: "Systemstatus" },
-            { command: "premium", description: "Premium anzeigen" },
-            { command: "hilfe", description: "Hilfe" },
-        ];
-        telegram("setMyCommands", {
-            commands,
-            scope: { type: "default" },
-        }).catch(() => { });
-        if (isAdmin(user)) {
-            telegram("setMyCommands", {
-                commands: [
-                    ...commands,
-                    { command: "admin", description: "Adminbereich" },
-                    { command: "announcement", description: "Ankündigung senden" },
-                ],
-                scope: { type: "chat", chat_id: chatId },
-            }).catch(() => { });
-        }
-        else {
-            telegram("deleteMyCommands", {
-                scope: { type: "chat", chat_id: chatId },
-            }).catch(() => { });
-        }
-        telegram("setChatMenuButton", {
-            chat_id: chatId,
-            menu_button: { type: "commands" },
-        }).catch(() => { });
+        await syncTelegramCommands(user, chatId);
         return home(user, chatId);
     }
     if (command === "/suche")
