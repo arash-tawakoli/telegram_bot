@@ -349,6 +349,131 @@ async function dashboardData(a:any,scope='all',input:any={}){
   applications:metrics,providers,documents,connections,waitReasons:waits,attention,recentApplications:applications.slice(0,8)
  };
 }
+
+async function analyticsData(a:any,input:any={}){
+ const section=['applications','participants','market'].includes(String(input.section||''))?String(input.section):'applications';
+ const days=filterDays(input.days);
+ const sourceId=optionalInteger(input.sourceId,1,32767);
+ const providerFilter=safeFilter(input.provider,['immoscout','kleinanzeigen','immomio','immowelt'])||null;
+ const propertyKind=safeFilter(input.propertyKind,['Wohnung','Haus','WG','Tauschwohnung','Sonstiges'])||null;
+
+ if(section==='market'){
+  const{data,error}=await admin.rpc('coach_market_analytics_v1',{p_days:days,p_source_id:sourceId,p_property_kind:propertyKind});
+  if(error)throw Error('market_analytics_failed');
+  return{section,days,market:data||{}};
+ }
+
+ const scope=input.scope==='mine'?'mine':'all';
+ let scoped:any[]=await visibleAssignments(a,scope);
+ if(a.member.role==='admin'&&input.coachMemberId){
+  const coachId=uuid(input.coachMemberId);
+  scoped=scoped.filter(x=>String(x.coach_member_id)===coachId);
+ }
+ const participantOptions=scoped.map(x=>({
+  participantId:x.public_id,
+  name:[x.bot_users?.first_name,x.bot_users?.last_name].filter(Boolean).join(' ')||'Teilnehmer',
+  coachMemberId:x.coach_member_id,
+  coach:x.coach?.display_name||null
+ }));
+ let selected=scoped;
+ if(input.participantId){
+  const pid=participantId(input.participantId);
+  selected=scoped.filter(x=>x.public_id===pid);
+ }
+ const users=selected.map(x=>String(x.user_id));
+
+ const [analyticsResult,readiness,sourceRows,memberRows]=await Promise.all([
+  admin.rpc('coach_analytics_v1',{p_user_ids:users,p_days:days,p_provider:providerFilter,p_source_id:sourceId}),
+  readinessCore(users),
+  admin.from('sources').select('id,name').eq('enabled',true).order('name'),
+  a.member.role==='admin'
+    ?admin.from('coaching_members').select('id,display_name,role,is_active').eq('workspace_id',a.member.workspace_id).eq('is_active',true).order('display_name')
+    :Promise.resolve({data:[],error:null} as any)
+ ]);
+ if(analyticsResult.error)throw Error('analytics_failed');
+ if(sourceRows.error)throw Error('sources_read_failed');
+ if(memberRows.error)throw Error('members_read_failed');
+
+ const raw:any=analyticsResult.data||{};
+ const rawParticipantMap=new Map<string,any>((raw.participants||[]).map((x:any)=>[String(x.userId),x]));
+ const participantRows=selected.map((assignment:any)=>{
+  const metrics=rawParticipantMap.get(String(assignment.user_id))||{applications:0,sent:0,failed:0,manualRequired:0,pending:0,successRate:0,lastApplicationAt:null};
+  const ready=readinessView(readiness.get(String(assignment.user_id)),assignment.status);
+  return{
+   participantId:assignment.public_id,
+   name:[assignment.bot_users?.first_name,assignment.bot_users?.last_name].filter(Boolean).join(' ')||metrics.name||'Teilnehmer',
+   coachMemberId:assignment.coach_member_id,
+   coach:assignment.coach?.display_name||null,
+   status:assignment.status,
+   applications:Number(metrics.applications||0),
+   sent:Number(metrics.sent||0),
+   failed:Number(metrics.failed||0),
+   manualRequired:Number(metrics.manualRequired||0),
+   pending:Number(metrics.pending||0),
+   successRate:Number(metrics.successRate||0),
+   lastApplicationAt:metrics.lastApplicationAt||null,
+   activeSearchCount:Number(ready.activeSearchCount||0),
+   connectedProviders:Array.isArray(ready.connectedProviders)?ready.connectedProviders:[],
+   primaryCode:ready.primaryCode,
+   readinessLabel:ready.label
+  };
+ });
+
+ const readinessCounts=new Map<string,number>();
+ let connectedProviderCount=0,automationActive=0;
+ for(const row of participantRows){
+  readinessCounts.set(row.primaryCode,(readinessCounts.get(row.primaryCode)||0)+1);
+  connectedProviderCount+=row.connectedProviders.length;
+  if(row.primaryCode==='active')automationActive++;
+ }
+ const readinessRows=[...readinessCounts.entries()].map(([code,total])=>({code,label:READINESS_LABELS[code]||code,total})).sort((x,y)=>y.total-x.total);
+
+ const managerRows:any[]=[];
+ if(a.member.role==='admin'){
+  const metricByUser=new Map(selected.map((x:any)=>[String(x.user_id),rawParticipantMap.get(String(x.user_id))||{}]));
+  const grouped=new Map<string,any>();
+  for(const assignment of selected){
+   const key=String(assignment.coach_member_id),metrics=metricByUser.get(String(assignment.user_id))||{},ready=readinessView(readiness.get(String(assignment.user_id)),assignment.status);
+   const row=grouped.get(key)||{memberId:key,name:assignment.coach?.display_name||'–',participants:0,activeParticipants:0,activeSearchProfiles:0,applications:0,sent:0,failed:0,manualRequired:0,openSetupSteps:0};
+   row.participants++;
+   if(assignment.status==='active')row.activeParticipants++;
+   row.activeSearchProfiles+=Number(ready.activeSearchCount||0);
+   row.applications+=Number(metrics.applications||0);
+   row.sent+=Number(metrics.sent||0);
+   row.failed+=Number(metrics.failed||0);
+   row.manualRequired+=Number(metrics.manualRequired||0);
+   if(ready.primaryCode!=='active')row.openSetupSteps++;
+   grouped.set(key,row);
+  }
+  managerRows.push(...[...grouped.values()].sort((x,y)=>y.applications-x.applications||String(x.name).localeCompare(String(y.name),'de')));
+ }
+
+ return{
+  section,days,
+  summary:{
+   ...(raw.summary||{}),
+   visibleParticipants:selected.length,
+   activeParticipants:selected.filter((x:any)=>x.status==='active').length,
+   automationActive,
+   connectedProviders:connectedProviderCount
+  },
+  previous:raw.previous||{},
+  timeline:raw.timeline||[],
+  providers:raw.providers||[],
+  sources:raw.sources||[],
+  documents:raw.documents||[],
+  errors:raw.errors||[],
+  participants:participantRows,
+  readiness:readinessRows,
+  managers:managerRows,
+  searchDemand:raw.searchDemand||{summary:{},propertyTypes:[],boroughs:[],neighborhoods:[]},
+  filters:{
+   participants:participantOptions,
+   managers:(memberRows.data||[]).map((m:any)=>({id:m.id,name:m.display_name,role:publicMemberRole(m.role)})),
+   sources:(sourceRows.data||[]).map((s:any)=>({id:s.id,name:s.name}))
+  }
+ };
+}
 async function importCandidates(a:any,includeUserId=false){
  if(a.member.role!=='admin')throw Error('admin_required');
  const[{data:assigned,error:assignedError},{data:bots,error:botsError}]=await Promise.all([
@@ -395,7 +520,7 @@ async function handle(req:Request){
   if(error)throw Error(error.message||'participant_adopt_failed');
   return{ok:true,participantId:String(data)};
  }
- const assignment=['dashboard','applications','import_candidates','adopt_participant','create_coach','set_coach_active'].includes(action)?null:await assignmentFor(a,participantId(body.participantId),['set_plan','reassign'].includes(action));
+ const assignment=['dashboard','applications','analytics','import_candidates','adopt_participant','create_coach','set_coach_active'].includes(action)?null:await assignmentFor(a,participantId(body.participantId),['set_plan','reassign'].includes(action));
  if(action==='update_profile')return updateProfile(a,assignment,body.profile||{});
  if(action==='save_search')return saveSearch(a,assignment,body.profile||{});
  if(action==='set_search_active'){const id=uuid(body.profileId),userId=assignment.user_id;const{error}=await admin.from('search_profiles').update({is_active:Boolean(body.active),updated_at:new Date().toISOString()}).eq('id',id).eq('user_id',userId);if(error)throw Error('search_update_failed');await audit(a,userId,body.active?'search_profile_resumed':'search_profile_paused',{profile_id:id});return{ok:true};}
@@ -425,6 +550,7 @@ async function handle(req:Request){
   return{applications:rows.slice(start,start+pageSize),total:rows.length,page,pageSize};
  }
  if(action==='dashboard')return dashboardData(a,body.scope==='mine'?'mine':'all',body);
+ if(action==='analytics')return analyticsData(a,body);
  if(action==='create_coach'){if(a.member.role!=='admin')throw Error('admin_required');const e=email(body.email),password=String(body.password||''),requestedRole=String(body.role||'manager');if(!['manager','admin'].includes(requestedRole))throw Error('invalid_member_role');if(password.length<12)throw Error('password_too_short');const{data:created,error}=await admin.auth.admin.createUser({email:e,password,email_confirm:true});if(error||!created.user)throw Error(error?.message||'coach_auth_create_failed');const storedRole=storedMemberRole(requestedRole);const{data:member,error:me}=await admin.from('coaching_members').insert({auth_user_id:created.user.id,workspace_id:a.member.workspace_id,display_name:clean(body.display_name,120)||e,role:storedRole,is_active:true}).select('id,display_name,role').single();if(me){await admin.auth.admin.deleteUser(created.user.id).catch(()=>{});throw Error('coach_member_create_failed');}await audit(a,null,'coach_created',{member_id:member.id,role:requestedRole});return{ok:true,member:{id:member.id,displayName:member.display_name,role:publicMemberRole(member.role)}};}
  if(action==='set_coach_active'){if(a.member.role!=='admin')throw Error('admin_required');const id=uuid(body.memberId);if(id===a.member.id&&!body.active)throw Error('cannot_disable_self');const{error}=await admin.from('coaching_members').update({is_active:Boolean(body.active),updated_at:new Date().toISOString()}).eq('id',id).eq('workspace_id',a.member.workspace_id).eq('role','coach');if(error)throw Error('coach_update_failed');await audit(a,null,'coach_status_changed',{member_id:id,active:Boolean(body.active)});return{ok:true};}
  throw Error('invalid_action');
@@ -433,7 +559,7 @@ function publicError(error:any){const code=String(error?.message||'coach_api_fai
 
 Deno.serve(async req=>{
  if(req.method==='OPTIONS')return new Response(null,{status:204,headers:cors(req)});
- if(req.method==='GET')return json(req,{ok:true,service:'coach-api',version:9});
+ if(req.method==='GET')return json(req,{ok:true,service:'coach-api',version:10});
  if(req.method!=='POST')return new Response('method not allowed',{status:405,headers:cors(req)});
  try{return json(req,await handle(req));}
  catch(error:any){console.error('coach_api',String(error));const code=publicError(error),status=code==='unauthorized'?401:['coach_forbidden','participant_forbidden','admin_required','workspace_unavailable'].includes(code)?403:400;return json(req,{error:code},status);}
