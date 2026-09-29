@@ -20,7 +20,7 @@ test('Telegram and coach start the temporary share flow',()=>{
  assert.match(worker,/action==='login_share'/);
  assert.match(worker,/transport:'telegram-share'/);
  assert.match(telegram,/action:'login_share'/);
- assert.match(telegram,/Telegram → Traumwohnung Hamburg/);
+ assert.match(telegram,/TraumWohnung Hamburg/);
  assert.match(coach,/action:'login_share'/);
  assert.doesNotMatch(telegram,/remote\/kleinanzeigen\/open/);
  assert.doesNotMatch(coach,/remote\/kleinanzeigen\/open/);
