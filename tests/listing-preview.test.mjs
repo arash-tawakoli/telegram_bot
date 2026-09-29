@@ -200,3 +200,43 @@ test('preview normalizer drops every legacy extra and leaves the four requested 
  assert.equal(rows[3][0].callback_data,'platforms');
  assert.equal(rows.flat().some(button=>String(button.callback_data||'').startsWith('apply:')),false);
 });
+
+
+test('tenant Immomio portal links replace only the offer target and label',()=>{
+ const tenant='https://tenant.immomio.com/apply/12345678-1234-1234-1234-123456789012';
+ for(const [source_id,button_label] of [[1,'ImmoScout24.de'],[3,'Immowelt.de']]){
+  const l=listing({applicationLink:tenant,portal_application_target_checked:true},{source_id,sources:{button_label,source_type:'Portal',source_connectors:[]}});
+  const button=scope.kb(l,'de',true).inline_keyboard[0][0];
+  assert.equal(button.url,tenant);
+  assert.equal(button.text,'Zu Immomio');
+ }
+});
+
+test('portal listings without a tenant link retain the original portal fallback',()=>{
+ for(const [source_id,button_label] of [[1,'ImmoScout24.de'],[3,'Immowelt.de']]){
+  const l=listing({portal_application_target_checked:true},{source_id,sources:{button_label,source_type:'Portal',source_connectors:[]}});
+  const button=scope.kb(l,'de',true).inline_keyboard[0][0];
+  assert.equal(button.url,base);
+  assert.equal(button.text,source_id===1?'Zu ImmoScout24':'Zu Immowelt');
+ }
+});
+
+test('checked portal listings do not inherit a tenant link from another SAGA portal',()=>{
+ const tenant='https://tenant.immomio.com/apply/12345678-1234-1234-1234-123456789012';
+ const l=listing(
+  {portal_application_target_checked:true},
+  {source_id:1,sources:{button_label:'ImmoScout24.de',source_type:'Portal',source_connectors:[]},enrichment_evidence:{saga_shared:{verified:true,application_url:tenant}}}
+ );
+ assert.equal(scope.knownFacts(l).applicationLink,undefined);
+ const button=scope.kb(l,'de',true).inline_keyboard[0][0];
+ assert.equal(button.url,base);
+ assert.equal(button.text,'Zu ImmoScout24');
+});
+
+test('portal detail extraction detects escaped and percent-encoded tenant links',()=>{
+ const uuid='12345678-1234-1234-1234-123456789012';
+ const escaped=facts.htmlFacts('<script>var x="https:\\u003A\\u002F\\u002Ftenant.immomio.com\\u002Fapply\\u002F'+uuid+'"</script>',base);
+ assert.equal(escaped.applicationLink,'https://tenant.immomio.com/apply/'+uuid);
+ const encoded=facts.htmlFacts('<div data-url="https%3A%2F%2Ftenant.immomio.com%2Fapply%2F'+uuid+'"></div>',base);
+ assert.equal(encoded.applicationLink,'https://tenant.immomio.com/apply/'+uuid);
+});
