@@ -20,6 +20,7 @@ function worker({authorized=true,failAfterAuthorization=false,premium=true,provi
   };return q;
  }};
  const scope={createClient:()=>db,Deno:{env:{get:()=>undefined},serve:()=>{}},createProfileToken:async()=>'',handleProfilePage:async()=>{},beginKleinanzeigenLogin:async()=>{},completeKleinanzeigenLogin:async()=>{},completeKleinanzeigenCallback:async()=>{},checkKleinanzeigenConnection:async()=>{},disconnectKleinanzeigen:async()=>{},inspectKleinanzeigenInquiry:async()=>{},checkImmoScoutConnection:async()=>{},disconnectImmoScout:async()=>{},beginImmomioLogin:async()=>{},completeImmomioLogin:async()=>{},checkImmomioConnection:async()=>{},disconnectImmomio:async()=>{},inspectImmomioAccountApplication:async()=>{},markConnection:async()=>{},
+  applicationMessageFor:()=>({field:'message_apartment',message:'Hallo'}),providerAttachmentCapability:()=>({supported:false}),profileAdapterSelfTest:()=>({ok:true}),probeImmomioApplication:async()=>({}),checkImmoweltConnection:async()=>{},disconnectImmowelt:async()=>{},
   providerForListing:()=>provider,sendApplication:async(_provider,{authorize})=>{events.push('provider_prepare');const permitted=await authorize();if(!permitted)return {success:false,status:'failed',error:'not_eligible'};events.push('send');if(failAfterAuthorization)throw Object.assign(Error('timeout'),{name:'TimeoutError'});return providerResult??{success:true,status:'sent'};},fetch:async()=>({}),AbortSignal,URL,Response,JSON,crypto,Date,setTimeout,clearTimeout,console};
  vm.runInNewContext(source,scope);return {...scope,writes,events};
 }
