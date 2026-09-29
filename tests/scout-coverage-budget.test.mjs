@@ -13,10 +13,10 @@ test('Scout keeps all fresh calls, limits coverage to one and avoids overwriting
  const fetch=async(_url,options)=>{const payload=JSON.parse(options.body);calls.push(payload);if(payload.method!=='tools/call')return new Response('{}');const entry={id:'same-offer',title:'Wohnung',address:{city:'Hamburg',postcode:'20095'},price:{value:650},totalRent:750};return new Response(JSON.stringify({result:{structuredContent:{entries:[entry],total:1}}}))};
  const api=vm.runInNewContext(stripTypeScriptTypes(source)+';({runScout})',{db,fetch,crypto:webcrypto,AbortSignal,Response,Date,UA:'audit-test',deNum:x=>x==null?null:Number(x),iso:()=>new Date().toISOString(),markSuccess:async(...args)=>{telemetry=args[5]},markFailure:async(_,__,e)=>{throw e},coverageTimestampProof:()=>null,upsertCandidates:async(_s,rows,fresh)=>{if(!rows.length)return{seen:0,fresh:0,keys:[]};writes.push({rows,fresh});return{seen:rows.length,fresh:0,keys:[]}}});
  await api.runScout({id:1,last_success_at:new Date().toISOString()});
- assert.equal(calls.length,10); // two handshake + six fresh + two coverage
+ assert.equal(calls.length,15); // two handshake + global Search/Map + borough Search/Map + remaining borough Map + one coverage Search/Map
  const toolCalls=calls.filter(x=>x.method==='tools/call');
- assert.equal(toolCalls.filter(x=>x.params.arguments.query.includes('neueste Inserate')).length,6);
- assert.equal(telemetry.coverage_partitions,1);assert.equal(telemetry.requests,10);
+ assert.equal(toolCalls.filter(x=>x.params.arguments.query.includes('neueste Inserate')).length,11);
+ assert.equal(telemetry.coverage_partitions,1);assert.equal(telemetry.requests,15);
  assert.equal(writes.length,1); // empty duplicate coverage batches are no-op in upsertCandidates
  assert.ok(writes[0].fresh);assert.ok(writes[0].rows.some(row=>row.key==='same-offer'));
 });
