@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {existsSync,readFileSync} from 'node:fs';
 import {previewOperations} from '../supabase/functions/notification-dispatcher/preview-delivery.ts';
 
-test('listing preview stacks the four requested actions in exact order',()=>{
+test('listing preview stacks offer, save and map without a listing-level AutoApply button',()=>{
   const keyboard={inline_keyboard:[
     [{text:'Angebot',url:'https://example.com/listing/1'}],
     [{text:'Google Map',url:'https://www.google.com/maps/search/?api=1&query=Hamburg'}],
@@ -13,9 +13,9 @@ test('listing preview stacks the four requested actions in exact order',()=>{
   const op=previewOperations([],'📍 Adresse: Hamburg',keyboard)[0];
   const rows=op.body.reply_markup.inline_keyboard;
   assert.deepEqual(rows.map(row=>row.map(button=>button.text)),[
-    ['Angebot'],['Speichern'],['Google Map'],['Auto-Bewerbung'],
+    ['Angebot'],['Speichern'],['Google Map'],
   ]);
-  assert.equal(rows[3][0].callback_data,'platforms');
+  assert.equal(rows.flat().some(button=>/Auto-Bewerbung|Auto-apply/i.test(String(button.text||''))),false);
 });
 
 test('dispatcher no longer creates a manual quick-application action',()=>{
@@ -23,7 +23,7 @@ test('dispatcher no longer creates a manual quick-application action',()=>{
   const delivery=readFileSync(new URL('../supabase/functions/notification-dispatcher/preview-delivery.ts',import.meta.url),'utf8');
   assert.doesNotMatch(dispatcher,/quickApplyButton|application-message\.js|Schnellbewerbung|callback_data:\s*[`'"]apply:/);
   assert.doesNotMatch(delivery,/startsWith\(['"]apply:|Schnellbewerbung/);
-  assert.match(dispatcher,/callback_data:`platforms:preview:\$\{l\.id\}`/);
+  assert.doesNotMatch(dispatcher,/callback_data:`platforms:preview:\$\{l\.id\}`/);
 });
 
 test('legacy one-click application modules and callback handlers are removed',()=>{
