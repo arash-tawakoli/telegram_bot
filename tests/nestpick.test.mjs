@@ -18,8 +18,10 @@ test('Nestpick duplicate pages are partial and malformed or moving snapshots fai
  const r=await load().collectNestpick(async n=>n===1?page(n,[1,2]):page(n,[2]));
  assert.equal(r.enumerated,2);assert.equal(r.complete,false);
  assert.throws(()=>load().parseNestpickPage(page(1,[1]),1),/truncated/);
- await assert.rejects(load().collectNestpick(async n=>n===1?page(n,[1,2]):page(n,[3,4],4)),/changed/);
- await assert.rejects(load().collectNestpick(async n=>{if(n===2)throw Error('timeout');return page(n,[1,2]);}),/timeout/);
+ const moving=await load().collectNestpick(async n=>n===1?page(n,[1,2]):page(n,[3,4],4));
+ assert.equal(moving.complete,false);assert.match(moving.errors[0].error,/changed/);
+ const timed=await load().collectNestpick(async n=>{if(n===2)throw Error('timeout');return page(n,[1,2]);});
+ assert.equal(timed.complete,false);assert.match(timed.errors[0].error,/timeout/);
 });
 test('Nestpick never converts advertised prices or bedrooms into verified rent or rooms',()=>{
  const r=load().parseNestpickPage(page(1,[1],1),1).candidates[0];
