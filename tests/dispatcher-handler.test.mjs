@@ -17,6 +17,7 @@ test('dispatcher processes a queued event using its lease UUID, not the profile 
   vm.runInNewContext(handlerSource, {
     Deno: { serve(fn) { handler = fn; } }, crypto: { randomUUID: () => leaseOwner }, Response, Date, Map, Set, Number, String, console,
     db, sec: async name => name === 'internal_worker_secret' ? 'test-secret' : 'test-token',
+    probeSagaRecoveryCandidate:async()=>({checked:0}),hydrateSagaListing:async listing=>({listing,meta:{isSaga:false,ref:null,application:null},status:'not_saga',record:null}),sagaAlreadyReceived:async()=>false,syncApplicationStatus:async()=>({ok:true}),
     recoverDeliveries: async () => {}, waitForDispatchSlot: async (_db, owner) => { assert.equal(owner, leaseOwner); return true; },
     claimDelivery: async () => ({ id: 'event', attempt: 1 }), finishDelivery: async (_db, _lease, result) => finishes.push(result),
     premium: owner => { assert.equal(owner, profileOwner); return false; }, deliveryNewness:()=>({ok:true,reason:"qualified"}), deliveryNewnessCheck:()=>({ok:true,reason:"qualified"}), knownFacts:()=>({published_text:null}), enrich: async listing => ({...listing,_availability:"online"}),
@@ -38,7 +39,7 @@ test('idle dispatcher skips token and subscription reads but still recovers leas
  const db={from(name){calls.push(name);return name==='user_subscriptions'?{select:async()=>({data:[],error:null})}:query},rpc:async name=>{calls.push(name);return {data:true,error:null}}};
  vm.runInNewContext(stripTypeScriptTypes(source.slice(source.indexOf('Deno.serve('))),{
  Deno:{serve(fn){handler=fn}},crypto:{randomUUID:()=> 'lease'},Response,Date,Map,Set,Number,String,console,db,
- sec:async name=>{calls.push(name);return 'test'},recoverDeliveries:async()=>{calls.push('recover')}
+ sec:async name=>{calls.push(name);return 'test'},probeSagaRecoveryCandidate:async()=>({checked:0}),hydrateSagaListing:async listing=>({listing,meta:{isSaga:false,ref:null,application:null},status:'not_saga',record:null}),sagaAlreadyReceived:async()=>false,syncApplicationStatus:async()=>({ok:true}),recoverDeliveries:async()=>{calls.push('recover')}
  });
  const response=await handler(new Request('https://test',{method:'POST',headers:{'x-internal-secret':'test'},body:'{}'}));
  assert.equal(response.status,200);assert.deepEqual((await response.json()).totals,{sent:0,failed:0,skipped:0});
@@ -59,6 +60,7 @@ test('unknown availability is retried without sending a message', async () => {
   vm.runInNewContext(handlerSource, {
     Deno: { serve(fn) { handler = fn; } }, crypto: { randomUUID: () => leaseOwner }, Response, Date, Map, Set, Number, String, console,
     db, sec: async name => name === 'internal_worker_secret' ? 'test-secret' : 'test-token',
+    probeSagaRecoveryCandidate:async()=>({checked:0}),hydrateSagaListing:async listing=>({listing,meta:{isSaga:false,ref:null,application:null},status:'not_saga',record:null}),sagaAlreadyReceived:async()=>false,syncApplicationStatus:async()=>({ok:true}),
     recoverDeliveries: async () => {}, waitForDispatchSlot: async (_db, owner) => { assert.equal(owner, leaseOwner); return true; },
     claimDelivery: async () => ({ id: 'event', attempt: 1 }), finishDelivery: async (_db, _lease, result) => finishes.push(result),
     premium: owner => { assert.equal(owner, profileOwner); return false; }, deliveryNewness:()=>({ok:true,reason:"qualified"}), deliveryNewnessCheck:()=>({ok:true,reason:"qualified"}), knownFacts:()=>({published_text:null}), enrich: async listing => ({...listing,_availability:"unknown"}),
