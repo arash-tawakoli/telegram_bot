@@ -4,14 +4,19 @@ import {readFileSync} from 'node:fs';
 
 const coach=readFileSync(new URL('../supabase/functions/coach-api/index.ts',import.meta.url),'utf8');
 const readiness=readFileSync(new URL('../supabase/migrations/20260922131726_coach_portal_readiness_and_adoption.sql',import.meta.url),'utf8');
+const providerReadiness=readFileSync(new URL('../supabase/migrations/20260925102900_coach_provider_specific_profile_readiness.sql',import.meta.url),'utf8');
+const portalProfile=readFileSync(new URL('../supabase/migrations/20260926231436_portal_specific_profile_readiness_20260926231006.sql',import.meta.url),'utf8');
+const parity=readFileSync(new URL('../supabase/migrations/20260929002703_sync_coach_portal_telegram_parity.sql',import.meta.url),'utf8');
 const creation=readFileSync(new URL('../supabase/migrations/20260922131850_fix_coach_create_participant_public_id.sql',import.meta.url),'utf8');
 const activeSearch=readFileSync(new URL('../supabase/migrations/20260922134125_recheck_active_search_before_autoapply.sql',import.meta.url),'utf8');
 
-test('coach portal readiness uses canonical premium and profile predicates',()=>{
+test('coach portal readiness uses canonical premium and current identity predicates',()=>{
   assert.match(readiness,/app_private\.user_is_premium/);
-  assert.match(readiness,/app_private\.applicant_profile_complete/);
+  assert.match(providerReadiness,/applicant_profile_identity_ready/);
+  assert.match(portalProfile,/return array\['Vorname','Nachname'\]/);
   assert.match(coach,/coach_readiness_core/);
-  assert.match(coach,/readinessView/);
+  assert.match(coach,/providerStaticMissing/);
+  assert.match(coach,/providerProfileReadiness/);
 });
 
 test('coach portal exposes analytics and application/document detail without duplicating queue logic',()=>{
@@ -41,4 +46,13 @@ test('AutoApply rechecks the current active search before final submission',()=>
   assert.match(activeSearch,/app_private\.matches_property_filters/);
   assert.match(activeSearch,/begin_application_submission/);
   assert.match(activeSearch,/app_private\.user_listing_matches_active_search\(u\.id,l\.id\)/);
+});
+
+
+test('new coaching participants use the same minimal global profile basis as Telegram',()=>{
+  assert.match(parity,/alter column phone drop not null/);
+  assert.match(parity,/nullif\(btrim\(p_first_name\),''\) is null/);
+  assert.match(parity,/nullif\(btrim\(p_last_name\),''\) is null/);
+  assert.match(coach,/optionalEmail\(body\.email\)/);
+  assert.match(coach,/if\(!row\.first_name\|\|!row\.last_name\)/);
 });
