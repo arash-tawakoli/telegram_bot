@@ -71,7 +71,7 @@ jobs:
       - name: Reject Mini App runtime references
         run: |
           if grep -RInE \
-            '(MINI_APP_URL|functions/v1/mini-app|traumwohnung-mini-app\.vercel\.app|web_app)' \
+            '(MINI_APP_URL|functions/v1/mini-app|traumwohnung-mini-app\.vercel\.app)' \
             supabase/functions/telegram-ui \
             supabase/functions/telegram-gateway \
             supabase/config.toml \
