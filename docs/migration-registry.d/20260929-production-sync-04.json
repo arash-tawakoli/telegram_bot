@@ -1,0 +1,92 @@
+{
+  "migrations": [
+    {
+      "version": "20260923183139",
+      "name": "unified_applicant_profile_and_messages",
+      "file": "supabase/migrations/20260923183139_unified_applicant_profile_and_messages.sql",
+      "registry_sql_sha256": "7ef559e1478965277455fd158d60a7218f361c97184be834e0b0bab96c298a93",
+      "export_sql_sha256": "7ef559e1478965277455fd158d60a7218f361c97184be834e0b0bab96c298a93",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260923201050",
+      "name": "immoscout_profile_choice_fields",
+      "file": "supabase/migrations/20260923201050_immoscout_profile_choice_fields.sql",
+      "registry_sql_sha256": "e12c82a2c77da67348afafabcfc91c2a5942611b2b524164d6b7d9a6d0b51391",
+      "export_sql_sha256": "e12c82a2c77da67348afafabcfc91c2a5942611b2b524164d6b7d9a6d0b51391",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260923203923",
+      "name": "telegram_admin_announcements",
+      "file": "supabase/migrations/20260923203923_telegram_admin_announcements.sql",
+      "registry_sql_sha256": "0798b121667fb3943d2dbf29a041e8a7bbab4d3a164e5c6384bd7131386350b8",
+      "export_sql_sha256": "0798b121667fb3943d2dbf29a041e8a7bbab4d3a164e5c6384bd7131386350b8",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260923223951",
+      "name": "saga_portal_recovery_v1",
+      "file": "supabase/migrations/20260923223951_saga_portal_recovery_v1.sql",
+      "registry_sql_sha256": "9ad147cc6ed9c4068e67721103bfee72acb835444d0ec4468fec63135c4eb57c",
+      "export_sql_sha256": "9ad147cc6ed9c4068e67721103bfee72acb835444d0ec4468fec63135c4eb57c",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260924040141",
+      "name": "saga_recovery_fail_closed_v1",
+      "file": "supabase/migrations/20260924040141_saga_recovery_fail_closed_v1.sql",
+      "registry_sql_sha256": "950cfab2d7bcc17bc4a5bebb81bbda1b414dde2abbf302ea9242ab0e70646f26",
+      "export_sql_sha256": "950cfab2d7bcc17bc4a5bebb81bbda1b414dde2abbf302ea9242ab0e70646f26",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260924041332",
+      "name": "saga_verified_application_link_sharing_v1",
+      "file": "supabase/migrations/20260924041332_saga_verified_application_link_sharing_v1.sql",
+      "registry_sql_sha256": "c2592ec6371e06381f5bde44378c24c18d77cd868f50d37f7935029f9a69d2c1",
+      "export_sql_sha256": "c2592ec6371e06381f5bde44378c24c18d77cd868f50d37f7935029f9a69d2c1",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260924041528",
+      "name": "saga_preserve_portal_application_links_v1",
+      "file": "supabase/migrations/20260924041528_saga_preserve_portal_application_links_v1.sql",
+      "registry_sql_sha256": "ef81348a3ee383a3c7f3844708179dff73c84fdd3557133174940861c18be9b8",
+      "export_sql_sha256": "ef81348a3ee383a3c7f3844708179dff73c84fdd3557133174940861c18be9b8",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260924041703",
+      "name": "saga_dedupe_prefer_delivery_eligible_v1",
+      "file": "supabase/migrations/20260924041703_saga_dedupe_prefer_delivery_eligible_v1.sql",
+      "registry_sql_sha256": "8a5560eff091c91e29936cb5394381be4053b0a4d1ab6eb6bb148f4d7f226423",
+      "export_sql_sha256": "8a5560eff091c91e29936cb5394381be4053b0a4d1ab6eb6bb148f4d7f226423",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260924044619",
+      "name": "cooperative_portal_coverage_v1c",
+      "file": "supabase/migrations/20260924044619_cooperative_portal_coverage_v1c.sql",
+      "registry_sql_sha256": "a02964a91ded8d9f6771a0c7433843a7a0adda82882f43ac01070d28246c19aa",
+      "export_sql_sha256": "a02964a91ded8d9f6771a0c7433843a7a0adda82882f43ac01070d28246c19aa",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260924045210",
+      "name": "promote_gewoba_keep_neue_luebecker_shadow_v1",
+      "file": "supabase/migrations/20260924045210_promote_gewoba_keep_neue_luebecker_shadow_v1.sql",
+      "registry_sql_sha256": "eb55f78a9894d66258dff2801e9ec48d88cadfc230594e374c9780e4d04858a6",
+      "export_sql_sha256": "eb55f78a9894d66258dff2801e9ec48d88cadfc230594e374c9780e4d04858a6",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260924121121",
+      "name": "phase1_cooperative_source_hierarchy_v1",
+      "file": "supabase/migrations/20260924121121_phase1_cooperative_source_hierarchy_v1.sql",
+      "registry_sql_sha256": "5907b4ac17a88ffc18751bc0454aeb062adcdc11e6c259b3e81c2f8b8f39e9db",
+      "export_sql_sha256": "5907b4ac17a88ffc18751bc0454aeb062adcdc11e6c259b3e81c2f8b8f39e9db",
+      "vault_substitution": false
+    }
+  ]
+}
