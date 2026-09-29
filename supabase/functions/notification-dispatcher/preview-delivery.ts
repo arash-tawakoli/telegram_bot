@@ -33,8 +33,7 @@ function listingKeyboard(keyboard:any,caption:string) {
   const locationLine=caption.split('\n').map(clean).reverse().find(line=>line.startsWith('📍'));
   const location=(locationLine||'').replace(/^📍\s*(?:[^:]+:\s*)?/,'').trim()||'Hamburg';
   const maps=mapRow||[{text:'🗺️ Google Map',url:`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`}];
-  const autoApply=autoApplyRow||[{text:'⚡ Auto-Bewerbung • inaktiv',callback_data:'platforms'}];
-  return {...keyboard,inline_keyboard:[offer,save,maps,autoApply]};
+  return {...keyboard,inline_keyboard:[offer,save,maps]};
 }
 export function previewOperations(images:string[],caption:string,keyboard:any) {
   keyboard=listingKeyboard(keyboard,caption);
