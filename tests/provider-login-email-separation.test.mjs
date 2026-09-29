@@ -5,8 +5,9 @@ import {readFileSync} from 'node:fs';
 const broker=readFileSync(new URL('../supabase/functions/auth-facade-broker/index.ts',import.meta.url),'utf8');
 
 test('provider login email is independent from applicant profile email',()=>{
-  assert.match(broker,/async function accountHint\(flow:any\).*account_hint/s);
-  assert.doesNotMatch(broker,/accountHint\(flow:any\).*profileEmail/s);
+  const accountHint=broker.match(/async function accountHint\(flow:any\)\{[^\n]+\}/)?.[0]||'';
+  assert.match(accountHint,/account_hint/);
+  assert.doesNotMatch(accountHint,/profileEmail|applicant_profiles/);
   assert.match(broker,/async function immomioUrl\(flow:any,codeChallenge:string,emailValue:any\)/);
   assert.match(broker,/provider_email_required/);
   assert.match(broker,/providerWeb\(body\.ticket,body\.email\)/);
