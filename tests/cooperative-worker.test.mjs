@@ -27,7 +27,7 @@ function worker({authorization=true,probeReady=true,throwAfterSend=false,probeTa
 }
 await test('worker sends only with matching probe identity and scoped lease authorization',async()=>{
  const w=worker();assert.equal((await w.processOne()).status,'sent');
- assert.deepEqual(w.calls.map(x=>x.name).filter(n=>n!=='get_bot_secret'),['claim_immomio_application','probe','authorize_immomio_application_send','send_authorized']);
+ assert.deepEqual(w.calls.map(x=>x.name).filter(n=>n!=='get_bot_secret'),['claim_immomio_application','probe','authorize_immomio_application_send','send_authorized','sync_application_status']);
  const send=w.calls.find(x=>x.name==='send_authorized').args;
  assert.equal(send.applicationId,'app');assert.equal(send.leaseToken,'lease');assert.equal(send.sourceIdentifier,target);assert.equal(send.userId,'user');
 });
