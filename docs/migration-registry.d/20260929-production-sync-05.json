@@ -1,0 +1,92 @@
+{
+  "migrations": [
+    {
+      "version": "20260924122127",
+      "name": "phase2_cooperative_portal_fallback_shadow_v1",
+      "file": "supabase/migrations/20260924122127_phase2_cooperative_portal_fallback_shadow_v1.sql",
+      "registry_sql_sha256": "c37152b67094ffd50a34a6771f6bcb1415f1d31da5b49d63f4556b9462169171",
+      "export_sql_sha256": "c37152b67094ffd50a34a6771f6bcb1415f1d31da5b49d63f4556b9462169171",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260924122243",
+      "name": "phase2_disable_blocked_provider_profile_polling_v1",
+      "file": "supabase/migrations/20260924122243_phase2_disable_blocked_provider_profile_polling_v1.sql",
+      "registry_sql_sha256": "7326838a2e1b909536d0c8787cb5546e5531dea3e24c7799482b8352243466a4",
+      "export_sql_sha256": "7326838a2e1b909536d0c8787cb5546e5531dea3e24c7799482b8352243466a4",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260924123334",
+      "name": "phase3_passive_cooperative_registry_v1",
+      "file": "supabase/migrations/20260924123334_phase3_passive_cooperative_registry_v1.sql",
+      "registry_sql_sha256": "6901aa0e4e3b406907f3f02dd4c3b6c19976cfb804c8f526fcfa2b9f97a530f9",
+      "export_sql_sha256": "6901aa0e4e3b406907f3f02dd4c3b6c19976cfb804c8f526fcfa2b9f97a530f9",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260924123721",
+      "name": "phase3_passive_cooperative_discovery_view_v1",
+      "file": "supabase/migrations/20260924123721_phase3_passive_cooperative_discovery_view_v1.sql",
+      "registry_sql_sha256": "abba5a7044fd5784a1a810de44510c46c04e664b6a8440fed1f6f2a4e37a9bdf",
+      "export_sql_sha256": "abba5a7044fd5784a1a810de44510c46c04e664b6a8440fed1f6f2a4e37a9bdf",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260924125626",
+      "name": "phase3_cooperative_provider_registry_v1b",
+      "file": "supabase/migrations/20260924125626_phase3_cooperative_provider_registry_v1b.sql",
+      "registry_sql_sha256": "bb6ff574e7cdc418f246b4ffb3371b42bf63d03537d38c68e0499906a4bf1108",
+      "export_sql_sha256": "bb6ff574e7cdc418f246b4ffb3371b42bf63d03537d38c68e0499906a4bf1108",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260924125749",
+      "name": "phase3_cooperative_discovery_view_v1",
+      "file": "supabase/migrations/20260924125749_phase3_cooperative_discovery_view_v1.sql",
+      "registry_sql_sha256": "2d4f8f423ba7446520fb3f3bfa0bf784d36b88bd0a9cb1f6e135ede4806e511a",
+      "export_sql_sha256": "2d4f8f423ba7446520fb3f3bfa0bf784d36b88bd0a9cb1f6e135ede4806e511a",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260924134745",
+      "name": "activate_portal_backed_cooperative_sources_v1",
+      "file": "supabase/migrations/20260924134745_activate_portal_backed_cooperative_sources_v1.sql",
+      "registry_sql_sha256": "37bccf73f1f3d819623e54cfc036dba0bb7d2e54e24ae9f5e3ae2229bd2e3e83",
+      "export_sql_sha256": "37bccf73f1f3d819623e54cfc036dba0bb7d2e54e24ae9f5e3ae2229bd2e3e83",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260924163003",
+      "name": "immomio_safe_presubmit_retry_v1",
+      "file": "supabase/migrations/20260924163003_immomio_safe_presubmit_retry_v1.sql",
+      "registry_sql_sha256": "06a41241487bdebe7c7c1c986f2780374c04fb4ab61eb0b9509295530814f3f4",
+      "export_sql_sha256": "06a41241487bdebe7c7c1c986f2780374c04fb4ab61eb0b9509295530814f3f4",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260924180828",
+      "name": "add_immowelt_account_provider_v1",
+      "file": "supabase/migrations/20260924180828_add_immowelt_account_provider_v1.sql",
+      "registry_sql_sha256": "8ced85dd3f8b05cbdb79c9526333895734864079313b143f31e8b8f28281491b",
+      "export_sql_sha256": "8ced85dd3f8b05cbdb79c9526333895734864079313b143f31e8b8f28281491b",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260924181237",
+      "name": "immowelt_readiness_v1",
+      "file": "supabase/migrations/20260924181237_immowelt_readiness_v1.sql",
+      "registry_sql_sha256": "83fd125793b08ce637e490e04dc06e1dda73e0a1eeed50defb22e3e86ed1d55a",
+      "export_sql_sha256": "83fd125793b08ce637e490e04dc06e1dda73e0a1eeed50defb22e3e86ed1d55a",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260925101721",
+      "name": "canonical_application_profile_adapters",
+      "file": "supabase/migrations/20260925101721_canonical_application_profile_adapters.sql",
+      "registry_sql_sha256": "4e46b12f40eb5065080c85ad5b28b27e7dc42ba846cc9eb7dd415b47b8340e42",
+      "export_sql_sha256": "4e46b12f40eb5065080c85ad5b28b27e7dc42ba846cc9eb7dd415b47b8340e42",
+      "vault_substitution": false
+    }
+  ]
+}
