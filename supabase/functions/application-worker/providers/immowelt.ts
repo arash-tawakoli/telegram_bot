@@ -1,5 +1,5 @@
 import {getConnection,saveConnection,markConnection,deleteConnection,recordRefreshResult} from '../credentials.ts';
-import {providerStaticMissing,providerSalutation,providerHousehold,providerEmployment,providerIncome,providerMoveIn,providerPets} from '../../_shared/application-profile-adapters.ts';
+import {providerStaticMissing,providerSalutation,providerHousehold,providerEmployment,providerIncome,providerMoveIn,providerPets,providerEnumCandidates} from '../../_shared/application-profile-adapters.ts';
 
 const PROVIDER='immowelt';
 
@@ -142,7 +142,44 @@ function immoweltResponseDiagnostic(status:number,text:string){
  return{httpStatus:status,classification,code:code||null,message:message||null,responsePresent:!!String(text||'')};
 }
 
-function immoweltContactCodes(profile:any){
+function immoweltOptionNorm(value:any){
+ return String(value??'').toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/ß/g,'ss')
+  .replace(/&euro;|€/g,' euro ').replace(/&nbsp;|&#160;/g,' ').replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim();
+}
+function decodeImmoweltEmbeddedText(value:any){
+ return String(value??'')
+  .replace(/&quot;|&#34;|&#x22;/gi,'"').replace(/&#39;|&#x27;|&apos;/gi,"'")
+  .replace(/&amp;/gi,'&').replace(/&lt;/gi,'<').replace(/&gt;/gi,'>')
+  .replace(/\\u0022/gi,'"').replace(/\\u0027/gi,"'").replace(/\\u003c/gi,'<').replace(/\\u003e/gi,'>').replace(/\\u0026/gi,'&');
+}
+function immoweltOptionPairs(value:any){
+ const text=decodeImmoweltEmbeddedText(value),pairs:any[]=[];
+ const add=(label:any,optionValue:any,source:string)=>{
+  const l=String(label??'').trim(),v=String(optionValue??'').trim();
+  if(!l||!v||l.length>180||v.length>120)return;
+  const key=immoweltOptionNorm(l);if(!key)return;
+  pairs.push({label:l,value:v,key,source});
+ };
+ const forward=/"(?:label|name|text|title|displayName|displayValue)"\s*:\s*"([^"]{1,180})"[^{}]{0,260}"(?:value|id|key|code)"\s*:\s*(?:"([^"]{1,120})"|([0-9]{1,12}))/gi;
+ const reverse=/"(?:value|id|key|code)"\s*:\s*(?:"([^"]{1,120})"|([0-9]{1,12}))[^{}]{0,260}"(?:label|name|text|title|displayName|displayValue)"\s*:\s*"([^"]{1,180})"/gi;
+ const option=/<option[^>]*\bvalue=["']([^"']{1,120})["'][^>]*>([^<]{1,180})<\/option>/gi;
+ const compact=/"([0-9]{1,3})"\s*:\s*"([^"]{2,180})"/g;
+ let m:RegExpExecArray|null;
+ while((m=forward.exec(text)))add(m[1],m[2]??m[3],'json-forward');
+ while((m=reverse.exec(text)))add(m[3],m[1]??m[2],'json-reverse');
+ while((m=option.exec(text)))add(m[2],m[1],'html-option');
+ while((m=compact.exec(text)))add(m[2],m[1],'numeric-map');
+ const seen=new Set<string>();
+ return pairs.filter((row:any)=>{const k=row.key+'\u0000'+row.value;if(seen.has(k))return false;seen.add(k);return true;});
+}
+function immoweltDynamicOption(pairs:any[],candidates:string[]){
+ const wanted=[...new Set((Array.isArray(candidates)?candidates:[]).map(immoweltOptionNorm).filter(Boolean))];
+ if(!wanted.length)return null;
+ let row=pairs.find((p:any)=>wanted.includes(p.key));
+ if(!row)row=pairs.find((p:any)=>wanted.some((w:string)=>w.length>=6&&p.key.length>=6&&(p.key.includes(w)||w.includes(p.key))));
+ return row?{value:String(row.value),label:String(row.label),source:String(row.source)}:null;
+}
+function immoweltLegacyKnownCodes(profile:any){
  const salutation=providerSalutation('immowelt',profile?.salutation);
  const household=providerHousehold('immowelt',profile?.household_type);
  const employment=providerEmployment('immowelt',profile?.employment_status);
@@ -156,15 +193,81 @@ function immoweltContactCodes(profile:any){
   '4.000 € - 5.000 €':'5','5.000 € - 6.000 €':'6','6.000 € - 7.000 €':'7','> 7.000 €':'8'
  };
  const moveInCode:Record<string,string>={'So bald wie möglich':'1','<1 Monat':'2','<3 Monate':'3','>3 Monate':'4'};
- const codes={
-  salutation:salutationCode[String(salutation||'')],
-  householdType:householdCode[String(household||'')],
-  workStatus:employmentCode[String(employment||'')],
-  netMonthlyIncome:incomeCode[String(income||'')],
-  preferredMoveInDate:moveInCode[String(moveIn||'')]
+ return{
+  salutation:salutationCode[String(salutation||'')]||null,
+  householdType:householdCode[String(household||'')]||null,
+  workStatus:employmentCode[String(employment||'')]||null,
+  netMonthlyIncome:incomeCode[String(income||'')]||null,
+  preferredMoveInDate:moveInCode[String(moveIn||'')]||null
  };
- return Object.values(codes).every(Boolean)?codes:null;
 }
+function immoweltClassifiedIdFromText(value:any,fallback:string){
+ const text=decodeImmoweltEmbeddedText(value),counts=new Map<string,number>();
+ const patterns=[
+  /["'](?:classifiedId|classifiedID|classified_id|classified-id)["']\s*[:=]\s*["']([A-Za-z0-9_-]{4,120})["']/gi,
+  /\bclassifiedId=([A-Za-z0-9_-]{4,120})\b/gi
+ ];
+ for(const re of patterns){let m:RegExpExecArray|null;while((m=re.exec(text))){const id=String(m[1]||'').trim();if(id)counts.set(id,(counts.get(id)||0)+1);}}
+ if(fallback&&counts.has(fallback))return{id:fallback,source:'page-matched-listing'};
+ const ranked=[...counts.entries()].sort((a,b)=>b[1]-a[1]);
+ if(ranked.length===1)return{id:ranked[0][0],source:'page-unique'};
+ if(ranked.length>1&&ranked[0][1]>ranked[1][1])return{id:ranked[0][0],source:'page-dominant'};
+ return{id:fallback||null,source:fallback?'listing-fallback':'unresolved'};
+}
+export function resolveImmoweltDynamicContactContext(html:any,profile:any,fallbackClassifiedId=''){
+ const pairs=immoweltOptionPairs(html),legacy=immoweltLegacyKnownCodes(profile);
+ const fields=[
+  {payload:'salutation',semantic:'salutation'},
+  {payload:'householdType',semantic:'household'},
+  {payload:'workStatus',semantic:'employment'},
+  {payload:'netMonthlyIncome',semantic:'income'},
+  {payload:'preferredMoveInDate',semantic:'moveIn'}
+ ];
+ const values:any={},dynamicOptionsDetected:string[]=[],legacyFallbackFields:string[]=[],unmappedOptionalFields:string[]=[];
+ for(const field of fields){
+  const candidates=providerEnumCandidates('immowelt',field.semantic,profile);
+  const dynamic=immoweltDynamicOption(pairs,candidates);
+  if(dynamic){values[field.payload]=dynamic.value;dynamicOptionsDetected.push(field.payload);continue}
+  const fallback=(legacy as any)[field.payload];
+  if(fallback){values[field.payload]=fallback;legacyFallbackFields.push(field.payload);continue}
+  if(candidates.length)unmappedOptionalFields.push(field.payload);
+ }
+ const classified=immoweltClassifiedIdFromText(html,String(fallbackClassifiedId||''));
+ return{
+  values,
+  classifiedId:classified.id,
+  classifiedIdSource:classified.source,
+  dynamicOptionsDetected,
+  legacyFallbackFields,
+  unmappedOptionalFields,
+  optionPairCount:pairs.length
+ };
+}
+async function immoweltContactContext(session:any,listing:any,profile:any){
+ const fallbackId=String(listing?.source_listing_key||listing?.external_id||'').trim(),url=String(listing?.canonical_url||'');
+ if(!/^https:\/\/www\.immowelt\.de\/expose\//i.test(url))return{...resolveImmoweltDynamicContactContext('',profile,fallbackId),httpStatus:null,pageFetched:false};
+ let response:Response,text='';
+ try{
+  response=await fetch(url,{
+   method:'GET',
+   headers:{
+    accept:'text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8',
+    'accept-language':'de-DE,de;q=0.9,en;q=0.8',
+    authorization:'Bearer '+String(session?.token||''),
+    'user-agent':String(session?.userAgent||'Mozilla/5.0'),
+    cookie:immoweltCookieHeader(session?.cookies||[],url)
+   },
+   redirect:'follow',
+   signal:AbortSignal.timeout(20000)
+  });
+  text=await response.text().catch(()=>'');
+ }catch{
+  return{...resolveImmoweltDynamicContactContext('',profile,fallbackId),httpStatus:null,pageFetched:false};
+ }
+ const resolved=resolveImmoweltDynamicContactContext(response.ok?text:'',profile,fallbackId);
+ return{...resolved,httpStatus:response.status,pageFetched:response.ok,finalHost:(()=>{try{return new URL(response.url).hostname}catch{return null}})()};
+}
+
 async function immoweltFallbackSession(db:any,userId:string,connection:any,force=false){
  let cookies=Array.isArray(connection?.credentials?.cookies)?connection.credentials.cookies:[];
  const userAgent=String(connection?.credentials?.userAgent||'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/131.0 Mobile Safari/537.36');
@@ -213,14 +316,12 @@ async function immoweltFallbackSession(db:any,userId:string,connection:any,force
 }
 async function sendImmoweltSessionFallback(input:any){
  const{db,userId,connection,profile,listing,fullMessage}=input||{};
- const codes=immoweltContactCodes(profile);
- if(!codes)return{success:false,error:'session_fallback_profile_unmapped',diagnostic:{transport:'contact_request_service_session_fallback',profileMapped:false}};
  let session=await immoweltFallbackSession(db,String(userId||''),connection);
  if(!session.ok)return{success:false,error:session.error||'session_fallback_unavailable',diagnostic:{transport:'contact_request_service_session_fallback',sessionRefreshed:!!session.refreshed,refreshHttpStatus:session.httpStatus||null}};
- const classifiedId=String(listing?.source_listing_key||listing?.external_id||'').trim();
- if(!classifiedId)return{success:false,error:'provider_identifier_missing',diagnostic:{transport:'contact_request_service_session_fallback'}};
- const payload={
-  salutation:codes.salutation,
+ const context=await immoweltContactContext(session,listing,profile);
+ const classifiedId=String(context.classifiedId||listing?.source_listing_key||listing?.external_id||'').trim();
+ if(!classifiedId)return{success:false,error:'provider_identifier_missing',diagnostic:{transport:'contact_request_service_session_fallback',contactContextFetched:!!context.pageFetched}};
+ const payload:any={
   firstName:String(profile?.first_name||'').trim(),
   lastName:String(profile?.last_name||'').trim(),
   email:String(profile?.email||'').trim(),
@@ -229,18 +330,18 @@ async function sendImmoweltSessionFallback(input:any){
   isOwner:false,
   newsletterOptout:false,
   newsletterOptInPreference:'email-sms',
-  householdType:codes.householdType,
-  workStatus:codes.workStatus,
-  netMonthlyIncome:codes.netMonthlyIncome,
-  preferredMoveInDate:codes.preferredMoveInDate,
   fullName:'',
   language:'de',
   classifiedId,
   brand:'immowelt',
-  houseHoldType:codes.householdType,
-  totalNetIncomeBeforeTaxRange:codes.netMonthlyIncome,
   platform:'Website'
  };
+ const values=context.values||{};
+ if(values.salutation)payload.salutation=values.salutation;
+ if(values.householdType){payload.householdType=values.householdType;payload.houseHoldType=values.householdType;}
+ if(values.workStatus)payload.workStatus=values.workStatus;
+ if(values.netMonthlyIncome){payload.netMonthlyIncome=values.netMonthlyIncome;payload.totalNetIncomeBeforeTaxRange=values.netMonthlyIncome;}
+ if(values.preferredMoveInDate)payload.preferredMoveInDate=values.preferredMoveInDate;
  const endpoint='https://www.immowelt.de/contact-request-service/contacting';
  const submit=async(current:any)=>{
   let response:Response,text='';
@@ -264,7 +365,12 @@ async function sendImmoweltSessionFallback(input:any){
   return{response,text,networkError:false,diagnostic:immoweltResponseDiagnostic(response.status,text)};
  };
  let attempt=await submit(session),authRetryAttempted=false;
- if(attempt.networkError)return{success:false,error:'session_fallback_network_error',diagnostic:{transport:'contact_request_service_session_fallback',sessionRefreshed:!!session.refreshed}};
+ if(attempt.networkError)return{success:false,error:'session_fallback_network_error',diagnostic:{
+  transport:'contact_request_service_session_fallback',sessionRefreshed:!!session.refreshed,
+  profileMappingMode:'dynamic-first',dynamicOptionsDetected:context.dynamicOptionsDetected,
+  legacyFallbackFields:context.legacyFallbackFields,unmappedOptionalFields:context.unmappedOptionalFields,
+  classifiedIdSource:context.classifiedIdSource,contactContextFetched:!!context.pageFetched,contactContextHttpStatus:context.httpStatus
+ }};
  if((attempt.response.status===401||attempt.response.status===403)&&!session.refreshed){
   const forcedConnection={...connection,credentials:{...(connection?.credentials||{}),cookies:session.cookies,userAgent:session.userAgent}};
   const refreshed=await immoweltFallbackSession(db,String(userId||''),forcedConnection,true);
@@ -272,18 +378,34 @@ async function sendImmoweltSessionFallback(input:any){
   if(refreshed.ok){
    session=refreshed;
    attempt=await submit(session);
-   if(attempt.networkError)return{success:false,error:'session_fallback_network_error',diagnostic:{transport:'contact_request_service_session_fallback',sessionRefreshed:true,authRetryAttempted:true}};
+   if(attempt.networkError)return{success:false,error:'session_fallback_network_error',diagnostic:{
+    transport:'contact_request_service_session_fallback',sessionRefreshed:true,authRetryAttempted:true,
+    profileMappingMode:'dynamic-first',dynamicOptionsDetected:context.dynamicOptionsDetected,
+    legacyFallbackFields:context.legacyFallbackFields,unmappedOptionalFields:context.unmappedOptionalFields,
+    classifiedIdSource:context.classifiedIdSource,contactContextFetched:!!context.pageFetched,contactContextHttpStatus:context.httpStatus
+   }};
   }
  }
+ const mappingDiagnostic={
+  profileMapped:true,
+  profileMappingMode:'dynamic-first',
+  dynamicOptionsDetected:context.dynamicOptionsDetected,
+  legacyFallbackFields:context.legacyFallbackFields,
+  unmappedOptionalFields:context.unmappedOptionalFields,
+  optionPairCount:Number(context.optionPairCount||0),
+  classifiedIdSource:context.classifiedIdSource,
+  contactContextFetched:!!context.pageFetched,
+  contactContextHttpStatus:context.httpStatus
+ };
  if(attempt.response.status===200||attempt.response.status===201)return{
   success:true,status:'sent',confirmation:'immowelt_contact_request_service',
-  diagnostic:{provider:'immowelt',transport:'contact_request_service_session_fallback',httpStatus:attempt.response.status,classifiedId,sessionRefreshed:!!session.refreshed,authRetryAttempted}
+  diagnostic:{provider:'immowelt',transport:'contact_request_service_session_fallback',httpStatus:attempt.response.status,classifiedId,sessionRefreshed:!!session.refreshed,authRetryAttempted,...mappingDiagnostic}
  };
  if(attempt.response.status===401)await markConnection(db,String(userId||''),PROVIDER,'needs_login','contact_session_unauthorized').catch(()=>{});
  return{
   success:false,
   error:attempt.response.status===401?'session_fallback_auth_rejected':attempt.response.status===403?'session_fallback_forbidden':'session_fallback_rejected',
-  diagnostic:{provider:'immowelt',transport:'contact_request_service_session_fallback',classifiedId,sessionRefreshed:!!session.refreshed,authRetryAttempted,...(attempt.diagnostic||{httpStatus:attempt.response.status,responsePresent:!!attempt.text})}
+  diagnostic:{provider:'immowelt',transport:'contact_request_service_session_fallback',classifiedId,sessionRefreshed:!!session.refreshed,authRetryAttempted,...mappingDiagnostic,...(attempt.diagnostic||{httpStatus:attempt.response.status,responsePresent:!!attempt.text})}
  };
 }
 
