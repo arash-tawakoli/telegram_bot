@@ -1,0 +1,92 @@
+{
+  "migrations": [
+    {
+      "version": "20260921035312",
+      "name": "restore_pre_house_matching_for_base_streams",
+      "file": "supabase/migrations/20260921035312_restore_pre_house_matching_for_base_streams.sql",
+      "registry_sql_sha256": "f2115f288c99b766ba4945970355fd2e6ca4fac8af2cd6a71d5b5736e7e00c56",
+      "export_sql_sha256": "f2115f288c99b766ba4945970355fd2e6ca4fac8af2cd6a71d5b5736e7e00c56",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260921042702",
+      "name": "house_delivery_newness_and_immowelt",
+      "file": "supabase/migrations/20260921042702_house_delivery_newness_and_immowelt.sql",
+      "registry_sql_sha256": "e3611acf5983465aedf7961cfa4b34bf982646690eff33cf29813b1c6df006ef",
+      "export_sql_sha256": "e3611acf5983465aedf7961cfa4b34bf982646690eff33cf29813b1c6df006ef",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260921044142",
+      "name": "premium_four_search_profiles",
+      "file": "supabase/migrations/20260921044142_premium_four_search_profiles.sql",
+      "registry_sql_sha256": "3226bd5c31f73260764d519b614cae2cdcf78d1eb6203b222847c21f71c5f518",
+      "export_sql_sha256": "3226bd5c31f73260764d519b614cae2cdcf78d1eb6203b222847c21f71c5f518",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260921144643",
+      "name": "single_property_category_flow",
+      "file": "supabase/migrations/20260921144643_single_property_category_flow.sql",
+      "registry_sql_sha256": "04989efba5a87d5c9547f0da2e1f9b7a3483af7b8c76b1e09e90c7c1523ccc96",
+      "export_sql_sha256": "04989efba5a87d5c9547f0da2e1f9b7a3483af7b8c76b1e09e90c7c1523ccc96",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260921144709",
+      "name": "fix_single_category_delivery_guard_join",
+      "file": "supabase/migrations/20260921144709_fix_single_category_delivery_guard_join.sql",
+      "registry_sql_sha256": "c7a59a06174a65aa8379d9dd268860f988322c696a1b6ba9b3d9c1a514378f19",
+      "export_sql_sha256": "c7a59a06174a65aa8379d9dd268860f988322c696a1b6ba9b3d9c1a514378f19",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260921145838",
+      "name": "tighten_room_classification_and_source_capabilities",
+      "file": "supabase/migrations/20260921145838_tighten_room_classification_and_source_capabilities.sql",
+      "registry_sql_sha256": "1918ac1a1efe3a776bae350e4a3e036a85930f353b461a4acd16fdc508f78faf",
+      "export_sql_sha256": "1918ac1a1efe3a776bae350e4a3e036a85930f353b461a4acd16fdc508f78faf",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260921150320",
+      "name": "remove_legacy_multi_type_fast_path",
+      "file": "supabase/migrations/20260921150320_remove_legacy_multi_type_fast_path.sql",
+      "registry_sql_sha256": "94373d7d04f45803de523c2cd0f11002ae3b0fd5cdc042e4c494a1bf5ea54044",
+      "export_sql_sha256": "94373d7d04f45803de523c2cd0f11002ae3b0fd5cdc042e4c494a1bf5ea54044",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260921152020",
+      "name": "applicant_document_storage",
+      "file": "supabase/migrations/20260921152020_applicant_document_storage.sql",
+      "registry_sql_sha256": "93848f37f8d56a44be37528599580f783a3d58a1e31b408f77d01ee5c2c1df88",
+      "export_sql_sha256": "93848f37f8d56a44be37528599580f783a3d58a1e31b408f77d01ee5c2c1df88",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260921152751",
+      "name": "trim_applicant_document_index",
+      "file": "supabase/migrations/20260921152751_trim_applicant_document_index.sql",
+      "registry_sql_sha256": "b3b54a4fcb840b1bf28927a926d765b2e505ec418bff01c756d488144dc27e74",
+      "export_sql_sha256": "b3b54a4fcb840b1bf28927a926d765b2e505ec418bff01c756d488144dc27e74",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260921161117",
+      "name": "add_application_document_transfer_cache",
+      "file": "supabase/migrations/20260921161117_add_application_document_transfer_cache.sql",
+      "registry_sql_sha256": "5b44a479e5c15ef96940d4c3f5bd81ae7b19b5bf46414a02e9d71eb7714d527e",
+      "export_sql_sha256": "5b44a479e5c15ef96940d4c3f5bd81ae7b19b5bf46414a02e9d71eb7714d527e",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260921161259",
+      "name": "add_application_document_packages",
+      "file": "supabase/migrations/20260921161259_add_application_document_packages.sql",
+      "registry_sql_sha256": "2bd4557ccc463daa5392fbd1c75460041feae3aff7b11d7838c3ab0e4a2ce4da",
+      "export_sql_sha256": "2bd4557ccc463daa5392fbd1c75460041feae3aff7b11d7838c3ab0e4a2ce4da",
+      "vault_substitution": false
+    }
+  ]
+}
