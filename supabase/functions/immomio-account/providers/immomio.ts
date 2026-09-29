@@ -1,5 +1,5 @@
 // @ts-nocheck
-import {saveConnection,getConnection,markConnection,deleteConnection} from '../credentials.ts';
+import {saveConnection,getConnection,markConnection,deleteConnection,recordRefreshResult} from '../credentials.ts';
 const APPLY=/^https:\/\/tenant\.immomio\.com\/(?:de\/)?apply\/[0-9a-f-]{36}\/?(?:[?#].*)?$/i;
 const GQL='https://gql-ps.immomio.com/tenant/graphql',TENANT_ORIGIN='https://tenant.immomio.com',OAUTH_REDIRECT='https://tenant.immomio.com/de/auth/login',EXPECTED_KEYCLOAK_HOST='sso.immomio.com',EXPECTED_REALM='immomio',EXPECTED_CLIENT_ID='immomio-oidc-web',LOGIN_METHOD='DEFAULT';
 const BASE_HEADERS={'content-type':'application/json','accept':'application/json','origin':TENANT_ORIGIN,'referer':`${TENANT_ORIGIN}/`,'user-agent':'TraumWohnungHamburg/1.0'};
@@ -25,8 +25,54 @@ function tokenEndpoint(c:any){return`${c.baseUrl}/realms/${encodeURIComponent(c.
 export async function beginImmomioLogin(db:any,userId:string,emailValue:any){const email=validEmail(emailValue);if(!email)throw Error('immomio_email_required');const c=await resolveSso(email);await db.from('platform_auth_flows').delete().eq('user_id',userId).eq('provider','immomio').is('consumed_at',null);const verifier=random(),state=random().slice(0,40),cc=await challenge(verifier),{error}=await db.from('platform_auth_flows').insert({user_id:userId,provider:'immomio',state,code_verifier:verifier});if(error)throw Error('auth_flow_create_failed');await markConnection(db,userId,'immomio','pending',null,{account_hint:email});const url=new URL(`${c.baseUrl}/realms/${encodeURIComponent(c.realm)}/protocol/openid-connect/auth`);for(const[k,v]of Object.entries({client_id:c.clientId,redirect_uri:OAUTH_REDIRECT,response_type:'code',scope:'openid profile email',state,code_challenge:cc,code_challenge_method:'S256',login_hint:email,prompt:'login'}))url.searchParams.set(k,String(v));return{status:'login',url:url.href,requiresCallback:false,automaticCallback:true,bridgeRequired:true,transport:'telegram-share-bridge',expiresInSeconds:600}}
 function validateCallbackUrl(v:string){let u;try{u=new URL(String(v||'').trim())}catch{throw Error('invalid_callback_url')}if(u.protocol!=='https:'||u.hostname!=='tenant.immomio.com'||u.port||u.username||u.password||u.pathname!=='/de/auth/login')throw Error('invalid_callback_url');return u}
 export async function completeImmomioLogin(db:any,userId:string,callbackUrl:string){const u=validateCallbackUrl(callbackUrl),state=u.searchParams.get('state'),code=u.searchParams.get('code');if(!state||!code)throw Error('invalid_callback_url');const{data:flow,error}=await db.from('platform_auth_flows').select('*').eq('user_id',userId).eq('provider','immomio').eq('state',state).is('consumed_at',null).gt('expires_at',new Date().toISOString()).maybeSingle();if(error||!flow)throw Error('auth_flow_expired');const{data:p}=await db.from('applicant_profiles').select('email').eq('user_id',userId).maybeSingle(),email=validEmail(p?.email);if(!email)throw Error('immomio_email_required');const c=await resolveSso(email),{response,token}=await tokenRequest(c,{grant_type:'authorization_code',code,redirect_uri:OAUTH_REDIRECT,code_verifier:String(flow.code_verifier||'')});if(!response.ok||!token?.access_token||!token?.refresh_token){await markConnection(db,userId,'immomio','needs_login','token_exchange_failed').catch(()=>{});throw Error('token_exchange_failed')}const expiresAt=new Date(Date.now()+Math.max(60,Number(token.expires_in||300))*1000).toISOString(),hint=decodeEmail(token.id_token)||email;await saveConnection(db,userId,'immomio',{access_token:String(token.access_token),refresh_token:String(token.refresh_token),expires_at:expiresAt,base_url:c.baseUrl,realm:c.realm,client_id:c.clientId,redirect_uri:OAUTH_REDIRECT},{account_hint:hint,expires_at:expiresAt});await db.from('platform_auth_flows').update({consumed_at:new Date().toISOString()}).eq('id',flow.id);const a=await immomioAccount(db,userId);return{status:'connected',authenticated:true,userId:String(flow.user_id),accountReady:!!a.id}}
-async function refresh(db:any,userId:string,c:any){const x=c?.credentials||{};if(x.access_token&&Date.parse(x.expires_at||'')>Date.now()+60000)return x;if(!x.refresh_token)throw Error('needs_login');const cfg={baseUrl:String(x.base_url||`https://${EXPECTED_KEYCLOAK_HOST}/auth`),realm:String(x.realm||EXPECTED_REALM),clientId:String(x.client_id||EXPECTED_CLIENT_ID)},{response,token}=await tokenRequest(cfg,{grant_type:'refresh_token',refresh_token:String(x.refresh_token)});if(!response.ok||!token?.access_token){await markConnection(db,userId,'immomio','needs_login','refresh_failed').catch(()=>{});throw Error('needs_login')}const updated={...x,access_token:String(token.access_token),refresh_token:String(token.refresh_token||x.refresh_token),expires_at:new Date(Date.now()+Math.max(60,Number(token.expires_in||300))*1000).toISOString()};await saveConnection(db,userId,'immomio',updated,{account_hint:c.row.account_hint,expires_at:updated.expires_at});return updated}
-async function session(db:any,userId:string){const c=await getConnection(db,userId,'immomio');if(!c)throw Error('needs_login');return{token:String((await refresh(db,userId,c)).access_token)}}async function authedGraphql(db:any,userId:string,q:string,v:any={}){const s=await session(db,userId),r=await rawGraphql(q,v,s.token);if(r.response.status===401||r.response.status===403||authError(r.body)){await markConnection(db,userId,'immomio','needs_login','graphql_auth_failed').catch(()=>{});throw Error('needs_login')}if(networkStatus(r.response.status))throw Error('temporary_network_error');return r}
+async function refresh(db:any,userId:string,c:any,force=false){
+ const x=c?.credentials||{};
+ if(!force&&x.access_token&&Date.parse(x.expires_at||'')>Date.now()+60000)return x;
+ if(!x.refresh_token)throw Error('needs_login');
+ const cfg={baseUrl:String(x.base_url||`https://${EXPECTED_KEYCLOAK_HOST}/auth`),realm:String(x.realm||EXPECTED_REALM),clientId:String(x.client_id||EXPECTED_CLIENT_ID)};
+ let response:Response,token:any=null;
+ try{
+  const result=await tokenRequest(cfg,{grant_type:'refresh_token',refresh_token:String(x.refresh_token)});
+  response=result.response;token=result.token;
+ }catch(error:any){
+  await recordRefreshResult(db,userId,'immomio',false,'refresh_network_error').catch(()=>{});
+  throw error;
+ }
+ if(!response.ok||!token?.access_token){
+  await recordRefreshResult(db,userId,'immomio',false,`refresh_http_${response.status}`).catch(()=>{});
+  await markConnection(db,userId,'immomio','needs_login','refresh_failed').catch(()=>{});
+  throw Error('needs_login');
+ }
+ const updated={...x,access_token:String(token.access_token),refresh_token:String(token.refresh_token||x.refresh_token),expires_at:new Date(Date.now()+Math.max(60,Number(token.expires_in||300))*1000).toISOString()};
+ await saveConnection(db,userId,'immomio',updated,{account_hint:c.row.account_hint,expires_at:updated.expires_at});
+ await recordRefreshResult(db,userId,'immomio',true,null,updated.expires_at).catch(()=>{});
+ return updated;
+}
+async function session(db:any,userId:string,force=false){
+ const c=await getConnection(db,userId,'immomio');
+ if(!c)throw Error('needs_login');
+ return{token:String((await refresh(db,userId,c,force)).access_token)};
+}
+async function authedGraphql(db:any,userId:string,q:string,v:any={}){
+ let s=await session(db,userId),r=await rawGraphql(q,v,s.token),refreshed=false;
+ if(r.response.status===401||r.response.status===403||authError(r.body)){
+  try{
+   s=await session(db,userId,true);
+   refreshed=true;
+   r=await rawGraphql(q,v,s.token);
+  }catch(error:any){
+   if(error?.message==='temporary_network_error')throw error;
+   await markConnection(db,userId,'immomio','needs_login','graphql_refresh_failed').catch(()=>{});
+   throw Error('needs_login');
+  }
+ }
+ if(r.response.status===401||r.response.status===403||authError(r.body)){
+  await markConnection(db,userId,'immomio','needs_login','graphql_auth_failed').catch(()=>{});
+  throw Error('needs_login');
+ }
+ if(networkStatus(r.response.status))throw Error('temporary_network_error');
+ return{...r,sessionRefreshed:refreshed};
+}
 
 function documentTypeFor(row:any){return DOCUMENT_TYPE_MAP[String(row?.document_type||'')]||'SHARED_DOCUMENT'}
 function sameRemoteDocument(a:any,b:any){
@@ -44,21 +90,41 @@ async function currentImmomioProfile(db:any,userId:string){
 async function uploadImmomioDocument(db:any,userId:string,row:any){
  const {data:file,error}=await db.storage.from('applicant-documents').download(String(row.storage_path||''));
  if(error||!file)throw Error('document_download_failed');
- const s=await session(db,userId),form=new FormData(),filename=clean(row.original_filename,180)||'document.pdf',fileType=documentTypeFor(row);
- form.append('files',file,filename);
- form.append('filesType',fileType);
- form.append('rotations','[]');
- let response:Response,body:any=null;
- try{
-  response=await fetch(FILE_UPLOAD,{method:'POST',headers:{authorization:s.token,'ngsw-bypass':'true',origin:TENANT_ORIGIN,referer:`${TENANT_ORIGIN}/`,'user-agent':'TraumWohnungHamburg/1.0'},body:form,signal:AbortSignal.timeout(30000)});
-  body=await response.json().catch(()=>null);
- }catch{throw Error('temporary_network_error')}
- if(response.status===401||response.status===403){await markConnection(db,userId,'immomio','needs_login','document_upload_auth_failed').catch(()=>{});throw Error('needs_login')}
- if(networkStatus(response.status))throw Error('temporary_network_error');
- const remote=Array.isArray(body)?body[0]:null;
- if(!response.ok||!remote?.identifier)throw Error('document_transfer_failed');
- return {...remote,title:remote.title||filename,type:remote.type||fileType,documentType:remote.documentType||fileType};
+ const filename=clean(row.original_filename,180)||'document.pdf',fileType=documentTypeFor(row);
+ const send=async(token:string)=>{
+  const form=new FormData();
+  form.append('files',file,filename);
+  form.append('filesType',fileType);
+  form.append('rotations','[]');
+  let response:Response,body:any=null;
+  try{
+   response=await fetch(FILE_UPLOAD,{method:'POST',headers:{authorization:token,'ngsw-bypass':'true',origin:TENANT_ORIGIN,referer:`${TENANT_ORIGIN}/`,'user-agent':'TraumWohnungHamburg/1.0'},body:form,signal:AbortSignal.timeout(30000)});
+   body=await response.json().catch(()=>null);
+  }catch{throw Error('temporary_network_error')}
+  return{response,body};
+ };
+ let s=await session(db,userId),result=await send(s.token),refreshed=false;
+ if(result.response.status===401||result.response.status===403){
+  try{
+   s=await session(db,userId,true);
+   refreshed=true;
+   result=await send(s.token);
+  }catch(error:any){
+   if(error?.message==='temporary_network_error')throw error;
+   await markConnection(db,userId,'immomio','needs_login','document_upload_refresh_failed').catch(()=>{});
+   throw Error('needs_login');
+  }
+ }
+ if(result.response.status===401||result.response.status===403){
+  await markConnection(db,userId,'immomio','needs_login','document_upload_auth_failed').catch(()=>{});
+  throw Error('needs_login');
+ }
+ if(networkStatus(result.response.status))throw Error('temporary_network_error');
+ const remote=Array.isArray(result.body)?result.body[0]:null;
+ if(!result.response.ok||!remote?.identifier)throw Error('document_transfer_failed');
+ return {...remote,title:remote.title||filename,type:remote.type||fileType,documentType:remote.documentType||fileType,sessionRefreshed:refreshed};
 }
+
 export async function syncImmomioDocuments(db:any,userId:string){
  const {data:docs,error:docsError}=await db.from('applicant_documents')
   .select('id,document_type,original_filename,storage_path,mime_type,size_bytes,send_with_auto_apply,updated_at,created_at')
