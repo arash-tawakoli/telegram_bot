@@ -156,15 +156,12 @@ test('unstarted legacy galleries adopt the single-photo policy on retry',async()
 test('preview actions are stacked source-aware and keep requested emojis',()=>{
  const l=listing({address:'Musterstraße 1, 20095 Hamburg'}, {sources:{name:'Kleinanzeigen Hamburg',button_label:'Kleinanzeigen.de',source_type:'Portal',source_connectors:[]}});
  const rows=scope.kb(l,'de',true).inline_keyboard;
- assert.equal(rows.length,4);
- assert.deepEqual(Array.from(rows, row=>row.length),[1,1,1,1]);
+ assert.equal(rows.length,3);
+ assert.deepEqual(Array.from(rows, row=>row.length),[1,1,1]);
  assert.equal(rows[0][0].text,'Zu Kleinanzeigen');
  assert.equal(rows[1][0].text,'⭐ Speichern');
  assert.equal(rows[2][0].text,'🗺️ Google Map');
- assert.equal(rows[3][0].text,'⚡ Auto-Bewerbung • inaktiv');
- assert.equal(rows[3][0].callback_data,'platforms:preview:l');
- assert.equal(scope.kb(l,'de',true,'probe',true).inline_keyboard[3][0].text,'⚡ Auto-Bewerbung • aktiv');
- assert.equal(rows.flat().some(button=>/Schnellbewerbung/i.test(button.text||'')),false);
+ assert.equal(rows.flat().some(button=>/Auto-Bewerbung|Auto-apply|Schnellbewerbung/i.test(button.text||'')),false);
 });
 
 test('preview source label strips common domains but preserves cooperative names',()=>{
@@ -192,13 +189,12 @@ test('preview normalizer drops every legacy extra and leaves the four requested 
   [{text:'Legacy',callback_data:'legacy'}]
  ]};
  const rows=previewOperations([], '📍 <b>Adresse:</b> Hamburg', legacy)[0].body.reply_markup.inline_keyboard;
- assert.equal(rows.length,4);
+ assert.equal(rows.length,3);
  assert.equal(rows[0][0].text,'Zu Kleinanzeigen');
  assert.equal(rows[1][0].text,'⭐ Speichern');
  assert.equal(rows[2][0].text,'🗺️ Google Map');
- assert.equal(rows[3][0].text,'⚡ Auto-Bewerbung • inaktiv');
- assert.equal(rows[3][0].callback_data,'platforms');
- assert.equal(rows.flat().some(button=>String(button.callback_data||'').startsWith('apply:')),false);
+ assert.equal(rows.flat().some(button=>/Auto-Bewerbung|Auto-apply|Schnellbewerbung/i.test(String(button.text||''))),false);
+ assert.equal(rows.flat().some(button=>String(button.callback_data||'').startsWith('apply:')||String(button.callback_data||'')==='platforms'),false);
 });
 
 
