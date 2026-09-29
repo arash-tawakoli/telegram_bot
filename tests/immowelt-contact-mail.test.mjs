@@ -43,9 +43,27 @@ test('ImmoWelt session refresh preserves Set-Cookie values across redirect hops'
 
   assert.match(session, /redirect:'manual'/);
   assert.match(session, /for\(let hop=0;hop<8;hop\+\+\)/);
-  const merge = session.indexOf('cookies=mergeImmoweltSetCookies(cookies,response.headers);');
+  const merge = session.indexOf('cookies=mergeImmoweltSetCookies(cookies,response.headers,url);');
   const location = session.indexOf("const location=response.headers.get('location');");
   const follow = session.indexOf('url=new URL(location,url).href;');
   assert.ok(merge >= 0 && location > merge && follow > location);
   assert.match(session, /oauth\.access\.token/);
+});
+
+
+test('ImmoWelt session cookies use browser-style domain and path matching', () => {
+  assert.match(source, /function immoweltCookieMatches/);
+  assert.match(source, /hostOnly/);
+  assert.match(source, /url\.pathname\.startsWith/);
+  assert.match(source, /immoweltCookieHeader\(current\.cookies,endpoint\)/);
+});
+
+test('ImmoWelt retries authentication at most once after an auth rejection', () => {
+  const fallbackStart = source.indexOf('async function sendImmoweltSessionFallback');
+  const fallbackEnd = source.indexOf('export async function sendImmoweltApplication', fallbackStart);
+  const fallback = source.slice(fallbackStart, fallbackEnd);
+  assert.match(fallback, /authRetryAttempted=false/);
+  assert.match(fallback, /immoweltFallbackSession\(db,String\(userId\|\|''\),forcedConnection,true\)/);
+  assert.match(fallback, /attempt\.response\.status===401\|\|attempt\.response\.status===403/);
+  assert.match(fallback, /attempt\.response\.status===401\)await markConnection/);
 });
