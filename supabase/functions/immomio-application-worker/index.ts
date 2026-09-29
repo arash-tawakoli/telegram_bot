@@ -49,7 +49,6 @@ async function processOne(){
   const error=result?.error?clean(result.error,120):null,providerState={provider:'immomio',applicationId:result?.applicationId||null,providerStatus:result?.providerStatus||null,followUpRequired:result?.followUpRequired||null,hasQuestions:result?.hasQuestions??null,hasUnansweredQuestions:result?.hasUnansweredQuestions??null,smsVerificationRequired:result?.smsVerificationRequired??false,hierarchicalQuestionCount:result?.hierarchicalQuestionCount||0};
   await patch({status,last_error:error,provider_state:providerState,...(status==='sent'?{sent_at:new Date().toISOString()}:{}),lease_until:null});
   await syncListingStatus(String(application.user_id),String(application.listing_id));
-  if(status!=='sent'||providerState.followUpRequired)
   return {status,provider:'immomio',error};
  }catch(error:any){
   const code=String(error?.message||'application_preparation_failed');
