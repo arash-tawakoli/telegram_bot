@@ -1,4 +1,4 @@
-import {saveConnection,getConnection,markConnection,deleteConnection} from '../credentials.ts';
+import {saveConnection,getConnection,markConnection,deleteConnection,recordRefreshResult} from '../credentials.ts';
 import {providerSalutation,providerHousehold,providerEmployment,providerIncome,providerMoveIn,providerPets,canonicalSalutation,canonicalHousehold,canonicalEmployment,canonicalIncome,canonicalMoveIn} from '../../_shared/application-profile-adapters.ts';
 
 const PROVIDER='immoscout';
@@ -17,20 +17,47 @@ export async function importImmoScoutSession(db:any,userId:string,session:any,ac
  await saveConnection(db,userId,PROVIDER,{cookie_header:cookieHeader},{account_hint:accountHint,last_error:'provider_contract_unverified'});
  return {status:'connected',authenticated:null};
 }
-async function refresh(db:any,userId:string,connection:any){
+async function refresh(db:any,userId:string,connection:any,force=false){
  const c=connection?.credentials||{};
- if(c.access_token&&Date.parse(c.expires_at||'')>Date.now()+60000)return c;
+ if(!force&&c.access_token&&Date.parse(c.expires_at||'')>Date.now()+60000)return c;
  if(!c.refresh_token)throw Error('needs_login');
- const response=await fetch(TOKEN,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded',accept:'application/json','user-agent':OAUTH_UA},body:new URLSearchParams({grant_type:'refresh_token',refresh_token:String(c.refresh_token),client_id:CLIENT_ID}),signal:AbortSignal.timeout(25000)});
- const token=await response.json().catch(()=>null);
- if(!response.ok||!token?.access_token){await markConnection(db,userId,PROVIDER,'needs_login','refresh_failed').catch(()=>{});throw Error('needs_login');}
+ let response:Response,token:any=null;
+ try{
+  response=await fetch(TOKEN,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded',accept:'application/json','user-agent':OAUTH_UA},body:new URLSearchParams({grant_type:'refresh_token',refresh_token:String(c.refresh_token),client_id:CLIENT_ID}),signal:AbortSignal.timeout(25000)});
+  token=await response.json().catch(()=>null);
+ }catch(error:any){
+  await recordRefreshResult(db,userId,PROVIDER,false,'refresh_network_error').catch(()=>{});
+  throw Error('temporary_network_error');
+ }
+ if(!response.ok||!token?.access_token){
+  await recordRefreshResult(db,userId,PROVIDER,false,`refresh_http_${response.status}`).catch(()=>{});
+  await markConnection(db,userId,PROVIDER,'needs_login','refresh_failed').catch(()=>{});
+  throw Error('needs_login');
+ }
  const expiresAt=new Date(Date.now()+Math.max(60,Number(token.expires_in||3600))*1000).toISOString();
  const updated={...c,access_token:String(token.access_token),refresh_token:String(token.refresh_token||c.refresh_token),id_token:token.id_token?String(token.id_token):c.id_token,expires_at:expiresAt};
  await saveConnection(db,userId,PROVIDER,updated,{expires_at:expiresAt,account_hint:connection.row.account_hint,last_verified_at:new Date().toISOString()});
+ await recordRefreshResult(db,userId,PROVIDER,true,null,expiresAt).catch(()=>{});
  return updated;
 }
-async function session(db:any,userId:string){const connection=await getConnection(db,userId,PROVIDER);if(!connection)throw Error('needs_login');if(connection.credentials?.refresh_token||connection.credentials?.access_token)return refresh(db,userId,connection);throw Error('provider_contract_unverified');}
-export async function checkImmoScoutConnection(db:any,userId:string){const connection=await getConnection(db,userId,PROVIDER);if(!connection)return {authenticated:false};try{if(connection.credentials?.refresh_token||connection.credentials?.access_token){await refresh(db,userId,connection);return {authenticated:true,status:'connected'};}if(connection.credentials?.cookie_header)return {authenticated:null,status:'connected_unverified'};return {authenticated:false};}catch{return {authenticated:false,status:'needs_login'};}}
+async function session(db:any,userId:string,force=false){
+ const connection=await getConnection(db,userId,PROVIDER);
+ if(!connection)throw Error('needs_login');
+ if(connection.credentials?.refresh_token||connection.credentials?.access_token)return refresh(db,userId,connection,force);
+ throw Error('provider_contract_unverified');
+}
+export async function checkImmoScoutConnection(db:any,userId:string){
+ const connection=await getConnection(db,userId,PROVIDER);
+ if(!connection)return {authenticated:false};
+ try{
+  if(connection.credentials?.refresh_token||connection.credentials?.access_token){
+   await refresh(db,userId,connection);
+   return {authenticated:true,status:'connected'};
+  }
+  if(connection.credentials?.cookie_header)return {authenticated:null,status:'connected_unverified'};
+  return {authenticated:false};
+ }catch{return {authenticated:false,status:'needs_login'};}
+}
 export async function disconnectImmoScout(db:any,userId:string){await deleteConnection(db,userId,PROVIDER);return {status:'disconnected'};}
 function claims(jwt:any){try{const p=String(jwt||'').split('.')[1];return p?JSON.parse(atob(p.replace(/-/g,'+').replace(/_/g,'/').padEnd(Math.ceil(p.length/4)*4,'='))):{};}catch{return {};}}
 async function sha(value:any){const d=new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(typeof value==='string'?value:JSON.stringify(value??null))));return Array.from(d).map(x=>x.toString(16).padStart(2,'0')).join('');}
@@ -154,6 +181,15 @@ async function detail(token:string,id:string){
   freemiumDuration,freemiumActive
  };
 }
+async function detailWithRefresh(db:any,userId:string,id:string){
+ let credentials=await session(db,userId);
+ try{return{credentials,before:await detail(String(credentials.access_token),id),refreshed:false}}
+ catch(error:any){
+  if(error?.message!=='needs_login')throw error;
+  credentials=await session(db,userId,true);
+  return{credentials,before:await detail(String(credentials.access_token),id),refreshed:true};
+ }
+}
 function diagnosticText(v:any,max=800){return clean(v,max).replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,'[email]').replace(/\+?\d[\d\s().\/-]{6,}\d/g,'[phone]');}
 function providerDiagnostic(status:number,body:any,text:string){
  const messages=body?.['common.messages'];
@@ -174,7 +210,7 @@ export async function inspectImmoScoutInquiry(input:any){
  const{db,user,profile,listing,message}=input||{},userId=String(user?.id||''),id=exposeId(listing);
  if(!db||!userId||!id||!profile)return{ok:false,ready:false,error:'provider_contract_unverified'};
  try{
-  const credentials=await session(db,userId),before=await detail(String(credentials.access_token),id),
+  const resolved=await detailWithRefresh(db,userId,id),before=resolved.before,
    prepared=prepareImmoScoutForm(before.formFieldConfig,profile,String(message||'')),
    blocked=before.premiumRequired||before.freemiumActive;
   return{
@@ -188,7 +224,8 @@ export async function inspectImmoScoutInquiry(input:any){
    missing:prepared.missing,
    mappedFields:prepared.mapped,
    formKeys:Object.keys(prepared.form),
-   transport:'official_rest_contact'
+   transport:'official_rest_contact',
+   sessionRefreshed:resolved.refreshed
   };
  }catch(error:any){
   const code=String(error?.message||'provider_contract_unverified');
@@ -198,30 +235,55 @@ export async function inspectImmoScoutInquiry(input:any){
 export async function sendImmoScoutApplication(input:any){
  const{db,user,profile,listing,message,authorize}=input||{},userId=String(user?.id||''),id=exposeId(listing);
  if(!userId||!id||!message)return{success:false,status:'manual_required',error:'provider_contract_unverified'};
- let credentials:any,before:any;
- try{credentials=await session(db,userId);before=await detail(String(credentials.access_token),id)}
- catch(error:any){
+ let credentials:any,before:any,detailRefreshed=false;
+ try{
+  const resolved=await detailWithRefresh(db,userId,id);
+  credentials=resolved.credentials;before=resolved.before;detailRefreshed=resolved.refreshed;
+ }catch(error:any){
   if(error?.message==='temporary_network_error')throw error;
   if(error?.message==='listing_unavailable')return{success:false,status:'failed',error:'listing_unavailable'};
-  if(error?.message==='needs_login'){await markConnection(db,userId,PROVIDER,'needs_login','session_invalid').catch(()=>{});return{success:false,status:'manual_required',error:'needs_login'}}
+  if(error?.message==='needs_login'){
+   await markConnection(db,userId,PROVIDER,'needs_login','session_invalid').catch(()=>{});
+   return{success:false,status:'manual_required',error:'needs_login'};
+  }
   return{success:false,status:'manual_required',error:'provider_contract_unverified'};
  }
  if(before.premiumRequired||before.freemiumActive)return{success:false,status:'failed',error:'plus_required'};
  const prepared=prepareImmoScoutForm(before.formFieldConfig,profile,message);
  if(prepared.missing.length)return{success:false,status:'manual_required',error:`required_profile_data_missing:${prepared.missing.join(',')}`};
  if(typeof authorize!=='function'||await authorize()!==true)return{success:false,status:'failed',error:'send_not_authorized'};
- let response:Response,text='',body:any=null;
- try{
-  response=await fetch(`https://rest.immobilienscout24.de/restapi/api/search/v1.0/expose/${encodeURIComponent(id)}/contact`,{
-   method:'POST',
-   headers:{accept:'application/json','content-type':'application/json',authorization:`Bearer ${credentials.access_token}`,'user-agent':'TraumWohnungHamburg/1.0'},
-   body:JSON.stringify({'expose.contactForm':prepared.form}),
-   signal:AbortSignal.timeout(30000)
-  });
-  text=await response.text();try{body=JSON.parse(text)}catch{}
- }catch{return{success:false,status:'manual_required',error:'submission_unconfirmed'}}
- if(response.ok)return{success:true,status:'sent',error:null,confirmation:'official_rest_2xx'};
- const classified=officialError(response.status,body,text);
+
+ const submit=async(token:string)=>{
+  let response:Response,text='',body:any=null;
+  try{
+   response=await fetch(`https://rest.immobilienscout24.de/restapi/api/search/v1.0/expose/${encodeURIComponent(id)}/contact`,{
+    method:'POST',
+    headers:{accept:'application/json','content-type':'application/json',authorization:`Bearer ${token}`,'user-agent':'TraumWohnungHamburg/1.0'},
+    body:JSON.stringify({'expose.contactForm':prepared.form}),
+    signal:AbortSignal.timeout(30000)
+   });
+   text=await response.text();try{body=JSON.parse(text)}catch{}
+  }catch{return{response:null as any,text:'',body:null,networkError:true}}
+  return{response,text,body,networkError:false};
+ };
+
+ let attempt=await submit(String(credentials.access_token)),contactRefreshed=false;
+ if(attempt.networkError)return{success:false,status:'manual_required',error:'submission_unconfirmed'};
+ let classified=officialError(attempt.response.status,attempt.body,attempt.text);
+ if(classified.error==='needs_login'){
+  try{
+   credentials=await session(db,userId,true);
+   contactRefreshed=true;
+   attempt=await submit(String(credentials.access_token));
+   if(attempt.networkError)return{success:false,status:'manual_required',error:'submission_unconfirmed'};
+   classified=officialError(attempt.response.status,attempt.body,attempt.text);
+  }catch(error:any){
+   if(error?.message==='temporary_network_error')throw error;
+   await markConnection(db,userId,PROVIDER,'needs_login','contact_refresh_failed').catch(()=>{});
+   return{success:false,status:'manual_required',error:'needs_login'};
+  }
+ }
+ if(attempt.response.ok)return{success:true,status:'sent',error:null,confirmation:'official_rest_2xx',diagnostic:{sessionRefreshed:detailRefreshed||contactRefreshed}};
  if(classified.error==='needs_login')await markConnection(db,userId,PROVIDER,'needs_login','contact_auth_failed').catch(()=>{});
- return{success:false,...classified};
+ return{success:false,...classified,diagnostic:{...(classified.diagnostic||{}),sessionRefreshed:detailRefreshed||contactRefreshed}};
 }
