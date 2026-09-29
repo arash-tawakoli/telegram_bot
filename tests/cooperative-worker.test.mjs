@@ -13,6 +13,7 @@ function worker({authorization=true,probeReady=true,throwAfterSend=false,probeTa
   if(name==='claim_immomio_application')return {data:[app]};
   if(name==='get_bot_secret')return {data:'internal'};
   if(name==='authorize_immomio_application_send')return authorization==='unknown'?{error:Error('timeout')}:{data:authorization};
+  if(name==='immomio_application_request_started')return {data:true};
   throw Error(name);
  },from(table){let patch;
   const q={select(){return q},eq(){return q},update(v){patch=v;return q},
