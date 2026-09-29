@@ -51,7 +51,7 @@ function scoutCooperativeIdentity(e:any){
   ] as const;
   for(const [entity,re] of rules){
     if(!re.test(text))continue;
-    const ref=text.match(/(?:Objektreferenz|Referenznummer|Objektnummer|Objekt[-\\s]?(?:Nr\\.?|ID)|Angebotsnummer)[^A-Za-z0-9]{0,12}([A-Za-z0-9][A-Za-z0-9./_-]{3,80})/i)?.[1]
+    const ref=text.match(/(?:Objektreferenz|Referenznummer|Objektnummer|Objekt[-\\s]?(?:Nr\\.?|ID)|Angebotsnummer)[^A-Za-z0-9]{0,12}([A-Za-z0-9][A-Za-z0-9._\/-]{3,80})/i)?.[1]
       || (entity==="SAGA"?text.match(/\\b(MO\\s*2000\\s*\\/\\s*[A-Za-z0-9.-]+\\s*\\/\\s*[A-Za-z0-9.-]+)\\b/i)?.[1]:null)
       || null;
     const row=cooperativeRegistry.find(r=>r.provider_entity===entity);
