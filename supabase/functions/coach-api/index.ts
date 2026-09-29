@@ -230,18 +230,23 @@ async function updateProfile(a:any,assignment:any,input:any){
  const userId=assignment.user_id,current=await admin.from('applicant_profiles').select('*').eq('user_id',userId).maybeSingle();
  if(current.error)throw Error('profile_read_failed');
  const c=current.data||{};
- const row:any={
-  user_id:userId,first_name:clean(input.first_name??c.first_name,120),last_name:clean(input.last_name??c.last_name,120),
-  email:optionalEmail(input.email??c.email),phone:clean(input.phone??c.phone,80)||null,city:clean(input.city??c.city??'Hamburg',120)||'Hamburg',
-  salutation:clean(input.salutation??c.salutation,40)||null,street:clean(input.street??c.street,160)||null,house_number:clean(input.house_number??c.house_number,40)||null,
-  postcode:clean(input.postcode??c.postcode,10)||null,household_size:optionalInteger(input.household_size??c.household_size,1,20),household_type:clean(input.household_type??c.household_type,40)||null,
-  employment_status:clean(input.employment_status??c.employment_status,160)||null,
-  monthly_net_income:input.monthly_net_income===null||input.monthly_net_income===''?null:Number(input.monthly_net_income??c.monthly_net_income),income_range:clean(input.income_range??c.income_range,40)||null,
-  pets:clean(input.pets??c.pets,160)||null,wbs_status:clean(input.wbs_status??c.wbs_status,160)||null,
-  move_in_preference:clean(input.move_in_preference??c.move_in_preference,40)||null,move_in_date:input.move_in_date??c.move_in_date??null,default_message:clean(input.default_message??c.default_message,4000)||null,message_apartment:clean(input.message_apartment??c.message_apartment,4000)||null,message_house:clean(input.message_house??c.message_house,4000)||null,message_temporary_wg:clean(input.message_temporary_wg??c.message_temporary_wg,4000)||null,message_swap:clean(input.message_swap??c.message_swap,4000)||null,
-  schufa_status:clean(input.schufa_status??c.schufa_status??'NOT_SPECIFIED',80),phone_call_desired:Boolean(input.phone_call_desired??c.phone_call_desired??false),updated_at:new Date().toISOString()
- };
  const has=(key:string)=>Object.prototype.hasOwnProperty.call(input,key);
+ const value=(key:string,fallback:any)=>has(key)?input[key]:fallback;
+ const row:any={
+  user_id:userId,first_name:clean(value('first_name',c.first_name),120),last_name:clean(value('last_name',c.last_name),120),
+  email:optionalEmail(value('email',c.email)),phone:clean(value('phone',c.phone),80)||null,city:clean(value('city',c.city??'Hamburg'),120)||'Hamburg',
+  salutation:clean(value('salutation',c.salutation),40)||null,street:clean(value('street',c.street),160)||null,house_number:clean(value('house_number',c.house_number),40)||null,
+  postcode:clean(value('postcode',c.postcode),10)||null,household_size:optionalInteger(value('household_size',c.household_size),1,20),household_type:clean(value('household_type',c.household_type),40)||null,
+  employment_status:clean(value('employment_status',c.employment_status),160)||null,
+  monthly_net_income:has('monthly_net_income')?(input.monthly_net_income===null||input.monthly_net_income===''?null:Number(input.monthly_net_income)):c.monthly_net_income,
+  income_range:clean(value('income_range',c.income_range),40)||null,
+  pets:clean(value('pets',c.pets),160)||null,wbs_status:clean(value('wbs_status',c.wbs_status),160)||null,
+  move_in_preference:clean(value('move_in_preference',c.move_in_preference),40)||null,move_in_date:value('move_in_date',c.move_in_date??null),
+  default_message:clean(value('default_message',c.default_message),4000)||null,message_apartment:clean(value('message_apartment',c.message_apartment),4000)||null,message_house:clean(value('message_house',c.message_house),4000)||null,message_temporary_wg:clean(value('message_temporary_wg',c.message_temporary_wg),4000)||null,message_swap:clean(value('message_swap',c.message_swap),4000)||null,
+  schufa_status:clean(value('schufa_status',c.schufa_status??'NOT_SPECIFIED'),80)||'NOT_SPECIFIED',
+  phone_call_desired:has('phone_call_desired')?Boolean(input.phone_call_desired):Boolean(c.phone_call_desired??false),
+  updated_at:new Date().toISOString()
+ };
  if(row.salutation&&!['MR','MS','DIVERSE','NEUTRAL','NOT_SPECIFIED','COMPANY'].includes(String(row.salutation)))throw Error('profile_salutation_invalid');
  if(row.household_type&&!['SINGLE','TWO_ADULTS','FAMILY','SHARED_FLAT','NOT_SPECIFIED'].includes(String(row.household_type)))throw Error('profile_household_type_invalid');
  if(row.employment_status&&!['EMPLOYEE','WORKER','SELF_EMPLOYED','CIVIL_SERVANT','APPRENTICE','STUDENT','DOCTORAL','HOMEMAKER','JOBSEEKER','RETIRED','OTHER','NOT_SPECIFIED'].includes(String(row.employment_status)))throw Error('profile_employment_status_invalid');
