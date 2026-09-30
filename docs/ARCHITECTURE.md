@@ -1,5 +1,5 @@
 # Architektur und Betrieb
-Stand: 19.09.2026. [Produktive Optimierung und Messwerte](SUPABASE_OPTIMIZATION_2026-09-11.md) · [Effizienz-Audit und Messwerte](SUPABASE_EFFICIENCY_2026-09-10.md) · [Vorherige Bereinigung](ARCHITECTURE_CLEANUP_2026-09-09.md) · [Einzelaudit aller Quellen](SOURCE_DELIVERY_AUDIT_2026-09-09.md)
+Stand: 30.09.2026. [Produktive Optimierung und Messwerte](SUPABASE_OPTIMIZATION_2026-09-11.md) · [Effizienz-Audit und Messwerte](SUPABASE_EFFICIENCY_2026-09-10.md) · [Vorherige Bereinigung](ARCHITECTURE_CLEANUP_2026-09-09.md) · [Einzelaudit aller Quellen](SOURCE_DELIVERY_AUDIT_2026-09-09.md)
 
 ## Datenfluss und Verantwortlichkeiten
 
@@ -10,6 +10,8 @@ Ein gemeinsamer minutengenauer Scheduler plant Jobs und ruft den Worker nur bei 
 SQL übernimmt Qualitätsprüfung, Dubletten, Profil-Matching und den zentralen Neuheitsnachweis. Neue Telegram-Zustellungen müssen zusätzlich `app_private.delivery_newness_qualified(...)` bestehen: `first_seen_at` darf höchstens 24 Stunden zurückliegen, die Quell-Baseline muss initialisiert sein und der Source-Worker muss den Fund als zustellfähigen Neu-Fund klassifiziert haben. Kleinanzeigen darf nur aus `lane=fast` mit einem von der Quelle belegten Alter von höchstens 24 Stunden zustellen; `coverage` ist reine Bestandsbeobachtung. ImmoScout darf nur aus `fresh_global`/`fresh_borough` zustellen; `coverage` ist ebenfalls ausgeschlossen. Bei anderen Quellen dient `fresh_delivery_eligible` nur als quellspezifischer Neuheitsnachweis zusammen mit Baseline und 24-Stunden-Fenster, nicht mehr als eigenständiges globales Gate. Der Dispatcher prüft vor Telegram erneut; liefert die Detailseite ein Veröffentlichungsdatum, werden nicht nachweislich höchstens 24 Stunden alte Angebote verworfen. `enrichment_delivery_eligible` bleibt reine Qualitäts-/Telemetrieinformation.
 
 Telegram-Eingaben laufen über Gateway/Fast-Pfad zur UI beziehungsweise Premium-Verarbeitung. Inbox-Claims und Versuchsnummern schützen vor doppelter Verarbeitung. Stripe-Webhooks und Billing-Maintenance verwalten Abonnements getrennt von der Wohnungszustellung.
+
+Das Telegram-Bewerberprofil besitzt einen kanonischen Button-Grid-Renderer in Gateway und Core. Unvollständige Profile werden als leere Draft-Zeilen angelegt; dadurch gibt es für bestehende und neue Nutzer keinen separaten Bulk-Setup-Pfad mehr. Globale Basisangaben sind Vorname, Nachname und E-Mail-Adresse; die Auto-Bewerbung bleibt bis zu deren Vollständigkeit gesperrt. Weitere Pflichtfelder werden weiterhin portalspezifisch geprüft.
 
 Der Bewerbungsbereich arbeitet ausschließlich als Auto-Bewerbung: private Dokumente und Plattform-Sessions, eigene Claims und ein bedarfsgesteuerter `application-worker`. Neue Bewerbungen werden nur durch den qualifizierten `new_listing`-Delivery-Trigger für Nutzer mit aktivierter Auto-Bewerbung erzeugt. Ein manueller Listing-spezifischer Ein-Klick-/Schnellbewerbungs-Pfad existiert nicht; der Preview-Button „Auto-Bewerbung“ öffnet ausschließlich die Auto-Bewerbungsverwaltung. Seine Browser-Integration wurde bei diesem Audit nicht mit echten Bewerbungen getestet oder verändert.
 
