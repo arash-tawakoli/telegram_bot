@@ -18,10 +18,15 @@ function fixture({applications=472,users=20,authMember=1,events,failPage=false}=
  apps.push({id:id(9999),user_id:id(999),status:'sent',created_at:date(0)});
  const eventRows=events?events(apps):apps.map((a,i)=>({id:id(20000+i),application_id:a.id,provider:'immowelt',document_result:'link_included',status:'sent',reason:null,created_at:date(-i)}));
  const tables={coaching_members:members,coaching_participants:assignments,applications:apps,application_events:eventRows,applicant_profiles:[],application_preferences:[]};
- const eventRequests=[];
+ const eventRequests=[],pageRequests=[];
  const db={
   auth:{getUser:async()=>({data:{user:{id:id(authMember)}},error:null})},
   rpc:async(name,args)=>{
+   if(name==='coach_application_page_v1'){
+    pageRequests.push(args);
+    const selected=apps.filter(a=>args.p_user_ids.includes(a.user_id));
+    return{data:{applications:selected.slice((args.p_page-1)*args.p_page_size,args.p_page*args.p_page_size),total:selected.length,page:args.p_page,pageSize:args.p_page_size},error:null};
+   }
    assert.equal(name,'coach_readiness_core');
    return{data:args.p_users.map(user_id=>({user_id,is_premium:true,profile_complete:true,active_search_count:1,connected_providers:['immowelt'],enabled_providers:['immowelt'],ready_providers:['immowelt'],automation_enabled:true})),error:null};
   },
@@ -63,7 +68,7 @@ function fixture({applications=472,users=20,authMember=1,events,failPage=false}=
  vm.runInNewContext(code+';globalThis.subject={applicationRows,dashboardData,handle};',context);
  const actor={member:members[authMember-1],user:{id:id(authMember)},workspace:members[0].coaching_workspaces};
  const invoke=body=>context.subject.handle(new Request('https://example.test',{method:'POST',headers:{Authorization:'Bearer fixture'},body:JSON.stringify(body)}));
- return{...context.subject,actor,apps,eventRows,eventRequests,invoke};
+ return{...context.subject,actor,apps,eventRows,eventRequests,pageRequests,invoke};
 }
 
 test('the production-sized 472-application read avoids oversized response headers and keeps every latest event',async()=>{
@@ -74,6 +79,7 @@ test('the production-sized 472-application read avoids oversized response header
  assert.ok(f.eventRequests.every(r=>r.urlLength<5000));
  assert.ok(!f.eventRequests.some(r=>r.ids.includes(id(9999))));
  const dashboard=await f.dashboardData(f.actor);
+ assert.equal(dashboard.participantRows.length,20);
  assert.equal(dashboard.applications.total,472);
  assert.equal(dashboard.applications.sent,472);
  assert.equal(dashboard.providers.immowelt,472);
@@ -104,7 +110,9 @@ test('manager and admin-preview reads only query events for their assigned parti
   const result=await f.invoke({action:'applications',pageSize:100,scope:'all',...(authMember===1?{previewMemberId:id(2)}:{})});
   assert.equal(result.total,expected.length);
   const allowed=new Set(expected.map(a=>a.id));
-  assert.ok(f.eventRequests.every(r=>r.ids.every(applicationId=>allowed.has(applicationId))));
+  assert.equal(f.eventRequests.length,0);
+  const users=new Set(expected.map(a=>a.user_id));assert.ok(f.pageRequests.every(r=>r.p_user_ids.every(userId=>users.has(userId))));
+  assert.ok(result.applications.every(a=>!('user_id' in a)&&allowed.has(a.id)));
  }
 });
 

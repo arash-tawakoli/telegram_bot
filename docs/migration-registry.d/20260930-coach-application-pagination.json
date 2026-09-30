@@ -1,0 +1,12 @@
+{
+  "migrations": [
+    {
+      "version": "20260930142205",
+      "name": "coach_application_pagination",
+      "file": "supabase/migrations/20260930142205_coach_application_pagination.sql",
+      "registry_sql_sha256": "0bc189a221ce4e18e61014a0fe229e07eff9b64eb3b4358ec45adfd5eff40c3e",
+      "export_sql_sha256": "0bc189a221ce4e18e61014a0fe229e07eff9b64eb3b4358ec45adfd5eff40c3e",
+      "vault_substitution": false
+    }
+  ]
+}

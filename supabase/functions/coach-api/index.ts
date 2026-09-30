@@ -309,19 +309,22 @@ async function applicationRows(a:any,scope='all',input:any={}){
  if(status)q=q.eq('status',status);
  const{data,error}=await q;if(error)throw Error('applications_read_failed');
  const appIds=(data||[]).map((x:any)=>x.id),latest=new Map<string,any>();
- // Keep PostgREST's Content-Location response header below the Edge HTTP/2 limit.
- for(let start=0;start<appIds.length;start+=100){
-  const batch=appIds.slice(start,start+100);
-  for(let offset=0;;offset+=1000){
-   const{data:events,error:eventError}=await admin.from('application_events')
-    .select('application_id,provider,document_result,status,reason,created_at')
-    .in('application_id',batch).order('created_at',{ascending:false}).order('id',{ascending:false})
-    .range(offset,offset+999);
-   if(eventError)throw Error('applications_read_failed');
-   for(const event of events||[])if(!latest.has(String(event.application_id)))latest.set(String(event.application_id),event);
-   if((events||[]).length<1000)break;
-  }
+ // Bound response headers and run at most three independent event groups at once.
+ for(let start=0;start<appIds.length;start+=300){
+  await Promise.all([0,100,200].map(async shift=>{
+   const batch=appIds.slice(start+shift,start+shift+100);if(!batch.length)return;
+   for(let offset=0;;offset+=1000){
+    const{data:events,error:eventError}=await admin.from('application_events')
+     .select('application_id,provider,document_result,status,reason,created_at')
+     .in('application_id',batch).order('created_at',{ascending:false}).order('id',{ascending:false})
+     .range(offset,offset+999);
+    if(eventError)throw Error('applications_read_failed');
+    for(const event of events||[])if(!latest.has(String(event.application_id)))latest.set(String(event.application_id),event);
+    if((events||[]).length<1000)break;
+   }
+  }));
  }
+
  let out=(data||[]).map((x:any)=>({...without(x,'user_id'),participant:publicByUser.get(String(x.user_id))||null,latestEvent:without(latest.get(String(x.id)),'application_id')}));
  const providerFilter=safeFilter(input.provider,['immoscout','kleinanzeigen','immomio','immowelt']);
  const docFilter=safeFilter(input.documentResult,['native_uploaded','link_included','not_provided','not_supported','transfer_failed']);
@@ -330,6 +333,24 @@ async function applicationRows(a:any,scope='all',input:any={}){
  const participantFilter=String(input.participantId||'');if(participantFilter&&PUBLIC_ID.test(participantFilter))out=out.filter((x:any)=>x.participant?.participantId===participantFilter);
  const coachFilter=String(input.coachMemberId||'');if(a.member.role==='admin'&&UUID.test(coachFilter))out=out.filter((x:any)=>x.participant?.coachMemberId===coachFilter);
  return out;
+}
+async function applicationPage(a:any,scope='all',input:any={}){
+ let assignments:any[]=await visibleAssignments(a,scope);
+ const participantFilter=String(input.participantId||''),coachFilter=String(input.coachMemberId||'');
+ if(PUBLIC_ID.test(participantFilter))assignments=assignments.filter(x=>x.public_id===participantFilter);
+ if(a.member.role==='admin'&&UUID.test(coachFilter))assignments=assignments.filter(x=>String(x.coach_member_id)===coachFilter);
+ const page=Math.max(1,optionalInteger(input.page,1,10000)||1),pageSize=Math.min(100,Math.max(10,optionalInteger(input.pageSize,10,100)||50));
+ if(!assignments.length)return{applications:[],total:0,page,pageSize};
+ const publicByUser=new Map(assignments.map(x=>[String(x.user_id),{participantId:x.public_id,name:[x.bot_users?.first_name,x.bot_users?.last_name].filter(Boolean).join(' '),coach:x.coach?.display_name||null,coachMemberId:x.coach_member_id}]));
+ const{data,error}=await admin.rpc('coach_application_page_v1',{
+  p_user_ids:assignments.map(x=>String(x.user_id)),p_days:filterDays(input.days),
+  p_status:safeFilter(input.status,['pending','processing','sent','failed','manual_required'])||null,
+  p_provider:safeFilter(input.provider,['immoscout','kleinanzeigen','immomio','immowelt'])||null,
+  p_document_result:safeFilter(input.documentResult,['native_uploaded','link_included','not_provided','not_supported','transfer_failed'])||null,
+  p_page:page,p_page_size:pageSize
+ });
+ if(error||!data)throw Error('applications_read_failed');
+ return{...data,applications:(data.applications||[]).map((x:any)=>({...without(x,'user_id'),participant:publicByUser.get(String(x.user_id))||null}))};
 }
 async function dashboardData(a:any,scope='all',input:any={}){
  const [participants,applications]=await Promise.all([participantSummary(a,scope),applicationRows(a,scope,{days:filterDays(input.days)})]);
@@ -350,7 +371,7 @@ async function dashboardData(a:any,scope='all',input:any={}){
   coach:p.coach?.display_name||null,status:p.readiness?.primaryCode,label:p.readiness?.label,actionTab:p.readiness?.actionTab
  }));
  return{
-  periodDays:filterDays(input.days),participants:participants.length,premium:participants.filter((p:any)=>p.participant.isPremium).length,
+  periodDays:filterDays(input.days),participantRows:participants,participants:participants.length,premium:participants.filter((p:any)=>p.participant.isPremium).length,
   automationActive:participants.filter((p:any)=>p.readiness?.primaryCode==='active').length,
   applications:metrics,providers,documents,connections,waitReasons:waits,attention,recentApplications:applications.slice(0,8)
  };
@@ -561,10 +582,7 @@ async function handle(req:Request){
  if(action==='toggle_document'){const id=uuid(body.documentId),{error}=await admin.from('applicant_documents').update({send_with_auto_apply:Boolean(body.enabled),updated_at:new Date().toISOString()}).eq('id',id).eq('user_id',assignment.user_id);if(error)throw Error('document_update_failed');await audit(a,assignment.user_id,'document_permission_changed',{document_id:id,enabled:Boolean(body.enabled)});return{ok:true};}
  if(action==='delete_document'){const id=uuid(body.documentId),{data,error}=await admin.from('applicant_documents').select('storage_path').eq('id',id).eq('user_id',assignment.user_id).maybeSingle();if(error||!data)throw Error('document_not_found');await admin.storage.from('applicant-documents').remove([data.storage_path]);const del=await admin.from('applicant_documents').delete().eq('id',id).eq('user_id',assignment.user_id);if(del.error)throw Error('document_delete_failed');await audit(a,assignment.user_id,'document_deleted',{document_id:id});return{ok:true};}
  if(action==='application_events'){const appId=uuid(body.applicationId),{data,error}=await admin.from('application_events').select('provider,event_type,status,attempt,reason,document_result,metadata,created_at').eq('application_id',appId).eq('user_id',assignment.user_id).order('created_at');if(error)throw Error('events_read_failed');return{events:data||[]};}
- if(action==='applications'){
-  const rows=await applicationRows(a,body.scope==='mine'?'mine':'all',body),page=Math.max(1,optionalInteger(body.page,1,10000)||1),pageSize=Math.min(100,Math.max(10,optionalInteger(body.pageSize,10,100)||50)),start=(page-1)*pageSize;
-  return{applications:rows.slice(start,start+pageSize),total:rows.length,page,pageSize};
- }
+ if(action==='applications')return applicationPage(a,body.scope==='mine'?'mine':'all',body);
  if(action==='dashboard')return dashboardData(a,body.scope==='mine'?'mine':'all',body);
  if(action==='analytics')return analyticsData(a,body);
  if(action==='create_coach'){if(a.member.role!=='admin')throw Error('admin_required');const e=email(body.email),password=String(body.password||''),requestedRole=String(body.role||'manager');if(!['manager','admin'].includes(requestedRole))throw Error('invalid_member_role');if(password.length<12)throw Error('password_too_short');const{data:created,error}=await admin.auth.admin.createUser({email:e,password,email_confirm:true});if(error||!created.user)throw Error(error?.message||'coach_auth_create_failed');const storedRole=storedMemberRole(requestedRole);const{data:member,error:me}=await admin.from('coaching_members').insert({auth_user_id:created.user.id,workspace_id:a.member.workspace_id,display_name:clean(body.display_name,120)||e,role:storedRole,is_active:true}).select('id,display_name,role').single();if(me){await admin.auth.admin.deleteUser(created.user.id).catch(()=>{});throw Error('coach_member_create_failed');}await audit(a,null,'coach_created',{member_id:member.id,role:requestedRole});return{ok:true,member:{id:member.id,displayName:member.display_name,role:publicMemberRole(member.role)}};}
