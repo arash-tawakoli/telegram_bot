@@ -58,3 +58,8 @@ Provider-Antworten wie plus_required, fehlende bestätigte Formulardaten, nicht 
 RLS ohne Benutzer-Policies ist bei Service-only-Tabellen beabsichtigt. Private Tabellen/Routinen sind über die private Schema-Grenze gegen anon/authenticated abgeschirmt; öffentlich exponierte privilegierte Routinen wurden auf effektive Ausführungsrechte geprüft. Advisor-Hinweise auf ungenutzte Indizes oder fehlende FK-Indizes rechtfertigen ohne konkreten Abfrage-/Lastnachweis keine pauschale Änderung. Der Hinweis zur deaktivierten Prüfung geleakter Auth-Passwörter bleibt eine Konfigurationsempfehlung, kein hier behobener Codefehler.
 
 Es erfolgten keine Schema-Refactorings, Änderung der Zustell-Neuheitsregel, Aufweichung von Premium-/Sendefreigaben oder Änderung der Zahlungslogik. Für eine Rücknahme sollten nur die einzelnen Codekorrekturen zurückgenommen und die betreffenden Bundles erneut verglichen werden; ein vollständiges Deployment des älteren GitHub-Standes würde produktive Profil-/Provider-Korrekturen verlieren.
+
+
+## Nachtrag: Bewerberprofil-UI
+
+Am 30.09.2026 wurde eine Regression im Telegram-Bewerberprofil geschlossen: Ein späterer Fast-Path-Fix hatte für Nutzer ohne `applicant_profiles`-Zeile wieder die alte Sammelabfrage „Grundeinrichtung“ aktiviert und bei vorhandenem SCHUFA-Status einen abweichenden Renderer gewählt. Der aktuelle Stand verwendet für bestehende und zukünftige Telegram-Nutzer dieselbe Feldansicht. Unvollständige Profile werden als Draft gespeichert; Vorname, Nachname und E-Mail-Adresse bleiben verbindliche Basisangaben für die Aktivierung der Auto-Bewerbung. Ein Regressionstest deckt Legacy-Setup, SCHUFA-Sonderrouting und UI-Abweichungen ab.
