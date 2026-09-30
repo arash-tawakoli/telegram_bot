@@ -1,0 +1,12 @@
+{
+  "migrations": [
+    {
+      "version": "20260930115818",
+      "name": "unify_current_applicant_profile_ui_v2",
+      "file": "supabase/migrations/20260930115818_unify_current_applicant_profile_ui_v2.sql",
+      "registry_sql_sha256": "13156c15afdd0c2c7387a0d8f6e6b37f41d5bd42733d87b0a59632caf068c269",
+      "export_sql_sha256": "13156c15afdd0c2c7387a0d8f6e6b37f41d5bd42733d87b0a59632caf068c269",
+      "vault_substitution": false
+    }
+  ]
+}
