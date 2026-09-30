@@ -12,6 +12,18 @@ async function syncListingStatus(userId:string,listingId:string){try{const inter
 async function immomio(action:string,userId:string,listingId:string,extra:Record<string,unknown>={}){const internal=await secret('internal_worker_secret');const r=await fetch(IMMOMIO,{method:'POST',headers:{'content-type':'application/json','x-internal-secret':internal},body:JSON.stringify({action,userId,listingId,...extra}),signal:AbortSignal.timeout(45000)});const data=await r.json().catch(()=>null);if(!r.ok)throw Error(data?.error||`immomio_worker_${r.status}`);return data;}
 async function immomioRequestStarted(applicationId:string){const {data,error}=await db.rpc('immomio_application_request_started',{p_application:applicationId});if(error)return null;return data===true;}
 
+function immomioDocumentState(result:any){
+ const transfer=result?.documentTransfer;
+ const documentFailure=/^(document_|application_documents_)/.test(String(result?.error||''));
+ if(!transfer||typeof transfer!=='object')return documentFailure?{document_result:'transfer_failed'}:{};
+ const counts=['selected','uploaded','reused'] as const;
+ if(!counts.every(key=>Number.isSafeInteger(transfer[key])&&transfer[key]>=0))return documentFailure?{document_result:'transfer_failed'}:{};
+ const verified=transfer.verified===true&&transfer.uploaded+transfer.reused===transfer.selected;
+ const documentTransfer={selected:transfer.selected,uploaded:transfer.uploaded,reused:transfer.reused,verified,
+  ...(Number.isSafeInteger(transfer.removed)&&transfer.removed>=0?{removed:transfer.removed}:{})};
+ return{documentTransfer,document_result:documentFailure||!verified?'transfer_failed':transfer.selected>0?'native_uploaded':'not_provided'};
+}
+
 async function processOne(){
  const {data:claimed,error:claimError}=await db.rpc('claim_immomio_application');
  if(claimError)throw Error('application_claim_failed');
@@ -46,10 +58,10 @@ async function processOne(){
 
   const result=await immomio('send_authorized',String(user.id),String(listing.id),{applicationId:application.id,leaseToken:application.lease_token,sourceIdentifier:probe.sourceIdentifier});
   const status=['sent','failed','manual_required'].includes(String(result?.status))?String(result.status):'manual_required';
-  const error=result?.error?clean(result.error,120):null,providerState={provider:'immomio',applicationId:result?.applicationId||null,providerStatus:result?.providerStatus||null,followUpRequired:result?.followUpRequired||null,hasQuestions:result?.hasQuestions??null,hasUnansweredQuestions:result?.hasUnansweredQuestions??null,smsVerificationRequired:result?.smsVerificationRequired??false,hierarchicalQuestionCount:result?.hierarchicalQuestionCount||0};
+  const error=result?.error?clean(result.error,120):null,providerState={provider:'immomio',applicationId:result?.applicationId||null,providerStatus:result?.providerStatus||null,followUpRequired:result?.followUpRequired||null,hasQuestions:result?.hasQuestions??null,hasUnansweredQuestions:result?.hasUnansweredQuestions??null,smsVerificationRequired:result?.smsVerificationRequired??false,hierarchicalQuestionCount:result?.hierarchicalQuestionCount||0,...immomioDocumentState(result)};
   await patch({status,last_error:error,provider_state:providerState,...(status==='sent'?{sent_at:new Date().toISOString()}:{}),lease_until:null});
   await syncListingStatus(String(application.user_id),String(application.listing_id));
-  return {status,provider:'immomio',error};
+  return {status,provider:'immomio',error,documentResult:providerState.document_result||null};
  }catch(error:any){
   const code=String(error?.message||'application_preparation_failed');
   const attempts=Number(application.attempts||0);

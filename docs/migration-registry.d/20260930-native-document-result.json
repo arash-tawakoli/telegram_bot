@@ -1,0 +1,12 @@
+{
+  "migrations": [
+    {
+      "version": "20260930221821",
+      "name": "record_native_document_delivery_result",
+      "file": "supabase/migrations/20260930221821_record_native_document_delivery_result.sql",
+      "registry_sql_sha256": "f258fe20cd725b5074e43041f738783e8d2c6536ed7c2abdd5a72a124e66b3dd",
+      "export_sql_sha256": "f258fe20cd725b5074e43041f738783e8d2c6536ed7c2abdd5a72a124e66b3dd",
+      "vault_substitution": false
+    }
+  ]
+}
