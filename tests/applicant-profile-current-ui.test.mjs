@@ -18,6 +18,7 @@ test('Telegram applicant profile uses one current UI for existing and future use
 
   assert.match(fast, /if\(view==="applicant_setup_prompt"\)return result\("editMessageText"/);
   assert.doesNotMatch(fast, /applicant_setup_prompt"\)return\{method:"sendMessage"/);
+  assert.doesNotMatch(fast, /;\\\\n if\\(view=/);
 
   assert.match(migration, /check \(length\(trim\(first_name\)\) <= 120\)/);
   assert.match(migration, /check \(length\(trim\(last_name\)\) <= 120\)/);
