@@ -55,7 +55,7 @@ const PROFILE_FIELDS={
  salutation:{label:'Anrede',type:'choice',max:40},
  first_name:{label:'Vorname',required:true,max:120},
  last_name:{label:'Nachname',required:true,max:120},
- email:{label:'E-Mail-Adresse',max:320,hint:'ImmoScout24 und Immowelt: Pflichtfeld beim Bewerben. Kleinanzeigen prüft das konkrete Formular. Immomio: nötig zum Verbinden des Kontos; beim Bewerben kein Feld.'},
+ email:{label:'E-Mail-Adresse',required:true,max:320,hint:'ImmoScout24 und Immowelt: Pflichtfeld beim Bewerben. Kleinanzeigen prüft das konkrete Formular. Immomio: nötig zum Verbinden des Kontos; beim Bewerben kein Feld.'},
  phone:{label:'Telefonnummer',max:80},
  street:{label:'Straße',max:160},
  house_number:{label:'Hausnummer',max:40},
@@ -318,23 +318,22 @@ async function renderApplicantProfile(user,chat,messageId,notice=''){
  ]);
  const render=(text,rows)=>messageId?edit(chat.id,messageId,text,{inline_keyboard:rows}):send(chat.id,text,{inline_keyboard:rows});
  if(!p){
-  return render(`👤 <b>Bewerberprofil</b>\n\n${notice?`${notice}\n\n`:''}Noch kein Bewerberprofil angelegt. Lege zuerst Vorname und Nachname an.`,[
-   [button('➕ Bewerberprofil anlegen','platforms:profile-new')],
+  return render(`👤 <b>Bewerberprofil</b>\n\n${notice?`${notice}\n\n`:''}Noch kein Bewerberprofil vorbereitet.`,[
+   [button('👤 Bewerberprofil öffnen','platforms:profile-new')],
    [button('← Automatische Bewerbung','platforms')]
   ]);
  }
  if(missingResult.error)throw Error('Profilstatus konnte nicht geladen werden.');
  const missing=Array.isArray(missingResult.data)?missingResult.data:[],missingSet=new Set(missing),ready=missing.length===0,selectedDocs=docs.filter(d=>d.send_with_auto_apply).length;
- const baseKeys=new Set(['Vorname','Nachname']);
- const req=(label,value)=>`${label}${baseKeys.has(label)?' *':''}: ${missingSet.has(label)?'⚠️ fehlt':value}`;
+ const req=(key,label,value,required=false)=>`${label}${required?' *':''}: ${missingSet.has(key)?'⚠️ fehlt':value}`;
  const messageCount=[p.message_apartment,p.message_house,p.message_temporary_wg,p.message_swap].filter(v=>String(v||'').trim()).length;
  const text=`👤 <b>Bewerberprofil</b>\n\n${notice?`${notice}\n\n`:''}Profilstatus: ${ready?'✅ vollständig':`⚠️ ${missing.length} Basisangabe${missing.length===1?' offen':'n offen'}`}\n\n`+
-  `${req('Anrede',salutationLabel(p.salutation))}\n${req('Vorname',shown(p.first_name))}\n${req('Nachname',shown(p.last_name))}\nE-Mail: ${shown(p.email)}\n${req('Telefonnummer',shown(p.phone))}\n${req('Straße',shown(p.street))}\n${req('Hausnummer',shown(p.house_number))}\n${req('PLZ',shown(p.postcode))}\n${req('Ort',shown(p.city))}\n${req('Haushaltstyp',householdLabel(p))}\n${req('Beschäftigungsstatus',employmentLabel(p.employment_status))}\n${req('Haushalts-Nettoeinkommen',incomeLabel(p))}\n${req('Haustiere',shown(p.pets))}\n${req('Einzugstermin',moveInLabel(p))}\n${req('SCHUFA-Status',schufaLabel(p.schufa_status))}\nWBS-Status: ${shown(p.wbs_status)}\n\n✍️ Bewerbungstexte: ${messageCount}/4\n📎 Dokumente: ${docs.length} gespeichert · ${selectedDocs} ausgewählt`;
+  `${req('Anrede','Anrede',salutationLabel(p.salutation))}\n${req('Vorname','Vorname',shown(p.first_name),true)}\n${req('Nachname','Nachname',shown(p.last_name),true)}\n${req('E-Mail-Adresse','E-Mail',shown(p.email),true)}\n${req('Telefonnummer','Telefonnummer',shown(p.phone))}\n${req('Straße','Straße',shown(p.street))}\n${req('Hausnummer','Hausnummer',shown(p.house_number))}\n${req('PLZ','PLZ',shown(p.postcode))}\n${req('Ort','Ort',shown(p.city))}\n${req('Haushaltstyp','Haushaltstyp',householdLabel(p))}\n${req('Beschäftigungsstatus','Beschäftigungsstatus',employmentLabel(p.employment_status))}\n${req('Haushalts-Nettoeinkommen','Haushalts-Nettoeinkommen',incomeLabel(p))}\n${req('Haustiere','Haustiere',shown(p.pets))}\n${req('Einzugstermin','Einzugstermin',moveInLabel(p))}\n${req('SCHUFA-Status','SCHUFA-Status',schufaLabel(p.schufa_status))}\nWBS-Status: ${shown(p.wbs_status)}\n\n✍️ Bewerbungstexte: ${messageCount}/4 hinterlegt\n\nDokumente: ${docs.length} gespeichert · ${selectedDocs} ausgewählt`;
  const f=(name,label)=>button(label,`platforms:profile-field:${name}`);
  return render(text,[
   [f('salutation','Anrede'),f('schufa_status','SCHUFA')],
   [f('first_name','Vorname *'),f('last_name','Nachname *')],
-  [f('email','E-Mail'),f('phone','Telefon')],
+  [f('email','E-Mail *'),f('phone','Telefon')],
   [f('street','Straße'),f('house_number','Hausnr.')],
   [f('postcode','PLZ'),f('city','Ort')],
   [f('household_type','Haushalt'),f('employment_status','Beschäftigung')],
