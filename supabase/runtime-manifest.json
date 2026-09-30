@@ -1,5 +1,5 @@
 {
-  "observed_at": "2026-09-30T12:05:53.601395Z",
+  "observed_at": "2026-09-30T12:10:19.177913Z",
   "project_id": "dpmohkrwdlicexwcrqfy",
   "snapshot_kind": "repository_with_observed_deployment_hashes",
   "functions": [
@@ -1133,11 +1133,11 @@
     },
     {
       "slug": "telegram-ui",
-      "version": 224,
+      "version": 227,
       "verify_jwt": false,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "ffc2309fd67fe85452c6ede96bcac5fe05332d92f43119eab7dc278d0ea03e3e",
+      "observed_artifact_sha256": "eafbadab0f131333e61226c043b02c35c8a833884fa6791f652f1e09eae9182a",
       "entrypoint": "supabase/functions/telegram-ui/index.ts",
       "files": [
         {
