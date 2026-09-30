@@ -309,10 +309,18 @@ async function applicationRows(a:any,scope='all',input:any={}){
  if(status)q=q.eq('status',status);
  const{data,error}=await q;if(error)throw Error('applications_read_failed');
  const appIds=(data||[]).map((x:any)=>x.id),latest=new Map<string,any>();
- if(appIds.length){
-  const{data:events,error:eventError}=await admin.from('application_events').select('application_id,provider,document_result,status,reason,created_at').in('application_id',appIds).order('created_at',{ascending:false});
-  if(eventError)throw Error('applications_read_failed');
-  for(const event of events||[])if(!latest.has(String(event.application_id)))latest.set(String(event.application_id),event);
+ // Keep PostgREST's Content-Location response header below the Edge HTTP/2 limit.
+ for(let start=0;start<appIds.length;start+=100){
+  const batch=appIds.slice(start,start+100);
+  for(let offset=0;;offset+=1000){
+   const{data:events,error:eventError}=await admin.from('application_events')
+    .select('application_id,provider,document_result,status,reason,created_at')
+    .in('application_id',batch).order('created_at',{ascending:false}).order('id',{ascending:false})
+    .range(offset,offset+999);
+   if(eventError)throw Error('applications_read_failed');
+   for(const event of events||[])if(!latest.has(String(event.application_id)))latest.set(String(event.application_id),event);
+   if((events||[]).length<1000)break;
+  }
  }
  let out=(data||[]).map((x:any)=>({...without(x,'user_id'),participant:publicByUser.get(String(x.user_id))||null,latestEvent:without(latest.get(String(x.id)),'application_id')}));
  const providerFilter=safeFilter(input.provider,['immoscout','kleinanzeigen','immomio','immowelt']);
