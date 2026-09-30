@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
     while (Date.now() - started < 50000) {
       const { data: jobs, error } = await db.rpc("claim_source_jobs", {
         p_worker: "source-worker",
-        p_qty: 3,
+        p_qty: 1,
       });
       if (error) throw error;
       if (!jobs?.length) break;
@@ -124,6 +124,8 @@ Deno.serve(async (req) => {
         if (item.status === "fulfilled") results.push(item.value);
         else throw item.reason;
       }
+      // Large portal parsers need their own invocation CPU budget.
+      if (jobs.some((job: any) => [1, 2, 3].includes(Number(job.source_id)))) break;
     }
     return Response.json({ ok: true, architecture: "v3", claimed, results });
   } catch (e) {

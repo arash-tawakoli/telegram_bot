@@ -348,7 +348,8 @@ Deno.serve(async (req: Request) => {
                 "💎 Dein Traumwohnung Premium-Abo ist jetzt aktiv.\n\n" +
                 "<b>Ab sofort profitierst du von:</b>\n" +
                 "⚡ Sofortiger Zustellung neuer passender Inserate\n" +
-                "🔎 Bis zu 3 Suchprofile\n" +
+                "🔎 Bis zu 4 Suchprofile\n" +
+                "🤖 Auto-Bewerbung\n" +
                 "🔓 Baugenossenschafts-Angebote öffnen\n" +
                 "⭐️ Inserate speichern\n\n" +
                 "Viel Erfolg bei der Wohnungssuche! 🏠",

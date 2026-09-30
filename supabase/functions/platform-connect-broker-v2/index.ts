@@ -1,8 +1,8 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.112.4';
 
-const URL=Deno.env.get('SUPABASE_URL')!;
+const SUPABASE_URL=Deno.env.get('SUPABASE_URL')!;
 const keys=JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')||'{}');
-const db=createClient(URL,keys.default||Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false,autoRefreshToken:false}});
+const db=createClient(SUPABASE_URL,keys.default||Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false,autoRefreshToken:false}});
 const KLEIN_AUTHORIZE='https://login.kleinanzeigen.de/authorize';
 const KLEIN_CLIENT_ID='uV5j90myVPc2XzEOFuWUD2At17OACEGQ';
 const KLEIN_REDIRECT='https://login.kleinanzeigen.de/android/com.ebay.kleinanzeigen/callback';

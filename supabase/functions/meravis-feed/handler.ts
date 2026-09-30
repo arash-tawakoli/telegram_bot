@@ -6,7 +6,7 @@ export async function handle(request: Request): Promise<Response> {
     ...init, signal: AbortSignal.any([request.signal, ...(init.signal ? [init.signal] : [])]),
   });
 
-const UA="Mozilla/5.0 (compatible; TraumwohnungHamburgBot/13.0; +https://traumwonunghamburg.de)";
+const UA="Mozilla/5.0 (compatible; TraumwohnungHamburgBot/13.0; +https://traumwohnunghamburg.de)";
 const SEARCH_URL='https://www.meravis.de/mieten/wohnungssuche/';
 
 async function get(url:string){const r=await fetch(url,{redirect:'follow',headers:{'user-agent':UA,'accept':'text/html,*/*','accept-language':'de-DE,de;q=0.9','cache-control':'no-cache'},signal:AbortSignal.timeout(12000)});if(!r.ok)throw new Error(`HTTP ${r.status}`);return{text:await r.text(),url:r.url}}

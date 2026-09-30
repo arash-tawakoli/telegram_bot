@@ -60,7 +60,7 @@ async function processOne(){
   const terminalStatus=(started&&requestStarted!==false)?'manual_required':retry?'pending':'failed';
   const finalError=terminalStatus==='manual_required'?'submission_unconfirmed':retry?'temporary_network_error':clean(code,120);
   const retryPatch=retry?{submission_started_at:null,next_attempt_at:new Date(Date.now()+60000*Math.max(1,attempts+1)).toISOString(),wait_reason:null}:{};
-  await patch({status:terminalStatus,last_error:finalError,provider_state:{provider:'immomio',requestStarted},...retryPatch,lease_until:null});
+  await patch({status:terminalStatus,last_error:finalError,provider_state:{...application.provider_state,provider:'immomio',requestStarted},...(retry&&!started?{attempts:attempts+1}:{}),...retryPatch,lease_until:null});
   await syncListingStatus(String(application.user_id),String(application.listing_id));
   return {status:terminalStatus,provider:'immomio',error:finalError,requestStarted};
  }

@@ -146,8 +146,8 @@ function immoweltCardWarm(text: string) {
 type CooperativeRegistryRow={provider_entity:string;source_id:number|null;aliases:string[];hamburg_only:boolean;registry_mode:string};
 let cooperativeRegistryPromise:Promise<CooperativeRegistryRow[]>|null=null;
 function providerNorm(value:any){return String(value??"").toLocaleLowerCase("de-DE").replace(/[._–—-]+/g," ").replace(/\s+/g," ").trim()}
-function providerAliasMatch(haystack:string,alias:string){
-  const h=providerNorm(haystack),a=providerNorm(alias);
+function providerAliasMatch(normalizedHaystack:string,alias:string){
+  const h=normalizedHaystack,a=providerNorm(alias);
   if(!a||a.length<3)return false;
   if(a.length<=5){
     const esc=a.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
@@ -169,7 +169,7 @@ async function applyCooperativeRegistry(items:Candidate[]){
   const registry=await cooperativeRegistry();
   return items.map(c=>{
     const raw:any={...(c.raw||{})};
-    const haystack=[c.title,c.address,raw._provider_text,raw.provider_entity,raw.entry?JSON.stringify(raw.entry):""].filter(Boolean).join(" ");
+    const haystack=providerNorm([c.title,c.address,raw._provider_text,raw.provider_entity,raw.entry?JSON.stringify(raw.entry):""].filter(Boolean).join(" "));
     let row=raw.provider_entity?registry.find(r=>r.provider_entity===raw.provider_entity):undefined;
     if(!row){
       row=registry.find(r=>(r.aliases||[]).some(a=>providerAliasMatch(haystack,a)));
@@ -325,7 +325,7 @@ async function parseOne(source: Source, c: Connector, url: string) {
       collectJson(JSON.parse(m[1]), r.url, jsonLd);
     } catch {}
   let out =
-    source.id === 3 || /(^|\\.)immowelt\\.de$/i.test(new URL(r.url).hostname)
+    source.id === 3 || /(^|\.)immowelt\.de$/i.test(new URL(r.url).hostname)
       ? immoweltCards(r.text, r.url)
       : jsonLd.length
         ? jsonLd
@@ -351,7 +351,7 @@ async function parseOne(source: Source, c: Connector, url: string) {
   return {
     cands: refine(source, out),
     url: r.url,
-    total: source.id === 3 || /(^|\\.)immowelt\\.de$/i.test(new URL(r.url).hostname) ? immoweltTotal(r.text) : null,
+    total: source.id === 3 || /(^|\.)immowelt\.de$/i.test(new URL(r.url).hostname) ? immoweltTotal(r.text) : null,
   };
 }
 function targetFor(source: Source, c: Connector) {
