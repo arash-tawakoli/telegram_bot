@@ -1,3 +1,4 @@
+import {claimPlatformConnectFlow,completePlatformConnectFlow} from '../_shared/platform-auth-flow.ts';
 import {createClient} from 'npm:@supabase/supabase-js@2.112.4';
 
 const keys=JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')||'{}');
@@ -48,14 +49,14 @@ async function begin(userId:string){
 function callback(v:string){let u:URL;try{u=new URL(String(v||'').trim())}catch{throw Error('invalid_callback_url')}if(u.protocol!=='https:'||u.hostname!=='tenant.immomio.com'||u.port||u.username||u.password||u.pathname!=='/robots.txt')throw Error('invalid_callback_url');const state=u.searchParams.get('state'),code=u.searchParams.get('code');if(!state||!code)throw Error('invalid_callback_url');return{state,code}}
 async function complete(userId:string,callbackUrl:string){
  const {state,code}=callback(callbackUrl),{data:flow,error}=await db.from('platform_auth_flows').select('*').eq('user_id',userId).eq('provider','immomio').eq('state',state).is('consumed_at',null).gt('expires_at',new Date().toISOString()).maybeSingle();if(error||!flow)throw Error('auth_flow_expired');
+ await claimPlatformConnectFlow(db,flow);
  const email=await profileEmail(userId),cfg=await resolveSso(email),{response,token}=await tokenRequest(cfg,{grant_type:'authorization_code',code,redirect_uri:REDIRECT,code_verifier:String(flow.code_verifier||'')});
  if(!response.ok||!token?.access_token||!token?.refresh_token){const detail=`token_exchange_failed:${response.status}:${safeDiag(token?.error)}:${safeDiag(token?.error_description)}`.slice(0,120);await db.from('platform_connections').upsert({user_id:userId,provider:'immomio',status:'needs_login',last_error:detail,updated_at:new Date().toISOString()},{onConflict:'user_id,provider'});throw Error('token_exchange_failed')}
  const expiresAt=new Date(Date.now()+Math.max(60,Number(token.expires_in||300))*1000).toISOString();
  const hint=decodeEmail(token.id_token)||email;
  const encrypted=await encrypt(userId,{access_token:String(token.access_token),refresh_token:String(token.refresh_token),expires_at:expiresAt,base_url:cfg.baseUrl,realm:cfg.realm,client_id:cfg.clientId,redirect_uri:REDIRECT});
  const now=new Date().toISOString();
- const {error:saveError}=await db.from('platform_connections').upsert({user_id:userId,provider:'immomio',status:'connected',...encrypted,account_hint:hint,expires_at:expiresAt,last_verified_at:now,last_error:null,updated_at:now},{onConflict:'user_id,provider'});if(saveError)throw Error('connection_save_failed');
- await db.from('platform_auth_flows').update({consumed_at:now}).eq('id',flow.id);
+ await completePlatformConnectFlow(db,flow,{...encrypted,account_hint:hint,expires_at:expiresAt});
  return{status:'connected',authenticated:true,accountHint:hint,verificationDeferred:true}
 }
 

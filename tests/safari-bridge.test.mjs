@@ -16,5 +16,6 @@ test('share completion remains PKCE/state bound and one time',()=>{
  assert.match(provider,/validateCallbackTarget/);
  assert.match(provider,/state!==String\(flow\.state\)/);
  assert.match(provider,/is\('consumed_at',null\)/);
- assert.match(provider,/consumed_at:new Date\(\)\.toISOString\(\)/);
+ assert.match(provider,/await claimPlatformConnectFlow\(db,flow\)/);
+ assert.match(provider,/await completePlatformConnectFlow\(db,flow,/);
 });

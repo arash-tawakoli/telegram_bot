@@ -1,0 +1,20 @@
+{
+  "migrations": [
+    {
+      "version": "20260930111102",
+      "name": "coaching_participant_sync_and_manager_assignment",
+      "file": "supabase/migrations/20260930111102_coaching_participant_sync_and_manager_assignment.sql",
+      "registry_sql_sha256": "9b2cf397246a5103239ca1966e334c8ca0ae0754fd1c2f737c0e22e59fbbe934",
+      "export_sql_sha256": "9b2cf397246a5103239ca1966e334c8ca0ae0754fd1c2f737c0e22e59fbbe934",
+      "vault_substitution": false
+    },
+    {
+      "version": "20260930111031",
+      "name": "platform_connect_atomic_completion",
+      "file": "supabase/migrations/20260930111031_platform_connect_atomic_completion.sql",
+      "registry_sql_sha256": "849f3d7f7a6d9fb29103ddd7a310055bdb4601629a9f2475e78e945563aea117",
+      "export_sql_sha256": "849f3d7f7a6d9fb29103ddd7a310055bdb4601629a9f2475e78e945563aea117",
+      "vault_substitution": false
+    }
+  ]
+}

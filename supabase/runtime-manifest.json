@@ -37,11 +37,11 @@
     },
     {
       "slug": "application-worker",
-      "version": 176,
+      "version": 178,
       "verify_jwt": false,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "28364afb388501b055477676c8298ee0aaf888b3f884d31a54c56832301de688",
+      "observed_artifact_sha256": "d4354d15e0150beffdbf71b68dd04eefd06f4f165214f021ead86f4d26664ffa",
       "entrypoint": "supabase/functions/application-worker/index.ts",
       "files": [
         {
@@ -56,8 +56,8 @@
         },
         {
           "path": "supabase/functions/application-worker/providers/kleinanzeigen.ts",
-          "sha256": "462c0fc27c3182f5c3de965332b7d91a2904af88aff6ee38f11197099491d459",
-          "deployed_sha256": "462c0fc27c3182f5c3de965332b7d91a2904af88aff6ee38f11197099491d459"
+          "sha256": "82ccb36d8c99aad0661cb78a271110b92bb2c62bc285437e77c5416d8c29503a",
+          "deployed_sha256": "82ccb36d8c99aad0661cb78a271110b92bb2c62bc285437e77c5416d8c29503a"
         },
         {
           "path": "supabase/functions/application-worker/credentials.ts",
@@ -88,22 +88,32 @@
           "path": "supabase/functions/application-worker/providers/router.ts",
           "sha256": "c7f00c006239b9d2f6bea535e1dbfc33152c8c8b364bf770adbd957a26de0a1b",
           "deployed_sha256": "c7f00c006239b9d2f6bea535e1dbfc33152c8c8b364bf770adbd957a26de0a1b"
+        },
+        {
+          "path": "supabase/functions/_shared/platform-auth-flow.ts",
+          "sha256": "638e113afeb7895cf519d058bd1166f8ca0444a54f5eb9a573c530efc38110de",
+          "deployed_sha256": "638e113afeb7895cf519d058bd1166f8ca0444a54f5eb9a573c530efc38110de"
         }
       ]
     },
     {
       "slug": "auth-facade-broker",
-      "version": 20,
+      "version": 21,
       "verify_jwt": false,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "058205a83dd6bd5197c491e93b3a920be26d19569603183704e548c15e39beab",
+      "observed_artifact_sha256": "08a874152363b864f567f211ae1fcc18d37c13c67a7ce76b562736c94f607732",
       "entrypoint": "supabase/functions/auth-facade-broker/index.ts",
       "files": [
         {
           "path": "supabase/functions/auth-facade-broker/index.ts",
-          "sha256": "206068228a8095cabab47af60fc896166bcd9ce29a7c2615d36e364035b22ce4",
-          "deployed_sha256": "206068228a8095cabab47af60fc896166bcd9ce29a7c2615d36e364035b22ce4"
+          "sha256": "9f20cf097e8f3bb36ed2b181e7e73ef274fd7cfccbbb2f5b34b82601e221b550",
+          "deployed_sha256": "9f20cf097e8f3bb36ed2b181e7e73ef274fd7cfccbbb2f5b34b82601e221b550"
+        },
+        {
+          "path": "supabase/functions/_shared/platform-auth-flow.ts",
+          "sha256": "638e113afeb7895cf519d058bd1166f8ca0444a54f5eb9a573c530efc38110de",
+          "deployed_sha256": "638e113afeb7895cf519d058bd1166f8ca0444a54f5eb9a573c530efc38110de"
         }
       ]
     },
@@ -125,17 +135,17 @@
     },
     {
       "slug": "coach-api",
-      "version": 27,
+      "version": 28,
       "verify_jwt": false,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "974c315efb42e46c7053e0ce238be23aea0d2527cca05df30fd9d09b25d6d48d",
+      "observed_artifact_sha256": "021473287ba84020c9627b2cc37aab629f172f9dcd5b2f9abd7e406abb6d59d4",
       "entrypoint": "supabase/functions/coach-api/index.ts",
       "files": [
         {
           "path": "supabase/functions/coach-api/index.ts",
-          "sha256": "8ae8478deef00f0657c995fa586c7134cb27f59e91f42bc1684baf510c5618ab",
-          "deployed_sha256": "8ae8478deef00f0657c995fa586c7134cb27f59e91f42bc1684baf510c5618ab"
+          "sha256": "620a9e3aa3eb1f8db7ef693bef6bbb097643a6f08128153278504ef1f47ec214",
+          "deployed_sha256": "620a9e3aa3eb1f8db7ef693bef6bbb097643a6f08128153278504ef1f47ec214"
         },
         {
           "path": "supabase/functions/_shared/application-profile-adapters.ts",
@@ -282,17 +292,22 @@
     },
     {
       "slug": "immomio-auth-bridge",
-      "version": 8,
+      "version": 9,
       "verify_jwt": false,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "9bd2e37086a3a72b1726ccb989896000607d79ecd3670c219c6e89e0c5e8739c",
+      "observed_artifact_sha256": "eb5de433fa16367202421f0809f54ed96a91f8dcf6217a95f084b7a8aaee4f85",
       "entrypoint": "supabase/functions/immomio-auth-bridge/index.ts",
       "files": [
         {
           "path": "supabase/functions/immomio-auth-bridge/index.ts",
-          "sha256": "87e13b71a2827d882abb5dc69d1672c41f2197c4314f160593e0e43b8795964e",
-          "deployed_sha256": "87e13b71a2827d882abb5dc69d1672c41f2197c4314f160593e0e43b8795964e"
+          "sha256": "379f3fc97b61081080b5d37bfa4447bbf186580d395f66fe4913bc658d40db34",
+          "deployed_sha256": "379f3fc97b61081080b5d37bfa4447bbf186580d395f66fe4913bc658d40db34"
+        },
+        {
+          "path": "supabase/functions/_shared/platform-auth-flow.ts",
+          "sha256": "638e113afeb7895cf519d058bd1166f8ca0444a54f5eb9a573c530efc38110de",
+          "deployed_sha256": "638e113afeb7895cf519d058bd1166f8ca0444a54f5eb9a573c530efc38110de"
         }
       ]
     },
@@ -328,17 +343,22 @@
     },
     {
       "slug": "immoscout-auth-bridge",
-      "version": 11,
+      "version": 12,
       "verify_jwt": false,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "ebafc0d1099428677cd91cb932a1f10ebba576032a88f408dfafa26468746665",
+      "observed_artifact_sha256": "2f6168fd69a41d400708985837fe9a16fef79299cca926e635474c59dabfa264",
       "entrypoint": "supabase/functions/immoscout-auth-bridge/index.ts",
       "files": [
         {
           "path": "supabase/functions/immoscout-auth-bridge/index.ts",
-          "sha256": "82b9251ba22f6b8861338227665be0dd6045d26ef48b72fa7a1f6e81c12c35e2",
-          "deployed_sha256": "82b9251ba22f6b8861338227665be0dd6045d26ef48b72fa7a1f6e81c12c35e2"
+          "sha256": "478348a8a67aa031ccdc9e37f63f1def1cbd9e735c4eecfa433c559ad2a8275c",
+          "deployed_sha256": "478348a8a67aa031ccdc9e37f63f1def1cbd9e735c4eecfa433c559ad2a8275c"
+        },
+        {
+          "path": "supabase/functions/_shared/platform-auth-flow.ts",
+          "sha256": "638e113afeb7895cf519d058bd1166f8ca0444a54f5eb9a573c530efc38110de",
+          "deployed_sha256": "638e113afeb7895cf519d058bd1166f8ca0444a54f5eb9a573c530efc38110de"
         }
       ]
     },

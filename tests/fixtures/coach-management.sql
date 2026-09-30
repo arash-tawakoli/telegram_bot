@@ -1,0 +1,17 @@
+create role anon;create role authenticated;create role service_role;
+create schema app_private;create schema extensions;create schema auth;create schema storage;
+create function extensions.gen_random_bytes(n int) returns bytea language sql as $$select decode(substr(repeat(md5(random()::text),n),1,n*2),'hex')$$;
+create table auth.users(id uuid primary key);
+create table bot_users(id uuid primary key default gen_random_uuid(),telegram_user_id bigint unique,chat_id bigint,first_name text,last_name text,is_active boolean default true,origin text default 'telegram',plan_override text default 'premium');
+create table search_profiles(user_id uuid references bot_users);
+create table applicant_profiles(user_id uuid primary key references bot_users,first_name text,last_name text,email text,phone text,city text,household_size smallint);
+create table coaching_workspaces(id uuid primary key,name text unique,is_active boolean default true,operations_paused boolean default false);
+create table coaching_members(id uuid primary key,auth_user_id uuid references auth.users on delete cascade,workspace_id uuid references coaching_workspaces,display_name text,role text,is_active boolean default true,created_at timestamptz default now(),updated_at timestamptz default now(),unique(workspace_id,id));
+create table coaching_participants(user_id uuid primary key references bot_users,workspace_id uuid not null references coaching_workspaces,coach_member_id uuid not null,created_by_member_id uuid,status text default 'active',public_id text unique,assignment_version int default 1,updated_at timestamptz default now(),foreign key(workspace_id,coach_member_id) references coaching_members(workspace_id,id) on delete restrict,foreign key(workspace_id,created_by_member_id) references coaching_members(workspace_id,id) on delete set null);
+create table coaching_audit_events(workspace_id uuid,actor_member_id uuid references coaching_members on delete set null,participant_user_id uuid,action text,changes jsonb);
+create table coaching_request_keys(request_id uuid primary key,workspace_id uuid,actor_member_id uuid references coaching_members on delete cascade,action text,participant_user_id uuid);
+create table platform_auth_flows(id uuid primary key default gen_random_uuid(),user_id uuid references bot_users,provider text,state text unique,code_verifier text,origin text default 'telegram',issued_by uuid,return_target text,context jsonb default '{}',created_at timestamptz default now(),expires_at timestamptz default now()+interval '30 minutes',consumed_at timestamptz);
+create table platform_connections(user_id uuid references bot_users,provider text,status text,credential_ciphertext text,credential_iv text,key_version smallint,account_hint text,expires_at timestamptz,last_verified_at timestamptz,last_error text,updated_at timestamptz,primary key(user_id,provider));
+create table app_private.telegram_link_tokens(user_id uuid,created_by uuid,consumed_at timestamptz,invalidated_at timestamptz);
+create table storage.objects(owner uuid references auth.users,owner_id text,name text);
+create function coach_effective_premium_status(p_users uuid[]) returns table(user_id uuid,is_premium boolean) language sql as $$select id,plan_override='premium' from public.bot_users where id=any(p_users)$$;
