@@ -85,6 +85,19 @@ test('the production-sized 472-application read avoids oversized response header
  assert.equal(dashboard.providers.immowelt,472);
 });
 
+test('dashboard application reads continue past the PostgREST 1000-row page',async()=>{
+ const f=fixture({applications:1205}),rows=await f.applicationRows(f.actor);
+ assert.equal(rows.length,1205);
+ assert.equal(f.eventRequests.reduce((n,r)=>n+r.ids.length,0),1205);
+ assert.ok(f.eventRequests.every(r=>r.urlLength<5000));
+ f.eventRequests.length=0;
+ const dashboard=await f.dashboardData(f.actor);
+ assert.equal(dashboard.applications.total,1205);
+ assert.equal(dashboard.applications.sent,1205);
+ assert.equal(dashboard.providers.immowelt,1205);
+ assert.equal(dashboard.recentApplications.length,8);
+});
+
 const crowdedEvents=apps=>[
  ...Array.from({length:1100},(_,i)=>({id:id(30000+i),application_id:apps[0].id,provider:'immowelt',status:'sent',created_at:date(-i)})),
  ...apps.slice(1).map((a,i)=>({id:id(40000+i),application_id:a.id,provider:'immoscout',status:'sent',created_at:date(-2000-i)}))
