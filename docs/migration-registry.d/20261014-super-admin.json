@@ -1,0 +1,12 @@
+{
+  "migrations": [
+    {
+      "version": "20261014090000",
+      "name": "coach_super_admin_role",
+      "file": "supabase/migrations/20261014090000_coach_super_admin_role.sql",
+      "registry_sql_sha256": "6d1bfcad647ccb2a351ca4a66da75ce4ea126c47cd84b74ccbc2e751a967df48",
+      "export_sql_sha256": "6d1bfcad647ccb2a351ca4a66da75ce4ea126c47cd84b74ccbc2e751a967df48",
+      "vault_substitution": false
+    }
+  ]
+}
