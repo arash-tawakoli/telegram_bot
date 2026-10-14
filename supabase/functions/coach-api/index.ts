@@ -24,7 +24,7 @@ function optionalInteger(v:any,min:number,max:number){if(v===null||v===undefined
 function random(bytes=32){const a=crypto.getRandomValues(new Uint8Array(bytes));let s='';for(const b of a)s+=String.fromCharCode(b);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
 function provider(v:any){const p=String(v||'');if(!PROVIDERS.has(p))throw Error('provider_unsupported');return p}
 function without<T extends Record<string,any>>(row:T|null|undefined,...keys:string[]){if(!row)return row;const out={...row};for(const k of keys)delete out[k];return out}
-function publicMemberRole(role:any){return String(role||'')==='admin'?'admin':'manager'}
+function publicMemberRole(role:any,isSuperAdmin=false){return isSuperAdmin?'super_admin':String(role||'')==='admin'?'admin':'manager'}
 function storedMemberRole(role:any){return String(role||'')==='admin'?'admin':'coach'}
 const READINESS_LABELS:Record<string,string>={
  active:'AutoApply aktiv',automation_paused:'Bereit zum Starten',premium_required:'Premium erforderlich',
@@ -90,7 +90,7 @@ async function actor(req:Request){
  const{data:{user},error}=await scoped.auth.getUser();
  if(error||!user)throw Error('unauthorized');
  const{data:member,error:me}=await admin.from('coaching_members')
-  .select('id,auth_user_id,workspace_id,display_name,role,is_active,coaching_workspaces!inner(id,name,is_active,operations_paused)')
+  .select('id,auth_user_id,workspace_id,display_name,role,is_super_admin,is_active,coaching_workspaces!inner(id,name,is_active,operations_paused)')
   .eq('auth_user_id',user.id).eq('is_active',true).maybeSingle();
  if(me||!member)throw Error('coach_forbidden');
  const w:any=(member as any).coaching_workspaces;
@@ -414,7 +414,7 @@ async function analyticsData(a:any,input:any={}){
   readinessCore(users),
   admin.from('sources').select('id,name').eq('enabled',true).order('name'),
   a.member.role==='admin'
-    ?admin.from('coaching_members').select('id,display_name,role,is_active').eq('workspace_id',a.member.workspace_id).eq('is_active',true).order('display_name')
+    ?admin.from('coaching_members').select('id,display_name,role,is_super_admin,is_active').eq('workspace_id',a.member.workspace_id).eq('is_active',true).order('display_name')
     :Promise.resolve({data:[],error:null} as any)
  ]);
  if(analyticsResult.error)throw Error('analytics_failed');
@@ -496,7 +496,7 @@ async function analyticsData(a:any,input:any={}){
   searchDemand:raw.searchDemand||{summary:{},propertyTypes:[],boroughs:[],neighborhoods:[]},
   filters:{
    participants:participantOptions,
-   managers:(memberRows.data||[]).map((m:any)=>({id:m.id,name:m.display_name,role:publicMemberRole(m.role)})),
+   managers:(memberRows.data||[]).map((m:any)=>({id:m.id,name:m.display_name,role:publicMemberRole(m.role,m.is_super_admin)})),
    sources:(sourceRows.data||[]).map((s:any)=>({id:s.id,name:s.name}))
   }
  };
@@ -534,8 +534,8 @@ async function handle(req:Request){
   if(error||!preview)throw Error('coach_unavailable');
   a={...actual,member:preview};
  }
- if(action==='me')return{member:{id:actual.member.id,displayName:actual.member.display_name,role:publicMemberRole(actual.member.role)},workspace:{name:a.workspace.name}};
- if(action==='members'){const{data,error}=await admin.from('coaching_members').select('id,display_name,role,is_active,created_at'+(a.member.role==='admin'?',coaching_participants!coaching_participants_workspace_id_coach_member_id_fkey(user_id)':'')).eq('workspace_id',a.member.workspace_id).order('display_name');if(error)throw Error('members_read_failed');return{members:(data||[]).map((x:any)=>({id:x.id,displayName:x.display_name,role:publicMemberRole(x.role),isActive:x.is_active,createdAt:x.created_at,...(a.member.role==='admin'?{participantCount:x.coaching_participants?.length||0}:{})}))};}
+ if(action==='me')return{member:{id:actual.member.id,displayName:actual.member.display_name,role:publicMemberRole(actual.member.role,actual.member.is_super_admin)},workspace:{name:a.workspace.name}};
+ if(action==='members'){const{data,error}=await admin.from('coaching_members').select('id,display_name,role,is_super_admin,is_active,created_at'+(a.member.role==='admin'?',coaching_participants!coaching_participants_workspace_id_coach_member_id_fkey(user_id)':'')).eq('workspace_id',a.member.workspace_id).order('display_name');if(error)throw Error('members_read_failed');return{members:(data||[]).map((x:any)=>({id:x.id,displayName:x.display_name,role:publicMemberRole(x.role,x.is_super_admin),isActive:x.is_active,createdAt:x.created_at,...(a.member.role==='admin'?{participantCount:x.coaching_participants?.length||0}:{})}))};}
  if(action==='locations'){const[{data:b},{data:n}]=await Promise.all([admin.from('hamburg_boroughs').select('id,name,sort_order').order('sort_order'),admin.from('hamburg_neighborhoods').select('id,name,borough_id').order('id')]);return{boroughs:b||[],neighborhoods:n||[]};}
  if(action==='participants')return{participants:await participantSummary(a,body.scope==='mine'?'mine':'all')};
  if(action==='participant')return participantDetail(a,participantId(body.participantId));
@@ -585,14 +585,14 @@ async function handle(req:Request){
  if(action==='applications')return applicationPage(a,body.scope==='mine'?'mine':'all',body);
  if(action==='dashboard')return dashboardData(a,body.scope==='mine'?'mine':'all',body);
  if(action==='analytics')return analyticsData(a,body);
- if(action==='create_coach'){if(a.member.role!=='admin')throw Error('admin_required');const e=email(body.email),password=String(body.password||''),requestedRole=String(body.role||'manager');if(!['manager','admin'].includes(requestedRole))throw Error('invalid_member_role');if(password.length<12)throw Error('password_too_short');const{data:created,error}=await admin.auth.admin.createUser({email:e,password,email_confirm:true});if(error||!created.user)throw Error(error?.message||'coach_auth_create_failed');const storedRole=storedMemberRole(requestedRole);const{data:member,error:me}=await admin.from('coaching_members').insert({auth_user_id:created.user.id,workspace_id:a.member.workspace_id,display_name:clean(body.display_name,120)||e,role:storedRole,is_active:true}).select('id,display_name,role').single();if(me){await admin.auth.admin.deleteUser(created.user.id).catch(()=>{});throw Error('coach_member_create_failed');}await audit(a,null,'coach_created',{member_id:member.id,role:requestedRole});return{ok:true,member:{id:member.id,displayName:member.display_name,role:publicMemberRole(member.role)}};}
+ if(action==='create_coach'){if(a.member.role!=='admin')throw Error('admin_required');const e=email(body.email),password=String(body.password||''),requestedRole=String(body.role||'manager');if(!['manager','admin'].includes(requestedRole))throw Error('invalid_member_role');if(password.length<12)throw Error('password_too_short');const{data:created,error}=await admin.auth.admin.createUser({email:e,password,email_confirm:true});if(error||!created.user)throw Error(error?.message||'coach_auth_create_failed');const storedRole=storedMemberRole(requestedRole);const{data:member,error:me}=await admin.from('coaching_members').insert({auth_user_id:created.user.id,workspace_id:a.member.workspace_id,display_name:clean(body.display_name,120)||e,role:storedRole,is_active:true}).select('id,display_name,role').single();if(me){await admin.auth.admin.deleteUser(created.user.id).catch(()=>{});throw Error('coach_member_create_failed');}await audit(a,null,'coach_created',{member_id:member.id,role:requestedRole});return{ok:true,member:{id:member.id,displayName:member.display_name,role:publicMemberRole(member.role,member.is_super_admin)}};}
  if(action==='update_coach_password'||action==='delete_coach'){
   if(a.member.role!=='admin')throw Error('admin_required');
   const id=uuid(body.memberId);
   if(id===a.member.id)throw Error('coach_unavailable');
-  const{data:member,error}=await admin.from('coaching_members').select('id,auth_user_id,display_name,is_active')
-   .eq('id',id).eq('workspace_id',a.member.workspace_id).eq('role','coach').maybeSingle();
-  if(error||!member)throw Error('coach_unavailable');
+  const{data:member,error}=await admin.from('coaching_members').select('id,auth_user_id,display_name,is_active,role,is_super_admin')
+   .eq('id',id).eq('workspace_id',a.member.workspace_id).maybeSingle();
+  if(error||!member||member.is_super_admin===true||!(member.role==='coach'||(a.member.is_super_admin===true&&member.role==='admin')))throw Error('member_management_forbidden');
   if(action==='update_coach_password'){
    const password=String(body.password||'');
    if(password.length<12)throw Error('password_too_short');
@@ -611,15 +611,15 @@ async function handle(req:Request){
   await audit(a,null,'coach_deleted',{member_id:id,participants_preserved:prepared.participants_preserved});
   return{ok:true,participantsPreserved:prepared.participants_preserved};
  }
- if(action==='set_coach_active'){if(a.member.role!=='admin')throw Error('admin_required');const id=uuid(body.memberId);if(id===a.member.id&&!body.active)throw Error('cannot_disable_self');const{data:updated,error}=await admin.from('coaching_members').update({is_active:Boolean(body.active),updated_at:new Date().toISOString()}).eq('id',id).eq('workspace_id',a.member.workspace_id).eq('role','coach').select('id').maybeSingle();if(error)throw Error('coach_update_failed');if(!updated)throw Error('coach_unavailable');await audit(a,null,'coach_status_changed',{member_id:id,active:Boolean(body.active)});return{ok:true};}
+ if(action==='set_coach_active'){if(a.member.role!=='admin')throw Error('admin_required');const id=uuid(body.memberId);if(id===a.member.id)throw Error('coach_unavailable');const{data:member,error:memberError}=await admin.from('coaching_members').select('id,role,is_super_admin').eq('id',id).eq('workspace_id',a.member.workspace_id).maybeSingle();if(memberError||!member||member.is_super_admin===true||!(member.role==='coach'||(a.member.is_super_admin===true&&member.role==='admin')))throw Error('member_management_forbidden');const{data:updated,error}=await admin.from('coaching_members').update({is_active:Boolean(body.active),updated_at:new Date().toISOString()}).eq('id',id).eq('workspace_id',a.member.workspace_id).select('id').maybeSingle();if(error)throw Error('coach_update_failed');if(!updated)throw Error('coach_unavailable');await audit(a,null,'coach_status_changed',{member_id:id,active:Boolean(body.active)});return{ok:true};}
  throw Error('invalid_action');
 }
-function publicError(error:any){const code=String(error?.message||'coach_api_failed').slice(0,160);const known=new Set(['unauthorized','coach_forbidden','workspace_unavailable','participant_forbidden','admin_required','invalid_id','invalid_participant','invalid_email','invalid_number','invalid_member_role','provider_unsupported','invalid_property_type','invalid_location','invalid_search_limits','location_required','invalid_document','invalid_document_type','invalid_document_path','upload_not_found','upload_invalid','document_not_found','document_open_failed','invalid_retention_date','password_too_short','cannot_disable_self','premium_required','import_candidates_failed','import_candidate_invalid','participant_adopt_failed','participant_create_failed','request_id_required','request_id_conflict','request_in_progress','oauth_client_not_provisioned','coach_unavailable','preview_read_only','invalid_password','coach_password_update_failed','coach_delete_failed','deletion_confirmation_required','auth_flow_expired']);return known.has(code)?code:(code.includes('profile_slot_not_allowed')?'profile_slot_not_allowed':'operation_failed');}
+function publicError(error:any){const code=String(error?.message||'coach_api_failed').slice(0,160);const known=new Set(['unauthorized','coach_forbidden','workspace_unavailable','participant_forbidden','admin_required','invalid_id','invalid_participant','invalid_email','invalid_number','invalid_member_role','provider_unsupported','invalid_property_type','invalid_location','invalid_search_limits','location_required','invalid_document','invalid_document_type','invalid_document_path','upload_not_found','upload_invalid','document_not_found','document_open_failed','invalid_retention_date','password_too_short','cannot_disable_self','premium_required','import_candidates_failed','import_candidate_invalid','participant_adopt_failed','participant_create_failed','request_id_required','request_id_conflict','request_in_progress','oauth_client_not_provisioned','coach_unavailable','member_management_forbidden','super_admin_protected','preview_read_only','invalid_password','coach_password_update_failed','coach_delete_failed','deletion_confirmation_required','auth_flow_expired']);return known.has(code)?code:(code.includes('profile_slot_not_allowed')?'profile_slot_not_allowed':'operation_failed');}
 
 Deno.serve(async req=>{
  if(req.method==='OPTIONS')return new Response(null,{status:204,headers:cors(req)});
  if(req.method==='GET')return json(req,{ok:true,service:'coach-api',version:11});
  if(req.method!=='POST')return new Response('method not allowed',{status:405,headers:cors(req)});
  try{return json(req,await handle(req));}
- catch(error:any){console.error('coach_api',String(error));const code=publicError(error),status=code==='unauthorized'?401:['coach_forbidden','participant_forbidden','admin_required','workspace_unavailable','preview_read_only'].includes(code)?403:400;return json(req,{error:code},status);}
+ catch(error:any){console.error('coach_api',String(error));const code=publicError(error),status=code==='unauthorized'?401:['coach_forbidden','participant_forbidden','admin_required','member_management_forbidden','super_admin_protected','workspace_unavailable','preview_read_only'].includes(code)?403:400;return json(req,{error:code},status);}
 });
