@@ -144,8 +144,8 @@
       "files": [
         {
           "path": "supabase/functions/coach-api/index.ts",
-          "git_blob_sha": "0707ab94fca0502d09e9f4cdc8d2185772c95149",
-          "deployed_git_blob_sha": "0707ab94fca0502d09e9f4cdc8d2185772c95149"
+          "sha256": "650b8452a4619a2d10e31acdaa052aac6a950462f6d35b0385ad585e678ca86d",
+          "deployed_sha256": "49ae61aeac9b7914afaee57db5f76d792581e60d70e41f7806be9e4bf2a71b3d"
         },
         {
           "path": "supabase/functions/_shared/application-profile-adapters.ts",
