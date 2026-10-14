@@ -303,12 +303,18 @@ async function applicationRows(a:any,scope='all',input:any={}){
  const assignments:any[]=await visibleAssignments(a,scope),ids=assignments.map(x=>x.user_id);
  if(!ids.length)return[];
  const publicByUser=new Map(assignments.map((x:any)=>[String(x.user_id),{participantId:x.public_id,name:[x.bot_users?.first_name,x.bot_users?.last_name].filter(Boolean).join(' '),coach:x.coach?.display_name||null,coachMemberId:x.coach_member_id}]));
- let q=admin.from('applications').select('id,user_id,status,attempts,last_error,wait_reason,created_at,sent_at,next_attempt_at,listings(title,canonical_url,district,postal_code,city,sources(name))').in('user_id',ids).order('created_at',{ascending:false}).limit(1000);
+ let q=admin.from('applications').select('id,user_id,status,attempts,last_error,wait_reason,created_at,sent_at,next_attempt_at,listings(title,canonical_url,district,postal_code,city,sources(name))').in('user_id',ids).order('created_at',{ascending:false}).order('id',{ascending:false});
  const days=filterDays(input.days);q=q.gte('created_at',new Date(Date.now()-days*86400000).toISOString());
  const status=safeFilter(input.status,['pending','processing','sent','failed','manual_required']);
  if(status)q=q.eq('status',status);
- const{data,error}=await q;if(error)throw Error('applications_read_failed');
- const appIds=(data||[]).map((x:any)=>x.id),latest=new Map<string,any>();
+ const rows:any[]=[];
+ for(let offset=0;;offset+=1000){
+  const{data:page,error}=await q.range(offset,offset+999);
+  if(error)throw Error('applications_read_failed');
+  rows.push(...(page||[]));
+  if((page||[]).length<1000)break;
+ }
+ const appIds=rows.map((x:any)=>x.id),latest=new Map<string,any>();
  // Bound response headers and run at most three independent event groups at once.
  for(let start=0;start<appIds.length;start+=300){
   await Promise.all([0,100,200].map(async shift=>{
@@ -325,7 +331,7 @@ async function applicationRows(a:any,scope='all',input:any={}){
   }));
  }
 
- let out=(data||[]).map((x:any)=>({...without(x,'user_id'),participant:publicByUser.get(String(x.user_id))||null,latestEvent:without(latest.get(String(x.id)),'application_id')}));
+ let out=rows.map((x:any)=>({...without(x,'user_id'),participant:publicByUser.get(String(x.user_id))||null,latestEvent:without(latest.get(String(x.id)),'application_id')}));
  const providerFilter=safeFilter(input.provider,['immoscout','kleinanzeigen','immomio','immowelt']);
  const docFilter=safeFilter(input.documentResult,['native_uploaded','link_included','not_provided','not_supported','transfer_failed']);
  if(providerFilter)out=out.filter((x:any)=>x.latestEvent?.provider===providerFilter);
@@ -623,3 +629,4 @@ Deno.serve(async req=>{
  try{return json(req,await handle(req));}
  catch(error:any){console.error('coach_api',String(error));const code=publicError(error),status=code==='unauthorized'?401:['coach_forbidden','participant_forbidden','admin_required','member_management_forbidden','super_admin_protected','workspace_unavailable','preview_read_only'].includes(code)?403:400;return json(req,{error:code},status);}
 });
+
