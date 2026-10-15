@@ -6,14 +6,14 @@ const source=readFileSync(new URL('../supabase/functions/coach-api/index.ts',imp
 const migration=readFileSync(new URL('../supabase/migrations/20261015125606_coach_super_admin_role_change.sql',import.meta.url),'utf8');
 
 test('only Super Admin can request a regular member role change',()=>{
- assert.match(source,/action==='change_coach_role'/);
- assert.match(source,/a\\.member\\.is_super_admin!==true/);
- assert.match(source,/coach_change_member_role/);
- assert.match(source,/member_role_update_failed/);
- assert.match(migration,/coach_change_member_role/);
- assert.match(migration,/v_actor\\.is_super_admin is not true/);
- assert.match(migration,/p_actor=p_member/);
- assert.match(migration,/revoke all on function public\\.coach_change_member_role/);
+ assert.ok(source.includes("action==='change_coach_role"));
+ assert.ok(source.includes("a.member.is_super_admin!==true"));
+ assert.ok(source.includes("admin.rpc('coach_change_member_role'"));
+ assert.ok(source.includes("member_role_update_failed"));
+ assert.ok(migration.includes('coach_change_member_role'));
+ assert.ok(migration.includes('v_actor.is_super_admin is not true'));
+ assert.ok(migration.includes('p_actor=p_member'));
+ assert.ok(migration.includes('revoke all on function public.coach_change_member_role'));
 });
 
 console.log('Super Admin role-change guards passed.');
