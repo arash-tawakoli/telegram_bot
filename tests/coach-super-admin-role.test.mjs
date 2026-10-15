@@ -4,11 +4,12 @@ import {readFileSync} from 'node:fs';
 
 const source=readFileSync(new URL('../supabase/functions/coach-api/index.ts',import.meta.url),'utf8');
 
-test('only the allowlisted Super Admin can create or manage Admin members',()=>{
- assert.match(source,/requestedRole==='admin'&&a\.member\.is_super_admin!==true/);
- assert.match(source,/member\.is_super_admin===true/);
- assert.match(source,/a\.member\.is_super_admin===true&&member\.role==='admin'/);
- assert.match(source,/member_management_forbidden/);
+test('only the allowlisted Super Admin can create or manage Admin and Super Admin members',()=>{
+ assert.ok(source.includes("['admin','super_admin'].includes(requestedRole)&&a.member.is_super_admin!==true"));
+ assert.ok(source.includes("member.is_super_admin===true"));
+ assert.ok(source.includes("a.member.is_super_admin===true&&member.role==='admin'"));
+ assert.ok(source.includes("requestedRole==='super_admin'"));
+ assert.ok(source.includes("member_management_forbidden"));
 });
 
 console.log('Super Admin member-management guards passed.');
