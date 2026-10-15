@@ -1365,8 +1365,8 @@
       "version": "20261015153949",
       "name": "coach_super_admin_role_management",
       "file": "supabase/migrations/20261015153949_coach_super_admin_role_management.sql",
-      "registry_sql_sha256": "Warning: s was declared with const; use let for reassignable variables.\nWarning: c was declared with const; use let for reassignable variables.\nf956fcba8563ba6fad85e68715d8a51bae93cb3fccfba06b474ac0cd3ddfbe8b",
-      "export_sql_sha256": "Warning: s was declared with const; use let for reassignable variables.\nWarning: c was declared with const; use let for reassignable variables.\nf956fcba8563ba6fad85e68715d8a51bae93cb3fccfba06b474ac0cd3ddfbe8b",
+      "registry_sql_sha256": "f956fcba8563ba6fad85e68715d8a51bae93cb3fccfba06b474ac0cd3ddfbe8b",
+      "export_sql_sha256": "f956fcba8563ba6fad85e68715d8a51bae93cb3fccfba06b474ac0cd3ddfbe8b",
       "vault_substitution": false
     }
   ],
