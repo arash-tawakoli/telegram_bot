@@ -1,5 +1,5 @@
 {
-  "observed_at": "2026-10-14T14:00:00.000Z",
+  "observed_at": "2026-10-15T12:38:00.000Z",
   "project_id": "dpmohkrwdlicexwcrqfy",
   "snapshot_kind": "repository_with_observed_deployment_hashes",
   "functions": [
@@ -135,17 +135,17 @@
     },
     {
       "slug": "coach-api",
-      "version": 33,
+      "version": 34,
       "verify_jwt": false,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "943ca12f358df2f13dfcdd289f1f135e44341ad59d530d72bfc40a20743018f0",
+      "observed_artifact_sha256": "0974d642513e6c1bbf69d2a9ea0c4f7b49c6b67aef013ae224d85284d352fcf8",
       "entrypoint": "supabase/functions/coach-api/index.ts",
       "files": [
         {
           "path": "supabase/functions/coach-api/index.ts",
-          "sha256": "95f186067a186db57b481696f359f0bbcedd6f7d9b4dfaada1fdcb7675c5f4e6",
-          "deployed_sha256": "95f186067a186db57b481696f359f0bbcedd6f7d9b4dfaada1fdcb7675c5f4e6"
+          "sha256": "e9df408d8480b71afbc855a2f1258d41dd734f79af00369dfbed2aac4c425604",
+          "deployed_sha256": "e9df408d8480b71afbc855a2f1258d41dd734f79af00369dfbed2aac4c425604"
         },
         {
           "path": "supabase/functions/_shared/application-profile-adapters.ts",
