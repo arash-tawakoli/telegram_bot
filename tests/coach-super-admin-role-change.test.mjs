@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
 const source=readFileSync(new URL('../supabase/functions/coach-api/index.ts',import.meta.url),'utf8');
-const migration=readFileSync(new URL('../supabase/migrations/20261015125606_coach_super_admin_role_change.sql',import.meta.url),'utf8');
+const migration=readFileSync(new URL('../supabase/migrations/20261015153949_coach_super_admin_role_management.sql',import.meta.url),'utf8');
 
 test('only Super Admin can request a regular member role change',()=>{
  assert.ok(source.includes("action==='change_coach_role"));
