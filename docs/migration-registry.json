@@ -1352,6 +1352,14 @@
       "registry_sql_sha256": "83576d2f1ae512d2bc431b32ee3727784cc1e24163a00af50dedf160e4d36ca6",
       "export_sql_sha256": "83576d2f1ae512d2bc431b32ee3727784cc1e24163a00af50dedf160e4d36ca6",
       "vault_substitution": false
+    },
+    {
+      "version": "20261015125606",
+      "name": "coach_super_admin_role_change",
+      "file": "supabase/migrations/20261015125606_coach_super_admin_role_change.sql",
+      "registry_sql_sha256": "b4558e053b7a5ecde16ef3442f69599bcb806a9d955e4d2d83c862d9d1dbaacc",
+      "export_sql_sha256": "b4558e053b7a5ecde16ef3442f69599bcb806a9d955e4d2d83c862d9d1dbaacc",
+      "vault_substitution": false
     }
   ],
   "historical_repository_ref": "36708e9e2f073d7b3835cfd28b8222446e23c0ff",
