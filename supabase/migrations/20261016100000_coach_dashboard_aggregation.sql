@@ -87,7 +87,7 @@ select jsonb_build_object(
     'created_at',r.created_at,'sent_at',r.sent_at,
     'listings',jsonb_build_object('title',r.title,'canonical_url',r.canonical_url,'district',r.district,'postal_code',r.postal_code,'city',r.city,'sources',jsonb_build_object('name',r.source_name)),
     'latestEvent',case when r.provider is null and r.document_result is null and r.event_status is null and r.reason is null then null else jsonb_build_object('provider',r.provider,'document_result',r.document_result,'status',r.event_status,'reason',r.reason,'created_at',r.event_created_at) end
-  ) order by r.created_at desc,r.id desc) from recent),'[]'::jsonb)
+  ) order by r.created_at desc,r.id desc) from recent r),'[]'::jsonb)
 );
 $function$;
 
