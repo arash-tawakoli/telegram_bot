@@ -11,6 +11,7 @@ const ORIGINS=new Set(['https://intern.traumwohnunghamburg.de','http://localhost
 const PROVIDERS=new Set(['immoscout','kleinanzeigen','immomio','immowelt']);
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PUBLIC_ID=/^cp_[a-f0-9]{24}$/;
+const DASHBOARD_PROVIDER_DEFAULTS={immoscout:0,kleinanzeigen:0,immomio:0,immowelt:0,unknown:0};
 
 function cors(req:Request){const origin=req.headers.get('origin')||'';return {'access-control-allow-origin':ORIGINS.has(origin)?origin:'https://intern.traumwohnunghamburg.de','access-control-allow-methods':'POST,OPTIONS','access-control-allow-headers':'authorization,content-type,apikey','access-control-allow-credentials':'true','vary':'Origin','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'};}
 function json(req:Request,body:any,status=200){return Response.json(body,{status,headers:cors(req)})}
@@ -137,18 +138,18 @@ async function effectivePremium(users:string[]){
  for(const row of data||[])map.set(String(row.user_id),row.is_premium===true);
  return map;
 }
-async function participantSummary(a:any,scope='all'){
- const data:any[]=await visibleAssignments(a,scope),users=data.map(x=>x.user_id);
+async function participantSummary(a:any,scope='all',providedAssignments:any[]|null=null){
+ const data:any[]=providedAssignments||await visibleAssignments(a,scope),users=data.map(x=>x.user_id);
  const [profiles,prefs,apps,readiness]=users.length?await Promise.all([
   admin.from('applicant_profiles').select('user_id,email,phone,city,household_size').in('user_id',users),
   admin.from('application_preferences').select('user_id,enabled,daily_limit,immoscout_enabled,kleinanzeigen_enabled,immomio_enabled,immowelt_enabled').in('user_id',users),
-  admin.from('applications').select('user_id,status').in('user_id',users),
+  admin.rpc('coach_application_summary_v1',{p_user_ids:users}),
   readinessCore(users)
  ]):[{data:[]},{data:[]},{data:[]},new Map<string,any>()];
  const pMap=new Map((profiles.data||[]).map((x:any)=>[x.user_id,without(x,'user_id')]));
  const prefMap=new Map((prefs.data||[]).map((x:any)=>[x.user_id,without(x,'user_id')]));
  const appMap=new Map<string,any>();
- for(const x of apps.data||[]){const v=appMap.get(x.user_id)||{total:0,sent:0,failed:0,pending:0};v.total++;if(x.status==='sent')v.sent++;else if(x.status==='failed'||x.status==='manual_required')v.failed++;else v.pending++;appMap.set(x.user_id,v)}
+ for(const x of apps.data||[]){appMap.set(x.user_id,{total:Number(x.total||0),sent:Number(x.sent||0),failed:Number(x.failed||0),pending:Number(x.pending||0)})}
  return data.map((x:any)=>{
    const u=x.bot_users||{},ready=readinessView(readiness.get(String(x.user_id)),x.status);
    return{
@@ -360,27 +361,18 @@ async function applicationPage(a:any,scope='all',input:any={}){
  return{...data,applications:(data.applications||[]).map((x:any)=>({...without(x,'user_id'),participant:publicByUser.get(String(x.user_id))||null}))};
 }
 async function dashboardData(a:any,scope='all',input:any={}){
- const [participants,applications]=await Promise.all([participantSummary(a,scope),applicationRows(a,scope,{days:filterDays(input.days)})]);
- const metrics:any={total:0,sent:0,failed:0,pending:0,manualRequired:0};
- const providers:any={immoscout:0,kleinanzeigen:0,immomio:0,immowelt:0,unknown:0};
- const documents:any={native_uploaded:0,link_included:0,not_provided:0,not_supported:0,transfer_failed:0,unknown:0};
- const waits:any={};
- for(const x of applications){
-  metrics.total++;if(x.status==='sent')metrics.sent++;else if(x.status==='failed')metrics.failed++;else if(x.status==='manual_required'){metrics.failed++;metrics.manualRequired++;}else metrics.pending++;
-  const p=x.latestEvent?.provider;providers[p in providers?p:'unknown']++;
-  const d=x.latestEvent?.document_result;documents[d in documents?d:'unknown']++;
-  if(x.wait_reason)waits[x.wait_reason]=(waits[x.wait_reason]||0)+1;
- }
+ const assignments=await visibleAssignments(a,scope);
+ const participants=await participantSummary(a,scope,assignments);
+ const dashboard=await admin.rpc('coach_dashboard_application_summary_v1',{p_user_ids:assignments.map((x:any)=>String(x.user_id)),p_days:filterDays(input.days)});
+ if(dashboard.error)throw Error('dashboard_applications_read_failed');
+ const summary=dashboard.data||{};
  const connections={immoscout:0,kleinanzeigen:0,immomio:0,immowelt:0};
  for(const p of participants)for(const provider of p.readiness?.connectedProviders||[])if(provider in connections)(connections as any)[provider]++;
- const attention=participants.filter((p:any)=>p.readiness?.primaryCode!=='active').slice(0,12).map((p:any)=>({
-  participantId:p.participantId,name:[p.participant.firstName,p.participant.lastName].filter(Boolean).join(' '),
-  coach:p.coach?.display_name||null,status:p.readiness?.primaryCode,label:p.readiness?.label,actionTab:p.readiness?.actionTab
- }));
  return{
   periodDays:filterDays(input.days),participantRows:participants,participants:participants.length,premium:participants.filter((p:any)=>p.participant.isPremium).length,
   automationActive:participants.filter((p:any)=>p.readiness?.primaryCode==='active').length,
-  applications:metrics,providers,documents,connections,waitReasons:waits,attention,recentApplications:applications.slice(0,8)
+  applications:summary.applications||{total:0,sent:0,failed:0,pending:0,manualRequired:0},
+  providers:{...DASHBOARD_PROVIDER_DEFAULTS,...(summary.providers||{})},documents:summary.documents||{},connections,waitReasons:summary.waitReasons||{},attention:summary.attention||[],recentApplications:summary.recentApplications||[]
  };
 }
 

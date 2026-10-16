@@ -1,0 +1,12 @@
+{
+  "migrations": [
+    {
+      "version": "20261016163057",
+      "name": "coach_dashboard_aggregation",
+      "file": "supabase/migrations/20261016163057_coach_dashboard_aggregation.sql",
+      "registry_sql_sha256": "0a4d86b4373e3b0987859395941f6cd18a1a94d381ad396c56873ce8e7ed2910",
+      "export_sql_sha256": "0a4d86b4373e3b0987859395941f6cd18a1a94d381ad396c56873ce8e7ed2910",
+      "vault_substitution": false
+    }
+  ]
+}
