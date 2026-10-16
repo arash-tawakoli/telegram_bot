@@ -22,6 +22,15 @@ function fixture({applications=472,users=20,authMember=1,events,failPage=false}=
  const db={
   auth:{getUser:async()=>({data:{user:{id:id(authMember)}},error:null})},
   rpc:async(name,args)=>{
+   if(name==='coach_application_summary_v1'){
+    const selected=apps.filter(a=>args.p_user_ids.includes(a.user_id)),groups=new Map();
+    for(const row of selected){const current=groups.get(row.user_id)||{user_id:row.user_id,total:0,sent:0,failed:0,pending:0};current.total++;if(row.status==='sent')current.sent++;else if(row.status==='failed'||row.status==='manual_required')current.failed++;else current.pending++;groups.set(row.user_id,current)}
+    return{data:[...groups.values()],error:null};
+   }
+   if(name==='coach_dashboard_application_summary_v1'){
+    const selected=apps.filter(a=>args.p_user_ids.includes(a.user_id));
+    return{data:{applications:{total:selected.length,sent:selected.filter(a=>a.status==='sent').length,failed:0,pending:0,manualRequired:0},providers:{immowelt:selected.length},documents:{link_included:selected.length},waitReasons:{},recentApplications:selected.slice(0,8)},error:null};
+   }
    if(name==='coach_application_page_v1'){
     pageRequests.push(args);
     const selected=apps.filter(a=>args.p_user_ids.includes(a.user_id));
