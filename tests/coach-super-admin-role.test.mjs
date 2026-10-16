@@ -6,6 +6,7 @@ const source=readFileSync(new URL('../supabase/functions/coach-api/index.ts',imp
 
 test('only the allowlisted Super Admin can create or manage Admin and Super Admin members',()=>{
  assert.ok(source.includes("['admin','super_admin'].includes(requestedRole)&&a.member.is_super_admin!==true"));
+ assert.ok(source.includes("if(a.member.role!=='admin'||a.member.is_super_admin!==true)throw Error('member_management_forbidden')"));
  assert.ok(source.includes("member.is_super_admin===true"));
  assert.ok(source.includes("a.member.is_super_admin===true&&member.role==='admin'"));
  assert.ok(source.includes("requestedRole==='super_admin'"));
