@@ -37,6 +37,23 @@ const CALLBACK_ACTIONS: Record<string, string> = {
 
 let cachedWebhookSecret: { value: string; expiresAt: number } | null = null;
 let cachedBotToken: { value: string; expiresAt: number } | null = null;
+const COMMAND_CONFIG_TTL=6*60*60*1000;
+const commandConfigCache=new Map<string,number>();
+async function ensureTelegramCommandConfig(chatId:number,isAdmin:boolean){
+  const now=Date.now();
+  const jobs:Array<{key:string,run:()=>Promise<unknown>}>=[];
+  if(now-(commandConfigCache.get('menu:'+chatId)||0)>COMMAND_CONFIG_TTL)
+    jobs.push({key:'menu:'+chatId,run:()=>telegram('setChatMenuButton',{chat_id:chatId,menu_button:{type:'commands'}})});
+  if(now-(commandConfigCache.get('default')||0)>COMMAND_CONFIG_TTL)
+    jobs.push({key:'default',run:()=>telegram('setMyCommands',{commands:BASE_COMMANDS,scope:{type:'default'}})});
+  if(isAdmin&&now-(commandConfigCache.get('admin:'+chatId)||0)>COMMAND_CONFIG_TTL)
+    jobs.push({key:'admin:'+chatId,run:()=>telegram('setMyCommands',{commands:ADMIN_COMMANDS,scope:{type:'chat',chat_id:chatId}})});
+  await Promise.all(jobs.map(async job=>{try{await job.run();commandConfigCache.set(job.key,now)}catch{}}));
+  if(commandConfigCache.size>256){
+    const oldest=[...commandConfigCache.entries()].sort((a,b)=>a[1]-b[1]).slice(0,64);
+    for(const [key] of oldest)commandConfigCache.delete(key);
+  }
+}
 
 function serviceHeaders(extra: Record<string, string> = {}) { return { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, "content-type": "application/json", ...extra }; }
 async function rpc(name: string, body: Record<string, unknown>) {
@@ -168,11 +185,7 @@ Deno.serve(async (req: Request) => {
     if (prepared?.fast_eligible === false) { await finish(updateId, attempt, false, "fast_path_language_fallback"); updateId = null; attempt = null; return forwardCore(body, supplied); }
     if (!user.is_active && !ADMINS.includes(Number(user.telegram_user_id))) { finishBackground(updateId, attempt, true); return Response.json({ ok: true, blocked: true }); }
     const chatId = Number(update?.message?.chat?.id); if (!chatId) throw new Error("missing chat id");
-    if (action === "home") { const argument = argumentOf(update); if (argument.startsWith("ref_") && user.__is_new_user) await rpc("redeem_referral_code", { p_referred_user_id: user.id, p_code: argument.slice(4) }).catch((e) => console.error("referral_register", String(e))); EdgeRuntime.waitUntil(Promise.all([
-      telegram("setChatMenuButton", { chat_id: chatId, menu_button: { type: "commands" } }).catch(() => {}),
-      telegram("setMyCommands", { commands: BASE_COMMANDS, scope: { type: "default" } }).catch(() => {}),
-      ...(ADMINS.includes(Number(user.telegram_user_id)) ? [telegram("setMyCommands", { commands: ADMIN_COMMANDS, scope: { type: "chat", chat_id: chatId } }).catch(() => {})] : [])
-    ])); if (user.__is_new_user) EdgeRuntime.waitUntil(notifyAdminsNewUser(user)); }
+    if (action === "home") { const argument = argumentOf(update); if (argument.startsWith("ref_") && user.__is_new_user) await rpc("redeem_referral_code", { p_referred_user_id: user.id, p_code: argument.slice(4) }).catch((e) => console.error("referral_register", String(e))); EdgeRuntime.waitUntil(ensureTelegramCommandConfig(chatId,ADMINS.includes(Number(user.telegram_user_id)))); if (user.__is_new_user) EdgeRuntime.waitUntil(notifyAdminsNewUser(user)); }
     let response: Response; if (action === "premium" || (action === "saved" && !user.is_premium)) { const premium = premiumContent(user); response = direct("sendPhoto", { chat_id: chatId, photo: PREMIUM_IMAGE, caption: premium.caption, parse_mode: "HTML", reply_markup: premium.reply_markup }); } else { const content = contentFor(action, user, data); if (!content) throw new Error(`unsupported fast action ${action}`); response = direct("sendMessage", textParams(chatId, content.text, content.reply_markup)); }
     finishBackground(updateId, attempt, true, null, { total_ms: Date.now() - requestStarted }); return response;
   } catch (error) { if (updateId !== null && attempt !== null) finishBackground(updateId, attempt, false, String(error), { total_ms: Date.now() - requestStarted }); console.error("telegram_fast", String(error)); return Response.json({ ok: false, error: "telegram_fast_failure" }, { status: 502 }); }
