@@ -367,11 +367,13 @@ async function dashboardData(a:any,scope='all',input:any={}){
  ]);
  if(dashboard.error)throw Error('dashboard_applications_read_failed');
  const summary=dashboard.data||{};
+ const connections={immoscout:0,kleinanzeigen:0,immomio:0,immowelt:0};
+ for(const p of participants)for(const provider of p.readiness?.connectedProviders||[])if(provider in connections)(connections as any)[provider]++;
  return{
   periodDays:filterDays(input.days),participantRows:participants,participants:participants.length,premium:participants.filter((p:any)=>p.participant.isPremium).length,
   automationActive:participants.filter((p:any)=>p.readiness?.primaryCode==='active').length,
   applications:summary.applications||{total:0,sent:0,failed:0,pending:0,manualRequired:0},
-  providers:{...DASHBOARD_PROVIDER_DEFAULTS,...(summary.providers||{})},documents:summary.documents||{},connections:summary.connections||{},waitReasons:summary.waitReasons||{},attention:summary.attention||[],recentApplications:summary.recentApplications||[]
+  providers:{...DASHBOARD_PROVIDER_DEFAULTS,...(summary.providers||{})},documents:summary.documents||{},connections,waitReasons:summary.waitReasons||{},attention:summary.attention||[],recentApplications:summary.recentApplications||[]
  };
 }
 
