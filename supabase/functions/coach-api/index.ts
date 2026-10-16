@@ -165,11 +165,11 @@ async function participantDetail(a:any,publicId:string){
  const assignment=await assignmentFor(a,publicId),userId=assignment.user_id;
  const [user,profile,searches,documents,connections,prefs,apps,readiness]=await Promise.all([
   admin.from('bot_users').select('first_name,last_name,username,is_active,origin,telegram_user_id,plan_override,plan_override_expires_at,referral_bonus_until,created_at,updated_at').eq('id',userId).single(),
-  admin.from('applicant_profiles').select('*').eq('user_id',userId).maybeSingle(),
-  admin.from('search_profiles').select('*').eq('user_id',userId).order('profile_slot'),
+  admin.from('applicant_profiles').select('user_id,salutation,first_name,last_name,email,phone,street,house_number,postcode,city,household_size,employment_status,monthly_net_income,default_message,created_at,updated_at,schufa_status,phone_call_desired,message_apartment,message_house,message_temporary_wg,message_swap,household_type,income_range,move_in_preference,move_in_date,wbs_status,pets').eq('user_id',userId).maybeSingle(),
+  admin.from('search_profiles').select('id,user_id,name,max_warm_rent,min_rooms,min_area_sqm,districts,property_types,furnished_preference,wbs_only,move_in_from,is_active,created_at,updated_at,location_mode,boroughs,neighborhoods,profile_slot,max_deposit,require_known_warm_rent,min_room_area_sqm').eq('user_id',userId).order('profile_slot'),
   admin.from('applicant_documents').select('id,document_type,original_filename,mime_type,size_bytes,send_with_auto_apply,created_at,updated_at').eq('user_id',userId).order('created_at',{ascending:false}),
   admin.from('platform_connections').select('provider,status,account_hint,expires_at,last_verified_at,last_error,updated_at').eq('user_id',userId),
-  admin.from('application_preferences').select('*').eq('user_id',userId).maybeSingle(),
+  admin.from('application_preferences').select('user_id,enabled,daily_limit,timezone,allowed_weekdays,send_window_start,send_window_end,immoscout_enabled,kleinanzeigen_enabled,immomio_enabled,immowelt_enabled,updated_at').eq('user_id',userId).maybeSingle(),
   admin.from('applications').select('id,listing_id,source_id,status,attempts,last_error,wait_reason,created_at,sent_at,next_attempt_at,listings(title,canonical_url,district,postal_code,city,sources(name))').eq('user_id',userId).order('created_at',{ascending:false}).limit(50),
   readinessCore([String(userId)])
  ]);
