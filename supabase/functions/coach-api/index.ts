@@ -11,6 +11,7 @@ const ORIGINS=new Set(['https://intern.traumwohnunghamburg.de','http://localhost
 const PROVIDERS=new Set(['immoscout','kleinanzeigen','immomio','immowelt']);
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PUBLIC_ID=/^cp_[a-f0-9]{24}$/;
+const DASHBOARD_PROVIDER_DEFAULTS={immoscout:0,kleinanzeigen:0,immomio:0,immowelt:0,unknown:0};
 
 function cors(req:Request){const origin=req.headers.get('origin')||'';return {'access-control-allow-origin':ORIGINS.has(origin)?origin:'https://intern.traumwohnunghamburg.de','access-control-allow-methods':'POST,OPTIONS','access-control-allow-headers':'authorization,content-type,apikey','access-control-allow-credentials':'true','vary':'Origin','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'};}
 function json(req:Request,body:any,status=200){return Response.json(body,{status,headers:cors(req)})}
@@ -370,7 +371,7 @@ async function dashboardData(a:any,scope='all',input:any={}){
   periodDays:filterDays(input.days),participantRows:participants,participants:participants.length,premium:participants.filter((p:any)=>p.participant.isPremium).length,
   automationActive:participants.filter((p:any)=>p.readiness?.primaryCode==='active').length,
   applications:summary.applications||{total:0,sent:0,failed:0,pending:0,manualRequired:0},
-  providers:summary.providers||{},documents:summary.documents||{},connections:summary.connections||{},waitReasons:summary.waitReasons||{},attention:summary.attention||[],recentApplications:summary.recentApplications||[]
+  providers:{...DASHBOARD_PROVIDER_DEFAULTS,...(summary.providers||{})},documents:summary.documents||{},connections:summary.connections||{},waitReasons:summary.waitReasons||{},attention:summary.attention||[],recentApplications:summary.recentApplications||[]
  };
 }
 
