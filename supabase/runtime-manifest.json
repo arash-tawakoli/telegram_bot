@@ -1048,17 +1048,17 @@
     },
     {
       "slug": "telegram-fast",
-      "version": 12,
+      "version": 13,
       "verify_jwt": false,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "71e5f9601abf31e96c4ba40da541ca1c386eb355e25e3d46d3a70283920e2442",
+      "observed_artifact_sha256": "0551b843639177890633251af45c23d4cb6799fc72e3bff0f6f606d5f5246cf6",
       "entrypoint": "supabase/functions/telegram-fast/index.ts",
       "files": [
         {
           "path": "supabase/functions/telegram-fast/index.ts",
-          "sha256": "741cd09ea442a57315b84bb8ee2f51d953cafa1c0693247749db4670d5375dca",
-          "deployed_sha256": "741cd09ea442a57315b84bb8ee2f51d953cafa1c0693247749db4670d5375dca"
+          "sha256": "150dfff8ffcee8c73b3013e4a8d277a1cb2c0ca07fc464f3abf66f18780f51a8",
+          "deployed_sha256": "150dfff8ffcee8c73b3013e4a8d277a1cb2c0ca07fc464f3abf66f18780f51a8"
         }
       ]
     },
