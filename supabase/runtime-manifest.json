@@ -651,17 +651,17 @@
     },
     {
       "slug": "notification-dispatcher",
-      "version": 209,
+      "version": 223,
       "verify_jwt": false,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "a9e757e612e3b9a7180de41814f8c1633a84c94121e5728ee9b536286b6642e6",
+      "observed_artifact_sha256": "20017129f5f3c6a2c87e8625287a64ec64e47e555f6fc2c7491b2444e0b857de",
       "entrypoint": "supabase/functions/notification-dispatcher/index.ts",
       "files": [
         {
           "path": "supabase/functions/notification-dispatcher/index.ts",
-          "sha256": "c1c3c9611768f1d00adcf9d4182f1faa9342991bec2ba03df7ce3e1292c7ce43",
-          "deployed_sha256": "c1c3c9611768f1d00adcf9d4182f1faa9342991bec2ba03df7ce3e1292c7ce43"
+          "sha256": "44fd5cf7798c85ba56cd1bd52788e1f1dc3acd77236ebf24b759f93eb4104dae",
+          "deployed_sha256": "44fd5cf7798c85ba56cd1bd52788e1f1dc3acd77236ebf24b759f93eb4104dae"
         },
         {
           "path": "supabase/functions/notification-dispatcher/availability.ts",
