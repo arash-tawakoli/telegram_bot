@@ -1,0 +1,20 @@
+{
+  "migrations": [
+    {
+      "version": "20261017204548",
+      "name": "index_saga_recovery_and_jsonb_query_hot_paths",
+      "file": "supabase/migrations/20261017204548_index_saga_recovery_and_jsonb_query_hot_paths.sql",
+      "registry_sql_sha256": "d377800ba43be0b21516574264649ae092ba4ed2c3d9ef90d5c07e522ff87515",
+      "export_sql_sha256": "d377800ba43be0b21516574264649ae092ba4ed2c3d9ef90d5c07e522ff87515",
+      "vault_substitution": false
+    },
+    {
+      "version": "20261017204655",
+      "name": "throttle_saga_recovery_probe_in_dispatch_cron",
+      "file": "supabase/migrations/20261017204655_throttle_saga_recovery_probe_in_dispatch_cron.sql",
+      "registry_sql_sha256": "75438baa8713da28d80c0749942f26baf44b094525817ace1e881d27b7743c71",
+      "export_sql_sha256": "75438baa8713da28d80c0749942f26baf44b094525817ace1e881d27b7743c71",
+      "vault_substitution": false
+    }
+  ]
+}
