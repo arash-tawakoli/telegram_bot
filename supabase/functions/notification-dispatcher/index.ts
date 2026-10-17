@@ -666,7 +666,8 @@ Deno.serve(async (req) => {
     if (!locked) return Response.json({ ok: true, busy: true });
     acquired = true;
     const deadline = Date.now() + 50_000;
-    try{await probeSagaRecoveryCandidate();}catch(error){console.error("saga_recovery_probe_failed",String(error).slice(0,300));}
+    // SAGA candidate discovery is paused until the database query path is indexed
+    // and scheduled independently; it previously caused 100-150s dispatcher runs.
     await recoverDeliveries(db);
     const now = new Date().toISOString();
     const { data: events, error } = await db
