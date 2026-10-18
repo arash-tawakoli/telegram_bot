@@ -140,18 +140,22 @@ async function effectivePremium(users:string[]){
 }
 async function participantSummary(a:any,scope='all',providedAssignments:any[]|null=null){
  const data:any[]=providedAssignments||await visibleAssignments(a,scope),users=data.map(x=>x.user_id);
- const [profiles,prefs,apps,readiness]=users.length?await Promise.all([
+ const [profiles,prefs,apps,readiness,searchProfiles]=users.length?await Promise.all([
   admin.from('applicant_profiles').select('user_id,email,phone,city,household_size').in('user_id',users),
   admin.from('application_preferences').select('user_id,enabled,daily_limit,immoscout_enabled,kleinanzeigen_enabled,immomio_enabled,immowelt_enabled').in('user_id',users),
   admin.rpc('coach_application_summary_v1',{p_user_ids:users}),
-  readinessCore(users)
- ]):[{data:[]},{data:[]},{data:[]},new Map<string,any>()];
+  readinessCore(users),
+  admin.from('search_profiles').select('user_id').in('user_id',users)
+ ]):[{data:[]},{data:[]},{data:[]},new Map<string,any>(),{data:[]}];
+ if(searchProfiles.error)throw Error('search_profiles_read_failed');
+ const searchCountMap=new Map<string,number>();
+ for(const search of searchProfiles.data||[]){const key=String(search.user_id);searchCountMap.set(key,(searchCountMap.get(key)||0)+1)}
  const pMap=new Map((profiles.data||[]).map((x:any)=>[x.user_id,without(x,'user_id')]));
  const prefMap=new Map((prefs.data||[]).map((x:any)=>[x.user_id,without(x,'user_id')]));
  const appMap=new Map<string,any>();
  for(const x of apps.data||[]){appMap.set(x.user_id,{total:Number(x.total||0),sent:Number(x.sent||0),failed:Number(x.failed||0),pending:Number(x.pending||0)})}
  return data.map((x:any)=>{
-   const u=x.bot_users||{},ready=readinessView(readiness.get(String(x.user_id)),x.status);
+   const u=x.bot_users||{},ready={...readinessView(readiness.get(String(x.user_id)),x.status),searchProfileCount:searchCountMap.get(String(x.user_id))||0};
    return{
     participantId:x.public_id,coachMemberId:x.coach_member_id,coach:x.coach||null,status:x.status,
     retentionMode:x.retention_mode,retentionDeleteOn:x.retention_delete_on,updatedAt:x.updated_at,createdAt:x.created_at,
@@ -181,7 +185,7 @@ async function participantDetail(a:any,publicId:string){
   for(const event of events||[])if(!latest.has(String(event.application_id)))latest.set(String(event.application_id),event);
  }
  const safeAssignment={participantId:assignment.public_id,coachMemberId:assignment.coach_member_id,status:assignment.status,retentionMode:assignment.retention_mode,retentionDeleteOn:assignment.retention_delete_on,assignmentVersion:assignment.assignment_version,archivedAt:assignment.archived_at,createdAt:assignment.created_at,updatedAt:assignment.updated_at};
- const ready=readinessView(readiness.get(String(userId)),assignment.status);
+ const ready={...readinessView(readiness.get(String(userId)),assignment.status),searchProfileCount:(searches.data||[]).length};
  const safeUser={...without(user.data,'telegram_user_id'),telegramConnected:user.data?.telegram_user_id!=null,isPremium:ready.isPremium};
  const timezone=String(prefs.data?.timezone||'Europe/Berlin');
  let localDate='';
