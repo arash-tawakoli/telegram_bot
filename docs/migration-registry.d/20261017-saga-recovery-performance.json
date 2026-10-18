@@ -5,7 +5,7 @@
       "name": "index_saga_recovery_and_jsonb_query_hot_paths",
       "file": "supabase/migrations/20261017204548_index_saga_recovery_and_jsonb_query_hot_paths.sql",
       "registry_sql_sha256": "d377800ba43be0b21516574264649ae092ba4ed2c3d9ef90d5c07e522ff87515",
-      "export_sql_sha256": "3f30fa76ad93f8aeee861bd28bc36734d36fc66614839a0ae6d5251f21c76eb2",
+      "export_sql_sha256": "0a07d1da7beda713afb637908edab9b99b767858db45c8da93ae5162430b7775",
       "vault_substitution": false
     },
     {
@@ -13,7 +13,7 @@
       "name": "throttle_saga_recovery_probe_in_dispatch_cron",
       "file": "supabase/migrations/20261017204655_throttle_saga_recovery_probe_in_dispatch_cron.sql",
       "registry_sql_sha256": "75438baa8713da28d80c0749942f26baf44b094525817ace1e881d27b7743c71",
-      "export_sql_sha256": "94a081e98b9a54d9b2f6eedb90e2679eeaaa1ddc1917066de5be2cc70f0c3eab",
+      "export_sql_sha256": "4fe63351f5c3e63b0435acb264538acc42093e292190399540d63824d7be237a",
       "vault_substitution": false
     }
   ]
