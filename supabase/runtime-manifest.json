@@ -144,13 +144,13 @@
       "files": [
         {
           "path": "supabase/functions/coach-api/index.ts",
-          "sha256": "44820ccf6a1dabfcaf35ed190772220e0894f78c1b0c8e1bd778f73ec2d0c2a8",
-          "deployed_sha256": "44820ccf6a1dabfcaf35ed190772220e0894f78c1b0c8e1bd778f73ec2d0c2a8"
+          "sha256": "8843b5cf2188d1f653c57d4fe1a079b6f874b1f44e6288f447d820ea58d49823",
+          "deployed_sha256": "8843b5cf2188d1f653c57d4fe1a079b6f874b1f44e6288f447d820ea58d49823"
         },
         {
           "path": "supabase/functions/_shared/application-profile-adapters.ts",
-          "sha256": "d9b74287d462fb13d84dbfa177e89fa18788a6b11317269f0e305009882c3050",
-          "deployed_sha256": "d9b74287d462fb13d84dbfa177e89fa18788a6b11317269f0e305009882c3050"
+          "sha256": "561eef88785b5d442dbf95d42123cac1236ce0e55094bf59cf65aea099c00f64",
+          "deployed_sha256": "561eef88785b5d442dbf95d42123cac1236ce0e55094bf59cf65aea099c00f64"
         }
       ]
     },
