@@ -620,11 +620,26 @@ async function handle(req:Request){
   }
   return{ok:results.every(x=>x.ok),results,created:results.filter(x=>x.ok&&x.mode==='adopted').length,assigned:results.filter(x=>x.ok&&x.mode==='assigned').length,failed:results.filter(x=>!x.ok).length};
  }
- const assignment=['dashboard','applications','analytics','import_candidates','adopt_participant','adopt_participants','create_coach','change_coach_role','set_coach_active','update_coach_password','delete_coach'].includes(action)?null:await assignmentFor(a,participantId(body.participantId),['set_plan','reassign'].includes(action));
+ const assignment=['dashboard','applications','analytics','import_candidates','adopt_participant','adopt_participants','create_coach','change_coach_role','set_coach_active','update_coach_password','delete_coach'].includes(action)?null:await assignmentFor(a,participantId(body.participantId),['set_plan','reassign','block_participant'].includes(action));
  if(action==='delete_participant'){
   if(body.confirmDelete!==true)throw Error('deletion_confirmation_required');
   const{data:user,error:userError}=await admin.from('bot_users').select('id,telegram_user_id').eq('id',assignment.user_id).maybeSingle();
   if(userError||!user)throw Error('participant_forbidden');
+  if(body.permanent===true){
+   const{data:announcements,error:announcementError}=await admin.from('telegram_announcements').select('id').eq('created_by',assignment.user_id).limit(1);
+   if(announcementError)throw Error('participant_delete_failed');
+   if((announcements||[]).length)throw Error('participant_delete_restricted');
+   const{data:documents,error:documentsError}=await admin.from('applicant_documents').select('storage_path').eq('user_id',assignment.user_id);
+   if(documentsError)throw Error('participant_delete_failed');
+   const paths=(documents||[]).map((x:any)=>String(x.storage_path||'')).filter(Boolean);
+   if(paths.length){
+    const{error:storageError}=await admin.storage.from('applicant-documents').remove(paths);
+    if(storageError)throw Error('participant_document_delete_failed');
+   }
+   const{error}=await admin.rpc('coach_delete_participant_permanently',{p_actor:a.member.id,p_user:assignment.user_id});
+   if(error)throw Error(error.message||'participant_delete_failed');
+   return{ok:true,mode:'deleted_permanently'};
+  }
   if(user.telegram_user_id==null){
    const{data:announcements,error:announcementError}=await admin.from('telegram_announcements').select('id').eq('created_by',assignment.user_id).limit(1);
    if(announcementError)throw Error('participant_delete_failed');
@@ -646,6 +661,20 @@ async function handle(req:Request){
  if(action==='set_search_active'){const id=uuid(body.profileId),userId=assignment.user_id;const{error}=await admin.from('search_profiles').update({is_active:Boolean(body.active),updated_at:new Date().toISOString()}).eq('id',id).eq('user_id',userId);if(error)throw Error('search_update_failed');await audit(a,userId,body.active?'search_profile_resumed':'search_profile_paused',{profile_id:id});return{ok:true};}
  if(action==='delete_search'){const id=uuid(body.profileId),userId=assignment.user_id;const{error}=await admin.from('search_profiles').delete().eq('id',id).eq('user_id',userId);if(error)throw Error('search_delete_failed');await audit(a,userId,'search_profile_deleted',{profile_id:id});return{ok:true};}
  if(action==='set_plan'){const{error}=await admin.rpc('coach_set_plan',{p_actor:a.member.id,p_user:assignment.user_id,p_plan:String(body.plan||'')});if(error)throw Error(error.message);return{ok:true};}
+ if(action==='block_participant'){
+  if(a.member.role!=='admin')throw Error('admin_required');
+  const blocked=body.blocked!==false;
+  const{data:user,error:userError}=await admin.from('bot_users').select('id,is_active').eq('id',assignment.user_id).maybeSingle();
+  if(userError||!user)throw Error('participant_unavailable');
+  const{error:updateError}=await admin.from('bot_users').update({is_active:!blocked,updated_at:new Date().toISOString()}).eq('id',assignment.user_id);
+  if(updateError)throw Error('participant_block_failed');
+  if(blocked){
+   const{error:searchError}=await admin.from('search_profiles').update({is_active:false,updated_at:new Date().toISOString()}).eq('user_id',assignment.user_id);
+   if(searchError)throw Error('participant_block_failed');
+  }
+  await audit(a,assignment.user_id,blocked?'participant_blocked':'participant_unblocked',{is_active:!blocked});
+  return{ok:true,blocked};
+ }
  if(action==='set_preferences'){const p=body.preferences||{},weekdays=Array.isArray(p.allowed_weekdays)?p.allowed_weekdays.map((x:any)=>integer(x,1,7)):null;const{error}=await admin.rpc('coach_set_application_preferences',{p_actor:a.member.id,p_user:assignment.user_id,p_enabled:Boolean(p.enabled),p_daily_limit:optionalInteger(p.daily_limit,1,1000),p_timezone:clean(p.timezone,80)||'Europe/Berlin',p_weekdays:weekdays,p_window_start:p.send_window_start||null,p_window_end:p.send_window_end||null,p_immoscout:Boolean(p.immoscout_enabled),p_kleinanzeigen:Boolean(p.kleinanzeigen_enabled),p_immomio:Boolean(p.immomio_enabled),p_immowelt:Boolean(p.immowelt_enabled)});if(error)throw Error(error.message);return{ok:true};}
  if(action==='reassign'){const{error}=await admin.rpc('coach_reassign_participant',{p_actor:a.member.id,p_user:assignment.user_id,p_coach:body.coachMemberId?uuid(body.coachMemberId):null});if(error)throw Error(error.message);return{ok:true};}
  if(action==='archive'){const next=body.archived===false?'active':'archived';const{error}=await admin.from('coaching_participants').update({status:next,archived_at:next==='archived'?new Date().toISOString():null,updated_at:new Date().toISOString()}).eq('user_id',assignment.user_id).eq('workspace_id',a.member.workspace_id);if(error)throw Error('archive_failed');await audit(a,assignment.user_id,next==='archived'?'participant_archived':'participant_restored');return{ok:true};}
@@ -707,7 +736,7 @@ async function handle(req:Request){
  if(action==='set_coach_active'){if(a.member.role!=='admin')throw Error('admin_required');const id=uuid(body.memberId);if(id===a.member.id)throw Error('coach_unavailable');const{data:member,error:memberError}=await admin.from('coaching_members').select('id,role,is_super_admin').eq('id',id).eq('workspace_id',a.member.workspace_id).maybeSingle();if(memberError||!member||member.is_super_admin===true||!(member.role==='coach'||(a.member.is_super_admin===true&&member.role==='admin')))throw Error('member_management_forbidden');const{data:updated,error}=await admin.from('coaching_members').update({is_active:Boolean(body.active),updated_at:new Date().toISOString()}).eq('id',id).eq('workspace_id',a.member.workspace_id).select('id').maybeSingle();if(error)throw Error('coach_update_failed');if(!updated)throw Error('coach_unavailable');await audit(a,null,'coach_status_changed',{member_id:id,active:Boolean(body.active)});return{ok:true};}
  throw Error('invalid_action');
 }
-function publicError(error:any){const code=String(error?.message||'coach_api_failed').slice(0,160);const known=new Set(['unauthorized','coach_forbidden','workspace_unavailable','participant_forbidden','admin_required','invalid_id','invalid_participant','invalid_email','invalid_number','invalid_member_role','provider_unsupported','invalid_property_type','invalid_location','invalid_search_limits','location_required','invalid_document','invalid_document_type','invalid_document_path','upload_not_found','upload_invalid','document_not_found','document_open_failed','invalid_retention_date','password_too_short','cannot_disable_self','premium_required','import_candidates_failed','import_candidate_invalid','participant_adopt_failed','participant_create_failed','participant_assignment_failed','participant_already_assigned','participant_unavailable','participant_delete_failed','participant_delete_restricted','participant_document_delete_failed','invalid_import_selection','request_id_required','request_id_conflict','request_in_progress','oauth_client_not_provisioned','coach_unavailable','member_management_forbidden','super_admin_protected','super_admin_required','preview_read_only','invalid_password','coach_password_update_failed','coach_delete_failed','member_role_update_failed','deletion_confirmation_required','auth_flow_expired']);return known.has(code)?code:(code.includes('profile_slot_not_allowed')?'profile_slot_not_allowed':'operation_failed');}
+function publicError(error:any){const code=String(error?.message||'coach_api_failed').slice(0,160);const known=new Set(['unauthorized','coach_forbidden','workspace_unavailable','participant_forbidden','admin_required','invalid_id','invalid_participant','invalid_email','invalid_number','invalid_member_role','provider_unsupported','invalid_property_type','invalid_location','invalid_search_limits','location_required','invalid_document','invalid_document_type','invalid_document_path','upload_not_found','upload_invalid','document_not_found','document_open_failed','invalid_retention_date','password_too_short','cannot_disable_self','premium_required','import_candidates_failed','import_candidate_invalid','participant_adopt_failed','participant_create_failed','participant_assignment_failed','participant_already_assigned','participant_unavailable','participant_delete_failed','participant_delete_restricted','participant_document_delete_failed','participant_block_failed','invalid_import_selection','request_id_required','request_id_conflict','request_in_progress','oauth_client_not_provisioned','coach_unavailable','member_management_forbidden','super_admin_protected','super_admin_required','preview_read_only','invalid_password','coach_password_update_failed','coach_delete_failed','member_role_update_failed','deletion_confirmation_required','auth_flow_expired']);return known.has(code)?code:(code.includes('profile_slot_not_allowed')?'profile_slot_not_allowed':'operation_failed');}
 
 Deno.serve(async req=>{
  if(req.method==='OPTIONS')return new Response(null,{status:204,headers:cors(req)});
