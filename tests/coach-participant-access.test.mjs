@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import {readFileSync,readdirSync} from 'node:fs';
 
 const root=new URL('../',import.meta.url);
-const coach=readFileSync(new URL('../supabase/functions/coach-api/index.ts',root),'utf8');
-const migrationName=readdirSync(new URL('../supabase/migrations/',root)).find(name=>name.endsWith('_coach_participant_access_and_premium.sql'));
+const coach=readFileSync(new URL('supabase/functions/coach-api/index.ts',root),'utf8');
+const migrationName=readdirSync(new URL('supabase/migrations/',root)).find(name=>name.endsWith('_coach_participant_access_and_premium.sql'));
 assert.ok(migrationName,'participant access migration is present');
-const migration=readFileSync(new URL('../supabase/migrations/'+migrationName,root),'utf8');
+const migration=readFileSync(new URL('supabase/migrations/'+migrationName,root),'utf8');
 
 test('portal Premium is assigned only to newly created coaching identities',()=>{
   assert.match(migration,/new\.origin='coaching' and new\.telegram_user_id is null/);
