@@ -18,7 +18,8 @@ test('portal Premium is assigned only to newly created coaching identities',()=>
 test('participant import enumerates Telegram users and distinguishes unassigned portal identities',()=>{
   assert.match(coach,/\.not\('telegram_user_id','is',null\)/);
   assert.match(coach,/\.range\(offset,offset\+499\)/);
-  assert.match(coach,/alreadyInPortal:Boolean\(assignment/);
+  assert.match(coach,/const available=bots\.filter\(\(x:any\)=>!assignmentMap\.has\(String\(x\.id\)\)\)/);
+  assert.doesNotMatch(coach,/assigned\.workspace_id===a\.member\.workspace_id&&!assigned\.coach_member_id/);
   assert.match(coach,/action==='adopt_participants'/);
   assert.match(migration,/coach_assign_unassigned_participant/);
 });
