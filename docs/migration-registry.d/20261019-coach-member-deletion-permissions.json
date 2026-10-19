@@ -1,0 +1,12 @@
+{
+  "migrations": [
+    {
+      "version": "20261019084450",
+      "name": "coach_member_deletion_permissions",
+      "file": "supabase/migrations/20261019084450_coach_member_deletion_permissions.sql",
+      "registry_sql_sha256": "5ee62a75a936a61a7851d826c1b6c171ac3c06163799bdd1473ac460b1fbfc68",
+      "export_sql_sha256": "5ee62a75a936a61a7851d826c1b6c171ac3c06163799bdd1473ac460b1fbfc68",
+      "vault_substitution": false
+    }
+  ]
+}
