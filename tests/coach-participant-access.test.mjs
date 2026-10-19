@@ -46,7 +46,7 @@ test('participant deletion checks assignment ownership and preserves Telegram id
 });
 
 test('deleting a Telegram user also removes the portal row through the database cascade',()=>{
-  assert.match(telegramAdmin,/await db\.from\("bot_users"\)\.delete\(\)\.eq\("id", userId\)/);
+  assert.match(telegramAdmin,/await db\s*\.from\("bot_users"\)\s*\.delete\(\)\s*\.eq\("id", userId\)/);
   assert.match(actionMigration,/delete from public\.bot_users where id=p_user/);
   assert.match(actionMigration,/bot_users deletion cascades to coaching_participants/i);
   assert.match(actionMigration,/delete from public\.platform_sessions where user_id=p_user/);
