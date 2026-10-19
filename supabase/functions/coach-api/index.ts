@@ -522,10 +522,9 @@ async function importCandidates(a:any,includeUserId=false){
   .select('user_id,public_id,workspace_id,coach_member_id');
  if(assignmentError)throw Error('import_candidates_failed');
  const assignmentMap=new Map((assignments||[]).map((x:any)=>[String(x.user_id),x]));
- const available=bots.filter((x:any)=>{
-  const assigned:any=assignmentMap.get(String(x.id));
-  return !assigned||(assigned.workspace_id===a.member.workspace_id&&!assigned.coach_member_id);
- });
+ // Compare against the actual Web-Portal participant list, not just coach assignment.
+ // Any existing coaching_participants row means the Telegram identity is already represented in the portal.
+ const available=bots.filter((x:any)=>!assignmentMap.has(String(x.id)));
  const ids=available.map((x:any)=>String(x.id));if(!ids.length)return[];
  const [profiles,premium,key]=await Promise.all([
   admin.from('applicant_profiles').select('user_id,first_name,last_name,email,phone,city').in('user_id',ids),
