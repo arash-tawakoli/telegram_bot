@@ -135,17 +135,17 @@
     },
     {
       "slug": "coach-api",
-      "version": 39,
+      "version": 40,
       "verify_jwt": false,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "5e02ad85516230d7c9f9978c79ea05f6574ea7e98c061ed0c2cea4bbb92b1902",
+      "observed_artifact_sha256": "5b2f397706dffda3076229b39d4bd95888ba916715698dee98944609236ce63d",
       "entrypoint": "supabase/functions/coach-api/index.ts",
       "files": [
         {
           "path": "supabase/functions/coach-api/index.ts",
-          "sha256": "8843b5cf2188d1f653c57d4fe1a079b6f874b1f44e6288f447d820ea58d49823",
-          "deployed_sha256": "8843b5cf2188d1f653c57d4fe1a079b6f874b1f44e6288f447d820ea58d49823"
+          "sha256": "75078c23d109c47b53f01c3c98fd77498989d5e9e52d75337bbc535e826ffcbf",
+          "deployed_sha256": "75078c23d109c47b53f01c3c98fd77498989d5e9e52d75337bbc535e826ffcbf"
         },
         {
           "path": "supabase/functions/_shared/application-profile-adapters.ts",
