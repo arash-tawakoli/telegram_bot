@@ -1,0 +1,12 @@
+{
+  "migrations": [
+    {
+      "version": "20261019152023",
+      "name": "coach_participant_actions",
+      "file": "supabase/migrations/20261019152023_coach_participant_actions.sql",
+      "registry_sql_sha256": "07a32a5d99c15ba92562acc437d0dcb6ff3d604f661457dadf08d920dd93836f",
+      "export_sql_sha256": "07a32a5d99c15ba92562acc437d0dcb6ff3d604f661457dadf08d920dd93836f",
+      "vault_substitution": false
+    }
+  ]
+}
