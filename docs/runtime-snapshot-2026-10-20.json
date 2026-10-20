@@ -1,0 +1,3445 @@
+{
+  "generated_at": "2026-10-20T19:07:00.207Z",
+  "project_id": "dpmohkrwdlicexwcrqfy",
+  "repositories": {
+    "backend": {
+      "repository": "arash-tawakoli/telegram_bot",
+      "branch": "main",
+      "base_commit": "a00f865e40ea0b2f816166c3f87d4e77d62d3720"
+    },
+    "portal": {
+      "repository": "arash-tawakoli/website_traumwohnung",
+      "branch": "main",
+      "base_commit": "94e789ffd7a31defd934a2d258f446146fbf21d2"
+    }
+  },
+  "migrations": {
+    "count": 312,
+    "items": [
+      {
+        "version": "20260826165201",
+        "name": "professional_bot_onboarding_and_hamburg_geography"
+      },
+      {
+        "version": "20260826165724",
+        "name": "notification_dispatch_queue_and_runtime_bot_token"
+      },
+      {
+        "version": "20260826170040",
+        "name": "photo_notification_pipeline_and_listing_enrichment"
+      },
+      {
+        "version": "20260826171751",
+        "name": "fix_private_function_search_path"
+      },
+      {
+        "version": "20260826181251",
+        "name": "route_k1_portal_workers"
+      },
+      {
+        "version": "20260826183235",
+        "name": "route_immoscout_worker"
+      },
+      {
+        "version": "20260826191619",
+        "name": "allow_one_minute_source_polling"
+      },
+      {
+        "version": "20260827160933",
+        "name": "delivery_pipeline_hardening"
+      },
+      {
+        "version": "20260827161212",
+        "name": "source_scheduler_backoff_and_health"
+      },
+      {
+        "version": "20260827161653",
+        "name": "disable_legacy_source_engine_delivery"
+      },
+      {
+        "version": "20260827170557",
+        "name": "strict_immomio_tenant_connectors"
+      },
+      {
+        "version": "20260827171507",
+        "name": "add_ebv_strict_immomio_and_kolping_classification"
+      },
+      {
+        "version": "20260827174953",
+        "name": "architecture_v2_core"
+      },
+      {
+        "version": "20260827175119",
+        "name": "architecture_v2_source_queue"
+      },
+      {
+        "version": "20260827175159",
+        "name": "architecture_v2_source_queue_fix"
+      },
+      {
+        "version": "20260827175348",
+        "name": "architecture_v2_observability_and_availability"
+      },
+      {
+        "version": "20260827175626",
+        "name": "architecture_v2_dedicated_worker_evidence"
+      },
+      {
+        "version": "20260827175736",
+        "name": "architecture_v2_multi_profile_compatibility"
+      },
+      {
+        "version": "20260827180015",
+        "name": "architecture_v2_availability_connector_accuracy"
+      },
+      {
+        "version": "20260827180636",
+        "name": "architecture_v2_immomio_telemetry_bridge"
+      },
+      {
+        "version": "20260827180941",
+        "name": "architecture_v2_private_schema_service_role"
+      },
+      {
+        "version": "20260827181230",
+        "name": "architecture_v2_integrity_guards"
+      },
+      {
+        "version": "20260827181330",
+        "name": "architecture_v2_retention"
+      },
+      {
+        "version": "20260827181541",
+        "name": "architecture_v2_fk_indexes"
+      },
+      {
+        "version": "20260827185726",
+        "name": "listing_enrichment_schema"
+      },
+      {
+        "version": "20260827185750",
+        "name": "listing_enrichment_queue_and_delivery_gate"
+      },
+      {
+        "version": "20260827185811",
+        "name": "source_field_capability_refresh"
+      },
+      {
+        "version": "20260827190212",
+        "name": "listing_enrichment_scheduling"
+      },
+      {
+        "version": "20260827192145",
+        "name": "source_field_capability_audit_status"
+      },
+      {
+        "version": "20260827192500",
+        "name": "central_field_semantics_and_delivery_guard"
+      },
+      {
+        "version": "20260827192842",
+        "name": "listing_value_sanity_guards"
+      },
+      {
+        "version": "20260827193337",
+        "name": "fallback_logo_endpoint_v2"
+      },
+      {
+        "version": "20260827193413",
+        "name": "exact_fallback_logo_and_field_audit_status"
+      },
+      {
+        "version": "20260827193613",
+        "name": "telegram_legacy_ui_runtime_token_alias"
+      },
+      {
+        "version": "20260827193847",
+        "name": "preserve_enriched_fields_and_reject_pseudo_listings"
+      },
+      {
+        "version": "20260827193921",
+        "name": "refine_listing_quality_gate"
+      },
+      {
+        "version": "20260827194024",
+        "name": "restore_verified_listing_fields_from_evidence"
+      },
+      {
+        "version": "20260827194138",
+        "name": "source_specific_post_enrichment_repairs"
+      },
+      {
+        "version": "20260827194200",
+        "name": "move_source_repairs_before_delivery_matching"
+      },
+      {
+        "version": "20260827194300",
+        "name": "separate_field_audit_from_delivery_eligibility"
+      },
+      {
+        "version": "20260827194656",
+        "name": "harden_listing_quality_gate"
+      },
+      {
+        "version": "20260827194805",
+        "name": "capability_audit_exclude_rejected_listings"
+      },
+      {
+        "version": "20260827194930",
+        "name": "tighten_listing_quality_gate"
+      },
+      {
+        "version": "20260827194949",
+        "name": "source_specific_field_and_image_normalization"
+      },
+      {
+        "version": "20260827195127",
+        "name": "trust_kleinanzeigen_jpeg_cdn_images"
+      },
+      {
+        "version": "20260827195429",
+        "name": "extract_rooms_from_listing_text"
+      },
+      {
+        "version": "20260828094408",
+        "name": "listing_priority_dedupe_and_cost_semantics"
+      },
+      {
+        "version": "20260828095111",
+        "name": "primary_listing_delivery_and_saved_guard"
+      },
+      {
+        "version": "20260828095615",
+        "name": "dedupe_group_lifecycle_priority"
+      },
+      {
+        "version": "20260828100012",
+        "name": "fix_listing_dedupe_alias_collision"
+      },
+      {
+        "version": "20260828100055",
+        "name": "correct_explicit_title_rooms_and_addresses"
+      },
+      {
+        "version": "20260828100114",
+        "name": "fix_explicit_title_rooms_pattern"
+      },
+      {
+        "version": "20260828100607",
+        "name": "harden_address_and_room_fact_precedence"
+      },
+      {
+        "version": "20260828105728",
+        "name": "index_dedupe_preferred_listing_fk"
+      },
+      {
+        "version": "20260828131811",
+        "name": "source1_adaptive_inventory_snapshots"
+      },
+      {
+        "version": "20260828132111",
+        "name": "source1_inventory_continuation_queue"
+      },
+      {
+        "version": "20260828132749",
+        "name": "source1_inventory_continuation_cron"
+      },
+      {
+        "version": "20260828133016",
+        "name": "source1_inventory_catchup_index"
+      },
+      {
+        "version": "20260828133328",
+        "name": "source1_inventory_member_type_normalization"
+      },
+      {
+        "version": "20260828134154",
+        "name": "source1_inventory_completeness_hardening"
+      },
+      {
+        "version": "20260828143550",
+        "name": "add_walddoerfer_strict_immomio_connector"
+      },
+      {
+        "version": "20260828144231",
+        "name": "normalize_baugenossenschaft_immomio_routes"
+      },
+      {
+        "version": "20260829141910",
+        "name": "rolling_inventory_scanner_foundation"
+      },
+      {
+        "version": "20260829144006",
+        "name": "kleinanzeigen_public_inventory_cutover_guard"
+      },
+      {
+        "version": "20260829150056",
+        "name": "kleinanzeigen_public_inventory_acceptance_guard_v2"
+      },
+      {
+        "version": "20260829150205",
+        "name": "resume_immoscout_rolling_validation"
+      },
+      {
+        "version": "20260829152956",
+        "name": "enforce_single_search_profile_per_user"
+      },
+      {
+        "version": "20260829163539",
+        "name": "add_source_crawl_priority_and_three_worker_limit"
+      },
+      {
+        "version": "20260829184422",
+        "name": "architecture_v3_cutover_foundation"
+      },
+      {
+        "version": "20260829185138",
+        "name": "architecture_v3_master_tier_alignment"
+      },
+      {
+        "version": "20260829185310",
+        "name": "architecture_v3_remove_legacy_runtime_layers_v2"
+      },
+      {
+        "version": "20260829185442",
+        "name": "enforce_single_profile_replace_semantics"
+      },
+      {
+        "version": "20260829192043",
+        "name": "source_worker_v3_runtime_route"
+      },
+      {
+        "version": "20260829203934",
+        "name": "route_cron_to_canonical_source_worker"
+      },
+      {
+        "version": "20260829204418",
+        "name": "restore_master_tier_gartenstadt_wandsbek"
+      },
+      {
+        "version": "20260829205845",
+        "name": "require_complete_coverage_before_baseline"
+      },
+      {
+        "version": "20260830185044",
+        "name": "add_fresh_delivery_eligibility"
+      },
+      {
+        "version": "20260830185634",
+        "name": "gate_telegram_delivery_by_freshness"
+      },
+      {
+        "version": "20260831111050",
+        "name": "allow_fresh_listings_before_baseline_delivery"
+      },
+      {
+        "version": "20260831182154",
+        "name": "fix_portal_freshness_and_canonical_dedupe"
+      },
+      {
+        "version": "20260831182806",
+        "name": "route_vonovia_transport"
+      },
+      {
+        "version": "20260831183303",
+        "name": "route_immobilien_de_transport"
+      },
+      {
+        "version": "20260831190104",
+        "name": "full_snapshot_portal_connectors"
+      },
+      {
+        "version": "20260831204329",
+        "name": "harden_search_matching_and_warm_rent"
+      },
+      {
+        "version": "20260831204529",
+        "name": "infer_explicit_inclusive_rent"
+      },
+      {
+        "version": "20260831210125",
+        "name": "fix_immobilie1_warm_rent_persistence"
+      },
+      {
+        "version": "20260831222049",
+        "name": "add_stripe_premium_entitlements"
+      },
+      {
+        "version": "20260831223405",
+        "name": "remove_legacy_single_profile_replace_trigger"
+      },
+      {
+        "version": "20260831235203",
+        "name": "admin_plan_override"
+      },
+      {
+        "version": "20260901001843",
+        "name": "admin_premium_expiry"
+      },
+      {
+        "version": "20260901002107",
+        "name": "admin_premium_expiry_cleanup"
+      },
+      {
+        "version": "20260901071142",
+        "name": "finish_product_releases"
+      },
+      {
+        "version": "20260901072858",
+        "name": "schedule_billing_maintenance"
+      },
+      {
+        "version": "20260901073156",
+        "name": "household_saved_sync"
+      },
+      {
+        "version": "20260901084043",
+        "name": "fix_listing_change_array_append"
+      },
+      {
+        "version": "20260901100936",
+        "name": "remove_listing_feedback_and_source_mute_logic"
+      },
+      {
+        "version": "20260901101931",
+        "name": "drop_removed_listing_feedback_features"
+      },
+      {
+        "version": "20260901104734",
+        "name": "fix_immowelt_immobilien_de_images"
+      },
+      {
+        "version": "20260901111829",
+        "name": "fix_vonovia_wg_fresh_delivery"
+      },
+      {
+        "version": "20260901111836",
+        "name": "fix_vonovia_wg_fresh_delivery"
+      },
+      {
+        "version": "20260901111837",
+        "name": "fix_vonovia_wg_fresh_delivery"
+      },
+      {
+        "version": "20260901111839",
+        "name": "fix_vonovia_wg_fresh_delivery"
+      },
+      {
+        "version": "20260901111920",
+        "name": "enforce_fresh_insert_for_vonovia_wg"
+      },
+      {
+        "version": "20260901112244",
+        "name": "fix_wg_card_price_delivery"
+      },
+      {
+        "version": "20260901112253",
+        "name": "queue_delivery_on_fresh_enable"
+      },
+      {
+        "version": "20260901112350",
+        "name": "scope_fresh_insert_fallback_to_vonovia"
+      },
+      {
+        "version": "20260901125458",
+        "name": "fix_source_runtime_blockers"
+      },
+      {
+        "version": "20260901141302",
+        "name": "remove_partner_mode_and_one_week_referrals"
+      },
+      {
+        "version": "20260901145019",
+        "name": "enforce_current_only_delivery"
+      },
+      {
+        "version": "20260901145733",
+        "name": "guard_current_listings_at_dispatch"
+      },
+      {
+        "version": "20260901150335",
+        "name": "restore_dispatch_after_partner_removal"
+      },
+      {
+        "version": "20260901150523",
+        "name": "require_completed_baseline_for_delivery"
+      },
+      {
+        "version": "20260901151143",
+        "name": "expire_stale_pending_deliveries"
+      },
+      {
+        "version": "20260901151835",
+        "name": "preserve_digest_freshness_windows"
+      },
+      {
+        "version": "20260901154138",
+        "name": "current_listing_delivery_guard"
+      },
+      {
+        "version": "20260901203626",
+        "name": "fix_kleinanzeigen_freshness_guard"
+      },
+      {
+        "version": "20260902105504",
+        "name": "extend_current_delivery_freshness_to_24h"
+      },
+      {
+        "version": "20260902114441",
+        "name": "normalize_listing_presentation_facts"
+      },
+      {
+        "version": "20260902130156",
+        "name": "fix_fresh_delivery_policy_v2"
+      },
+      {
+        "version": "20260902130257",
+        "name": "fix_fresh_delivery_policy_v2"
+      },
+      {
+        "version": "20260902214602",
+        "name": "remove_automatic_source_degraded_guard"
+      },
+      {
+        "version": "20260903050003",
+        "name": "referral_bonus_30_days"
+      },
+      {
+        "version": "20260903083455",
+        "name": "defer_referral_reward_until_first_profile"
+      },
+      {
+        "version": "20260903091406",
+        "name": "defer_referral_reward_until_first_profile"
+      },
+      {
+        "version": "20260903193456",
+        "name": "route_grand_city_property_adapter"
+      },
+      {
+        "version": "20260903195621",
+        "name": "allow_gcp_new_id_freshness"
+      },
+      {
+        "version": "20260904081719",
+        "name": "align_delivery_cleanup_to_24h"
+      },
+      {
+        "version": "20260904084228",
+        "name": "tighten_partial_baugenossenschaft_coverage"
+      },
+      {
+        "version": "20260904085656",
+        "name": "add_verified_provider_index_fallback_for_partial_coops"
+      },
+      {
+        "version": "20260904085808",
+        "name": "restrict_partial_coop_freshness_to_verified_provider_index"
+      },
+      {
+        "version": "20260904090030",
+        "name": "index_partial_coop_provider_request_source"
+      },
+      {
+        "version": "20260904142901",
+        "name": "retry_partial_coop_provider_transient_failures_once"
+      },
+      {
+        "version": "20260904215337",
+        "name": "fix_non_coop_source_delivery_lanes"
+      },
+      {
+        "version": "20260904220433",
+        "name": "route_verified_noncoop_feeds"
+      },
+      {
+        "version": "20260904221108",
+        "name": "covivio_official_sitemap_primary"
+      },
+      {
+        "version": "20260904221450",
+        "name": "fix_noncoop_generic_routing"
+      },
+      {
+        "version": "20260904232745",
+        "name": "route_meravis_official_card_feed"
+      },
+      {
+        "version": "20260904233627",
+        "name": "route_spacest_public_api_feed"
+      },
+      {
+        "version": "20260904234148",
+        "name": "enable_new_id_freshness_spacest_meravis"
+      },
+      {
+        "version": "20260905002159",
+        "name": "harden_referral_and_source_job_lifecycle"
+      },
+      {
+        "version": "20260905073234",
+        "name": "bot_runtime_completion"
+      },
+      {
+        "version": "20260905074157",
+        "name": "delivery_outcome_guard"
+      },
+      {
+        "version": "20260905230750",
+        "name": "nestpick_native_freshness"
+      },
+      {
+        "version": "20260905233819",
+        "name": "telegram_prepare_update_low_latency"
+      },
+      {
+        "version": "20260906004244",
+        "name": "telegram_fast_command_snapshot"
+      },
+      {
+        "version": "20260906004318",
+        "name": "telegram_fast_request_auth"
+      },
+      {
+        "version": "20260906004424",
+        "name": "telegram_fast_action_language_guard"
+      },
+      {
+        "version": "20260906050500",
+        "name": "verified_catalog_freshness"
+      },
+      {
+        "version": "20260908045835",
+        "name": "listing_preview_delivery_progress"
+      },
+      {
+        "version": "20260908110928",
+        "name": "preserve_verified_portal_warm_rent"
+      },
+      {
+        "version": "20260908111004",
+        "name": "prioritize_verified_portal_warm_rent"
+      },
+      {
+        "version": "20260909223100",
+        "name": "premium_applications"
+      },
+      {
+        "version": "20260910085141",
+        "name": "platform_application_sessions"
+      },
+      {
+        "version": "20260910095851",
+        "name": "ingestion_fingerprint_fast_path"
+      },
+      {
+        "version": "20260910100251",
+        "name": "work_aware_scheduling_and_log_retention"
+      },
+      {
+        "version": "20260910100818",
+        "name": "backend_internal_least_privilege"
+      },
+      {
+        "version": "20260910163424",
+        "name": "noop_probe_marker"
+      },
+      {
+        "version": "20260910163430",
+        "name": "noop_probe_marker_cleanup"
+      },
+      {
+        "version": "20260910170820",
+        "name": "remove_saved_listing_workflow_metadata"
+      },
+      {
+        "version": "20260910193034",
+        "name": "remove_applicant_dossier_feature"
+      },
+      {
+        "version": "20260910202123",
+        "name": "listing_hot_updates_and_bounded_maintenance"
+      },
+      {
+        "version": "20260911031814",
+        "name": "bounded_operational_retention"
+      },
+      {
+        "version": "20260911032650",
+        "name": "retire_orphaned_inventory_routines"
+      },
+      {
+        "version": "20260911093449",
+        "name": "conservative_cross_source_dedupe_guard"
+      },
+      {
+        "version": "20260913103527",
+        "name": "indexed_operational_retention"
+      },
+      {
+        "version": "20260913103533",
+        "name": "atomic_crawl_recording"
+      },
+      {
+        "version": "20260913103703",
+        "name": "selective_crawl_retention"
+      },
+      {
+        "version": "20260915074142",
+        "name": "auto_apply_v2_foundation"
+      },
+      {
+        "version": "20260915074154",
+        "name": "auto_apply_queue_controls"
+      },
+      {
+        "version": "20260915185625",
+        "name": "allow_unknown_rent_when_profile_permits"
+      },
+      {
+        "version": "20260916073952",
+        "name": "add_kleinanzeigen_application_preferences"
+      },
+      {
+        "version": "20260916085101",
+        "name": "enable_immomio_auth_flows"
+      },
+      {
+        "version": "20260916092644",
+        "name": "immomio_telegram_account_bridge"
+      },
+      {
+        "version": "20260916095916",
+        "name": "route_immomio_callbacks_through_gateway"
+      },
+      {
+        "version": "20260916123155",
+        "name": "forward_immomio_oauth_share_to_auth_bridge"
+      },
+      {
+        "version": "20260916135923",
+        "name": "scope_auto_apply_to_connected_providers"
+      },
+      {
+        "version": "20260916140250",
+        "name": "route_immomio_applications_to_verified_worker"
+      },
+      {
+        "version": "20260916140428",
+        "name": "avoid_duplicate_worker_wakeups_for_immomio"
+      },
+      {
+        "version": "20260916154742",
+        "name": "extend_platform_auth_flows_to_30_minutes"
+      },
+      {
+        "version": "20260916164356",
+        "name": "create_public_auth_pages_bucket"
+      },
+      {
+        "version": "20260916174953",
+        "name": "add_platform_auth_flow_transient_state"
+      },
+      {
+        "version": "20260916180055",
+        "name": "remove_unused_platform_auth_flow_transient_state"
+      },
+      {
+        "version": "20260916225323",
+        "name": "harden_auto_apply_listing_types"
+      },
+      {
+        "version": "20260916225711",
+        "name": "add_internal_immoscout_canary_invoker"
+      },
+      {
+        "version": "20260916225904",
+        "name": "set_immoscout_canary_invoker_timeout"
+      },
+      {
+        "version": "20260916230422",
+        "name": "add_internal_application_worker_health_invoker"
+      },
+      {
+        "version": "20260916233032",
+        "name": "allow_all_listing_types_for_auto_apply"
+      },
+      {
+        "version": "20260916233138",
+        "name": "notify_immoscout_plus_required"
+      },
+      {
+        "version": "20260917015826",
+        "name": "notify_immoscout_plus_required"
+      },
+      {
+        "version": "20260917042550",
+        "name": "route_kleinanzeigen_to_apk_first_contact_worker"
+      },
+      {
+        "version": "20260917045230",
+        "name": "restore_kleinanzeigen_to_main_application_worker"
+      },
+      {
+        "version": "20260917080348",
+        "name": "add_internal_kleinanzeigen_contact_inspector_invoker"
+      },
+      {
+        "version": "20260917081010",
+        "name": "add_internal_kleinanzeigen_worker_probe_invoker"
+      },
+      {
+        "version": "20260917081052",
+        "name": "route_kleinanzeigen_to_verified_xcf_worker"
+      },
+      {
+        "version": "20260917110325",
+        "name": "preserve_connected_kleinanzeigen_during_relogin"
+      },
+      {
+        "version": "20260918154702",
+        "name": "optimize_ingestion_snapshot_reconcile_v2"
+      },
+      {
+        "version": "20260918154911",
+        "name": "optimize_scheduler_backoff_and_application_dispatch"
+      },
+      {
+        "version": "20260918155040",
+        "name": "compact_routine_crawl_history"
+      },
+      {
+        "version": "20260918155304",
+        "name": "make_source_job_shadow_state_unlogged"
+      },
+      {
+        "version": "20260918155518",
+        "name": "compact_connector_lane_history"
+      },
+      {
+        "version": "20260918155614",
+        "name": "tighten_operational_retention_windows"
+      },
+      {
+        "version": "20260918155844",
+        "name": "persist_connector_warm_state"
+      },
+      {
+        "version": "20260918155933",
+        "name": "reduce_success_crawl_retention_to_three_days"
+      },
+      {
+        "version": "20260918160201",
+        "name": "add_cycle_epoch_ingestion_v3"
+      },
+      {
+        "version": "20260918161137",
+        "name": "retain_one_day_successful_cron_history"
+      },
+      {
+        "version": "20260918190641",
+        "name": "simplify_active_listing_delivery_policy"
+      },
+      {
+        "version": "20260919093128",
+        "name": "enforce_24h_new_listing_delivery_policy"
+      },
+      {
+        "version": "20260919150847",
+        "name": "avoid_redundant_ingest_locks_and_dedupe_writes"
+      },
+      {
+        "version": "20260919152426",
+        "name": "retain_compact_performance_snapshots_and_crawl_counters"
+      },
+      {
+        "version": "20260919164605",
+        "name": "expand_cooperative_auto_apply_targets"
+      },
+      {
+        "version": "20260919171615",
+        "name": "preserve_cooperative_object_identity_dedupe"
+      },
+      {
+        "version": "20260920140507",
+        "name": "housing_category_streams"
+      },
+      {
+        "version": "20260920141055",
+        "name": "telegram_ux_state_and_metrics"
+      },
+      {
+        "version": "20260920170532",
+        "name": "enable_verified_category_streams"
+      },
+      {
+        "version": "20260920200341",
+        "name": "telegram_fast_path_v2"
+      },
+      {
+        "version": "20260920214817",
+        "name": "telegram_static_navigation_fast_path"
+      },
+      {
+        "version": "20260920222219",
+        "name": "remove_manual_listing_application_enqueue"
+      },
+      {
+        "version": "20260921035312",
+        "name": "restore_pre_house_matching_for_base_streams"
+      },
+      {
+        "version": "20260921042702",
+        "name": "house_delivery_newness_and_immowelt"
+      },
+      {
+        "version": "20260921044142",
+        "name": "premium_four_search_profiles"
+      },
+      {
+        "version": "20260921144643",
+        "name": "single_property_category_flow"
+      },
+      {
+        "version": "20260921144709",
+        "name": "fix_single_category_delivery_guard_join"
+      },
+      {
+        "version": "20260921145838",
+        "name": "tighten_room_classification_and_source_capabilities"
+      },
+      {
+        "version": "20260921150320",
+        "name": "remove_legacy_multi_type_fast_path"
+      },
+      {
+        "version": "20260921152020",
+        "name": "applicant_document_storage"
+      },
+      {
+        "version": "20260921152751",
+        "name": "trim_applicant_document_index"
+      },
+      {
+        "version": "20260921161117",
+        "name": "add_application_document_transfer_cache"
+      },
+      {
+        "version": "20260921161259",
+        "name": "add_application_document_packages"
+      },
+      {
+        "version": "20260921161742",
+        "name": "trim_document_transfer_indexes"
+      },
+      {
+        "version": "20260921164712",
+        "name": "harden_application_document_transfer"
+      },
+      {
+        "version": "20260921174111",
+        "name": "allow_unknown_warm_rent_when_permitted"
+      },
+      {
+        "version": "20260921180656",
+        "name": "maximize_clean_listing_coverage"
+      },
+      {
+        "version": "20260921185657",
+        "name": "disable_redundant_saga_direct_crawler"
+      },
+      {
+        "version": "20260922001525",
+        "name": "unify_onboarding_filters"
+      },
+      {
+        "version": "20260922004140",
+        "name": "runtime_compute_speed_cleanup"
+      },
+      {
+        "version": "20260922013434",
+        "name": "coach_portal_platform_foundation"
+      },
+      {
+        "version": "20260922013712",
+        "name": "coach_portal_service_rpcs"
+      },
+      {
+        "version": "20260922040442",
+        "name": "separate_global_and_provider_autoapply"
+      },
+      {
+        "version": "20260922041523",
+        "name": "hide_canonical_participant_uuid"
+      },
+      {
+        "version": "20260922090608",
+        "name": "force_baugenossenschaften_to_wohnung_filter"
+      },
+      {
+        "version": "20260922090833",
+        "name": "coach_admin_bootstrap"
+      },
+      {
+        "version": "20260922102805",
+        "name": "adaptive_quiet_source_polling"
+      },
+      {
+        "version": "20260922114316",
+        "name": "unify_coach_portal_telegram_domain_logic"
+      },
+      {
+        "version": "20260922131726",
+        "name": "coach_portal_readiness_and_adoption"
+      },
+      {
+        "version": "20260922131850",
+        "name": "fix_coach_create_participant_public_id"
+      },
+      {
+        "version": "20260922134125",
+        "name": "recheck_active_search_before_autoapply"
+      },
+      {
+        "version": "20260922135543",
+        "name": "idempotent_coach_participant_creation"
+      },
+      {
+        "version": "20260922171732",
+        "name": "add_immomio_object_resolution_shadow"
+      },
+      {
+        "version": "20260922172351",
+        "name": "remove_unused_immomio_shadow_due_index"
+      },
+      {
+        "version": "20260922173908",
+        "name": "classify_immomio_tenant_pool_and_buchdrucker_shadow"
+      },
+      {
+        "version": "20260922175240",
+        "name": "activate_buchdrucker_verified_immomio_feed"
+      },
+      {
+        "version": "20260922181333",
+        "name": "keep_buchdrucker_inventory_shadow_until_listing_verified"
+      },
+      {
+        "version": "20260922191416",
+        "name": "fast_current_delivery_and_material_rematch"
+      },
+      {
+        "version": "20260923080058",
+        "name": "promote_immoscout_map_delta_delivery"
+      },
+      {
+        "version": "20260923164541",
+        "name": "remove_duplicate_immoscout_plus_notification_trigger"
+      },
+      {
+        "version": "20260923173538",
+        "name": "add_application_provider_state"
+      },
+      {
+        "version": "20260923180115",
+        "name": "provider_specific_auto_apply_pause"
+      },
+      {
+        "version": "20260923183139",
+        "name": "unified_applicant_profile_and_messages"
+      },
+      {
+        "version": "20260923201050",
+        "name": "immoscout_profile_choice_fields"
+      },
+      {
+        "version": "20260923203923",
+        "name": "telegram_admin_announcements"
+      },
+      {
+        "version": "20260923223951",
+        "name": "saga_portal_recovery_v1"
+      },
+      {
+        "version": "20260924040141",
+        "name": "saga_recovery_fail_closed_v1"
+      },
+      {
+        "version": "20260924041332",
+        "name": "saga_verified_application_link_sharing_v1"
+      },
+      {
+        "version": "20260924041528",
+        "name": "saga_preserve_portal_application_links_v1"
+      },
+      {
+        "version": "20260924041703",
+        "name": "saga_dedupe_prefer_delivery_eligible_v1"
+      },
+      {
+        "version": "20260924044619",
+        "name": "cooperative_portal_coverage_v1c"
+      },
+      {
+        "version": "20260924045210",
+        "name": "promote_gewoba_keep_neue_luebecker_shadow_v1"
+      },
+      {
+        "version": "20260924121121",
+        "name": "phase1_cooperative_source_hierarchy_v1"
+      },
+      {
+        "version": "20260924122127",
+        "name": "phase2_cooperative_portal_fallback_shadow_v1"
+      },
+      {
+        "version": "20260924122243",
+        "name": "phase2_disable_blocked_provider_profile_polling_v1"
+      },
+      {
+        "version": "20260924123334",
+        "name": "phase3_passive_cooperative_registry_v1"
+      },
+      {
+        "version": "20260924123721",
+        "name": "phase3_passive_cooperative_discovery_view_v1"
+      },
+      {
+        "version": "20260924125626",
+        "name": "phase3_cooperative_provider_registry_v1b"
+      },
+      {
+        "version": "20260924125749",
+        "name": "phase3_cooperative_discovery_view_v1"
+      },
+      {
+        "version": "20260924134745",
+        "name": "activate_portal_backed_cooperative_sources_v1"
+      },
+      {
+        "version": "20260924163003",
+        "name": "immomio_safe_presubmit_retry_v1"
+      },
+      {
+        "version": "20260924180828",
+        "name": "add_immowelt_account_provider_v1"
+      },
+      {
+        "version": "20260924181237",
+        "name": "immowelt_readiness_v1"
+      },
+      {
+        "version": "20260925101721",
+        "name": "canonical_application_profile_adapters"
+      },
+      {
+        "version": "20260925102128",
+        "name": "provider_specific_application_profile_gates"
+      },
+      {
+        "version": "20260925102900",
+        "name": "coach_provider_specific_profile_readiness"
+      },
+      {
+        "version": "20260926231436",
+        "name": "portal_specific_profile_readiness_20260926231006"
+      },
+      {
+        "version": "20260927205041",
+        "name": "verify_immowelt_auto_apply_transport_v1"
+      },
+      {
+        "version": "20260927234128",
+        "name": "telegram_ui_fast_paths_v1"
+      },
+      {
+        "version": "20260929002703",
+        "name": "sync_coach_portal_telegram_parity"
+      },
+      {
+        "version": "20260929084904",
+        "name": "unify_applicant_profile_ui_v1"
+      },
+      {
+        "version": "20260929135628",
+        "name": "coach_portal_analytics"
+      },
+      {
+        "version": "20260929135640",
+        "name": "fix_telegram_applicant_profile_open"
+      },
+      {
+        "version": "20260929152121",
+        "name": "platform_connection_refresh_lifecycle"
+      },
+      {
+        "version": "20260929200655",
+        "name": "resolve_portal_immomio_before_telegram_auto_apply"
+      },
+      {
+        "version": "20260930111031",
+        "name": "platform_connect_atomic_completion"
+      },
+      {
+        "version": "20260930111102",
+        "name": "coaching_participant_sync_and_manager_assignment"
+      },
+      {
+        "version": "20260930115818",
+        "name": "unify_current_applicant_profile_ui_v2"
+      },
+      {
+        "version": "20260930142205",
+        "name": "coach_application_pagination"
+      },
+      {
+        "version": "20260930221821",
+        "name": "record_native_document_delivery_result"
+      },
+      {
+        "version": "20261002162748",
+        "name": "repair_application_queue_reconciliation"
+      },
+      {
+        "version": "20261002170417",
+        "name": "platform_session_reauth_notifications"
+      },
+      {
+        "version": "20261002181908",
+        "name": "user_engagement_campaigns"
+      },
+      {
+        "version": "20261002213748",
+        "name": "add_wg_gesucht_platform_login"
+      },
+      {
+        "version": "20261007115124",
+        "name": "revoke_public_execute_on_internal_rpcs"
+      },
+      {
+        "version": "20261007115302",
+        "name": "add_missing_fk_indexes"
+      },
+      {
+        "version": "20261014121529",
+        "name": "coach_super_admin_role"
+      },
+      {
+        "version": "20261015125606",
+        "name": "coach_super_admin_role_change"
+      },
+      {
+        "version": "20261015153949",
+        "name": "coach_super_admin_role_management"
+      },
+      {
+        "version": "20261016163057",
+        "name": "coach_dashboard_aggregation"
+      },
+      {
+        "version": "20261017204548",
+        "name": "index_saga_recovery_and_jsonb_query_hot_paths"
+      },
+      {
+        "version": "20261017204655",
+        "name": "throttle_saga_recovery_probe_in_dispatch_cron"
+      },
+      {
+        "version": "20261019084450",
+        "name": "coach_member_deletion_permissions"
+      },
+      {
+        "version": "20261019122156",
+        "name": "coach_participant_access_and_premium"
+      },
+      {
+        "version": "20261019152023",
+        "name": "coach_participant_actions"
+      },
+      {
+        "version": "20261019222908",
+        "name": "allow_admin_participant_assignment"
+      },
+      {
+        "version": "20261019224939",
+        "name": "add_jobseeker_workspace"
+      }
+    ]
+  },
+  "edge_functions": {
+    "count": 114,
+    "active": 114,
+    "verify_jwt_false": 99,
+    "items": [
+      {
+        "slug": "notification-dispatcher",
+        "status": "ACTIVE",
+        "version": 223,
+        "verify_jwt": false,
+        "sha": "20017129f5f3c6a2c87e8625287a64ec64e47e555f6fc2c7491b2444e0b857de"
+      },
+      {
+        "slug": "telegram-ui",
+        "status": "ACTIVE",
+        "version": 235,
+        "verify_jwt": false,
+        "sha": "be68901a0ece694d73d3d419c17f87d58b44202868c76ff1c31bdb0e1df9c50e"
+      },
+      {
+        "slug": "telegram-fallback-logo",
+        "status": "ACTIVE",
+        "version": 3,
+        "verify_jwt": false,
+        "sha": "acac4497c956a617d8db46f6e467b0dd250bf0fbb117cf02a6bc2ed35c71d4ee"
+      },
+      {
+        "slug": "source-worker",
+        "status": "ACTIVE",
+        "version": 105,
+        "verify_jwt": false,
+        "sha": "f285c069c7ee5968d707a4175ecd168cef82d936cdd9c4ce626d02b41fb6a6f7"
+      },
+      {
+        "slug": "kleinanzeigen-transport",
+        "status": "ACTIVE",
+        "version": 4,
+        "verify_jwt": false,
+        "sha": "0a8ae2c6dc63fcefff6894e66f2dcb9397c74f16df646b7f8505edb6afcbc41f"
+      },
+      {
+        "slug": "vonovia-transport",
+        "status": "ACTIVE",
+        "version": 2,
+        "verify_jwt": false,
+        "sha": "deabe5706b1aea72de88d515922c4ad2ca5320d5186cdeb97aeaa6c9858aee8a"
+      },
+      {
+        "slug": "immobilien-de-transport",
+        "status": "ACTIVE",
+        "version": 15,
+        "verify_jwt": false,
+        "sha": "7fbf31045c8b0fb61333473be42847bb853c74941f52f55a85e83573ae2dd46d"
+      },
+      {
+        "slug": "immobilie1-transport",
+        "status": "ACTIVE",
+        "version": 3,
+        "verify_jwt": false,
+        "sha": "33deaf04a1c2f3879d3752835fd721d322b0d2dba9746ee7b777f95f24ef3ad6"
+      },
+      {
+        "slug": "stripe-webhook",
+        "status": "ACTIVE",
+        "version": 133,
+        "verify_jwt": false,
+        "sha": "d051451aa7682ca489203b677c2ca4925168904047565d424958e5d8b2d7882a"
+      },
+      {
+        "slug": "noop",
+        "status": "ACTIVE",
+        "version": 9,
+        "verify_jwt": true,
+        "sha": "b090e06f04612dba243ff6f17736a6f0435d64dc301d6457f2d7a4be07adf997"
+      },
+      {
+        "slug": "mini-app",
+        "status": "ACTIVE",
+        "version": 11,
+        "verify_jwt": false,
+        "sha": "9ededeaf7ae2d64830390d552361b5ed49c603cbe1ef18a96a7830049534438e"
+      },
+      {
+        "slug": "billing-maintenance",
+        "status": "ACTIVE",
+        "version": 122,
+        "verify_jwt": false,
+        "sha": "bbc4f814838677d769bf8bd6b1989c55b1fce280573980ce56631993013a8604"
+      },
+      {
+        "slug": "telegram-gateway",
+        "status": "ACTIVE",
+        "version": 94,
+        "verify_jwt": false,
+        "sha": "fc52c3f01fe1ef6795d81793aa1cab310c4c0e7164d0de68974b753303e46837"
+      },
+      {
+        "slug": "mini-app-publisher",
+        "status": "ACTIVE",
+        "version": 5,
+        "verify_jwt": false,
+        "sha": "6afe17e7c877f1f24d4632395ab2f193e6d6b70128339fd18edb1c0feb47a75f"
+      },
+      {
+        "slug": "telegram-premium-image",
+        "status": "ACTIVE",
+        "version": 7,
+        "verify_jwt": false,
+        "sha": "0efc39b09c50767bc9a5948374ae1b856b78f8eee83f85d004f236d586fca8aa"
+      },
+      {
+        "slug": "telegram-premium",
+        "status": "ACTIVE",
+        "version": 10,
+        "verify_jwt": false,
+        "sha": "4d2465ff1df04d2c0e7920de49acfb52d95a9e34fc35ecf783381eab0ba80748"
+      },
+      {
+        "slug": "noncoop-feed",
+        "status": "ACTIVE",
+        "version": 5,
+        "verify_jwt": false,
+        "sha": "d0397beef4bfd891b5e5bd76c231ad19dca6c8fc52fdce376a759b064a90f0c9"
+      },
+      {
+        "slug": "noncoop-new-feed",
+        "status": "ACTIVE",
+        "version": 7,
+        "verify_jwt": false,
+        "sha": "6b5b5a612da110664aac5464a49b5c2695ed1ad8a485c17c3fa44a969216e1be"
+      },
+      {
+        "slug": "covivio-feed",
+        "status": "ACTIVE",
+        "version": 3,
+        "verify_jwt": false,
+        "sha": "58f08c651f84aef0ea06d7002c7db69ca6248ca3da4d1fd36b53fff81ed376eb"
+      },
+      {
+        "slug": "meravis-feed",
+        "status": "ACTIVE",
+        "version": 5,
+        "verify_jwt": false,
+        "sha": "675d3f51c400e796cbeabd7f9d7ddf9871fa49550774b320b959d07ed05a7b67"
+      },
+      {
+        "slug": "spacest-feed",
+        "status": "ACTIVE",
+        "version": 4,
+        "verify_jwt": false,
+        "sha": "a3658a26310b617c9b6ef077e02bf6049611bf4296a2e2a88493517e01efd145"
+      },
+      {
+        "slug": "source-shadow",
+        "status": "ACTIVE",
+        "version": 18,
+        "verify_jwt": false,
+        "sha": "0f66018117b14f94a85d361f673c80507aadf57519bb6e9705a7079b881de5d2"
+      },
+      {
+        "slug": "telegram-fast",
+        "status": "ACTIVE",
+        "version": 13,
+        "verify_jwt": false,
+        "sha": "0551b843639177890633251af45c23d4cb6799fc72e3bff0f6f606d5f5246cf6"
+      },
+      {
+        "slug": "application-worker",
+        "status": "ACTIVE",
+        "version": 190,
+        "verify_jwt": false,
+        "sha": "1f7c259f67065feb5556e79fc3e73d486a036456cba5f2c42f09cd78ae588202"
+      },
+      {
+        "slug": "wunder-probe",
+        "status": "ACTIVE",
+        "version": 8,
+        "verify_jwt": false,
+        "sha": "7d83e4b2edf697f7a7efd0992b476892cbcf4c75e6dab98f8c312c342ca4591b"
+      },
+      {
+        "slug": "wunderflats-transport",
+        "status": "ACTIVE",
+        "version": 4,
+        "verify_jwt": false,
+        "sha": "b30cc1d37aa87d3a1d6d20839408d0fdd577d20c7803d7def7202877977e1955"
+      },
+      {
+        "slug": "immomio-probe",
+        "status": "ACTIVE",
+        "version": 4,
+        "verify_jwt": false,
+        "sha": "c98dd47ecdde6e37658ec7efea02546fc6820e6062f53fad09c477ecf3cef8e1"
+      },
+      {
+        "slug": "immomio-tenant-inspect",
+        "status": "ACTIVE",
+        "version": 6,
+        "verify_jwt": false,
+        "sha": "749932bd7650d3fbe05316773b1be716b89d99d0b4edec1f2f0a621fba897751"
+      },
+      {
+        "slug": "noop_probe",
+        "status": "ACTIVE",
+        "version": 7,
+        "verify_jwt": true,
+        "sha": "7c2bd4d01db9f87c4fed405b13c2c060a91795e1618cdf085d10efb238374026"
+      },
+      {
+        "slug": "kleinanzeigen-send-probe",
+        "status": "ACTIVE",
+        "version": 8,
+        "verify_jwt": true,
+        "sha": "c6f6f6ede954742086c662fe80c7b78fda85a3e1222b65d2fd06f35097bc5486"
+      },
+      {
+        "slug": "kleinanzeigen-mobile-probe-v2",
+        "status": "ACTIVE",
+        "version": 17,
+        "verify_jwt": false,
+        "sha": "0d386c04e2fa766db997c117bb88d6e3eae5c2012bb32c25edc2fd627465fc53"
+      },
+      {
+        "slug": "kleinanzeigen-contract-probe",
+        "status": "ACTIVE",
+        "version": 5,
+        "verify_jwt": true,
+        "sha": "3f23f8e66b0bc847b5e5e4d24663a4678718e897cc839f8a7c57801ddfb24531"
+      },
+      {
+        "slug": "kleinanzeigen-contract-check",
+        "status": "ACTIVE",
+        "version": 2,
+        "verify_jwt": true,
+        "sha": "3e4ae876e6f273ce48a64e81a275523577cafd1761ad548bfdda7bab98a6105d"
+      },
+      {
+        "slug": "kleinanzeigen-send-once-v3",
+        "status": "ACTIVE",
+        "version": 2,
+        "verify_jwt": true,
+        "sha": "8983c47b70aa5dcaa79063615bc6308b9a5513309cf289b094441caae6338f97"
+      },
+      {
+        "slug": "kleinanzeigen-web-contract-probe",
+        "status": "ACTIVE",
+        "version": 3,
+        "verify_jwt": true,
+        "sha": "0902d9c47f9293bdd46929499c6bbcc5c9936e9a52570a2ef7f0a24f2eb0cb58"
+      },
+      {
+        "slug": "kleinanzeigen-structure-probe",
+        "status": "ACTIVE",
+        "version": 1,
+        "verify_jwt": true,
+        "sha": "69f70c7715da2b4e86e9fdccfc2f2d6f178bbd9bdd49f16808dd0104cebc793a"
+      },
+      {
+        "slug": "kleinanzeigen-static-analysis",
+        "status": "ACTIVE",
+        "version": 4,
+        "verify_jwt": false,
+        "sha": "7b4a8e6893a81030c8f33238c1b69fab9e951c3122a0b38516704d24634150a8"
+      },
+      {
+        "slug": "kleinanzeigen-first-contact-canary",
+        "status": "ACTIVE",
+        "version": 1,
+        "verify_jwt": false,
+        "sha": "5fc33e995f0eaf176a0cb5feb64328888a6af3dac8cf1c75d74aae606e094ad1"
+      },
+      {
+        "slug": "kleinanzeigen-contact-inspect",
+        "status": "ACTIVE",
+        "version": 4,
+        "verify_jwt": false,
+        "sha": "81a08e5046df73eb2bd3d469dd5f0d3e4738a67ba157d973c8e2dc60c089bb1f"
+      },
+      {
+        "slug": "kleinanzeigen-js-inspect",
+        "status": "ACTIVE",
+        "version": 2,
+        "verify_jwt": false,
+        "sha": "f8de0de36f240d975f863749240656c8b365c530df2686fdb0b4b635e4495c3b"
+      },
+      {
+        "slug": "kleinanzeigen-apk-inspect",
+        "status": "ACTIVE",
+        "version": 1,
+        "verify_jwt": false,
+        "sha": "249bc46232231c1db2eab629337aaba6c04cb82e0a4f77e8be053dbfbb12a215"
+      },
+      {
+        "slug": "kleinanzeigen-apk-stage",
+        "status": "ACTIVE",
+        "version": 2,
+        "verify_jwt": false,
+        "sha": "194747cf11b5c27741fe18c8a0a2292133e9aba472c70da84bbfa18441e0fc7d"
+      },
+      {
+        "slug": "kleinanzeigen-apk-direct-stage",
+        "status": "ACTIVE",
+        "version": 2,
+        "verify_jwt": false,
+        "sha": "19248bb948539a2e3c221e2c3edf9548174f84d21cbca18e537ddfbf464e33b6"
+      },
+      {
+        "slug": "kleinanzeigen-apkcombo-stage",
+        "status": "ACTIVE",
+        "version": 2,
+        "verify_jwt": false,
+        "sha": "6fb2f933a92e18215e115f3eda998206af5674d7276597b91ab3a78c7e4ef2c5"
+      },
+      {
+        "slug": "kleinanzeigen-apkcombo-url",
+        "status": "ACTIVE",
+        "version": 1,
+        "verify_jwt": false,
+        "sha": "a5fc3c69af15b4053f356f7d1a61af29356d77058871d276ca78f757e8afd26d"
+      },
+      {
+        "slug": "kleinanzeigen-apk-r2-inspect",
+        "status": "ACTIVE",
+        "version": 1,
+        "verify_jwt": false,
+        "sha": "7d7357b5057d737c16f3b9be9e004df75267e0de79b2dee62a4f8c9b31f7b0a5"
+      },
+      {
+        "slug": "kleinanzeigen-re-seeker-probe",
+        "status": "ACTIVE",
+        "version": 1,
+        "verify_jwt": false,
+        "sha": "43292853d51df36f67ce73c49ad7ba8baf9bb9fae1f1ccf15659104aa0d2a70f"
+      },
+      {
+        "slug": "kleinanzeigen-dex-contract",
+        "status": "ACTIVE",
+        "version": 1,
+        "verify_jwt": false,
+        "sha": "0e319afe8d7d9ed593b5d1fd61afbf74b7dfc4c4ebbaa01a859dfa499671c049"
+      },
+      {
+        "slug": "kleinanzeigen-dex-xref",
+        "status": "ACTIVE",
+        "version": 2,
+        "verify_jwt": false,
+        "sha": "d14dfd7361865c289eb058165d807c18af484e6246e9e595f5a8b124a33153a2"
+      },
+      {
+        "slug": "kleinanzeigen-dex-class",
+        "status": "ACTIVE",
+        "version": 1,
+        "verify_jwt": false,
+        "sha": "7529f971e876eef9e9b479037198f0be3e35c7ff8818babfbb9ee3b39ce8ea61"
+      },
+      {
+        "slug": "kleinanzeigen-dex-method",
+        "status": "ACTIVE",
+        "version": 1,
+        "verify_jwt": false,
+        "sha": "4556c10c911481c10fd5b210a53d6d8d01790b44049a6d66dcef2ec78e1a82b1"
+      },
+      {
+        "slug": "kleinanzeigen-method-raw",
+        "status": "ACTIVE",
+        "version": 1,
+        "verify_jwt": false,
+        "sha": "0abcaaa54a5afac1d446bf80483446c47f9e15a56b01f82dac37828d71ac593e"
+      },
+      {
+        "slug": "kleinanzeigen-dex-xref-any",
+        "status": "ACTIVE",
+        "version": 1,
+        "verify_jwt": false,
+        "sha": "62f7468d41f610205637655ac92679e778c6509a1d37162e18f28509725907b6"
+      },
+      {
+        "slug": "kleinanzeigen-conversation-readback",
+        "status": "ACTIVE",
+        "version": 7,
+        "verify_jwt": false,
+        "sha": "bac94c8ec6a00cd534a290b65cb4509d9763750756b21cd15f4889b1f4013a1f"
+      },
+      {
+        "slug": "immomio-contract-inspect",
+        "status": "ACTIVE",
+        "version": 41,
+        "verify_jwt": false,
+        "sha": "72c8bb1d001875851a12dc53317dbfaf89c6a031b05785fc854186562e0a6c3c"
+      },
+      {
+        "slug": "immomio-account",
+        "status": "ACTIVE",
+        "version": 20,
+        "verify_jwt": false,
+        "sha": "3e93ec9cdc6f5e077b559714d22aeb89a176b5eb06cc52212f1ca8d268be2419"
+      },
+      {
+        "slug": "immomio-device-probe",
+        "status": "ACTIVE",
+        "version": 1,
+        "verify_jwt": false,
+        "sha": "ea02b84d5963c51fd6d8a0795eeed544d86c2d756ce08088aa236fb7cc1feadf"
+      },
+      {
+        "slug": "immomio-auth-bridge",
+        "status": "ACTIVE",
+        "version": 9,
+        "verify_jwt": false,
+        "sha": "eb5de433fa16367202421f0809f54ed96a91f8dcf6217a95f084b7a8aaee4f85"
+      },
+      {
+        "slug": "telegram-oauth-bridge",
+        "status": "ACTIVE",
+        "version": 38,
+        "verify_jwt": false,
+        "sha": "b72c02d422076e05596d410d9815d2f23389cb9558bedac2f8a9dc9578a71bd5"
+      },
+      {
+        "slug": "immomio-auth-debug",
+        "status": "ACTIVE",
+        "version": 4,
+        "verify_jwt": false,
+        "sha": "e2dbb63884b4da223f619c76850f7d2a95c9f27b7662b333dab754094df01efd"
+      },
+      {
+        "slug": "immomio-application-worker",
+        "status": "ACTIVE",
+        "version": 11,
+        "verify_jwt": false,
+        "sha": "a0cd3bd69a4e80cc55c88d98d70538636a6add4537ed123c6d3c0ef8fc07453e"
+      },
+      {
+        "slug": "immoscout-auth-bridge",
+        "status": "ACTIVE",
+        "version": 12,
+        "verify_jwt": false,
+        "sha": "2f6168fd69a41d400708985837fe9a16fef79299cca926e635474c59dabfa264"
+      },
+      {
+        "slug": "html-render-test",
+        "status": "ACTIVE",
+        "version": 5,
+        "verify_jwt": false,
+        "sha": "29b48d43530467a046ff12d0e054c6af6ca24b5baca3bc1834cf4cfd121ae4e6"
+      },
+      {
+        "slug": "immoscout-native-handoff",
+        "status": "ACTIVE",
+        "version": 2,
+        "verify_jwt": false,
+        "sha": "33ebf378bdbef91795b3ac1a3a43acc8412c6e19487b50d9f5ce88bc0a1953cd"
+      },
+      {
+        "slug": "immoscout-contact-inspect",
+        "status": "ACTIVE",
+        "version": 6,
+        "verify_jwt": false,
+        "sha": "03fc40dc400e78afc00b4d4d9eea4d846621069f708b3a22135196fd58cb8ed6"
+      },
+      {
+        "slug": "immoscout-send-canary",
+        "status": "ACTIVE",
+        "version": 15,
+        "verify_jwt": false,
+        "sha": "da585ffb219e2ebf3390cb43c9be669983d995335dcf1fd40eed53842d1a64f0"
+      },
+      {
+        "slug": "kleinanzeigen-ad-inspect",
+        "status": "ACTIVE",
+        "version": 1,
+        "verify_jwt": false,
+        "sha": "272c674f9610ca60e4883f41346d5d9ea9d5677747e38613893d2000552031f2"
+      },
+      {
+        "slug": "deploy-merge-test",
+        "status": "ACTIVE",
+        "version": 1,
+        "verify_jwt": false,
+        "sha": "e540e22d9715881b36c84fcdb55054295ab9a20549e37dd548cc020df0041290"
+      },
+      {
+        "slug": "kleinanzeigen-application-worker",
+        "status": "ACTIVE",
+        "version": 19,
+        "verify_jwt": false,
+        "sha": "968c8b67b68ba17971e7c420b45489ef86f9f8f3c5e6e52106648f9847c7dab1"
+      },
+      {
+        "slug": "kleinanzeigen-seeker-inspect",
+        "status": "ACTIVE",
+        "version": 2,
+        "verify_jwt": false,
+        "sha": "86585b1dc5d084246c0d79bc3a9108a4ada7049af02c7de68f5487074eeee002"
+      },
+      {
+        "slug": "kleinanzeigen-two-step-canary",
+        "status": "ACTIVE",
+        "version": 1,
+        "verify_jwt": false,
+        "sha": "c42b8d37538e25f5b0990993d7d180f38f623cea3b2141e03451313e4cdf9239"
+      },
+      {
+        "slug": "kleinanzeigen-xcf-diagnostic-send",
+        "status": "ACTIVE",
+        "version": 1,
+        "verify_jwt": false,
+        "sha": "9217b6e615865405716939e049880efe7c87fc67d6189cfdf449bad603271be1"
+      },
+      {
+        "slug": "immoscout-contract-inspect-v2",
+        "status": "ACTIVE",
+        "version": 1,
+        "verify_jwt": false,
+        "sha": "91a151fc34b259fd108449ab1c265627b4d330cc75ce191431d530463f26c3fe"
+      },
+      {
+        "slug": "immomio-schema-inspect",
+        "status": "ACTIVE",
+        "version": 2,
+        "verify_jwt": false,
+        "sha": "111da85e2d41f463e30249ef2885b12a3d4275511b68a2757031c6a24bbb0163"
+      },
+      {
+        "slug": "immoscout-payload-probe",
+        "status": "ACTIVE",
+        "version": 6,
+        "verify_jwt": false,
+        "sha": "9f5300970275005ccdd51bde33d1c3b77a25622c336f5b07a53907752ad3b444"
+      },
+      {
+        "slug": "immomio-question-inspect",
+        "status": "ACTIVE",
+        "version": 6,
+        "verify_jwt": false,
+        "sha": "53c27795b859bda1726c89913bef6b2f9401f07ab2ac684fffd6170af826ddcb"
+      },
+      {
+        "slug": "immomio-question-field-probe",
+        "status": "ACTIVE",
+        "version": 1,
+        "verify_jwt": false,
+        "sha": "5805ecdc8a8a997d08be6219485912d4aecb8cf3748de78b60159599a14ed6ce"
+      },
+      {
+        "slug": "immoscout-official-api-probe",
+        "status": "ACTIVE",
+        "version": 2,
+        "verify_jwt": false,
+        "sha": "5493519bdd23fe9bba2feeb4c04522401348a33117fa7ccfde9fa2b15af79f13"
+      },
+      {
+        "slug": "immoscout-official-send-canary",
+        "status": "ACTIVE",
+        "version": 2,
+        "verify_jwt": false,
+        "sha": "0472faebbb0d60b39232f6cd1f1876f05a6ceeab6800e2d4f083c810718131b6"
+      },
+      {
+        "slug": "immomio-chunk-inspect",
+        "status": "ACTIVE",
+        "version": 1,
+        "verify_jwt": false,
+        "sha": "196c30bf6bc55583f5d9625ed6a57a5224cd080a857327f41c5f2dd9221ac66e"
+      },
+      {
+        "slug": "immomio-mutation-contract-probe",
+        "status": "ACTIVE",
+        "version": 1,
+        "verify_jwt": false,
+        "sha": "b3f8ca32013fb47acb72d6a5f2118134922feb021059c041cb33f27b9dbc771e"
+      },
+      {
+        "slug": "auth-facade-broker",
+        "status": "ACTIVE",
+        "version": 22,
+        "verify_jwt": false,
+        "sha": "7de179fdd1abec2ac76c7ec46ea69a234c7af67b789d60b1924a0021c3463c74"
+      },
+      {
+        "slug": "auth-contract-diag",
+        "status": "ACTIVE",
+        "version": 10,
+        "verify_jwt": true,
+        "sha": "f88d7878ded7c57fd30ab41d0a93bcccdf01c52f7e0e5e645483a3586a1dbba8"
+      },
+      {
+        "slug": "telegram-gateway-v3-canary",
+        "status": "ACTIVE",
+        "version": 2,
+        "verify_jwt": true,
+        "sha": "cfceead8c4eba606dcba379ba7fdbc784f18517b123e8bc0b78e10f8ebea5ce6"
+      },
+      {
+        "slug": "telegram-gateway-v4-canary",
+        "status": "ACTIVE",
+        "version": 2,
+        "verify_jwt": true,
+        "sha": "b448a6367e147239eb732ebf5eed5bd4437a6f1524e9195678643dde3f46e1dc"
+      },
+      {
+        "slug": "telegram-db-latency-canary",
+        "status": "ACTIVE",
+        "version": 2,
+        "verify_jwt": true,
+        "sha": "39d5fa7eb8dceb281fc090587521548b4a1846562240c1a01ba4c076af6e239d"
+      },
+      {
+        "slug": "notification-dispatcher-preview-canary",
+        "status": "ACTIVE",
+        "version": 4,
+        "verify_jwt": true,
+        "sha": "47f19faf32832c44851f7523ed72083f1794fc219ffcc8d5174bb3b3ef4049fc"
+      },
+      {
+        "slug": "telegram-ui-autoapply-canary",
+        "status": "ACTIVE",
+        "version": 1,
+        "verify_jwt": false,
+        "sha": "f9ff8836dcdd150bce137d61a120fdb837e2ffaa90cc921b159b80c1b7b22a46"
+      },
+      {
+        "slug": "telegram-gateway-autoapply-canary",
+        "status": "ACTIVE",
+        "version": 1,
+        "verify_jwt": false,
+        "sha": "0c92121e429cc93e4594f549a99fd3c5584c90c7f88216fc01d45f4cd1080f34"
+      },
+      {
+        "slug": "telegram-gateway-preview-canary",
+        "status": "ACTIVE",
+        "version": 2,
+        "verify_jwt": true,
+        "sha": "be1b15eda9c8be5067c51743f7da4f8e01297150d9e2ad30977f63f3126f9c87"
+      },
+      {
+        "slug": "telegram-ui-preview-canary",
+        "status": "ACTIVE",
+        "version": 2,
+        "verify_jwt": true,
+        "sha": "608f7b56591f4bf57cc9748f05abfa6939eb27e210e7f299a9f278592f85c1e1"
+      },
+      {
+        "slug": "immomio-introspection-probe",
+        "status": "ACTIVE",
+        "version": 14,
+        "verify_jwt": false,
+        "sha": "7680f5e7f8f209fe8a62a22921aa8be6f9996beca0fc71201e23279ec7944e0e"
+      },
+      {
+        "slug": "immomio-bundle-snippet",
+        "status": "ACTIVE",
+        "version": 5,
+        "verify_jwt": false,
+        "sha": "7b8ac28f07088afce6149e1c0db9f20330ac824d9737f5cb5811fb2e907ea39c"
+      },
+      {
+        "slug": "immomio-upload-probe",
+        "status": "ACTIVE",
+        "version": 1,
+        "verify_jwt": false,
+        "sha": "5cfabfc9ae482d995af94dea13a6f3596e476898ed173817d4ffaa308b32749c"
+      },
+      {
+        "slug": "immomio-profile-probe",
+        "status": "ACTIVE",
+        "version": 4,
+        "verify_jwt": false,
+        "sha": "6649a30e44df9a2f8d9b054dcf2994bbda6c9f8eea460b79c95c40f4ae6339c4"
+      },
+      {
+        "slug": "immoscout-plus-scan",
+        "status": "ACTIVE",
+        "version": 3,
+        "verify_jwt": false,
+        "sha": "c75cc6a1aa5a7d5b7c8177126b402bfe924c32840f66a051850642a1169560d2"
+      },
+      {
+        "slug": "application-package",
+        "status": "ACTIVE",
+        "version": 3,
+        "verify_jwt": false,
+        "sha": "2e5a625b1aff510a717ecf3b4a34ff525337ea87845063969a6429cf2e5acba9"
+      },
+      {
+        "slug": "application-package-selftest",
+        "status": "ACTIVE",
+        "version": 4,
+        "verify_jwt": false,
+        "sha": "43d662d567cca4e77f1cc87a1e4d8210eee9b9a4c4aea45f8b618758fa072d1c"
+      },
+      {
+        "slug": "platform-connect",
+        "status": "ACTIVE",
+        "version": 3,
+        "verify_jwt": false,
+        "sha": "0ec6bee60a0384b746d6cfb4ab6e39aa2c993e7f414162091cfcf277060a18f8"
+      },
+      {
+        "slug": "coach-api",
+        "status": "ACTIVE",
+        "version": 44,
+        "verify_jwt": false,
+        "sha": "2f1f30b68b21e61fc575132cd05c357e4e49170d73c1137fadea4ef1840f9cdc"
+      },
+      {
+        "slug": "platform-connect-broker-v2",
+        "status": "ACTIVE",
+        "version": 3,
+        "verify_jwt": false,
+        "sha": "e904f15dd9939c47a4c824fef8ba78f98175db03478d3749707aac4bdae19e99"
+      },
+      {
+        "slug": "coach-bootstrap",
+        "status": "ACTIVE",
+        "version": 1,
+        "verify_jwt": false,
+        "sha": "9bc582792556f43f4f3c5635e2b2213bcbecd74dffafdc0e8223c30d06cb35b7"
+      },
+      {
+        "slug": "auth-admin-repair",
+        "status": "ACTIVE",
+        "version": 2,
+        "verify_jwt": false,
+        "sha": "e1436c67c4aa5ad7557aa95b9b26e80387b0426f612400980a13cdafbb25e29d"
+      },
+      {
+        "slug": "kleinanzeigen-callback-bridge",
+        "status": "ACTIVE",
+        "version": 2,
+        "verify_jwt": false,
+        "sha": "0e896a66a895905a5fc57f7ac0642e61b4fb704f6d5675db10ba289faddb49c3"
+      },
+      {
+        "slug": "ka-gateway-egress-probe",
+        "status": "ACTIVE",
+        "version": 2,
+        "verify_jwt": false,
+        "sha": "ac814b33d6795ead96d3c5f098a892acdc054a28a5eefbf60c423799f227bcdd"
+      },
+      {
+        "slug": "immowelt-auth-bridge",
+        "status": "ACTIVE",
+        "version": 7,
+        "verify_jwt": false,
+        "sha": "a16634cf0b8b47a4a178b227a6ceebbebc4889a1086231d77e45ea55cef99193"
+      },
+      {
+        "slug": "telegram-webhook-region-switch",
+        "status": "ACTIVE",
+        "version": 2,
+        "verify_jwt": false,
+        "sha": "bb272fd634c20dfa393922af0630bbe4b1f022b61dd82d7daa1f1e385e9c9bf3"
+      },
+      {
+        "slug": "kleinanzeigen-mobile-canary",
+        "status": "ACTIVE",
+        "version": 3,
+        "verify_jwt": false,
+        "sha": "87c47f1d08d98f64e21fb6dd9188f08350b09ef80da8e6863ba1388834fd0316"
+      },
+      {
+        "slug": "kleinanzeigen-direct-login-probe",
+        "status": "ACTIVE",
+        "version": 2,
+        "verify_jwt": false,
+        "sha": "9e02281bd1ef321038e166105c881fad8d3ff1c4909b44155d58549be0e75b2d"
+      },
+      {
+        "slug": "kleinanzeigen-refresh-probe",
+        "status": "ACTIVE",
+        "version": 2,
+        "verify_jwt": false,
+        "sha": "531ca06fc3b3177a2b71d2e7f3134c9b19aa3ac04dc21269773878ffc9851927"
+      },
+      {
+        "slug": "immowelt-diagnostic-readonly",
+        "status": "ACTIVE",
+        "version": 2,
+        "verify_jwt": false,
+        "sha": "82e4f5a7a857e27dd7d2fd35e55bb49559323a5372d2f5d3b5a24cf183b3ae3c"
+      },
+      {
+        "slug": "platform-session-reminder",
+        "status": "ACTIVE",
+        "version": 3,
+        "verify_jwt": false,
+        "sha": "02a27f6234f18f7e213f4ebabfc41269c6a5989b54e80e7f4e35b89ce1252f16"
+      },
+      {
+        "slug": "telegram-engagement",
+        "status": "ACTIVE",
+        "version": 4,
+        "verify_jwt": false,
+        "sha": "dd30edbe6bc61db7a009cd74501f664562fc3549b38bb3118c2a16ecfe8463bd"
+      },
+      {
+        "slug": "wg-gesucht-auth-bridge",
+        "status": "ACTIVE",
+        "version": 2,
+        "verify_jwt": false,
+        "sha": "e9ccd0ea2b6a65641d5bf2401ef69086ad2c1a53ba0661c4197e4eb563a6e4d6"
+      }
+    ]
+  },
+  "live_report": [
+    {
+      "report": {
+        "cron": {
+          "total": 11,
+          "active": 9,
+          "inactive": 2
+        },
+        "as_of": "2026-10-20T19:06:56.804986+00:00",
+        "sources": {
+          "disabled": 12,
+          "registered": 68,
+          "enabled_live": 55,
+          "partial_live": 23,
+          "complete_live": 32,
+          "enabled_shadow": 1
+        },
+        "boroughs": [
+          {
+            "borough": "Hamburg-Mitte",
+            "active_listings": 1706
+          },
+          {
+            "borough": "Altona",
+            "active_listings": 1281
+          },
+          {
+            "borough": "Eimsbüttel",
+            "active_listings": 2610
+          },
+          {
+            "borough": "Hamburg-Nord",
+            "active_listings": 1665
+          },
+          {
+            "borough": "Wandsbek",
+            "active_listings": 2448
+          },
+          {
+            "borough": "Bergedorf",
+            "active_listings": 508
+          },
+          {
+            "borough": "Harburg",
+            "active_listings": 1085
+          }
+        ],
+        "listings": {
+          "active": 25651,
+          "primary_active": 24761,
+          "active_no_district": 9201,
+          "active_noncanonical_district": 5147
+        },
+        "connectors": {
+          "enabled": 133,
+          "registered": 194,
+          "enabled_shadow": 62,
+          "enabled_non_shadow": 71
+        },
+        "crawls_24h": {
+          "crawls_24h": 1628,
+          "successful_24h": 1614,
+          "fetched_rows_24h": 71560,
+          "inserted_rows_24h": 244
+        },
+        "rls_targets": [
+          {
+            "schema": "app_private",
+            "force_rls": false,
+            "table_name": "coach_bootstrap_tokens",
+            "rls_enabled": false
+          },
+          {
+            "schema": "app_private",
+            "force_rls": false,
+            "table_name": "coaching_super_admin_allowlist",
+            "rls_enabled": false
+          },
+          {
+            "schema": "app_private",
+            "force_rls": false,
+            "table_name": "telegram_link_tokens",
+            "rls_enabled": false
+          }
+        ],
+        "source_jobs": {
+          "dead": 117,
+          "done": 13989,
+          "total": 14129,
+          "enqueued": 23,
+          "processing": 0
+        },
+        "delivery_24h": {
+          "sent_24h": 1099,
+          "events_24h": 1157,
+          "failed_24h": 6,
+          "skipped_24h": 27,
+          "available_24h": 25,
+          "distinct_listings_24h": 223
+        },
+        "neighborhoods": [
+          {
+            "name": "Hamburg-Altstadt",
+            "borough": "Hamburg-Mitte",
+            "active_listings": 0
+          },
+          {
+            "name": "Billbrook",
+            "borough": "Hamburg-Mitte",
+            "active_listings": 1
+          },
+          {
+            "name": "Billstedt",
+            "borough": "Hamburg-Mitte",
+            "active_listings": 237
+          },
+          {
+            "name": "Borgfelde",
+            "borough": "Hamburg-Mitte",
+            "active_listings": 43
+          },
+          {
+            "name": "Finkenwerder",
+            "borough": "Hamburg-Mitte",
+            "active_listings": 20
+          },
+          {
+            "name": "HafenCity",
+            "borough": "Hamburg-Mitte",
+            "active_listings": 284
+          },
+          {
+            "name": "Hamm",
+            "borough": "Hamburg-Mitte",
+            "active_listings": 101
+          },
+          {
+            "name": "Hammerbrook",
+            "borough": "Hamburg-Mitte",
+            "active_listings": 98
+          },
+          {
+            "name": "Horn",
+            "borough": "Hamburg-Mitte",
+            "active_listings": 153
+          },
+          {
+            "name": "Kleiner Grasbrook",
+            "borough": "Hamburg-Mitte",
+            "active_listings": 2
+          },
+          {
+            "name": "Neustadt",
+            "borough": "Hamburg-Mitte",
+            "active_listings": 111
+          },
+          {
+            "name": "Neuwerk",
+            "borough": "Hamburg-Mitte",
+            "active_listings": 0
+          },
+          {
+            "name": "Rothenburgsort",
+            "borough": "Hamburg-Mitte",
+            "active_listings": 187
+          },
+          {
+            "name": "St. Georg",
+            "borough": "Hamburg-Mitte",
+            "active_listings": 139
+          },
+          {
+            "name": "St. Pauli",
+            "borough": "Hamburg-Mitte",
+            "active_listings": 180
+          },
+          {
+            "name": "Steinwerder",
+            "borough": "Hamburg-Mitte",
+            "active_listings": 0
+          },
+          {
+            "name": "Veddel",
+            "borough": "Hamburg-Mitte",
+            "active_listings": 25
+          },
+          {
+            "name": "Waltershof",
+            "borough": "Hamburg-Mitte",
+            "active_listings": 1
+          },
+          {
+            "name": "Wilhelmsburg",
+            "borough": "Hamburg-Mitte",
+            "active_listings": 124
+          },
+          {
+            "name": "Altona-Altstadt",
+            "borough": "Altona",
+            "active_listings": 194
+          },
+          {
+            "name": "Altona-Nord",
+            "borough": "Altona",
+            "active_listings": 164
+          },
+          {
+            "name": "Bahrenfeld",
+            "borough": "Altona",
+            "active_listings": 236
+          },
+          {
+            "name": "Blankenese",
+            "borough": "Altona",
+            "active_listings": 32
+          },
+          {
+            "name": "Groß Flottbek",
+            "borough": "Altona",
+            "active_listings": 32
+          },
+          {
+            "name": "Iserbrook",
+            "borough": "Altona",
+            "active_listings": 20
+          },
+          {
+            "name": "Lurup",
+            "borough": "Altona",
+            "active_listings": 100
+          },
+          {
+            "name": "Nienstedten",
+            "borough": "Altona",
+            "active_listings": 26
+          },
+          {
+            "name": "Osdorf",
+            "borough": "Altona",
+            "active_listings": 57
+          },
+          {
+            "name": "Othmarschen",
+            "borough": "Altona",
+            "active_listings": 67
+          },
+          {
+            "name": "Ottensen",
+            "borough": "Altona",
+            "active_listings": 191
+          },
+          {
+            "name": "Rissen",
+            "borough": "Altona",
+            "active_listings": 95
+          },
+          {
+            "name": "Sternschanze",
+            "borough": "Altona",
+            "active_listings": 57
+          },
+          {
+            "name": "Sülldorf",
+            "borough": "Altona",
+            "active_listings": 10
+          },
+          {
+            "name": "Eidelstedt",
+            "borough": "Eimsbüttel",
+            "active_listings": 117
+          },
+          {
+            "name": "Eimsbüttel",
+            "borough": "Eimsbüttel",
+            "active_listings": 1762
+          },
+          {
+            "name": "Harvestehude",
+            "borough": "Eimsbüttel",
+            "active_listings": 54
+          },
+          {
+            "name": "Hoheluft-West",
+            "borough": "Eimsbüttel",
+            "active_listings": 20
+          },
+          {
+            "name": "Lokstedt",
+            "borough": "Eimsbüttel",
+            "active_listings": 121
+          },
+          {
+            "name": "Niendorf",
+            "borough": "Eimsbüttel",
+            "active_listings": 98
+          },
+          {
+            "name": "Rotherbaum",
+            "borough": "Eimsbüttel",
+            "active_listings": 184
+          },
+          {
+            "name": "Schnelsen",
+            "borough": "Eimsbüttel",
+            "active_listings": 110
+          },
+          {
+            "name": "Stellingen",
+            "borough": "Eimsbüttel",
+            "active_listings": 144
+          },
+          {
+            "name": "Alsterdorf",
+            "borough": "Hamburg-Nord",
+            "active_listings": 68
+          },
+          {
+            "name": "Barmbek-Nord",
+            "borough": "Hamburg-Nord",
+            "active_listings": 178
+          },
+          {
+            "name": "Barmbek-Süd",
+            "borough": "Hamburg-Nord",
+            "active_listings": 285
+          },
+          {
+            "name": "Dulsberg",
+            "borough": "Hamburg-Nord",
+            "active_listings": 62
+          },
+          {
+            "name": "Eppendorf",
+            "borough": "Hamburg-Nord",
+            "active_listings": 179
+          },
+          {
+            "name": "Fuhlsbüttel",
+            "borough": "Hamburg-Nord",
+            "active_listings": 50
+          },
+          {
+            "name": "Groß Borstel",
+            "borough": "Hamburg-Nord",
+            "active_listings": 84
+          },
+          {
+            "name": "Hohenfelde",
+            "borough": "Hamburg-Nord",
+            "active_listings": 97
+          },
+          {
+            "name": "Hoheluft-Ost",
+            "borough": "Hamburg-Nord",
+            "active_listings": 35
+          },
+          {
+            "name": "Langenhorn",
+            "borough": "Hamburg-Nord",
+            "active_listings": 138
+          },
+          {
+            "name": "Ohlsdorf",
+            "borough": "Hamburg-Nord",
+            "active_listings": 71
+          },
+          {
+            "name": "Uhlenhorst",
+            "borough": "Hamburg-Nord",
+            "active_listings": 92
+          },
+          {
+            "name": "Winterhude",
+            "borough": "Hamburg-Nord",
+            "active_listings": 326
+          },
+          {
+            "name": "Bergstedt",
+            "borough": "Wandsbek",
+            "active_listings": 11
+          },
+          {
+            "name": "Bramfeld",
+            "borough": "Wandsbek",
+            "active_listings": 253
+          },
+          {
+            "name": "Duvenstedt",
+            "borough": "Wandsbek",
+            "active_listings": 23
+          },
+          {
+            "name": "Eilbek",
+            "borough": "Wandsbek",
+            "active_listings": 117
+          },
+          {
+            "name": "Farmsen-Berne",
+            "borough": "Wandsbek",
+            "active_listings": 96
+          },
+          {
+            "name": "Hummelsbüttel",
+            "borough": "Wandsbek",
+            "active_listings": 43
+          },
+          {
+            "name": "Jenfeld",
+            "borough": "Wandsbek",
+            "active_listings": 108
+          },
+          {
+            "name": "Lemsahl-Mellingstedt",
+            "borough": "Wandsbek",
+            "active_listings": 20
+          },
+          {
+            "name": "Marienthal",
+            "borough": "Wandsbek",
+            "active_listings": 83
+          },
+          {
+            "name": "Poppenbüttel",
+            "borough": "Wandsbek",
+            "active_listings": 54
+          },
+          {
+            "name": "Rahlstedt",
+            "borough": "Wandsbek",
+            "active_listings": 249
+          },
+          {
+            "name": "Sasel",
+            "borough": "Wandsbek",
+            "active_listings": 35
+          },
+          {
+            "name": "Steilshoop",
+            "borough": "Wandsbek",
+            "active_listings": 16
+          },
+          {
+            "name": "Tonndorf",
+            "borough": "Wandsbek",
+            "active_listings": 86
+          },
+          {
+            "name": "Volksdorf",
+            "borough": "Wandsbek",
+            "active_listings": 33
+          },
+          {
+            "name": "Wandsbek",
+            "borough": "Wandsbek",
+            "active_listings": 1180
+          },
+          {
+            "name": "Wellingsbüttel",
+            "borough": "Wandsbek",
+            "active_listings": 39
+          },
+          {
+            "name": "Wohldorf-Ohlstedt",
+            "borough": "Wandsbek",
+            "active_listings": 2
+          },
+          {
+            "name": "Allermöhe",
+            "borough": "Bergedorf",
+            "active_listings": 23
+          },
+          {
+            "name": "Altengamme",
+            "borough": "Bergedorf",
+            "active_listings": 24
+          },
+          {
+            "name": "Bergedorf",
+            "borough": "Bergedorf",
+            "active_listings": 359
+          },
+          {
+            "name": "Billwerder",
+            "borough": "Bergedorf",
+            "active_listings": 2
+          },
+          {
+            "name": "Curslack",
+            "borough": "Bergedorf",
+            "active_listings": 1
+          },
+          {
+            "name": "Kirchwerder",
+            "borough": "Bergedorf",
+            "active_listings": 14
+          },
+          {
+            "name": "Lohbrügge",
+            "borough": "Bergedorf",
+            "active_listings": 70
+          },
+          {
+            "name": "Moorfleet",
+            "borough": "Bergedorf",
+            "active_listings": 3
+          },
+          {
+            "name": "Neuallermöhe",
+            "borough": "Bergedorf",
+            "active_listings": 0
+          },
+          {
+            "name": "Neuengamme",
+            "borough": "Bergedorf",
+            "active_listings": 4
+          },
+          {
+            "name": "Ochsenwerder",
+            "borough": "Bergedorf",
+            "active_listings": 4
+          },
+          {
+            "name": "Reitbrook",
+            "borough": "Bergedorf",
+            "active_listings": 3
+          },
+          {
+            "name": "Spadenland",
+            "borough": "Bergedorf",
+            "active_listings": 1
+          },
+          {
+            "name": "Tatenberg",
+            "borough": "Bergedorf",
+            "active_listings": 0
+          },
+          {
+            "name": "Altenwerder",
+            "borough": "Harburg",
+            "active_listings": 0
+          },
+          {
+            "name": "Cranz",
+            "borough": "Harburg",
+            "active_listings": 6
+          },
+          {
+            "name": "Eißendorf",
+            "borough": "Harburg",
+            "active_listings": 86
+          },
+          {
+            "name": "Francop",
+            "borough": "Harburg",
+            "active_listings": 1
+          },
+          {
+            "name": "Gut Moor",
+            "borough": "Harburg",
+            "active_listings": 0
+          },
+          {
+            "name": "Harburg",
+            "borough": "Harburg",
+            "active_listings": 436
+          },
+          {
+            "name": "Hausbruch",
+            "borough": "Harburg",
+            "active_listings": 34
+          },
+          {
+            "name": "Heimfeld",
+            "borough": "Harburg",
+            "active_listings": 347
+          },
+          {
+            "name": "Langenbek",
+            "borough": "Harburg",
+            "active_listings": 9
+          },
+          {
+            "name": "Marmstorf",
+            "borough": "Harburg",
+            "active_listings": 15
+          },
+          {
+            "name": "Moorburg",
+            "borough": "Harburg",
+            "active_listings": 11
+          },
+          {
+            "name": "Neuenfelde",
+            "borough": "Harburg",
+            "active_listings": 29
+          },
+          {
+            "name": "Neugraben-Fischbek",
+            "borough": "Harburg",
+            "active_listings": 64
+          },
+          {
+            "name": "Neuland",
+            "borough": "Harburg",
+            "active_listings": 3
+          },
+          {
+            "name": "Rönneburg",
+            "borough": "Harburg",
+            "active_listings": 3
+          },
+          {
+            "name": "Sinstorf",
+            "borough": "Harburg",
+            "active_listings": 8
+          },
+          {
+            "name": "Wilstorf",
+            "borough": "Harburg",
+            "active_listings": 33
+          }
+        ]
+      }
+    }
+  ],
+  "advisors": {
+    "security": {
+      "lints": [
+        {
+          "name": "rls_enabled_no_policy",
+          "title": "RLS Enabled No Policy",
+          "level": "INFO",
+          "facing": "EXTERNAL",
+          "categories": [
+            "SECURITY"
+          ],
+          "description": "Detects cases where row level security (RLS) has been enabled on a table but no RLS policies have been created.",
+          "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy",
+          "count": 57,
+          "findings": [
+            {
+              "detail": "Table \\`app_private.application_platforms\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "application_platforms",
+                "type": "table",
+                "schema": "app_private"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`app_private.application_send_keys\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "application_send_keys",
+                "type": "table",
+                "schema": "app_private"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`app_private.coop_provider_index_requests\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "coop_provider_index_requests",
+                "type": "table",
+                "schema": "app_private"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`app_private.dispatch_control\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "dispatch_control",
+                "type": "table",
+                "schema": "app_private"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`app_private.performance_snapshots\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "performance_snapshots",
+                "type": "table",
+                "schema": "app_private"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`app_private.source_category_streams\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "source_category_streams",
+                "type": "table",
+                "schema": "app_private"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`app_private.source_shadow_runs\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "source_shadow_runs",
+                "type": "table",
+                "schema": "app_private"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`app_private.telegram_effects\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "telegram_effects",
+                "type": "table",
+                "schema": "app_private"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`app_private.ui_action_jobs\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "ui_action_jobs",
+                "type": "table",
+                "schema": "app_private"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.applicant_documents\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "applicant_documents",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.applicant_profiles\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "applicant_profiles",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.application_document_package_items\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "application_document_package_items",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.application_document_packages\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "application_document_packages",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.application_document_transfers\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "application_document_transfers",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.application_events\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "application_events",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.application_preferences\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "application_preferences",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.applications\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "applications",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.bot_events\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "bot_events",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.bot_users\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "bot_users",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.coaching_audit_events\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "coaching_audit_events",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.coaching_members\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "coaching_members",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.coaching_participants\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "coaching_participants",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.coaching_request_keys\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "coaching_request_keys",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.coaching_workspaces\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "coaching_workspaces",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.cooperative_provider_registry\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "cooperative_provider_registry",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.crawl_runs\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "crawl_runs",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.delivery_events\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "delivery_events",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.hamburg_boroughs\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "hamburg_boroughs",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.hamburg_neighborhoods\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "hamburg_neighborhoods",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.immomio_object_resolution_shadow\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "immomio_object_resolution_shadow",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.job_application_preferences\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "job_application_preferences",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.job_applications\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "job_applications",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.job_search_profiles\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "job_search_profiles",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.jobseeker_profiles\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "jobseeker_profiles",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.listing_changes\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "listing_changes",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.listing_dedupe_groups\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "listing_dedupe_groups",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.listings\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "listings",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.neighborhood_facts\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "neighborhood_facts",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.notification_preferences\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "notification_preferences",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.platform_auth_flows\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "platform_auth_flows",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.platform_connections\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "platform_connections",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.platform_reauth_notifications\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "platform_reauth_notifications",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.platform_sessions\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "platform_sessions",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.referral_codes\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "referral_codes",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.referrals\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "referrals",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.route_cache\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "route_cache",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.saved_listings\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "saved_listings",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.search_profiles\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "search_profiles",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.source_connectors\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "source_connectors",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.source_coverage_state\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "source_coverage_state",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.source_jobs\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "source_jobs",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.sources\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "sources",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.stripe_webhook_events\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "stripe_webhook_events",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.telegram_announcements\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "telegram_announcements",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.user_destinations\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "user_destinations",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.user_engagement_notifications\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "user_engagement_notifications",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            },
+            {
+              "detail": "Table \\`public.user_subscriptions\\` has RLS enabled, but no policies exist",
+              "metadata": {
+                "name": "user_subscriptions",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:59.221Z"
+            }
+          ]
+        },
+        {
+          "name": "auth_leaked_password_protection",
+          "title": "Leaked Password Protection Disabled",
+          "level": "WARN",
+          "facing": "EXTERNAL",
+          "categories": [
+            "SECURITY"
+          ],
+          "description": "Leaked password protection is currently disabled.",
+          "remediation": "https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection",
+          "count": 1,
+          "findings": [
+            {
+              "detail": "Supabase Auth prevents the use of compromised passwords by checking against HaveIBeenPwned.org. Enable this feature to enhance security.",
+              "metadata": {
+                "type": "auth",
+                "entity": "Auth"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "performance": {
+      "lints": [
+        {
+          "name": "unindexed_foreign_keys",
+          "title": "Unindexed foreign keys",
+          "level": "INFO",
+          "facing": "EXTERNAL",
+          "categories": [
+            "PERFORMANCE"
+          ],
+          "description": "Identifies foreign key constraints without a covering index, which can impact database performance.",
+          "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0001_unindexed_foreign_keys",
+          "count": 1,
+          "findings": [
+            {
+              "detail": "Table \\`public.job_applications\\` has a foreign key \\`job_applications_search_profile_id_fkey\\` without a covering index. This can lead to suboptimal query performance.",
+              "metadata": {
+                "name": "job_applications",
+                "type": "table",
+                "schema": "public",
+                "fkey_name": "job_applications_search_profile_id_fkey",
+                "fkey_columns": [
+                  3
+                ]
+              },
+              "observed_at": "2026-10-20T19:06:58.823Z"
+            }
+          ]
+        },
+        {
+          "name": "unused_index",
+          "title": "Unused Index",
+          "level": "INFO",
+          "facing": "EXTERNAL",
+          "categories": [
+            "PERFORMANCE"
+          ],
+          "description": "Detects if an index has never been used and may be a candidate for removal.",
+          "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0005_unused_index",
+          "count": 14,
+          "findings": [
+            {
+              "detail": "Index \\`route_cache_destination_id_idx\\` on table \\`public.route_cache\\` has not been used",
+              "metadata": {
+                "name": "route_cache",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:58.823Z"
+            },
+            {
+              "detail": "Index \\`coop_provider_index_requests_source_id_idx\\` on table \\`app_private.coop_provider_index_requests\\` has not been used",
+              "metadata": {
+                "name": "coop_provider_index_requests",
+                "type": "table",
+                "schema": "app_private"
+              },
+              "observed_at": "2026-10-20T19:06:58.823Z"
+            },
+            {
+              "detail": "Index \\`telegram_announcements_created_at_idx\\` on table \\`public.telegram_announcements\\` has not been used",
+              "metadata": {
+                "name": "telegram_announcements",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:58.823Z"
+            },
+            {
+              "detail": "Index \\`listings_saga_recovery_candidates_idx\\` on table \\`public.listings\\` has not been used",
+              "metadata": {
+                "name": "listings",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:58.823Z"
+            },
+            {
+              "detail": "Index \\`coaching_request_keys_created_at_idx\\` on table \\`public.coaching_request_keys\\` has not been used",
+              "metadata": {
+                "name": "coaching_request_keys",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:58.823Z"
+            },
+            {
+              "detail": "Index \\`idx_listings_provider_object_identity\\` on table \\`public.listings\\` has not been used",
+              "metadata": {
+                "name": "listings",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:58.823Z"
+            },
+            {
+              "detail": "Index \\`coaching_request_keys_workspace_id_idx\\` on table \\`public.coaching_request_keys\\` has not been used",
+              "metadata": {
+                "name": "coaching_request_keys",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:58.823Z"
+            },
+            {
+              "detail": "Index \\`coaching_request_keys_actor_member_id_idx\\` on table \\`public.coaching_request_keys\\` has not been used",
+              "metadata": {
+                "name": "coaching_request_keys",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:58.823Z"
+            },
+            {
+              "detail": "Index \\`coaching_request_keys_participant_user_id_idx\\` on table \\`public.coaching_request_keys\\` has not been used",
+              "metadata": {
+                "name": "coaching_request_keys",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:58.823Z"
+            },
+            {
+              "detail": "Index \\`cooperative_provider_registry_source_id_idx\\` on table \\`public.cooperative_provider_registry\\` has not been used",
+              "metadata": {
+                "name": "cooperative_provider_registry",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:58.823Z"
+            },
+            {
+              "detail": "Index \\`coaching_audit_workspace_time_idx\\` on table \\`public.coaching_audit_events\\` has not been used",
+              "metadata": {
+                "name": "coaching_audit_events",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:58.823Z"
+            },
+            {
+              "detail": "Index \\`telegram_announcements_created_by_idx\\` on table \\`public.telegram_announcements\\` has not been used",
+              "metadata": {
+                "name": "telegram_announcements",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:58.823Z"
+            },
+            {
+              "detail": "Index \\`platform_sessions_source_idx\\` on table \\`public.platform_sessions\\` has not been used",
+              "metadata": {
+                "name": "platform_sessions",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:58.823Z"
+            },
+            {
+              "detail": "Index \\`application_document_package_items_document_id_idx\\` on table \\`public.application_document_package_items\\` has not been used",
+              "metadata": {
+                "name": "application_document_package_items",
+                "type": "table",
+                "schema": "public"
+              },
+              "observed_at": "2026-10-20T19:06:58.823Z"
+            }
+          ]
+        },
+        {
+          "name": "auth_db_connections_absolute",
+          "title": "Auth DB Connection Strategy is not Percentage",
+          "level": "INFO",
+          "facing": "EXTERNAL",
+          "categories": [
+            "PERFORMANCE"
+          ],
+          "description": "Using a percentage based allocation connection strategy for Auth can help to improve the server's performance when increasing instance size.",
+          "remediation": "https://supabase.com/docs/guides/deployment/going-into-prod",
+          "count": 1,
+          "findings": [
+            {
+              "detail": "Your project's Auth server is configured to use at most 10 connections. Increasing the instance size without manually adjusting this number will not improve the performance of the Auth server. Switch to a percentage based connection allocation strategy instead.",
+              "metadata": {
+                "type": "auth",
+                "entity": "Auth"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
