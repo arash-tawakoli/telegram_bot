@@ -382,6 +382,14 @@ async function dashboardData(a:any,scope='all',input:any={}){
  };
 }
 
+async function sourceHealth(a:any,input:any={}){
+ if(a.member.is_super_admin!==true)throw Error('super_admin_required');
+ const hours=Math.max(1,Math.min(168,Number(input.hours||24)));
+ const{data,error}=await admin.rpc('coach_source_health_v1',{p_hours:hours});
+ if(error)throw Error('source_health_failed');
+ return{sourceHealth:data||{}};
+}
+
 async function analyticsData(a:any,input:any={}){
  const section=['applications','participants','market'].includes(String(input.section||''))?String(input.section):'applications';
  const days=filterDays(input.days);
@@ -697,6 +705,7 @@ async function handle(req:Request){
  if(action==='delete_document'){const id=uuid(body.documentId),{data,error}=await admin.from('applicant_documents').select('storage_path').eq('id',id).eq('user_id',assignment.user_id).maybeSingle();if(error||!data)throw Error('document_not_found');await admin.storage.from('applicant-documents').remove([data.storage_path]);const del=await admin.from('applicant_documents').delete().eq('id',id).eq('user_id',assignment.user_id);if(del.error)throw Error('document_delete_failed');await audit(a,assignment.user_id,'document_deleted',{document_id:id});return{ok:true};}
  if(action==='application_events'){const appId=uuid(body.applicationId),{data,error}=await admin.from('application_events').select('provider,event_type,status,attempt,reason,document_result,metadata,created_at').eq('application_id',appId).eq('user_id',assignment.user_id).order('created_at');if(error)throw Error('events_read_failed');return{events:data||[]};}
  if(action==='applications')return applicationPage(a,body.scope==='mine'?'mine':'all',body);
+ if(action==='source_health'){if(actual.member.is_super_admin!==true)throw Error('super_admin_required');return sourceHealth(actual,body);}
  if(action==='dashboard')return dashboardData(a,body.scope==='mine'?'mine':'all',body);
  if(action==='analytics')return analyticsData(a,body);
  if(action==='create_coach'){if(a.member.role!=='admin'||a.member.is_super_admin!==true)throw Error('member_management_forbidden');const e=email(body.email),password=String(body.password||''),requestedRole=String(body.role||'manager');if(!['manager','admin','super_admin'].includes(requestedRole))throw Error('invalid_member_role');if(['admin','super_admin'].includes(requestedRole)&&a.member.is_super_admin!==true)throw Error('member_management_forbidden');if(password.length<12)throw Error('password_too_short');const{data:created,error}=await admin.auth.admin.createUser({email:e,password,email_confirm:true});if(error||!created.user)throw Error(error?.message||'coach_auth_create_failed');const storedRole=storedMemberRole(requestedRole);const{data:member,error:me}=await admin.from('coaching_members').insert({auth_user_id:created.user.id,workspace_id:a.member.workspace_id,display_name:clean(body.display_name,120)||e,role:storedRole,is_super_admin:requestedRole==='super_admin',is_active:true}).select('id,display_name,role,is_super_admin').single();if(me){await admin.auth.admin.deleteUser(created.user.id).catch(()=>{});throw Error('coach_member_create_failed');}await audit(a,null,'coach_created',{member_id:member.id,role:requestedRole,is_super_admin:requestedRole==='super_admin'});return{ok:true,member:{id:member.id,displayName:member.display_name,role:publicMemberRole(member.role,member.is_super_admin)}};}
@@ -742,7 +751,7 @@ function publicError(error:any){const code=String(error?.message||'coach_api_fai
 
 Deno.serve(async req=>{
  if(req.method==='OPTIONS')return new Response(null,{status:204,headers:cors(req)});
- if(req.method==='GET')return json(req,{ok:true,service:'coach-api',version:11});
+ if(req.method==='GET')return json(req,{ok:true,service:'coach-api',version:12});
  if(req.method!=='POST')return new Response('method not allowed',{status:405,headers:cors(req)});
  try{return json(req,await handle(req));}
  catch(error:any){console.error('coach_api',String(error));const code=publicError(error),status=code==='unauthorized'?401:['coach_forbidden','participant_forbidden','admin_required','member_management_forbidden','super_admin_protected','super_admin_required','workspace_unavailable','preview_read_only'].includes(code)?403:400;return json(req,{error:code},status);}
