@@ -135,7 +135,7 @@
     },
     {
       "slug": "coach-api",
-      "version": 45,
+      "version": 46,
       "verify_jwt": false,
       "import_map": false,
       "retired": false,
