@@ -1,0 +1,8 @@
+{
+  "migrations": [
+    {"version":"20261020192839","name":"normalize_hamburg_district_aliases","file":"supabase/migrations/20261020192839_normalize_hamburg_district_aliases.sql","export_sql_sha256":"fdb59f33831cbcde0f8f11dba19976fcfea57b9b716213e05c713b22b3e64a1b"},
+    {"version":"20261020193152","name":"coach_source_health_normalized_districts","file":"supabase/migrations/20261020193152_coach_source_health_normalized_districts.sql","export_sql_sha256":"72c5c277e9669a7195f467ba0e247450c62bcc1e4a05a3f0b6e3c27c8d98cae2"},
+    {"version":"20261020193600","name":"add_job_applications_search_profile_index","file":"supabase/migrations/20261020193600_add_job_applications_search_profile_index.sql","export_sql_sha256":"6041c1d641633b443e7b2ec7350aa0b9aa52c320e1acf309b7dcaf6d8e9f3afa"},
+    {"version":"20261020193700","name":"add_hamburg_alias_neighborhood_index","file":"supabase/migrations/20261020193700_add_hamburg_alias_neighborhood_index.sql","export_sql_sha256":"52089d62d250d16a22358020ed16b71e20c7152d94f8f2c764dd5795c41f7a36"}
+  ]
+}
