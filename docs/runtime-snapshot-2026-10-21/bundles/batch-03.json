@@ -38,12 +38,12 @@
     },
     {
       "slug": "immobilie1-transport",
-      "version": 3,
+      "version": 4,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
       "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_6068f05b-a6b7-4a58-b940-a4f4f174a865_3/source/immobilie1-transport/index.ts",
-      "artifact_sha256": "33deaf04a1c2f3879d3752835fd721d322b0d2dba9746ee7b777f95f24ef3ad6",
+      "artifact_sha256": "8a9013eb41af6564a10d5804e300a7fe37ba4f7724919ca6b0ef8b1aaf622212",
       "archive_status": "full_source",
       "security_scan_flags": [],
       "files": [
@@ -63,12 +63,12 @@
     },
     {
       "slug": "immobilien-de-transport",
-      "version": 15,
+      "version": 16,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
       "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_84fbfa0e-7c3b-44f7-9fa8-396ce2057325_15/source/immobilien-de-transport/index.ts",
-      "artifact_sha256": "7fbf31045c8b0fb61333473be42847bb853c74941f52f55a85e83573ae2dd46d",
+      "artifact_sha256": "da8dcb0aa2925109df71d223f9dac73d05c651070ecf5d11422061c7b8ec6ece",
       "archive_status": "full_source",
       "security_scan_flags": [],
       "files": [
