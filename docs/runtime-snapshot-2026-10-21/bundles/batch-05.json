@@ -38,12 +38,12 @@
     },
     {
       "slug": "immomio-introspection-probe",
-      "version": 14,
+      "version": 15,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
-      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_f0ae9898-3a56-4e74-a670-a5d4bd177f26_14/source/index.ts",
-      "artifact_sha256": "7680f5e7f8f209fe8a62a22921aa8be6f9996beca0fc71201e23279ec7944e0e",
+      "entrypoint_path": "/tmp/user_fn_dpmohkrwdlicexwcrqfy_f0ae9898-3a56-4e74-a670-a5d4bd177f26_15/source/index.ts",
+      "artifact_sha256": "dd494821ebb5b5e314d96ed818dd46849912c43ac43e26e6d6d6474da1349630",
       "archive_status": "full_source",
       "security_scan_flags": [],
       "files": [
