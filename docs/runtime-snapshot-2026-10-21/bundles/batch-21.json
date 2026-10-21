@@ -1,0 +1,91 @@
+{
+  "snapshot": "2026-10-21",
+  "batch": 21,
+  "functions": [
+    {
+      "slug": "telegram-gateway-preview-canary",
+      "version": 2,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_fff5cc56-9cc4-4c0c-b0a2-80964a608c3c_2/source/index.ts",
+      "artifact_sha256": "be1b15eda9c8be5067c51743f7da4f8e01297150d9e2ad30977f63f3126f9c87",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "files": [
+        {
+          "path": "index.ts",
+          "content": "import \"jsr:@supabase/functions-js/edge-runtime.d.ts\";\nDeno.serve(()=>new Response(\"retired\",{status:410,headers:{\"content-type\":\"text/plain\"}}));\n"
+        }
+      ]
+    },
+    {
+      "slug": "telegram-gateway-v3-canary",
+      "version": 2,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_435fe6eb-18ee-4a29-ad54-edb6ef87dec9_2/source/index.ts",
+      "artifact_sha256": "cfceead8c4eba606dcba379ba7fdbc784f18517b123e8bc0b78e10f8ebea5ce6",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "files": [
+        {
+          "path": "index.ts",
+          "content": "import \"jsr:@supabase/functions-js/edge-runtime.d.ts\";\nDeno.serve(()=>new Response(\"retired\",{status:410,headers:{\"content-type\":\"text/plain\"}}));\n"
+        }
+      ]
+    },
+    {
+      "slug": "telegram-gateway-v4-canary",
+      "version": 2,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_075398fe-7df0-4d22-a9d5-4bfe11a002c2_2/source/index.ts",
+      "artifact_sha256": "b448a6367e147239eb732ebf5eed5bd4437a6f1524e9195678643dde3f46e1dc",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "files": [
+        {
+          "path": "index.ts",
+          "content": "import \"jsr:@supabase/functions-js/edge-runtime.d.ts\";\nDeno.serve(()=>new Response(\"retired\",{status:410,headers:{\"content-type\":\"text/plain\"}}));"
+        }
+      ]
+    },
+    {
+      "slug": "telegram-oauth-bridge",
+      "version": 38,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_fa2bd887-78c0-46a0-8dfd-eeb533fb2eb1_38/source/supabase/functions/telegram-oauth-bridge/index.ts",
+      "artifact_sha256": "b72c02d422076e05596d410d9815d2f23389cb9558bedac2f8a9dc9578a71bd5",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "files": [
+        {
+          "path": "telegram-oauth-bridge/index.ts",
+          "content": "import \"jsr:@supabase/functions-js/edge-runtime.d.ts\";\n\nconst URL=Deno.env.get('SUPABASE_URL')!;\nconst KEYS=JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')||'{}');\nconst KEY=KEYS.default||Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;\nconst CORE=`${URL}/functions/v1/telegram-gateway`;\nconst APPLICATION_WORKER=`${URL}/functions/v1/application-worker`;\nconst IMMOMIO_WORKER=`${URL}/functions/v1/immomio-account`;\nconst SCOUT_HANDOFF=`${URL}/functions/v1/immoscout-native-handoff`;\nlet cached:{value:string,expiresAt:number}|null=null;\n\nfunction headers(extra:Record<string,string>={}){return{apikey:KEY,Authorization:`Bearer ${KEY}`,'content-type':'application/json',...extra}}\nasync function rpc(name:string,body:Record<string,unknown>){const r=await fetch(`${URL}/rest/v1/rpc/${name}`,{method:'POST',headers:headers(),body:JSON.stringify(body),signal:AbortSignal.timeout(15000)}),data=await r.json().catch(()=>null);if(!r.ok)throw Error(`${name}:${r.status}`);return data}\nasync function secret(name:string){const data=await rpc('get_bot_secret',{secret_name:name});if(!data)throw Error('secret_unavailable');return String(data)}\nasync function webhookSecret(force=false){if(!force&&cached&&cached.expiresAt>Date.now())return cached.value;const value=await secret('telegram_webhook_secret');cached={value,expiresAt:Date.now()+3600000};return value}\nasync function telegram(method:string,body:Record<string,unknown>){const token=await secret('telegram_bot_token_runtime');const r=await fetch(`https://api.telegram.org/bot${token}/${method}`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(10000)}),data=await r.json().catch(()=>null);if(!r.ok||!data?.ok)throw Error('telegram_failed');return data.result}\nasync function editOrSend(chatId:number,messageId:number,text:string,inline_keyboard:any[]){const body={chat_id:chatId,message_id:messageId,parse_mode:'HTML',disable_web_page_preview:true,text,reply_markup:{inline_keyboard}};try{return await telegram('editMessageText',body)}catch{return telegram('sendMessage',{chat_id:chatId,parse_mode:'HTML',disable_web_page_preview:true,text,reply_markup:{inline_keyboard}})}}\nasync function finish(updateId:number,claim:number,ok:boolean,error:string|null=null){await rpc('finish_telegram_update',{p_update_id:updateId,p_attempt:claim,p_success:ok,p_error:error})}\nasync function prepared(update:any){const p=await rpc('prepare_telegram_update',{p_payload:update}),claim=Number(p?.claim||0);if(claim<=0)return null;return{claim,user:p.user,updateId:Number(update.update_id)}}\nasync function internal(endpoint:string,payload:Record<string,unknown>){const internalSecret=await secret('internal_worker_secret');const r=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json','x-internal-secret':internalSecret},body:JSON.stringify(payload),signal:AbortSignal.timeout(45000)}),data=await r.json().catch(()=>null);if(!r.ok||!data)throw Error(data?.error||`provider:${r.status}`);return data}\nfunction providerName(provider:string){return provider==='kleinanzeigen'?'Kleinanzeigen':provider==='immomio'?'Immomio':provider==='immowelt'?'Immowelt':provider==='wg_gesucht'?'WG-Gesucht':'ImmoScout24'}\nfunction providerUrl(provider:string,value:any){let u:any;try{u=new globalThis.URL(String(value||''))}catch{throw Error('provider_url_invalid')}if(u.protocol!=='https:'||u.username||u.password)throw Error('provider_url_invalid');const allowed=provider==='kleinanzeigen'?u.hostname==='login.kleinanzeigen.de':provider==='immomio'?u.hostname==='sso.immomio.com':u.hostname==='login.traumwohnunghamburg.de';if(!allowed)throw Error('provider_url_invalid');return u.href}\nasync function validateUser(update:any,allowFree=false){const ctx=await prepared(update);if(!ctx)return null;const q=update?.callback_query,chatId=Number(q?.message?.chat?.id),fromId=Number(q?.from?.id),messageId=Number(q?.message?.message_id),user=ctx.user;if(!user||!user.is_active||Number(user.telegram_user_id)!==fromId||Number(user.chat_id)!==chatId)throw Error('user_mismatch');if(!allowFree){const eligible=await rpc('application_user_eligible',{p_user:user.id});if(eligible!==true)throw Error('premium_required')}return{ctx,chatId,messageId,user}}\n\nfunction randomHex(bytes=32){const a=crypto.getRandomValues(new Uint8Array(bytes));return Array.from(a,b=>b.toString(16).padStart(2,'0')).join('')}\nasync function createConnectTicket(userId:string,provider:'kleinanzeigen'|'immomio'|'immoscout'|'immowelt'|'wg_gesucht'){\n const deleteUrl=new globalThis.URL(`${URL}/rest/v1/platform_auth_flows`);\n deleteUrl.searchParams.set('user_id',`eq.${userId}`);\n deleteUrl.searchParams.set('provider',`eq.${provider}`);\n deleteUrl.searchParams.set('consumed_at','is.null');\n await fetch(deleteUrl,{method:'DELETE',headers:headers({Prefer:'return=minimal'}),signal:AbortSignal.timeout(15000)});\n const state=randomHex(24),verifier=randomHex(48);\n const r=await fetch(`${URL}/rest/v1/platform_auth_flows`,{\n   method:'POST',\n   headers:headers({Prefer:'return=minimal'}),\n   body:JSON.stringify({user_id:userId,provider,state,code_verifier:verifier,origin:'telegram',return_target:'telegram',context:{channel:'telegram'}}),\n   signal:AbortSignal.timeout(15000)\n });\n if(!r.ok)throw Error('auth_flow_create_failed');\n return{state,verifier};\n}\n\nasync function handleProviderLogin(update:any,provider:'kleinanzeigen'|'immomio'|'immoscout'|'immowelt'|'wg_gesucht'){\n let x:any=null;\n try{\n  x=await validateUser(update,provider==='wg_gesucht');if(!x)return;\n  const {ctx,chatId,messageId,user}=x,name=providerName(provider);\n  let url:string;\n  if(provider==='kleinanzeigen'){\n   const result=await internal(APPLICATION_WORKER,{action:'login_share',userId:String(user.id),source:2,origin:'telegram',returnTarget:'telegram',context:{channel:'telegram',share_flow:true}});\n   if(!result?.url)throw Error('auth_flow_create_failed');\n   url=providerUrl(provider,result.url);\n  }else if(provider==='immomio'){\n   const connect=await createConnectTicket(String(user.id),provider),ticket=connect.state;\n   url=`https://login.traumwohnunghamburg.de/connect?ticket=${encodeURIComponent(ticket)}`;\n  }else{\n   const connect=await createConnectTicket(String(user.id),provider),ticket=connect.state;\n   url=`https://login.traumwohnunghamburg.de/connect?ticket=${encodeURIComponent(ticket)}`;\n  }\n  const copy=provider==='kleinanzeigen'\n   ? `🔐 <b>Kleinanzeigen verbinden</b>\\n\\n1. Tippe unten auf <b>Kleinanzeigen verbinden</b>.\\n2. Melde dich an.\\n3. Tippe auf <b>Teilen</b> und sende den Link an <b>TraumWohnung Hamburg</b>.`\n   : provider==='immomio'\n    ? `🔐 <b>Immomio verbinden</b>\\n\\n1. Tippe unten auf <b>Immomio verbinden</b>.\\n2. Melde dich bei Immomio an.\\n3. Nach erfolgreichem Login wird die Verbindung automatisch erkannt und gespeichert.\\n\\nKein Teilen, kein Kopieren einer URL.`\n    : provider==='immowelt'\n     ? `🔐 <b>Immowelt verbinden</b>\\n\\n1. Tippe unten auf <b>Immowelt verbinden</b>.\\n2. Melde dich an.\\n3. Dein Konto wird automatisch verbunden.`\n     : provider==='wg_gesucht'\n      ? `🔐 <b>WG-Gesucht verbinden</b>\\n\\n1. Tippe unten auf <b>WG-Gesucht verbinden</b>.\\n2. Melde dich mit E-Mail und Passwort an.\\n3. Bestätige bei Bedarf den Code aus deiner E-Mail.\\n\\nDer Login ist auch ohne Premium möglich.`\n      : `🔐 <b>ImmoScout24 verbinden</b>\\n\\n1. Tippe unten auf <b>ImmoScout24 verbinden</b>.\\n2. Melde dich an.\\n3. Dein Konto wird automatisch verbunden.`;\n  await editOrSend(chatId,messageId,copy,[[{text:`🌐 ${name} verbinden`,url}],[{text:'← Automatische Bewerbung',callback_data:'platforms'}]]);\n  await finish(ctx.updateId,ctx.claim,true);x=null;\n }catch(e){\n  console.error(`${provider}_login_bridge`,String(e));\n  const setupMissing=String(e).includes('oauth_client_not_provisioned');\n  const detail=setupMissing?'Der direkte Kleinanzeigen-Login ist noch nicht vom Anbieter für unseren Web-Callback freigeschaltet.':'Bitte erneut versuchen.';\n  if(x?.chatId&&x?.messageId)await editOrSend(x.chatId,x.messageId,`⚠️ <b>${providerName(provider)}-Login konnte nicht gestartet werden.</b>\\n\\n${detail}`,[[{text:'← Automatische Bewerbung',callback_data:'platforms'}]]).catch(()=>{});\n  if(x?.ctx)await finish(x.ctx.updateId,x.ctx.claim,false,String(e)).catch(()=>{});\n }\n}\n\nasync function proxy(body:string,secretValue:string){const r=await fetch(CORE,{method:'POST',headers:{'content-type':'application/json','x-telegram-bot-api-secret-token':secretValue},body,signal:AbortSignal.timeout(50000)});return new Response(await r.text(),{status:r.status,headers:{'content-type':r.headers.get('content-type')||'application/json'}})}\n\nDeno.serve(async req=>{\n try{\n  if(req.method!=='POST')return new Response('method not allowed',{status:405});\n  const supplied=req.headers.get('x-telegram-bot-api-secret-token')||'';let expected=await webhookSecret();\n  if(supplied!==expected){cached=null;expected=await webhookSecret(true);if(supplied!==expected)return new Response('unauthorized',{status:401})}\n  const body=await req.text();let update:any=null;try{update=JSON.parse(body)}catch{}\n  const data=String(update?.callback_query?.data||'');\n  if(update?.callback_query?.id&&['platforms:login:1','platforms:login:2','platforms:login:3','platforms:login:4','platforms:login:6'].includes(data)){\n   const provider:'kleinanzeigen'|'immomio'|'immoscout'|'immowelt'|'wg_gesucht'=data.endsWith(':2')?'kleinanzeigen':data.endsWith(':3')?'immomio':data.endsWith(':4')?'immowelt':data.endsWith(':6')?'wg_gesucht':'immoscout';\n   EdgeRuntime.waitUntil(telegram('answerCallbackQuery',{callback_query_id:String(update.callback_query.id)}).catch(()=>{}));\n   EdgeRuntime.waitUntil(handleProviderLogin(update,provider).catch(e=>console.error('provider_login_background',String(e))));\n   return Response.json({ok:true});\n  }\n  return proxy(body,expected);\n }catch(e){console.error('telegram_oauth_bridge',String(e));return Response.json({ok:false,error:'bridge_failure'},{status:502})}\n});\n"
+        }
+      ]
+    },
+    {
+      "slug": "telegram-premium",
+      "version": 10,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_9e042842-c43b-42a0-acc4-267392e1e1b2_10/source/telegram-premium/index.ts",
+      "artifact_sha256": "4d2465ff1df04d2c0e7920de49acfb52d95a9e34fc35ecf783381eab0ba80748",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "files": [
+        {
+          "path": "telegram-premium/index.ts",
+          "content": "import \"jsr:@supabase/functions-js/edge-runtime.d.ts\";\nimport { createClient } from \"npm:@supabase/supabase-js@2.112.4\";\nconst URL=Deno.env.get(\"SUPABASE_URL\")!; const KEYS=JSON.parse(Deno.env.get(\"SUPABASE_SECRET_KEYS\")||\"{}\"); const KEY=KEYS.default||Deno.env.get(\"SUPABASE_SERVICE_ROLE_KEY\")!;\nconst db=createClient(URL,KEY,{auth:{persistSession:false,autoRefreshToken:false}}); const PREMIUM_LINK=\"https://buy.stripe.com/dRm9AM7DSajfgYK2qVfYY01\"; const PREMIUM_IMAGE=`${URL}/functions/v1/telegram-premium-image?v=20260903hd4`;\nasync function secret(name:string){const {data,error}=await db.rpc(\"get_bot_secret\",{secret_name:name}); if(error||!data) throw new Error(`${name} unavailable`); return String(data)}\nasync function tg(method:string,payload:any){const token=await secret(\"telegram_bot_token_runtime\"); const r=await fetch(`https://api.telegram.org/bot${token}/${method}`,{method:\"POST\",headers:{\"content-type\":\"application/json\"},body:JSON.stringify(payload)}); const j=await r.json().catch(()=>({})); if(!r.ok||!j.ok) throw new Error(String(j?.description||`Telegram ${r.status}`)); return j.result}\nasync function sendPremium(chatId:number,text:string,replyMarkup:any){try{const image=await fetch(PREMIUM_IMAGE); if(!image.ok)throw new Error(`premium image ${image.status}`); const blob=await image.blob(); const token=await secret(\"telegram_bot_token_runtime\"); const form=new FormData(); form.set(\"chat_id\",String(chatId)); form.set(\"photo\",blob,\"premium.jpg\"); form.set(\"caption\",text); form.set(\"parse_mode\",\"HTML\"); form.set(\"reply_markup\",JSON.stringify(replyMarkup)); const r=await fetch(`https://api.telegram.org/bot${token}/sendPhoto`,{method:\"POST\",body:form}); const j=await r.json().catch(()=>({})); if(!r.ok||!j.ok)throw new Error(String(j?.description||`Telegram ${r.status}`)); return j.result}catch(e){console.error(\"premium_image_fallback\",e); return tg(\"sendMessage\",{chat_id:chatId,text,parse_mode:\"HTML\",reply_markup:replyMarkup})}}\nfunction premium(user:any,sub:any){const now=Date.now(); if(user?.plan_override===\"free\")return false; if(user?.plan_override===\"premium\"&&(!user.plan_override_expires_at||new Date(user.plan_override_expires_at).getTime()>now))return true; if(user?.referral_bonus_until&&new Date(user.referral_bonus_until).getTime()>now)return true; return !!sub&&[\"active\",\"trialing\"].includes(String(sub.status||\"\"))&&(!sub.current_period_end||new Date(sub.current_period_end).getTime()>now)}\nDeno.serve(async(req:Request)=>{try{if(req.method!==\"POST\")return new Response(\"method not allowed\",{status:405}); const supplied=req.headers.get(\"x-telegram-bot-api-secret-token\")||\"\"; if(supplied!==await secret(\"telegram_webhook_secret\"))return new Response(\"unauthorized\",{status:401}); const u=await req.json(); const from=u?.callback_query?.from||u?.message?.from; const chatId=Number(u?.callback_query?.message?.chat?.id||u?.message?.chat?.id); if(!from?.id||!chatId)return Response.json({ok:true,ignored:true}); if(u?.callback_query?.id)tg(\"answerCallbackQuery\",{callback_query_id:u.callback_query.id}).catch(()=>{}); const {data:user,error}=await db.from(\"bot_users\").select(\"id,plan_override,plan_override_expires_at,referral_bonus_until\").eq(\"telegram_user_id\",from.id).maybeSingle(); if(error)throw error; if(!user)return Response.json({ok:false,error:\"user_not_found\"},{status:404}); const {data:sub,error:se}=await db.from(\"user_subscriptions\").select(\"status,current_period_end\").eq(\"user_id\",user.id).maybeSingle(); if(se)throw se; const isPremium=premium(user,sub); const text=isPremium?\"💎 <b>Traumwohnung Premium</b>\\n\\n✅ <b>Premium ist aktiv.</b>\\n\\n<b>Deine Vorteile:</b>\\n⚡ Sofortige Zustellung\\n🔎 Bis zu 4 Suchprofile\\n🤖 Auto-Bewerbung\\n🔓 Baugenossenschafts-Angebote öffnen\\n⭐️ Inserate speichern\":\"💎 <b>Traumwohnung Premium</b>\\n\\n<b>Deine Vorteile:</b>\\n⚡ Sofortige Zustellung\\n🔎 Bis zu 4 Suchprofile\\n🤖 Auto-Bewerbung\\n🔓 Baugenossenschafts-Angebote öffnen\\n⭐️ Inserate speichern\\n\\n<s>1,99 €</s> <b>0,99 € / Monat</b>\\nKeine Mindestlaufzeit · jederzeit kündbar\"; const rows:any[]=[]; if(isPremium)rows.push([{text:\"💳 Abo verwalten\",callback_data:\"portal\"}]); else rows.push([{text:\"💎 Premium freischalten\",url:`${PREMIUM_LINK}?client_reference_id=${encodeURIComponent(user.id)}`}]); rows.push([{text:\"← Zurück\",callback_data:\"home\"}]); await sendPremium(chatId,text,{inline_keyboard:rows}); return Response.json({ok:true})}catch(e){console.error(\"telegram_premium\",e); return Response.json({ok:false,error:\"premium_failure\"},{status:500})}});"
+        }
+      ]
+    }
+  ]
+}

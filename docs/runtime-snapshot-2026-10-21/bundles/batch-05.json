@@ -1,0 +1,91 @@
+{
+  "snapshot": "2026-10-21",
+  "batch": 5,
+  "functions": [
+    {
+      "slug": "immomio-contract-inspect",
+      "version": 41,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_ba4c9179-3f49-42b1-8579-59e83d8e9f81_41/source/index.ts",
+      "artifact_sha256": "72c8bb1d001875851a12dc53317dbfaf89c6a031b05785fc854186562e0a6c3c",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "files": [
+        {
+          "path": "index.ts",
+          "content": "import {createClient} from 'npm:@supabase/supabase-js@2.112.4';\nconst keys=JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')||'{}');\nconst db=createClient(Deno.env.get('SUPABASE_URL')!,keys.default||Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false,autoRefreshToken:false}});\nasync function secret(name:string){const{data,error}=await db.rpc('get_bot_secret',{secret_name:name});if(error||!data)throw Error('configuration_unavailable');return String(data)}\nfunction safeUrl(value:any){const u=new URL(String(value||''));if(u.protocol!=='https:'||u.hostname!=='tenant.immomio.com'||!/^\\/apply\\/[0-9a-f-]{8,}(?:\\/.*)?$/i.test(u.pathname))throw Error('invalid_url');return u}\nfunction baseUrl(html:string,finalUrl:string){const m=html.match(/<base[^>]+href=[\"']([^\"']+)[\"']/i);return new URL(m?.[1]||finalUrl,finalUrl).href}\nfunction collect(text:string,base:string){const out=new Set<string>();for(const re of [/<script[^>]+src=[\"']([^\"']+)[\"']/gi,/<link[^>]+href=[\"']([^\"']+)[\"']/gi]){let m;while((m=re.exec(text))){try{const u=new URL(m[1],base);if(u.protocol==='https:'&&u.hostname==='tenant.immomio.com')out.add(u.href)}catch{}}}return [...out]}\nfunction around(text:string,needle:string,before=6000,after=6000,max=12){const out:string[]=[];let p=0;while(out.length<max){const i=text.indexOf(needle,p);if(i<0)break;out.push(text.slice(Math.max(0,i-before),Math.min(text.length,i+after)).replace(/\\s+/g,' '));p=i+needle.length}return out}\nDeno.serve(async req=>{try{if(req.method!=='POST')return new Response('method not allowed',{status:405});if(req.headers.get('x-internal-secret')!==await secret('internal_worker_secret'))return new Response('unauthorized',{status:401});const body=await req.json();const u=safeUrl(body?.url);const r=await fetch(u.href,{redirect:'follow',signal:AbortSignal.timeout(30000),headers:{'user-agent':'Mozilla/5.0','accept':'text/html'}});const html=await r.text(),base=baseUrl(html,r.url),assets=collect(html,base);const main=assets.find(x=>{try{const p=new URL(x).pathname.split('/').pop()||'';return p.startsWith('main-')&&p.endsWith('.js')}catch{return false}});if(!main)return Response.json({ok:false,error:'main_bundle_missing'});const js=await (await fetch(main,{signal:AbortSignal.timeout(30000)})).text();const head=js.slice(0,120000);return Response.json({ok:true,mainBundle:main,mainLength:js.length,contexts:{LCt:around(head,'LCt'),t5:around(head,'t5'),hierService:around(head,'_p$1'),importLines:[...head.matchAll(/import\\{[^;]{0,30000}\\}from\\\"([^\\\"]+\\.js)\\\"/g)].slice(0,30).map(m=>({file:m[1],text:m[0].slice(0,30000)}))}});}catch(e:any){return Response.json({ok:false,error:String(e?.message||'inspect_failed')},{status:400})}});\n"
+        }
+      ]
+    },
+    {
+      "slug": "immomio-device-probe",
+      "version": 1,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_6a4eab89-0d2b-414c-a7cb-b25951284434_1/source/index.ts",
+      "artifact_sha256": "ea02b84d5963c51fd6d8a0795eeed544d86c2d756ce08088aa236fb7cc1feadf",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "files": [
+        {
+          "path": "index.ts",
+          "content": "import {createClient} from 'npm:@supabase/supabase-js@2.112.4';\nconst keys=JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')||'{}');\nconst db=createClient(Deno.env.get('SUPABASE_URL')!,keys.default||Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false,autoRefreshToken:false}});\nasync function secret(name:string){const {data,error}=await db.rpc('get_bot_secret',{secret_name:name});if(error||!data)throw Error('configuration_unavailable');return String(data)}\nDeno.serve(async req=>{if(req.method!=='POST')return new Response('method not allowed',{status:405});if(req.headers.get('x-internal-secret')!==await secret('internal_worker_secret'))return new Response('unauthorized',{status:401});try{const response=await fetch('https://sso.immomio.com/auth/realms/immomio/protocol/openid-connect/auth/device',{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded','accept':'application/json'},body:new URLSearchParams({client_id:'immomio-oidc-web',scope:'openid profile email offline_access'}),signal:AbortSignal.timeout(20000)});const body=await response.json().catch(()=>null);return Response.json({status:response.status,ok:response.ok,error:body?.error||null,errorDescription:body?.error_description||null,hasDeviceCode:!!body?.device_code,hasVerificationUri:!!body?.verification_uri});}catch(e:any){return Response.json({error:String(e?.message||'probe_failed')},{status:500})}});\n"
+        }
+      ]
+    },
+    {
+      "slug": "immomio-introspection-probe",
+      "version": 14,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_f0ae9898-3a56-4e74-a670-a5d4bd177f26_14/source/index.ts",
+      "artifact_sha256": "7680f5e7f8f209fe8a62a22921aa8be6f9996beca0fc71201e23279ec7944e0e",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "files": [
+        {
+          "path": "index.ts",
+          "content": "import \"jsr:@supabase/functions-js/edge-runtime.d.ts\";\nDeno.serve(()=>new Response(\"diagnostic endpoint disabled\",{status:410,headers:{\"content-type\":\"text/plain; charset=utf-8\"}}));\n"
+        }
+      ]
+    },
+    {
+      "slug": "immomio-mutation-contract-probe",
+      "version": 1,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_d90e27de-0782-4956-8e0c-48d514de30c8_1/source/index.ts",
+      "artifact_sha256": "b3f8ca32013fb47acb72d6a5f2118134922feb021059c041cb33f27b9dbc771e",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "files": [
+        {
+          "path": "index.ts",
+          "content": "import {createClient} from 'npm:@supabase/supabase-js@2.112.4';\nconst keys=JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')||'{}');\nconst db=createClient(Deno.env.get('SUPABASE_URL')!,keys.default||Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false,autoRefreshToken:false}});\nconst enc=new TextEncoder(),dec=new TextDecoder(),PROVIDER='immomio',GQL='https://gql-ps.immomio.com/tenant/graphql';\nconst unb64=(v:string)=>Uint8Array.from(atob(v),c=>c.charCodeAt(0));\nasync function secret(n:string){const{data,error}=await db.rpc('get_bot_secret',{secret_name:n});if(error||!data)throw Error('configuration_unavailable');return String(data)}\nasync function keyMaterial(v=1){return crypto.subtle.importKey('raw',unb64(await secret(`application_credential_key_v${v}`)),{name:'AES-GCM'},false,['decrypt'])}\nasync function decrypt(row:any){const v=Number(row.key_version)||1,key=await keyMaterial(v),aad=enc.encode(`${row.user_id}:${PROVIDER}:v${v}`);const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(row.credential_iv),additionalData:aad},key,unb64(row.credential_ciphertext));return JSON.parse(dec.decode(plain))}\nasync function token(uid:string){const{data:row}=await db.from('platform_connections').select('*').eq('user_id',uid).eq('provider',PROVIDER).maybeSingle();if(!row?.credential_ciphertext)throw Error('needs_login');const c=await decrypt(row);if(!c?.access_token)throw Error('needs_login');return String(c.access_token)}\nasync function gql(tok:string,q:string){const r=await fetch(GQL,{method:'POST',headers:{'content-type':'application/json',accept:'application/json',origin:'https://tenant.immomio.com',referer:'https://tenant.immomio.com/','user-agent':'TraumWohnungHamburg/1.0',authorization:tok},body:JSON.stringify({query:q,variables:{input:[]}}),signal:AbortSignal.timeout(30000)});return{status:r.status,body:await r.json().catch(()=>null)}}\nconst q=`mutation Probe($input:[HierarchicalRootQuestionResponseInput]){hierarchicalRootQuestionResponse(input:$input){__definitelyUnknownProbeField}}`;\nDeno.serve(async req=>{try{if(req.method!=='POST')return new Response('method not allowed',{status:405});if(req.headers.get('x-internal-secret')!==await secret('internal_worker_secret'))return new Response('unauthorized',{status:401});const b=await req.json(),uid=String(b.userId||'');if(!/^[0-9a-f-]{36}$/i.test(uid))throw Error('invalid_user');return Response.json({ok:true,result:await gql(await token(uid),q)});}catch(e:any){return Response.json({ok:false,error:String(e?.message||'probe_failed')},{status:400})}});\n"
+        }
+      ]
+    },
+    {
+      "slug": "immomio-probe",
+      "version": 4,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_2f533a95-6aa3-4ffb-86e3-fc7adbda71a6_4/source/index.ts",
+      "artifact_sha256": "c98dd47ecdde6e37658ec7efea02546fc6820e6062f53fad09c477ecf3cef8e1",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "files": [
+        {
+          "path": "index.ts",
+          "content": "import \"jsr:@supabase/functions-js/edge-runtime.d.ts\";\nDeno.serve(()=>new Response(\"diagnostic endpoint disabled\",{status:410,headers:{\"content-type\":\"text/plain; charset=utf-8\"}}));\n"
+        }
+      ]
+    }
+  ]
+}
