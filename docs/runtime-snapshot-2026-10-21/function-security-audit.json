@@ -1283,18 +1283,16 @@
     },
     {
       "slug": "source-worker",
-      "version": 105,
+      "version": 106,
       "verify_jwt": false,
       "classification": "production_or_internal_worker",
       "archive_status": "full_source",
       "source_file_count": 33,
       "auth_signals": [
-        "internal_secret_header",
-        "service_role_or_api_key",
-        "explicit_auth_guard"
+        "internal_secret_header"
       ],
-      "review_priority": "review",
-      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+      "review_priority": "standard",
+      "assessment": "Internal secret header is checked in the source-worker entrypoint."
     },
     {
       "slug": "spacest-feed",
