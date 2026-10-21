@@ -6,7 +6,7 @@ const foundation=await read('supabase/migrations/20260922013434_coach_portal_pla
 const service=await read('supabase/migrations/20260922013712_coach_portal_service_rpcs.sql');await db.exec(service.slice(service.indexOf('create or replace function app_private.coaching_actor_can_access('),service.indexOf('create or replace function public.coach_create_participant(')));
 await db.query("insert into coaching_workspaces(id,name) values($1,'NexaLabs'),($2,'Other')",[id(90),id(91)]);
 for(const n of [1,2,3,4,5]){await db.query('insert into auth.users values($1)',[id(n)]);const role=n===1||n===5?'admin':'coach',displayName=n===1?'Arash':n===5?'Behzad':'Coach '+n;await db.query('insert into coaching_members(id,auth_user_id,workspace_id,display_name,role) values($1,$1,$2,$3,$4)',[id(n),id(n===4?91:90),displayName,role]);}
-const superAdmin=await read('supabase/migrations/20261014090000_coach_super_admin_role.sql');await db.exec(superAdmin);
+const superAdmin=await read('supabase/migrations/20261014121529_coach_super_admin_role.sql');await db.exec(superAdmin);
 await db.query('insert into bot_users(id,telegram_user_id,chat_id) values($1,20,20)',[id(20)]);
 await db.query('insert into coaching_participants(user_id,workspace_id,coach_member_id) values($1,$2,$3)',[id(20),id(90),id(1)]);await test('Super Admin is allowlisted and can manage regular Admin members',async()=>{
  assert.equal((await one('select is_super_admin from coaching_members where id=$1',[id(1)])).is_super_admin,true);
