@@ -42,10 +42,14 @@ The snapshot is intentionally split into small, auditable files:
 - The one-job retry canary was retried once and failed again with a timeout. The source circuit breaker then excluded that source from further automatic retries; the current dry-run preview has no eligible retry candidates.
 - The provider contract tests are being added to CI. The last run exposed two test-fixture/assertion defects and a stale test path after migration filename reconciliation; those tests were corrected and are rerunning.
 
+## Security hardening applied
+
+The following retired/test-only endpoints now require JWT verification at the Supabase gateway: `auth-admin-repair`, `deploy-merge-test`, `html-render-test`, `immomio-introspection-probe`, `immomio-probe`, `immomio-tenant-inspect`, `ka-gateway-egress-probe`, `kleinanzeigen-direct-login-probe`, `kleinanzeigen-mobile-canary`, `kleinanzeigen-refresh-probe`, `mini-app`, `mini-app-publisher`, `platform-connect`, `telegram-webhook-region-switch`, and `wunder-probe`. The deployment-test endpoint was replaced by an HTTP 410 response. These changes do not reactivate retired functionality.
+
 ## Known blockers
 
 - Eight historical migration SQL bodies are absent from Git. The current schema/routine snapshots are recovery artifacts, not proof that those original migrations can be replayed exactly.
 - The live Supabase Auth setting for leaked-password protection remains disabled. The connected project/database tools cannot change that Auth dashboard setting; enable it in Supabase Auth settings or through an authorized Management API token, then rerun the Security Advisor.
-- The 25 `verify_jwt=false` functions without obvious auth signals in their archived bundle require manual dependency-aware review. The scan is a triage heuristic; it is not sufficient evidence to disable or reconfigure them automatically.
+- Fifteen retired/test-only endpoints were hardened to require JWT verification, and the temporary deployment-test endpoint now returns HTTP 410. The remaining `verify_jwt=false` functions are listed in the static audit; any further changes require dependency-aware review because the static scan is a triage heuristic, not proof of authorization.
 - Seven targeted neighborhood records are `ambiguous`. They show that a reliable neighborhood-level result count was not obtained, not that the neighborhoods have no listings.
 - No clean-room restore has yet been performed. This runbook must remain marked incomplete until an isolated restore test succeeds.
