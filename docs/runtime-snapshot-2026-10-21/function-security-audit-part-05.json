@@ -71,12 +71,14 @@
       "slug": "telegram-premium-image",
       "version": 7,
       "verify_jwt": false,
-      "classification": "support_or_review",
+      "classification": "public_asset",
       "archive_status": "full_source",
       "source_file_count": 1,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "intentional_public_static_asset"
+      ],
+      "review_priority": "standard",
+      "assessment": "Intentional public read-only image endpoint; no user data or write action. Keep public by design."
     },
     {
       "slug": "telegram-ui",
@@ -134,14 +136,17 @@
     },
     {
       "slug": "vonovia-transport",
-      "version": 2,
-      "verify_jwt": false,
-      "classification": "transport_or_feed",
+      "version": 3,
+      "verify_jwt": true,
+      "classification": "production_or_internal_worker",
       "archive_status": "full_source",
       "source_file_count": 2,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required",
+        "source_worker_in_process_dispatch"
+      ],
+      "review_priority": "standard",
+      "assessment": "Supabase JWT gateway verification is enabled for external requests; source-worker uses the matching in-process handler for connector dispatch."
     },
     {
       "slug": "wg-gesucht-auth-bridge",
