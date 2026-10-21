@@ -14,7 +14,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-01.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "production"
     },
     {
       "slug": "application-package-selftest",
@@ -27,7 +28,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-01.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "application-worker",
@@ -40,7 +42,8 @@
       "source_file_count": 10,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-01.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "production"
     },
     {
       "slug": "auth-admin-repair",
@@ -53,7 +56,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-01.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "retired"
     },
     {
       "slug": "auth-contract-diag",
@@ -66,7 +70,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-01.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "auth-facade-broker",
@@ -79,7 +84,8 @@
       "source_file_count": 2,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-02.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "internal"
     },
     {
       "slug": "billing-maintenance",
@@ -92,7 +98,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-02.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "production"
     },
     {
       "slug": "coach-api",
@@ -105,7 +112,8 @@
       "source_file_count": 2,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-02.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "production"
     },
     {
       "slug": "coach-bootstrap",
@@ -118,7 +126,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-02.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "support_review"
     },
     {
       "slug": "covivio-feed",
@@ -131,7 +140,8 @@
       "source_file_count": 3,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-02.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "internal"
     },
     {
       "slug": "deploy-merge-test",
@@ -144,7 +154,8 @@
       "source_file_count": 2,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-03.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "retired"
     },
     {
       "slug": "html-render-test",
@@ -157,7 +168,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-03.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "retired"
     },
     {
       "slug": "immobilie1-transport",
@@ -170,7 +182,8 @@
       "source_file_count": 3,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-03.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "internal"
     },
     {
       "slug": "immobilien-de-transport",
@@ -183,7 +196,8 @@
       "source_file_count": 3,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-03.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "internal"
     },
     {
       "slug": "immomio-account",
@@ -196,7 +210,8 @@
       "source_file_count": 3,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-03.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "support_review"
     },
     {
       "slug": "immomio-application-worker",
@@ -209,7 +224,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-04.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "production"
     },
     {
       "slug": "immomio-auth-bridge",
@@ -222,7 +238,8 @@
       "source_file_count": 2,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-04.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "internal"
     },
     {
       "slug": "immomio-auth-debug",
@@ -235,7 +252,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-04.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "immomio-bundle-snippet",
@@ -248,7 +266,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-04.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "immomio-chunk-inspect",
@@ -261,7 +280,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-04.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "immomio-contract-inspect",
@@ -274,7 +294,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-05.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "immomio-device-probe",
@@ -287,7 +308,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-05.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "immomio-introspection-probe",
@@ -300,7 +322,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-05.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "retired"
     },
     {
       "slug": "immomio-mutation-contract-probe",
@@ -313,7 +336,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-05.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "immomio-probe",
@@ -326,7 +350,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-05.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "retired"
     },
     {
       "slug": "immomio-profile-probe",
@@ -339,7 +364,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-06.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "immomio-question-field-probe",
@@ -352,7 +378,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-06.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "immomio-question-inspect",
@@ -365,7 +392,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-06.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "immomio-schema-inspect",
@@ -378,7 +406,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-06.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "immomio-tenant-inspect",
@@ -391,7 +420,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-06.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "retired"
     },
     {
       "slug": "immomio-upload-probe",
@@ -404,7 +434,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-07.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "immoscout-auth-bridge",
@@ -417,7 +448,8 @@
       "source_file_count": 2,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-07.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "internal"
     },
     {
       "slug": "immoscout-contact-inspect",
@@ -430,7 +462,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-07.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "immoscout-contract-inspect-v2",
@@ -443,7 +476,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-07.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "immoscout-native-handoff",
@@ -456,7 +490,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-07.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "support_review"
     },
     {
       "slug": "immoscout-official-api-probe",
@@ -469,7 +504,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-08.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "immoscout-official-send-canary",
@@ -482,7 +518,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-08.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "canary"
     },
     {
       "slug": "immoscout-payload-probe",
@@ -495,7 +532,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-08.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "immoscout-plus-scan",
@@ -508,7 +546,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-08.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "immoscout-send-canary",
@@ -521,7 +560,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-08.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "canary"
     }
   ]
 }
