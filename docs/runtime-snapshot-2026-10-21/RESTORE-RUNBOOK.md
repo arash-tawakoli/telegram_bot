@@ -54,6 +54,23 @@ The snapshot is intentionally split into small, auditable files:
 
 The following retired/test-only endpoints now require JWT verification at the Supabase gateway: `auth-admin-repair`, `deploy-merge-test`, `html-render-test`, `immomio-introspection-probe`, `immomio-probe`, `immomio-tenant-inspect`, `ka-gateway-egress-probe`, `kleinanzeigen-direct-login-probe`, `kleinanzeigen-mobile-canary`, `kleinanzeigen-refresh-probe`, `mini-app`, `mini-app-publisher`, `platform-connect`, `telegram-webhook-region-switch`, and `wunder-probe`. The deployment-test endpoint was replaced by an HTTP 410 response. These changes do not reactivate retired functionality.
 
+
+## Acceptance evidence refreshed — 2026-10-22
+
+- Live Edge Functions: **114**. Runtime manifest parity: **114/114** on slug, version, JWT setting and artifact hash.
+- Direct HTTP access to the eight source transport/feed endpoints is now gated by Supabase JWT verification. The source-worker's `provider-fetch.ts` dispatches same-project connector handlers in-process, so scheduled crawling does not rely on public HTTP access.
+- A post-deployment crawl for **Immobilien.de Hamburg** completed successfully (`fetched=1`, `inserted=1`). Other sources remain subject to their normal polling intervals; the change does not alter crawl cadence.
+- The latest live normalization check covered **32,761** listings: **16,739** had canonical neighborhood IDs, **16,022** remained unmapped, and **0** mapped IDs disagreed with the canonical normalizer. Unmapped values were not force-assigned.
+- The targeted ImmoScout neighborhood evidence contains all seven required rows. Two have observed results; five are recorded as no reliable listings found in that search, not as proof that no listings exist.
+- Dead-letter retry dry-run selected **0** jobs. The current queue snapshot shows **154 dead**, **21 enqueued**, and **0 processing**. No bulk requeue was performed.
+- The latest Performance Advisor does not report the missing `job_applications.search_profile_id` index. Unused-index warnings remain and have not been acted on.
+
+## Remaining actions requiring external authorization
+
+1. Add a scoped Supabase Management API token as the GitHub Actions secret `SUPABASE_ACCESS_TOKEN` (auth-config read/write and project-admin permissions), then run `.github/workflows/enable-auth-password-protection.yml`. The workflow verifies `password_hibp_enabled=true` without printing the auth configuration.
+2. Approve creation of an isolated Supabase branch for the clean-room restore test. The current quoted compute rate is **US$0.01344 per hour** while the branch is running; create it only after approval and delete it after recording results.
+3. For final browser-level verification of Manager Preview, dialog focus return, contrast and the production dashboard at 200% zoom, use the new Playwright acceptance workflow in the website repository. It uses mocked API responses and does not mutate production participant data.
+
 ## Known blockers
 
 - Eight historical migration SQL bodies are absent from Git. The current schema/routine snapshots are recovery artifacts, not proof that those original migrations can be replayed exactly.
