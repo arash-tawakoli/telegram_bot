@@ -62,6 +62,7 @@ The following retired/test-only endpoints now require JWT verification at the Su
 - A post-deployment crawl for **Immobilien.de Hamburg** completed successfully (`fetched=1`, `inserted=1`). Other sources remain subject to their normal polling intervals; the change does not alter crawl cadence.
 - The latest live normalization check covered **32,761** listings: **16,739** had canonical neighborhood IDs, **16,022** remained unmapped, and **0** mapped IDs disagreed with the canonical normalizer. Unmapped values were not force-assigned.
 - The targeted ImmoScout neighborhood evidence contains all seven required rows. Two have observed results; five are recorded as no reliable listings found in that search, not as proof that no listings exist.
+- A read-only timeout/backoff audit for immobilie1, Baugenossenschaft der Buchdrucker, Urban Living and WG-Gesucht is stored in `source-error-review.json`. It captures the current connector timeout/retry-related configuration keys and last-success timestamps without exporting URLs or credentials. No global timeout was increased blindly; persistent source failures remain visible and SAGA remains disabled.
 - Dead-letter retry dry-run selected **0** jobs. The current queue snapshot shows **154 dead**, **21 enqueued**, and **0 processing**. No bulk requeue was performed.
 - The latest Performance Advisor does not report the missing `job_applications.search_profile_id` index. Unused-index warnings remain and have not been acted on.
 
