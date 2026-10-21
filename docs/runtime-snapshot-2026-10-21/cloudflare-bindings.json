@@ -1,0 +1,68 @@
+{
+  "generated_at": "2026-10-21T21:02:09.335Z",
+  "source": "Cloudflare Workers API settings snapshot",
+  "workers": [
+    {
+      "name": "traumwohnung-coach-portal",
+      "success": true,
+      "status": 200,
+      "settings": {
+        "placement": {},
+        "compatibility_date": "2026-09-22",
+        "compatibility_flags": [],
+        "usage_model": "standard",
+        "tags": [],
+        "tail_consumers": [],
+        "logpush": false,
+        "annotations": {
+          "workers/triggered_by": "version_upload"
+        },
+        "bindings": [
+          {
+            "name": "ASSETS",
+            "type": "assets"
+          }
+        ]
+      },
+      "errors": []
+    },
+    {
+      "name": "traumwohnung-platform-connect",
+      "success": true,
+      "status": 200,
+      "settings": {
+        "placement": {},
+        "compatibility_date": "2026-09-22",
+        "compatibility_flags": [
+          "nodejs_compat"
+        ],
+        "usage_model": "standard",
+        "tags": [],
+        "tail_consumers": [],
+        "logpush": false,
+        "annotations": {
+          "workers/message": "Neutral hover token sync from verified main",
+          "workers/triggered_by": "version_upload"
+        },
+        "bindings": [
+          {
+            "name": "BROWSER",
+            "type": "browser",
+            "version": 2
+          },
+          {
+            "class_name": "KleinanzeigenLoginSession",
+            "name": "KA_LOGIN",
+            "namespace_id": "cdd552ef721442d397db97997793fae1",
+            "type": "durable_object_namespace"
+          }
+        ]
+      },
+      "errors": []
+    }
+  ],
+  "notes": [
+    "Bindings are metadata only; secret values are not exported.",
+    "No Cloudflare Worker was redeployed by this snapshot operation."
+  ]
+}
