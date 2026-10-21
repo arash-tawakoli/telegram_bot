@@ -42,6 +42,14 @@ The snapshot is intentionally split into small, auditable files:
 - The one-job retry canary was retried once and failed again with a timeout. The source circuit breaker then excluded that source from further automatic retries; the current dry-run preview has no eligible retry candidates.
 - The provider contract tests are being added to CI. The last run exposed two test-fixture/assertion defects and a stale test path after migration filename reconciliation; those tests were corrected and are rerunning.
 
+## Additional live hardening — 2026-10-22
+
+- Eight source transport/feed endpoints (`covivio-feed`, `immobilie1-transport`, `immobilien-de-transport`, `meravis-feed`, `noncoop-feed`, `noncoop-new-feed`, `spacest-feed`, `vonovia-transport`) now require Supabase JWT gateway verification for direct HTTP access.
+- The source-worker uses `provider-fetch.ts` to dispatch these handlers in-process for the same project origin. The latest crawl evidence shows successful in-process results for Spacest, HousingAnywhere and Ohne-Makler; further scheduled runs will verify the remaining connectors.
+- Fifteen retired endpoints remain non-success stubs and now require JWT verification.
+- The runtime manifest, source archive metadata, inventory indexes and security audit were refreshed to record these versions and classifications.
+- `tests/runtime-security-classification.test.mjs` asserts the gateway settings and in-process routing contract.
+
 ## Security hardening applied
 
 The following retired/test-only endpoints now require JWT verification at the Supabase gateway: `auth-admin-repair`, `deploy-merge-test`, `html-render-test`, `immomio-introspection-probe`, `immomio-probe`, `immomio-tenant-inspect`, `ka-gateway-egress-probe`, `kleinanzeigen-direct-login-probe`, `kleinanzeigen-mobile-canary`, `kleinanzeigen-refresh-probe`, `mini-app`, `mini-app-publisher`, `platform-connect`, `telegram-webhook-region-switch`, and `wunder-probe`. The deployment-test endpoint was replaced by an HTTP 410 response. These changes do not reactivate retired functionality.
