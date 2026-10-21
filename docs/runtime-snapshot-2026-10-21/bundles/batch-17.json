@@ -21,12 +21,12 @@
     },
     {
       "slug": "noncoop-feed",
-      "version": 5,
+      "version": 6,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
       "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_6be17e26-833a-4f88-8911-5eeb7987bc5e_5/source/noncoop-feed/index.ts",
-      "artifact_sha256": "d0397beef4bfd891b5e5bd76c231ad19dca6c8fc52fdce376a759b064a90f0c9",
+      "artifact_sha256": "e88720d686f4dd1ac5a50ba44956596a6e79d5bce21487ebb1e9a3042d431682",
       "archive_status": "full_source",
       "security_scan_flags": [],
       "files": [
@@ -46,12 +46,12 @@
     },
     {
       "slug": "noncoop-new-feed",
-      "version": 7,
+      "version": 8,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
       "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_12634ed3-b0dc-4f8c-958a-d8e3d19c067e_7/source/noncoop-new-feed/index.ts",
-      "artifact_sha256": "6b5b5a612da110664aac5464a49b5c2695ed1ad8a485c17c3fa44a969216e1be",
+      "artifact_sha256": "dcf472e59b9e3353690571e009dafecc0217934414d26c312d77028b0abeaa8a",
       "archive_status": "full_source",
       "security_scan_flags": [],
       "files": [
