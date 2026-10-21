@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-21T22:14:28.608Z",
+  "generatedAt": "2026-10-21T22:26:58.804Z",
   "scope": "Read-only live runtime snapshot plus archived deployed source bundles. No user data, credentials or token values included.",
   "runtimeAuthority": {
     "database": "Supabase",
@@ -13,7 +13,20 @@
     "sourceWorkerVersion": 107,
     "sourceArchiveFiles": 23,
     "archiveSecretScanFlags": 0,
-    "retiredDiagnosticEndpointsHardened": 15
+    "retiredDiagnosticEndpointsHardened": 15,
+    "functionsVerifyJwtTrue": 38,
+    "functionsVerifyJwtFalse": 76,
+    "sourceTransportEndpointsJwtHardened": 8,
+    "operationalClassificationCounts": {
+      "production": 12,
+      "diagnostic": 45,
+      "retired": 15,
+      "internal": 21,
+      "support_review": 6,
+      "canary": 12,
+      "webhook": 1,
+      "public_asset": 2
+    }
   },
   "migrationDrift": {
     "liveMigrations": 328,
@@ -186,7 +199,7 @@
       }
     ],
     "leakedPasswordProtection": "still disabled; management API credentials or Supabase dashboard access required to enable",
-    "diagnosticFunctions": "15 retired/test-only endpoints now require JWT gateway verification; deploy-merge-test was replaced with an HTTP 410 stub. Remaining verify_jwt=false functions are classified in function-security-audit.json and require dependency-aware review before further changes."
+    "diagnosticFunctions": "All 114 live functions are classified. Fifteen confirmed retired/test endpoints are non-success stubs with JWT gateway verification; eight source transport/feed endpoints now require JWT on direct HTTP requests while source-worker retains in-process routing. Two image-only endpoints remain intentionally public. Other diagnostic/canary functions were retained only where their source contains internal authorization signals; the archive audit records the classification."
   },
   "deployment": {
     "sourceWorkerVersion": 106,
@@ -221,7 +234,7 @@
     "Eight applied historical migration SQL files could not be recovered from Git. The database catalog and routine snapshots improve recovery, but the original migration semantics still need reconciliation.",
     "No clean-room restore was run; a restore requires an isolated database/branch and cost approval if Supabase quotes a nonzero charge.",
     "Supabase Auth leaked-password protection cannot be toggled through the available project/database connector. It remains disabled pending management API or dashboard access.",
-    "The remaining verify_jwt=false functions without obvious auth signals are a static-triage follow-up; diagnostic endpoints with confirmed retired responses have been hardened. Manual dependency-aware review remains necessary before further endpoint changes.",
+    "Two verify_jwt=false endpoints are intentionally public image-only assets; the other false-JWT functions are classified and their source contains internal authorization signals or webhook-specific controls. This static audit does not replace periodic dependency review.",
     "Neighborhood evidence currently records seven ambiguous results. This means the exact search returned no reliable count; it is not proof that no listings exist."
   ]
 }
