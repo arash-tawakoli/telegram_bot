@@ -1086,7 +1086,7 @@
     },
     {
       "slug": "source-worker",
-      "version": 106,
+      "version": 107,
       "verify_jwt": false,
       "import_map": true,
       "retired": false,
@@ -1120,8 +1120,8 @@
         },
         {
           "path": "supabase/functions/source-worker/scout.ts",
-          "sha256": "69c814fdbc4e0d6b119b723a25b2b9a87717426baf85c033fe6ddf0636831535",
-          "deployed_sha256": "69c814fdbc4e0d6b119b723a25b2b9a87717426baf85c033fe6ddf0636831535"
+          "sha256": "f901ddd4d7af278f43df41d7b4f8908232ac6d52a7fb6a8b313f0871e1b8ed27",
+          "deployed_sha256": "f901ddd4d7af278f43df41d7b4f8908232ac6d52a7fb6a8b313f0871e1b8ed27"
         },
         {
           "path": "supabase/functions/source-worker/category-persist.ts",
@@ -1259,9 +1259,9 @@
           "deployed_sha256": "f5a48954ebfadfc88c535c402042cd8dd8bc9a42a991b469d683a9524c8598a7"
         }
       ],
-      "observed_live_version": 105,
+      "observed_live_version": 107,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "f285c069c7ee5968d707a4175ecd168cef82d936cdd9c4ce626d02b41fb6a6f7",
+      "observed_live_artifact_sha256": "f1a867fddb4d7ea3e4321e79d677ed4556b45c48308afaaae98c8c5682afdadf",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-19.json",
       "source_archive_file_count": 33,
       "source_archive_status": "full_source",
