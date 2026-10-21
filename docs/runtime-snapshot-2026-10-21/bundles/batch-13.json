@@ -21,12 +21,12 @@
     },
     {
       "slug": "kleinanzeigen-direct-login-probe",
-      "version": 2,
+      "version": 3,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
-      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_531cb31d-2c43-4d8f-bf18-6293bd7798fe_2/source/index.ts",
-      "artifact_sha256": "9e02281bd1ef321038e166105c881fad8d3ff1c4909b44155d58549be0e75b2d",
+      "entrypoint_path": "/tmp/user_fn_dpmohkrwdlicexwcrqfy_531cb31d-2c43-4d8f-bf18-6293bd7798fe_3/source/index.ts",
+      "artifact_sha256": "2030b37fe46593d898a0f59f538b8dbd98d43dc3e1096fb85f74632744b5cd0c",
       "archive_status": "full_source",
       "security_scan_flags": [],
       "files": [
