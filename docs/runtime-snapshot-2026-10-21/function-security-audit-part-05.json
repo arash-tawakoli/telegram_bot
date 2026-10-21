@@ -121,14 +121,16 @@
     },
     {
       "slug": "telegram-webhook-region-switch",
-      "version": 2,
-      "verify_jwt": false,
+      "version": 3,
+      "verify_jwt": true,
       "classification": "webhook",
       "archive_status": "full_source",
       "source_file_count": 1,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required"
+      ],
+      "review_priority": "standard",
+      "assessment": "Retired/diagnostic endpoint returns a non-success response; JWT gateway verification enabled."
     },
     {
       "slug": "vonovia-transport",
@@ -158,14 +160,16 @@
     },
     {
       "slug": "wunder-probe",
-      "version": 8,
-      "verify_jwt": false,
+      "version": 9,
+      "verify_jwt": true,
       "classification": "diagnostic_candidate",
       "archive_status": "full_source",
       "source_file_count": 1,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required"
+      ],
+      "review_priority": "standard",
+      "assessment": "Retired/diagnostic endpoint returns a non-success response; JWT gateway verification enabled."
     },
     {
       "slug": "wunderflats-transport",
