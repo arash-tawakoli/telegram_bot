@@ -1,0 +1,10 @@
+{
+  "migrations": [
+    {
+      "version": "20261021194553",
+      "name": "persist_canonical_listing_neighborhood_id",
+      "file": "supabase/migrations/20261021194553_persist_canonical_listing_neighborhood_id.sql",
+      "export_sql_sha256": "b648ffe49bbada034d0f37c367fdffce64082e60c7ee0639ba1aace93d1dcc0b"
+    }
+  ]
+}
