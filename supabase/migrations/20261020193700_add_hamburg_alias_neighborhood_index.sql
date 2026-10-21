@@ -1,1 +1,0 @@
-create index if not exists hamburg_neighborhood_aliases_neighborhood_id_idx on app_private.hamburg_neighborhood_aliases(neighborhood_id);
