@@ -1,0 +1,40 @@
+# Runtime recovery runbook — 2026-10-21
+
+## Snapshot inventory
+
+The snapshot is intentionally split into small, auditable files:
+
+- `database-catalog.json`: 101 table definitions and column metadata, constraints, indexes, RLS flags, policies, triggers, views, sequences, enums, extensions.
+- `routines-01.json` … `routines-05.json`: all 249 custom routine definitions with signatures, owners, security-definer flags, volatility, configuration and ACL metadata.
+- `security-storage-cron.json`: 12 cron definitions, four Storage bucket definitions, Storage policy state, table/routine grants, and role flags.
+- `cloudflare-bindings.json`: current settings and non-secret bindings for both Cloudflare Workers.
+- `bundles/batch-01.json` … `batch-23.json`: source contents and runtime metadata for all 114 live Supabase Edge Functions.
+- `function-security-audit.json`: static auth-signal triage for every Edge Function.
+- `migration-history-and-drift.json`: all 328 applied migration versions and the repository drift ledger.
+- `provider-contract-snapshot.json`: live connector state for ImmoScout24, Kleinanzeigen, Immowelt and WG-Gesucht.
+
+## What CI verifies
+
+`scripts/check-runtime.mjs` verifies the repository-managed bundles and migration registry. It now also validates all 114 archived function records against their recorded slug, version, JWT setting, artifact hash, file count, and secret-scan status.
+
+`scripts/check-live-runtime.mjs` queries the Supabase Management API and compares live slugs, versions and `verify_jwt` settings with the manifest. Configure the GitHub Actions secret `SUPABASE_ACCESS_TOKEN` to activate this comparison. If the secret is absent, the check emits a warning and skips the live request.
+
+## Restore procedure
+
+1. Create an isolated Supabase project or branch and obtain cost approval if Supabase quotes a nonzero cost.
+2. Reconcile the eight live-only historical migrations listed in `MIGRATION-RECONCILIATION.md`. Do not substitute empty or guessed migration files.
+3. Create platform-managed schemas/extensions first; do not manually recreate Supabase-managed `auth`, `storage`, `realtime` internals from the catalog JSON.
+4. Rebuild custom schemas and tables from the catalog, then apply constraints/indexes, custom routines, RLS policies, triggers, views and grants in dependency order.
+5. Restore cron definitions only after required routines and Edge Functions exist. Keep jobs 29 and 30 disabled, keep SAGA disabled, and do not requeue the dead-letter queue during restore.
+6. Deploy only approved runtime functions from the source archive. Diagnostic/canary candidates must pass dependency and authorization review before being re-enabled.
+7. Reapply non-secret Cloudflare bindings from `cloudflare-bindings.json`; provision secret values separately through the appropriate secret manager.
+8. Run provider contract tests, queue/delivery/token/RLS smoke tests, 104-neighborhood coverage tests, portal responsive tests at 320/390/768/1024/1440px, and then perform a clean-room restore validation.
+9. Compare the restored runtime manifest and schema against the snapshot. Record any deviations before calling the restore complete.
+
+## Known blockers
+
+- Eight historical migration SQL bodies are absent from Git. The current schema/routine snapshots are recovery artifacts, not proof that those original migrations can be replayed exactly.
+- The live Supabase Auth setting for leaked-password protection remains disabled. The connected project/database tools cannot change that Auth dashboard setting; enable it in Supabase Auth settings or through an authorized Management API token, then rerun the Security Advisor.
+- The 25 `verify_jwt=false` functions without obvious auth signals in their archived bundle require manual dependency-aware review. The scan is a triage heuristic; it is not sufficient evidence to disable or reconfigure them automatically.
+- Seven targeted neighborhood records are `ambiguous`. They show that a reliable neighborhood-level result count was not obtained, not that the neighborhoods have no listings.
+- No clean-room restore has yet been performed. This runbook must remain marked incomplete until an isolated restore test succeeds.
