@@ -1,0 +1,68 @@
+{
+  "migrations": [
+    {
+      "version": "20261002162748",
+      "name": "repair_application_queue_reconciliation",
+      "file": "supabase/migrations/20261002162748_repair_application_queue_reconciliation.sql",
+      "registry_sql_sha256": "1a7b7a50e8cebdb7fbb73bf2ae5d713f56e637233baa1591e5bb0bb4dba85518",
+      "export_sql_sha256": "1a7b7a50e8cebdb7fbb73bf2ae5d713f56e637233baa1591e5bb0bb4dba85518",
+      "vault_substitution": false
+    },
+    {
+      "version": "20261002170417",
+      "name": "platform_session_reauth_notifications",
+      "file": "supabase/migrations/20261002170417_platform_session_reauth_notifications.sql",
+      "registry_sql_sha256": "75f4bcb923b736159aa985a0561a5ce76fe5a9c62068e5813c3e9fc90f8eea70",
+      "export_sql_sha256": "75f4bcb923b736159aa985a0561a5ce76fe5a9c62068e5813c3e9fc90f8eea70",
+      "vault_substitution": false
+    },
+    {
+      "version": "20261002181908",
+      "name": "user_engagement_campaigns",
+      "file": "supabase/migrations/20261002181908_user_engagement_campaigns.sql",
+      "registry_sql_sha256": "c5c05af700e03f97f4b3f1f48dd7a67b244ad940f511a4363d961e76d6090cb7",
+      "export_sql_sha256": "c5c05af700e03f97f4b3f1f48dd7a67b244ad940f511a4363d961e76d6090cb7",
+      "vault_substitution": false
+    },
+    {
+      "version": "20261002213748",
+      "name": "add_wg_gesucht_platform_login",
+      "file": "supabase/migrations/20261002213748_add_wg_gesucht_platform_login.sql",
+      "registry_sql_sha256": "d387a808be2a0018af5238ee78d5c75ad307ab35a6a2199d1aa36e1d3ae1ad0f",
+      "export_sql_sha256": "d387a808be2a0018af5238ee78d5c75ad307ab35a6a2199d1aa36e1d3ae1ad0f",
+      "vault_substitution": false
+    },
+    {
+      "version": "20261007115124",
+      "name": "revoke_public_execute_on_internal_rpcs",
+      "file": "supabase/migrations/20261007115124_revoke_public_execute_on_internal_rpcs.sql",
+      "registry_sql_sha256": "324556cd70d0d7c9a8ee7fbfa37743076fde42170d64a59d3277b4438e2a3a4c",
+      "export_sql_sha256": "324556cd70d0d7c9a8ee7fbfa37743076fde42170d64a59d3277b4438e2a3a4c",
+      "vault_substitution": false
+    },
+    {
+      "version": "20261007115302",
+      "name": "add_missing_fk_indexes",
+      "file": "supabase/migrations/20261007115302_add_missing_fk_indexes.sql",
+      "registry_sql_sha256": "3c958bc8c11f390013c0c4c66363b470bf4cf0b420d2f1983d059ececd078dd0",
+      "export_sql_sha256": "3c958bc8c11f390013c0c4c66363b470bf4cf0b420d2f1983d059ececd078dd0",
+      "vault_substitution": false
+    },
+    {
+      "version": "20261019222908",
+      "name": "allow_admin_participant_assignment",
+      "file": "supabase/migrations/20261019222908_allow_admin_participant_assignment.sql",
+      "registry_sql_sha256": "7657261dd6f890a9d7d8c2a97adc34216b11cd0ad393029084ec3e477eb29661",
+      "export_sql_sha256": "7657261dd6f890a9d7d8c2a97adc34216b11cd0ad393029084ec3e477eb29661",
+      "vault_substitution": false
+    },
+    {
+      "version": "20261019224939",
+      "name": "add_jobseeker_workspace",
+      "file": "supabase/migrations/20261019224939_add_jobseeker_workspace.sql",
+      "registry_sql_sha256": "1a352ab26a38cfe4f140a0c2713c8a882389abeac2e5823467e2039402f4788c",
+      "export_sql_sha256": "1a352ab26a38cfe4f140a0c2713c8a882389abeac2e5823467e2039402f4788c",
+      "vault_substitution": false
+    }
+  ]
+}
