@@ -4,12 +4,12 @@
   "functions": [
     {
       "slug": "mini-app-publisher",
-      "version": 5,
+      "version": 6,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
-      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_4aa52f02-1fa1-400b-b9b8-434fd77ffbea_5/source/index.ts",
-      "artifact_sha256": "6afe17e7c877f1f24d4632395ab2f193e6d6b70128339fd18edb1c0feb47a75f",
+      "entrypoint_path": "/tmp/user_fn_dpmohkrwdlicexwcrqfy_4aa52f02-1fa1-400b-b9b8-434fd77ffbea_6/source/index.ts",
+      "artifact_sha256": "16f68e336ef719d7299d2a192b5489c36204a7cd9211cc489e94aec99238632d",
       "archive_status": "full_source",
       "security_scan_flags": [],
       "files": [
