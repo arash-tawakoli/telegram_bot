@@ -1,0 +1,147 @@
+{
+  "generated_at": "2026-10-21T22:52:38.293Z",
+  "window_hours": 24,
+  "sources": [
+    {
+      "source_id": 6,
+      "name": "WG-Gesucht Hamburg",
+      "enabled": true,
+      "runtime_mode": "live",
+      "last_checked_at": "2026-10-21T22:48:00.300486+00:00",
+      "last_success_at": "2026-10-21T22:52:04.378+00:00",
+      "consecutive_failures": 0,
+      "connectors": [
+        {
+          "priority": 1,
+          "label": "Public Search",
+          "kind": "html_discovery",
+          "enabled": true,
+          "shadow_only": false,
+          "timeout_retry_policy": {}
+        },
+        {
+          "priority": 2,
+          "label": "Schema.org CollectionPage/ItemList",
+          "kind": "json_ld",
+          "enabled": true,
+          "shadow_only": true,
+          "timeout_retry_policy": {}
+        },
+        {
+          "priority": 3,
+          "label": "JSON-LD",
+          "kind": "json_ld",
+          "enabled": true,
+          "shadow_only": true,
+          "timeout_retry_policy": {}
+        }
+      ]
+    },
+    {
+      "source_id": 16,
+      "name": "immobilie1 Hamburg",
+      "enabled": true,
+      "runtime_mode": "live",
+      "last_checked_at": "2026-10-21T22:48:00.300486+00:00",
+      "last_success_at": "2026-10-21T22:52:25.181+00:00",
+      "consecutive_failures": 0,
+      "connectors": [
+        {
+          "priority": 1,
+          "label": "immobilie1 Full Snapshot Transport",
+          "kind": "json_endpoint",
+          "enabled": true,
+          "shadow_only": false,
+          "timeout_retry_policy": {}
+        },
+        {
+          "priority": 2,
+          "label": "Microdata",
+          "kind": "html_discovery",
+          "enabled": false,
+          "shadow_only": true,
+          "timeout_retry_policy": {}
+        },
+        {
+          "priority": 3,
+          "label": "Public Search",
+          "kind": "html_discovery",
+          "enabled": false,
+          "shadow_only": true,
+          "timeout_retry_policy": {}
+        }
+      ]
+    },
+    {
+      "source_id": 50,
+      "name": "Urban Living Hamburg",
+      "enabled": true,
+      "runtime_mode": "live",
+      "last_checked_at": "2026-10-21T22:51:00.26436+00:00",
+      "last_success_at": "2026-10-21T22:46:49.171+00:00",
+      "consecutive_failures": 0,
+      "connectors": [
+        {
+          "priority": 1,
+          "label": "Urban Living apartment availability map",
+          "kind": "html_discovery",
+          "enabled": true,
+          "shadow_only": false,
+          "timeout_retry_policy": {}
+        },
+        {
+          "priority": 2,
+          "label": "Apartment-Verfügbarkeits-DOM",
+          "kind": "html_discovery",
+          "enabled": true,
+          "shadow_only": true,
+          "timeout_retry_policy": {}
+        },
+        {
+          "priority": 3,
+          "label": "Apartment-Detail-Popover",
+          "kind": "html_discovery",
+          "enabled": true,
+          "shadow_only": true,
+          "timeout_retry_policy": {}
+        }
+      ]
+    },
+    {
+      "source_id": 60,
+      "name": "Baugenossenschaft der Buchdrucker",
+      "enabled": true,
+      "runtime_mode": "live",
+      "last_checked_at": "2026-10-21T22:51:00.26436+00:00",
+      "last_success_at": "2026-10-21T22:46:45.705+00:00",
+      "consecutive_failures": 0,
+      "connectors": [
+        {
+          "priority": 1,
+          "label": "Immomio registration only (no public inventory)",
+          "kind": "html_discovery",
+          "enabled": true,
+          "shadow_only": true,
+          "timeout_retry_policy": {}
+        },
+        {
+          "priority": 2,
+          "label": "Official WP-ImmoMakler feed + verified Immomio Apply",
+          "kind": "feed",
+          "enabled": true,
+          "shadow_only": false,
+          "timeout_retry_policy": {}
+        },
+        {
+          "priority": 3,
+          "label": "WP-ImmoMakler Immobilien-Modul (Shadow)",
+          "kind": "html_discovery",
+          "enabled": true,
+          "shadow_only": true,
+          "timeout_retry_policy": {}
+        }
+      ]
+    }
+  ],
+  "safety": "Read-only audit. No connector settings were changed; URLs, credentials and unrelated config values were excluded."
+}
