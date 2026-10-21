@@ -132,12 +132,12 @@
     },
     {
       "slug": "telegram-webhook-region-switch",
-      "version": 2,
+      "version": 3,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
-      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_e5ed7019-e930-412c-ab7f-1cb7e905d8ae_2/source/index.ts",
-      "artifact_sha256": "bb272fd634c20dfa393922af0630bbe4b1f022b61dd82d7daa1f1e385e9c9bf3",
+      "entrypoint_path": "/tmp/user_fn_dpmohkrwdlicexwcrqfy_e5ed7019-e930-412c-ab7f-1cb7e905d8ae_3/source/index.ts",
+      "artifact_sha256": "3bd9e184933090cd1dcedbbd2be02e7cc9040d7a4d572b7d61940a5575b537db",
       "archive_status": "full_source",
       "security_scan_flags": [],
       "files": [
