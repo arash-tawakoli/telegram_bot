@@ -39,11 +39,12 @@ export async function verifyRuntime(runtime,read=readFile,options={}){
  return {hashWarnings};
 }
 export async function verifyArchivedRuntime(runtime,read=readFile){
- const entries=runtime.archived_functions||[];
+ const tracked=(runtime.functions||[]).filter(fn=>fn.source_archive_file).map(fn=>({...fn,archive_file:fn.source_archive_file,version:fn.observed_live_version??fn.version,verify_jwt:fn.observed_live_verify_jwt??fn.verify_jwt,artifact_sha256:fn.observed_live_artifact_sha256,source_file_count:fn.source_archive_file_count,archive_status:fn.source_archive_status}));
+ const entries=[...tracked,...(runtime.archived_functions||[])];
  const all=new Set((runtime.functions||[]).map(fn=>fn.slug));
  const archived=new Set();
  for(const fn of entries){
-  if(!fn.slug||all.has(fn.slug)||archived.has(fn.slug))throw new Error('Duplicate or invalid archived function: '+fn.slug);
+  if(!fn.slug||archived.has(fn.slug)||(!tracked.includes(fn)&&all.has(fn.slug)))throw new Error('Duplicate or invalid archived function: '+fn.slug);
   archived.add(fn.slug);
   if(!fn.archive_file||!/^docs\/runtime-snapshot-[^/]+\/bundles\/batch-[0-9]{2}\.json$/.test(fn.archive_file))throw new Error('Invalid archive path: '+fn.slug);
   const archive=JSON.parse(String(await read(fn.archive_file,'utf8')));
