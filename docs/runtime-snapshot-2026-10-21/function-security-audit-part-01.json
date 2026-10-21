@@ -8,7 +8,7 @@
       "slug": "application-package",
       "version": 3,
       "verify_jwt": false,
-      "classification": "support_or_review",
+      "classification": "production",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -23,7 +23,7 @@
       "slug": "application-package-selftest",
       "version": 4,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -38,7 +38,7 @@
       "slug": "application-worker",
       "version": 190,
       "verify_jwt": false,
-      "classification": "production_or_internal_worker",
+      "classification": "production",
       "archive_status": "full_source",
       "source_file_count": 10,
       "auth_signals": [
@@ -52,20 +52,22 @@
     },
     {
       "slug": "auth-admin-repair",
-      "version": 2,
-      "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "version": 3,
+      "verify_jwt": true,
+      "classification": "retired",
       "archive_status": "full_source",
       "source_file_count": 1,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required"
+      ],
+      "review_priority": "standard",
+      "assessment": "Retired/diagnostic endpoint returns a non-success response; JWT gateway verification enabled."
     },
     {
       "slug": "auth-contract-diag",
       "version": 10,
       "verify_jwt": true,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [],
@@ -76,7 +78,7 @@
       "slug": "auth-facade-broker",
       "version": 22,
       "verify_jwt": false,
-      "classification": "auth_or_platform_bridge",
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 2,
       "auth_signals": [
@@ -90,7 +92,7 @@
       "slug": "billing-maintenance",
       "version": 122,
       "verify_jwt": false,
-      "classification": "production_or_internal_worker",
+      "classification": "production",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -106,7 +108,7 @@
       "slug": "coach-api",
       "version": 46,
       "verify_jwt": false,
-      "classification": "production_or_internal_worker",
+      "classification": "production",
       "archive_status": "full_source",
       "source_file_count": 2,
       "auth_signals": [
@@ -123,7 +125,7 @@
       "slug": "coach-bootstrap",
       "version": 1,
       "verify_jwt": false,
-      "classification": "support_or_review",
+      "classification": "support_review",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -134,64 +136,77 @@
     },
     {
       "slug": "covivio-feed",
-      "version": 3,
-      "verify_jwt": false,
-      "classification": "transport_or_feed",
+      "version": 4,
+      "verify_jwt": true,
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 3,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required",
+        "source_worker_in_process_dispatch"
+      ],
+      "review_priority": "standard",
+      "assessment": "Supabase JWT gateway verification is enabled for external requests; source-worker uses the matching in-process handler for connector dispatch."
     },
     {
       "slug": "deploy-merge-test",
-      "version": 1,
-      "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "version": 2,
+      "verify_jwt": true,
+      "classification": "retired",
       "archive_status": "full_source",
       "source_file_count": 2,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required"
+      ],
+      "review_priority": "standard",
+      "assessment": "Retired with HTTP 410 response; JWT gateway verification enabled."
     },
     {
       "slug": "html-render-test",
-      "version": 5,
-      "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "version": 6,
+      "verify_jwt": true,
+      "classification": "retired",
       "archive_status": "full_source",
       "source_file_count": 1,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required"
+      ],
+      "review_priority": "standard",
+      "assessment": "Retired/diagnostic endpoint returns a non-success response; JWT gateway verification enabled."
     },
     {
       "slug": "immobilie1-transport",
-      "version": 3,
-      "verify_jwt": false,
-      "classification": "transport_or_feed",
+      "version": 4,
+      "verify_jwt": true,
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 3,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required",
+        "source_worker_in_process_dispatch"
+      ],
+      "review_priority": "standard",
+      "assessment": "Supabase JWT gateway verification is enabled for external requests; source-worker uses the matching in-process handler for connector dispatch."
     },
     {
       "slug": "immobilien-de-transport",
-      "version": 15,
-      "verify_jwt": false,
-      "classification": "transport_or_feed",
+      "version": 16,
+      "verify_jwt": true,
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 3,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required",
+        "source_worker_in_process_dispatch"
+      ],
+      "review_priority": "standard",
+      "assessment": "Supabase JWT gateway verification is enabled for external requests; source-worker uses the matching in-process handler for connector dispatch."
     },
     {
       "slug": "immomio-account",
       "version": 20,
       "verify_jwt": false,
-      "classification": "support_or_review",
+      "classification": "support_review",
       "archive_status": "full_source",
       "source_file_count": 3,
       "auth_signals": [
@@ -206,7 +221,7 @@
       "slug": "immomio-application-worker",
       "version": 11,
       "verify_jwt": false,
-      "classification": "production_or_internal_worker",
+      "classification": "production",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -221,7 +236,7 @@
       "slug": "immomio-auth-bridge",
       "version": 9,
       "verify_jwt": false,
-      "classification": "auth_or_platform_bridge",
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 2,
       "auth_signals": [
@@ -236,7 +251,7 @@
       "slug": "immomio-auth-debug",
       "version": 4,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -251,7 +266,7 @@
       "slug": "immomio-bundle-snippet",
       "version": 5,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -266,7 +281,7 @@
       "slug": "immomio-chunk-inspect",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -281,7 +296,7 @@
       "slug": "immomio-contract-inspect",
       "version": 41,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -296,7 +311,7 @@
       "slug": "immomio-device-probe",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -309,20 +324,22 @@
     },
     {
       "slug": "immomio-introspection-probe",
-      "version": 14,
-      "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "version": 15,
+      "verify_jwt": true,
+      "classification": "retired",
       "archive_status": "full_source",
       "source_file_count": 1,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required"
+      ],
+      "review_priority": "standard",
+      "assessment": "Retired/diagnostic endpoint returns a non-success response; JWT gateway verification enabled."
     },
     {
       "slug": "immomio-mutation-contract-probe",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -335,14 +352,16 @@
     },
     {
       "slug": "immomio-probe",
-      "version": 4,
-      "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "version": 5,
+      "verify_jwt": true,
+      "classification": "retired",
       "archive_status": "full_source",
       "source_file_count": 1,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required"
+      ],
+      "review_priority": "standard",
+      "assessment": "Retired/diagnostic endpoint returns a non-success response; JWT gateway verification enabled."
     }
   ]
 }

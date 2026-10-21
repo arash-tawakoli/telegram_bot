@@ -4,12 +4,12 @@
   "functions": [
     {
       "slug": "kleinanzeigen-mobile-canary",
-      "version": 3,
+      "version": 4,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
-      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_44eef1c4-ca96-408d-9da5-dd85b9088fa1_3/source/index.ts",
-      "artifact_sha256": "87c47f1d08d98f64e21fb6dd9188f08350b09ef80da8e6863ba1388834fd0316",
+      "entrypoint_path": "/tmp/user_fn_dpmohkrwdlicexwcrqfy_44eef1c4-ca96-408d-9da5-dd85b9088fa1_4/source/index.ts",
+      "artifact_sha256": "529bcc6c78cca4cee4dc4f7bdf9690f2e63f8a0f09f63edad30169f2599afa2b",
       "archive_status": "full_source",
       "security_scan_flags": [],
       "files": [
@@ -55,12 +55,12 @@
     },
     {
       "slug": "kleinanzeigen-refresh-probe",
-      "version": 2,
+      "version": 3,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
-      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_69b47208-32d4-4c44-b3e1-70a37e8a7dee_2/source/index.ts",
-      "artifact_sha256": "531ca06fc3b3177a2b71d2e7f3134c9b19aa3ac04dc21269773878ffc9851927",
+      "entrypoint_path": "/tmp/user_fn_dpmohkrwdlicexwcrqfy_69b47208-32d4-4c44-b3e1-70a37e8a7dee_3/source/index.ts",
+      "artifact_sha256": "497d2f569d81c41d3685e148d53ce8d8844d391eea6899d36bfebec1c1900dc9",
       "archive_status": "full_source",
       "security_scan_flags": [],
       "files": [

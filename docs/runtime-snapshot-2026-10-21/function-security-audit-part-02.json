@@ -8,7 +8,7 @@
       "slug": "immomio-profile-probe",
       "version": 4,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -23,7 +23,7 @@
       "slug": "immomio-question-field-probe",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -38,7 +38,7 @@
       "slug": "immomio-question-inspect",
       "version": 6,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -53,7 +53,7 @@
       "slug": "immomio-schema-inspect",
       "version": 2,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -66,20 +66,22 @@
     },
     {
       "slug": "immomio-tenant-inspect",
-      "version": 6,
-      "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "version": 7,
+      "verify_jwt": true,
+      "classification": "retired",
       "archive_status": "full_source",
       "source_file_count": 1,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required"
+      ],
+      "review_priority": "standard",
+      "assessment": "Retired/diagnostic endpoint returns a non-success response; JWT gateway verification enabled."
     },
     {
       "slug": "immomio-upload-probe",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -94,7 +96,7 @@
       "slug": "immoscout-auth-bridge",
       "version": 12,
       "verify_jwt": false,
-      "classification": "auth_or_platform_bridge",
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 2,
       "auth_signals": [
@@ -110,7 +112,7 @@
       "slug": "immoscout-contact-inspect",
       "version": 6,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -126,7 +128,7 @@
       "slug": "immoscout-contract-inspect-v2",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -142,7 +144,7 @@
       "slug": "immoscout-native-handoff",
       "version": 2,
       "verify_jwt": false,
-      "classification": "support_or_review",
+      "classification": "support_review",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -158,7 +160,7 @@
       "slug": "immoscout-official-api-probe",
       "version": 2,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -174,7 +176,7 @@
       "slug": "immoscout-official-send-canary",
       "version": 2,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "canary",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -190,7 +192,7 @@
       "slug": "immoscout-payload-probe",
       "version": 6,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -206,7 +208,7 @@
       "slug": "immoscout-plus-scan",
       "version": 3,
       "verify_jwt": false,
-      "classification": "support_or_review",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -222,7 +224,7 @@
       "slug": "immoscout-send-canary",
       "version": 15,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "canary",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -238,7 +240,7 @@
       "slug": "immowelt-auth-bridge",
       "version": 7,
       "verify_jwt": false,
-      "classification": "auth_or_platform_bridge",
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -253,7 +255,7 @@
       "slug": "immowelt-diagnostic-readonly",
       "version": 2,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 2,
       "auth_signals": [
@@ -266,20 +268,22 @@
     },
     {
       "slug": "ka-gateway-egress-probe",
-      "version": 2,
-      "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "version": 3,
+      "verify_jwt": true,
+      "classification": "retired",
       "archive_status": "full_source",
       "source_file_count": 1,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required"
+      ],
+      "review_priority": "standard",
+      "assessment": "Retired/diagnostic endpoint returns a non-success response; JWT gateway verification enabled."
     },
     {
       "slug": "kleinanzeigen-ad-inspect",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -294,7 +298,7 @@
       "slug": "kleinanzeigen-apk-direct-stage",
       "version": 2,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -310,7 +314,7 @@
       "slug": "kleinanzeigen-apk-inspect",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -325,7 +329,7 @@
       "slug": "kleinanzeigen-apk-r2-inspect",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -340,7 +344,7 @@
       "slug": "kleinanzeigen-apk-stage",
       "version": 2,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -356,7 +360,7 @@
       "slug": "kleinanzeigen-apkcombo-stage",
       "version": 2,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -372,7 +376,7 @@
       "slug": "kleinanzeigen-apkcombo-url",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [

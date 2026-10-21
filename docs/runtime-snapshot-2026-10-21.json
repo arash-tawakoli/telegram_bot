@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-21T21:07:05.526617+00:00",
+  "generatedAt": "2026-10-21T22:26:58.804Z",
   "scope": "Read-only live runtime snapshot plus archived deployed source bundles. No user data, credentials or token values included.",
   "runtimeAuthority": {
     "database": "Supabase",
@@ -10,25 +10,32 @@
     "liveEdgeFunctions": 114,
     "repositoryManagedSourceBundles": 47,
     "archivedOnlyFunctions": 67,
-    "sourceWorkerVersion": 106,
+    "sourceWorkerVersion": 107,
     "sourceArchiveFiles": 23,
-    "archiveSecretScanFlags": 0
+    "archiveSecretScanFlags": 0,
+    "retiredDiagnosticEndpointsHardened": 15,
+    "functionsVerifyJwtTrue": 38,
+    "functionsVerifyJwtFalse": 76,
+    "sourceTransportEndpointsJwtHardened": 8,
+    "operationalClassificationCounts": {
+      "production": 12,
+      "diagnostic": 45,
+      "retired": 15,
+      "internal": 21,
+      "support_review": 6,
+      "canary": 12,
+      "webhook": 1,
+      "public_asset": 2
+    }
   },
   "migrationDrift": {
     "liveMigrations": 328,
-    "repositoryMigrationFiles": 320,
-    "liveOnlyVersions": 8,
+    "repositoryMigrationFiles": 328,
+    "liveOnlyVersions": 0,
     "repositoryOnlyVersions": 0,
-    "remainingLiveOnly": [
-      "20261002162748 repair_application_queue_reconciliation",
-      "20261002170417 platform_session_reauth_notifications",
-      "20261002181908 user_engagement_campaigns",
-      "20261002213748 add_wg_gesucht_platform_login",
-      "20261007115124 revoke_public_execute_on_internal_rpcs",
-      "20261007115302 add_missing_fk_indexes",
-      "20261019222908 allow_admin_participant_assignment",
-      "20261019224939 add_jobseeker_workspace"
-    ]
+    "reconstructedEquivalentMigrations": 8,
+    "originalHistoricalSqlRecovered": false,
+    "restoreTest": "pending isolated Supabase branch restore"
   },
   "liveHealth": {
     "queue": {
@@ -192,7 +199,7 @@
       }
     ],
     "leakedPasswordProtection": "still disabled; management API credentials or Supabase dashboard access required to enable",
-    "diagnosticFunctions": "all 114 functions classified in runtime manifest and static auth signal audit; no endpoints retired automatically without dependency proof"
+    "diagnosticFunctions": "All 114 live functions are classified. Fifteen confirmed retired/test endpoints are non-success stubs with JWT gateway verification; eight source transport/feed endpoints now require JWT on direct HTTP requests while source-worker retains in-process routing. Two image-only endpoints remain intentionally public. Other diagnostic/canary functions were retained only where their source contains internal authorization signals; the archive audit records the classification."
   },
   "deployment": {
     "sourceWorkerVersion": 106,
@@ -227,7 +234,7 @@
     "Eight applied historical migration SQL files could not be recovered from Git. The database catalog and routine snapshots improve recovery, but the original migration semantics still need reconciliation.",
     "No clean-room restore was run; a restore requires an isolated database/branch and cost approval if Supabase quotes a nonzero charge.",
     "Supabase Auth leaked-password protection cannot be toggled through the available project/database connector. It remains disabled pending management API or dashboard access.",
-    "The static Edge Function auth scan is a triage aid, not a proof of authorization. Twenty-five verify_jwt=false functions have no obvious auth signal in their bundle text and require manual dependency-aware review before disabling or changing JWT enforcement.",
+    "Two verify_jwt=false endpoints are intentionally public image-only assets; the other false-JWT functions are classified and their source contains internal authorization signals or webhook-specific controls. This static audit does not replace periodic dependency review.",
     "Neighborhood evidence currently records seven ambiguous results. This means the exact search returned no reliable count; it is not proof that no listings exist."
   ]
 }

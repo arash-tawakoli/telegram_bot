@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-10-21T21:02:59.106Z",
+  "generated_at": "2026-10-21T22:14:28.605Z",
   "project_ref": "dpmohkrwdlicexwcrqfy",
   "live_migration_count": 328,
-  "repository_migration_file_count": 320,
-  "live_only_count": 8,
+  "repository_migration_file_count": 328,
+  "live_only_count": 0,
   "repository_only_count": 0,
   "live_history": [
     {
@@ -1319,48 +1319,41 @@
       "name": "schedule_bounded_source_job_retries"
     }
   ],
-  "live_only": [
+  "live_only": [],
+  "repository_only": [],
+  "reconciliation_policy": "All 328 live migration versions now have registered SQL files in the repository. The eight missing original SQL bodies were not recovered verbatim; equivalent replayable migrations were reconstructed from the live catalog. Clean-room restore is not certified until the isolated restore test succeeds.",
+  "reconstructed_equivalents": [
     {
       "version": "20261002162748",
-      "name": "repair_application_queue_reconciliation",
-      "repository_file": null
+      "name": "repair_application_queue_reconciliation"
     },
     {
       "version": "20261002170417",
-      "name": "platform_session_reauth_notifications",
-      "repository_file": null
+      "name": "platform_session_reauth_notifications"
     },
     {
       "version": "20261002181908",
-      "name": "user_engagement_campaigns",
-      "repository_file": null
+      "name": "user_engagement_campaigns"
     },
     {
       "version": "20261002213748",
-      "name": "add_wg_gesucht_platform_login",
-      "repository_file": null
+      "name": "add_wg_gesucht_platform_login"
     },
     {
       "version": "20261007115124",
-      "name": "revoke_public_execute_on_internal_rpcs",
-      "repository_file": null
+      "name": "revoke_public_execute_on_internal_rpcs"
     },
     {
       "version": "20261007115302",
-      "name": "add_missing_fk_indexes",
-      "repository_file": null
+      "name": "add_missing_fk_indexes"
     },
     {
       "version": "20261019222908",
-      "name": "allow_admin_participant_assignment",
-      "repository_file": null
+      "name": "allow_admin_participant_assignment"
     },
     {
       "version": "20261019224939",
-      "name": "add_jobseeker_workspace",
-      "repository_file": null
+      "name": "add_jobseeker_workspace"
     }
-  ],
-  "repository_only": [],
-  "reconciliation_policy": "Three mismatched migration filenames were aligned to their applied live versions with original SQL content preserved. Eight earlier applied migrations still have no recoverable original SQL file; catalog and routine snapshots provide a recovery baseline but not exact replay semantics. A clean-room restore is not yet certified."
+  ]
 }

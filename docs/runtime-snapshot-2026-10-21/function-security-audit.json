@@ -2,24 +2,26 @@
   "generated_at": "2026-10-21T21:01:41.725Z",
   "scope": "Static pattern review of archived source bundles only. This is a triage aid, not proof that a function is protected or exposed.",
   "total_functions": 114,
-  "verify_jwt_true": 15,
-  "verify_jwt_false": 99,
-  "jwt_false_with_obvious_auth_signal": 74,
-  "jwt_false_without_obvious_auth_signal": 25,
+  "verify_jwt_true": 38,
+  "verify_jwt_false": 76,
+  "jwt_false_with_obvious_auth_signal": 76,
+  "jwt_false_without_obvious_auth_signal": 0,
   "classification_counts": {
-    "support_or_review": 18,
-    "diagnostic_candidate": 68,
-    "production_or_internal_worker": 8,
-    "auth_or_platform_bridge": 8,
-    "transport_or_feed": 10,
-    "webhook": 2
+    "production": 12,
+    "diagnostic": 45,
+    "retired": 15,
+    "internal": 21,
+    "support_review": 6,
+    "canary": 12,
+    "webhook": 1,
+    "public_asset": 2
   },
   "functions": [
     {
       "slug": "application-package",
       "version": 3,
       "verify_jwt": false,
-      "classification": "support_or_review",
+      "classification": "production",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -34,7 +36,7 @@
       "slug": "application-package-selftest",
       "version": 4,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -49,7 +51,7 @@
       "slug": "application-worker",
       "version": 190,
       "verify_jwt": false,
-      "classification": "production_or_internal_worker",
+      "classification": "production",
       "archive_status": "full_source",
       "source_file_count": 10,
       "auth_signals": [
@@ -63,20 +65,22 @@
     },
     {
       "slug": "auth-admin-repair",
-      "version": 2,
-      "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "version": 3,
+      "verify_jwt": true,
+      "classification": "retired",
       "archive_status": "full_source",
       "source_file_count": 1,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required"
+      ],
+      "review_priority": "standard",
+      "assessment": "Retired/diagnostic endpoint returns a non-success response; JWT gateway verification enabled."
     },
     {
       "slug": "auth-contract-diag",
       "version": 10,
       "verify_jwt": true,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [],
@@ -87,7 +91,7 @@
       "slug": "auth-facade-broker",
       "version": 22,
       "verify_jwt": false,
-      "classification": "auth_or_platform_bridge",
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 2,
       "auth_signals": [
@@ -101,7 +105,7 @@
       "slug": "billing-maintenance",
       "version": 122,
       "verify_jwt": false,
-      "classification": "production_or_internal_worker",
+      "classification": "production",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -117,7 +121,7 @@
       "slug": "coach-api",
       "version": 46,
       "verify_jwt": false,
-      "classification": "production_or_internal_worker",
+      "classification": "production",
       "archive_status": "full_source",
       "source_file_count": 2,
       "auth_signals": [
@@ -134,7 +138,7 @@
       "slug": "coach-bootstrap",
       "version": 1,
       "verify_jwt": false,
-      "classification": "support_or_review",
+      "classification": "support_review",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -145,64 +149,77 @@
     },
     {
       "slug": "covivio-feed",
-      "version": 3,
-      "verify_jwt": false,
-      "classification": "transport_or_feed",
+      "version": 4,
+      "verify_jwt": true,
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 3,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required",
+        "source_worker_in_process_dispatch"
+      ],
+      "review_priority": "standard",
+      "assessment": "Supabase JWT gateway verification is enabled for external requests; source-worker uses the matching in-process handler for connector dispatch."
     },
     {
       "slug": "deploy-merge-test",
-      "version": 1,
-      "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "version": 2,
+      "verify_jwt": true,
+      "classification": "retired",
       "archive_status": "full_source",
       "source_file_count": 2,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required"
+      ],
+      "review_priority": "standard",
+      "assessment": "Retired with HTTP 410 response; JWT gateway verification enabled."
     },
     {
       "slug": "html-render-test",
-      "version": 5,
-      "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "version": 6,
+      "verify_jwt": true,
+      "classification": "retired",
       "archive_status": "full_source",
       "source_file_count": 1,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required"
+      ],
+      "review_priority": "standard",
+      "assessment": "Retired/diagnostic endpoint returns a non-success response; JWT gateway verification enabled."
     },
     {
       "slug": "immobilie1-transport",
-      "version": 3,
-      "verify_jwt": false,
-      "classification": "transport_or_feed",
+      "version": 4,
+      "verify_jwt": true,
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 3,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required",
+        "source_worker_in_process_dispatch"
+      ],
+      "review_priority": "standard",
+      "assessment": "Supabase JWT gateway verification is enabled for external requests; source-worker uses the matching in-process handler for connector dispatch."
     },
     {
       "slug": "immobilien-de-transport",
-      "version": 15,
-      "verify_jwt": false,
-      "classification": "transport_or_feed",
+      "version": 16,
+      "verify_jwt": true,
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 3,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required",
+        "source_worker_in_process_dispatch"
+      ],
+      "review_priority": "standard",
+      "assessment": "Supabase JWT gateway verification is enabled for external requests; source-worker uses the matching in-process handler for connector dispatch."
     },
     {
       "slug": "immomio-account",
       "version": 20,
       "verify_jwt": false,
-      "classification": "support_or_review",
+      "classification": "support_review",
       "archive_status": "full_source",
       "source_file_count": 3,
       "auth_signals": [
@@ -217,7 +234,7 @@
       "slug": "immomio-application-worker",
       "version": 11,
       "verify_jwt": false,
-      "classification": "production_or_internal_worker",
+      "classification": "production",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -232,7 +249,7 @@
       "slug": "immomio-auth-bridge",
       "version": 9,
       "verify_jwt": false,
-      "classification": "auth_or_platform_bridge",
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 2,
       "auth_signals": [
@@ -247,7 +264,7 @@
       "slug": "immomio-auth-debug",
       "version": 4,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -262,7 +279,7 @@
       "slug": "immomio-bundle-snippet",
       "version": 5,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -277,7 +294,7 @@
       "slug": "immomio-chunk-inspect",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -292,7 +309,7 @@
       "slug": "immomio-contract-inspect",
       "version": 41,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -307,7 +324,7 @@
       "slug": "immomio-device-probe",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -320,20 +337,22 @@
     },
     {
       "slug": "immomio-introspection-probe",
-      "version": 14,
-      "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "version": 15,
+      "verify_jwt": true,
+      "classification": "retired",
       "archive_status": "full_source",
       "source_file_count": 1,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required"
+      ],
+      "review_priority": "standard",
+      "assessment": "Retired/diagnostic endpoint returns a non-success response; JWT gateway verification enabled."
     },
     {
       "slug": "immomio-mutation-contract-probe",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -346,20 +365,22 @@
     },
     {
       "slug": "immomio-probe",
-      "version": 4,
-      "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "version": 5,
+      "verify_jwt": true,
+      "classification": "retired",
       "archive_status": "full_source",
       "source_file_count": 1,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required"
+      ],
+      "review_priority": "standard",
+      "assessment": "Retired/diagnostic endpoint returns a non-success response; JWT gateway verification enabled."
     },
     {
       "slug": "immomio-profile-probe",
       "version": 4,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -374,7 +395,7 @@
       "slug": "immomio-question-field-probe",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -389,7 +410,7 @@
       "slug": "immomio-question-inspect",
       "version": 6,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -404,7 +425,7 @@
       "slug": "immomio-schema-inspect",
       "version": 2,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -417,20 +438,22 @@
     },
     {
       "slug": "immomio-tenant-inspect",
-      "version": 6,
-      "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "version": 7,
+      "verify_jwt": true,
+      "classification": "retired",
       "archive_status": "full_source",
       "source_file_count": 1,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required"
+      ],
+      "review_priority": "standard",
+      "assessment": "Retired/diagnostic endpoint returns a non-success response; JWT gateway verification enabled."
     },
     {
       "slug": "immomio-upload-probe",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -445,7 +468,7 @@
       "slug": "immoscout-auth-bridge",
       "version": 12,
       "verify_jwt": false,
-      "classification": "auth_or_platform_bridge",
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 2,
       "auth_signals": [
@@ -461,7 +484,7 @@
       "slug": "immoscout-contact-inspect",
       "version": 6,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -477,7 +500,7 @@
       "slug": "immoscout-contract-inspect-v2",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -493,7 +516,7 @@
       "slug": "immoscout-native-handoff",
       "version": 2,
       "verify_jwt": false,
-      "classification": "support_or_review",
+      "classification": "support_review",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -509,7 +532,7 @@
       "slug": "immoscout-official-api-probe",
       "version": 2,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -525,7 +548,7 @@
       "slug": "immoscout-official-send-canary",
       "version": 2,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "canary",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -541,7 +564,7 @@
       "slug": "immoscout-payload-probe",
       "version": 6,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -557,7 +580,7 @@
       "slug": "immoscout-plus-scan",
       "version": 3,
       "verify_jwt": false,
-      "classification": "support_or_review",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -573,7 +596,7 @@
       "slug": "immoscout-send-canary",
       "version": 15,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "canary",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -589,7 +612,7 @@
       "slug": "immowelt-auth-bridge",
       "version": 7,
       "verify_jwt": false,
-      "classification": "auth_or_platform_bridge",
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -604,7 +627,7 @@
       "slug": "immowelt-diagnostic-readonly",
       "version": 2,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 2,
       "auth_signals": [
@@ -617,20 +640,22 @@
     },
     {
       "slug": "ka-gateway-egress-probe",
-      "version": 2,
-      "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "version": 3,
+      "verify_jwt": true,
+      "classification": "retired",
       "archive_status": "full_source",
       "source_file_count": 1,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required"
+      ],
+      "review_priority": "standard",
+      "assessment": "Retired/diagnostic endpoint returns a non-success response; JWT gateway verification enabled."
     },
     {
       "slug": "kleinanzeigen-ad-inspect",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -645,7 +670,7 @@
       "slug": "kleinanzeigen-apk-direct-stage",
       "version": 2,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -661,7 +686,7 @@
       "slug": "kleinanzeigen-apk-inspect",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -676,7 +701,7 @@
       "slug": "kleinanzeigen-apk-r2-inspect",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -691,7 +716,7 @@
       "slug": "kleinanzeigen-apk-stage",
       "version": 2,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -707,7 +732,7 @@
       "slug": "kleinanzeigen-apkcombo-stage",
       "version": 2,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -723,7 +748,7 @@
       "slug": "kleinanzeigen-apkcombo-url",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -738,7 +763,7 @@
       "slug": "kleinanzeigen-application-worker",
       "version": 19,
       "verify_jwt": false,
-      "classification": "production_or_internal_worker",
+      "classification": "production",
       "archive_status": "full_source",
       "source_file_count": 3,
       "auth_signals": [
@@ -754,7 +779,7 @@
       "slug": "kleinanzeigen-callback-bridge",
       "version": 2,
       "verify_jwt": false,
-      "classification": "support_or_review",
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -768,7 +793,7 @@
       "slug": "kleinanzeigen-contact-inspect",
       "version": 4,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -784,7 +809,7 @@
       "slug": "kleinanzeigen-contract-check",
       "version": 2,
       "verify_jwt": true,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [],
@@ -795,7 +820,7 @@
       "slug": "kleinanzeigen-contract-probe",
       "version": 5,
       "verify_jwt": true,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [],
@@ -806,7 +831,7 @@
       "slug": "kleinanzeigen-conversation-readback",
       "version": 7,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -822,7 +847,7 @@
       "slug": "kleinanzeigen-dex-class",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -837,7 +862,7 @@
       "slug": "kleinanzeigen-dex-contract",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -852,7 +877,7 @@
       "slug": "kleinanzeigen-dex-method",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -867,7 +892,7 @@
       "slug": "kleinanzeigen-dex-xref",
       "version": 2,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -882,7 +907,7 @@
       "slug": "kleinanzeigen-dex-xref-any",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -895,20 +920,22 @@
     },
     {
       "slug": "kleinanzeigen-direct-login-probe",
-      "version": 2,
-      "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "version": 3,
+      "verify_jwt": true,
+      "classification": "retired",
       "archive_status": "full_source",
       "source_file_count": 1,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required"
+      ],
+      "review_priority": "standard",
+      "assessment": "Retired/diagnostic endpoint returns a non-success response; JWT gateway verification enabled."
     },
     {
       "slug": "kleinanzeigen-first-contact-canary",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "canary",
       "archive_status": "full_source",
       "source_file_count": 3,
       "auth_signals": [
@@ -923,7 +950,7 @@
       "slug": "kleinanzeigen-js-inspect",
       "version": 2,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -938,7 +965,7 @@
       "slug": "kleinanzeigen-method-raw",
       "version": 1,
       "verify_jwt": false,
-      "classification": "support_or_review",
+      "classification": "support_review",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -951,20 +978,22 @@
     },
     {
       "slug": "kleinanzeigen-mobile-canary",
-      "version": 3,
-      "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "version": 4,
+      "verify_jwt": true,
+      "classification": "retired",
       "archive_status": "full_source",
       "source_file_count": 1,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required"
+      ],
+      "review_priority": "standard",
+      "assessment": "Retired/diagnostic endpoint returns a non-success response; JWT gateway verification enabled."
     },
     {
       "slug": "kleinanzeigen-mobile-probe-v2",
       "version": 17,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -980,7 +1009,7 @@
       "slug": "kleinanzeigen-re-seeker-probe",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -994,20 +1023,22 @@
     },
     {
       "slug": "kleinanzeigen-refresh-probe",
-      "version": 2,
-      "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "version": 3,
+      "verify_jwt": true,
+      "classification": "retired",
       "archive_status": "full_source",
       "source_file_count": 1,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required"
+      ],
+      "review_priority": "standard",
+      "assessment": "Retired/diagnostic endpoint returns a non-success response; JWT gateway verification enabled."
     },
     {
       "slug": "kleinanzeigen-seeker-inspect",
       "version": 2,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -1023,7 +1054,7 @@
       "slug": "kleinanzeigen-send-once-v3",
       "version": 2,
       "verify_jwt": true,
-      "classification": "support_or_review",
+      "classification": "support_review",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [],
@@ -1034,7 +1065,7 @@
       "slug": "kleinanzeigen-send-probe",
       "version": 8,
       "verify_jwt": true,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [],
@@ -1045,7 +1076,7 @@
       "slug": "kleinanzeigen-static-analysis",
       "version": 4,
       "verify_jwt": false,
-      "classification": "support_or_review",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -1059,7 +1090,7 @@
       "slug": "kleinanzeigen-structure-probe",
       "version": 1,
       "verify_jwt": true,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [],
@@ -1070,7 +1101,7 @@
       "slug": "kleinanzeigen-transport",
       "version": 4,
       "verify_jwt": false,
-      "classification": "transport_or_feed",
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 2,
       "auth_signals": [
@@ -1085,7 +1116,7 @@
       "slug": "kleinanzeigen-two-step-canary",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "canary",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -1101,7 +1132,7 @@
       "slug": "kleinanzeigen-web-contract-probe",
       "version": 3,
       "verify_jwt": true,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [],
@@ -1112,7 +1143,7 @@
       "slug": "kleinanzeigen-xcf-diagnostic-send",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -1126,64 +1157,77 @@
     },
     {
       "slug": "meravis-feed",
-      "version": 5,
-      "verify_jwt": false,
-      "classification": "transport_or_feed",
+      "version": 6,
+      "verify_jwt": true,
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 3,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required",
+        "source_worker_in_process_dispatch"
+      ],
+      "review_priority": "standard",
+      "assessment": "Supabase JWT gateway verification is enabled for external requests; source-worker uses the matching in-process handler for connector dispatch."
     },
     {
       "slug": "mini-app",
-      "version": 11,
-      "verify_jwt": false,
-      "classification": "support_or_review",
+      "version": 12,
+      "verify_jwt": true,
+      "classification": "retired",
       "archive_status": "full_source",
       "source_file_count": 1,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required"
+      ],
+      "review_priority": "standard",
+      "assessment": "Retired/diagnostic endpoint returns a non-success response; JWT gateway verification enabled."
     },
     {
       "slug": "mini-app-publisher",
-      "version": 5,
-      "verify_jwt": false,
-      "classification": "support_or_review",
+      "version": 6,
+      "verify_jwt": true,
+      "classification": "retired",
       "archive_status": "full_source",
       "source_file_count": 1,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required"
+      ],
+      "review_priority": "standard",
+      "assessment": "Retired/diagnostic endpoint returns a non-success response; JWT gateway verification enabled."
     },
     {
       "slug": "noncoop-feed",
-      "version": 5,
-      "verify_jwt": false,
-      "classification": "transport_or_feed",
+      "version": 6,
+      "verify_jwt": true,
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 3,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required",
+        "source_worker_in_process_dispatch"
+      ],
+      "review_priority": "standard",
+      "assessment": "Supabase JWT gateway verification is enabled for external requests; source-worker uses the matching in-process handler for connector dispatch."
     },
     {
       "slug": "noncoop-new-feed",
-      "version": 7,
-      "verify_jwt": false,
-      "classification": "transport_or_feed",
+      "version": 8,
+      "verify_jwt": true,
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 4,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required",
+        "source_worker_in_process_dispatch"
+      ],
+      "review_priority": "standard",
+      "assessment": "Supabase JWT gateway verification is enabled for external requests; source-worker uses the matching in-process handler for connector dispatch."
     },
     {
       "slug": "noop",
       "version": 9,
       "verify_jwt": true,
-      "classification": "diagnostic_candidate",
+      "classification": "support_review",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [],
@@ -1194,7 +1238,7 @@
       "slug": "noop_probe",
       "version": 7,
       "verify_jwt": true,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [],
@@ -1205,7 +1249,7 @@
       "slug": "notification-dispatcher",
       "version": 223,
       "verify_jwt": false,
-      "classification": "production_or_internal_worker",
+      "classification": "production",
       "archive_status": "full_source",
       "source_file_count": 9,
       "auth_signals": [
@@ -1220,7 +1264,7 @@
       "slug": "notification-dispatcher-preview-canary",
       "version": 4,
       "verify_jwt": true,
-      "classification": "diagnostic_candidate",
+      "classification": "canary",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [],
@@ -1229,20 +1273,22 @@
     },
     {
       "slug": "platform-connect",
-      "version": 3,
-      "verify_jwt": false,
-      "classification": "auth_or_platform_bridge",
+      "version": 4,
+      "verify_jwt": true,
+      "classification": "retired",
       "archive_status": "full_source",
       "source_file_count": 1,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required"
+      ],
+      "review_priority": "standard",
+      "assessment": "Retired/diagnostic endpoint returns a non-success response; JWT gateway verification enabled."
     },
     {
       "slug": "platform-connect-broker-v2",
       "version": 3,
       "verify_jwt": false,
-      "classification": "auth_or_platform_bridge",
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -1255,7 +1301,7 @@
       "slug": "platform-session-reminder",
       "version": 3,
       "verify_jwt": false,
-      "classification": "support_or_review",
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -1270,7 +1316,7 @@
       "slug": "source-shadow",
       "version": 18,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 16,
       "auth_signals": [
@@ -1285,7 +1331,7 @@
       "slug": "source-worker",
       "version": 107,
       "verify_jwt": false,
-      "classification": "production_or_internal_worker",
+      "classification": "production",
       "archive_status": "full_source",
       "source_file_count": 33,
       "auth_signals": [
@@ -1296,14 +1342,17 @@
     },
     {
       "slug": "spacest-feed",
-      "version": 4,
-      "verify_jwt": false,
-      "classification": "transport_or_feed",
+      "version": 5,
+      "verify_jwt": true,
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 3,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required",
+        "source_worker_in_process_dispatch"
+      ],
+      "review_priority": "standard",
+      "assessment": "Supabase JWT gateway verification is enabled for external requests; source-worker uses the matching in-process handler for connector dispatch."
     },
     {
       "slug": "stripe-webhook",
@@ -1323,7 +1372,7 @@
       "slug": "telegram-db-latency-canary",
       "version": 2,
       "verify_jwt": true,
-      "classification": "diagnostic_candidate",
+      "classification": "canary",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [],
@@ -1334,7 +1383,7 @@
       "slug": "telegram-engagement",
       "version": 4,
       "verify_jwt": false,
-      "classification": "support_or_review",
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -1349,18 +1398,20 @@
       "slug": "telegram-fallback-logo",
       "version": 3,
       "verify_jwt": false,
-      "classification": "support_or_review",
+      "classification": "public_asset",
       "archive_status": "full_source",
       "source_file_count": 1,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "intentional_public_static_asset"
+      ],
+      "review_priority": "standard",
+      "assessment": "Intentional public read-only image endpoint; no user data or write action. Keep public by design."
     },
     {
       "slug": "telegram-fast",
       "version": 13,
       "verify_jwt": false,
-      "classification": "support_or_review",
+      "classification": "production",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -1375,7 +1426,7 @@
       "slug": "telegram-gateway",
       "version": 94,
       "verify_jwt": false,
-      "classification": "production_or_internal_worker",
+      "classification": "production",
       "archive_status": "full_source",
       "source_file_count": 2,
       "auth_signals": [
@@ -1390,7 +1441,7 @@
       "slug": "telegram-gateway-autoapply-canary",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "canary",
       "archive_status": "full_source",
       "source_file_count": 3,
       "auth_signals": [
@@ -1406,7 +1457,7 @@
       "slug": "telegram-gateway-preview-canary",
       "version": 2,
       "verify_jwt": true,
-      "classification": "diagnostic_candidate",
+      "classification": "canary",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [],
@@ -1417,7 +1468,7 @@
       "slug": "telegram-gateway-v3-canary",
       "version": 2,
       "verify_jwt": true,
-      "classification": "diagnostic_candidate",
+      "classification": "canary",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [],
@@ -1428,7 +1479,7 @@
       "slug": "telegram-gateway-v4-canary",
       "version": 2,
       "verify_jwt": true,
-      "classification": "diagnostic_candidate",
+      "classification": "canary",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [],
@@ -1439,7 +1490,7 @@
       "slug": "telegram-oauth-bridge",
       "version": 38,
       "verify_jwt": false,
-      "classification": "auth_or_platform_bridge",
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -1455,7 +1506,7 @@
       "slug": "telegram-premium",
       "version": 10,
       "verify_jwt": false,
-      "classification": "support_or_review",
+      "classification": "production",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -1469,18 +1520,20 @@
       "slug": "telegram-premium-image",
       "version": 7,
       "verify_jwt": false,
-      "classification": "support_or_review",
+      "classification": "public_asset",
       "archive_status": "full_source",
       "source_file_count": 1,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "intentional_public_static_asset"
+      ],
+      "review_priority": "standard",
+      "assessment": "Intentional public read-only image endpoint; no user data or write action. Keep public by design."
     },
     {
       "slug": "telegram-ui",
       "version": 235,
       "verify_jwt": false,
-      "classification": "support_or_review",
+      "classification": "production",
       "archive_status": "full_source",
       "source_file_count": 9,
       "auth_signals": [
@@ -1495,7 +1548,7 @@
       "slug": "telegram-ui-autoapply-canary",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "canary",
       "archive_status": "full_source",
       "source_file_count": 8,
       "auth_signals": [
@@ -1510,7 +1563,7 @@
       "slug": "telegram-ui-preview-canary",
       "version": 2,
       "verify_jwt": true,
-      "classification": "diagnostic_candidate",
+      "classification": "canary",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [],
@@ -1519,31 +1572,36 @@
     },
     {
       "slug": "telegram-webhook-region-switch",
-      "version": 2,
-      "verify_jwt": false,
-      "classification": "webhook",
+      "version": 3,
+      "verify_jwt": true,
+      "classification": "retired",
       "archive_status": "full_source",
       "source_file_count": 1,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required"
+      ],
+      "review_priority": "standard",
+      "assessment": "Retired/diagnostic endpoint returns a non-success response; JWT gateway verification enabled."
     },
     {
       "slug": "vonovia-transport",
-      "version": 2,
-      "verify_jwt": false,
-      "classification": "transport_or_feed",
+      "version": 3,
+      "verify_jwt": true,
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 2,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required",
+        "source_worker_in_process_dispatch"
+      ],
+      "review_priority": "standard",
+      "assessment": "Supabase JWT gateway verification is enabled for external requests; source-worker uses the matching in-process handler for connector dispatch."
     },
     {
       "slug": "wg-gesucht-auth-bridge",
       "version": 2,
       "verify_jwt": false,
-      "classification": "auth_or_platform_bridge",
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 3,
       "auth_signals": [
@@ -1556,20 +1614,22 @@
     },
     {
       "slug": "wunder-probe",
-      "version": 8,
-      "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "version": 9,
+      "verify_jwt": true,
+      "classification": "retired",
       "archive_status": "full_source",
       "source_file_count": 1,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required"
+      ],
+      "review_priority": "standard",
+      "assessment": "Retired/diagnostic endpoint returns a non-success response; JWT gateway verification enabled."
     },
     {
       "slug": "wunderflats-transport",
       "version": 4,
       "verify_jwt": false,
-      "classification": "transport_or_feed",
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 2,
       "auth_signals": [
@@ -1578,5 +1638,14 @@
       "review_priority": "review",
       "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
     }
-  ]
+  ],
+  "notes": [
+    "All eight public source transport/feed endpoints now require Supabase JWT verification for direct external requests. The source-worker uses the same handlers in-process, so internal crawl routing remains independent of the HTTP gateway.",
+    "Two image-only endpoints remain intentionally public and are explicitly classified as public assets.",
+    "Every live Edge Function is assigned an operational classification: production, internal, diagnostic, canary, retired, webhook, public_asset or support_review.",
+    "Retired functions are non-success stubs with JWT gateway verification enabled. Two static image endpoints remain intentionally public."
+  ],
+  "retired_endpoint_count": 15,
+  "diagnostic_endpoint_count": 45,
+  "canary_endpoint_count": 12
 }

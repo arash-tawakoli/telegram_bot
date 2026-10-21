@@ -5,42 +5,45 @@
   "functions": [
     {
       "slug": "mini-app-publisher",
-      "version": 5,
+      "version": 6,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
       "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_4aa52f02-1fa1-400b-b9b8-434fd77ffbea_5/source/index.ts",
-      "artifact_sha256": "6afe17e7c877f1f24d4632395ab2f193e6d6b70128339fd18edb1c0feb47a75f",
+      "artifact_sha256": "16f68e336ef719d7299d2a192b5489c36204a7cd9211cc489e94aec99238632d",
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-17.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "retired"
     },
     {
       "slug": "noncoop-feed",
-      "version": 5,
+      "version": 6,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
       "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_6be17e26-833a-4f88-8911-5eeb7987bc5e_5/source/noncoop-feed/index.ts",
-      "artifact_sha256": "d0397beef4bfd891b5e5bd76c231ad19dca6c8fc52fdce376a759b064a90f0c9",
+      "artifact_sha256": "e88720d686f4dd1ac5a50ba44956596a6e79d5bce21487ebb1e9a3042d431682",
       "source_file_count": 3,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-17.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "internal"
     },
     {
       "slug": "noncoop-new-feed",
-      "version": 7,
+      "version": 8,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
       "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_12634ed3-b0dc-4f8c-958a-d8e3d19c067e_7/source/noncoop-new-feed/index.ts",
-      "artifact_sha256": "6b5b5a612da110664aac5464a49b5c2695ed1ad8a485c17c3fa44a969216e1be",
+      "artifact_sha256": "dcf472e59b9e3353690571e009dafecc0217934414d26c312d77028b0abeaa8a",
       "source_file_count": 4,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-17.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "internal"
     },
     {
       "slug": "noop",
@@ -53,7 +56,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-17.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "support_review"
     },
     {
       "slug": "noop_probe",
@@ -66,7 +70,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-17.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "notification-dispatcher",
@@ -79,7 +84,8 @@
       "source_file_count": 9,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-18.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "production"
     },
     {
       "slug": "notification-dispatcher-preview-canary",
@@ -92,20 +98,22 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-18.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "canary"
     },
     {
       "slug": "platform-connect",
-      "version": 3,
+      "version": 4,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
       "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_050be14b-f70c-4575-891e-1e9b96981ed2_3/source/index.ts",
-      "artifact_sha256": "0ec6bee60a0384b746d6cfb4ab6e39aa2c993e7f414162091cfcf277060a18f8",
+      "artifact_sha256": "ab54c8e8e29f824e290917601efac9554eb581d816b5eb253891c827c140c557",
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-18.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "retired"
     },
     {
       "slug": "platform-connect-broker-v2",
@@ -118,7 +126,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-18.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "internal"
     },
     {
       "slug": "platform-session-reminder",
@@ -131,7 +140,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-18.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "internal"
     },
     {
       "slug": "source-shadow",
@@ -144,7 +154,8 @@
       "source_file_count": 16,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-19.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "internal"
     },
     {
       "slug": "source-worker",
@@ -158,20 +169,22 @@
       "source_file_count": 33,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-19.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "production"
     },
     {
       "slug": "spacest-feed",
-      "version": 4,
+      "version": 5,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
       "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_bdb1723f-8a1c-4f61-aff5-cbbf072826e7_4/source/spacest-feed/index.ts",
-      "artifact_sha256": "a3658a26310b617c9b6ef077e02bf6049611bf4296a2e2a88493517e01efd145",
+      "artifact_sha256": "418bf0edad04f71f1fe2455c68e73313ad7321a57389fa0655e905a8df214b0a",
       "source_file_count": 3,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-19.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "internal"
     },
     {
       "slug": "stripe-webhook",
@@ -184,7 +197,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-19.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "webhook"
     },
     {
       "slug": "telegram-db-latency-canary",
@@ -197,7 +211,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-19.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "canary"
     },
     {
       "slug": "telegram-engagement",
@@ -210,7 +225,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-20.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "internal"
     },
     {
       "slug": "telegram-fallback-logo",
@@ -223,7 +239,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-20.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "public_asset"
     },
     {
       "slug": "telegram-fast",
@@ -236,7 +253,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-20.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "production"
     },
     {
       "slug": "telegram-gateway",
@@ -249,7 +267,8 @@
       "source_file_count": 2,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-20.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "production"
     },
     {
       "slug": "telegram-gateway-autoapply-canary",
@@ -262,7 +281,8 @@
       "source_file_count": 3,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-20.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "canary"
     },
     {
       "slug": "telegram-gateway-preview-canary",
@@ -275,7 +295,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-21.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "canary"
     },
     {
       "slug": "telegram-gateway-v3-canary",
@@ -288,7 +309,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-21.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "canary"
     },
     {
       "slug": "telegram-gateway-v4-canary",
@@ -301,7 +323,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-21.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "canary"
     },
     {
       "slug": "telegram-oauth-bridge",
@@ -314,7 +337,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-21.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "internal"
     },
     {
       "slug": "telegram-premium",
@@ -327,7 +351,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-21.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "production"
     },
     {
       "slug": "telegram-premium-image",
@@ -340,7 +365,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-22.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "public_asset"
     },
     {
       "slug": "telegram-ui",
@@ -353,7 +379,8 @@
       "source_file_count": 9,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-22.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "production"
     },
     {
       "slug": "telegram-ui-autoapply-canary",
@@ -366,7 +393,8 @@
       "source_file_count": 8,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-22.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "canary"
     },
     {
       "slug": "telegram-ui-preview-canary",
@@ -379,33 +407,36 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-22.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "canary"
     },
     {
       "slug": "telegram-webhook-region-switch",
-      "version": 2,
+      "version": 3,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
       "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_e5ed7019-e930-412c-ab7f-1cb7e905d8ae_2/source/index.ts",
-      "artifact_sha256": "bb272fd634c20dfa393922af0630bbe4b1f022b61dd82d7daa1f1e385e9c9bf3",
+      "artifact_sha256": "3bd9e184933090cd1dcedbbd2be02e7cc9040d7a4d572b7d61940a5575b537db",
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-22.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "retired"
     },
     {
       "slug": "vonovia-transport",
-      "version": 2,
+      "version": 3,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
       "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_86b8327d-9a0c-4b23-97f4-31b267e41974_2/source/vonovia-transport/index.ts",
-      "artifact_sha256": "deabe5706b1aea72de88d515922c4ad2ca5320d5186cdeb97aeaa6c9858aee8a",
+      "artifact_sha256": "b379b7979862b704224d5043000dfef8ee628c7fc542409ca623f04c259bf43e",
       "source_file_count": 2,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-23.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "internal"
     },
     {
       "slug": "wg-gesucht-auth-bridge",
@@ -418,20 +449,22 @@
       "source_file_count": 3,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-23.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "internal"
     },
     {
       "slug": "wunder-probe",
-      "version": 8,
+      "version": 9,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
       "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_6a4862d3-3216-41cb-bfef-4515c9522adf_8/source/index.ts",
-      "artifact_sha256": "7d83e4b2edf697f7a7efd0992b476892cbcf4c75e6dab98f8c312c342ca4591b",
+      "artifact_sha256": "a9dc7ce9bec50bfefca851124b218b551455baf3b389320936a63928d1eb4dae",
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-23.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "retired"
     },
     {
       "slug": "wunderflats-transport",
@@ -444,7 +477,8 @@
       "source_file_count": 2,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-23.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "internal"
     }
   ]
 }

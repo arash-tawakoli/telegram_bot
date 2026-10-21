@@ -8,7 +8,7 @@
       "slug": "telegram-gateway-preview-canary",
       "version": 2,
       "verify_jwt": true,
-      "classification": "diagnostic_candidate",
+      "classification": "canary",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [],
@@ -19,7 +19,7 @@
       "slug": "telegram-gateway-v3-canary",
       "version": 2,
       "verify_jwt": true,
-      "classification": "diagnostic_candidate",
+      "classification": "canary",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [],
@@ -30,7 +30,7 @@
       "slug": "telegram-gateway-v4-canary",
       "version": 2,
       "verify_jwt": true,
-      "classification": "diagnostic_candidate",
+      "classification": "canary",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [],
@@ -41,7 +41,7 @@
       "slug": "telegram-oauth-bridge",
       "version": 38,
       "verify_jwt": false,
-      "classification": "auth_or_platform_bridge",
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -57,7 +57,7 @@
       "slug": "telegram-premium",
       "version": 10,
       "verify_jwt": false,
-      "classification": "support_or_review",
+      "classification": "production",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -71,18 +71,20 @@
       "slug": "telegram-premium-image",
       "version": 7,
       "verify_jwt": false,
-      "classification": "support_or_review",
+      "classification": "public_asset",
       "archive_status": "full_source",
       "source_file_count": 1,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "intentional_public_static_asset"
+      ],
+      "review_priority": "standard",
+      "assessment": "Intentional public read-only image endpoint; no user data or write action. Keep public by design."
     },
     {
       "slug": "telegram-ui",
       "version": 235,
       "verify_jwt": false,
-      "classification": "support_or_review",
+      "classification": "production",
       "archive_status": "full_source",
       "source_file_count": 9,
       "auth_signals": [
@@ -97,7 +99,7 @@
       "slug": "telegram-ui-autoapply-canary",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "canary",
       "archive_status": "full_source",
       "source_file_count": 8,
       "auth_signals": [
@@ -112,7 +114,7 @@
       "slug": "telegram-ui-preview-canary",
       "version": 2,
       "verify_jwt": true,
-      "classification": "diagnostic_candidate",
+      "classification": "canary",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [],
@@ -121,31 +123,36 @@
     },
     {
       "slug": "telegram-webhook-region-switch",
-      "version": 2,
-      "verify_jwt": false,
-      "classification": "webhook",
+      "version": 3,
+      "verify_jwt": true,
+      "classification": "retired",
       "archive_status": "full_source",
       "source_file_count": 1,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required"
+      ],
+      "review_priority": "standard",
+      "assessment": "Retired/diagnostic endpoint returns a non-success response; JWT gateway verification enabled."
     },
     {
       "slug": "vonovia-transport",
-      "version": 2,
-      "verify_jwt": false,
-      "classification": "transport_or_feed",
+      "version": 3,
+      "verify_jwt": true,
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 2,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required",
+        "source_worker_in_process_dispatch"
+      ],
+      "review_priority": "standard",
+      "assessment": "Supabase JWT gateway verification is enabled for external requests; source-worker uses the matching in-process handler for connector dispatch."
     },
     {
       "slug": "wg-gesucht-auth-bridge",
       "version": 2,
       "verify_jwt": false,
-      "classification": "auth_or_platform_bridge",
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 3,
       "auth_signals": [
@@ -158,20 +165,22 @@
     },
     {
       "slug": "wunder-probe",
-      "version": 8,
-      "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "version": 9,
+      "verify_jwt": true,
+      "classification": "retired",
       "archive_status": "full_source",
       "source_file_count": 1,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required"
+      ],
+      "review_priority": "standard",
+      "assessment": "Retired/diagnostic endpoint returns a non-success response; JWT gateway verification enabled."
     },
     {
       "slug": "wunderflats-transport",
       "version": 4,
       "verify_jwt": false,
-      "classification": "transport_or_feed",
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 2,
       "auth_signals": [

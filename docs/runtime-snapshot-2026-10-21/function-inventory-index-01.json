@@ -14,7 +14,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-01.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "production"
     },
     {
       "slug": "application-package-selftest",
@@ -27,7 +28,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-01.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "application-worker",
@@ -40,20 +42,22 @@
       "source_file_count": 10,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-01.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "production"
     },
     {
       "slug": "auth-admin-repair",
-      "version": 2,
+      "version": 3,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
       "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_4346c87a-569f-4efe-aa7f-624c626ef94a_2/source/index.ts",
-      "artifact_sha256": "e1436c67c4aa5ad7557aa95b9b26e80387b0426f612400980a13cdafbb25e29d",
+      "artifact_sha256": "1e4b82d411cf4a8488998cdb4e5f985d86f24ebcb21471c891a7a5a67db8945a",
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-01.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "retired"
     },
     {
       "slug": "auth-contract-diag",
@@ -66,7 +70,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-01.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "auth-facade-broker",
@@ -79,7 +84,8 @@
       "source_file_count": 2,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-02.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "internal"
     },
     {
       "slug": "billing-maintenance",
@@ -92,7 +98,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-02.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "production"
     },
     {
       "slug": "coach-api",
@@ -105,7 +112,8 @@
       "source_file_count": 2,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-02.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "production"
     },
     {
       "slug": "coach-bootstrap",
@@ -118,72 +126,78 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-02.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "support_review"
     },
     {
       "slug": "covivio-feed",
-      "version": 3,
+      "version": 4,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
       "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_e0e95e50-0f89-4b47-bce8-1ad076d4e841_3/source/covivio-feed/index.ts",
-      "artifact_sha256": "58f08c651f84aef0ea06d7002c7db69ca6248ca3da4d1fd36b53fff81ed376eb",
+      "artifact_sha256": "3d0bcc977b3d3828431ae028885a5ce8f7c695ba1bf8c60ffc530ba6f872fd71",
       "source_file_count": 3,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-02.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "internal"
     },
     {
       "slug": "deploy-merge-test",
-      "version": 1,
+      "version": 2,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
       "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_62b16410-5c79-46c9-8694-d876c40abaa8_1/source/index.ts",
-      "artifact_sha256": "e540e22d9715881b36c84fcdb55054295ab9a20549e37dd548cc020df0041290",
+      "artifact_sha256": "959ba6ecf679b840f210c57a60c93f4669e6c7eb80f3271d0bb037975acba339",
       "source_file_count": 2,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-03.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "retired"
     },
     {
       "slug": "html-render-test",
-      "version": 5,
+      "version": 6,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
       "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_93d50791-a814-43b8-9e7d-a291d3905c58_5/source/index.ts",
-      "artifact_sha256": "29b48d43530467a046ff12d0e054c6af6ca24b5baca3bc1834cf4cfd121ae4e6",
+      "artifact_sha256": "8405a45719c71ae80ab1fbf69da80ddd18f8012b6b945ce0b736106d4d1adef3",
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-03.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "retired"
     },
     {
       "slug": "immobilie1-transport",
-      "version": 3,
+      "version": 4,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
       "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_6068f05b-a6b7-4a58-b940-a4f4f174a865_3/source/immobilie1-transport/index.ts",
-      "artifact_sha256": "33deaf04a1c2f3879d3752835fd721d322b0d2dba9746ee7b777f95f24ef3ad6",
+      "artifact_sha256": "8a9013eb41af6564a10d5804e300a7fe37ba4f7724919ca6b0ef8b1aaf622212",
       "source_file_count": 3,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-03.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "internal"
     },
     {
       "slug": "immobilien-de-transport",
-      "version": 15,
+      "version": 16,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
       "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_84fbfa0e-7c3b-44f7-9fa8-396ce2057325_15/source/immobilien-de-transport/index.ts",
-      "artifact_sha256": "7fbf31045c8b0fb61333473be42847bb853c74941f52f55a85e83573ae2dd46d",
+      "artifact_sha256": "da8dcb0aa2925109df71d223f9dac73d05c651070ecf5d11422061c7b8ec6ece",
       "source_file_count": 3,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-03.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "internal"
     },
     {
       "slug": "immomio-account",
@@ -196,7 +210,8 @@
       "source_file_count": 3,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-03.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "support_review"
     },
     {
       "slug": "immomio-application-worker",
@@ -209,7 +224,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-04.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "production"
     },
     {
       "slug": "immomio-auth-bridge",
@@ -222,7 +238,8 @@
       "source_file_count": 2,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-04.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "internal"
     },
     {
       "slug": "immomio-auth-debug",
@@ -235,7 +252,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-04.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "immomio-bundle-snippet",
@@ -248,7 +266,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-04.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "immomio-chunk-inspect",
@@ -261,7 +280,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-04.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "immomio-contract-inspect",
@@ -274,7 +294,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-05.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "immomio-device-probe",
@@ -287,20 +308,22 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-05.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "immomio-introspection-probe",
-      "version": 14,
+      "version": 15,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
       "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_f0ae9898-3a56-4e74-a670-a5d4bd177f26_14/source/index.ts",
-      "artifact_sha256": "7680f5e7f8f209fe8a62a22921aa8be6f9996beca0fc71201e23279ec7944e0e",
+      "artifact_sha256": "dd494821ebb5b5e314d96ed818dd46849912c43ac43e26e6d6d6474da1349630",
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-05.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "retired"
     },
     {
       "slug": "immomio-mutation-contract-probe",
@@ -313,20 +336,22 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-05.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "immomio-probe",
-      "version": 4,
+      "version": 5,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
       "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_2f533a95-6aa3-4ffb-86e3-fc7adbda71a6_4/source/index.ts",
-      "artifact_sha256": "c98dd47ecdde6e37658ec7efea02546fc6820e6062f53fad09c477ecf3cef8e1",
+      "artifact_sha256": "0648f0219bd7a29a0560a67335db9c7d1b0163a9651bcf78b9ba9b5f0b61ca0d",
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-05.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "retired"
     },
     {
       "slug": "immomio-profile-probe",
@@ -339,7 +364,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-06.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "immomio-question-field-probe",
@@ -352,7 +378,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-06.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "immomio-question-inspect",
@@ -365,7 +392,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-06.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "immomio-schema-inspect",
@@ -378,20 +406,22 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-06.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "immomio-tenant-inspect",
-      "version": 6,
+      "version": 7,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
       "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_1fd7cc1a-d915-49d1-8e1c-86f2d19a1eb1_6/source/index.ts",
-      "artifact_sha256": "749932bd7650d3fbe05316773b1be716b89d99d0b4edec1f2f0a621fba897751",
+      "artifact_sha256": "c09eccd05e1e03196accbd814821c9dac94c20e09588ad64129179815efe719b",
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-06.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "retired"
     },
     {
       "slug": "immomio-upload-probe",
@@ -404,7 +434,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-07.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "immoscout-auth-bridge",
@@ -417,7 +448,8 @@
       "source_file_count": 2,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-07.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "internal"
     },
     {
       "slug": "immoscout-contact-inspect",
@@ -430,7 +462,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-07.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "immoscout-contract-inspect-v2",
@@ -443,7 +476,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-07.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "immoscout-native-handoff",
@@ -456,7 +490,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-07.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "support_review"
     },
     {
       "slug": "immoscout-official-api-probe",
@@ -469,7 +504,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-08.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "immoscout-official-send-canary",
@@ -482,7 +518,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-08.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "canary"
     },
     {
       "slug": "immoscout-payload-probe",
@@ -495,7 +532,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-08.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "immoscout-plus-scan",
@@ -508,7 +546,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-08.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "immoscout-send-canary",
@@ -521,7 +560,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-08.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "canary"
     }
   ]
 }

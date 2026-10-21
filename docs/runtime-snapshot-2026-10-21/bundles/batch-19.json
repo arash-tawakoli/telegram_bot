@@ -227,12 +227,12 @@
     },
     {
       "slug": "spacest-feed",
-      "version": 4,
+      "version": 5,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
       "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_bdb1723f-8a1c-4f61-aff5-cbbf072826e7_4/source/spacest-feed/index.ts",
-      "artifact_sha256": "a3658a26310b617c9b6ef077e02bf6049611bf4296a2e2a88493517e01efd145",
+      "artifact_sha256": "418bf0edad04f71f1fe2455c68e73313ad7321a57389fa0655e905a8df214b0a",
       "archive_status": "full_source",
       "security_scan_flags": [],
       "files": [

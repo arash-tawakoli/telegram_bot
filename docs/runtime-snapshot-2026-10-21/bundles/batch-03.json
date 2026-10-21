@@ -4,33 +4,29 @@
   "functions": [
     {
       "slug": "deploy-merge-test",
-      "version": 1,
+      "version": 2,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
-      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_62b16410-5c79-46c9-8694-d876c40abaa8_1/source/index.ts",
-      "artifact_sha256": "e540e22d9715881b36c84fcdb55054295ab9a20549e37dd548cc020df0041290",
+      "entrypoint_path": "/tmp/user_fn_dpmohkrwdlicexwcrqfy_62b16410-5c79-46c9-8694-d876c40abaa8_2/source/index.ts",
+      "artifact_sha256": "959ba6ecf679b840f210c57a60c93f4669e6c7eb80f3271d0bb037975acba339",
       "archive_status": "full_source",
       "security_scan_flags": [],
       "files": [
         {
           "path": "index.ts",
-          "content": "import {v} from './helper.ts'; Deno.serve(()=>Response.json({v}));"
-        },
-        {
-          "path": "helper.ts",
-          "content": "export const v='one';"
+          "content": "Deno.serve(() => Response.json({error:\"retired\",message:\"Temporary deployment-test endpoint retired.\"},{status:410,headers:{\"cache-control\":\"no-store\"}}));"
         }
       ]
     },
     {
       "slug": "html-render-test",
-      "version": 5,
+      "version": 6,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
-      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_93d50791-a814-43b8-9e7d-a291d3905c58_5/source/index.ts",
-      "artifact_sha256": "29b48d43530467a046ff12d0e054c6af6ca24b5baca3bc1834cf4cfd121ae4e6",
+      "entrypoint_path": "/tmp/user_fn_dpmohkrwdlicexwcrqfy_93d50791-a814-43b8-9e7d-a291d3905c58_6/source/index.ts",
+      "artifact_sha256": "8405a45719c71ae80ab1fbf69da80ddd18f8012b6b945ce0b736106d4d1adef3",
       "archive_status": "full_source",
       "security_scan_flags": [],
       "files": [
@@ -42,12 +38,12 @@
     },
     {
       "slug": "immobilie1-transport",
-      "version": 3,
+      "version": 4,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
       "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_6068f05b-a6b7-4a58-b940-a4f4f174a865_3/source/immobilie1-transport/index.ts",
-      "artifact_sha256": "33deaf04a1c2f3879d3752835fd721d322b0d2dba9746ee7b777f95f24ef3ad6",
+      "artifact_sha256": "8a9013eb41af6564a10d5804e300a7fe37ba4f7724919ca6b0ef8b1aaf622212",
       "archive_status": "full_source",
       "security_scan_flags": [],
       "files": [
@@ -67,12 +63,12 @@
     },
     {
       "slug": "immobilien-de-transport",
-      "version": 15,
+      "version": 16,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
       "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_84fbfa0e-7c3b-44f7-9fa8-396ce2057325_15/source/immobilien-de-transport/index.ts",
-      "artifact_sha256": "7fbf31045c8b0fb61333473be42847bb853c74941f52f55a85e83573ae2dd46d",
+      "artifact_sha256": "da8dcb0aa2925109df71d223f9dac73d05c651070ecf5d11422061c7b8ec6ece",
       "archive_status": "full_source",
       "security_scan_flags": [],
       "files": [

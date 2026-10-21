@@ -14,7 +14,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-09.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "internal"
     },
     {
       "slug": "immowelt-diagnostic-readonly",
@@ -27,20 +28,22 @@
       "source_file_count": 2,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-09.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "ka-gateway-egress-probe",
-      "version": 2,
+      "version": 3,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
       "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_57986cef-1c0b-4fb4-ab73-4e6a233ed3da_2/source/index.ts",
-      "artifact_sha256": "ac814b33d6795ead96d3c5f098a892acdc054a28a5eefbf60c423799f227bcdd",
+      "artifact_sha256": "ca8db7abfff581934681d2dd9145dfee55bd9f6f7b38ec8218c11bd636e2a1a8",
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-09.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "retired"
     },
     {
       "slug": "kleinanzeigen-ad-inspect",
@@ -53,7 +56,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-09.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "kleinanzeigen-apk-direct-stage",
@@ -66,7 +70,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-09.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "kleinanzeigen-apk-inspect",
@@ -79,7 +84,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-10.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "kleinanzeigen-apk-r2-inspect",
@@ -92,7 +98,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-10.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "kleinanzeigen-apk-stage",
@@ -105,7 +112,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-10.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "kleinanzeigen-apkcombo-stage",
@@ -118,7 +126,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-10.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "kleinanzeigen-apkcombo-url",
@@ -131,7 +140,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-10.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "kleinanzeigen-application-worker",
@@ -144,7 +154,8 @@
       "source_file_count": 3,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-11.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "production"
     },
     {
       "slug": "kleinanzeigen-callback-bridge",
@@ -157,7 +168,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-11.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "internal"
     },
     {
       "slug": "kleinanzeigen-contact-inspect",
@@ -170,7 +182,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-11.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "kleinanzeigen-contract-check",
@@ -183,7 +196,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-11.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "kleinanzeigen-contract-probe",
@@ -196,7 +210,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-11.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "kleinanzeigen-conversation-readback",
@@ -209,7 +224,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-12.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "kleinanzeigen-dex-class",
@@ -222,7 +238,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-12.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "kleinanzeigen-dex-contract",
@@ -235,7 +252,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-12.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "kleinanzeigen-dex-method",
@@ -248,7 +266,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-12.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "kleinanzeigen-dex-xref",
@@ -261,7 +280,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-12.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "kleinanzeigen-dex-xref-any",
@@ -274,20 +294,22 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-13.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "kleinanzeigen-direct-login-probe",
-      "version": 2,
+      "version": 3,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
       "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_531cb31d-2c43-4d8f-bf18-6293bd7798fe_2/source/index.ts",
-      "artifact_sha256": "9e02281bd1ef321038e166105c881fad8d3ff1c4909b44155d58549be0e75b2d",
+      "artifact_sha256": "2030b37fe46593d898a0f59f538b8dbd98d43dc3e1096fb85f74632744b5cd0c",
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-13.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "retired"
     },
     {
       "slug": "kleinanzeigen-first-contact-canary",
@@ -300,7 +322,8 @@
       "source_file_count": 3,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-13.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "canary"
     },
     {
       "slug": "kleinanzeigen-js-inspect",
@@ -313,7 +336,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-13.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "kleinanzeigen-method-raw",
@@ -326,20 +350,22 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-13.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "support_review"
     },
     {
       "slug": "kleinanzeigen-mobile-canary",
-      "version": 3,
+      "version": 4,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
       "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_44eef1c4-ca96-408d-9da5-dd85b9088fa1_3/source/index.ts",
-      "artifact_sha256": "87c47f1d08d98f64e21fb6dd9188f08350b09ef80da8e6863ba1388834fd0316",
+      "artifact_sha256": "529bcc6c78cca4cee4dc4f7bdf9690f2e63f8a0f09f63edad30169f2599afa2b",
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-14.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "retired"
     },
     {
       "slug": "kleinanzeigen-mobile-probe-v2",
@@ -352,7 +378,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-14.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "kleinanzeigen-re-seeker-probe",
@@ -365,20 +392,22 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-14.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "kleinanzeigen-refresh-probe",
-      "version": 2,
+      "version": 3,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
       "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_69b47208-32d4-4c44-b3e1-70a37e8a7dee_2/source/index.ts",
-      "artifact_sha256": "531ca06fc3b3177a2b71d2e7f3134c9b19aa3ac04dc21269773878ffc9851927",
+      "artifact_sha256": "497d2f569d81c41d3685e148d53ce8d8844d391eea6899d36bfebec1c1900dc9",
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-14.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "retired"
     },
     {
       "slug": "kleinanzeigen-seeker-inspect",
@@ -391,7 +420,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-14.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "kleinanzeigen-send-once-v3",
@@ -404,7 +434,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-15.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "support_review"
     },
     {
       "slug": "kleinanzeigen-send-probe",
@@ -417,7 +448,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-15.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "kleinanzeigen-static-analysis",
@@ -430,7 +462,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-15.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "kleinanzeigen-structure-probe",
@@ -443,7 +476,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-15.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "kleinanzeigen-transport",
@@ -456,7 +490,8 @@
       "source_file_count": 2,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-15.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "internal"
     },
     {
       "slug": "kleinanzeigen-two-step-canary",
@@ -469,7 +504,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-16.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "canary"
     },
     {
       "slug": "kleinanzeigen-web-contract-probe",
@@ -482,7 +518,8 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-16.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "kleinanzeigen-xcf-diagnostic-send",
@@ -495,33 +532,36 @@
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-16.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "diagnostic"
     },
     {
       "slug": "meravis-feed",
-      "version": 5,
+      "version": 6,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
       "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_85ebb8b7-5ac8-4096-b58f-f4e81203fb47_5/source/meravis-feed/index.ts",
-      "artifact_sha256": "675d3f51c400e796cbeabd7f9d7ddf9871fa49550774b320b959d07ed05a7b67",
+      "artifact_sha256": "bb4032d5e00b8cae2ef135e482c8f29a65d9aa9fe9884fa7143d8c38f1f001ef",
       "source_file_count": 3,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-16.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "internal"
     },
     {
       "slug": "mini-app",
-      "version": 11,
+      "version": 12,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
       "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_f402e82b-2f61-4fba-9122-887e20342691_11/source/index.ts",
-      "artifact_sha256": "9ededeaf7ae2d64830390d552361b5ed49c603cbe1ef18a96a7830049534438e",
+      "artifact_sha256": "ef070b86cbb5334bc82e00dcc354b2aa5d2d7b5196253e97c1ff4b462a696789",
       "source_file_count": 1,
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-16.json",
       "archive_status": "full_source",
-      "security_scan_flags": []
+      "security_scan_flags": [],
+      "classification": "retired"
     }
   ]
 }

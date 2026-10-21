@@ -8,7 +8,7 @@
       "slug": "kleinanzeigen-application-worker",
       "version": 19,
       "verify_jwt": false,
-      "classification": "production_or_internal_worker",
+      "classification": "production",
       "archive_status": "full_source",
       "source_file_count": 3,
       "auth_signals": [
@@ -24,7 +24,7 @@
       "slug": "kleinanzeigen-callback-bridge",
       "version": 2,
       "verify_jwt": false,
-      "classification": "support_or_review",
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -38,7 +38,7 @@
       "slug": "kleinanzeigen-contact-inspect",
       "version": 4,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -54,7 +54,7 @@
       "slug": "kleinanzeigen-contract-check",
       "version": 2,
       "verify_jwt": true,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [],
@@ -65,7 +65,7 @@
       "slug": "kleinanzeigen-contract-probe",
       "version": 5,
       "verify_jwt": true,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [],
@@ -76,7 +76,7 @@
       "slug": "kleinanzeigen-conversation-readback",
       "version": 7,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -92,7 +92,7 @@
       "slug": "kleinanzeigen-dex-class",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -107,7 +107,7 @@
       "slug": "kleinanzeigen-dex-contract",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -122,7 +122,7 @@
       "slug": "kleinanzeigen-dex-method",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -137,7 +137,7 @@
       "slug": "kleinanzeigen-dex-xref",
       "version": 2,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -152,7 +152,7 @@
       "slug": "kleinanzeigen-dex-xref-any",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -165,20 +165,22 @@
     },
     {
       "slug": "kleinanzeigen-direct-login-probe",
-      "version": 2,
-      "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "version": 3,
+      "verify_jwt": true,
+      "classification": "retired",
       "archive_status": "full_source",
       "source_file_count": 1,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required"
+      ],
+      "review_priority": "standard",
+      "assessment": "Retired/diagnostic endpoint returns a non-success response; JWT gateway verification enabled."
     },
     {
       "slug": "kleinanzeigen-first-contact-canary",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "canary",
       "archive_status": "full_source",
       "source_file_count": 3,
       "auth_signals": [
@@ -193,7 +195,7 @@
       "slug": "kleinanzeigen-js-inspect",
       "version": 2,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -208,7 +210,7 @@
       "slug": "kleinanzeigen-method-raw",
       "version": 1,
       "verify_jwt": false,
-      "classification": "support_or_review",
+      "classification": "support_review",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -221,20 +223,22 @@
     },
     {
       "slug": "kleinanzeigen-mobile-canary",
-      "version": 3,
-      "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "version": 4,
+      "verify_jwt": true,
+      "classification": "retired",
       "archive_status": "full_source",
       "source_file_count": 1,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required"
+      ],
+      "review_priority": "standard",
+      "assessment": "Retired/diagnostic endpoint returns a non-success response; JWT gateway verification enabled."
     },
     {
       "slug": "kleinanzeigen-mobile-probe-v2",
       "version": 17,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -250,7 +254,7 @@
       "slug": "kleinanzeigen-re-seeker-probe",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -264,20 +268,22 @@
     },
     {
       "slug": "kleinanzeigen-refresh-probe",
-      "version": 2,
-      "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "version": 3,
+      "verify_jwt": true,
+      "classification": "retired",
       "archive_status": "full_source",
       "source_file_count": 1,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required"
+      ],
+      "review_priority": "standard",
+      "assessment": "Retired/diagnostic endpoint returns a non-success response; JWT gateway verification enabled."
     },
     {
       "slug": "kleinanzeigen-seeker-inspect",
       "version": 2,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -293,7 +299,7 @@
       "slug": "kleinanzeigen-send-once-v3",
       "version": 2,
       "verify_jwt": true,
-      "classification": "support_or_review",
+      "classification": "support_review",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [],
@@ -304,7 +310,7 @@
       "slug": "kleinanzeigen-send-probe",
       "version": 8,
       "verify_jwt": true,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [],
@@ -315,7 +321,7 @@
       "slug": "kleinanzeigen-static-analysis",
       "version": 4,
       "verify_jwt": false,
-      "classification": "support_or_review",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -329,7 +335,7 @@
       "slug": "kleinanzeigen-structure-probe",
       "version": 1,
       "verify_jwt": true,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [],
@@ -340,7 +346,7 @@
       "slug": "kleinanzeigen-transport",
       "version": 4,
       "verify_jwt": false,
-      "classification": "transport_or_feed",
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 2,
       "auth_signals": [

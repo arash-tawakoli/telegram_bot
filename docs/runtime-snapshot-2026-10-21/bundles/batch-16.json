@@ -55,12 +55,12 @@
     },
     {
       "slug": "meravis-feed",
-      "version": 5,
+      "version": 6,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
       "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_85ebb8b7-5ac8-4096-b58f-f4e81203fb47_5/source/meravis-feed/index.ts",
-      "artifact_sha256": "675d3f51c400e796cbeabd7f9d7ddf9871fa49550774b320b959d07ed05a7b67",
+      "artifact_sha256": "bb4032d5e00b8cae2ef135e482c8f29a65d9aa9fe9884fa7143d8c38f1f001ef",
       "archive_status": "full_source",
       "security_scan_flags": [],
       "files": [
@@ -80,12 +80,12 @@
     },
     {
       "slug": "mini-app",
-      "version": 11,
+      "version": 12,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
-      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_f402e82b-2f61-4fba-9122-887e20342691_11/source/index.ts",
-      "artifact_sha256": "9ededeaf7ae2d64830390d552361b5ed49c603cbe1ef18a96a7830049534438e",
+      "entrypoint_path": "/tmp/user_fn_dpmohkrwdlicexwcrqfy_f402e82b-2f61-4fba-9122-887e20342691_12/source/index.ts",
+      "artifact_sha256": "ef070b86cbb5334bc82e00dcc354b2aa5d2d7b5196253e97c1ff4b462a696789",
       "archive_status": "full_source",
       "security_scan_flags": [],
       "files": [
