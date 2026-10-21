@@ -4,12 +4,12 @@
   "functions": [
     {
       "slug": "vonovia-transport",
-      "version": 2,
+      "version": 3,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
       "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_86b8327d-9a0c-4b23-97f4-31b267e41974_2/source/vonovia-transport/index.ts",
-      "artifact_sha256": "deabe5706b1aea72de88d515922c4ad2ca5320d5186cdeb97aeaa6c9858aee8a",
+      "artifact_sha256": "b379b7979862b704224d5043000dfef8ee628c7fc542409ca623f04c259bf43e",
       "archive_status": "full_source",
       "security_scan_flags": [],
       "files": [
