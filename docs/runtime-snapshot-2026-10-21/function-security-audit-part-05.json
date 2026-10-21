@@ -1,0 +1,184 @@
+{
+  "batch_range": [
+    21,
+    23
+  ],
+  "functions": [
+    {
+      "slug": "telegram-gateway-preview-canary",
+      "version": 2,
+      "verify_jwt": true,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [],
+      "review_priority": "standard",
+      "assessment": "JWT gateway verification enabled."
+    },
+    {
+      "slug": "telegram-gateway-v3-canary",
+      "version": 2,
+      "verify_jwt": true,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [],
+      "review_priority": "standard",
+      "assessment": "JWT gateway verification enabled."
+    },
+    {
+      "slug": "telegram-gateway-v4-canary",
+      "version": 2,
+      "verify_jwt": true,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [],
+      "review_priority": "standard",
+      "assessment": "JWT gateway verification enabled."
+    },
+    {
+      "slug": "telegram-oauth-bridge",
+      "version": 38,
+      "verify_jwt": false,
+      "classification": "auth_or_platform_bridge",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [
+        "internal_secret_header",
+        "authorization_bearer",
+        "service_role_or_api_key",
+        "explicit_auth_guard"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    },
+    {
+      "slug": "telegram-premium",
+      "version": 10,
+      "verify_jwt": false,
+      "classification": "support_or_review",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [
+        "service_role_or_api_key",
+        "explicit_auth_guard"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    },
+    {
+      "slug": "telegram-premium-image",
+      "version": 7,
+      "verify_jwt": false,
+      "classification": "support_or_review",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [],
+      "review_priority": "high",
+      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+    },
+    {
+      "slug": "telegram-ui",
+      "version": 235,
+      "verify_jwt": false,
+      "classification": "support_or_review",
+      "archive_status": "full_source",
+      "source_file_count": 9,
+      "auth_signals": [
+        "internal_secret_header",
+        "service_role_or_api_key",
+        "explicit_auth_guard"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    },
+    {
+      "slug": "telegram-ui-autoapply-canary",
+      "version": 1,
+      "verify_jwt": false,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 8,
+      "auth_signals": [
+        "internal_secret_header",
+        "service_role_or_api_key",
+        "explicit_auth_guard"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    },
+    {
+      "slug": "telegram-ui-preview-canary",
+      "version": 2,
+      "verify_jwt": true,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [],
+      "review_priority": "standard",
+      "assessment": "JWT gateway verification enabled."
+    },
+    {
+      "slug": "telegram-webhook-region-switch",
+      "version": 2,
+      "verify_jwt": false,
+      "classification": "webhook",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [],
+      "review_priority": "high",
+      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+    },
+    {
+      "slug": "vonovia-transport",
+      "version": 2,
+      "verify_jwt": false,
+      "classification": "transport_or_feed",
+      "archive_status": "full_source",
+      "source_file_count": 2,
+      "auth_signals": [],
+      "review_priority": "high",
+      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+    },
+    {
+      "slug": "wg-gesucht-auth-bridge",
+      "version": 2,
+      "verify_jwt": false,
+      "classification": "auth_or_platform_bridge",
+      "archive_status": "full_source",
+      "source_file_count": 3,
+      "auth_signals": [
+        "internal_secret_header",
+        "service_role_or_api_key",
+        "explicit_auth_guard"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    },
+    {
+      "slug": "wunder-probe",
+      "version": 8,
+      "verify_jwt": false,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [],
+      "review_priority": "high",
+      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+    },
+    {
+      "slug": "wunderflats-transport",
+      "version": 4,
+      "verify_jwt": false,
+      "classification": "transport_or_feed",
+      "archive_status": "full_source",
+      "source_file_count": 2,
+      "auth_signals": [
+        "explicit_auth_guard"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    }
+  ]
+}
