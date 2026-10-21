@@ -1,0 +1,10 @@
+{
+  "migrations": [
+    {
+      "version": "20261021193149",
+      "name": "source_health_delivery_deadletter_coverage",
+      "file": "supabase/migrations/20261021193149_source_health_delivery_deadletter_coverage.sql",
+      "export_sql_sha256": "665fb5fb44b0760898fc69d73445c12d5492bca9d210606de1efaaf7c9cd86b8"
+    }
+  ]
+}
