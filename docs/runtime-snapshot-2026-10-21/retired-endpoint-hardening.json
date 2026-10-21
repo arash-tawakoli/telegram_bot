@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-21T21:38:47.769Z",
+  "generated_at": "2026-10-21T22:26:58.805Z",
   "change": "JWT gateway verification enabled for retired/test-only endpoints; no retired functionality was reactivated.",
   "functions": [
     {
@@ -111,5 +111,59 @@
   "notes": [
     "The archived source was refreshed for each affected function.",
     "No production crawler, delivery worker, or user-facing application endpoint was changed by this hardening batch."
+  ],
+  "source_transport_hardening": [
+    {
+      "slug": "covivio-feed",
+      "version": 4,
+      "verify_jwt": true
+    },
+    {
+      "slug": "immobilie1-transport",
+      "version": 4,
+      "verify_jwt": true
+    },
+    {
+      "slug": "immobilien-de-transport",
+      "version": 16,
+      "verify_jwt": true
+    },
+    {
+      "slug": "meravis-feed",
+      "version": 6,
+      "verify_jwt": true
+    },
+    {
+      "slug": "noncoop-feed",
+      "version": 6,
+      "verify_jwt": true
+    },
+    {
+      "slug": "noncoop-new-feed",
+      "version": 8,
+      "verify_jwt": true
+    },
+    {
+      "slug": "spacest-feed",
+      "version": 5,
+      "verify_jwt": true
+    },
+    {
+      "slug": "vonovia-transport",
+      "version": 3,
+      "verify_jwt": true
+    }
+  ],
+  "public_asset_exceptions": [
+    {
+      "slug": "telegram-fallback-logo",
+      "verify_jwt": false,
+      "reason": "static public image only"
+    },
+    {
+      "slug": "telegram-premium-image",
+      "verify_jwt": false,
+      "reason": "static public image only"
+    }
   ]
 }
