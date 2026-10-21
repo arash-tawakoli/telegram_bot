@@ -44,7 +44,7 @@ test('WG-Gesucht live connector is enabled and routed through generic HTML disco
  assert.equal(wg.enabled,true);
  assert.equal(wg.runtime_mode,'live');
  assert.equal(wg.delivery_mode,'live');
- assert.equal(wg.connectors[0].connector_kind,'html_discovery');
+ assert.equal(wg.connectors[0].kind,'html_discovery');
  assert.equal(wg.connectors[0].shadow_only,false);
  const entry=await read('supabase/functions/source-worker/index.ts');
  assert.match(entry,/return runGeneric\(s, connectors\)/);
