@@ -5,6 +5,12 @@
       "name": "source_health_delivery_deadletter_coverage",
       "file": "supabase/migrations/20261021193149_source_health_delivery_deadletter_coverage.sql",
       "export_sql_sha256": "665fb5fb44b0760898fc69d73445c12d5492bca9d210606de1efaaf7c9cd86b8"
+    },
+    {
+      "version": "20261021194144",
+      "name": "source_health_last_success_outcome",
+      "file": "supabase/migrations/20261021194144_source_health_last_success_outcome.sql",
+      "export_sql_sha256": "4ac4fcd5055c160221ad0308ed78076e5ceada80c928d6dfef3fc479dc2d3d26"
     }
   ]
 }
