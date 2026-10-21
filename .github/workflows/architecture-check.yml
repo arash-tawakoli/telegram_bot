@@ -38,6 +38,12 @@ jobs:
           RUNTIME_HASH_STRICT: '1'
         run: node scripts/check-runtime.mjs
 
+      - name: Compare captured manifest with live Supabase runtime
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: dpmohkrwdlicexwcrqfy
+        run: node scripts/check-live-runtime.mjs
+
       - name: Validate architecture files
         run: |
           set -eu

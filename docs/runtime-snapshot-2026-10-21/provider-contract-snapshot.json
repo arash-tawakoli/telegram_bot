@@ -1,0 +1,161 @@
+{
+  "providers": [
+    {
+      "name": "ImmobilienScout24 Hamburg",
+      "enabled": true,
+      "source_id": 1,
+      "connectors": [
+        {
+          "url": "https://app.chatgpt.immobilienscout24.de/v2/mcp",
+          "kind": "mcp",
+          "label": "ImmoScout MCP adaptive coverage",
+          "adapter": "source-worker/scout",
+          "enabled": true,
+          "priority": 1,
+          "shadow_only": false
+        },
+        {
+          "url": null,
+          "kind": "indexed_rss",
+          "label": "Bing RSS public index fallback",
+          "adapter": null,
+          "enabled": true,
+          "priority": 2,
+          "shadow_only": true
+        },
+        {
+          "url": null,
+          "kind": "html_discovery",
+          "label": "Direct ImmoScout public page diagnostic",
+          "adapter": null,
+          "enabled": true,
+          "priority": 3,
+          "shadow_only": true
+        }
+      ],
+      "search_url": "https://www.immobilienscout24.de/Suche/de/hamburg/hamburg/wohnung-mieten",
+      "homepage_url": "https://www.immobilienscout24.de",
+      "runtime_mode": "live",
+      "delivery_mode": "live",
+      "coverage_strategy": "adaptive_partition"
+    },
+    {
+      "name": "Kleinanzeigen Hamburg",
+      "enabled": true,
+      "source_id": 2,
+      "connectors": [
+        {
+          "url": null,
+          "kind": "pagination",
+          "label": "Kleinanzeigen 7-district hybrid coverage",
+          "adapter": null,
+          "enabled": true,
+          "priority": 1,
+          "shadow_only": false
+        },
+        {
+          "url": null,
+          "kind": "html_discovery",
+          "label": "data-adid/data-href -> /s-anzeige/.../<ID>",
+          "adapter": null,
+          "enabled": true,
+          "priority": 2,
+          "shadow_only": true
+        },
+        {
+          "url": null,
+          "kind": "pagination",
+          "label": "Pagination",
+          "adapter": null,
+          "enabled": true,
+          "priority": 3,
+          "shadow_only": true
+        }
+      ],
+      "search_url": "https://www.kleinanzeigen.de/s-wohnung-mieten/hamburg/c203l9409",
+      "homepage_url": "https://www.kleinanzeigen.de",
+      "runtime_mode": "live",
+      "delivery_mode": "live",
+      "coverage_strategy": "district_hybrid"
+    },
+    {
+      "name": "Immowelt Hamburg",
+      "enabled": true,
+      "source_id": 3,
+      "connectors": [
+        {
+          "url": null,
+          "kind": "html_discovery",
+          "label": "Public Search",
+          "adapter": null,
+          "enabled": true,
+          "priority": 1,
+          "shadow_only": false
+        },
+        {
+          "url": null,
+          "kind": "detail_pattern",
+          "label": "/expose/<GUID>",
+          "adapter": null,
+          "enabled": true,
+          "priority": 2,
+          "shadow_only": true
+        },
+        {
+          "url": null,
+          "kind": "pagination",
+          "label": "Pagination",
+          "adapter": null,
+          "enabled": true,
+          "priority": 3,
+          "shadow_only": true
+        }
+      ],
+      "search_url": "https://www.immowelt.de/suche/mieten/wohnung/hamburg/hamburg-20095/ad08de1113",
+      "homepage_url": "https://www.immowelt.de",
+      "runtime_mode": "live",
+      "delivery_mode": "live",
+      "coverage_strategy": "pagination"
+    },
+    {
+      "name": "WG-Gesucht Hamburg",
+      "enabled": true,
+      "source_id": 6,
+      "connectors": [
+        {
+          "url": null,
+          "kind": "html_discovery",
+          "label": "Public Search",
+          "adapter": null,
+          "enabled": true,
+          "priority": 1,
+          "shadow_only": false
+        },
+        {
+          "url": null,
+          "kind": "json_ld",
+          "label": "Schema.org CollectionPage/ItemList",
+          "adapter": null,
+          "enabled": true,
+          "priority": 2,
+          "shadow_only": true
+        },
+        {
+          "url": null,
+          "kind": "json_ld",
+          "label": "JSON-LD",
+          "adapter": null,
+          "enabled": true,
+          "priority": 3,
+          "shadow_only": true
+        }
+      ],
+      "search_url": "https://www.wg-gesucht.de/wohnungen-in-Hamburg.55.2.1.0.html",
+      "homepage_url": "https://www.wg-gesucht.de",
+      "runtime_mode": "live",
+      "delivery_mode": "live",
+      "coverage_strategy": "pagination"
+    }
+  ],
+  "generated_at": "2026-10-21T21:04:21.250253+00:00"
+}

@@ -1,0 +1,52 @@
+{
+  "migrations": [
+    {
+      "version": "20261021200809",
+      "name": "optimize_source_health_neighborhood_join",
+      "file": "supabase/migrations/20261021200809_optimize_source_health_neighborhood_join.sql",
+      "export_sql_sha256": "9b898514a59e2e4935536c05b30b7ad48f16656e0c2489a80f97804c8286bffd",
+      "bytes": 15601,
+      "commit": "8e138a08d5bbc4db3aa5d45c9e1bf93ab7432b68"
+    },
+    {
+      "version": "20261021201029",
+      "name": "bounded_transient_source_job_retries",
+      "file": "supabase/migrations/20261021201029_bounded_transient_source_job_retries.sql",
+      "export_sql_sha256": "580cb51512cb1b9064eabd5b4a5d816b8867a06d7102cd69db5b1a6877170253",
+      "bytes": 4098,
+      "commit": "2d698de5159b3287a096189b4133f7928384cc2b"
+    },
+    {
+      "version": "20261021201306",
+      "name": "tighten_retry_eligibility_and_public_coverage_rpc",
+      "file": "supabase/migrations/20261021201306_tighten_retry_eligibility_and_public_coverage_rpc.sql",
+      "export_sql_sha256": "7ca68831d087933606d1e36941d9b8ec092af76f08e232b7e8dea8a583ce1cf0",
+      "bytes": 16566,
+      "commit": "c28e99802e1a31b9a0056053e14d07634b5a564e"
+    },
+    {
+      "version": "20261021201616",
+      "name": "preserve_strong_neighborhood_evidence",
+      "file": "supabase/migrations/20261021201616_preserve_strong_neighborhood_evidence.sql",
+      "export_sql_sha256": "7a8c8afe8c9f02e88d66df0f4147fdf4becb6f9c94b08965b59e81ae519254f1",
+      "bytes": 3517,
+      "commit": "d3f5f9c9d98cc1d189cf55f3ad64dc92a0ad66ee"
+    },
+    {
+      "version": "20261021201704",
+      "name": "guard_source_retry_with_circuit_breaker",
+      "file": "supabase/migrations/20261021201704_guard_source_retry_with_circuit_breaker.sql",
+      "export_sql_sha256": "580cb51512cb1b9064eabd5b4a5d816b8867a06d7102cd69db5b1a6877170253",
+      "bytes": 4098,
+      "commit": "cf4d95bc6f52180b8eefdc6937c072782b876c7a"
+    },
+    {
+      "version": "20261021201818",
+      "name": "schedule_bounded_source_job_retries",
+      "file": "supabase/migrations/20261021201818_schedule_bounded_source_job_retries.sql",
+      "export_sql_sha256": "82ea5860a22c76917e82aba06fbbe7af09c26a79cf8c0dad63344f9261939b32",
+      "bytes": 371,
+      "commit": "00bfd81584b05d2c6e3aebe0b265bcc5b8de6d5d"
+    }
+  ]
+}

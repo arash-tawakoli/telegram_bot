@@ -1,0 +1,1366 @@
+{
+  "generated_at": "2026-10-21T21:02:59.106Z",
+  "project_ref": "dpmohkrwdlicexwcrqfy",
+  "live_migration_count": 328,
+  "repository_migration_file_count": 320,
+  "live_only_count": 8,
+  "repository_only_count": 0,
+  "live_history": [
+    {
+      "version": "20260826165201",
+      "name": "professional_bot_onboarding_and_hamburg_geography"
+    },
+    {
+      "version": "20260826165724",
+      "name": "notification_dispatch_queue_and_runtime_bot_token"
+    },
+    {
+      "version": "20260826170040",
+      "name": "photo_notification_pipeline_and_listing_enrichment"
+    },
+    {
+      "version": "20260826171751",
+      "name": "fix_private_function_search_path"
+    },
+    {
+      "version": "20260826181251",
+      "name": "route_k1_portal_workers"
+    },
+    {
+      "version": "20260826183235",
+      "name": "route_immoscout_worker"
+    },
+    {
+      "version": "20260826191619",
+      "name": "allow_one_minute_source_polling"
+    },
+    {
+      "version": "20260827160933",
+      "name": "delivery_pipeline_hardening"
+    },
+    {
+      "version": "20260827161212",
+      "name": "source_scheduler_backoff_and_health"
+    },
+    {
+      "version": "20260827161653",
+      "name": "disable_legacy_source_engine_delivery"
+    },
+    {
+      "version": "20260827170557",
+      "name": "strict_immomio_tenant_connectors"
+    },
+    {
+      "version": "20260827171507",
+      "name": "add_ebv_strict_immomio_and_kolping_classification"
+    },
+    {
+      "version": "20260827174953",
+      "name": "architecture_v2_core"
+    },
+    {
+      "version": "20260827175119",
+      "name": "architecture_v2_source_queue"
+    },
+    {
+      "version": "20260827175159",
+      "name": "architecture_v2_source_queue_fix"
+    },
+    {
+      "version": "20260827175348",
+      "name": "architecture_v2_observability_and_availability"
+    },
+    {
+      "version": "20260827175626",
+      "name": "architecture_v2_dedicated_worker_evidence"
+    },
+    {
+      "version": "20260827175736",
+      "name": "architecture_v2_multi_profile_compatibility"
+    },
+    {
+      "version": "20260827180015",
+      "name": "architecture_v2_availability_connector_accuracy"
+    },
+    {
+      "version": "20260827180636",
+      "name": "architecture_v2_immomio_telemetry_bridge"
+    },
+    {
+      "version": "20260827180941",
+      "name": "architecture_v2_private_schema_service_role"
+    },
+    {
+      "version": "20260827181230",
+      "name": "architecture_v2_integrity_guards"
+    },
+    {
+      "version": "20260827181330",
+      "name": "architecture_v2_retention"
+    },
+    {
+      "version": "20260827181541",
+      "name": "architecture_v2_fk_indexes"
+    },
+    {
+      "version": "20260827185726",
+      "name": "listing_enrichment_schema"
+    },
+    {
+      "version": "20260827185750",
+      "name": "listing_enrichment_queue_and_delivery_gate"
+    },
+    {
+      "version": "20260827185811",
+      "name": "source_field_capability_refresh"
+    },
+    {
+      "version": "20260827190212",
+      "name": "listing_enrichment_scheduling"
+    },
+    {
+      "version": "20260827192145",
+      "name": "source_field_capability_audit_status"
+    },
+    {
+      "version": "20260827192500",
+      "name": "central_field_semantics_and_delivery_guard"
+    },
+    {
+      "version": "20260827192842",
+      "name": "listing_value_sanity_guards"
+    },
+    {
+      "version": "20260827193337",
+      "name": "fallback_logo_endpoint_v2"
+    },
+    {
+      "version": "20260827193413",
+      "name": "exact_fallback_logo_and_field_audit_status"
+    },
+    {
+      "version": "20260827193613",
+      "name": "telegram_legacy_ui_runtime_token_alias"
+    },
+    {
+      "version": "20260827193847",
+      "name": "preserve_enriched_fields_and_reject_pseudo_listings"
+    },
+    {
+      "version": "20260827193921",
+      "name": "refine_listing_quality_gate"
+    },
+    {
+      "version": "20260827194024",
+      "name": "restore_verified_listing_fields_from_evidence"
+    },
+    {
+      "version": "20260827194138",
+      "name": "source_specific_post_enrichment_repairs"
+    },
+    {
+      "version": "20260827194200",
+      "name": "move_source_repairs_before_delivery_matching"
+    },
+    {
+      "version": "20260827194300",
+      "name": "separate_field_audit_from_delivery_eligibility"
+    },
+    {
+      "version": "20260827194656",
+      "name": "harden_listing_quality_gate"
+    },
+    {
+      "version": "20260827194805",
+      "name": "capability_audit_exclude_rejected_listings"
+    },
+    {
+      "version": "20260827194930",
+      "name": "tighten_listing_quality_gate"
+    },
+    {
+      "version": "20260827194949",
+      "name": "source_specific_field_and_image_normalization"
+    },
+    {
+      "version": "20260827195127",
+      "name": "trust_kleinanzeigen_jpeg_cdn_images"
+    },
+    {
+      "version": "20260827195429",
+      "name": "extract_rooms_from_listing_text"
+    },
+    {
+      "version": "20260828094408",
+      "name": "listing_priority_dedupe_and_cost_semantics"
+    },
+    {
+      "version": "20260828095111",
+      "name": "primary_listing_delivery_and_saved_guard"
+    },
+    {
+      "version": "20260828095615",
+      "name": "dedupe_group_lifecycle_priority"
+    },
+    {
+      "version": "20260828100012",
+      "name": "fix_listing_dedupe_alias_collision"
+    },
+    {
+      "version": "20260828100055",
+      "name": "correct_explicit_title_rooms_and_addresses"
+    },
+    {
+      "version": "20260828100114",
+      "name": "fix_explicit_title_rooms_pattern"
+    },
+    {
+      "version": "20260828100607",
+      "name": "harden_address_and_room_fact_precedence"
+    },
+    {
+      "version": "20260828105728",
+      "name": "index_dedupe_preferred_listing_fk"
+    },
+    {
+      "version": "20260828131811",
+      "name": "source1_adaptive_inventory_snapshots"
+    },
+    {
+      "version": "20260828132111",
+      "name": "source1_inventory_continuation_queue"
+    },
+    {
+      "version": "20260828132749",
+      "name": "source1_inventory_continuation_cron"
+    },
+    {
+      "version": "20260828133016",
+      "name": "source1_inventory_catchup_index"
+    },
+    {
+      "version": "20260828133328",
+      "name": "source1_inventory_member_type_normalization"
+    },
+    {
+      "version": "20260828134154",
+      "name": "source1_inventory_completeness_hardening"
+    },
+    {
+      "version": "20260828143550",
+      "name": "add_walddoerfer_strict_immomio_connector"
+    },
+    {
+      "version": "20260828144231",
+      "name": "normalize_baugenossenschaft_immomio_routes"
+    },
+    {
+      "version": "20260829141910",
+      "name": "rolling_inventory_scanner_foundation"
+    },
+    {
+      "version": "20260829144006",
+      "name": "kleinanzeigen_public_inventory_cutover_guard"
+    },
+    {
+      "version": "20260829150056",
+      "name": "kleinanzeigen_public_inventory_acceptance_guard_v2"
+    },
+    {
+      "version": "20260829150205",
+      "name": "resume_immoscout_rolling_validation"
+    },
+    {
+      "version": "20260829152956",
+      "name": "enforce_single_search_profile_per_user"
+    },
+    {
+      "version": "20260829163539",
+      "name": "add_source_crawl_priority_and_three_worker_limit"
+    },
+    {
+      "version": "20260829184422",
+      "name": "architecture_v3_cutover_foundation"
+    },
+    {
+      "version": "20260829185138",
+      "name": "architecture_v3_master_tier_alignment"
+    },
+    {
+      "version": "20260829185310",
+      "name": "architecture_v3_remove_legacy_runtime_layers_v2"
+    },
+    {
+      "version": "20260829185442",
+      "name": "enforce_single_profile_replace_semantics"
+    },
+    {
+      "version": "20260829192043",
+      "name": "source_worker_v3_runtime_route"
+    },
+    {
+      "version": "20260829203934",
+      "name": "route_cron_to_canonical_source_worker"
+    },
+    {
+      "version": "20260829204418",
+      "name": "restore_master_tier_gartenstadt_wandsbek"
+    },
+    {
+      "version": "20260829205845",
+      "name": "require_complete_coverage_before_baseline"
+    },
+    {
+      "version": "20260830185044",
+      "name": "add_fresh_delivery_eligibility"
+    },
+    {
+      "version": "20260830185634",
+      "name": "gate_telegram_delivery_by_freshness"
+    },
+    {
+      "version": "20260831111050",
+      "name": "allow_fresh_listings_before_baseline_delivery"
+    },
+    {
+      "version": "20260831182154",
+      "name": "fix_portal_freshness_and_canonical_dedupe"
+    },
+    {
+      "version": "20260831182806",
+      "name": "route_vonovia_transport"
+    },
+    {
+      "version": "20260831183303",
+      "name": "route_immobilien_de_transport"
+    },
+    {
+      "version": "20260831190104",
+      "name": "full_snapshot_portal_connectors"
+    },
+    {
+      "version": "20260831204329",
+      "name": "harden_search_matching_and_warm_rent"
+    },
+    {
+      "version": "20260831204529",
+      "name": "infer_explicit_inclusive_rent"
+    },
+    {
+      "version": "20260831210125",
+      "name": "fix_immobilie1_warm_rent_persistence"
+    },
+    {
+      "version": "20260831222049",
+      "name": "add_stripe_premium_entitlements"
+    },
+    {
+      "version": "20260831223405",
+      "name": "remove_legacy_single_profile_replace_trigger"
+    },
+    {
+      "version": "20260831235203",
+      "name": "admin_plan_override"
+    },
+    {
+      "version": "20260901001843",
+      "name": "admin_premium_expiry"
+    },
+    {
+      "version": "20260901002107",
+      "name": "admin_premium_expiry_cleanup"
+    },
+    {
+      "version": "20260901071142",
+      "name": "finish_product_releases"
+    },
+    {
+      "version": "20260901072858",
+      "name": "schedule_billing_maintenance"
+    },
+    {
+      "version": "20260901073156",
+      "name": "household_saved_sync"
+    },
+    {
+      "version": "20260901084043",
+      "name": "fix_listing_change_array_append"
+    },
+    {
+      "version": "20260901100936",
+      "name": "remove_listing_feedback_and_source_mute_logic"
+    },
+    {
+      "version": "20260901101931",
+      "name": "drop_removed_listing_feedback_features"
+    },
+    {
+      "version": "20260901104734",
+      "name": "fix_immowelt_immobilien_de_images"
+    },
+    {
+      "version": "20260901111829",
+      "name": "fix_vonovia_wg_fresh_delivery"
+    },
+    {
+      "version": "20260901111836",
+      "name": "fix_vonovia_wg_fresh_delivery"
+    },
+    {
+      "version": "20260901111837",
+      "name": "fix_vonovia_wg_fresh_delivery"
+    },
+    {
+      "version": "20260901111839",
+      "name": "fix_vonovia_wg_fresh_delivery"
+    },
+    {
+      "version": "20260901111920",
+      "name": "enforce_fresh_insert_for_vonovia_wg"
+    },
+    {
+      "version": "20260901112244",
+      "name": "fix_wg_card_price_delivery"
+    },
+    {
+      "version": "20260901112253",
+      "name": "queue_delivery_on_fresh_enable"
+    },
+    {
+      "version": "20260901112350",
+      "name": "scope_fresh_insert_fallback_to_vonovia"
+    },
+    {
+      "version": "20260901125458",
+      "name": "fix_source_runtime_blockers"
+    },
+    {
+      "version": "20260901141302",
+      "name": "remove_partner_mode_and_one_week_referrals"
+    },
+    {
+      "version": "20260901145019",
+      "name": "enforce_current_only_delivery"
+    },
+    {
+      "version": "20260901145733",
+      "name": "guard_current_listings_at_dispatch"
+    },
+    {
+      "version": "20260901150335",
+      "name": "restore_dispatch_after_partner_removal"
+    },
+    {
+      "version": "20260901150523",
+      "name": "require_completed_baseline_for_delivery"
+    },
+    {
+      "version": "20260901151143",
+      "name": "expire_stale_pending_deliveries"
+    },
+    {
+      "version": "20260901151835",
+      "name": "preserve_digest_freshness_windows"
+    },
+    {
+      "version": "20260901154138",
+      "name": "current_listing_delivery_guard"
+    },
+    {
+      "version": "20260901203626",
+      "name": "fix_kleinanzeigen_freshness_guard"
+    },
+    {
+      "version": "20260902105504",
+      "name": "extend_current_delivery_freshness_to_24h"
+    },
+    {
+      "version": "20260902114441",
+      "name": "normalize_listing_presentation_facts"
+    },
+    {
+      "version": "20260902130156",
+      "name": "fix_fresh_delivery_policy_v2"
+    },
+    {
+      "version": "20260902130257",
+      "name": "fix_fresh_delivery_policy_v2"
+    },
+    {
+      "version": "20260902214602",
+      "name": "remove_automatic_source_degraded_guard"
+    },
+    {
+      "version": "20260903050003",
+      "name": "referral_bonus_30_days"
+    },
+    {
+      "version": "20260903083455",
+      "name": "defer_referral_reward_until_first_profile"
+    },
+    {
+      "version": "20260903091406",
+      "name": "defer_referral_reward_until_first_profile"
+    },
+    {
+      "version": "20260903193456",
+      "name": "route_grand_city_property_adapter"
+    },
+    {
+      "version": "20260903195621",
+      "name": "allow_gcp_new_id_freshness"
+    },
+    {
+      "version": "20260904081719",
+      "name": "align_delivery_cleanup_to_24h"
+    },
+    {
+      "version": "20260904084228",
+      "name": "tighten_partial_baugenossenschaft_coverage"
+    },
+    {
+      "version": "20260904085656",
+      "name": "add_verified_provider_index_fallback_for_partial_coops"
+    },
+    {
+      "version": "20260904085808",
+      "name": "restrict_partial_coop_freshness_to_verified_provider_index"
+    },
+    {
+      "version": "20260904090030",
+      "name": "index_partial_coop_provider_request_source"
+    },
+    {
+      "version": "20260904142901",
+      "name": "retry_partial_coop_provider_transient_failures_once"
+    },
+    {
+      "version": "20260904215337",
+      "name": "fix_non_coop_source_delivery_lanes"
+    },
+    {
+      "version": "20260904220433",
+      "name": "route_verified_noncoop_feeds"
+    },
+    {
+      "version": "20260904221108",
+      "name": "covivio_official_sitemap_primary"
+    },
+    {
+      "version": "20260904221450",
+      "name": "fix_noncoop_generic_routing"
+    },
+    {
+      "version": "20260904232745",
+      "name": "route_meravis_official_card_feed"
+    },
+    {
+      "version": "20260904233627",
+      "name": "route_spacest_public_api_feed"
+    },
+    {
+      "version": "20260904234148",
+      "name": "enable_new_id_freshness_spacest_meravis"
+    },
+    {
+      "version": "20260905002159",
+      "name": "harden_referral_and_source_job_lifecycle"
+    },
+    {
+      "version": "20260905073234",
+      "name": "bot_runtime_completion"
+    },
+    {
+      "version": "20260905074157",
+      "name": "delivery_outcome_guard"
+    },
+    {
+      "version": "20260905230750",
+      "name": "nestpick_native_freshness"
+    },
+    {
+      "version": "20260905233819",
+      "name": "telegram_prepare_update_low_latency"
+    },
+    {
+      "version": "20260906004244",
+      "name": "telegram_fast_command_snapshot"
+    },
+    {
+      "version": "20260906004318",
+      "name": "telegram_fast_request_auth"
+    },
+    {
+      "version": "20260906004424",
+      "name": "telegram_fast_action_language_guard"
+    },
+    {
+      "version": "20260906050500",
+      "name": "verified_catalog_freshness"
+    },
+    {
+      "version": "20260908045835",
+      "name": "listing_preview_delivery_progress"
+    },
+    {
+      "version": "20260908110928",
+      "name": "preserve_verified_portal_warm_rent"
+    },
+    {
+      "version": "20260908111004",
+      "name": "prioritize_verified_portal_warm_rent"
+    },
+    {
+      "version": "20260909223100",
+      "name": "premium_applications"
+    },
+    {
+      "version": "20260910085141",
+      "name": "platform_application_sessions"
+    },
+    {
+      "version": "20260910095851",
+      "name": "ingestion_fingerprint_fast_path"
+    },
+    {
+      "version": "20260910100251",
+      "name": "work_aware_scheduling_and_log_retention"
+    },
+    {
+      "version": "20260910100818",
+      "name": "backend_internal_least_privilege"
+    },
+    {
+      "version": "20260910163424",
+      "name": "noop_probe_marker"
+    },
+    {
+      "version": "20260910163430",
+      "name": "noop_probe_marker_cleanup"
+    },
+    {
+      "version": "20260910170820",
+      "name": "remove_saved_listing_workflow_metadata"
+    },
+    {
+      "version": "20260910193034",
+      "name": "remove_applicant_dossier_feature"
+    },
+    {
+      "version": "20260910202123",
+      "name": "listing_hot_updates_and_bounded_maintenance"
+    },
+    {
+      "version": "20260911031814",
+      "name": "bounded_operational_retention"
+    },
+    {
+      "version": "20260911032650",
+      "name": "retire_orphaned_inventory_routines"
+    },
+    {
+      "version": "20260911093449",
+      "name": "conservative_cross_source_dedupe_guard"
+    },
+    {
+      "version": "20260913103527",
+      "name": "indexed_operational_retention"
+    },
+    {
+      "version": "20260913103533",
+      "name": "atomic_crawl_recording"
+    },
+    {
+      "version": "20260913103703",
+      "name": "selective_crawl_retention"
+    },
+    {
+      "version": "20260915074142",
+      "name": "auto_apply_v2_foundation"
+    },
+    {
+      "version": "20260915074154",
+      "name": "auto_apply_queue_controls"
+    },
+    {
+      "version": "20260915185625",
+      "name": "allow_unknown_rent_when_profile_permits"
+    },
+    {
+      "version": "20260916073952",
+      "name": "add_kleinanzeigen_application_preferences"
+    },
+    {
+      "version": "20260916085101",
+      "name": "enable_immomio_auth_flows"
+    },
+    {
+      "version": "20260916092644",
+      "name": "immomio_telegram_account_bridge"
+    },
+    {
+      "version": "20260916095916",
+      "name": "route_immomio_callbacks_through_gateway"
+    },
+    {
+      "version": "20260916123155",
+      "name": "forward_immomio_oauth_share_to_auth_bridge"
+    },
+    {
+      "version": "20260916135923",
+      "name": "scope_auto_apply_to_connected_providers"
+    },
+    {
+      "version": "20260916140250",
+      "name": "route_immomio_applications_to_verified_worker"
+    },
+    {
+      "version": "20260916140428",
+      "name": "avoid_duplicate_worker_wakeups_for_immomio"
+    },
+    {
+      "version": "20260916154742",
+      "name": "extend_platform_auth_flows_to_30_minutes"
+    },
+    {
+      "version": "20260916164356",
+      "name": "create_public_auth_pages_bucket"
+    },
+    {
+      "version": "20260916174953",
+      "name": "add_platform_auth_flow_transient_state"
+    },
+    {
+      "version": "20260916180055",
+      "name": "remove_unused_platform_auth_flow_transient_state"
+    },
+    {
+      "version": "20260916225323",
+      "name": "harden_auto_apply_listing_types"
+    },
+    {
+      "version": "20260916225711",
+      "name": "add_internal_immoscout_canary_invoker"
+    },
+    {
+      "version": "20260916225904",
+      "name": "set_immoscout_canary_invoker_timeout"
+    },
+    {
+      "version": "20260916230422",
+      "name": "add_internal_application_worker_health_invoker"
+    },
+    {
+      "version": "20260916233032",
+      "name": "allow_all_listing_types_for_auto_apply"
+    },
+    {
+      "version": "20260916233138",
+      "name": "notify_immoscout_plus_required"
+    },
+    {
+      "version": "20260917015826",
+      "name": "notify_immoscout_plus_required"
+    },
+    {
+      "version": "20260917042550",
+      "name": "route_kleinanzeigen_to_apk_first_contact_worker"
+    },
+    {
+      "version": "20260917045230",
+      "name": "restore_kleinanzeigen_to_main_application_worker"
+    },
+    {
+      "version": "20260917080348",
+      "name": "add_internal_kleinanzeigen_contact_inspector_invoker"
+    },
+    {
+      "version": "20260917081010",
+      "name": "add_internal_kleinanzeigen_worker_probe_invoker"
+    },
+    {
+      "version": "20260917081052",
+      "name": "route_kleinanzeigen_to_verified_xcf_worker"
+    },
+    {
+      "version": "20260917110325",
+      "name": "preserve_connected_kleinanzeigen_during_relogin"
+    },
+    {
+      "version": "20260918154702",
+      "name": "optimize_ingestion_snapshot_reconcile_v2"
+    },
+    {
+      "version": "20260918154911",
+      "name": "optimize_scheduler_backoff_and_application_dispatch"
+    },
+    {
+      "version": "20260918155040",
+      "name": "compact_routine_crawl_history"
+    },
+    {
+      "version": "20260918155304",
+      "name": "make_source_job_shadow_state_unlogged"
+    },
+    {
+      "version": "20260918155518",
+      "name": "compact_connector_lane_history"
+    },
+    {
+      "version": "20260918155614",
+      "name": "tighten_operational_retention_windows"
+    },
+    {
+      "version": "20260918155844",
+      "name": "persist_connector_warm_state"
+    },
+    {
+      "version": "20260918155933",
+      "name": "reduce_success_crawl_retention_to_three_days"
+    },
+    {
+      "version": "20260918160201",
+      "name": "add_cycle_epoch_ingestion_v3"
+    },
+    {
+      "version": "20260918161137",
+      "name": "retain_one_day_successful_cron_history"
+    },
+    {
+      "version": "20260918190641",
+      "name": "simplify_active_listing_delivery_policy"
+    },
+    {
+      "version": "20260919093128",
+      "name": "enforce_24h_new_listing_delivery_policy"
+    },
+    {
+      "version": "20260919150847",
+      "name": "avoid_redundant_ingest_locks_and_dedupe_writes"
+    },
+    {
+      "version": "20260919152426",
+      "name": "retain_compact_performance_snapshots_and_crawl_counters"
+    },
+    {
+      "version": "20260919164605",
+      "name": "expand_cooperative_auto_apply_targets"
+    },
+    {
+      "version": "20260919171615",
+      "name": "preserve_cooperative_object_identity_dedupe"
+    },
+    {
+      "version": "20260920140507",
+      "name": "housing_category_streams"
+    },
+    {
+      "version": "20260920141055",
+      "name": "telegram_ux_state_and_metrics"
+    },
+    {
+      "version": "20260920170532",
+      "name": "enable_verified_category_streams"
+    },
+    {
+      "version": "20260920200341",
+      "name": "telegram_fast_path_v2"
+    },
+    {
+      "version": "20260920214817",
+      "name": "telegram_static_navigation_fast_path"
+    },
+    {
+      "version": "20260920222219",
+      "name": "remove_manual_listing_application_enqueue"
+    },
+    {
+      "version": "20260921035312",
+      "name": "restore_pre_house_matching_for_base_streams"
+    },
+    {
+      "version": "20260921042702",
+      "name": "house_delivery_newness_and_immowelt"
+    },
+    {
+      "version": "20260921044142",
+      "name": "premium_four_search_profiles"
+    },
+    {
+      "version": "20260921144643",
+      "name": "single_property_category_flow"
+    },
+    {
+      "version": "20260921144709",
+      "name": "fix_single_category_delivery_guard_join"
+    },
+    {
+      "version": "20260921145838",
+      "name": "tighten_room_classification_and_source_capabilities"
+    },
+    {
+      "version": "20260921150320",
+      "name": "remove_legacy_multi_type_fast_path"
+    },
+    {
+      "version": "20260921152020",
+      "name": "applicant_document_storage"
+    },
+    {
+      "version": "20260921152751",
+      "name": "trim_applicant_document_index"
+    },
+    {
+      "version": "20260921161117",
+      "name": "add_application_document_transfer_cache"
+    },
+    {
+      "version": "20260921161259",
+      "name": "add_application_document_packages"
+    },
+    {
+      "version": "20260921161742",
+      "name": "trim_document_transfer_indexes"
+    },
+    {
+      "version": "20260921164712",
+      "name": "harden_application_document_transfer"
+    },
+    {
+      "version": "20260921174111",
+      "name": "allow_unknown_warm_rent_when_permitted"
+    },
+    {
+      "version": "20260921180656",
+      "name": "maximize_clean_listing_coverage"
+    },
+    {
+      "version": "20260921185657",
+      "name": "disable_redundant_saga_direct_crawler"
+    },
+    {
+      "version": "20260922001525",
+      "name": "unify_onboarding_filters"
+    },
+    {
+      "version": "20260922004140",
+      "name": "runtime_compute_speed_cleanup"
+    },
+    {
+      "version": "20260922013434",
+      "name": "coach_portal_platform_foundation"
+    },
+    {
+      "version": "20260922013712",
+      "name": "coach_portal_service_rpcs"
+    },
+    {
+      "version": "20260922040442",
+      "name": "separate_global_and_provider_autoapply"
+    },
+    {
+      "version": "20260922041523",
+      "name": "hide_canonical_participant_uuid"
+    },
+    {
+      "version": "20260922090608",
+      "name": "force_baugenossenschaften_to_wohnung_filter"
+    },
+    {
+      "version": "20260922090833",
+      "name": "coach_admin_bootstrap"
+    },
+    {
+      "version": "20260922102805",
+      "name": "adaptive_quiet_source_polling"
+    },
+    {
+      "version": "20260922114316",
+      "name": "unify_coach_portal_telegram_domain_logic"
+    },
+    {
+      "version": "20260922131726",
+      "name": "coach_portal_readiness_and_adoption"
+    },
+    {
+      "version": "20260922131850",
+      "name": "fix_coach_create_participant_public_id"
+    },
+    {
+      "version": "20260922134125",
+      "name": "recheck_active_search_before_autoapply"
+    },
+    {
+      "version": "20260922135543",
+      "name": "idempotent_coach_participant_creation"
+    },
+    {
+      "version": "20260922171732",
+      "name": "add_immomio_object_resolution_shadow"
+    },
+    {
+      "version": "20260922172351",
+      "name": "remove_unused_immomio_shadow_due_index"
+    },
+    {
+      "version": "20260922173908",
+      "name": "classify_immomio_tenant_pool_and_buchdrucker_shadow"
+    },
+    {
+      "version": "20260922175240",
+      "name": "activate_buchdrucker_verified_immomio_feed"
+    },
+    {
+      "version": "20260922181333",
+      "name": "keep_buchdrucker_inventory_shadow_until_listing_verified"
+    },
+    {
+      "version": "20260922191416",
+      "name": "fast_current_delivery_and_material_rematch"
+    },
+    {
+      "version": "20260923080058",
+      "name": "promote_immoscout_map_delta_delivery"
+    },
+    {
+      "version": "20260923164541",
+      "name": "remove_duplicate_immoscout_plus_notification_trigger"
+    },
+    {
+      "version": "20260923173538",
+      "name": "add_application_provider_state"
+    },
+    {
+      "version": "20260923180115",
+      "name": "provider_specific_auto_apply_pause"
+    },
+    {
+      "version": "20260923183139",
+      "name": "unified_applicant_profile_and_messages"
+    },
+    {
+      "version": "20260923201050",
+      "name": "immoscout_profile_choice_fields"
+    },
+    {
+      "version": "20260923203923",
+      "name": "telegram_admin_announcements"
+    },
+    {
+      "version": "20260923223951",
+      "name": "saga_portal_recovery_v1"
+    },
+    {
+      "version": "20260924040141",
+      "name": "saga_recovery_fail_closed_v1"
+    },
+    {
+      "version": "20260924041332",
+      "name": "saga_verified_application_link_sharing_v1"
+    },
+    {
+      "version": "20260924041528",
+      "name": "saga_preserve_portal_application_links_v1"
+    },
+    {
+      "version": "20260924041703",
+      "name": "saga_dedupe_prefer_delivery_eligible_v1"
+    },
+    {
+      "version": "20260924044619",
+      "name": "cooperative_portal_coverage_v1c"
+    },
+    {
+      "version": "20260924045210",
+      "name": "promote_gewoba_keep_neue_luebecker_shadow_v1"
+    },
+    {
+      "version": "20260924121121",
+      "name": "phase1_cooperative_source_hierarchy_v1"
+    },
+    {
+      "version": "20260924122127",
+      "name": "phase2_cooperative_portal_fallback_shadow_v1"
+    },
+    {
+      "version": "20260924122243",
+      "name": "phase2_disable_blocked_provider_profile_polling_v1"
+    },
+    {
+      "version": "20260924123334",
+      "name": "phase3_passive_cooperative_registry_v1"
+    },
+    {
+      "version": "20260924123721",
+      "name": "phase3_passive_cooperative_discovery_view_v1"
+    },
+    {
+      "version": "20260924125626",
+      "name": "phase3_cooperative_provider_registry_v1b"
+    },
+    {
+      "version": "20260924125749",
+      "name": "phase3_cooperative_discovery_view_v1"
+    },
+    {
+      "version": "20260924134745",
+      "name": "activate_portal_backed_cooperative_sources_v1"
+    },
+    {
+      "version": "20260924163003",
+      "name": "immomio_safe_presubmit_retry_v1"
+    },
+    {
+      "version": "20260924180828",
+      "name": "add_immowelt_account_provider_v1"
+    },
+    {
+      "version": "20260924181237",
+      "name": "immowelt_readiness_v1"
+    },
+    {
+      "version": "20260925101721",
+      "name": "canonical_application_profile_adapters"
+    },
+    {
+      "version": "20260925102128",
+      "name": "provider_specific_application_profile_gates"
+    },
+    {
+      "version": "20260925102900",
+      "name": "coach_provider_specific_profile_readiness"
+    },
+    {
+      "version": "20260926231436",
+      "name": "portal_specific_profile_readiness_20260926231006"
+    },
+    {
+      "version": "20260927205041",
+      "name": "verify_immowelt_auto_apply_transport_v1"
+    },
+    {
+      "version": "20260927234128",
+      "name": "telegram_ui_fast_paths_v1"
+    },
+    {
+      "version": "20260929002703",
+      "name": "sync_coach_portal_telegram_parity"
+    },
+    {
+      "version": "20260929084904",
+      "name": "unify_applicant_profile_ui_v1"
+    },
+    {
+      "version": "20260929135628",
+      "name": "coach_portal_analytics"
+    },
+    {
+      "version": "20260929135640",
+      "name": "fix_telegram_applicant_profile_open"
+    },
+    {
+      "version": "20260929152121",
+      "name": "platform_connection_refresh_lifecycle"
+    },
+    {
+      "version": "20260929200655",
+      "name": "resolve_portal_immomio_before_telegram_auto_apply"
+    },
+    {
+      "version": "20260930111031",
+      "name": "platform_connect_atomic_completion"
+    },
+    {
+      "version": "20260930111102",
+      "name": "coaching_participant_sync_and_manager_assignment"
+    },
+    {
+      "version": "20260930115818",
+      "name": "unify_current_applicant_profile_ui_v2"
+    },
+    {
+      "version": "20260930142205",
+      "name": "coach_application_pagination"
+    },
+    {
+      "version": "20260930221821",
+      "name": "record_native_document_delivery_result"
+    },
+    {
+      "version": "20261002162748",
+      "name": "repair_application_queue_reconciliation"
+    },
+    {
+      "version": "20261002170417",
+      "name": "platform_session_reauth_notifications"
+    },
+    {
+      "version": "20261002181908",
+      "name": "user_engagement_campaigns"
+    },
+    {
+      "version": "20261002213748",
+      "name": "add_wg_gesucht_platform_login"
+    },
+    {
+      "version": "20261007115124",
+      "name": "revoke_public_execute_on_internal_rpcs"
+    },
+    {
+      "version": "20261007115302",
+      "name": "add_missing_fk_indexes"
+    },
+    {
+      "version": "20261014121529",
+      "name": "coach_super_admin_role"
+    },
+    {
+      "version": "20261015125606",
+      "name": "coach_super_admin_role_change"
+    },
+    {
+      "version": "20261015153949",
+      "name": "coach_super_admin_role_management"
+    },
+    {
+      "version": "20261016163057",
+      "name": "coach_dashboard_aggregation"
+    },
+    {
+      "version": "20261017204548",
+      "name": "index_saga_recovery_and_jsonb_query_hot_paths"
+    },
+    {
+      "version": "20261017204655",
+      "name": "throttle_saga_recovery_probe_in_dispatch_cron"
+    },
+    {
+      "version": "20261019084450",
+      "name": "coach_member_deletion_permissions"
+    },
+    {
+      "version": "20261019122156",
+      "name": "coach_participant_access_and_premium"
+    },
+    {
+      "version": "20261019152023",
+      "name": "coach_participant_actions"
+    },
+    {
+      "version": "20261019222908",
+      "name": "allow_admin_participant_assignment"
+    },
+    {
+      "version": "20261019224939",
+      "name": "add_jobseeker_workspace"
+    },
+    {
+      "version": "20261020190826",
+      "name": "enable_internal_token_table_rls"
+    },
+    {
+      "version": "20261020190959",
+      "name": "add_fail_closed_internal_table_policies"
+    },
+    {
+      "version": "20261020191814",
+      "name": "coach_source_health_summary"
+    },
+    {
+      "version": "20261020192839",
+      "name": "normalize_hamburg_district_aliases"
+    },
+    {
+      "version": "20261020193152",
+      "name": "coach_source_health_normalized_districts"
+    },
+    {
+      "version": "20261020193533",
+      "name": "add_job_applications_search_profile_index"
+    },
+    {
+      "version": "20261020193641",
+      "name": "add_hamburg_alias_neighborhood_index"
+    },
+    {
+      "version": "20261021193149",
+      "name": "source_health_delivery_deadletter_coverage"
+    },
+    {
+      "version": "20261021194144",
+      "name": "source_health_last_success_outcome"
+    },
+    {
+      "version": "20261021194553",
+      "name": "persist_canonical_listing_neighborhood_id"
+    },
+    {
+      "version": "20261021200809",
+      "name": "optimize_source_health_neighborhood_join"
+    },
+    {
+      "version": "20261021201029",
+      "name": "bounded_transient_source_job_retries"
+    },
+    {
+      "version": "20261021201306",
+      "name": "tighten_retry_eligibility_and_public_coverage_rpc"
+    },
+    {
+      "version": "20261021201616",
+      "name": "preserve_strong_neighborhood_evidence"
+    },
+    {
+      "version": "20261021201704",
+      "name": "guard_source_retry_with_circuit_breaker"
+    },
+    {
+      "version": "20261021201818",
+      "name": "schedule_bounded_source_job_retries"
+    }
+  ],
+  "live_only": [
+    {
+      "version": "20261002162748",
+      "name": "repair_application_queue_reconciliation",
+      "repository_file": null
+    },
+    {
+      "version": "20261002170417",
+      "name": "platform_session_reauth_notifications",
+      "repository_file": null
+    },
+    {
+      "version": "20261002181908",
+      "name": "user_engagement_campaigns",
+      "repository_file": null
+    },
+    {
+      "version": "20261002213748",
+      "name": "add_wg_gesucht_platform_login",
+      "repository_file": null
+    },
+    {
+      "version": "20261007115124",
+      "name": "revoke_public_execute_on_internal_rpcs",
+      "repository_file": null
+    },
+    {
+      "version": "20261007115302",
+      "name": "add_missing_fk_indexes",
+      "repository_file": null
+    },
+    {
+      "version": "20261019222908",
+      "name": "allow_admin_participant_assignment",
+      "repository_file": null
+    },
+    {
+      "version": "20261019224939",
+      "name": "add_jobseeker_workspace",
+      "repository_file": null
+    }
+  ],
+  "repository_only": [],
+  "reconciliation_policy": "Three mismatched migration filenames were aligned to their applied live versions with original SQL content preserved. Eight earlier applied migrations still have no recoverable original SQL file; catalog and routine snapshots provide a recovery baseline but not exact replay semantics. A clean-room restore is not yet certified."
+}

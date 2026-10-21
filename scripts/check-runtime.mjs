@@ -38,6 +38,31 @@ export async function verifyRuntime(runtime,read=readFile,options={}){
  }
  return {hashWarnings};
 }
+export async function verifyArchivedRuntime(runtime,read=readFile){
+ const tracked=(runtime.functions||[]).filter(fn=>fn.source_archive_file).map(fn=>({...fn,archive_file:fn.source_archive_file,version:fn.observed_live_version??fn.version,verify_jwt:fn.observed_live_verify_jwt??fn.verify_jwt,artifact_sha256:fn.observed_live_artifact_sha256,source_file_count:fn.source_archive_file_count,archive_status:fn.source_archive_status}));
+ const entries=[...tracked,...(runtime.archived_functions||[])];
+ const all=new Set((runtime.functions||[]).map(fn=>fn.slug));
+ const archived=new Set();
+ const archiveOnly=new Set();
+ for(const fn of entries){
+  if(!fn.slug||archived.has(fn.slug)||(!tracked.includes(fn)&&all.has(fn.slug)))throw new Error('Duplicate or invalid archived function: '+fn.slug);
+  archived.add(fn.slug);
+  if(!tracked.includes(fn))archiveOnly.add(fn.slug);
+  if(!fn.archive_file||!/^docs\/runtime-snapshot-[^/]+\/bundles\/batch-[0-9]{2}\.json$/.test(fn.archive_file))throw new Error('Invalid archive path: '+fn.slug);
+  const archive=JSON.parse(String(await read(fn.archive_file,'utf8')));
+  const bundle=(archive.functions||[]).find(item=>item.slug===fn.slug);
+  if(!bundle)throw new Error('Archived bundle missing function: '+fn.slug);
+  if(Number(bundle.version)!==Number(fn.version))throw new Error('Archived version drift: '+fn.slug);
+  if(Boolean(bundle.verify_jwt)!==Boolean(fn.verify_jwt))throw new Error('Archived verify_jwt drift: '+fn.slug);
+  if((bundle.artifact_sha256||null)!==(fn.artifact_sha256||null))throw new Error('Archived artifact hash drift: '+fn.slug);
+  if(!Array.isArray(bundle.files)||bundle.files.length!==Number(fn.source_file_count)||bundle.files.length===0)throw new Error('Archived source file count drift: '+fn.slug);
+  if(bundle.archive_status!=='full_source'||fn.archive_status!=='full_source')throw new Error('Archived source incomplete or redacted: '+fn.slug);
+  if((bundle.security_scan_flags||[]).length)throw new Error('Archived source requires secret review: '+fn.slug);
+  for(const file of bundle.files){if(typeof file.path!=='string'||!file.path||typeof file.content!=='string')throw new Error('Invalid archived source file: '+fn.slug);}
+ }
+ if(runtime.live_inventory){const expected=Number(runtime.live_inventory.live_function_count);if(expected!==all.size+archiveOnly.size)throw new Error('Live inventory count mismatch: expected='+expected+' manifest='+(all.size+archiveOnly.size));}
+ return {archivedFunctions:entries.length,totalFunctions:all.size+archiveOnly.size};
+}
 async function migrationRegistryEntries(){
  const base=JSON.parse(await readFile('docs/migration-registry.json','utf8'));
  let fragments=[];
@@ -70,6 +95,7 @@ async function main(){
  const runtime=JSON.parse(await readFile('supabase/runtime-manifest.json','utf8'));
  const strictHashes=process.env.RUNTIME_HASH_STRICT==='1';
  const {hashWarnings}=await verifyRuntime(runtime,readFile,{strictHashes});
+ await verifyArchivedRuntime(runtime,readFile);
  const migrations=await migrationRegistryEntries();
  const migrationNames=(await readdir('supabase/migrations')).filter(x=>x.endsWith('.sql')).sort();
  const migrationPaths=migrationNames.map(name=>`supabase/migrations/${name}`);

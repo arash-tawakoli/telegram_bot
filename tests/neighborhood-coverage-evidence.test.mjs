@@ -13,6 +13,9 @@ test('ImmobilienScout prioritizes exact searches for all seven previously unveri
   assert.match(source,/immoscout_mcp_exact_neighborhood_query/);
   assert.match(source,/exactNeighborhoodQuery:true/);
   assert.match(source,/TARGET_NEIGHBORHOODS\.map\(target=>\(\{borough:target\.borough,neighborhood:target\.name/);
+  assert.match(source,/if\(cursor\.neighborhood_targets_seeded!==true\)/);
+  assert.match(source,/queued\.filter\(\(x:any\)=>x\?\.coverage_target===true\)/);
+  assert.match(source,/neighborhood_targets_seeded:true/);
 });
 
 test('Kleinanzeigen borough results are recorded as ambiguous, never as verified zero results',async()=>{

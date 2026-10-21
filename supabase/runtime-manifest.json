@@ -17,7 +17,15 @@
           "sha256": "83ecf137922a3dd161eee8a050561f9700bfabca6dd3459a3ca27ca5c8e6760c",
           "deployed_sha256": "83ecf137922a3dd161eee8a050561f9700bfabca6dd3459a3ca27ca5c8e6760c"
         }
-      ]
+      ],
+      "observed_live_version": 3,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "2e5a625b1aff510a717ecf3b4a34ff525337ea87845063969a6429cf2e5acba9",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-01.json",
+      "source_archive_file_count": 1,
+      "source_archive_status": "full_source",
+      "classification": "support_or_review",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "application-package-selftest",
@@ -33,7 +41,15 @@
           "sha256": "628d12ee44a826766a9ca0349be653b08789a60734d4cc4fa4c1870422df3b69",
           "deployed_sha256": "628d12ee44a826766a9ca0349be653b08789a60734d4cc4fa4c1870422df3b69"
         }
-      ]
+      ],
+      "observed_live_version": 4,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "43d662d567cca4e77f1cc87a1e4d8210eee9b9a4c4aea45f8b618758fa072d1c",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-01.json",
+      "source_archive_file_count": 1,
+      "source_archive_status": "full_source",
+      "classification": "diagnostic_candidate",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "application-worker",
@@ -94,7 +110,15 @@
           "sha256": "638e113afeb7895cf519d058bd1166f8ca0444a54f5eb9a573c530efc38110de",
           "deployed_sha256": "638e113afeb7895cf519d058bd1166f8ca0444a54f5eb9a573c530efc38110de"
         }
-      ]
+      ],
+      "observed_live_version": 190,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "1f7c259f67065feb5556e79fc3e73d486a036456cba5f2c42f09cd78ae588202",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-01.json",
+      "source_archive_file_count": 10,
+      "source_archive_status": "full_source",
+      "classification": "production_or_internal_worker",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "auth-facade-broker",
@@ -115,7 +139,15 @@
           "sha256": "638e113afeb7895cf519d058bd1166f8ca0444a54f5eb9a573c530efc38110de",
           "deployed_sha256": "638e113afeb7895cf519d058bd1166f8ca0444a54f5eb9a573c530efc38110de"
         }
-      ]
+      ],
+      "observed_live_version": 22,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "7de179fdd1abec2ac76c7ec46ea69a234c7af67b789d60b1924a0021c3463c74",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-02.json",
+      "source_archive_file_count": 2,
+      "source_archive_status": "full_source",
+      "classification": "auth_or_platform_bridge",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "billing-maintenance",
@@ -131,7 +163,15 @@
           "sha256": "f4c4820c3de7d5f19ee3af5cb1fee3dd5e4da4aed9cecb03df730120c27a853a",
           "deployed_sha256": "f4c4820c3de7d5f19ee3af5cb1fee3dd5e4da4aed9cecb03df730120c27a853a"
         }
-      ]
+      ],
+      "observed_live_version": 122,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "bbc4f814838677d769bf8bd6b1989c55b1fce280573980ce56631993013a8604",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-02.json",
+      "source_archive_file_count": 1,
+      "source_archive_status": "full_source",
+      "classification": "production_or_internal_worker",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "coach-api",
@@ -152,7 +192,15 @@
           "sha256": "561eef88785b5d442dbf95d42123cac1236ce0e55094bf59cf65aea099c00f64",
           "deployed_sha256": "561eef88785b5d442dbf95d42123cac1236ce0e55094bf59cf65aea099c00f64"
         }
-      ]
+      ],
+      "observed_live_version": 46,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "5ee1dd1d65c9f4daa6f0d86f1ce6f371d99a5f1ea996b43d2be9344ea82f3f2c",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-02.json",
+      "source_archive_file_count": 2,
+      "source_archive_status": "full_source",
+      "classification": "production_or_internal_worker",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "coach-bootstrap",
@@ -168,7 +216,15 @@
           "sha256": "d08de004333bcac1ec0f7c75e47586ed8a910e8ba31241ed34471c5cdaeb04d9",
           "deployed_sha256": "d08de004333bcac1ec0f7c75e47586ed8a910e8ba31241ed34471c5cdaeb04d9"
         }
-      ]
+      ],
+      "observed_live_version": 1,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "9bc582792556f43f4f3c5635e2b2213bcbecd74dffafdc0e8223c30d06cb35b7",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-02.json",
+      "source_archive_file_count": 1,
+      "source_archive_status": "full_source",
+      "classification": "support_or_review",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "covivio-feed",
@@ -194,7 +250,15 @@
           "sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a",
           "deployed_sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a"
         }
-      ]
+      ],
+      "observed_live_version": 3,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "58f08c651f84aef0ea06d7002c7db69ca6248ca3da4d1fd36b53fff81ed376eb",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-02.json",
+      "source_archive_file_count": 3,
+      "source_archive_status": "full_source",
+      "classification": "transport_or_feed",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "immobilie1-transport",
@@ -220,7 +284,15 @@
           "sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a",
           "deployed_sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a"
         }
-      ]
+      ],
+      "observed_live_version": 3,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "33deaf04a1c2f3879d3752835fd721d322b0d2dba9746ee7b777f95f24ef3ad6",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-03.json",
+      "source_archive_file_count": 3,
+      "source_archive_status": "full_source",
+      "classification": "transport_or_feed",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "immobilien-de-transport",
@@ -246,7 +318,15 @@
           "sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a",
           "deployed_sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a"
         }
-      ]
+      ],
+      "observed_live_version": 15,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "7fbf31045c8b0fb61333473be42847bb853c74941f52f55a85e83573ae2dd46d",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-03.json",
+      "source_archive_file_count": 3,
+      "source_archive_status": "full_source",
+      "classification": "transport_or_feed",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "immomio-account",
@@ -272,7 +352,15 @@
           "sha256": "2f9ada4328121560fa9dffd639c670a507ba09d5ea3eb18f09ad070a7f705107",
           "deployed_sha256": "2f9ada4328121560fa9dffd639c670a507ba09d5ea3eb18f09ad070a7f705107"
         }
-      ]
+      ],
+      "observed_live_version": 20,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "3e93ec9cdc6f5e077b559714d22aeb89a176b5eb06cc52212f1ca8d268be2419",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-03.json",
+      "source_archive_file_count": 3,
+      "source_archive_status": "full_source",
+      "classification": "support_or_review",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "immomio-application-worker",
@@ -288,7 +376,15 @@
           "sha256": "174a8d5533453a9a757f993d9db2b28586f3640139edacdfc4a55f547dcb813c",
           "deployed_sha256": "174a8d5533453a9a757f993d9db2b28586f3640139edacdfc4a55f547dcb813c"
         }
-      ]
+      ],
+      "observed_live_version": 11,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "a0cd3bd69a4e80cc55c88d98d70538636a6add4537ed123c6d3c0ef8fc07453e",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-04.json",
+      "source_archive_file_count": 1,
+      "source_archive_status": "full_source",
+      "classification": "production_or_internal_worker",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "immomio-auth-bridge",
@@ -309,7 +405,15 @@
           "sha256": "638e113afeb7895cf519d058bd1166f8ca0444a54f5eb9a573c530efc38110de",
           "deployed_sha256": "638e113afeb7895cf519d058bd1166f8ca0444a54f5eb9a573c530efc38110de"
         }
-      ]
+      ],
+      "observed_live_version": 9,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "eb5de433fa16367202421f0809f54ed96a91f8dcf6217a95f084b7a8aaee4f85",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-04.json",
+      "source_archive_file_count": 2,
+      "source_archive_status": "full_source",
+      "classification": "auth_or_platform_bridge",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "entrypoint": "supabase/deployed-support/immomio-probe/index.ts",
@@ -324,7 +428,15 @@
       "retired": true,
       "slug": "immomio-probe",
       "verify_jwt": false,
-      "version": 4
+      "version": 4,
+      "observed_live_version": 4,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "c98dd47ecdde6e37658ec7efea02546fc6820e6062f53fad09c477ecf3cef8e1",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-05.json",
+      "source_archive_file_count": 1,
+      "source_archive_status": "full_source",
+      "classification": "diagnostic_candidate",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "entrypoint": "supabase/deployed-support/immomio-tenant-inspect/index.ts",
@@ -339,7 +451,15 @@
       "retired": true,
       "slug": "immomio-tenant-inspect",
       "verify_jwt": false,
-      "version": 6
+      "version": 6,
+      "observed_live_version": 6,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "749932bd7650d3fbe05316773b1be716b89d99d0b4edec1f2f0a621fba897751",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-06.json",
+      "source_archive_file_count": 1,
+      "source_archive_status": "full_source",
+      "classification": "diagnostic_candidate",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "immoscout-auth-bridge",
@@ -360,7 +480,15 @@
           "sha256": "638e113afeb7895cf519d058bd1166f8ca0444a54f5eb9a573c530efc38110de",
           "deployed_sha256": "638e113afeb7895cf519d058bd1166f8ca0444a54f5eb9a573c530efc38110de"
         }
-      ]
+      ],
+      "observed_live_version": 12,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "2f6168fd69a41d400708985837fe9a16fef79299cca926e635474c59dabfa264",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-07.json",
+      "source_archive_file_count": 2,
+      "source_archive_status": "full_source",
+      "classification": "auth_or_platform_bridge",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "immoscout-native-handoff",
@@ -376,7 +504,15 @@
           "sha256": "8b6c420f3511fc013d5a82df42cb0d658418ce57a102c842c8a907f84c802e03",
           "deployed_sha256": "8b6c420f3511fc013d5a82df42cb0d658418ce57a102c842c8a907f84c802e03"
         }
-      ]
+      ],
+      "observed_live_version": 2,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "33ebf378bdbef91795b3ac1a3a43acc8412c6e19487b50d9f5ce88bc0a1953cd",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-07.json",
+      "source_archive_file_count": 1,
+      "source_archive_status": "full_source",
+      "classification": "support_or_review",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "immoscout-send-canary",
@@ -392,7 +528,15 @@
           "sha256": "a4efda8957a4644fa69d9d93b6550cc3e1fe3f7d5624f4d1b5572135ee8999ef",
           "deployed_sha256": "a4efda8957a4644fa69d9d93b6550cc3e1fe3f7d5624f4d1b5572135ee8999ef"
         }
-      ]
+      ],
+      "observed_live_version": 15,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "da585ffb219e2ebf3390cb43c9be669983d995335dcf1fd40eed53842d1a64f0",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-08.json",
+      "source_archive_file_count": 1,
+      "source_archive_status": "full_source",
+      "classification": "diagnostic_candidate",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "immowelt-auth-bridge",
@@ -408,7 +552,15 @@
           "sha256": "1293d9c33447c3b51563c3a1a401968a7bbfc32adcdf2476a22459c31c002ab1",
           "deployed_sha256": "1293d9c33447c3b51563c3a1a401968a7bbfc32adcdf2476a22459c31c002ab1"
         }
-      ]
+      ],
+      "observed_live_version": 7,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "a16634cf0b8b47a4a178b227a6ceebbebc4889a1086231d77e45ea55cef99193",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-09.json",
+      "source_archive_file_count": 1,
+      "source_archive_status": "full_source",
+      "classification": "auth_or_platform_bridge",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "kleinanzeigen-apk-direct-stage",
@@ -424,7 +576,15 @@
           "sha256": "502b33ddb6ebe4394ba2cc5c17fe22649a3de03f2a3f804639f3b8951f93a228",
           "deployed_sha256": "502b33ddb6ebe4394ba2cc5c17fe22649a3de03f2a3f804639f3b8951f93a228"
         }
-      ]
+      ],
+      "observed_live_version": 2,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "19248bb948539a2e3c221e2c3edf9548174f84d21cbca18e537ddfbf464e33b6",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-09.json",
+      "source_archive_file_count": 1,
+      "source_archive_status": "full_source",
+      "classification": "diagnostic_candidate",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "kleinanzeigen-apk-stage",
@@ -440,7 +600,15 @@
           "sha256": "b50c39f7828d91be577c3fa6a6b073c30e8943be1f288d07c7c295f14f7c8494",
           "deployed_sha256": "b50c39f7828d91be577c3fa6a6b073c30e8943be1f288d07c7c295f14f7c8494"
         }
-      ]
+      ],
+      "observed_live_version": 2,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "194747cf11b5c27741fe18c8a0a2292133e9aba472c70da84bbfa18441e0fc7d",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-10.json",
+      "source_archive_file_count": 1,
+      "source_archive_status": "full_source",
+      "classification": "diagnostic_candidate",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "kleinanzeigen-application-worker",
@@ -466,7 +634,15 @@
           "sha256": "561eef88785b5d442dbf95d42123cac1236ce0e55094bf59cf65aea099c00f64",
           "deployed_sha256": "561eef88785b5d442dbf95d42123cac1236ce0e55094bf59cf65aea099c00f64"
         }
-      ]
+      ],
+      "observed_live_version": 19,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "968c8b67b68ba17971e7c420b45489ef86f9f8f3c5e6e52106648f9847c7dab1",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-11.json",
+      "source_archive_file_count": 3,
+      "source_archive_status": "full_source",
+      "classification": "production_or_internal_worker",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "kleinanzeigen-callback-bridge",
@@ -482,7 +658,15 @@
           "sha256": "3d0c7a4268ac2c19d34ceb84d97d0cad74a393ed16372a8fa095f19a461aee57",
           "deployed_sha256": "3d0c7a4268ac2c19d34ceb84d97d0cad74a393ed16372a8fa095f19a461aee57"
         }
-      ]
+      ],
+      "observed_live_version": 2,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "0e896a66a895905a5fc57f7ac0642e61b4fb704f6d5675db10ba289faddb49c3",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-11.json",
+      "source_archive_file_count": 1,
+      "source_archive_status": "full_source",
+      "classification": "support_or_review",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "kleinanzeigen-static-analysis",
@@ -498,7 +682,15 @@
           "sha256": "f39024cffbcf2470148726c85f890bf64d7524b8073c2d0ab84cab31a66e7574",
           "deployed_sha256": "f39024cffbcf2470148726c85f890bf64d7524b8073c2d0ab84cab31a66e7574"
         }
-      ]
+      ],
+      "observed_live_version": 4,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "7b4a8e6893a81030c8f33238c1b69fab9e951c3122a0b38516704d24634150a8",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-15.json",
+      "source_archive_file_count": 1,
+      "source_archive_status": "full_source",
+      "classification": "support_or_review",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "kleinanzeigen-transport",
@@ -519,7 +711,15 @@
           "sha256": "ff9c7723574f2fb335b7a9ca82720800d68342bd83d3068345adbe88caafb9c0",
           "deployed_sha256": "ff9c7723574f2fb335b7a9ca82720800d68342bd83d3068345adbe88caafb9c0"
         }
-      ]
+      ],
+      "observed_live_version": 4,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "0a8ae2c6dc63fcefff6894e66f2dcb9397c74f16df646b7f8505edb6afcbc41f",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-15.json",
+      "source_archive_file_count": 2,
+      "source_archive_status": "full_source",
+      "classification": "transport_or_feed",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "meravis-feed",
@@ -545,7 +745,15 @@
           "sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a",
           "deployed_sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a"
         }
-      ]
+      ],
+      "observed_live_version": 5,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "675d3f51c400e796cbeabd7f9d7ddf9871fa49550774b320b959d07ed05a7b67",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-16.json",
+      "source_archive_file_count": 3,
+      "source_archive_status": "full_source",
+      "classification": "transport_or_feed",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "entrypoint": "supabase/deployed-support/mini-app/index.ts",
@@ -560,7 +768,15 @@
       "retired": true,
       "slug": "mini-app",
       "verify_jwt": false,
-      "version": 11
+      "version": 11,
+      "observed_live_version": 11,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "9ededeaf7ae2d64830390d552361b5ed49c603cbe1ef18a96a7830049534438e",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-16.json",
+      "source_archive_file_count": 1,
+      "source_archive_status": "full_source",
+      "classification": "support_or_review",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "entrypoint": "supabase/deployed-support/mini-app-publisher/index.ts",
@@ -575,7 +791,15 @@
       "retired": true,
       "slug": "mini-app-publisher",
       "verify_jwt": false,
-      "version": 5
+      "version": 5,
+      "observed_live_version": 5,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "6afe17e7c877f1f24d4632395ab2f193e6d6b70128339fd18edb1c0feb47a75f",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-17.json",
+      "source_archive_file_count": 1,
+      "source_archive_status": "full_source",
+      "classification": "support_or_review",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "noncoop-feed",
@@ -601,7 +825,15 @@
           "sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a",
           "deployed_sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a"
         }
-      ]
+      ],
+      "observed_live_version": 5,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "d0397beef4bfd891b5e5bd76c231ad19dca6c8fc52fdce376a759b064a90f0c9",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-17.json",
+      "source_archive_file_count": 3,
+      "source_archive_status": "full_source",
+      "classification": "transport_or_feed",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "noncoop-new-feed",
@@ -632,7 +864,15 @@
           "sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a",
           "deployed_sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a"
         }
-      ]
+      ],
+      "observed_live_version": 7,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "6b5b5a612da110664aac5464a49b5c2695ed1ad8a485c17c3fa44a969216e1be",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-17.json",
+      "source_archive_file_count": 4,
+      "source_archive_status": "full_source",
+      "classification": "transport_or_feed",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "entrypoint": "supabase/deployed-support/noop/index.ts",
@@ -647,7 +887,15 @@
       "retired": true,
       "slug": "noop",
       "verify_jwt": true,
-      "version": 9
+      "version": 9,
+      "observed_live_version": 9,
+      "observed_live_verify_jwt": true,
+      "observed_live_artifact_sha256": "b090e06f04612dba243ff6f17736a6f0435d64dc301d6457f2d7a4be07adf997",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-17.json",
+      "source_archive_file_count": 1,
+      "source_archive_status": "full_source",
+      "classification": "diagnostic_candidate",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "notification-dispatcher",
@@ -703,7 +951,15 @@
           "sha256": "4d9929f90c15e7e94acf5b8a24273abb7020da0d896f45109f7c31466a21ebb8",
           "deployed_sha256": "4d9929f90c15e7e94acf5b8a24273abb7020da0d896f45109f7c31466a21ebb8"
         }
-      ]
+      ],
+      "observed_live_version": 223,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "20017129f5f3c6a2c87e8625287a64ec64e47e555f6fc2c7491b2444e0b857de",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-18.json",
+      "source_archive_file_count": 9,
+      "source_archive_status": "full_source",
+      "classification": "production_or_internal_worker",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "platform-connect-broker-v2",
@@ -719,7 +975,15 @@
           "sha256": "e006980d15c2db94babeab14678a94824192b011281d821a3a3943557d3fa5b2",
           "deployed_sha256": "e006980d15c2db94babeab14678a94824192b011281d821a3a3943557d3fa5b2"
         }
-      ]
+      ],
+      "observed_live_version": 3,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "e904f15dd9939c47a4c824fef8ba78f98175db03478d3749707aac4bdae19e99",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-18.json",
+      "source_archive_file_count": 1,
+      "source_archive_status": "full_source",
+      "classification": "auth_or_platform_bridge",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "source-shadow",
@@ -810,11 +1074,19 @@
           "sha256": "e498a6b452fbd172fc01cc13d65a723d64552c1b72501212311417f23e559b31",
           "deployed_sha256": "e498a6b452fbd172fc01cc13d65a723d64552c1b72501212311417f23e559b31"
         }
-      ]
+      ],
+      "observed_live_version": 18,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "0f66018117b14f94a85d361f673c80507aadf57519bb6e9705a7079b881de5d2",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-19.json",
+      "source_archive_file_count": 16,
+      "source_archive_status": "full_source",
+      "classification": "diagnostic_candidate",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "source-worker",
-      "version": 106,
+      "version": 107,
       "verify_jwt": false,
       "import_map": true,
       "retired": false,
@@ -848,8 +1120,8 @@
         },
         {
           "path": "supabase/functions/source-worker/scout.ts",
-          "sha256": "69c814fdbc4e0d6b119b723a25b2b9a87717426baf85c033fe6ddf0636831535",
-          "deployed_sha256": "69c814fdbc4e0d6b119b723a25b2b9a87717426baf85c033fe6ddf0636831535"
+          "sha256": "f901ddd4d7af278f43df41d7b4f8908232ac6d52a7fb6a8b313f0871e1b8ed27",
+          "deployed_sha256": "f901ddd4d7af278f43df41d7b4f8908232ac6d52a7fb6a8b313f0871e1b8ed27"
         },
         {
           "path": "supabase/functions/source-worker/category-persist.ts",
@@ -986,7 +1258,15 @@
           "sha256": "f5a48954ebfadfc88c535c402042cd8dd8bc9a42a991b469d683a9524c8598a7",
           "deployed_sha256": "f5a48954ebfadfc88c535c402042cd8dd8bc9a42a991b469d683a9524c8598a7"
         }
-      ]
+      ],
+      "observed_live_version": 107,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "f1a867fddb4d7ea3e4321e79d677ed4556b45c48308afaaae98c8c5682afdadf",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-19.json",
+      "source_archive_file_count": 33,
+      "source_archive_status": "full_source",
+      "classification": "production_or_internal_worker",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "spacest-feed",
@@ -1012,7 +1292,15 @@
           "sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a",
           "deployed_sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a"
         }
-      ]
+      ],
+      "observed_live_version": 4,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "a3658a26310b617c9b6ef077e02bf6049611bf4296a2e2a88493517e01efd145",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-19.json",
+      "source_archive_file_count": 3,
+      "source_archive_status": "full_source",
+      "classification": "transport_or_feed",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "stripe-webhook",
@@ -1028,7 +1316,15 @@
           "sha256": "099441b9ada33258f02d4e5a286d130c99de9574e142ec27e2a21f32b5980327",
           "deployed_sha256": "099441b9ada33258f02d4e5a286d130c99de9574e142ec27e2a21f32b5980327"
         }
-      ]
+      ],
+      "observed_live_version": 133,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "d051451aa7682ca489203b677c2ca4925168904047565d424958e5d8b2d7882a",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-19.json",
+      "source_archive_file_count": 1,
+      "source_archive_status": "full_source",
+      "classification": "webhook",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "telegram-fallback-logo",
@@ -1044,7 +1340,15 @@
           "sha256": "c7f33fd4119dd62d860076f838708ce1d53ab7e7645f9ac92a90f9b3c4a04d42",
           "deployed_sha256": "c7f33fd4119dd62d860076f838708ce1d53ab7e7645f9ac92a90f9b3c4a04d42"
         }
-      ]
+      ],
+      "observed_live_version": 3,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "acac4497c956a617d8db46f6e467b0dd250bf0fbb117cf02a6bc2ed35c71d4ee",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-20.json",
+      "source_archive_file_count": 1,
+      "source_archive_status": "full_source",
+      "classification": "support_or_review",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "telegram-fast",
@@ -1060,7 +1364,15 @@
           "sha256": "150dfff8ffcee8c73b3013e4a8d277a1cb2c0ca07fc464f3abf66f18780f51a8",
           "deployed_sha256": "150dfff8ffcee8c73b3013e4a8d277a1cb2c0ca07fc464f3abf66f18780f51a8"
         }
-      ]
+      ],
+      "observed_live_version": 13,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "0551b843639177890633251af45c23d4cb6799fc72e3bff0f6f606d5f5246cf6",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-20.json",
+      "source_archive_file_count": 1,
+      "source_archive_status": "full_source",
+      "classification": "support_or_review",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "telegram-gateway",
@@ -1081,7 +1393,15 @@
           "git_blob_sha": "51418cf7205263223b7bec2a4fe98efe268630fc",
           "deployed_git_blob_sha": "51418cf7205263223b7bec2a4fe98efe268630fc"
         }
-      ]
+      ],
+      "observed_live_version": 94,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "fc52c3f01fe1ef6795d81793aa1cab310c4c0e7164d0de68974b753303e46837",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-20.json",
+      "source_archive_file_count": 2,
+      "source_archive_status": "full_source",
+      "classification": "production_or_internal_worker",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "telegram-oauth-bridge",
@@ -1097,7 +1417,15 @@
           "sha256": "1267138bf55871a497961fc21d2be5920a34d36ea7fa6cce5cf9899e9aee8cfe",
           "deployed_sha256": "1267138bf55871a497961fc21d2be5920a34d36ea7fa6cce5cf9899e9aee8cfe"
         }
-      ]
+      ],
+      "observed_live_version": 38,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "b72c02d422076e05596d410d9815d2f23389cb9558bedac2f8a9dc9578a71bd5",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-21.json",
+      "source_archive_file_count": 1,
+      "source_archive_status": "full_source",
+      "classification": "auth_or_platform_bridge",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "telegram-premium",
@@ -1113,7 +1441,15 @@
           "sha256": "386802a1f5d1f3eb0f50572e1779163e3895cb9612402363bcb679256dd4ce1d",
           "deployed_sha256": "386802a1f5d1f3eb0f50572e1779163e3895cb9612402363bcb679256dd4ce1d"
         }
-      ]
+      ],
+      "observed_live_version": 10,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "4d2465ff1df04d2c0e7920de49acfb52d95a9e34fc35ecf783381eab0ba80748",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-21.json",
+      "source_archive_file_count": 1,
+      "source_archive_status": "full_source",
+      "classification": "support_or_review",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "telegram-premium-image",
@@ -1129,7 +1465,15 @@
           "sha256": "7b82fe7351d748c1741f97eb325abca16e09739729ba5807da660871d7aacd49",
           "deployed_sha256": "7b82fe7351d748c1741f97eb325abca16e09739729ba5807da660871d7aacd49"
         }
-      ]
+      ],
+      "observed_live_version": 7,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "0efc39b09c50767bc9a5948374ae1b856b78f8eee83f85d004f236d586fca8aa",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-22.json",
+      "source_archive_file_count": 1,
+      "source_archive_status": "full_source",
+      "classification": "support_or_review",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "telegram-ui",
@@ -1185,7 +1529,15 @@
           "git_blob_sha": "37f29bffdfcc3fb7ae59f7e5725b8fb5ac389be2",
           "deployed_git_blob_sha": "37f29bffdfcc3fb7ae59f7e5725b8fb5ac389be2"
         }
-      ]
+      ],
+      "observed_live_version": 235,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "be68901a0ece694d73d3d419c17f87d58b44202868c76ff1c31bdb0e1df9c50e",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-22.json",
+      "source_archive_file_count": 9,
+      "source_archive_status": "full_source",
+      "classification": "support_or_review",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "vonovia-transport",
@@ -1206,7 +1558,15 @@
           "sha256": "82963634551e8127e59554b31abe8b86cb09fcd6cf0905159fc1eca9ade431f9",
           "deployed_sha256": "82963634551e8127e59554b31abe8b86cb09fcd6cf0905159fc1eca9ade431f9"
         }
-      ]
+      ],
+      "observed_live_version": 2,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "deabe5706b1aea72de88d515922c4ad2ca5320d5186cdeb97aeaa6c9858aee8a",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-23.json",
+      "source_archive_file_count": 2,
+      "source_archive_status": "full_source",
+      "classification": "transport_or_feed",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "entrypoint": "supabase/deployed-support/wunder-probe/index.ts",
@@ -1221,7 +1581,15 @@
       "retired": true,
       "slug": "wunder-probe",
       "verify_jwt": false,
-      "version": 8
+      "version": 8,
+      "observed_live_version": 8,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "7d83e4b2edf697f7a7efd0992b476892cbcf4c75e6dab98f8c312c342ca4591b",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-23.json",
+      "source_archive_file_count": 1,
+      "source_archive_status": "full_source",
+      "classification": "diagnostic_candidate",
+      "review_status": "source archived; deployment dependency/auth review still required"
     },
     {
       "slug": "wunderflats-transport",
@@ -1242,7 +1610,1031 @@
           "sha256": "e498a6b452fbd172fc01cc13d65a723d64552c1b72501212311417f23e559b31",
           "deployed_sha256": "e498a6b452fbd172fc01cc13d65a723d64552c1b72501212311417f23e559b31"
         }
-      ]
+      ],
+      "observed_live_version": 4,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "b30cc1d37aa87d3a1d6d20839408d0fdd577d20c7803d7def7202877977e1955",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-23.json",
+      "source_archive_file_count": 2,
+      "source_archive_status": "full_source",
+      "classification": "transport_or_feed",
+      "review_status": "source archived; deployment dependency/auth review still required"
     }
-  ]
+  ],
+  "archived_functions": [
+    {
+      "slug": "auth-admin-repair",
+      "version": 2,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_4346c87a-569f-4efe-aa7f-624c626ef94a_2/source/index.ts",
+      "artifact_sha256": "e1436c67c4aa5ad7557aa95b9b26e80387b0426f612400980a13cdafbb25e29d",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-01.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "auth-contract-diag",
+      "version": 10,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_d8f92842-4f16-4366-898e-c0679b06dae7_10/source/index.ts",
+      "artifact_sha256": "f88d7878ded7c57fd30ab41d0a93bcccdf01c52f7e0e5e645483a3586a1dbba8",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-01.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "deploy-merge-test",
+      "version": 1,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_62b16410-5c79-46c9-8694-d876c40abaa8_1/source/index.ts",
+      "artifact_sha256": "e540e22d9715881b36c84fcdb55054295ab9a20549e37dd548cc020df0041290",
+      "source_file_count": 2,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-03.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "html-render-test",
+      "version": 5,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_93d50791-a814-43b8-9e7d-a291d3905c58_5/source/index.ts",
+      "artifact_sha256": "29b48d43530467a046ff12d0e054c6af6ca24b5baca3bc1834cf4cfd121ae4e6",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-03.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "immomio-auth-debug",
+      "version": 4,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_dc6eb04d-4952-4ba0-947a-701699d5a788_4/source/index.ts",
+      "artifact_sha256": "e2dbb63884b4da223f619c76850f7d2a95c9f27b7662b333dab754094df01efd",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-04.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "immomio-bundle-snippet",
+      "version": 5,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_596540af-488d-41df-8294-553c3946d08e_5/source/index.ts",
+      "artifact_sha256": "7b8ac28f07088afce6149e1c0db9f20330ac824d9737f5cb5811fb2e907ea39c",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-04.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "immomio-chunk-inspect",
+      "version": 1,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_c68e8045-9755-45f6-8290-4751acd175ed_1/source/index.ts",
+      "artifact_sha256": "196c30bf6bc55583f5d9625ed6a57a5224cd080a857327f41c5f2dd9221ac66e",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-04.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "immomio-contract-inspect",
+      "version": 41,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_ba4c9179-3f49-42b1-8579-59e83d8e9f81_41/source/index.ts",
+      "artifact_sha256": "72c8bb1d001875851a12dc53317dbfaf89c6a031b05785fc854186562e0a6c3c",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-05.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "immomio-device-probe",
+      "version": 1,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_6a4eab89-0d2b-414c-a7cb-b25951284434_1/source/index.ts",
+      "artifact_sha256": "ea02b84d5963c51fd6d8a0795eeed544d86c2d756ce08088aa236fb7cc1feadf",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-05.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "immomio-introspection-probe",
+      "version": 14,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_f0ae9898-3a56-4e74-a670-a5d4bd177f26_14/source/index.ts",
+      "artifact_sha256": "7680f5e7f8f209fe8a62a22921aa8be6f9996beca0fc71201e23279ec7944e0e",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-05.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "immomio-mutation-contract-probe",
+      "version": 1,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_d90e27de-0782-4956-8e0c-48d514de30c8_1/source/index.ts",
+      "artifact_sha256": "b3f8ca32013fb47acb72d6a5f2118134922feb021059c041cb33f27b9dbc771e",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-05.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "immomio-profile-probe",
+      "version": 4,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_96abea74-8122-4fb9-a9e4-21199a4421b6_4/source/index.ts",
+      "artifact_sha256": "6649a30e44df9a2f8d9b054dcf2994bbda6c9f8eea460b79c95c40f4ae6339c4",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-06.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "immomio-question-field-probe",
+      "version": 1,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_15a9fd3e-fdbb-49ec-9377-a7d61e766065_1/source/index.ts",
+      "artifact_sha256": "5805ecdc8a8a997d08be6219485912d4aecb8cf3748de78b60159599a14ed6ce",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-06.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "immomio-question-inspect",
+      "version": 6,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_2ea5f330-d8d5-481d-934f-aa57b1a76985_6/source/index.ts",
+      "artifact_sha256": "53c27795b859bda1726c89913bef6b2f9401f07ab2ac684fffd6170af826ddcb",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-06.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "immomio-schema-inspect",
+      "version": 2,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_75ab9b55-4ccc-4ca0-b185-09803f692eae_2/source/index.ts",
+      "artifact_sha256": "111da85e2d41f463e30249ef2885b12a3d4275511b68a2757031c6a24bbb0163",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-06.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "immomio-upload-probe",
+      "version": 1,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_95312411-bf71-41e5-8f94-2b9e4bd0a831_1/source/index.ts",
+      "artifact_sha256": "5cfabfc9ae482d995af94dea13a6f3596e476898ed173817d4ffaa308b32749c",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-07.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "immoscout-contact-inspect",
+      "version": 6,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_8453cd20-6c5c-4c68-9549-5b916bee0398_6/source/index.ts",
+      "artifact_sha256": "03fc40dc400e78afc00b4d4d9eea4d846621069f708b3a22135196fd58cb8ed6",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-07.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "immoscout-contract-inspect-v2",
+      "version": 1,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_698b0b8c-13ef-454f-9b16-7ca708dbc842_1/source/index.ts",
+      "artifact_sha256": "91a151fc34b259fd108449ab1c265627b4d330cc75ce191431d530463f26c3fe",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-07.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "immoscout-official-api-probe",
+      "version": 2,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_6f6c3658-9312-4bdc-b571-778f5bd9f144_2/source/index.ts",
+      "artifact_sha256": "5493519bdd23fe9bba2feeb4c04522401348a33117fa7ccfde9fa2b15af79f13",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-08.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "immoscout-official-send-canary",
+      "version": 2,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_5bb9f40f-fbca-493f-bf92-8af7cd205b6f_2/source/index.ts",
+      "artifact_sha256": "0472faebbb0d60b39232f6cd1f1876f05a6ceeab6800e2d4f083c810718131b6",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-08.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "immoscout-payload-probe",
+      "version": 6,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_908089e0-826e-4fc7-8260-3516bc7d564c_6/source/index.ts",
+      "artifact_sha256": "9f5300970275005ccdd51bde33d1c3b77a25622c336f5b07a53907752ad3b444",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-08.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "immoscout-plus-scan",
+      "version": 3,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_1a3a9482-0a88-4d1f-8a5f-f4b22dacefe3_3/source/index.ts",
+      "artifact_sha256": "c75cc6a1aa5a7d5b7c8177126b402bfe924c32840f66a051850642a1169560d2",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-08.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "support_or_review",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "immowelt-diagnostic-readonly",
+      "version": 2,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_2a42a9ac-3371-4450-917d-11395e2cdabe_2/source/index.ts",
+      "artifact_sha256": "82e4f5a7a857e27dd7d2fd35e55bb49559323a5372d2f5d3b5a24cf183b3ae3c",
+      "source_file_count": 2,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-09.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "ka-gateway-egress-probe",
+      "version": 2,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_57986cef-1c0b-4fb4-ab73-4e6a233ed3da_2/source/index.ts",
+      "artifact_sha256": "ac814b33d6795ead96d3c5f098a892acdc054a28a5eefbf60c423799f227bcdd",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-09.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "kleinanzeigen-ad-inspect",
+      "version": 1,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_c84969a9-f377-47db-85fc-bb8476bd29ba_1/source/index.ts",
+      "artifact_sha256": "272c674f9610ca60e4883f41346d5d9ea9d5677747e38613893d2000552031f2",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-09.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "kleinanzeigen-apk-inspect",
+      "version": 1,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_665e5e28-fa7f-4265-876b-36253959d4f8_1/source/index.ts",
+      "artifact_sha256": "249bc46232231c1db2eab629337aaba6c04cb82e0a4f77e8be053dbfbb12a215",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-10.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "kleinanzeigen-apk-r2-inspect",
+      "version": 1,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_f0a851a3-6c19-4444-b7c8-651de52eac63_1/source/index.ts",
+      "artifact_sha256": "7d7357b5057d737c16f3b9be9e004df75267e0de79b2dee62a4f8c9b31f7b0a5",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-10.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "kleinanzeigen-apkcombo-stage",
+      "version": 2,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_09e82596-a7f0-4b6f-9e40-a8e7a30b44f9_2/source/index.ts",
+      "artifact_sha256": "6fb2f933a92e18215e115f3eda998206af5674d7276597b91ab3a78c7e4ef2c5",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-10.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "kleinanzeigen-apkcombo-url",
+      "version": 1,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_300829ba-946b-4c27-92fa-dec4600f1e88_1/source/index.ts",
+      "artifact_sha256": "a5fc3c69af15b4053f356f7d1a61af29356d77058871d276ca78f757e8afd26d",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-10.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "kleinanzeigen-contact-inspect",
+      "version": 4,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_ffdf37cc-eed7-495d-8454-6001e555fcab_4/source/index.ts",
+      "artifact_sha256": "81a08e5046df73eb2bd3d469dd5f0d3e4738a67ba157d973c8e2dc60c089bb1f",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-11.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "kleinanzeigen-contract-check",
+      "version": 2,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_6301dbc2-bbe2-4d64-9519-5b96a3c82ce4_2/source/index.ts",
+      "artifact_sha256": "3e4ae876e6f273ce48a64e81a275523577cafd1761ad548bfdda7bab98a6105d",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-11.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "kleinanzeigen-contract-probe",
+      "version": 5,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_ebfdaaca-13e0-4b41-94b6-85d2ec5c3015_5/source/index.ts",
+      "artifact_sha256": "3f23f8e66b0bc847b5e5e4d24663a4678718e897cc839f8a7c57801ddfb24531",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-11.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "kleinanzeigen-conversation-readback",
+      "version": 7,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_2f24d6be-f62d-4363-a91a-c07871afde49_7/source/index.ts",
+      "artifact_sha256": "bac94c8ec6a00cd534a290b65cb4509d9763750756b21cd15f4889b1f4013a1f",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-12.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "kleinanzeigen-dex-class",
+      "version": 1,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_2992089a-c384-496d-8c7e-49a39bc6631d_1/source/index.ts",
+      "artifact_sha256": "7529f971e876eef9e9b479037198f0be3e35c7ff8818babfbb9ee3b39ce8ea61",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-12.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "kleinanzeigen-dex-contract",
+      "version": 1,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_64a5846a-93bd-489c-b914-990aa2f9b8ee_1/source/index.ts",
+      "artifact_sha256": "0e319afe8d7d9ed593b5d1fd61afbf74b7dfc4c4ebbaa01a859dfa499671c049",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-12.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "kleinanzeigen-dex-method",
+      "version": 1,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_de6ed152-2c01-405e-aceb-b80c0272a7a8_1/source/index.ts",
+      "artifact_sha256": "4556c10c911481c10fd5b210a53d6d8d01790b44049a6d66dcef2ec78e1a82b1",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-12.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "kleinanzeigen-dex-xref",
+      "version": 2,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_299174c7-594b-4971-9a6f-aa4129aed1fc_2/source/index.ts",
+      "artifact_sha256": "d14dfd7361865c289eb058165d807c18af484e6246e9e595f5a8b124a33153a2",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-12.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "kleinanzeigen-dex-xref-any",
+      "version": 1,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_c68a0189-005b-4033-9cd4-5fd2501a0efb_1/source/index.ts",
+      "artifact_sha256": "62f7468d41f610205637655ac92679e778c6509a1d37162e18f28509725907b6",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-13.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "kleinanzeigen-direct-login-probe",
+      "version": 2,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_531cb31d-2c43-4d8f-bf18-6293bd7798fe_2/source/index.ts",
+      "artifact_sha256": "9e02281bd1ef321038e166105c881fad8d3ff1c4909b44155d58549be0e75b2d",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-13.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "kleinanzeigen-first-contact-canary",
+      "version": 1,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_31a069bc-091e-41b2-97d4-09d94aa50465_1/source/index.ts",
+      "artifact_sha256": "5fc33e995f0eaf176a0cb5feb64328888a6af3dac8cf1c75d74aae606e094ad1",
+      "source_file_count": 3,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-13.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "kleinanzeigen-js-inspect",
+      "version": 2,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_b4d22076-786a-496d-9ec8-a1f37dd049c8_2/source/index.ts",
+      "artifact_sha256": "f8de0de36f240d975f863749240656c8b365c530df2686fdb0b4b635e4495c3b",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-13.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "kleinanzeigen-method-raw",
+      "version": 1,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_59bf14a5-ec76-4903-af41-9beff480c565_1/source/index.ts",
+      "artifact_sha256": "0abcaaa54a5afac1d446bf80483446c47f9e15a56b01f82dac37828d71ac593e",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-13.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "support_or_review",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "kleinanzeigen-mobile-canary",
+      "version": 3,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_44eef1c4-ca96-408d-9da5-dd85b9088fa1_3/source/index.ts",
+      "artifact_sha256": "87c47f1d08d98f64e21fb6dd9188f08350b09ef80da8e6863ba1388834fd0316",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-14.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "kleinanzeigen-mobile-probe-v2",
+      "version": 17,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_3953fa0e-087c-400e-95fc-cd2bd488fc7a_17/source/index.ts",
+      "artifact_sha256": "0d386c04e2fa766db997c117bb88d6e3eae5c2012bb32c25edc2fd627465fc53",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-14.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "kleinanzeigen-re-seeker-probe",
+      "version": 1,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_30db6060-218d-4c94-a8e3-6dd8179388e7_1/source/index.ts",
+      "artifact_sha256": "43292853d51df36f67ce73c49ad7ba8baf9bb9fae1f1ccf15659104aa0d2a70f",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-14.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "kleinanzeigen-refresh-probe",
+      "version": 2,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_69b47208-32d4-4c44-b3e1-70a37e8a7dee_2/source/index.ts",
+      "artifact_sha256": "531ca06fc3b3177a2b71d2e7f3134c9b19aa3ac04dc21269773878ffc9851927",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-14.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "kleinanzeigen-seeker-inspect",
+      "version": 2,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_181104ef-76df-4ddb-9430-edf2607113c7_2/source/index.ts",
+      "artifact_sha256": "86585b1dc5d084246c0d79bc3a9108a4ada7049af02c7de68f5487074eeee002",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-14.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "kleinanzeigen-send-once-v3",
+      "version": 2,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_bfe1bcaa-fcc8-4773-97b6-923818811630_2/source/index.ts",
+      "artifact_sha256": "8983c47b70aa5dcaa79063615bc6308b9a5513309cf289b094441caae6338f97",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-15.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "support_or_review",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "kleinanzeigen-send-probe",
+      "version": 8,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_60145f03-b5d0-4f22-8082-5273152380bd_8/source/index.ts",
+      "artifact_sha256": "c6f6f6ede954742086c662fe80c7b78fda85a3e1222b65d2fd06f35097bc5486",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-15.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "kleinanzeigen-structure-probe",
+      "version": 1,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_d8d2db1f-cf45-4f1c-92ca-933be1e0ec7d_1/source/index.ts",
+      "artifact_sha256": "69f70c7715da2b4e86e9fdccfc2f2d6f178bbd9bdd49f16808dd0104cebc793a",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-15.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "kleinanzeigen-two-step-canary",
+      "version": 1,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_88d48c49-40e3-4bd4-9dee-d97c9185b18d_1/source/index.ts",
+      "artifact_sha256": "c42b8d37538e25f5b0990993d7d180f38f623cea3b2141e03451313e4cdf9239",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-16.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "kleinanzeigen-web-contract-probe",
+      "version": 3,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_f29b9fb0-51c6-4196-8d2f-b1bdb1620bd2_3/source/index.ts",
+      "artifact_sha256": "0902d9c47f9293bdd46929499c6bbcc5c9936e9a52570a2ef7f0a24f2eb0cb58",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-16.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "kleinanzeigen-xcf-diagnostic-send",
+      "version": 1,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_bcb91d37-860c-42dd-9d73-a95226293f66_1/source/index.ts",
+      "artifact_sha256": "9217b6e615865405716939e049880efe7c87fc67d6189cfdf449bad603271be1",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-16.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "noop_probe",
+      "version": 7,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_a2d143d0-ab62-4c4d-bcf1-6875f8782685_7/source/index.ts",
+      "artifact_sha256": "7c2bd4d01db9f87c4fed405b13c2c060a91795e1618cdf085d10efb238374026",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-17.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "notification-dispatcher-preview-canary",
+      "version": 4,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_63e82383-1202-484d-8187-db023c64baad_4/source/index.ts",
+      "artifact_sha256": "47f19faf32832c44851f7523ed72083f1794fc219ffcc8d5174bb3b3ef4049fc",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-18.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "platform-connect",
+      "version": 3,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_050be14b-f70c-4575-891e-1e9b96981ed2_3/source/index.ts",
+      "artifact_sha256": "0ec6bee60a0384b746d6cfb4ab6e39aa2c993e7f414162091cfcf277060a18f8",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-18.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "auth_or_platform_bridge",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "platform-session-reminder",
+      "version": 3,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_c5d0fd60-0a3d-4070-967f-956880219efb_3/source/supabase/functions/platform-session-reminder/index.ts",
+      "artifact_sha256": "02a27f6234f18f7e213f4ebabfc41269c6a5989b54e80e7f4e35b89ce1252f16",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-18.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "support_or_review",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "telegram-db-latency-canary",
+      "version": 2,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_ff45f22c-f103-4829-ad7a-29858670534d_2/source/index.ts",
+      "artifact_sha256": "39d5fa7eb8dceb281fc090587521548b4a1846562240c1a01ba4c076af6e239d",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-19.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "telegram-engagement",
+      "version": 4,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_26140627-2b62-49b5-85cf-db208f877c37_4/source/index.ts",
+      "artifact_sha256": "dd30edbe6bc61db7a009cd74501f664562fc3549b38bb3118c2a16ecfe8463bd",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-20.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "support_or_review",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "telegram-gateway-autoapply-canary",
+      "version": 1,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_852a43de-0b09-4af7-b814-a981dacfe00b_1/source/index.ts",
+      "artifact_sha256": "0c92121e429cc93e4594f549a99fd3c5584c90c7f88216fc01d45f4cd1080f34",
+      "source_file_count": 3,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-20.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "telegram-gateway-preview-canary",
+      "version": 2,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_fff5cc56-9cc4-4c0c-b0a2-80964a608c3c_2/source/index.ts",
+      "artifact_sha256": "be1b15eda9c8be5067c51743f7da4f8e01297150d9e2ad30977f63f3126f9c87",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-21.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "telegram-gateway-v3-canary",
+      "version": 2,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_435fe6eb-18ee-4a29-ad54-edb6ef87dec9_2/source/index.ts",
+      "artifact_sha256": "cfceead8c4eba606dcba379ba7fdbc784f18517b123e8bc0b78e10f8ebea5ce6",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-21.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "telegram-gateway-v4-canary",
+      "version": 2,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_075398fe-7df0-4d22-a9d5-4bfe11a002c2_2/source/index.ts",
+      "artifact_sha256": "b448a6367e147239eb732ebf5eed5bd4437a6f1524e9195678643dde3f46e1dc",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-21.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "telegram-ui-autoapply-canary",
+      "version": 1,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_349fc40b-ec07-414f-a8f0-78325635f436_1/source/index.ts",
+      "artifact_sha256": "f9ff8836dcdd150bce137d61a120fdb837e2ffaa90cc921b159b80c1b7b22a46",
+      "source_file_count": 8,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-22.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "telegram-ui-preview-canary",
+      "version": 2,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_17ee7d9c-94ac-458b-afe2-f69f7c20a4d5_2/source/index.ts",
+      "artifact_sha256": "608f7b56591f4bf57cc9748f05abfa6939eb27e210e7f299a9f278592f85c1e1",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-22.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "diagnostic_candidate",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "telegram-webhook-region-switch",
+      "version": 2,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_e5ed7019-e930-412c-ab7f-1cb7e905d8ae_2/source/index.ts",
+      "artifact_sha256": "bb272fd634c20dfa393922af0630bbe4b1f022b61dd82d7daa1f1e385e9c9bf3",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-22.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "webhook",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    },
+    {
+      "slug": "wg-gesucht-auth-bridge",
+      "version": 2,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_7c272556-ffe9-4b2b-8bdd-6f4b1de4aea4_2/source/functions/wg-gesucht-auth-bridge/index.ts",
+      "artifact_sha256": "e9ccd0ea2b6a65641d5bf2401ef69086ad2c1a53ba0661c4197e4eb563a6e4d6",
+      "source_file_count": 3,
+      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-23.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "auth_or_platform_bridge",
+      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+    }
+  ],
+  "live_inventory": {
+    "observed_at": "2026-10-21",
+    "project_id": "dpmohkrwdlicexwcrqfy",
+    "live_function_count": 114,
+    "repository_managed_count": 47,
+    "archived_only_count": 67,
+    "source_archive": "docs/runtime-snapshot-2026-10-21/bundles/",
+    "note": "This is the captured live inventory. CI validates archive integrity locally. Live API comparison runs only when SUPABASE_ACCESS_TOKEN is configured in GitHub Actions."
+  }
 }
