@@ -1,0 +1,355 @@
+{
+  "batch_range": [
+    11,
+    15
+  ],
+  "functions": [
+    {
+      "slug": "kleinanzeigen-application-worker",
+      "version": 19,
+      "verify_jwt": false,
+      "classification": "production_or_internal_worker",
+      "archive_status": "full_source",
+      "source_file_count": 3,
+      "auth_signals": [
+        "internal_secret_header",
+        "authorization_bearer",
+        "service_role_or_api_key",
+        "explicit_auth_guard"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    },
+    {
+      "slug": "kleinanzeigen-callback-bridge",
+      "version": 2,
+      "verify_jwt": false,
+      "classification": "support_or_review",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [
+        "internal_secret_header",
+        "service_role_or_api_key"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    },
+    {
+      "slug": "kleinanzeigen-contact-inspect",
+      "version": 4,
+      "verify_jwt": false,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [
+        "internal_secret_header",
+        "authorization_bearer",
+        "service_role_or_api_key",
+        "explicit_auth_guard"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    },
+    {
+      "slug": "kleinanzeigen-contract-check",
+      "version": 2,
+      "verify_jwt": true,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [],
+      "review_priority": "standard",
+      "assessment": "JWT gateway verification enabled."
+    },
+    {
+      "slug": "kleinanzeigen-contract-probe",
+      "version": 5,
+      "verify_jwt": true,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [],
+      "review_priority": "standard",
+      "assessment": "JWT gateway verification enabled."
+    },
+    {
+      "slug": "kleinanzeigen-conversation-readback",
+      "version": 7,
+      "verify_jwt": false,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [
+        "internal_secret_header",
+        "authorization_bearer",
+        "service_role_or_api_key",
+        "explicit_auth_guard"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    },
+    {
+      "slug": "kleinanzeigen-dex-class",
+      "version": 1,
+      "verify_jwt": false,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [
+        "internal_secret_header",
+        "service_role_or_api_key",
+        "explicit_auth_guard"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    },
+    {
+      "slug": "kleinanzeigen-dex-contract",
+      "version": 1,
+      "verify_jwt": false,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [
+        "internal_secret_header",
+        "service_role_or_api_key",
+        "explicit_auth_guard"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    },
+    {
+      "slug": "kleinanzeigen-dex-method",
+      "version": 1,
+      "verify_jwt": false,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [
+        "internal_secret_header",
+        "service_role_or_api_key",
+        "explicit_auth_guard"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    },
+    {
+      "slug": "kleinanzeigen-dex-xref",
+      "version": 2,
+      "verify_jwt": false,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [
+        "internal_secret_header",
+        "service_role_or_api_key",
+        "explicit_auth_guard"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    },
+    {
+      "slug": "kleinanzeigen-dex-xref-any",
+      "version": 1,
+      "verify_jwt": false,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [
+        "internal_secret_header",
+        "service_role_or_api_key",
+        "explicit_auth_guard"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    },
+    {
+      "slug": "kleinanzeigen-direct-login-probe",
+      "version": 2,
+      "verify_jwt": false,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [],
+      "review_priority": "high",
+      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+    },
+    {
+      "slug": "kleinanzeigen-first-contact-canary",
+      "version": 1,
+      "verify_jwt": false,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 3,
+      "auth_signals": [
+        "internal_secret_header",
+        "service_role_or_api_key",
+        "explicit_auth_guard"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    },
+    {
+      "slug": "kleinanzeigen-js-inspect",
+      "version": 2,
+      "verify_jwt": false,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [
+        "internal_secret_header",
+        "service_role_or_api_key",
+        "explicit_auth_guard"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    },
+    {
+      "slug": "kleinanzeigen-method-raw",
+      "version": 1,
+      "verify_jwt": false,
+      "classification": "support_or_review",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [
+        "internal_secret_header",
+        "service_role_or_api_key",
+        "explicit_auth_guard"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    },
+    {
+      "slug": "kleinanzeigen-mobile-canary",
+      "version": 3,
+      "verify_jwt": false,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [],
+      "review_priority": "high",
+      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+    },
+    {
+      "slug": "kleinanzeigen-mobile-probe-v2",
+      "version": 17,
+      "verify_jwt": false,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [
+        "internal_secret_header",
+        "authorization_bearer",
+        "service_role_or_api_key",
+        "explicit_auth_guard"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    },
+    {
+      "slug": "kleinanzeigen-re-seeker-probe",
+      "version": 1,
+      "verify_jwt": false,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [
+        "internal_secret_header",
+        "authorization_bearer",
+        "service_role_or_api_key",
+        "explicit_auth_guard"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    },
+    {
+      "slug": "kleinanzeigen-refresh-probe",
+      "version": 2,
+      "verify_jwt": false,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [],
+      "review_priority": "high",
+      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+    },
+    {
+      "slug": "kleinanzeigen-seeker-inspect",
+      "version": 2,
+      "verify_jwt": false,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [
+        "internal_secret_header",
+        "authorization_bearer",
+        "service_role_or_api_key",
+        "explicit_auth_guard"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    },
+    {
+      "slug": "kleinanzeigen-send-once-v3",
+      "version": 2,
+      "verify_jwt": true,
+      "classification": "support_or_review",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [],
+      "review_priority": "standard",
+      "assessment": "JWT gateway verification enabled."
+    },
+    {
+      "slug": "kleinanzeigen-send-probe",
+      "version": 8,
+      "verify_jwt": true,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [],
+      "review_priority": "standard",
+      "assessment": "JWT gateway verification enabled."
+    },
+    {
+      "slug": "kleinanzeigen-static-analysis",
+      "version": 4,
+      "verify_jwt": false,
+      "classification": "support_or_review",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [
+        "internal_secret_header",
+        "service_role_or_api_key"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    },
+    {
+      "slug": "kleinanzeigen-structure-probe",
+      "version": 1,
+      "verify_jwt": true,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [],
+      "review_priority": "standard",
+      "assessment": "JWT gateway verification enabled."
+    },
+    {
+      "slug": "kleinanzeigen-transport",
+      "version": 4,
+      "verify_jwt": false,
+      "classification": "transport_or_feed",
+      "archive_status": "full_source",
+      "source_file_count": 2,
+      "auth_signals": [
+        "internal_secret_header",
+        "service_role_or_api_key",
+        "explicit_auth_guard"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    }
+  ]
+}
