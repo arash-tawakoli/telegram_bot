@@ -814,11 +814,11 @@
     },
     {
       "slug": "source-worker",
-      "version": 105,
+      "version": 106,
       "verify_jwt": false,
       "import_map": true,
       "retired": false,
-      "observed_artifact_sha256": "f285c069c7ee5968d707a4175ecd168cef82d936cdd9c4ce626d02b41fb6a6f7",
+      "observed_artifact_sha256": "72d96f96a8cac2723134ddf3899330083b6f274359c2419fe83d444a7bd3d8b4",
       "entrypoint": "supabase/functions/source-worker/index.ts",
       "files": [
         {
@@ -848,8 +848,8 @@
         },
         {
           "path": "supabase/functions/source-worker/scout.ts",
-          "sha256": "767fe92cb57c6c2ffac20088c0b950cf661425d48ee5b89cb891bf0c4d259f08",
-          "deployed_sha256": "767fe92cb57c6c2ffac20088c0b950cf661425d48ee5b89cb891bf0c4d259f08"
+          "sha256": "69c814fdbc4e0d6b119b723a25b2b9a87717426baf85c033fe6ddf0636831535",
+          "deployed_sha256": "69c814fdbc4e0d6b119b723a25b2b9a87717426baf85c033fe6ddf0636831535"
         },
         {
           "path": "supabase/functions/source-worker/category-persist.ts",
@@ -863,8 +863,8 @@
         },
         {
           "path": "supabase/functions/source-worker/klein.ts",
-          "sha256": "d934203ddf1a9ab1b37e913c4469c65f6e7aab5f94b9c6dd9d37a63b596d92cc",
-          "deployed_sha256": "d934203ddf1a9ab1b37e913c4469c65f6e7aab5f94b9c6dd9d37a63b596d92cc"
+          "sha256": "9ea0c156d2f9d84353aa397e62798f71433a9c8d47010eb8b2be8c5bd06d129b",
+          "deployed_sha256": "9ea0c156d2f9d84353aa397e62798f71433a9c8d47010eb8b2be8c5bd06d129b"
         },
         {
           "path": "supabase/functions/kleinanzeigen-transport/fetch-page.ts",

@@ -3,6 +3,15 @@ import { fetchListingPage } from "../kleinanzeigen-transport/fetch-page.ts";
 import {Candidate,HH_ZIPS,Source,db,deNum,decode,iso,markFailure,markSuccess,strip,upsertCandidates} from './shared.ts';
 
 const D=[['hamburg-nord',16436],['hamburg-mitte',16423],['altona',9497],['eimsbuettel',16446],['wandsbek',9446],['harburg',9440],['bergedorf',9511]] as const;
+const TARGET_NEIGHBORHOODS=[
+  {name:'Hamburg-Altstadt',borough:'Hamburg-Mitte'},
+  {name:'Neuwerk',borough:'Hamburg-Mitte'},
+  {name:'Steinwerder',borough:'Hamburg-Mitte'},
+  {name:'Neuallermöhe',borough:'Bergedorf'},
+  {name:'Tatenberg',borough:'Bergedorf'},
+  {name:'Altenwerder',borough:'Harburg'},
+  {name:'Gut Moor',borough:'Harburg'},
+] as const;
 const FAST_INTERVAL_MS=3*60*1000,COVERAGE_INTERVAL_MS=10*60*1000,REQUEST_GAP_MS=350;
 const sleep=(ms:number)=>new Promise(r=>setTimeout(r,ms));
 
@@ -28,6 +37,25 @@ function parsePage(h:string){const dates=listingDates(h),items:Candidate[]=[];le
 async function fetchPage(s:string,id:number,p:number,retries=1,allowEmpty=false){let last:any=null;for(let attempt=1;attempt<=retries+1;attempt++){try{const r=await fetchListingPage(url(s,id,p),AbortSignal.timeout(15000));if(!r.ok)throw new Error(`Kleinanzeigen transport HTTP ${r.status}`);const upstream=Number(r.headers.get('x-upstream-status')||0),h=await r.text();if(upstream!==200)throw new Error(`Kleinanzeigen upstream HTTP ${upstream||'unknown'}`);const parsed=parsePage(h);if(parsed.opens===0)throw new Error(`Kleinanzeigen empty result HTML ${s} page ${p}`);if(parsed.items.length===0&&!allowEmpty)throw new Error(`Kleinanzeigen parser accepted 0/${parsed.opens} ${s} page ${p}`);return{h,items:parsed.items,opens:parsed.opens,attempts:attempt}}catch(e){last=e;if(attempt<=retries)await sleep(1500)}}throw last}
 
 async function upsertCoverage(source:Source,cands:Candidate[],presenceEpoch:string){const saved=cands.length?await upsertCandidates(source,cands,false,presenceEpoch):{seen:0,fresh:0,keys:[] as string[]};return{...saved,newEligible:0}}
+async function recordBoroughOnlyNeighborhoodEvidence(source:Source,pages:any,totals:any,errors:string[]){
+  for(const target of TARGET_NEIGHBORHOODS){
+    const boroughEntry=D.find(([key])=>key===target.borough.toLocaleLowerCase('de-DE').replaceAll(' ','-').replace('eimsbüttel','eimsbuettel'));
+    const boroughSlug=boroughEntry?.[0];
+    if(!boroughSlug||!Number(pages[boroughSlug])||errors.some(error=>error.startsWith(boroughSlug+':')))continue;
+    const {data:neighborhood, error:lookupError}=await db.from('hamburg_neighborhoods').select('id').eq('name',target.name).maybeSingle();
+    if(lookupError)throw lookupError;
+    if(!neighborhood)continue;
+    const {error}=await db.rpc('record_source_neighborhood_coverage',{
+      p_source_id:source.id,p_neighborhood_id:Number(neighborhood.id),p_search_status:'ambiguous',
+      p_result_count:null,p_strategy:'kleinanzeigen_borough_level_page_not_neighborhood_specific',
+      p_evidence_quality:'weak',
+      p_evidence:{provider:'kleinanzeigen',borough:target.borough,boroughResultCount:Number(totals[boroughSlug]||0),
+        exactNeighborhoodQuery:false,reason:'The verified URL uses a borough location ID; neighborhood-level result counts cannot be inferred.'},
+      p_attempted_at:iso()
+    });
+    if(error)throw error;
+  }
+}
 
 export async function runKlein(source:Source){const started=iso();try{
   let{data:st}=await db.from('source_coverage_state').select('*').eq('source_id',2).maybeSingle().throwOnError();
@@ -49,6 +77,7 @@ export async function runKlein(source:Source){const started=iso();try{
       if(++targetIndex<targets.length)await sleep(REQUEST_GAP_MS);
     }
   }
+  if(fastDue)await recordBoroughOnlyNeighborhoodEvidence(source,pages,totals,fastErrors);
   const fastSaved=fastItems.length?await upsertCandidates(source,fastItems,true,presenceEpoch):{seen:0,fresh:0,keys:[] as string[]};
   const missing=D.filter(([s])=>!Number(pages[s])).map(([s])=>s);
   const fastCheckedAt=fastDue&&!fastErrors.length?iso():cursor.fast_checked_at||null;
