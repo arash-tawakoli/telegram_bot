@@ -32,7 +32,7 @@ test('Immowelt contract retains Hamburg area URLs, room sitemaps and expose GUID
  assert.match(source,/https:\/\/www\.immowelt\.de\/suche\/mieten\/wohnung\/hamburg/);
  assert.match(source,/IMMOWELT_ROOM_SITEMAPS/);
  assert.match(source,/RENT_APARTMENT_ROOMS-MIN/);
-  assert.ok(source.includes('immowelt\\\\.de%2fexpose%2f([a-f0-9-]{36})'));
+  assert.ok(source.includes('immowelt\\.de%2fexpose%2f([a-f0-9-]{36})'));
  assert.match(source,/source\.id === 3/);
 });
 
