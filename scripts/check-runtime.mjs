@@ -43,9 +43,11 @@ export async function verifyArchivedRuntime(runtime,read=readFile){
  const entries=[...tracked,...(runtime.archived_functions||[])];
  const all=new Set((runtime.functions||[]).map(fn=>fn.slug));
  const archived=new Set();
+ const archiveOnly=new Set();
  for(const fn of entries){
   if(!fn.slug||archived.has(fn.slug)||(!tracked.includes(fn)&&all.has(fn.slug)))throw new Error('Duplicate or invalid archived function: '+fn.slug);
   archived.add(fn.slug);
+  if(!tracked.includes(fn))archiveOnly.add(fn.slug);
   if(!fn.archive_file||!/^docs\/runtime-snapshot-[^/]+\/bundles\/batch-[0-9]{2}\.json$/.test(fn.archive_file))throw new Error('Invalid archive path: '+fn.slug);
   const archive=JSON.parse(String(await read(fn.archive_file,'utf8')));
   const bundle=(archive.functions||[]).find(item=>item.slug===fn.slug);
@@ -58,8 +60,8 @@ export async function verifyArchivedRuntime(runtime,read=readFile){
   if((bundle.security_scan_flags||[]).length)throw new Error('Archived source requires secret review: '+fn.slug);
   for(const file of bundle.files){if(typeof file.path!=='string'||!file.path||typeof file.content!=='string')throw new Error('Invalid archived source file: '+fn.slug);}
  }
- if(runtime.live_inventory){const expected=Number(runtime.live_inventory.live_function_count);if(expected!==all.size+archived.size)throw new Error('Live inventory count mismatch: expected='+expected+' manifest='+(all.size+archived.size));}
- return {archivedFunctions:entries.length,totalFunctions:all.size+archived.size};
+ if(runtime.live_inventory){const expected=Number(runtime.live_inventory.live_function_count);if(expected!==all.size+archiveOnly.size)throw new Error('Live inventory count mismatch: expected='+expected+' manifest='+(all.size+archiveOnly.size));}
+ return {archivedFunctions:entries.length,totalFunctions:all.size+archiveOnly.size};
 }
 async function migrationRegistryEntries(){
  const base=JSON.parse(await readFile('docs/migration-registry.json','utf8'));
