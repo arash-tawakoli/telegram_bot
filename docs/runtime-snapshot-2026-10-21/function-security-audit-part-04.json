@@ -8,7 +8,7 @@
       "slug": "kleinanzeigen-two-step-canary",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "canary",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -24,7 +24,7 @@
       "slug": "kleinanzeigen-web-contract-probe",
       "version": 3,
       "verify_jwt": true,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [],
@@ -35,7 +35,7 @@
       "slug": "kleinanzeigen-xcf-diagnostic-send",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -51,7 +51,7 @@
       "slug": "meravis-feed",
       "version": 6,
       "verify_jwt": true,
-      "classification": "production_or_internal_worker",
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 3,
       "auth_signals": [
@@ -65,7 +65,7 @@
       "slug": "mini-app",
       "version": 12,
       "verify_jwt": true,
-      "classification": "support_or_review",
+      "classification": "retired",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -78,7 +78,7 @@
       "slug": "mini-app-publisher",
       "version": 6,
       "verify_jwt": true,
-      "classification": "support_or_review",
+      "classification": "retired",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -91,7 +91,7 @@
       "slug": "noncoop-feed",
       "version": 6,
       "verify_jwt": true,
-      "classification": "production_or_internal_worker",
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 3,
       "auth_signals": [
@@ -105,7 +105,7 @@
       "slug": "noncoop-new-feed",
       "version": 8,
       "verify_jwt": true,
-      "classification": "production_or_internal_worker",
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 4,
       "auth_signals": [
@@ -119,7 +119,7 @@
       "slug": "noop",
       "version": 9,
       "verify_jwt": true,
-      "classification": "diagnostic_candidate",
+      "classification": "support_review",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [],
@@ -130,7 +130,7 @@
       "slug": "noop_probe",
       "version": 7,
       "verify_jwt": true,
-      "classification": "diagnostic_candidate",
+      "classification": "diagnostic",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [],
@@ -141,7 +141,7 @@
       "slug": "notification-dispatcher",
       "version": 223,
       "verify_jwt": false,
-      "classification": "production_or_internal_worker",
+      "classification": "production",
       "archive_status": "full_source",
       "source_file_count": 9,
       "auth_signals": [
@@ -156,7 +156,7 @@
       "slug": "notification-dispatcher-preview-canary",
       "version": 4,
       "verify_jwt": true,
-      "classification": "diagnostic_candidate",
+      "classification": "canary",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [],
@@ -167,7 +167,7 @@
       "slug": "platform-connect",
       "version": 4,
       "verify_jwt": true,
-      "classification": "auth_or_platform_bridge",
+      "classification": "retired",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -180,7 +180,7 @@
       "slug": "platform-connect-broker-v2",
       "version": 3,
       "verify_jwt": false,
-      "classification": "auth_or_platform_bridge",
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -193,7 +193,7 @@
       "slug": "platform-session-reminder",
       "version": 3,
       "verify_jwt": false,
-      "classification": "support_or_review",
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -208,7 +208,7 @@
       "slug": "source-shadow",
       "version": 18,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 16,
       "auth_signals": [
@@ -223,7 +223,7 @@
       "slug": "source-worker",
       "version": 107,
       "verify_jwt": false,
-      "classification": "production_or_internal_worker",
+      "classification": "production",
       "archive_status": "full_source",
       "source_file_count": 33,
       "auth_signals": [
@@ -236,7 +236,7 @@
       "slug": "spacest-feed",
       "version": 5,
       "verify_jwt": true,
-      "classification": "production_or_internal_worker",
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 3,
       "auth_signals": [
@@ -264,7 +264,7 @@
       "slug": "telegram-db-latency-canary",
       "version": 2,
       "verify_jwt": true,
-      "classification": "diagnostic_candidate",
+      "classification": "canary",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [],
@@ -275,7 +275,7 @@
       "slug": "telegram-engagement",
       "version": 4,
       "verify_jwt": false,
-      "classification": "support_or_review",
+      "classification": "internal",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -303,7 +303,7 @@
       "slug": "telegram-fast",
       "version": 13,
       "verify_jwt": false,
-      "classification": "support_or_review",
+      "classification": "production",
       "archive_status": "full_source",
       "source_file_count": 1,
       "auth_signals": [
@@ -318,7 +318,7 @@
       "slug": "telegram-gateway",
       "version": 94,
       "verify_jwt": false,
-      "classification": "production_or_internal_worker",
+      "classification": "production",
       "archive_status": "full_source",
       "source_file_count": 2,
       "auth_signals": [
@@ -333,7 +333,7 @@
       "slug": "telegram-gateway-autoapply-canary",
       "version": 1,
       "verify_jwt": false,
-      "classification": "diagnostic_candidate",
+      "classification": "canary",
       "archive_status": "full_source",
       "source_file_count": 3,
       "auth_signals": [
