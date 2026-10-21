@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-21T21:38:27.026Z",
+  "generatedAt": "2026-10-21T22:14:28.608Z",
   "scope": "Read-only live runtime snapshot plus archived deployed source bundles. No user data, credentials or token values included.",
   "runtimeAuthority": {
     "database": "Supabase",
@@ -17,19 +17,12 @@
   },
   "migrationDrift": {
     "liveMigrations": 328,
-    "repositoryMigrationFiles": 320,
-    "liveOnlyVersions": 8,
+    "repositoryMigrationFiles": 328,
+    "liveOnlyVersions": 0,
     "repositoryOnlyVersions": 0,
-    "remainingLiveOnly": [
-      "20261002162748 repair_application_queue_reconciliation",
-      "20261002170417 platform_session_reauth_notifications",
-      "20261002181908 user_engagement_campaigns",
-      "20261002213748 add_wg_gesucht_platform_login",
-      "20261007115124 revoke_public_execute_on_internal_rpcs",
-      "20261007115302 add_missing_fk_indexes",
-      "20261019222908 allow_admin_participant_assignment",
-      "20261019224939 add_jobseeker_workspace"
-    ]
+    "reconstructedEquivalentMigrations": 8,
+    "originalHistoricalSqlRecovered": false,
+    "restoreTest": "pending isolated Supabase branch restore"
   },
   "liveHealth": {
     "queue": {
