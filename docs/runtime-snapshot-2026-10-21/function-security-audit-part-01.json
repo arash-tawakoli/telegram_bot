@@ -136,14 +136,17 @@
     },
     {
       "slug": "covivio-feed",
-      "version": 3,
-      "verify_jwt": false,
-      "classification": "transport_or_feed",
+      "version": 4,
+      "verify_jwt": true,
+      "classification": "production_or_internal_worker",
       "archive_status": "full_source",
       "source_file_count": 3,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required",
+        "source_worker_in_process_dispatch"
+      ],
+      "review_priority": "standard",
+      "assessment": "Supabase JWT gateway verification is enabled for external requests; source-worker uses the matching in-process handler for connector dispatch."
     },
     {
       "slug": "deploy-merge-test",
@@ -173,25 +176,31 @@
     },
     {
       "slug": "immobilie1-transport",
-      "version": 3,
-      "verify_jwt": false,
-      "classification": "transport_or_feed",
+      "version": 4,
+      "verify_jwt": true,
+      "classification": "production_or_internal_worker",
       "archive_status": "full_source",
       "source_file_count": 3,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required",
+        "source_worker_in_process_dispatch"
+      ],
+      "review_priority": "standard",
+      "assessment": "Supabase JWT gateway verification is enabled for external requests; source-worker uses the matching in-process handler for connector dispatch."
     },
     {
       "slug": "immobilien-de-transport",
-      "version": 15,
-      "verify_jwt": false,
-      "classification": "transport_or_feed",
+      "version": 16,
+      "verify_jwt": true,
+      "classification": "production_or_internal_worker",
       "archive_status": "full_source",
       "source_file_count": 3,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required",
+        "source_worker_in_process_dispatch"
+      ],
+      "review_priority": "standard",
+      "assessment": "Supabase JWT gateway verification is enabled for external requests; source-worker uses the matching in-process handler for connector dispatch."
     },
     {
       "slug": "immomio-account",
