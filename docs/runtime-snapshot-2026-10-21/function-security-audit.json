@@ -1283,7 +1283,7 @@
     },
     {
       "slug": "source-worker",
-      "version": 106,
+      "version": 107,
       "verify_jwt": false,
       "classification": "production_or_internal_worker",
       "archive_status": "full_source",
