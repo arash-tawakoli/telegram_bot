@@ -1,11 +1,13 @@
 # Migration reconciliation — 2026-10-21
 
 - Live migrations: **328**
-- Repository SQL migration files after filename reconciliation: **320**
-- Live versions without a repository migration file: **8**
+- Repository SQL migration files: **328**
+- Live versions without a repository migration file: **0**
 - Repository migration files whose version is absent from live history: **0**
 
-## Remaining live-only versions
+## Reconstructed historical migrations
+
+The following eight versions were present in the live Supabase migration history but their original SQL source files were not recoverable from Git. Replayable equivalents were reconstructed from the current live catalog and registered in `docs/migration-registry.d/20261021-reconstructed-live-migrations.json`:
 
 - `20261002162748` — `repair_application_queue_reconciliation`
 - `20261002170417` — `platform_session_reauth_notifications`
@@ -16,9 +18,11 @@
 - `20261019222908` — `allow_admin_participant_assignment`
 - `20261019224939` — `add_jobseeker_workspace`
 
+These files are explicitly marked `RECONSTRUCTED EQUIVALENT`. They restore the observed schema, function, constraint, index, trigger, grants, and scheduled-job contracts, but they are not claimed to be byte-for-byte historical originals.
+
 ## Completed reconciliation
 
-The three repository files with timestamps that differed from live migration history were aligned to the applied live versions, preserving their SQL content and hashes:
+The three repository migration filenames that differed from the applied live versions were aligned while preserving their SQL content:
 
 - `coach_super_admin_role`: 20261014121529
 - `add_job_applications_search_profile_index`: 20261020193533
@@ -26,6 +30,6 @@ The three repository files with timestamps that differed from live migration his
 
 ## Recovery status
 
-The current schema catalog, custom routine definitions, grants, RLS policies, triggers, views, enums, extensions, storage metadata, cron definitions, Cloudflare bindings, and 114 Edge Function bundles are archived in this directory.
+The current schema catalog, custom routine definitions, grants, RLS policies, triggers, views, enums, extensions, Storage metadata, cron definitions, Cloudflare bindings, and all 114 Edge Function source bundles are archived in this directory.
 
-The eight historical SQL migrations above were applied in the live project but their original source files could not be recovered from Git. I have not fabricated migration bodies based only on their names. The live snapshot improves recovery capability, but a clean-room restore remains blocked until the eight migrations are semantically reconciled and an isolated restore test passes.
+**Migration-version parity is now complete.** A clean-room restore has not yet been run, so exact restoreability is not certified until the isolated restore test succeeds. The original eight migration bodies remain unavailable as historical source, although equivalent replayable SQL is now versioned.
