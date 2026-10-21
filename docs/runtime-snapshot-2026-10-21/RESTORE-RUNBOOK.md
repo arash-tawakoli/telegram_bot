@@ -68,7 +68,7 @@ The following retired/test-only endpoints now require JWT verification at the Su
 ## Remaining actions requiring external authorization
 
 1. Add a scoped Supabase Management API token as the GitHub Actions secret `SUPABASE_ACCESS_TOKEN` (auth-config read/write and project-admin permissions), then run `.github/workflows/enable-auth-password-protection.yml`. The workflow verifies `password_hibp_enabled=true` without printing the auth configuration.
-2. Approve creation of an isolated Supabase branch for the clean-room restore test. The current quoted compute rate is **US$0.01344 per hour** while the branch is running; create it only after approval and delete it after recording results.
+2. Run the new GitHub Actions workflow `.github/workflows/runtime-restore-smoke.yml`, which replays all migrations from an empty local Supabase database and validates the runtime registry. This does not create a billable Supabase branch. Only if local emulation cannot validate a platform-specific object should a cloud branch be considered; its quoted compute rate is US$0.01344/hour and requires explicit approval.
 3. For final browser-level verification of Manager Preview, dialog focus return, contrast and the production dashboard at 200% zoom, use the new Playwright acceptance workflow in the website repository. It uses mocked API responses and does not mutate production participant data.
 
 ## Known blockers
