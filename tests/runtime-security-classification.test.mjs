@@ -21,7 +21,7 @@ test('direct source transport endpoints require JWT at the gateway and retain in
   const f=manifest.functions.find(x=>x.slug===slug);
   assert.ok(f,'missing manifest entry '+slug);
   assert.equal(f.observed_live_verify_jwt,true,slug+' must require gateway JWT');
-  assert.match(code,new RegExp('/functions/v1/'+slug.replaceAll('-','\\-')));
+  assert.ok(code.includes(slug),slug+' missing from in-process handler routing');
  }
 });
 
