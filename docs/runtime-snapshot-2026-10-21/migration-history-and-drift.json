@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-10-21T20:51:20.736Z",
+  "generated_at": "2026-10-21T21:02:59.106Z",
   "project_ref": "dpmohkrwdlicexwcrqfy",
   "live_migration_count": 328,
-  "repository_migration_file_count": 314,
-  "live_only_count": 17,
-  "repository_only_count": 3,
+  "repository_migration_file_count": 320,
+  "live_only_count": 8,
+  "repository_only_count": 0,
   "live_history": [
     {
       "version": "20260826165201",
@@ -1351,11 +1351,6 @@
       "repository_file": null
     },
     {
-      "version": "20261014121529",
-      "name": "coach_super_admin_role",
-      "repository_file": null
-    },
-    {
       "version": "20261019222908",
       "name": "allow_admin_participant_assignment",
       "repository_file": null
@@ -1364,64 +1359,8 @@
       "version": "20261019224939",
       "name": "add_jobseeker_workspace",
       "repository_file": null
-    },
-    {
-      "version": "20261020193533",
-      "name": "add_job_applications_search_profile_index",
-      "repository_file": null
-    },
-    {
-      "version": "20261020193641",
-      "name": "add_hamburg_alias_neighborhood_index",
-      "repository_file": null
-    },
-    {
-      "version": "20261021200809",
-      "name": "optimize_source_health_neighborhood_join",
-      "repository_file": null
-    },
-    {
-      "version": "20261021201029",
-      "name": "bounded_transient_source_job_retries",
-      "repository_file": null
-    },
-    {
-      "version": "20261021201306",
-      "name": "tighten_retry_eligibility_and_public_coverage_rpc",
-      "repository_file": null
-    },
-    {
-      "version": "20261021201616",
-      "name": "preserve_strong_neighborhood_evidence",
-      "repository_file": null
-    },
-    {
-      "version": "20261021201704",
-      "name": "guard_source_retry_with_circuit_breaker",
-      "repository_file": null
-    },
-    {
-      "version": "20261021201818",
-      "name": "schedule_bounded_source_job_retries",
-      "repository_file": null
     }
   ],
-  "repository_only": [
-    {
-      "version": "20261014090000",
-      "name": "coach_super_admin_role",
-      "path": "supabase/migrations/20261014090000_coach_super_admin_role.sql"
-    },
-    {
-      "version": "20261020193600",
-      "name": "add_job_applications_search_profile_index",
-      "path": "supabase/migrations/20261020193600_add_job_applications_search_profile_index.sql"
-    },
-    {
-      "version": "20261020193700",
-      "name": "add_hamburg_alias_neighborhood_index",
-      "path": "supabase/migrations/20261020193700_add_hamburg_alias_neighborhood_index.sql"
-    }
-  ],
-  "reconciliation_policy": "Do not synthesize original migration SQL from names. Where original migration SQL is unavailable, use the database-catalog and routine snapshots as a recovery baseline, retain this drift record, and do not claim clean-room restore until an isolated restore test succeeds."
+  "repository_only": [],
+  "reconciliation_policy": "Three mismatched migration filenames were aligned to their applied live versions with original SQL content preserved. Eight earlier applied migrations still have no recoverable original SQL file; catalog and routine snapshots provide a recovery baseline but not exact replay semantics. A clean-room restore is not yet certified."
 }
