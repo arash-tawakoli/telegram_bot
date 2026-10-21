@@ -91,12 +91,12 @@
     },
     {
       "slug": "auth-admin-repair",
-      "version": 2,
+      "version": 3,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
-      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_4346c87a-569f-4efe-aa7f-624c626ef94a_2/source/index.ts",
-      "artifact_sha256": "e1436c67c4aa5ad7557aa95b9b26e80387b0426f612400980a13cdafbb25e29d",
+      "entrypoint_path": "/tmp/user_fn_dpmohkrwdlicexwcrqfy_4346c87a-569f-4efe-aa7f-624c626ef94a_3/source/index.ts",
+      "artifact_sha256": "1e4b82d411cf4a8488998cdb4e5f985d86f24ebcb21471c891a7a5a67db8945a",
       "archive_status": "full_source",
       "security_scan_flags": [],
       "files": [
