@@ -70,12 +70,12 @@
     },
     {
       "slug": "platform-connect",
-      "version": 3,
+      "version": 4,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
-      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_050be14b-f70c-4575-891e-1e9b96981ed2_3/source/index.ts",
-      "artifact_sha256": "0ec6bee60a0384b746d6cfb4ab6e39aa2c993e7f414162091cfcf277060a18f8",
+      "entrypoint_path": "/tmp/user_fn_dpmohkrwdlicexwcrqfy_050be14b-f70c-4575-891e-1e9b96981ed2_4/source/index.ts",
+      "artifact_sha256": "ab54c8e8e29f824e290917601efac9554eb581d816b5eb253891c827c140c557",
       "archive_status": "full_source",
       "security_scan_flags": [],
       "files": [
