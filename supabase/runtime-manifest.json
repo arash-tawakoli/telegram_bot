@@ -228,11 +228,11 @@
     },
     {
       "slug": "covivio-feed",
-      "version": 3,
-      "verify_jwt": false,
+      "version": 4,
+      "verify_jwt": true,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "58f08c651f84aef0ea06d7002c7db69ca6248ca3da4d1fd36b53fff81ed376eb",
+      "observed_artifact_sha256": "3d0bcc977b3d3828431ae028885a5ce8f7c695ba1bf8c60ffc530ba6f872fd71",
       "entrypoint": "supabase/functions/covivio-feed/index.ts",
       "files": [
         {
@@ -251,9 +251,9 @@
           "deployed_sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a"
         }
       ],
-      "observed_live_version": 3,
-      "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "58f08c651f84aef0ea06d7002c7db69ca6248ca3da4d1fd36b53fff81ed376eb",
+      "observed_live_version": 4,
+      "observed_live_verify_jwt": true,
+      "observed_live_artifact_sha256": "3d0bcc977b3d3828431ae028885a5ce8f7c695ba1bf8c60ffc530ba6f872fd71",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-02.json",
       "source_archive_file_count": 3,
       "source_archive_status": "full_source",
@@ -262,11 +262,11 @@
     },
     {
       "slug": "immobilie1-transport",
-      "version": 3,
-      "verify_jwt": false,
+      "version": 4,
+      "verify_jwt": true,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "33deaf04a1c2f3879d3752835fd721d322b0d2dba9746ee7b777f95f24ef3ad6",
+      "observed_artifact_sha256": "8a9013eb41af6564a10d5804e300a7fe37ba4f7724919ca6b0ef8b1aaf622212",
       "entrypoint": "supabase/functions/immobilie1-transport/index.ts",
       "files": [
         {
@@ -285,9 +285,9 @@
           "deployed_sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a"
         }
       ],
-      "observed_live_version": 3,
-      "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "33deaf04a1c2f3879d3752835fd721d322b0d2dba9746ee7b777f95f24ef3ad6",
+      "observed_live_version": 4,
+      "observed_live_verify_jwt": true,
+      "observed_live_artifact_sha256": "8a9013eb41af6564a10d5804e300a7fe37ba4f7724919ca6b0ef8b1aaf622212",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-03.json",
       "source_archive_file_count": 3,
       "source_archive_status": "full_source",
@@ -296,11 +296,11 @@
     },
     {
       "slug": "immobilien-de-transport",
-      "version": 15,
-      "verify_jwt": false,
+      "version": 16,
+      "verify_jwt": true,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "7fbf31045c8b0fb61333473be42847bb853c74941f52f55a85e83573ae2dd46d",
+      "observed_artifact_sha256": "da8dcb0aa2925109df71d223f9dac73d05c651070ecf5d11422061c7b8ec6ece",
       "entrypoint": "supabase/functions/immobilien-de-transport/index.ts",
       "files": [
         {
@@ -319,9 +319,9 @@
           "deployed_sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a"
         }
       ],
-      "observed_live_version": 15,
-      "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "7fbf31045c8b0fb61333473be42847bb853c74941f52f55a85e83573ae2dd46d",
+      "observed_live_version": 16,
+      "observed_live_verify_jwt": true,
+      "observed_live_artifact_sha256": "da8dcb0aa2925109df71d223f9dac73d05c651070ecf5d11422061c7b8ec6ece",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-03.json",
       "source_archive_file_count": 3,
       "source_archive_status": "full_source",
@@ -723,11 +723,11 @@
     },
     {
       "slug": "meravis-feed",
-      "version": 5,
-      "verify_jwt": false,
+      "version": 6,
+      "verify_jwt": true,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "675d3f51c400e796cbeabd7f9d7ddf9871fa49550774b320b959d07ed05a7b67",
+      "observed_artifact_sha256": "bb4032d5e00b8cae2ef135e482c8f29a65d9aa9fe9884fa7143d8c38f1f001ef",
       "entrypoint": "supabase/functions/meravis-feed/index.ts",
       "files": [
         {
@@ -746,9 +746,9 @@
           "deployed_sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a"
         }
       ],
-      "observed_live_version": 5,
-      "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "675d3f51c400e796cbeabd7f9d7ddf9871fa49550774b320b959d07ed05a7b67",
+      "observed_live_version": 6,
+      "observed_live_verify_jwt": true,
+      "observed_live_artifact_sha256": "bb4032d5e00b8cae2ef135e482c8f29a65d9aa9fe9884fa7143d8c38f1f001ef",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-16.json",
       "source_archive_file_count": 3,
       "source_archive_status": "full_source",
@@ -803,11 +803,11 @@
     },
     {
       "slug": "noncoop-feed",
-      "version": 5,
-      "verify_jwt": false,
+      "version": 6,
+      "verify_jwt": true,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "d0397beef4bfd891b5e5bd76c231ad19dca6c8fc52fdce376a759b064a90f0c9",
+      "observed_artifact_sha256": "e88720d686f4dd1ac5a50ba44956596a6e79d5bce21487ebb1e9a3042d431682",
       "entrypoint": "supabase/functions/noncoop-feed/index.ts",
       "files": [
         {
@@ -826,9 +826,9 @@
           "deployed_sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a"
         }
       ],
-      "observed_live_version": 5,
-      "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "d0397beef4bfd891b5e5bd76c231ad19dca6c8fc52fdce376a759b064a90f0c9",
+      "observed_live_version": 6,
+      "observed_live_verify_jwt": true,
+      "observed_live_artifact_sha256": "e88720d686f4dd1ac5a50ba44956596a6e79d5bce21487ebb1e9a3042d431682",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-17.json",
       "source_archive_file_count": 3,
       "source_archive_status": "full_source",
@@ -837,11 +837,11 @@
     },
     {
       "slug": "noncoop-new-feed",
-      "version": 7,
-      "verify_jwt": false,
+      "version": 8,
+      "verify_jwt": true,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "6b5b5a612da110664aac5464a49b5c2695ed1ad8a485c17c3fa44a969216e1be",
+      "observed_artifact_sha256": "dcf472e59b9e3353690571e009dafecc0217934414d26c312d77028b0abeaa8a",
       "entrypoint": "supabase/functions/noncoop-new-feed/index.ts",
       "files": [
         {
@@ -865,9 +865,9 @@
           "deployed_sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a"
         }
       ],
-      "observed_live_version": 7,
-      "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "6b5b5a612da110664aac5464a49b5c2695ed1ad8a485c17c3fa44a969216e1be",
+      "observed_live_version": 8,
+      "observed_live_verify_jwt": true,
+      "observed_live_artifact_sha256": "dcf472e59b9e3353690571e009dafecc0217934414d26c312d77028b0abeaa8a",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-17.json",
       "source_archive_file_count": 4,
       "source_archive_status": "full_source",
@@ -1270,11 +1270,11 @@
     },
     {
       "slug": "spacest-feed",
-      "version": 4,
-      "verify_jwt": false,
+      "version": 5,
+      "verify_jwt": true,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "a3658a26310b617c9b6ef077e02bf6049611bf4296a2e2a88493517e01efd145",
+      "observed_artifact_sha256": "418bf0edad04f71f1fe2455c68e73313ad7321a57389fa0655e905a8df214b0a",
       "entrypoint": "supabase/functions/spacest-feed/index.ts",
       "files": [
         {
@@ -1293,9 +1293,9 @@
           "deployed_sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a"
         }
       ],
-      "observed_live_version": 4,
-      "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "a3658a26310b617c9b6ef077e02bf6049611bf4296a2e2a88493517e01efd145",
+      "observed_live_version": 5,
+      "observed_live_verify_jwt": true,
+      "observed_live_artifact_sha256": "418bf0edad04f71f1fe2455c68e73313ad7321a57389fa0655e905a8df214b0a",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-19.json",
       "source_archive_file_count": 3,
       "source_archive_status": "full_source",
@@ -1541,11 +1541,11 @@
     },
     {
       "slug": "vonovia-transport",
-      "version": 2,
-      "verify_jwt": false,
+      "version": 3,
+      "verify_jwt": true,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "deabe5706b1aea72de88d515922c4ad2ca5320d5186cdeb97aeaa6c9858aee8a",
+      "observed_artifact_sha256": "b379b7979862b704224d5043000dfef8ee628c7fc542409ca623f04c259bf43e",
       "entrypoint": "supabase/functions/vonovia-transport/index.ts",
       "files": [
         {
@@ -1559,9 +1559,9 @@
           "deployed_sha256": "82963634551e8127e59554b31abe8b86cb09fcd6cf0905159fc1eca9ade431f9"
         }
       ],
-      "observed_live_version": 2,
-      "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "deabe5706b1aea72de88d515922c4ad2ca5320d5186cdeb97aeaa6c9858aee8a",
+      "observed_live_version": 3,
+      "observed_live_verify_jwt": true,
+      "observed_live_artifact_sha256": "b379b7979862b704224d5043000dfef8ee628c7fc542409ca623f04c259bf43e",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-23.json",
       "source_archive_file_count": 2,
       "source_archive_status": "full_source",
