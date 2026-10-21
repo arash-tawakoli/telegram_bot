@@ -1,0 +1,21 @@
+{
+  "batches": [
+    6,
+    10
+  ],
+  "references": {
+    "auth-admin-repair": [],
+    "deploy-merge-test": [],
+    "html-render-test": [],
+    "immomio-introspection-probe": [],
+    "immomio-probe": [],
+    "immomio-tenant-inspect": [],
+    "ka-gateway-egress-probe": [],
+    "kleinanzeigen-direct-login-probe": [],
+    "kleinanzeigen-mobile-canary": [],
+    "kleinanzeigen-refresh-probe": [],
+    "wunder-probe": [],
+    "mini-app": [],
+    "mini-app-publisher": []
+  }
+}
