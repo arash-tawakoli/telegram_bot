@@ -72,12 +72,12 @@
     },
     {
       "slug": "immomio-tenant-inspect",
-      "version": 6,
+      "version": 7,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
-      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_1fd7cc1a-d915-49d1-8e1c-86f2d19a1eb1_6/source/index.ts",
-      "artifact_sha256": "749932bd7650d3fbe05316773b1be716b89d99d0b4edec1f2f0a621fba897751",
+      "entrypoint_path": "/tmp/user_fn_dpmohkrwdlicexwcrqfy_1fd7cc1a-d915-49d1-8e1c-86f2d19a1eb1_7/source/index.ts",
+      "artifact_sha256": "c09eccd05e1e03196accbd814821c9dac94c20e09588ad64129179815efe719b",
       "archive_status": "full_source",
       "security_scan_flags": [],
       "files": [
