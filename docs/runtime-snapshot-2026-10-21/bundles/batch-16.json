@@ -80,12 +80,12 @@
     },
     {
       "slug": "mini-app",
-      "version": 11,
+      "version": 12,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
-      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_f402e82b-2f61-4fba-9122-887e20342691_11/source/index.ts",
-      "artifact_sha256": "9ededeaf7ae2d64830390d552361b5ed49c603cbe1ef18a96a7830049534438e",
+      "entrypoint_path": "/tmp/user_fn_dpmohkrwdlicexwcrqfy_f402e82b-2f61-4fba-9122-887e20342691_12/source/index.ts",
+      "artifact_sha256": "ef070b86cbb5334bc82e00dcc354b2aa5d2d7b5196253e97c1ff4b462a696789",
       "archive_status": "full_source",
       "security_scan_flags": [],
       "files": [
