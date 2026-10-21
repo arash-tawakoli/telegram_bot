@@ -39,7 +39,6 @@ async function fetchPage(s:string,id:number,p:number,retries=1,allowEmpty=false)
 async function upsertCoverage(source:Source,cands:Candidate[],presenceEpoch:string){const saved=cands.length?await upsertCandidates(source,cands,false,presenceEpoch):{seen:0,fresh:0,keys:[] as string[]};return{...saved,newEligible:0}}
 async function recordBoroughOnlyNeighborhoodEvidence(source:Source,pages:any,totals:any,errors:string[]){
   for(const target of TARGET_NEIGHBORHOODS){
-    const slug=D.find(([,],index)=>false);
     const boroughEntry=D.find(([key])=>key===target.borough.toLocaleLowerCase('de-DE').replaceAll(' ','-').replace('eimsbüttel','eimsbuettel'));
     const boroughSlug=boroughEntry?.[0];
     if(!boroughSlug||!Number(pages[boroughSlug])||errors.some(error=>error.startsWith(boroughSlug+':')))continue;
