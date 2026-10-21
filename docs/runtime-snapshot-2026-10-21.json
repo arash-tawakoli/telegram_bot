@@ -35,7 +35,7 @@
     "repositoryOnlyVersions": 0,
     "reconstructedEquivalentMigrations": 8,
     "originalHistoricalSqlRecovered": false,
-    "restoreTest": "pending isolated Supabase branch restore"
+    "restoreTest": "pending GitHub Actions local Supabase clean-room restore workflow"
   },
   "liveHealth": {
     "cron": {
@@ -328,11 +328,11 @@
   },
   "limitations": [
     "Eight applied historical migration SQL files could not be recovered from Git. The database catalog and routine snapshots improve recovery, but the original migration semantics still need reconciliation.",
-    "No clean-room restore was run; a restore requires an isolated database/branch and cost approval if Supabase quotes a nonzero charge.",
+    "A clean-room restore is being tested in an isolated local Supabase stack through .github/workflows/runtime-restore-smoke.yml. Cloud Supabase branch creation is not required unless local platform emulation proves insufficient.",
     "Supabase Auth leaked-password protection cannot be toggled through the available project/database connector. It remains disabled pending management API or dashboard access.",
     "Two verify_jwt=false endpoints are intentionally public image-only assets; the other false-JWT functions are classified and their source contains internal authorization signals or webhook-specific controls. This static audit does not replace periodic dependency review.",
     "Neighborhood evidence currently records seven ambiguous results. This means the exact search returned no reliable count; it is not proof that no listings exist.",
-    "A clean-room restore has not yet been run. The eight missing original historical SQL bodies have registered reconstructed equivalents; exact restoreability remains pending an isolated branch test.",
+    "A clean-room restore is being tested in an isolated local Supabase stack through .github/workflows/runtime-restore-smoke.yml. Cloud Supabase branch creation is not required unless local platform emulation proves insufficient.",
     "Supabase leaked-password protection remains disabled until the GitHub Actions secret SUPABASE_ACCESS_TOKEN is configured and the guarded workflow is run."
   ],
   "jobApplicationIndex": [
