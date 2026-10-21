@@ -24,8 +24,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-01.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
-      "classification": "support_or_review",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "production",
+      "review_status": "production runtime; version/JWT/hash tracked against live inventory"
     },
     {
       "slug": "application-package-selftest",
@@ -48,8 +48,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-01.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
-      "classification": "diagnostic_candidate",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "application-worker",
@@ -117,8 +117,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-01.json",
       "source_archive_file_count": 10,
       "source_archive_status": "full_source",
-      "classification": "production_or_internal_worker",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "production",
+      "review_status": "production runtime; version/JWT/hash tracked against live inventory"
     },
     {
       "slug": "auth-facade-broker",
@@ -146,8 +146,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-02.json",
       "source_archive_file_count": 2,
       "source_archive_status": "full_source",
-      "classification": "auth_or_platform_bridge",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "internal",
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
     },
     {
       "slug": "billing-maintenance",
@@ -170,8 +170,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-02.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
-      "classification": "production_or_internal_worker",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "production",
+      "review_status": "production runtime; version/JWT/hash tracked against live inventory"
     },
     {
       "slug": "coach-api",
@@ -199,8 +199,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-02.json",
       "source_archive_file_count": 2,
       "source_archive_status": "full_source",
-      "classification": "production_or_internal_worker",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "production",
+      "review_status": "production runtime; version/JWT/hash tracked against live inventory"
     },
     {
       "slug": "coach-bootstrap",
@@ -223,8 +223,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-02.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
-      "classification": "support_or_review",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "support_review",
+      "review_status": "support/review; retain pending dependency-aware classification"
     },
     {
       "slug": "covivio-feed",
@@ -257,8 +257,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-02.json",
       "source_archive_file_count": 3,
       "source_archive_status": "full_source",
-      "classification": "transport_or_feed",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "internal",
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
     },
     {
       "slug": "immobilie1-transport",
@@ -291,8 +291,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-03.json",
       "source_archive_file_count": 3,
       "source_archive_status": "full_source",
-      "classification": "transport_or_feed",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "internal",
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
     },
     {
       "slug": "immobilien-de-transport",
@@ -325,8 +325,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-03.json",
       "source_archive_file_count": 3,
       "source_archive_status": "full_source",
-      "classification": "transport_or_feed",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "internal",
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
     },
     {
       "slug": "immomio-account",
@@ -359,8 +359,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-03.json",
       "source_archive_file_count": 3,
       "source_archive_status": "full_source",
-      "classification": "support_or_review",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "support_review",
+      "review_status": "support/review; retain pending dependency-aware classification"
     },
     {
       "slug": "immomio-application-worker",
@@ -383,8 +383,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-04.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
-      "classification": "production_or_internal_worker",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "production",
+      "review_status": "production runtime; version/JWT/hash tracked against live inventory"
     },
     {
       "slug": "immomio-auth-bridge",
@@ -412,8 +412,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-04.json",
       "source_archive_file_count": 2,
       "source_archive_status": "full_source",
-      "classification": "auth_or_platform_bridge",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "internal",
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
     },
     {
       "entrypoint": "supabase/deployed-support/immomio-probe/index.ts",
@@ -435,8 +435,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-05.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
-      "classification": "diagnostic_candidate",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "retired",
+      "review_status": "retired 410/404 stub; JWT gateway verification enabled"
     },
     {
       "entrypoint": "supabase/deployed-support/immomio-tenant-inspect/index.ts",
@@ -458,8 +458,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-06.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
-      "classification": "diagnostic_candidate",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "retired",
+      "review_status": "retired 410/404 stub; JWT gateway verification enabled"
     },
     {
       "slug": "immoscout-auth-bridge",
@@ -487,8 +487,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-07.json",
       "source_archive_file_count": 2,
       "source_archive_status": "full_source",
-      "classification": "auth_or_platform_bridge",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "internal",
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
     },
     {
       "slug": "immoscout-native-handoff",
@@ -511,8 +511,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-07.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
-      "classification": "support_or_review",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "support_review",
+      "review_status": "support/review; retain pending dependency-aware classification"
     },
     {
       "slug": "immoscout-send-canary",
@@ -535,8 +535,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-08.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
-      "classification": "diagnostic_candidate",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "canary",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "immowelt-auth-bridge",
@@ -559,8 +559,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-09.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
-      "classification": "auth_or_platform_bridge",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "internal",
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
     },
     {
       "slug": "kleinanzeigen-apk-direct-stage",
@@ -583,8 +583,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-09.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
-      "classification": "diagnostic_candidate",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "kleinanzeigen-apk-stage",
@@ -607,8 +607,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-10.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
-      "classification": "diagnostic_candidate",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "kleinanzeigen-application-worker",
@@ -641,8 +641,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-11.json",
       "source_archive_file_count": 3,
       "source_archive_status": "full_source",
-      "classification": "production_or_internal_worker",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "production",
+      "review_status": "production runtime; version/JWT/hash tracked against live inventory"
     },
     {
       "slug": "kleinanzeigen-callback-bridge",
@@ -665,8 +665,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-11.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
-      "classification": "support_or_review",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "internal",
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
     },
     {
       "slug": "kleinanzeigen-static-analysis",
@@ -689,8 +689,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-15.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
-      "classification": "support_or_review",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "kleinanzeigen-transport",
@@ -718,8 +718,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-15.json",
       "source_archive_file_count": 2,
       "source_archive_status": "full_source",
-      "classification": "transport_or_feed",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "internal",
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
     },
     {
       "slug": "meravis-feed",
@@ -752,8 +752,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-16.json",
       "source_archive_file_count": 3,
       "source_archive_status": "full_source",
-      "classification": "transport_or_feed",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "internal",
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
     },
     {
       "entrypoint": "supabase/deployed-support/mini-app/index.ts",
@@ -775,8 +775,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-16.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
-      "classification": "support_or_review",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "retired",
+      "review_status": "retired 410/404 stub; JWT gateway verification enabled"
     },
     {
       "entrypoint": "supabase/deployed-support/mini-app-publisher/index.ts",
@@ -798,8 +798,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-17.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
-      "classification": "support_or_review",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "retired",
+      "review_status": "retired 410/404 stub; JWT gateway verification enabled"
     },
     {
       "slug": "noncoop-feed",
@@ -832,8 +832,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-17.json",
       "source_archive_file_count": 3,
       "source_archive_status": "full_source",
-      "classification": "transport_or_feed",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "internal",
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
     },
     {
       "slug": "noncoop-new-feed",
@@ -871,8 +871,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-17.json",
       "source_archive_file_count": 4,
       "source_archive_status": "full_source",
-      "classification": "transport_or_feed",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "internal",
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
     },
     {
       "entrypoint": "supabase/deployed-support/noop/index.ts",
@@ -894,8 +894,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-17.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
-      "classification": "diagnostic_candidate",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "support_review",
+      "review_status": "support/review; retain pending dependency-aware classification"
     },
     {
       "slug": "notification-dispatcher",
@@ -958,8 +958,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-18.json",
       "source_archive_file_count": 9,
       "source_archive_status": "full_source",
-      "classification": "production_or_internal_worker",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "production",
+      "review_status": "production runtime; version/JWT/hash tracked against live inventory"
     },
     {
       "slug": "platform-connect-broker-v2",
@@ -982,8 +982,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-18.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
-      "classification": "auth_or_platform_bridge",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "internal",
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
     },
     {
       "slug": "source-shadow",
@@ -1081,8 +1081,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-19.json",
       "source_archive_file_count": 16,
       "source_archive_status": "full_source",
-      "classification": "diagnostic_candidate",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "internal",
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
     },
     {
       "slug": "source-worker",
@@ -1265,8 +1265,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-19.json",
       "source_archive_file_count": 33,
       "source_archive_status": "full_source",
-      "classification": "production_or_internal_worker",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "production",
+      "review_status": "production runtime; version/JWT/hash tracked against live inventory"
     },
     {
       "slug": "spacest-feed",
@@ -1299,8 +1299,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-19.json",
       "source_archive_file_count": 3,
       "source_archive_status": "full_source",
-      "classification": "transport_or_feed",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "internal",
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
     },
     {
       "slug": "stripe-webhook",
@@ -1324,7 +1324,7 @@
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
       "classification": "webhook",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "review_status": "webhook entrypoint; signature and event idempotency contract required"
     },
     {
       "slug": "telegram-fallback-logo",
@@ -1347,8 +1347,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-20.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
-      "classification": "support_or_review",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "public_asset",
+      "review_status": "intentional public read-only asset; no user data or write action"
     },
     {
       "slug": "telegram-fast",
@@ -1371,8 +1371,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-20.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
-      "classification": "support_or_review",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "production",
+      "review_status": "production runtime; version/JWT/hash tracked against live inventory"
     },
     {
       "slug": "telegram-gateway",
@@ -1400,8 +1400,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-20.json",
       "source_archive_file_count": 2,
       "source_archive_status": "full_source",
-      "classification": "production_or_internal_worker",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "production",
+      "review_status": "production runtime; version/JWT/hash tracked against live inventory"
     },
     {
       "slug": "telegram-oauth-bridge",
@@ -1424,8 +1424,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-21.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
-      "classification": "auth_or_platform_bridge",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "internal",
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
     },
     {
       "slug": "telegram-premium",
@@ -1448,8 +1448,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-21.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
-      "classification": "support_or_review",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "production",
+      "review_status": "production runtime; version/JWT/hash tracked against live inventory"
     },
     {
       "slug": "telegram-premium-image",
@@ -1472,8 +1472,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-22.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
-      "classification": "support_or_review",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "public_asset",
+      "review_status": "intentional public read-only asset; no user data or write action"
     },
     {
       "slug": "telegram-ui",
@@ -1536,8 +1536,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-22.json",
       "source_archive_file_count": 9,
       "source_archive_status": "full_source",
-      "classification": "support_or_review",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "production",
+      "review_status": "production runtime; version/JWT/hash tracked against live inventory"
     },
     {
       "slug": "vonovia-transport",
@@ -1565,8 +1565,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-23.json",
       "source_archive_file_count": 2,
       "source_archive_status": "full_source",
-      "classification": "transport_or_feed",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "internal",
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
     },
     {
       "entrypoint": "supabase/deployed-support/wunder-probe/index.ts",
@@ -1588,8 +1588,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-23.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
-      "classification": "diagnostic_candidate",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "retired",
+      "review_status": "retired 410/404 stub; JWT gateway verification enabled"
     },
     {
       "slug": "wunderflats-transport",
@@ -1617,8 +1617,8 @@
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-23.json",
       "source_archive_file_count": 2,
       "source_archive_status": "full_source",
-      "classification": "transport_or_feed",
-      "review_status": "source archived; deployment dependency/auth review still required"
+      "classification": "internal",
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
     }
   ],
   "archived_functions": [
@@ -1634,8 +1634,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-01.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "retired",
+      "review_status": "retired 410/404 stub; JWT gateway verification enabled"
     },
     {
       "slug": "auth-contract-diag",
@@ -1649,8 +1649,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-01.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "deploy-merge-test",
@@ -1664,8 +1664,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-03.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "retired",
+      "review_status": "retired 410/404 stub; JWT gateway verification enabled"
     },
     {
       "slug": "html-render-test",
@@ -1679,8 +1679,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-03.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "retired",
+      "review_status": "retired 410/404 stub; JWT gateway verification enabled"
     },
     {
       "slug": "immomio-auth-debug",
@@ -1694,8 +1694,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-04.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "immomio-bundle-snippet",
@@ -1709,8 +1709,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-04.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "immomio-chunk-inspect",
@@ -1724,8 +1724,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-04.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "immomio-contract-inspect",
@@ -1739,8 +1739,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-05.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "immomio-device-probe",
@@ -1754,8 +1754,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-05.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "immomio-introspection-probe",
@@ -1769,8 +1769,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-05.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "retired",
+      "review_status": "retired 410/404 stub; JWT gateway verification enabled"
     },
     {
       "slug": "immomio-mutation-contract-probe",
@@ -1784,8 +1784,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-05.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "immomio-profile-probe",
@@ -1799,8 +1799,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-06.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "immomio-question-field-probe",
@@ -1814,8 +1814,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-06.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "immomio-question-inspect",
@@ -1829,8 +1829,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-06.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "immomio-schema-inspect",
@@ -1844,8 +1844,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-06.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "immomio-upload-probe",
@@ -1859,8 +1859,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-07.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "immoscout-contact-inspect",
@@ -1874,8 +1874,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-07.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "immoscout-contract-inspect-v2",
@@ -1889,8 +1889,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-07.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "immoscout-official-api-probe",
@@ -1904,8 +1904,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-08.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "immoscout-official-send-canary",
@@ -1919,8 +1919,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-08.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "canary",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "immoscout-payload-probe",
@@ -1934,8 +1934,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-08.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "immoscout-plus-scan",
@@ -1949,8 +1949,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-08.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "support_or_review",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "immowelt-diagnostic-readonly",
@@ -1964,8 +1964,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-09.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "ka-gateway-egress-probe",
@@ -1979,8 +1979,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-09.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "retired",
+      "review_status": "retired 410/404 stub; JWT gateway verification enabled"
     },
     {
       "slug": "kleinanzeigen-ad-inspect",
@@ -1994,8 +1994,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-09.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "kleinanzeigen-apk-inspect",
@@ -2009,8 +2009,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-10.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "kleinanzeigen-apk-r2-inspect",
@@ -2024,8 +2024,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-10.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "kleinanzeigen-apkcombo-stage",
@@ -2039,8 +2039,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-10.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "kleinanzeigen-apkcombo-url",
@@ -2054,8 +2054,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-10.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "kleinanzeigen-contact-inspect",
@@ -2069,8 +2069,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-11.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "kleinanzeigen-contract-check",
@@ -2084,8 +2084,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-11.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "kleinanzeigen-contract-probe",
@@ -2099,8 +2099,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-11.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "kleinanzeigen-conversation-readback",
@@ -2114,8 +2114,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-12.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "kleinanzeigen-dex-class",
@@ -2129,8 +2129,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-12.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "kleinanzeigen-dex-contract",
@@ -2144,8 +2144,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-12.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "kleinanzeigen-dex-method",
@@ -2159,8 +2159,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-12.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "kleinanzeigen-dex-xref",
@@ -2174,8 +2174,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-12.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "kleinanzeigen-dex-xref-any",
@@ -2189,8 +2189,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-13.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "kleinanzeigen-direct-login-probe",
@@ -2204,8 +2204,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-13.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "retired",
+      "review_status": "retired 410/404 stub; JWT gateway verification enabled"
     },
     {
       "slug": "kleinanzeigen-first-contact-canary",
@@ -2219,8 +2219,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-13.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "canary",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "kleinanzeigen-js-inspect",
@@ -2234,8 +2234,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-13.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "kleinanzeigen-method-raw",
@@ -2249,8 +2249,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-13.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "support_or_review",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "support_review",
+      "review_status": "support/review; retain pending dependency-aware classification"
     },
     {
       "slug": "kleinanzeigen-mobile-canary",
@@ -2264,8 +2264,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-14.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "retired",
+      "review_status": "retired 410/404 stub; JWT gateway verification enabled"
     },
     {
       "slug": "kleinanzeigen-mobile-probe-v2",
@@ -2279,8 +2279,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-14.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "kleinanzeigen-re-seeker-probe",
@@ -2294,8 +2294,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-14.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "kleinanzeigen-refresh-probe",
@@ -2309,8 +2309,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-14.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "retired",
+      "review_status": "retired 410/404 stub; JWT gateway verification enabled"
     },
     {
       "slug": "kleinanzeigen-seeker-inspect",
@@ -2324,8 +2324,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-14.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "kleinanzeigen-send-once-v3",
@@ -2339,8 +2339,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-15.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "support_or_review",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "support_review",
+      "review_status": "support/review; retain pending dependency-aware classification"
     },
     {
       "slug": "kleinanzeigen-send-probe",
@@ -2354,8 +2354,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-15.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "kleinanzeigen-structure-probe",
@@ -2369,8 +2369,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-15.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "kleinanzeigen-two-step-canary",
@@ -2384,8 +2384,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-16.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "canary",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "kleinanzeigen-web-contract-probe",
@@ -2399,8 +2399,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-16.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "kleinanzeigen-xcf-diagnostic-send",
@@ -2414,8 +2414,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-16.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "noop_probe",
@@ -2429,8 +2429,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-17.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "diagnostic",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "notification-dispatcher-preview-canary",
@@ -2444,8 +2444,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-18.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "canary",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "platform-connect",
@@ -2459,8 +2459,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-18.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "auth_or_platform_bridge",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "retired",
+      "review_status": "retired 410/404 stub; JWT gateway verification enabled"
     },
     {
       "slug": "platform-session-reminder",
@@ -2474,8 +2474,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-18.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "support_or_review",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "internal",
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
     },
     {
       "slug": "telegram-db-latency-canary",
@@ -2489,8 +2489,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-19.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "canary",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "telegram-engagement",
@@ -2504,8 +2504,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-20.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "support_or_review",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "internal",
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
     },
     {
       "slug": "telegram-gateway-autoapply-canary",
@@ -2519,8 +2519,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-20.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "canary",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "telegram-gateway-preview-canary",
@@ -2534,8 +2534,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-21.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "canary",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "telegram-gateway-v3-canary",
@@ -2549,8 +2549,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-21.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "canary",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "telegram-gateway-v4-canary",
@@ -2564,8 +2564,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-21.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "canary",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "telegram-ui-autoapply-canary",
@@ -2579,8 +2579,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-22.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "canary",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "telegram-ui-preview-canary",
@@ -2594,8 +2594,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-22.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "diagnostic_candidate",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "canary",
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
     },
     {
       "slug": "telegram-webhook-region-switch",
@@ -2609,8 +2609,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-22.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "webhook",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "retired",
+      "review_status": "retired 410/404 stub; JWT gateway verification enabled"
     },
     {
       "slug": "wg-gesucht-auth-bridge",
@@ -2624,8 +2624,8 @@
       "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-23.json",
       "archive_status": "full_source",
       "security_scan_flags": [],
-      "classification": "auth_or_platform_bridge",
-      "review_status": "archived; not promoted to deployable source tree without dependency and auth review"
+      "classification": "internal",
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
     }
   ],
   "live_inventory": {
