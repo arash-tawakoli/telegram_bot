@@ -1,0 +1,348 @@
+{
+  "batch_range": [
+    1,
+    5
+  ],
+  "functions": [
+    {
+      "slug": "application-package",
+      "version": 3,
+      "verify_jwt": false,
+      "classification": "support_or_review",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [
+        "internal_secret_header",
+        "service_role_or_api_key",
+        "explicit_auth_guard"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    },
+    {
+      "slug": "application-package-selftest",
+      "version": 4,
+      "verify_jwt": false,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [
+        "internal_secret_header",
+        "service_role_or_api_key",
+        "explicit_auth_guard"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    },
+    {
+      "slug": "application-worker",
+      "version": 190,
+      "verify_jwt": false,
+      "classification": "production_or_internal_worker",
+      "archive_status": "full_source",
+      "source_file_count": 10,
+      "auth_signals": [
+        "internal_secret_header",
+        "authorization_bearer",
+        "service_role_or_api_key",
+        "explicit_auth_guard"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    },
+    {
+      "slug": "auth-admin-repair",
+      "version": 2,
+      "verify_jwt": false,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [],
+      "review_priority": "high",
+      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+    },
+    {
+      "slug": "auth-contract-diag",
+      "version": 10,
+      "verify_jwt": true,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [],
+      "review_priority": "standard",
+      "assessment": "JWT gateway verification enabled."
+    },
+    {
+      "slug": "auth-facade-broker",
+      "version": 22,
+      "verify_jwt": false,
+      "classification": "auth_or_platform_bridge",
+      "archive_status": "full_source",
+      "source_file_count": 2,
+      "auth_signals": [
+        "internal_secret_header",
+        "service_role_or_api_key"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    },
+    {
+      "slug": "billing-maintenance",
+      "version": 122,
+      "verify_jwt": false,
+      "classification": "production_or_internal_worker",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [
+        "internal_secret_header",
+        "authorization_bearer",
+        "service_role_or_api_key",
+        "explicit_auth_guard"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    },
+    {
+      "slug": "coach-api",
+      "version": 46,
+      "verify_jwt": false,
+      "classification": "production_or_internal_worker",
+      "archive_status": "full_source",
+      "source_file_count": 2,
+      "auth_signals": [
+        "internal_secret_header",
+        "authorization_bearer",
+        "supabase_user_validation",
+        "service_role_or_api_key",
+        "explicit_auth_guard"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    },
+    {
+      "slug": "coach-bootstrap",
+      "version": 1,
+      "verify_jwt": false,
+      "classification": "support_or_review",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [
+        "service_role_or_api_key"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    },
+    {
+      "slug": "covivio-feed",
+      "version": 3,
+      "verify_jwt": false,
+      "classification": "transport_or_feed",
+      "archive_status": "full_source",
+      "source_file_count": 3,
+      "auth_signals": [],
+      "review_priority": "high",
+      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+    },
+    {
+      "slug": "deploy-merge-test",
+      "version": 1,
+      "verify_jwt": false,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 2,
+      "auth_signals": [],
+      "review_priority": "high",
+      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+    },
+    {
+      "slug": "html-render-test",
+      "version": 5,
+      "verify_jwt": false,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [],
+      "review_priority": "high",
+      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+    },
+    {
+      "slug": "immobilie1-transport",
+      "version": 3,
+      "verify_jwt": false,
+      "classification": "transport_or_feed",
+      "archive_status": "full_source",
+      "source_file_count": 3,
+      "auth_signals": [],
+      "review_priority": "high",
+      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+    },
+    {
+      "slug": "immobilien-de-transport",
+      "version": 15,
+      "verify_jwt": false,
+      "classification": "transport_or_feed",
+      "archive_status": "full_source",
+      "source_file_count": 3,
+      "auth_signals": [],
+      "review_priority": "high",
+      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+    },
+    {
+      "slug": "immomio-account",
+      "version": 20,
+      "verify_jwt": false,
+      "classification": "support_or_review",
+      "archive_status": "full_source",
+      "source_file_count": 3,
+      "auth_signals": [
+        "internal_secret_header",
+        "service_role_or_api_key",
+        "explicit_auth_guard"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    },
+    {
+      "slug": "immomio-application-worker",
+      "version": 11,
+      "verify_jwt": false,
+      "classification": "production_or_internal_worker",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [
+        "internal_secret_header",
+        "service_role_or_api_key",
+        "explicit_auth_guard"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    },
+    {
+      "slug": "immomio-auth-bridge",
+      "version": 9,
+      "verify_jwt": false,
+      "classification": "auth_or_platform_bridge",
+      "archive_status": "full_source",
+      "source_file_count": 2,
+      "auth_signals": [
+        "internal_secret_header",
+        "service_role_or_api_key",
+        "explicit_auth_guard"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    },
+    {
+      "slug": "immomio-auth-debug",
+      "version": 4,
+      "verify_jwt": false,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [
+        "internal_secret_header",
+        "service_role_or_api_key",
+        "explicit_auth_guard"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    },
+    {
+      "slug": "immomio-bundle-snippet",
+      "version": 5,
+      "verify_jwt": false,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [
+        "internal_secret_header",
+        "service_role_or_api_key",
+        "explicit_auth_guard"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    },
+    {
+      "slug": "immomio-chunk-inspect",
+      "version": 1,
+      "verify_jwt": false,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [
+        "internal_secret_header",
+        "service_role_or_api_key",
+        "explicit_auth_guard"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    },
+    {
+      "slug": "immomio-contract-inspect",
+      "version": 41,
+      "verify_jwt": false,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [
+        "internal_secret_header",
+        "service_role_or_api_key",
+        "explicit_auth_guard"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    },
+    {
+      "slug": "immomio-device-probe",
+      "version": 1,
+      "verify_jwt": false,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [
+        "internal_secret_header",
+        "service_role_or_api_key",
+        "explicit_auth_guard"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    },
+    {
+      "slug": "immomio-introspection-probe",
+      "version": 14,
+      "verify_jwt": false,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [],
+      "review_priority": "high",
+      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+    },
+    {
+      "slug": "immomio-mutation-contract-probe",
+      "version": 1,
+      "verify_jwt": false,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [
+        "internal_secret_header",
+        "service_role_or_api_key",
+        "explicit_auth_guard"
+      ],
+      "review_priority": "review",
+      "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
+    },
+    {
+      "slug": "immomio-probe",
+      "version": 4,
+      "verify_jwt": false,
+      "classification": "diagnostic_candidate",
+      "archive_status": "full_source",
+      "source_file_count": 1,
+      "auth_signals": [],
+      "review_priority": "high",
+      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+    }
+  ]
+}
