@@ -112,3 +112,23 @@ jobs:
             echo 'Potential secret found in repository.' >&2
             exit 1
           fi
+
+  clean-room-restore:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Start isolated local Supabase stack
+        run: supabase start -x studio,imgproxy,vector
+      - name: Replay migrations from an empty local database
+        run: supabase db reset --local
+      - name: Validate runtime manifest and migration registry
+        env:
+          RUNTIME_HASH_STRICT: '1'
+        run: node scripts/check-runtime.mjs
+      - name: Stop local Supabase stack
+        if: always()
+        run: supabase stop --no-backup
