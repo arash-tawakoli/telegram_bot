@@ -2,17 +2,18 @@
   "generated_at": "2026-10-21T21:01:41.725Z",
   "scope": "Static pattern review of archived source bundles only. This is a triage aid, not proof that a function is protected or exposed.",
   "total_functions": 114,
-  "verify_jwt_true": 30,
-  "verify_jwt_false": 84,
-  "jwt_false_with_obvious_auth_signal": 74,
-  "jwt_false_without_obvious_auth_signal": 10,
+  "verify_jwt_true": 38,
+  "verify_jwt_false": 76,
+  "jwt_false_with_obvious_auth_signal": 76,
+  "jwt_false_without_obvious_auth_signal": 0,
   "classification_counts": {
-    "support_or_review": 18,
+    "support_or_review": 16,
     "diagnostic_candidate": 68,
-    "production_or_internal_worker": 8,
+    "production_or_internal_worker": 16,
     "auth_or_platform_bridge": 8,
-    "transport_or_feed": 10,
-    "webhook": 2
+    "transport_or_feed": 2,
+    "webhook": 2,
+    "public_asset": 2
   },
   "functions": [
     {
@@ -147,14 +148,17 @@
     },
     {
       "slug": "covivio-feed",
-      "version": 3,
-      "verify_jwt": false,
-      "classification": "transport_or_feed",
+      "version": 4,
+      "verify_jwt": true,
+      "classification": "production_or_internal_worker",
       "archive_status": "full_source",
       "source_file_count": 3,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required",
+        "source_worker_in_process_dispatch"
+      ],
+      "review_priority": "standard",
+      "assessment": "Supabase JWT gateway verification is enabled for external requests; source-worker uses the matching in-process handler for connector dispatch."
     },
     {
       "slug": "deploy-merge-test",
@@ -184,25 +188,31 @@
     },
     {
       "slug": "immobilie1-transport",
-      "version": 3,
-      "verify_jwt": false,
-      "classification": "transport_or_feed",
+      "version": 4,
+      "verify_jwt": true,
+      "classification": "production_or_internal_worker",
       "archive_status": "full_source",
       "source_file_count": 3,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required",
+        "source_worker_in_process_dispatch"
+      ],
+      "review_priority": "standard",
+      "assessment": "Supabase JWT gateway verification is enabled for external requests; source-worker uses the matching in-process handler for connector dispatch."
     },
     {
       "slug": "immobilien-de-transport",
-      "version": 15,
-      "verify_jwt": false,
-      "classification": "transport_or_feed",
+      "version": 16,
+      "verify_jwt": true,
+      "classification": "production_or_internal_worker",
       "archive_status": "full_source",
       "source_file_count": 3,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required",
+        "source_worker_in_process_dispatch"
+      ],
+      "review_priority": "standard",
+      "assessment": "Supabase JWT gateway verification is enabled for external requests; source-worker uses the matching in-process handler for connector dispatch."
     },
     {
       "slug": "immomio-account",
@@ -1146,14 +1156,17 @@
     },
     {
       "slug": "meravis-feed",
-      "version": 5,
-      "verify_jwt": false,
-      "classification": "transport_or_feed",
+      "version": 6,
+      "verify_jwt": true,
+      "classification": "production_or_internal_worker",
       "archive_status": "full_source",
       "source_file_count": 3,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required",
+        "source_worker_in_process_dispatch"
+      ],
+      "review_priority": "standard",
+      "assessment": "Supabase JWT gateway verification is enabled for external requests; source-worker uses the matching in-process handler for connector dispatch."
     },
     {
       "slug": "mini-app",
@@ -1183,25 +1196,31 @@
     },
     {
       "slug": "noncoop-feed",
-      "version": 5,
-      "verify_jwt": false,
-      "classification": "transport_or_feed",
+      "version": 6,
+      "verify_jwt": true,
+      "classification": "production_or_internal_worker",
       "archive_status": "full_source",
       "source_file_count": 3,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required",
+        "source_worker_in_process_dispatch"
+      ],
+      "review_priority": "standard",
+      "assessment": "Supabase JWT gateway verification is enabled for external requests; source-worker uses the matching in-process handler for connector dispatch."
     },
     {
       "slug": "noncoop-new-feed",
-      "version": 7,
-      "verify_jwt": false,
-      "classification": "transport_or_feed",
+      "version": 8,
+      "verify_jwt": true,
+      "classification": "production_or_internal_worker",
       "archive_status": "full_source",
       "source_file_count": 4,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required",
+        "source_worker_in_process_dispatch"
+      ],
+      "review_priority": "standard",
+      "assessment": "Supabase JWT gateway verification is enabled for external requests; source-worker uses the matching in-process handler for connector dispatch."
     },
     {
       "slug": "noop",
@@ -1322,14 +1341,17 @@
     },
     {
       "slug": "spacest-feed",
-      "version": 4,
-      "verify_jwt": false,
-      "classification": "transport_or_feed",
+      "version": 5,
+      "verify_jwt": true,
+      "classification": "production_or_internal_worker",
       "archive_status": "full_source",
       "source_file_count": 3,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required",
+        "source_worker_in_process_dispatch"
+      ],
+      "review_priority": "standard",
+      "assessment": "Supabase JWT gateway verification is enabled for external requests; source-worker uses the matching in-process handler for connector dispatch."
     },
     {
       "slug": "stripe-webhook",
@@ -1375,12 +1397,14 @@
       "slug": "telegram-fallback-logo",
       "version": 3,
       "verify_jwt": false,
-      "classification": "support_or_review",
+      "classification": "public_asset",
       "archive_status": "full_source",
       "source_file_count": 1,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "intentional_public_static_asset"
+      ],
+      "review_priority": "standard",
+      "assessment": "Intentional public read-only image endpoint; no user data or write action. Keep public by design."
     },
     {
       "slug": "telegram-fast",
@@ -1495,12 +1519,14 @@
       "slug": "telegram-premium-image",
       "version": 7,
       "verify_jwt": false,
-      "classification": "support_or_review",
+      "classification": "public_asset",
       "archive_status": "full_source",
       "source_file_count": 1,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "intentional_public_static_asset"
+      ],
+      "review_priority": "standard",
+      "assessment": "Intentional public read-only image endpoint; no user data or write action. Keep public by design."
     },
     {
       "slug": "telegram-ui",
@@ -1558,14 +1584,17 @@
     },
     {
       "slug": "vonovia-transport",
-      "version": 2,
-      "verify_jwt": false,
-      "classification": "transport_or_feed",
+      "version": 3,
+      "verify_jwt": true,
+      "classification": "production_or_internal_worker",
       "archive_status": "full_source",
       "source_file_count": 2,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required",
+        "source_worker_in_process_dispatch"
+      ],
+      "review_priority": "standard",
+      "assessment": "Supabase JWT gateway verification is enabled for external requests; source-worker uses the matching in-process handler for connector dispatch."
     },
     {
       "slug": "wg-gesucht-auth-bridge",
@@ -1608,5 +1637,9 @@
       "review_priority": "review",
       "assessment": "JWT gateway verification disabled; custom auth or intentional public use requires manual confirmation."
     }
+  ],
+  "notes": [
+    "All eight public source transport/feed endpoints now require Supabase JWT verification for direct external requests. The source-worker uses the same handlers in-process, so internal crawl routing remains independent of the HTTP gateway.",
+    "Two image-only endpoints remain intentionally public and are explicitly classified as public assets."
   ]
 }
