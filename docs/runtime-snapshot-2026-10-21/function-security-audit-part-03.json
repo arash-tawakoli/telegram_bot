@@ -165,14 +165,16 @@
     },
     {
       "slug": "kleinanzeigen-direct-login-probe",
-      "version": 2,
-      "verify_jwt": false,
+      "version": 3,
+      "verify_jwt": true,
       "classification": "diagnostic_candidate",
       "archive_status": "full_source",
       "source_file_count": 1,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required"
+      ],
+      "review_priority": "standard",
+      "assessment": "Retired/diagnostic endpoint returns a non-success response; JWT gateway verification enabled."
     },
     {
       "slug": "kleinanzeigen-first-contact-canary",
@@ -221,14 +223,16 @@
     },
     {
       "slug": "kleinanzeigen-mobile-canary",
-      "version": 3,
-      "verify_jwt": false,
+      "version": 4,
+      "verify_jwt": true,
       "classification": "diagnostic_candidate",
       "archive_status": "full_source",
       "source_file_count": 1,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required"
+      ],
+      "review_priority": "standard",
+      "assessment": "Retired/diagnostic endpoint returns a non-success response; JWT gateway verification enabled."
     },
     {
       "slug": "kleinanzeigen-mobile-probe-v2",
@@ -264,14 +268,16 @@
     },
     {
       "slug": "kleinanzeigen-refresh-probe",
-      "version": 2,
-      "verify_jwt": false,
+      "version": 3,
+      "verify_jwt": true,
       "classification": "diagnostic_candidate",
       "archive_status": "full_source",
       "source_file_count": 1,
-      "auth_signals": [],
-      "review_priority": "high",
-      "assessment": "No obvious auth signal found by static pattern scan; inspect before disabling or exposing."
+      "auth_signals": [
+        "gateway_jwt_required"
+      ],
+      "review_priority": "standard",
+      "assessment": "Retired/diagnostic endpoint returns a non-success response; JWT gateway verification enabled."
     },
     {
       "slug": "kleinanzeigen-seeker-inspect",
