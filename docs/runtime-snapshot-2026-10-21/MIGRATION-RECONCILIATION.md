@@ -32,4 +32,4 @@ The three repository migration filenames that differed from the applied live ver
 
 The current schema catalog, custom routine definitions, grants, RLS policies, triggers, views, enums, extensions, Storage metadata, cron definitions, Cloudflare bindings, and all 114 Edge Function source bundles are archived in this directory.
 
-**Migration-version parity is now complete.** A clean-room restore has not yet been run, so exact restoreability is not certified until the isolated restore test succeeds. The original eight migration bodies remain unavailable as historical source, although equivalent replayable SQL is now versioned.
+**Migration-version parity is now complete.** A clean-room restore is gated by the `clean-room-restore` job in `.github/workflows/architecture-check.yml`. Exact restoreability is not certified until that isolated local restore job succeeds. The original eight migration bodies remain unavailable as historical source, although equivalent replayable SQL is now versioned.
