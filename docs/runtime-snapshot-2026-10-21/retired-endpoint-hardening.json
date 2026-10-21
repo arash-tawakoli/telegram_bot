@@ -1,0 +1,115 @@
+{
+  "generated_at": "2026-10-21T21:38:47.769Z",
+  "change": "JWT gateway verification enabled for retired/test-only endpoints; no retired functionality was reactivated.",
+  "functions": [
+    {
+      "slug": "auth-admin-repair",
+      "version": 3,
+      "verify_jwt": true,
+      "artifact_sha256": "1e4b82d411cf4a8488998cdb4e5f985d86f24ebcb21471c891a7a5a67db8945a",
+      "disposition": "existing retired/non-success stub preserved; JWT verification enabled"
+    },
+    {
+      "slug": "deploy-merge-test",
+      "version": 2,
+      "verify_jwt": true,
+      "artifact_sha256": "959ba6ecf679b840f210c57a60c93f4669e6c7eb80f3271d0bb037975acba339",
+      "disposition": "replaced with HTTP 410 stub and JWT verification enabled"
+    },
+    {
+      "slug": "html-render-test",
+      "version": 6,
+      "verify_jwt": true,
+      "artifact_sha256": "8405a45719c71ae80ab1fbf69da80ddd18f8012b6b945ce0b736106d4d1adef3",
+      "disposition": "existing retired/non-success stub preserved; JWT verification enabled"
+    },
+    {
+      "slug": "immomio-introspection-probe",
+      "version": 15,
+      "verify_jwt": true,
+      "artifact_sha256": "dd494821ebb5b5e314d96ed818dd46849912c43ac43e26e6d6d6474da1349630",
+      "disposition": "existing retired/non-success stub preserved; JWT verification enabled"
+    },
+    {
+      "slug": "immomio-probe",
+      "version": 5,
+      "verify_jwt": true,
+      "artifact_sha256": "0648f0219bd7a29a0560a67335db9c7d1b0163a9651bcf78b9ba9b5f0b61ca0d",
+      "disposition": "existing retired/non-success stub preserved; JWT verification enabled"
+    },
+    {
+      "slug": "immomio-tenant-inspect",
+      "version": 7,
+      "verify_jwt": true,
+      "artifact_sha256": "c09eccd05e1e03196accbd814821c9dac94c20e09588ad64129179815efe719b",
+      "disposition": "existing retired/non-success stub preserved; JWT verification enabled"
+    },
+    {
+      "slug": "ka-gateway-egress-probe",
+      "version": 3,
+      "verify_jwt": true,
+      "artifact_sha256": "ca8db7abfff581934681d2dd9145dfee55bd9f6f7b38ec8218c11bd636e2a1a8",
+      "disposition": "existing retired/non-success stub preserved; JWT verification enabled"
+    },
+    {
+      "slug": "kleinanzeigen-direct-login-probe",
+      "version": 3,
+      "verify_jwt": true,
+      "artifact_sha256": "2030b37fe46593d898a0f59f538b8dbd98d43dc3e1096fb85f74632744b5cd0c",
+      "disposition": "existing retired/non-success stub preserved; JWT verification enabled"
+    },
+    {
+      "slug": "kleinanzeigen-mobile-canary",
+      "version": 4,
+      "verify_jwt": true,
+      "artifact_sha256": "529bcc6c78cca4cee4dc4f7bdf9690f2e63f8a0f09f63edad30169f2599afa2b",
+      "disposition": "existing retired/non-success stub preserved; JWT verification enabled"
+    },
+    {
+      "slug": "kleinanzeigen-refresh-probe",
+      "version": 3,
+      "verify_jwt": true,
+      "artifact_sha256": "497d2f569d81c41d3685e148d53ce8d8844d391eea6899d36bfebec1c1900dc9",
+      "disposition": "existing retired/non-success stub preserved; JWT verification enabled"
+    },
+    {
+      "slug": "mini-app",
+      "version": 12,
+      "verify_jwt": true,
+      "artifact_sha256": "ef070b86cbb5334bc82e00dcc354b2aa5d2d7b5196253e97c1ff4b462a696789",
+      "disposition": "existing retired/non-success stub preserved; JWT verification enabled"
+    },
+    {
+      "slug": "mini-app-publisher",
+      "version": 6,
+      "verify_jwt": true,
+      "artifact_sha256": "16f68e336ef719d7299d2a192b5489c36204a7cd9211cc489e94aec99238632d",
+      "disposition": "existing retired/non-success stub preserved; JWT verification enabled"
+    },
+    {
+      "slug": "platform-connect",
+      "version": 4,
+      "verify_jwt": true,
+      "artifact_sha256": "ab54c8e8e29f824e290917601efac9554eb581d816b5eb253891c827c140c557",
+      "disposition": "existing retired/non-success stub preserved; JWT verification enabled"
+    },
+    {
+      "slug": "telegram-webhook-region-switch",
+      "version": 3,
+      "verify_jwt": true,
+      "artifact_sha256": "3bd9e184933090cd1dcedbbd2be02e7cc9040d7a4d572b7d61940a5575b537db",
+      "disposition": "existing retired/non-success stub preserved; JWT verification enabled"
+    },
+    {
+      "slug": "wunder-probe",
+      "version": 9,
+      "verify_jwt": true,
+      "artifact_sha256": "a9dc7ce9bec50bfefca851124b218b551455baf3b389320936a63928d1eb4dae",
+      "disposition": "existing retired/non-success stub preserved; JWT verification enabled"
+    }
+  ],
+  "notes": [
+    "The archived source was refreshed for each affected function.",
+    "No production crawler, delivery worker, or user-facing application endpoint was changed by this hardening batch."
+  ]
+}
