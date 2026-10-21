@@ -50,12 +50,12 @@
     },
     {
       "slug": "wunder-probe",
-      "version": 8,
+      "version": 9,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
-      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_6a4862d3-3216-41cb-bfef-4515c9522adf_8/source/index.ts",
-      "artifact_sha256": "7d83e4b2edf697f7a7efd0992b476892cbcf4c75e6dab98f8c312c342ca4591b",
+      "entrypoint_path": "/tmp/user_fn_dpmohkrwdlicexwcrqfy_6a4862d3-3216-41cb-bfef-4515c9522adf_9/source/index.ts",
+      "artifact_sha256": "a9dc7ce9bec50bfefca851124b218b551455baf3b389320936a63928d1eb4dae",
       "archive_status": "full_source",
       "security_scan_flags": [],
       "files": [
