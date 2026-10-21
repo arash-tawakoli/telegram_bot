@@ -1,0 +1,95 @@
+{
+  "snapshot": "2026-10-21",
+  "batch": 15,
+  "functions": [
+    {
+      "slug": "kleinanzeigen-send-once-v3",
+      "version": 2,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_bfe1bcaa-fcc8-4773-97b6-923818811630_2/source/index.ts",
+      "artifact_sha256": "8983c47b70aa5dcaa79063615bc6308b9a5513309cf289b094441caae6338f97",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "files": [
+        {
+          "path": "index.ts",
+          "content": "Deno.serve(()=>new Response('gone',{status:410}));\n"
+        }
+      ]
+    },
+    {
+      "slug": "kleinanzeigen-send-probe",
+      "version": 8,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_60145f03-b5d0-4f22-8082-5273152380bd_8/source/index.ts",
+      "artifact_sha256": "c6f6f6ede954742086c662fe80c7b78fda85a3e1222b65d2fd06f35097bc5486",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "files": [
+        {
+          "path": "index.ts",
+          "content": "Deno.serve(()=>new Response('gone',{status:410}));\n"
+        }
+      ]
+    },
+    {
+      "slug": "kleinanzeigen-static-analysis",
+      "version": 4,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_8aa213a6-59f4-41c0-85dd-c1ea344a5063_4/source/kleinanzeigen-static-analysis/index.ts",
+      "artifact_sha256": "7b4a8e6893a81030c8f33238c1b69fab9e951c3122a0b38516704d24634150a8",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "files": [
+        {
+          "path": "kleinanzeigen-static-analysis/index.ts",
+          "content": "import {createClient} from 'npm:@supabase/supabase-js@2.112.4';\nconst keys=JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')||'{}');\nconst db=createClient(Deno.env.get('SUPABASE_URL')!,keys.default||Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false,autoRefreshToken:false}});\nasync function secret(){const {data,error}=await db.rpc('get_bot_secret',{secret_name:'internal_worker_secret'});if(error||!data)throw Error('secret');return String(data)}\nconst TARGET_URL='https://www.kleinanzeigen.de/nachrichten/s-anbieter-kontaktieren/3513898714/26488-22303-hamburg-barmbek-nord/203-Wohnung_mieten';\nconst UA='Mozilla/5.0 (Linux; Android 16; Pixel 9 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36';\nfunction contexts(text:string,p:string,max=10){const out=[];const l=text.toLowerCase(),q=p.toLowerCase();let a=0;while(out.length<max){const i=l.indexOf(q,a);if(i<0)break;out.push(text.slice(Math.max(0,i-300),Math.min(text.length,i+500)).replace(/\\s+/g,' '));a=i+q.length}return out}\nDeno.serve(async req=>{try{if(req.headers.get('x-internal-secret')!==await secret())return new Response('no',{status:401});const manual=await fetch(TARGET_URL,{redirect:'manual',headers:{'user-agent':UA,accept:'text/html,application/xhtml+xml,*/*','accept-language':'de-DE,de;q=0.9'},signal:AbortSignal.timeout(15000)});const mt=await manual.text();const follow=await fetch(TARGET_URL,{redirect:'follow',headers:{'user-agent':UA,accept:'text/html,application/xhtml+xml,*/*','accept-language':'de-DE,de;q=0.9'},signal:AbortSignal.timeout(15000)});const text=await follow.text();const ps=['login','csrf','form','action=','nachricht','profilname','telefonnummer','anfrage-qualität','anfrage','extended','kare-2687','anbieter-kontaktieren','messagebox','conversation','contact'];const hits:any={};for(const p of ps){const c=contexts(text,p);if(c.length)hits[p]=c}const forms=[...text.matchAll(/<form\\b[^>]*>/gi)].map(m=>m[0]);const scripts=[...text.matchAll(/<script\\b[^>]*\\bsrc=[\"']([^\"']+)[\"'][^>]*>/gi)].map(m=>{try{return new URL(m[1],follow.url).href}catch{return m[1]}});return Response.json({manual:{status:manual.status,location:manual.headers.get('location'),bytes:mt.length,setCookie:!!manual.headers.get('set-cookie')},follow:{status:follow.status,url:follow.url,bytes:text.length,setCookie:!!follow.headers.get('set-cookie')},forms,patterns:Object.keys(hits),hits,scripts});}catch(e){return Response.json({error:String((e as any)?.message||e)},{status:500})}});\n"
+        }
+      ]
+    },
+    {
+      "slug": "kleinanzeigen-structure-probe",
+      "version": 1,
+      "status": "ACTIVE",
+      "verify_jwt": true,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_d8d2db1f-cf45-4f1c-92ca-933be1e0ec7d_1/source/index.ts",
+      "artifact_sha256": "69f70c7715da2b4e86e9fdccfc2f2d6f178bbd9bdd49f16808dd0104cebc793a",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "files": [
+        {
+          "path": "index.ts",
+          "content": "Deno.serve(()=>new Response('gone',{status:410}));\n"
+        }
+      ]
+    },
+    {
+      "slug": "kleinanzeigen-transport",
+      "version": 4,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_c1a87bc6-675f-484b-a51f-cac8caab11cf_4/source/kleinanzeigen-transport/index.ts",
+      "artifact_sha256": "0a8ae2c6dc63fcefff6894e66f2dcb9397c74f16df646b7f8505edb6afcbc41f",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "files": [
+        {
+          "path": "kleinanzeigen-transport/index.ts",
+          "content": "import { fetchListingPage } from \"./fetch-page.ts\";\nimport { createClient } from \"npm:@supabase/supabase-js@2.112.4\";\nconst SUPABASE_URL=Deno.env.get('SUPABASE_URL')!;\nconst KEY=JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')||'{}').default||Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;\nconst db=createClient(SUPABASE_URL,KEY,{auth:{persistSession:false,autoRefreshToken:false}});\nasync function secret(){const{data,error}=await db.rpc('get_bot_secret',{secret_name:'internal_worker_secret'});if(error||!data)throw new Error('internal secret unavailable');return String(data)}\nDeno.serve(async req=>{try{if(req.method!=='POST')return new Response('method not allowed',{status:405});if((req.headers.get('x-internal-secret')||'')!==await secret())return new Response('unauthorized',{status:401});const body=await req.json().catch(()=>({}));return fetchListingPage(String(body?.url||''),req.signal)}catch(e){return new Response(e instanceof Error?e.message:String(e),{status:502,headers:{'cache-control':'no-store'}})}});\n"
+        },
+        {
+          "path": "kleinanzeigen-transport/fetch-page.ts",
+          "content": "const UA='Mozilla/5.0 (compatible; TraumwohnungHamburgBot/13.0; +https://traumwohnunghamburg.de)';\n\nexport async function fetchListingPage(raw: string, signal?: AbortSignal): Promise<Response> {\n  try {\n    const url=new URL(raw);\n    if(url.protocol!=='https:' || url.hostname!=='www.kleinanzeigen.de' || url.port || url.username || url.password || !/^\\/s-(?:wohnung-mieten|haus-mieten|auf-zeit-wg)\\//.test(url.pathname))\n      return new Response('invalid target',{status:400});\n    const response=await fetch(url.href,{\n      redirect:'follow',\n      headers:{'user-agent':UA,accept:'text/html,application/xhtml+xml,*/*','accept-language':'de-DE,de;q=0.9','cache-control':'no-cache'},\n      signal:AbortSignal.any([AbortSignal.timeout(12000),...(signal?[signal]:[])]),\n    });\n    const html=await response.text();\n    signal?.throwIfAborted();\n    return new Response(html,{status:200,headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-upstream-status':String(response.status),'x-upstream-url':response.url}});\n  } catch(error) {\n    return new Response(error instanceof Error?error.message:String(error),{status:502,headers:{'cache-control':'no-store'}});\n  }\n}\n"
+        }
+      ]
+    }
+  ]
+}
