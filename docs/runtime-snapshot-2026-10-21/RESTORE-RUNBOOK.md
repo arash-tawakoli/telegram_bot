@@ -31,6 +31,17 @@ The snapshot is intentionally split into small, auditable files:
 8. Run provider contract tests, queue/delivery/token/RLS smoke tests, 104-neighborhood coverage tests, portal responsive tests at 320/390/768/1024/1440px, and then perform a clean-room restore validation.
 9. Compare the restored runtime manifest and schema against the snapshot. Record any deviations before calling the restore complete.
 
+
+## Smoke checks completed on the live project
+
+- The Telegram link-token issuance function successfully issued a token for an eligible test candidate inside a transaction that was rolled back; the token value was not retained or exposed.
+- The bootstrap-token validity check rejected a non-existent token. Bootstrap issuance remains correctly blocked while an active admin already exists.
+- All four internal tables checked have RLS enabled, an explicit client-deny policy, and no SELECT privileges for `anon` or `authenticated`.
+- The job-application index `job_applications_search_profile_id_idx` exists. The latest performance advisor no longer reports the missing-index warning.
+- The persisted `listings.neighborhood_id` matches the canonical normalizer for all **32,751** listings checked; mismatches: **0**.
+- The one-job retry canary was retried once and failed again with a timeout. The source circuit breaker then excluded that source from further automatic retries; the current dry-run preview has no eligible retry candidates.
+- The provider contract tests are being added to CI. The last run exposed two test-fixture/assertion defects and a stale test path after migration filename reconciliation; those tests were corrected and are rerunning.
+
 ## Known blockers
 
 - Eight historical migration SQL bodies are absent from Git. The current schema/routine snapshots are recovery artifacts, not proof that those original migrations can be replayed exactly.
