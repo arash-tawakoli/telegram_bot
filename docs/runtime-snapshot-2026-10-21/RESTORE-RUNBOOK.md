@@ -70,7 +70,7 @@ The following retired/test-only endpoints now require JWT verification at the Su
 
 1. Add a scoped Supabase Management API token as the GitHub Actions secret `SUPABASE_ACCESS_TOKEN` (auth-config read/write and project-admin permissions), then run `.github/workflows/enable-auth-password-protection.yml`. The workflow verifies `password_hibp_enabled=true` without printing the auth configuration.
 2. Run the `clean-room-restore` job in `.github/workflows/architecture-check.yml`. It starts an isolated local Supabase stack, replays all migrations from an empty database, and validates the runtime registry. This does not create a billable Supabase branch. Only if local emulation cannot validate a platform-specific object should a cloud branch be considered; its quoted compute rate is US$0.01344/hour and requires explicit approval.
-3. For final browser-level verification of Manager Preview, dialog focus return, contrast and the production dashboard at 200% zoom, use the new Playwright acceptance workflow in the website repository. It uses mocked API responses and does not mutate production participant data.
+3. For final browser-level verification of Manager Preview, dialog focus return, contrast and the dashboard at a 200%-zoom-equivalent viewport, a separate website-repository PR adds a Playwright acceptance workflow with mocked API responses. Do not mark UI acceptance complete until its browser check passes and the PR is merged; the test does not mutate production participant data.
 
 ## Known blockers
 
