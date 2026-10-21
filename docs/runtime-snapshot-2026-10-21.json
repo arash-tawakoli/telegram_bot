@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-21T22:26:58.804Z",
+  "generatedAt": "2026-10-21T22:43:06.184652+00:00",
   "scope": "Read-only live runtime snapshot plus archived deployed source bundles. No user data, credentials or token values included.",
   "runtimeAuthority": {
     "database": "Supabase",
@@ -38,40 +38,54 @@
     "restoreTest": "pending isolated Supabase branch restore"
   },
   "liveHealth": {
+    "cron": {
+      "total": 12,
+      "active": 10,
+      "inactive": 2
+    },
     "queue": {
-      "dead": 153,
-      "done": 12680,
-      "total": 12866,
-      "enqueued": 32,
+      "dead": 154,
+      "done": 13537,
+      "total": 13703,
+      "enqueued": 11,
       "processing": 1
     },
+    "crawls": {
+      "crawls": 1701,
+      "failed": 57,
+      "successful": 1644,
+      "fetched_rows": 89385,
+      "inserted_rows": 359
+    },
+    "sources": {
+      "disabled": 12,
+      "registered": 68,
+      "enabled_live": 55,
+      "partial_live": 24,
+      "complete_live": 31,
+      "enabled_shadow": 1
+    },
     "delivery": {
-      "sent": 1323,
-      "events": 1515,
-      "failed": 43,
+      "sent": 1331,
+      "events": 1506,
+      "failed": 35,
       "pending": 0,
-      "skipped": 60,
-      "available": 89,
+      "skipped": 64,
+      "available": 76,
       "processing": 0,
-      "distinct_listings": 301
+      "distinct_listings": 291
     },
-    "disabled": 12,
-    "registered": 68,
-    "enabled_live": 55,
-    "enabled_shadow": 1,
-    "active_listings": 25980,
-    "active_no_district": 9364,
-    "neighborhood_count": 104,
-    "coverage_status_counts": {
-      "ambiguous": 7
-    },
-    "source_coverage_records": 7,
-    "active_noncanonical_district": 5054
+    "listings": {
+      "active_listings": 26008,
+      "active_no_district": 9371,
+      "primary_active_listings": 25082,
+      "active_noncanonical_district": 5057
+    }
   },
   "listingNormalization": {
-    "total": 32751,
-    "mapped": 16736,
-    "unmapped": 16015,
+    "total": 32761,
+    "mapped": 16739,
+    "unmapped": 16022,
     "mismatches": 0
   },
   "cron": [
@@ -188,18 +202,34 @@
   "security": {
     "securityAdvisorWarnings": [
       {
-        "name": "auth_leaked_password_protection",
-        "level": "WARN",
-        "count": 1
-      },
-      {
         "name": "rls_enabled_no_policy",
         "level": "INFO",
-        "count": 57
+        "count": 57,
+        "description": "Detects cases where row level security (RLS) has been enabled on a table but no RLS policies have been created."
+      },
+      {
+        "name": "auth_leaked_password_protection",
+        "level": "WARN",
+        "count": 1,
+        "description": "Leaked password protection is currently disabled."
       }
     ],
     "leakedPasswordProtection": "still disabled; management API credentials or Supabase dashboard access required to enable",
-    "diagnosticFunctions": "All 114 live functions are classified. Fifteen confirmed retired/test endpoints are non-success stubs with JWT gateway verification; eight source transport/feed endpoints now require JWT on direct HTTP requests while source-worker retains in-process routing. Two image-only endpoints remain intentionally public. Other diagnostic/canary functions were retained only where their source contains internal authorization signals; the archive audit records the classification."
+    "diagnosticFunctions": "All 114 live functions are classified. Fifteen retired/test endpoints are non-success stubs with JWT gateway verification. Eight source transport/feed endpoints require JWT for direct HTTP access; source-worker dispatches them in-process. Two image-only endpoints remain intentionally public.",
+    "performanceAdvisorWarnings": [
+      {
+        "name": "unused_index",
+        "level": "INFO",
+        "count": 16,
+        "description": "Detects if an index has never been used and may be a candidate for removal."
+      },
+      {
+        "name": "auth_db_connections_absolute",
+        "level": "INFO",
+        "count": 1,
+        "description": "Using a percentage based allocation connection strategy for Auth can help to improve the server's performance when increasing instance size."
+      }
+    ]
   },
   "deployment": {
     "sourceWorkerVersion": 106,
@@ -225,9 +255,75 @@
     "deadLetterBulkRequeuePerformed": false,
     "retryCronEnabled": true,
     "latestRetryPreviewEligible": 0,
-    "neighborhoodCoverageRecords": 7,
+    "neighborhoodCoverageRecords": 14,
     "neighborhoodCoverageStatus": {
       "ambiguous": 7
+    },
+    "scoutTargetEvidence": [
+      {
+        "status": "searched_no_hits",
+        "quality": "verified",
+        "strategy": "immoscout_mcp_exact_neighborhood_query",
+        "attempted_at": "2026-10-21T21:52:21.277+00:00",
+        "neighborhood": "Altenwerder",
+        "result_count": 0
+      },
+      {
+        "status": "searched_no_hits",
+        "quality": "verified",
+        "strategy": "immoscout_mcp_exact_neighborhood_query",
+        "attempted_at": "2026-10-21T21:58:24.464+00:00",
+        "neighborhood": "Gut Moor",
+        "result_count": 0
+      },
+      {
+        "status": "searched_with_hits",
+        "quality": "verified",
+        "strategy": "immoscout_mcp_exact_neighborhood_query",
+        "attempted_at": "2026-10-21T21:21:13.948+00:00",
+        "neighborhood": "Hamburg-Altstadt",
+        "result_count": 7
+      },
+      {
+        "status": "searched_with_hits",
+        "quality": "verified",
+        "strategy": "immoscout_mcp_exact_neighborhood_query",
+        "attempted_at": "2026-10-21T21:36:20.093+00:00",
+        "neighborhood": "Neuallermöhe",
+        "result_count": 2
+      },
+      {
+        "status": "searched_no_hits",
+        "quality": "verified",
+        "strategy": "immoscout_mcp_exact_neighborhood_query",
+        "attempted_at": "2026-10-21T21:25:29.601+00:00",
+        "neighborhood": "Neuwerk",
+        "result_count": 0
+      },
+      {
+        "status": "searched_no_hits",
+        "quality": "verified",
+        "strategy": "immoscout_mcp_exact_neighborhood_query",
+        "attempted_at": "2026-10-21T21:32:12.567+00:00",
+        "neighborhood": "Steinwerder",
+        "result_count": 0
+      },
+      {
+        "status": "searched_no_hits",
+        "quality": "verified",
+        "strategy": "immoscout_mcp_exact_neighborhood_query",
+        "attempted_at": "2026-10-21T21:43:11.903+00:00",
+        "neighborhood": "Tatenberg",
+        "result_count": 0
+      }
+    ],
+    "retryPreview": {
+      "ok": true,
+      "jobs": [],
+      "limit": 3,
+      "dryRun": true,
+      "eligibleCount": 0,
+      "requeuedCount": 0
     }
   },
   "limitations": [
@@ -235,6 +331,20 @@
     "No clean-room restore was run; a restore requires an isolated database/branch and cost approval if Supabase quotes a nonzero charge.",
     "Supabase Auth leaked-password protection cannot be toggled through the available project/database connector. It remains disabled pending management API or dashboard access.",
     "Two verify_jwt=false endpoints are intentionally public image-only assets; the other false-JWT functions are classified and their source contains internal authorization signals or webhook-specific controls. This static audit does not replace periodic dependency review.",
-    "Neighborhood evidence currently records seven ambiguous results. This means the exact search returned no reliable count; it is not proof that no listings exist."
+    "Neighborhood evidence currently records seven ambiguous results. This means the exact search returned no reliable count; it is not proof that no listings exist.",
+    "A clean-room restore has not yet been run. The eight missing original historical SQL bodies have registered reconstructed equivalents; exact restoreability remains pending an isolated branch test.",
+    "Supabase leaked-password protection remains disabled until the GitHub Actions secret SUPABASE_ACCESS_TOKEN is configured and the guarded workflow is run."
+  ],
+  "jobApplicationIndex": [
+    "CREATE INDEX job_applications_search_profile_id_idx ON public.job_applications USING btree (search_profile_id)"
+  ],
+  "saga": [
+    {
+      "name": "SAGA",
+      "enabled": false,
+      "runtime_mode": "live",
+      "delivery_mode": "live",
+      "consecutive_failures": 2027
+    }
   ]
 }
