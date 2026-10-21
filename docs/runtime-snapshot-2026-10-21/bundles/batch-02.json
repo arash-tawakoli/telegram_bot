@@ -80,12 +80,12 @@
     },
     {
       "slug": "covivio-feed",
-      "version": 3,
+      "version": 4,
       "status": "ACTIVE",
-      "verify_jwt": false,
+      "verify_jwt": true,
       "import_map": false,
       "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_e0e95e50-0f89-4b47-bce8-1ad076d4e841_3/source/covivio-feed/index.ts",
-      "artifact_sha256": "58f08c651f84aef0ea06d7002c7db69ca6248ca3da4d1fd36b53fff81ed376eb",
+      "artifact_sha256": "3d0bcc977b3d3828431ae028885a5ce8f7c695ba1bf8c60ffc530ba6f872fd71",
       "archive_status": "full_source",
       "security_scan_flags": [],
       "files": [
