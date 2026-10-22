@@ -179,7 +179,7 @@
       "verify_jwt": false,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "0066b28dc91f558bc9d7c027c70b8b13d1ac5781e0e7a285268fe7fcb9ecf35e",
+      "observed_artifact_sha256": "c86dde15b99e8ce88a7f3f08b04bc2776ae338fb179c8f896ef76211b7ff9a4b",
       "entrypoint": "supabase/functions/coach-api/index.ts",
       "files": [
         {
