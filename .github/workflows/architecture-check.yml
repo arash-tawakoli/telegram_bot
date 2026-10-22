@@ -3,7 +3,7 @@ name: Architecture check
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, fix/runtime-baseline-2026-10-22]
 
 permissions:
   contents: read
