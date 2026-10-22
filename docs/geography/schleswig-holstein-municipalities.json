@@ -1,0 +1,5531 @@
+{
+  "source": "Destatis GV100-derived municipality register (2022), reconciled with Statistik Nord official changes through 2026-01-01",
+  "source_urls": [
+    "https://www.destatis.de/DE/Themen/Laender-Regionen/Regionales/Gemeindeverzeichnis/_inhalt.html",
+    "https://www.statistik-nord.de/zahlen-fakten/gebiet-flaeche/gebietsgliederung-schleswig-holstein"
+  ],
+  "source_vintage": "2026-01-01",
+  "count": 1104,
+  "municipalities": [
+    {
+      "code": "01001000",
+      "parent": "01001",
+      "name": "Flensburg"
+    },
+    {
+      "code": "01002000",
+      "parent": "01002",
+      "name": "Kiel"
+    },
+    {
+      "code": "01003000",
+      "parent": "01003",
+      "name": "Lübeck"
+    },
+    {
+      "code": "01004000",
+      "parent": "01004",
+      "name": "Neumünster"
+    },
+    {
+      "code": "01051001",
+      "parent": "01051",
+      "name": "Albersdorf"
+    },
+    {
+      "code": "01051002",
+      "parent": "01051",
+      "name": "Arkebek"
+    },
+    {
+      "code": "01051003",
+      "parent": "01051",
+      "name": "Averlak"
+    },
+    {
+      "code": "01051004",
+      "parent": "01051",
+      "name": "Bargenstedt"
+    },
+    {
+      "code": "01051005",
+      "parent": "01051",
+      "name": "Barkenholm"
+    },
+    {
+      "code": "01051006",
+      "parent": "01051",
+      "name": "Barlt"
+    },
+    {
+      "code": "01051008",
+      "parent": "01051",
+      "name": "Bergewöhrden"
+    },
+    {
+      "code": "01051010",
+      "parent": "01051",
+      "name": "Brickeln"
+    },
+    {
+      "code": "01051011",
+      "parent": "01051",
+      "name": "Brunsbüttel"
+    },
+    {
+      "code": "01051012",
+      "parent": "01051",
+      "name": "Buchholz"
+    },
+    {
+      "code": "01051013",
+      "parent": "01051",
+      "name": "Büsum"
+    },
+    {
+      "code": "01051014",
+      "parent": "01051",
+      "name": "Büsumer Deichhausen"
+    },
+    {
+      "code": "01051015",
+      "parent": "01051",
+      "name": "Bunsoh"
+    },
+    {
+      "code": "01051016",
+      "parent": "01051",
+      "name": "Burg (Dithmarschen)"
+    },
+    {
+      "code": "01051017",
+      "parent": "01051",
+      "name": "Busenwurth"
+    },
+    {
+      "code": "01051019",
+      "parent": "01051",
+      "name": "Dellstedt"
+    },
+    {
+      "code": "01051020",
+      "parent": "01051",
+      "name": "Delve"
+    },
+    {
+      "code": "01051021",
+      "parent": "01051",
+      "name": "Diekhusen-Fahrstedt"
+    },
+    {
+      "code": "01051022",
+      "parent": "01051",
+      "name": "Dingen"
+    },
+    {
+      "code": "01051023",
+      "parent": "01051",
+      "name": "Dörpling"
+    },
+    {
+      "code": "01051024",
+      "parent": "01051",
+      "name": "Eddelak"
+    },
+    {
+      "code": "01051026",
+      "parent": "01051",
+      "name": "Eggstedt"
+    },
+    {
+      "code": "01051027",
+      "parent": "01051",
+      "name": "Elpersbüttel"
+    },
+    {
+      "code": "01051028",
+      "parent": "01051",
+      "name": "Epenwöhrden"
+    },
+    {
+      "code": "01051030",
+      "parent": "01051",
+      "name": "Fedderingen"
+    },
+    {
+      "code": "01051032",
+      "parent": "01051",
+      "name": "Frestedt"
+    },
+    {
+      "code": "01051033",
+      "parent": "01051",
+      "name": "Friedrichsgabekoog"
+    },
+    {
+      "code": "01051034",
+      "parent": "01051",
+      "name": "Friedrichskoog"
+    },
+    {
+      "code": "01051035",
+      "parent": "01051",
+      "name": "Gaushorn"
+    },
+    {
+      "code": "01051036",
+      "parent": "01051",
+      "name": "Glüsing"
+    },
+    {
+      "code": "01051037",
+      "parent": "01051",
+      "name": "Großenrade"
+    },
+    {
+      "code": "01051038",
+      "parent": "01051",
+      "name": "Groven"
+    },
+    {
+      "code": "01051039",
+      "parent": "01051",
+      "name": "Gudendorf"
+    },
+    {
+      "code": "01051043",
+      "parent": "01051",
+      "name": "Hedwigenkoog"
+    },
+    {
+      "code": "01051044",
+      "parent": "01051",
+      "name": "Heide"
+    },
+    {
+      "code": "01051045",
+      "parent": "01051",
+      "name": "Hellschen-Heringsand-Unterschaar"
+    },
+    {
+      "code": "01051046",
+      "parent": "01051",
+      "name": "Helse"
+    },
+    {
+      "code": "01051047",
+      "parent": "01051",
+      "name": "Hemme"
+    },
+    {
+      "code": "01051048",
+      "parent": "01051",
+      "name": "Hemmingstedt"
+    },
+    {
+      "code": "01051049",
+      "parent": "01051",
+      "name": "Hennstedt"
+    },
+    {
+      "code": "01051050",
+      "parent": "01051",
+      "name": "Hillgroven"
+    },
+    {
+      "code": "01051051",
+      "parent": "01051",
+      "name": "Hochdonn"
+    },
+    {
+      "code": "01051052",
+      "parent": "01051",
+      "name": "Hövede"
+    },
+    {
+      "code": "01051053",
+      "parent": "01051",
+      "name": "Hollingstedt"
+    },
+    {
+      "code": "01051054",
+      "parent": "01051",
+      "name": "Immenstedt"
+    },
+    {
+      "code": "01051057",
+      "parent": "01051",
+      "name": "Kaiser-Wilhelm-Koog"
+    },
+    {
+      "code": "01051058",
+      "parent": "01051",
+      "name": "Karolinenkoog"
+    },
+    {
+      "code": "01051060",
+      "parent": "01051",
+      "name": "Kleve"
+    },
+    {
+      "code": "01051061",
+      "parent": "01051",
+      "name": "Krempel"
+    },
+    {
+      "code": "01051062",
+      "parent": "01051",
+      "name": "Kronprinzenkoog"
+    },
+    {
+      "code": "01051063",
+      "parent": "01051",
+      "name": "Krumstedt"
+    },
+    {
+      "code": "01051064",
+      "parent": "01051",
+      "name": "Kuden"
+    },
+    {
+      "code": "01051065",
+      "parent": "01051",
+      "name": "Lehe"
+    },
+    {
+      "code": "01051067",
+      "parent": "01051",
+      "name": "Lieth"
+    },
+    {
+      "code": "01051068",
+      "parent": "01051",
+      "name": "Linden"
+    },
+    {
+      "code": "01051069",
+      "parent": "01051",
+      "name": "Lohe-Rickelshof"
+    },
+    {
+      "code": "01051071",
+      "parent": "01051",
+      "name": "Lunden"
+    },
+    {
+      "code": "01051072",
+      "parent": "01051",
+      "name": "Marne"
+    },
+    {
+      "code": "01051073",
+      "parent": "01051",
+      "name": "Marnerdeich"
+    },
+    {
+      "code": "01051074",
+      "parent": "01051",
+      "name": "Meldorf"
+    },
+    {
+      "code": "01051075",
+      "parent": "01051",
+      "name": "Neuenkirchen"
+    },
+    {
+      "code": "01051076",
+      "parent": "01051",
+      "name": "Neufeld"
+    },
+    {
+      "code": "01051077",
+      "parent": "01051",
+      "name": "Neufelderkoog"
+    },
+    {
+      "code": "01051078",
+      "parent": "01051",
+      "name": "Nindorf"
+    },
+    {
+      "code": "01051079",
+      "parent": "01051",
+      "name": "Norddeich"
+    },
+    {
+      "code": "01051080",
+      "parent": "01051",
+      "name": "Norderheistedt"
+    },
+    {
+      "code": "01051081",
+      "parent": "01051",
+      "name": "Norderwöhrden"
+    },
+    {
+      "code": "01051082",
+      "parent": "01051",
+      "name": "Nordhastedt"
+    },
+    {
+      "code": "01051083",
+      "parent": "01051",
+      "name": "Odderade"
+    },
+    {
+      "code": "01051084",
+      "parent": "01051",
+      "name": "Oesterdeichstrich"
+    },
+    {
+      "code": "01051085",
+      "parent": "01051",
+      "name": "Offenbüttel"
+    },
+    {
+      "code": "01051086",
+      "parent": "01051",
+      "name": "Osterrade"
+    },
+    {
+      "code": "01051087",
+      "parent": "01051",
+      "name": "Ostrohe"
+    },
+    {
+      "code": "01051088",
+      "parent": "01051",
+      "name": "Pahlen"
+    },
+    {
+      "code": "01051089",
+      "parent": "01051",
+      "name": "Quickborn"
+    },
+    {
+      "code": "01051090",
+      "parent": "01051",
+      "name": "Ramhusen"
+    },
+    {
+      "code": "01051092",
+      "parent": "01051",
+      "name": "Rehm-Flehde-Bargen"
+    },
+    {
+      "code": "01051093",
+      "parent": "01051",
+      "name": "Reinsbüttel"
+    },
+    {
+      "code": "01051096",
+      "parent": "01051",
+      "name": "Sankt Annen"
+    },
+    {
+      "code": "01051097",
+      "parent": "01051",
+      "name": "Sankt Michaelisdonn"
+    },
+    {
+      "code": "01051098",
+      "parent": "01051",
+      "name": "Sarzbüttel"
+    },
+    {
+      "code": "01051099",
+      "parent": "01051",
+      "name": "Schafstedt"
+    },
+    {
+      "code": "01051100",
+      "parent": "01051",
+      "name": "Schalkholz"
+    },
+    {
+      "code": "01051102",
+      "parent": "01051",
+      "name": "Schlichting"
+    },
+    {
+      "code": "01051103",
+      "parent": "01051",
+      "name": "Schmedeswurth"
+    },
+    {
+      "code": "01051104",
+      "parent": "01051",
+      "name": "Schrum"
+    },
+    {
+      "code": "01051105",
+      "parent": "01051",
+      "name": "Schülp"
+    },
+    {
+      "code": "01051107",
+      "parent": "01051",
+      "name": "Stelle-Wittenwurth"
+    },
+    {
+      "code": "01051108",
+      "parent": "01051",
+      "name": "Strübbel"
+    },
+    {
+      "code": "01051109",
+      "parent": "01051",
+      "name": "Süderdeich"
+    },
+    {
+      "code": "01051110",
+      "parent": "01051",
+      "name": "Süderhastedt"
+    },
+    {
+      "code": "01051113",
+      "parent": "01051",
+      "name": "Wöhrden"
+    },
+    {
+      "code": "01051114",
+      "parent": "01051",
+      "name": "Tellingstedt"
+    },
+    {
+      "code": "01051117",
+      "parent": "01051",
+      "name": "Tielenhemme"
+    },
+    {
+      "code": "01051118",
+      "parent": "01051",
+      "name": "Trennewurth"
+    },
+    {
+      "code": "01051119",
+      "parent": "01051",
+      "name": "Volsemenhusen"
+    },
+    {
+      "code": "01051120",
+      "parent": "01051",
+      "name": "Wallen"
+    },
+    {
+      "code": "01051121",
+      "parent": "01051",
+      "name": "Warwerort"
+    },
+    {
+      "code": "01051122",
+      "parent": "01051",
+      "name": "Weddingstedt"
+    },
+    {
+      "code": "01051125",
+      "parent": "01051",
+      "name": "Welmbüttel"
+    },
+    {
+      "code": "01051126",
+      "parent": "01051",
+      "name": "Wennbüttel"
+    },
+    {
+      "code": "01051127",
+      "parent": "01051",
+      "name": "Wesselburen"
+    },
+    {
+      "code": "01051128",
+      "parent": "01051",
+      "name": "Wesselburener Deichhausen"
+    },
+    {
+      "code": "01051129",
+      "parent": "01051",
+      "name": "Wesselburenerkoog"
+    },
+    {
+      "code": "01051130",
+      "parent": "01051",
+      "name": "Wesseln"
+    },
+    {
+      "code": "01051131",
+      "parent": "01051",
+      "name": "Westerborstel"
+    },
+    {
+      "code": "01051132",
+      "parent": "01051",
+      "name": "Westerdeichstrich"
+    },
+    {
+      "code": "01051133",
+      "parent": "01051",
+      "name": "Wiemerstedt"
+    },
+    {
+      "code": "01051134",
+      "parent": "01051",
+      "name": "Windbergen"
+    },
+    {
+      "code": "01051135",
+      "parent": "01051",
+      "name": "Wolmersdorf"
+    },
+    {
+      "code": "01051136",
+      "parent": "01051",
+      "name": "Wrohm"
+    },
+    {
+      "code": "01051137",
+      "parent": "01051",
+      "name": "Nordermeldorf"
+    },
+    {
+      "code": "01051138",
+      "parent": "01051",
+      "name": "Tensbüttel-Röst"
+    },
+    {
+      "code": "01051139",
+      "parent": "01051",
+      "name": "Süderdorf"
+    },
+    {
+      "code": "01051140",
+      "parent": "01051",
+      "name": "Oesterwurth"
+    },
+    {
+      "code": "01051141",
+      "parent": "01051",
+      "name": "Süderheistedt"
+    },
+    {
+      "code": "01053001",
+      "parent": "01053",
+      "name": "Albsfelde"
+    },
+    {
+      "code": "01053002",
+      "parent": "01053",
+      "name": "Alt-Mölln"
+    },
+    {
+      "code": "01053003",
+      "parent": "01053",
+      "name": "Aumühle"
+    },
+    {
+      "code": "01053004",
+      "parent": "01053",
+      "name": "Bäk"
+    },
+    {
+      "code": "01053005",
+      "parent": "01053",
+      "name": "Bälau"
+    },
+    {
+      "code": "01053006",
+      "parent": "01053",
+      "name": "Basedow"
+    },
+    {
+      "code": "01053007",
+      "parent": "01053",
+      "name": "Basthorst"
+    },
+    {
+      "code": "01053008",
+      "parent": "01053",
+      "name": "Behlendorf"
+    },
+    {
+      "code": "01053009",
+      "parent": "01053",
+      "name": "Berkenthin"
+    },
+    {
+      "code": "01053010",
+      "parent": "01053",
+      "name": "Besenthal"
+    },
+    {
+      "code": "01053011",
+      "parent": "01053",
+      "name": "Bliestorf"
+    },
+    {
+      "code": "01053012",
+      "parent": "01053",
+      "name": "Börnsen"
+    },
+    {
+      "code": "01053013",
+      "parent": "01053",
+      "name": "Borstorf"
+    },
+    {
+      "code": "01053014",
+      "parent": "01053",
+      "name": "Breitenfelde"
+    },
+    {
+      "code": "01053015",
+      "parent": "01053",
+      "name": "Bröthen"
+    },
+    {
+      "code": "01053016",
+      "parent": "01053",
+      "name": "Brunsmark"
+    },
+    {
+      "code": "01053017",
+      "parent": "01053",
+      "name": "Brunstorf"
+    },
+    {
+      "code": "01053018",
+      "parent": "01053",
+      "name": "Buchholz"
+    },
+    {
+      "code": "01053019",
+      "parent": "01053",
+      "name": "Buchhorst"
+    },
+    {
+      "code": "01053020",
+      "parent": "01053",
+      "name": "Büchen"
+    },
+    {
+      "code": "01053021",
+      "parent": "01053",
+      "name": "Dahmker"
+    },
+    {
+      "code": "01053022",
+      "parent": "01053",
+      "name": "Dalldorf"
+    },
+    {
+      "code": "01053023",
+      "parent": "01053",
+      "name": "Dassendorf"
+    },
+    {
+      "code": "01053024",
+      "parent": "01053",
+      "name": "Düchelsdorf"
+    },
+    {
+      "code": "01053025",
+      "parent": "01053",
+      "name": "Duvensee"
+    },
+    {
+      "code": "01053026",
+      "parent": "01053",
+      "name": "Einhaus"
+    },
+    {
+      "code": "01053027",
+      "parent": "01053",
+      "name": "Elmenhorst"
+    },
+    {
+      "code": "01053028",
+      "parent": "01053",
+      "name": "Escheburg"
+    },
+    {
+      "code": "01053029",
+      "parent": "01053",
+      "name": "Fitzen"
+    },
+    {
+      "code": "01053030",
+      "parent": "01053",
+      "name": "Fredeburg"
+    },
+    {
+      "code": "01053031",
+      "parent": "01053",
+      "name": "Fuhlenhagen"
+    },
+    {
+      "code": "01053032",
+      "parent": "01053",
+      "name": "Geesthacht"
+    },
+    {
+      "code": "01053033",
+      "parent": "01053",
+      "name": "Giesensdorf"
+    },
+    {
+      "code": "01053034",
+      "parent": "01053",
+      "name": "Göldenitz"
+    },
+    {
+      "code": "01053035",
+      "parent": "01053",
+      "name": "Göttin"
+    },
+    {
+      "code": "01053036",
+      "parent": "01053",
+      "name": "Grabau"
+    },
+    {
+      "code": "01053037",
+      "parent": "01053",
+      "name": "Grambek"
+    },
+    {
+      "code": "01053038",
+      "parent": "01053",
+      "name": "Grinau"
+    },
+    {
+      "code": "01053039",
+      "parent": "01053",
+      "name": "Groß Boden"
+    },
+    {
+      "code": "01053040",
+      "parent": "01053",
+      "name": "Groß Disnack"
+    },
+    {
+      "code": "01053041",
+      "parent": "01053",
+      "name": "Groß Grönau"
+    },
+    {
+      "code": "01053042",
+      "parent": "01053",
+      "name": "Groß Pampau"
+    },
+    {
+      "code": "01053043",
+      "parent": "01053",
+      "name": "Groß Sarau"
+    },
+    {
+      "code": "01053044",
+      "parent": "01053",
+      "name": "Groß Schenkenberg"
+    },
+    {
+      "code": "01053045",
+      "parent": "01053",
+      "name": "Grove"
+    },
+    {
+      "code": "01053046",
+      "parent": "01053",
+      "name": "Gudow"
+    },
+    {
+      "code": "01053047",
+      "parent": "01053",
+      "name": "Gülzow"
+    },
+    {
+      "code": "01053048",
+      "parent": "01053",
+      "name": "Güster"
+    },
+    {
+      "code": "01053049",
+      "parent": "01053",
+      "name": "Hamfelde"
+    },
+    {
+      "code": "01053050",
+      "parent": "01053",
+      "name": "Hamwarde"
+    },
+    {
+      "code": "01053051",
+      "parent": "01053",
+      "name": "Harmsdorf"
+    },
+    {
+      "code": "01053052",
+      "parent": "01053",
+      "name": "Havekost"
+    },
+    {
+      "code": "01053053",
+      "parent": "01053",
+      "name": "Hohenhorn"
+    },
+    {
+      "code": "01053054",
+      "parent": "01053",
+      "name": "Hollenbek"
+    },
+    {
+      "code": "01053056",
+      "parent": "01053",
+      "name": "Hornbek"
+    },
+    {
+      "code": "01053057",
+      "parent": "01053",
+      "name": "Horst"
+    },
+    {
+      "code": "01053058",
+      "parent": "01053",
+      "name": "Juliusburg"
+    },
+    {
+      "code": "01053059",
+      "parent": "01053",
+      "name": "Kankelau"
+    },
+    {
+      "code": "01053060",
+      "parent": "01053",
+      "name": "Kasseburg"
+    },
+    {
+      "code": "01053061",
+      "parent": "01053",
+      "name": "Kastorf"
+    },
+    {
+      "code": "01053062",
+      "parent": "01053",
+      "name": "Kittlitz"
+    },
+    {
+      "code": "01053064",
+      "parent": "01053",
+      "name": "Klein Pampau"
+    },
+    {
+      "code": "01053066",
+      "parent": "01053",
+      "name": "Klein Zecher"
+    },
+    {
+      "code": "01053067",
+      "parent": "01053",
+      "name": "Klempau"
+    },
+    {
+      "code": "01053068",
+      "parent": "01053",
+      "name": "Klinkrade"
+    },
+    {
+      "code": "01053069",
+      "parent": "01053",
+      "name": "Koberg"
+    },
+    {
+      "code": "01053070",
+      "parent": "01053",
+      "name": "Köthel"
+    },
+    {
+      "code": "01053071",
+      "parent": "01053",
+      "name": "Kollow"
+    },
+    {
+      "code": "01053072",
+      "parent": "01053",
+      "name": "Kröppelshagen-Fahrendorf"
+    },
+    {
+      "code": "01053073",
+      "parent": "01053",
+      "name": "Krüzen"
+    },
+    {
+      "code": "01053074",
+      "parent": "01053",
+      "name": "Krukow"
+    },
+    {
+      "code": "01053075",
+      "parent": "01053",
+      "name": "Krummesse"
+    },
+    {
+      "code": "01053076",
+      "parent": "01053",
+      "name": "Kuddewörde"
+    },
+    {
+      "code": "01053077",
+      "parent": "01053",
+      "name": "Kühsen"
+    },
+    {
+      "code": "01053078",
+      "parent": "01053",
+      "name": "Kulpin"
+    },
+    {
+      "code": "01053079",
+      "parent": "01053",
+      "name": "Labenz"
+    },
+    {
+      "code": "01053080",
+      "parent": "01053",
+      "name": "Langenlehsten"
+    },
+    {
+      "code": "01053081",
+      "parent": "01053",
+      "name": "Lankau"
+    },
+    {
+      "code": "01053082",
+      "parent": "01053",
+      "name": "Lanze"
+    },
+    {
+      "code": "01053083",
+      "parent": "01053",
+      "name": "Lauenburg/Elbe"
+    },
+    {
+      "code": "01053084",
+      "parent": "01053",
+      "name": "Lehmrade"
+    },
+    {
+      "code": "01053085",
+      "parent": "01053",
+      "name": "Linau"
+    },
+    {
+      "code": "01053086",
+      "parent": "01053",
+      "name": "Lüchow"
+    },
+    {
+      "code": "01053087",
+      "parent": "01053",
+      "name": "Lütau"
+    },
+    {
+      "code": "01053088",
+      "parent": "01053",
+      "name": "Mechow"
+    },
+    {
+      "code": "01053089",
+      "parent": "01053",
+      "name": "Möhnsen"
+    },
+    {
+      "code": "01053090",
+      "parent": "01053",
+      "name": "Mölln"
+    },
+    {
+      "code": "01053091",
+      "parent": "01053",
+      "name": "Mühlenrade"
+    },
+    {
+      "code": "01053092",
+      "parent": "01053",
+      "name": "Müssen"
+    },
+    {
+      "code": "01053093",
+      "parent": "01053",
+      "name": "Mustin"
+    },
+    {
+      "code": "01053094",
+      "parent": "01053",
+      "name": "Niendorf bei Berkenthin"
+    },
+    {
+      "code": "01053095",
+      "parent": "01053",
+      "name": "Niendorf/Stecknitz"
+    },
+    {
+      "code": "01053096",
+      "parent": "01053",
+      "name": "Nusse"
+    },
+    {
+      "code": "01053097",
+      "parent": "01053",
+      "name": "Panten"
+    },
+    {
+      "code": "01053098",
+      "parent": "01053",
+      "name": "Pogeez"
+    },
+    {
+      "code": "01053099",
+      "parent": "01053",
+      "name": "Poggensee"
+    },
+    {
+      "code": "01053100",
+      "parent": "01053",
+      "name": "Ratzeburg"
+    },
+    {
+      "code": "01053101",
+      "parent": "01053",
+      "name": "Ritzerau"
+    },
+    {
+      "code": "01053102",
+      "parent": "01053",
+      "name": "Römnitz"
+    },
+    {
+      "code": "01053103",
+      "parent": "01053",
+      "name": "Rondeshagen"
+    },
+    {
+      "code": "01053104",
+      "parent": "01053",
+      "name": "Roseburg"
+    },
+    {
+      "code": "01053106",
+      "parent": "01053",
+      "name": "Sahms"
+    },
+    {
+      "code": "01053107",
+      "parent": "01053",
+      "name": "Salem"
+    },
+    {
+      "code": "01053108",
+      "parent": "01053",
+      "name": "Sandesneben"
+    },
+    {
+      "code": "01053109",
+      "parent": "01053",
+      "name": "Schiphorst"
+    },
+    {
+      "code": "01053110",
+      "parent": "01053",
+      "name": "Schmilau"
+    },
+    {
+      "code": "01053111",
+      "parent": "01053",
+      "name": "Schnakenbek"
+    },
+    {
+      "code": "01053112",
+      "parent": "01053",
+      "name": "Schönberg"
+    },
+    {
+      "code": "01053113",
+      "parent": "01053",
+      "name": "Schretstaken"
+    },
+    {
+      "code": "01053114",
+      "parent": "01053",
+      "name": "Schürensöhlen"
+    },
+    {
+      "code": "01053115",
+      "parent": "01053",
+      "name": "Schulendorf"
+    },
+    {
+      "code": "01053116",
+      "parent": "01053",
+      "name": "Schwarzenbek"
+    },
+    {
+      "code": "01053117",
+      "parent": "01053",
+      "name": "Seedorf"
+    },
+    {
+      "code": "01053118",
+      "parent": "01053",
+      "name": "Siebenbäumen"
+    },
+    {
+      "code": "01053119",
+      "parent": "01053",
+      "name": "Siebeneichen"
+    },
+    {
+      "code": "01053120",
+      "parent": "01053",
+      "name": "Sierksrade"
+    },
+    {
+      "code": "01053121",
+      "parent": "01053",
+      "name": "Sirksfelde"
+    },
+    {
+      "code": "01053122",
+      "parent": "01053",
+      "name": "Steinhorst"
+    },
+    {
+      "code": "01053123",
+      "parent": "01053",
+      "name": "Sterley"
+    },
+    {
+      "code": "01053124",
+      "parent": "01053",
+      "name": "Stubben"
+    },
+    {
+      "code": "01053125",
+      "parent": "01053",
+      "name": "Talkau"
+    },
+    {
+      "code": "01053126",
+      "parent": "01053",
+      "name": "Tramm"
+    },
+    {
+      "code": "01053127",
+      "parent": "01053",
+      "name": "Walksfelde"
+    },
+    {
+      "code": "01053128",
+      "parent": "01053",
+      "name": "Wangelau"
+    },
+    {
+      "code": "01053129",
+      "parent": "01053",
+      "name": "Wentorf bei Hamburg"
+    },
+    {
+      "code": "01053130",
+      "parent": "01053",
+      "name": "Wentorf (Amt Sandesneben)"
+    },
+    {
+      "code": "01053131",
+      "parent": "01053",
+      "name": "Wiershop"
+    },
+    {
+      "code": "01053132",
+      "parent": "01053",
+      "name": "Witzeeze"
+    },
+    {
+      "code": "01053133",
+      "parent": "01053",
+      "name": "Wohltorf"
+    },
+    {
+      "code": "01053134",
+      "parent": "01053",
+      "name": "Woltersdorf"
+    },
+    {
+      "code": "01053135",
+      "parent": "01053",
+      "name": "Worth"
+    },
+    {
+      "code": "01053136",
+      "parent": "01053",
+      "name": "Ziethen"
+    },
+    {
+      "code": "01054001",
+      "parent": "01054",
+      "name": "Achtrup"
+    },
+    {
+      "code": "01054002",
+      "parent": "01054",
+      "name": "Ahrenshöft"
+    },
+    {
+      "code": "01054003",
+      "parent": "01054",
+      "name": "Ahrenviöl"
+    },
+    {
+      "code": "01054004",
+      "parent": "01054",
+      "name": "Ahrenviölfeld"
+    },
+    {
+      "code": "01054005",
+      "parent": "01054",
+      "name": "Alkersum"
+    },
+    {
+      "code": "01054006",
+      "parent": "01054",
+      "name": "Almdorf"
+    },
+    {
+      "code": "01054007",
+      "parent": "01054",
+      "name": "Arlewatt"
+    },
+    {
+      "code": "01054009",
+      "parent": "01054",
+      "name": "Aventoft"
+    },
+    {
+      "code": "01054010",
+      "parent": "01054",
+      "name": "Bargum"
+    },
+    {
+      "code": "01054011",
+      "parent": "01054",
+      "name": "Behrendorf"
+    },
+    {
+      "code": "01054012",
+      "parent": "01054",
+      "name": "Bohmstedt"
+    },
+    {
+      "code": "01054013",
+      "parent": "01054",
+      "name": "Bondelum"
+    },
+    {
+      "code": "01054014",
+      "parent": "01054",
+      "name": "Bordelum"
+    },
+    {
+      "code": "01054015",
+      "parent": "01054",
+      "name": "Borgsum"
+    },
+    {
+      "code": "01054016",
+      "parent": "01054",
+      "name": "Bosbüll"
+    },
+    {
+      "code": "01054017",
+      "parent": "01054",
+      "name": "Braderup"
+    },
+    {
+      "code": "01054018",
+      "parent": "01054",
+      "name": "Bramstedtlund"
+    },
+    {
+      "code": "01054019",
+      "parent": "01054",
+      "name": "Bredstedt"
+    },
+    {
+      "code": "01054020",
+      "parent": "01054",
+      "name": "Breklum"
+    },
+    {
+      "code": "01054022",
+      "parent": "01054",
+      "name": "Dagebüll"
+    },
+    {
+      "code": "01054023",
+      "parent": "01054",
+      "name": "Drage"
+    },
+    {
+      "code": "01054024",
+      "parent": "01054",
+      "name": "Drelsdorf"
+    },
+    {
+      "code": "01054025",
+      "parent": "01054",
+      "name": "Dunsum"
+    },
+    {
+      "code": "01054026",
+      "parent": "01054",
+      "name": "Elisabeth-Sophien-Koog"
+    },
+    {
+      "code": "01054027",
+      "parent": "01054",
+      "name": "Ellhöft"
+    },
+    {
+      "code": "01054032",
+      "parent": "01054",
+      "name": "Fresendelf"
+    },
+    {
+      "code": "01054033",
+      "parent": "01054",
+      "name": "Friedrichstadt"
+    },
+    {
+      "code": "01054034",
+      "parent": "01054",
+      "name": "Friedrich-Wilhelm-Lübke-Koog"
+    },
+    {
+      "code": "01054035",
+      "parent": "01054",
+      "name": "Kirchspiel Garding"
+    },
+    {
+      "code": "01054036",
+      "parent": "01054",
+      "name": "Garding"
+    },
+    {
+      "code": "01054037",
+      "parent": "01054",
+      "name": "Goldebek"
+    },
+    {
+      "code": "01054038",
+      "parent": "01054",
+      "name": "Goldelund"
+    },
+    {
+      "code": "01054039",
+      "parent": "01054",
+      "name": "Gröde"
+    },
+    {
+      "code": "01054040",
+      "parent": "01054",
+      "name": "Grothusenkoog"
+    },
+    {
+      "code": "01054041",
+      "parent": "01054",
+      "name": "Haselund"
+    },
+    {
+      "code": "01054042",
+      "parent": "01054",
+      "name": "Hattstedt"
+    },
+    {
+      "code": "01054043",
+      "parent": "01054",
+      "name": "Hattstedtermarsch"
+    },
+    {
+      "code": "01054045",
+      "parent": "01054",
+      "name": "Högel"
+    },
+    {
+      "code": "01054046",
+      "parent": "01054",
+      "name": "Hörnum (Sylt)"
+    },
+    {
+      "code": "01054048",
+      "parent": "01054",
+      "name": "Holm"
+    },
+    {
+      "code": "01054050",
+      "parent": "01054",
+      "name": "Hallig Hooge"
+    },
+    {
+      "code": "01054052",
+      "parent": "01054",
+      "name": "Horstedt"
+    },
+    {
+      "code": "01054054",
+      "parent": "01054",
+      "name": "Hude"
+    },
+    {
+      "code": "01054055",
+      "parent": "01054",
+      "name": "Humptrup"
+    },
+    {
+      "code": "01054056",
+      "parent": "01054",
+      "name": "Husum"
+    },
+    {
+      "code": "01054057",
+      "parent": "01054",
+      "name": "Immenstedt"
+    },
+    {
+      "code": "01054059",
+      "parent": "01054",
+      "name": "Joldelund"
+    },
+    {
+      "code": "01054061",
+      "parent": "01054",
+      "name": "Kampen (Sylt)"
+    },
+    {
+      "code": "01054062",
+      "parent": "01054",
+      "name": "Karlum"
+    },
+    {
+      "code": "01054063",
+      "parent": "01054",
+      "name": "Katharinenheerd"
+    },
+    {
+      "code": "01054065",
+      "parent": "01054",
+      "name": "Klanxbüll"
+    },
+    {
+      "code": "01054068",
+      "parent": "01054",
+      "name": "Klixbüll"
+    },
+    {
+      "code": "01054070",
+      "parent": "01054",
+      "name": "Koldenbüttel"
+    },
+    {
+      "code": "01054071",
+      "parent": "01054",
+      "name": "Kolkerheide"
+    },
+    {
+      "code": "01054072",
+      "parent": "01054",
+      "name": "Kotzenbüll"
+    },
+    {
+      "code": "01054073",
+      "parent": "01054",
+      "name": "Ladelund"
+    },
+    {
+      "code": "01054074",
+      "parent": "01054",
+      "name": "Langeneß"
+    },
+    {
+      "code": "01054075",
+      "parent": "01054",
+      "name": "Langenhorn"
+    },
+    {
+      "code": "01054076",
+      "parent": "01054",
+      "name": "Leck"
+    },
+    {
+      "code": "01054077",
+      "parent": "01054",
+      "name": "Lexgaard"
+    },
+    {
+      "code": "01054078",
+      "parent": "01054",
+      "name": "List auf Sylt"
+    },
+    {
+      "code": "01054079",
+      "parent": "01054",
+      "name": "Löwenstedt"
+    },
+    {
+      "code": "01054080",
+      "parent": "01054",
+      "name": "Lütjenholm"
+    },
+    {
+      "code": "01054083",
+      "parent": "01054",
+      "name": "Midlum"
+    },
+    {
+      "code": "01054084",
+      "parent": "01054",
+      "name": "Mildstedt"
+    },
+    {
+      "code": "01054085",
+      "parent": "01054",
+      "name": "Nebel"
+    },
+    {
+      "code": "01054086",
+      "parent": "01054",
+      "name": "Neukirchen"
+    },
+    {
+      "code": "01054087",
+      "parent": "01054",
+      "name": "Nieblum"
+    },
+    {
+      "code": "01054088",
+      "parent": "01054",
+      "name": "Niebüll"
+    },
+    {
+      "code": "01054089",
+      "parent": "01054",
+      "name": "Norddorf auf Amrum"
+    },
+    {
+      "code": "01054090",
+      "parent": "01054",
+      "name": "Norderfriedrichskoog"
+    },
+    {
+      "code": "01054091",
+      "parent": "01054",
+      "name": "Nordstrand"
+    },
+    {
+      "code": "01054092",
+      "parent": "01054",
+      "name": "Norstedt"
+    },
+    {
+      "code": "01054093",
+      "parent": "01054",
+      "name": "Ockholm"
+    },
+    {
+      "code": "01054094",
+      "parent": "01054",
+      "name": "Oevenum"
+    },
+    {
+      "code": "01054095",
+      "parent": "01054",
+      "name": "Oldenswort"
+    },
+    {
+      "code": "01054096",
+      "parent": "01054",
+      "name": "Oldersbek"
+    },
+    {
+      "code": "01054097",
+      "parent": "01054",
+      "name": "Olderup"
+    },
+    {
+      "code": "01054098",
+      "parent": "01054",
+      "name": "Oldsum"
+    },
+    {
+      "code": "01054099",
+      "parent": "01054",
+      "name": "Ostenfeld (Husum)"
+    },
+    {
+      "code": "01054100",
+      "parent": "01054",
+      "name": "Osterhever"
+    },
+    {
+      "code": "01054101",
+      "parent": "01054",
+      "name": "Oster-Ohrstedt"
+    },
+    {
+      "code": "01054103",
+      "parent": "01054",
+      "name": "Pellworm"
+    },
+    {
+      "code": "01054104",
+      "parent": "01054",
+      "name": "Poppenbüll"
+    },
+    {
+      "code": "01054105",
+      "parent": "01054",
+      "name": "Ramstedt"
+    },
+    {
+      "code": "01054106",
+      "parent": "01054",
+      "name": "Rantrum"
+    },
+    {
+      "code": "01054108",
+      "parent": "01054",
+      "name": "Reußenköge"
+    },
+    {
+      "code": "01054109",
+      "parent": "01054",
+      "name": "Risum-Lindholm"
+    },
+    {
+      "code": "01054110",
+      "parent": "01054",
+      "name": "Rodenäs"
+    },
+    {
+      "code": "01054113",
+      "parent": "01054",
+      "name": "Sankt Peter-Ording"
+    },
+    {
+      "code": "01054116",
+      "parent": "01054",
+      "name": "Schwabstedt"
+    },
+    {
+      "code": "01054118",
+      "parent": "01054",
+      "name": "Schwesing"
+    },
+    {
+      "code": "01054119",
+      "parent": "01054",
+      "name": "Seeth"
+    },
+    {
+      "code": "01054120",
+      "parent": "01054",
+      "name": "Simonsberg"
+    },
+    {
+      "code": "01054121",
+      "parent": "01054",
+      "name": "Sönnebüll"
+    },
+    {
+      "code": "01054123",
+      "parent": "01054",
+      "name": "Sollwitt"
+    },
+    {
+      "code": "01054124",
+      "parent": "01054",
+      "name": "Sprakebüll"
+    },
+    {
+      "code": "01054125",
+      "parent": "01054",
+      "name": "Stadum"
+    },
+    {
+      "code": "01054126",
+      "parent": "01054",
+      "name": "Stedesand"
+    },
+    {
+      "code": "01054128",
+      "parent": "01054",
+      "name": "Struckum"
+    },
+    {
+      "code": "01054129",
+      "parent": "01054",
+      "name": "Süderende"
+    },
+    {
+      "code": "01054130",
+      "parent": "01054",
+      "name": "Süderhöft"
+    },
+    {
+      "code": "01054131",
+      "parent": "01054",
+      "name": "Süderlügum"
+    },
+    {
+      "code": "01054132",
+      "parent": "01054",
+      "name": "Südermarsch"
+    },
+    {
+      "code": "01054134",
+      "parent": "01054",
+      "name": "Tating"
+    },
+    {
+      "code": "01054135",
+      "parent": "01054",
+      "name": "Tetenbüll"
+    },
+    {
+      "code": "01054136",
+      "parent": "01054",
+      "name": "Tinningstedt"
+    },
+    {
+      "code": "01054138",
+      "parent": "01054",
+      "name": "Tönning"
+    },
+    {
+      "code": "01054140",
+      "parent": "01054",
+      "name": "Tümlauer Koog"
+    },
+    {
+      "code": "01054141",
+      "parent": "01054",
+      "name": "Uelvesbüll"
+    },
+    {
+      "code": "01054142",
+      "parent": "01054",
+      "name": "Uphusum"
+    },
+    {
+      "code": "01054143",
+      "parent": "01054",
+      "name": "Utersum"
+    },
+    {
+      "code": "01054144",
+      "parent": "01054",
+      "name": "Viöl"
+    },
+    {
+      "code": "01054145",
+      "parent": "01054",
+      "name": "Vollerwiek"
+    },
+    {
+      "code": "01054146",
+      "parent": "01054",
+      "name": "Vollstedt"
+    },
+    {
+      "code": "01054148",
+      "parent": "01054",
+      "name": "Welt"
+    },
+    {
+      "code": "01054149",
+      "parent": "01054",
+      "name": "Wenningstedt-Braderup (Sylt)"
+    },
+    {
+      "code": "01054150",
+      "parent": "01054",
+      "name": "Westerhever"
+    },
+    {
+      "code": "01054152",
+      "parent": "01054",
+      "name": "Wester-Ohrstedt"
+    },
+    {
+      "code": "01054154",
+      "parent": "01054",
+      "name": "Westre"
+    },
+    {
+      "code": "01054156",
+      "parent": "01054",
+      "name": "Winnert"
+    },
+    {
+      "code": "01054157",
+      "parent": "01054",
+      "name": "Wisch"
+    },
+    {
+      "code": "01054158",
+      "parent": "01054",
+      "name": "Witsum"
+    },
+    {
+      "code": "01054159",
+      "parent": "01054",
+      "name": "Wittbek"
+    },
+    {
+      "code": "01054160",
+      "parent": "01054",
+      "name": "Wittdün auf Amrum"
+    },
+    {
+      "code": "01054161",
+      "parent": "01054",
+      "name": "Witzwort"
+    },
+    {
+      "code": "01054162",
+      "parent": "01054",
+      "name": "Wobbenbüll"
+    },
+    {
+      "code": "01054163",
+      "parent": "01054",
+      "name": "Wrixum"
+    },
+    {
+      "code": "01054164",
+      "parent": "01054",
+      "name": "Wyk auf Föhr"
+    },
+    {
+      "code": "01054165",
+      "parent": "01054",
+      "name": "Galmsbüll"
+    },
+    {
+      "code": "01054166",
+      "parent": "01054",
+      "name": "Emmelsbüll-Horsbüll"
+    },
+    {
+      "code": "01054167",
+      "parent": "01054",
+      "name": "Enge-Sande"
+    },
+    {
+      "code": "01054168",
+      "parent": "01054",
+      "name": "Sylt"
+    },
+    {
+      "code": "01055001",
+      "parent": "01055",
+      "name": "Ahrensbök"
+    },
+    {
+      "code": "01055002",
+      "parent": "01055",
+      "name": "Altenkrempe"
+    },
+    {
+      "code": "01055004",
+      "parent": "01055",
+      "name": "Bad Schwartau"
+    },
+    {
+      "code": "01055006",
+      "parent": "01055",
+      "name": "Beschendorf"
+    },
+    {
+      "code": "01055007",
+      "parent": "01055",
+      "name": "Bosau"
+    },
+    {
+      "code": "01055010",
+      "parent": "01055",
+      "name": "Dahme"
+    },
+    {
+      "code": "01055011",
+      "parent": "01055",
+      "name": "Damlos"
+    },
+    {
+      "code": "01055012",
+      "parent": "01055",
+      "name": "Eutin"
+    },
+    {
+      "code": "01055014",
+      "parent": "01055",
+      "name": "Göhl"
+    },
+    {
+      "code": "01055015",
+      "parent": "01055",
+      "name": "Gremersdorf"
+    },
+    {
+      "code": "01055016",
+      "parent": "01055",
+      "name": "Grömitz"
+    },
+    {
+      "code": "01055017",
+      "parent": "01055",
+      "name": "Großenbrode"
+    },
+    {
+      "code": "01055018",
+      "parent": "01055",
+      "name": "Grube"
+    },
+    {
+      "code": "01055020",
+      "parent": "01055",
+      "name": "Harmsdorf"
+    },
+    {
+      "code": "01055021",
+      "parent": "01055",
+      "name": "Heiligenhafen"
+    },
+    {
+      "code": "01055022",
+      "parent": "01055",
+      "name": "Heringsdorf"
+    },
+    {
+      "code": "01055023",
+      "parent": "01055",
+      "name": "Kabelhorst"
+    },
+    {
+      "code": "01055024",
+      "parent": "01055",
+      "name": "Kasseedorf"
+    },
+    {
+      "code": "01055025",
+      "parent": "01055",
+      "name": "Kellenhusen (Ostsee)"
+    },
+    {
+      "code": "01055027",
+      "parent": "01055",
+      "name": "Lensahn"
+    },
+    {
+      "code": "01055028",
+      "parent": "01055",
+      "name": "Malente"
+    },
+    {
+      "code": "01055029",
+      "parent": "01055",
+      "name": "Manhagen"
+    },
+    {
+      "code": "01055031",
+      "parent": "01055",
+      "name": "Neukirchen"
+    },
+    {
+      "code": "01055032",
+      "parent": "01055",
+      "name": "Neustadt in Holstein"
+    },
+    {
+      "code": "01055033",
+      "parent": "01055",
+      "name": "Oldenburg in Holstein"
+    },
+    {
+      "code": "01055035",
+      "parent": "01055",
+      "name": "Ratekau"
+    },
+    {
+      "code": "01055036",
+      "parent": "01055",
+      "name": "Riepsdorf"
+    },
+    {
+      "code": "01055037",
+      "parent": "01055",
+      "name": "Schashagen"
+    },
+    {
+      "code": "01055038",
+      "parent": "01055",
+      "name": "Schönwalde am Bungsberg"
+    },
+    {
+      "code": "01055039",
+      "parent": "01055",
+      "name": "Sierksdorf"
+    },
+    {
+      "code": "01055040",
+      "parent": "01055",
+      "name": "Stockelsdorf"
+    },
+    {
+      "code": "01055041",
+      "parent": "01055",
+      "name": "Süsel"
+    },
+    {
+      "code": "01055042",
+      "parent": "01055",
+      "name": "Timmendorfer Strand"
+    },
+    {
+      "code": "01055043",
+      "parent": "01055",
+      "name": "Wangels"
+    },
+    {
+      "code": "01055044",
+      "parent": "01055",
+      "name": "Scharbeutz"
+    },
+    {
+      "code": "01055046",
+      "parent": "01055",
+      "name": "Fehmarn"
+    },
+    {
+      "code": "01056001",
+      "parent": "01056",
+      "name": "Appen"
+    },
+    {
+      "code": "01056002",
+      "parent": "01056",
+      "name": "Barmstedt"
+    },
+    {
+      "code": "01056003",
+      "parent": "01056",
+      "name": "Bevern"
+    },
+    {
+      "code": "01056004",
+      "parent": "01056",
+      "name": "Bilsen"
+    },
+    {
+      "code": "01056005",
+      "parent": "01056",
+      "name": "Bönningstedt"
+    },
+    {
+      "code": "01056006",
+      "parent": "01056",
+      "name": "Bokel"
+    },
+    {
+      "code": "01056008",
+      "parent": "01056",
+      "name": "Bokholt-Hanredder"
+    },
+    {
+      "code": "01056009",
+      "parent": "01056",
+      "name": "Borstel-Hohenraden"
+    },
+    {
+      "code": "01056010",
+      "parent": "01056",
+      "name": "Brande-Hörnerkirchen"
+    },
+    {
+      "code": "01056011",
+      "parent": "01056",
+      "name": "Bullenkuhlen"
+    },
+    {
+      "code": "01056013",
+      "parent": "01056",
+      "name": "Ellerbek"
+    },
+    {
+      "code": "01056014",
+      "parent": "01056",
+      "name": "Ellerhoop"
+    },
+    {
+      "code": "01056015",
+      "parent": "01056",
+      "name": "Elmshorn"
+    },
+    {
+      "code": "01056016",
+      "parent": "01056",
+      "name": "Groß Nordende"
+    },
+    {
+      "code": "01056017",
+      "parent": "01056",
+      "name": "Groß Offenseth-Aspern"
+    },
+    {
+      "code": "01056018",
+      "parent": "01056",
+      "name": "Halstenbek"
+    },
+    {
+      "code": "01056019",
+      "parent": "01056",
+      "name": "Haselau"
+    },
+    {
+      "code": "01056020",
+      "parent": "01056",
+      "name": "Haseldorf"
+    },
+    {
+      "code": "01056021",
+      "parent": "01056",
+      "name": "Hasloh"
+    },
+    {
+      "code": "01056022",
+      "parent": "01056",
+      "name": "Heede"
+    },
+    {
+      "code": "01056023",
+      "parent": "01056",
+      "name": "Heidgraben"
+    },
+    {
+      "code": "01056024",
+      "parent": "01056",
+      "name": "Heist"
+    },
+    {
+      "code": "01056025",
+      "parent": "01056",
+      "name": "Helgoland"
+    },
+    {
+      "code": "01056026",
+      "parent": "01056",
+      "name": "Hemdingen"
+    },
+    {
+      "code": "01056027",
+      "parent": "01056",
+      "name": "Hetlingen"
+    },
+    {
+      "code": "01056028",
+      "parent": "01056",
+      "name": "Holm"
+    },
+    {
+      "code": "01056029",
+      "parent": "01056",
+      "name": "Klein Nordende"
+    },
+    {
+      "code": "01056030",
+      "parent": "01056",
+      "name": "Klein Offenseth-Sparrieshoop"
+    },
+    {
+      "code": "01056031",
+      "parent": "01056",
+      "name": "Kölln-Reisiek"
+    },
+    {
+      "code": "01056032",
+      "parent": "01056",
+      "name": "Kummerfeld"
+    },
+    {
+      "code": "01056033",
+      "parent": "01056",
+      "name": "Seester"
+    },
+    {
+      "code": "01056034",
+      "parent": "01056",
+      "name": "Langeln"
+    },
+    {
+      "code": "01056035",
+      "parent": "01056",
+      "name": "Lutzhorn"
+    },
+    {
+      "code": "01056036",
+      "parent": "01056",
+      "name": "Moorrege"
+    },
+    {
+      "code": "01056037",
+      "parent": "01056",
+      "name": "Neuendeich"
+    },
+    {
+      "code": "01056038",
+      "parent": "01056",
+      "name": "Osterhorn"
+    },
+    {
+      "code": "01056039",
+      "parent": "01056",
+      "name": "Pinneberg"
+    },
+    {
+      "code": "01056040",
+      "parent": "01056",
+      "name": "Prisdorf"
+    },
+    {
+      "code": "01056041",
+      "parent": "01056",
+      "name": "Quickborn"
+    },
+    {
+      "code": "01056042",
+      "parent": "01056",
+      "name": "Raa-Besenbek"
+    },
+    {
+      "code": "01056043",
+      "parent": "01056",
+      "name": "Rellingen"
+    },
+    {
+      "code": "01056044",
+      "parent": "01056",
+      "name": "Schenefeld"
+    },
+    {
+      "code": "01056045",
+      "parent": "01056",
+      "name": "Seestermühe"
+    },
+    {
+      "code": "01056046",
+      "parent": "01056",
+      "name": "Seeth-Ekholt"
+    },
+    {
+      "code": "01056047",
+      "parent": "01056",
+      "name": "Tangstedt"
+    },
+    {
+      "code": "01056048",
+      "parent": "01056",
+      "name": "Tornesch"
+    },
+    {
+      "code": "01056049",
+      "parent": "01056",
+      "name": "Uetersen"
+    },
+    {
+      "code": "01056050",
+      "parent": "01056",
+      "name": "Wedel"
+    },
+    {
+      "code": "01056051",
+      "parent": "01056",
+      "name": "Westerhorn"
+    },
+    {
+      "code": "01057001",
+      "parent": "01057",
+      "name": "Ascheberg (Holstein)"
+    },
+    {
+      "code": "01057002",
+      "parent": "01057",
+      "name": "Barmissen"
+    },
+    {
+      "code": "01057003",
+      "parent": "01057",
+      "name": "Barsbek"
+    },
+    {
+      "code": "01057004",
+      "parent": "01057",
+      "name": "Behrensdorf (Ostsee)"
+    },
+    {
+      "code": "01057005",
+      "parent": "01057",
+      "name": "Belau"
+    },
+    {
+      "code": "01057006",
+      "parent": "01057",
+      "name": "Bendfeld"
+    },
+    {
+      "code": "01057007",
+      "parent": "01057",
+      "name": "Blekendorf"
+    },
+    {
+      "code": "01057008",
+      "parent": "01057",
+      "name": "Bönebüttel"
+    },
+    {
+      "code": "01057009",
+      "parent": "01057",
+      "name": "Bösdorf"
+    },
+    {
+      "code": "01057010",
+      "parent": "01057",
+      "name": "Boksee"
+    },
+    {
+      "code": "01057011",
+      "parent": "01057",
+      "name": "Bothkamp"
+    },
+    {
+      "code": "01057012",
+      "parent": "01057",
+      "name": "Brodersdorf"
+    },
+    {
+      "code": "01057013",
+      "parent": "01057",
+      "name": "Dannau"
+    },
+    {
+      "code": "01057015",
+      "parent": "01057",
+      "name": "Dersau"
+    },
+    {
+      "code": "01057016",
+      "parent": "01057",
+      "name": "Dobersdorf"
+    },
+    {
+      "code": "01057017",
+      "parent": "01057",
+      "name": "Dörnick"
+    },
+    {
+      "code": "01057018",
+      "parent": "01057",
+      "name": "Fahren"
+    },
+    {
+      "code": "01057020",
+      "parent": "01057",
+      "name": "Fiefbergen"
+    },
+    {
+      "code": "01057021",
+      "parent": "01057",
+      "name": "Giekau"
+    },
+    {
+      "code": "01057022",
+      "parent": "01057",
+      "name": "Grebin"
+    },
+    {
+      "code": "01057023",
+      "parent": "01057",
+      "name": "Großbarkau"
+    },
+    {
+      "code": "01057024",
+      "parent": "01057",
+      "name": "Großharrie"
+    },
+    {
+      "code": "01057025",
+      "parent": "01057",
+      "name": "Heikendorf"
+    },
+    {
+      "code": "01057026",
+      "parent": "01057",
+      "name": "Helmstorf"
+    },
+    {
+      "code": "01057027",
+      "parent": "01057",
+      "name": "Högsdorf"
+    },
+    {
+      "code": "01057028",
+      "parent": "01057",
+      "name": "Höhndorf"
+    },
+    {
+      "code": "01057029",
+      "parent": "01057",
+      "name": "Hohenfelde"
+    },
+    {
+      "code": "01057030",
+      "parent": "01057",
+      "name": "Hohwacht (Ostsee)"
+    },
+    {
+      "code": "01057031",
+      "parent": "01057",
+      "name": "Honigsee"
+    },
+    {
+      "code": "01057032",
+      "parent": "01057",
+      "name": "Kalübbe"
+    },
+    {
+      "code": "01057033",
+      "parent": "01057",
+      "name": "Kirchbarkau"
+    },
+    {
+      "code": "01057034",
+      "parent": "01057",
+      "name": "Kirchnüchel"
+    },
+    {
+      "code": "01057035",
+      "parent": "01057",
+      "name": "Klamp"
+    },
+    {
+      "code": "01057037",
+      "parent": "01057",
+      "name": "Klein Barkau"
+    },
+    {
+      "code": "01057038",
+      "parent": "01057",
+      "name": "Kletkamp"
+    },
+    {
+      "code": "01057039",
+      "parent": "01057",
+      "name": "Köhn"
+    },
+    {
+      "code": "01057040",
+      "parent": "01057",
+      "name": "Krokau"
+    },
+    {
+      "code": "01057041",
+      "parent": "01057",
+      "name": "Krummbek"
+    },
+    {
+      "code": "01057042",
+      "parent": "01057",
+      "name": "Kühren"
+    },
+    {
+      "code": "01057043",
+      "parent": "01057",
+      "name": "Laboe"
+    },
+    {
+      "code": "01057044",
+      "parent": "01057",
+      "name": "Lammershagen"
+    },
+    {
+      "code": "01057045",
+      "parent": "01057",
+      "name": "Lebrade"
+    },
+    {
+      "code": "01057046",
+      "parent": "01057",
+      "name": "Lehmkuhlen"
+    },
+    {
+      "code": "01057047",
+      "parent": "01057",
+      "name": "Löptin"
+    },
+    {
+      "code": "01057048",
+      "parent": "01057",
+      "name": "Lütjenburg"
+    },
+    {
+      "code": "01057049",
+      "parent": "01057",
+      "name": "Lutterbek"
+    },
+    {
+      "code": "01057050",
+      "parent": "01057",
+      "name": "Martensrade"
+    },
+    {
+      "code": "01057051",
+      "parent": "01057",
+      "name": "Mönkeberg"
+    },
+    {
+      "code": "01057052",
+      "parent": "01057",
+      "name": "Mucheln"
+    },
+    {
+      "code": "01057053",
+      "parent": "01057",
+      "name": "Nehmten"
+    },
+    {
+      "code": "01057054",
+      "parent": "01057",
+      "name": "Nettelsee"
+    },
+    {
+      "code": "01057055",
+      "parent": "01057",
+      "name": "Panker"
+    },
+    {
+      "code": "01057056",
+      "parent": "01057",
+      "name": "Passade"
+    },
+    {
+      "code": "01057057",
+      "parent": "01057",
+      "name": "Plön"
+    },
+    {
+      "code": "01057058",
+      "parent": "01057",
+      "name": "Pohnsdorf"
+    },
+    {
+      "code": "01057059",
+      "parent": "01057",
+      "name": "Postfeld"
+    },
+    {
+      "code": "01057060",
+      "parent": "01057",
+      "name": "Prasdorf"
+    },
+    {
+      "code": "01057062",
+      "parent": "01057",
+      "name": "Preetz"
+    },
+    {
+      "code": "01057063",
+      "parent": "01057",
+      "name": "Probsteierhagen"
+    },
+    {
+      "code": "01057065",
+      "parent": "01057",
+      "name": "Rantzau"
+    },
+    {
+      "code": "01057066",
+      "parent": "01057",
+      "name": "Rastorf"
+    },
+    {
+      "code": "01057067",
+      "parent": "01057",
+      "name": "Rathjensdorf"
+    },
+    {
+      "code": "01057068",
+      "parent": "01057",
+      "name": "Rendswühren"
+    },
+    {
+      "code": "01057069",
+      "parent": "01057",
+      "name": "Ruhwinkel"
+    },
+    {
+      "code": "01057070",
+      "parent": "01057",
+      "name": "Schellhorn"
+    },
+    {
+      "code": "01057071",
+      "parent": "01057",
+      "name": "Schillsdorf"
+    },
+    {
+      "code": "01057072",
+      "parent": "01057",
+      "name": "Schlesen"
+    },
+    {
+      "code": "01057073",
+      "parent": "01057",
+      "name": "Schönberg (Holstein)"
+    },
+    {
+      "code": "01057074",
+      "parent": "01057",
+      "name": "Schönkirchen"
+    },
+    {
+      "code": "01057076",
+      "parent": "01057",
+      "name": "Schwartbuck"
+    },
+    {
+      "code": "01057077",
+      "parent": "01057",
+      "name": "Selent"
+    },
+    {
+      "code": "01057078",
+      "parent": "01057",
+      "name": "Stakendorf"
+    },
+    {
+      "code": "01057079",
+      "parent": "01057",
+      "name": "Stein"
+    },
+    {
+      "code": "01057080",
+      "parent": "01057",
+      "name": "Stolpe"
+    },
+    {
+      "code": "01057081",
+      "parent": "01057",
+      "name": "Stoltenberg"
+    },
+    {
+      "code": "01057082",
+      "parent": "01057",
+      "name": "Tröndel"
+    },
+    {
+      "code": "01057083",
+      "parent": "01057",
+      "name": "Tasdorf"
+    },
+    {
+      "code": "01057084",
+      "parent": "01057",
+      "name": "Wahlstorf"
+    },
+    {
+      "code": "01057085",
+      "parent": "01057",
+      "name": "Wankendorf"
+    },
+    {
+      "code": "01057086",
+      "parent": "01057",
+      "name": "Warnau"
+    },
+    {
+      "code": "01057087",
+      "parent": "01057",
+      "name": "Wendtorf"
+    },
+    {
+      "code": "01057088",
+      "parent": "01057",
+      "name": "Wisch"
+    },
+    {
+      "code": "01057089",
+      "parent": "01057",
+      "name": "Wittmoldt"
+    },
+    {
+      "code": "01057090",
+      "parent": "01057",
+      "name": "Fargau-Pratjau"
+    },
+    {
+      "code": "01057091",
+      "parent": "01057",
+      "name": "Schwentinental"
+    },
+    {
+      "code": "01058001",
+      "parent": "01058",
+      "name": "Achterwehr"
+    },
+    {
+      "code": "01058003",
+      "parent": "01058",
+      "name": "Alt Duvenstedt"
+    },
+    {
+      "code": "01058004",
+      "parent": "01058",
+      "name": "Altenhof"
+    },
+    {
+      "code": "01058005",
+      "parent": "01058",
+      "name": "Altenholz"
+    },
+    {
+      "code": "01058007",
+      "parent": "01058",
+      "name": "Arpsdorf"
+    },
+    {
+      "code": "01058008",
+      "parent": "01058",
+      "name": "Ascheffel"
+    },
+    {
+      "code": "01058009",
+      "parent": "01058",
+      "name": "Aukrug"
+    },
+    {
+      "code": "01058010",
+      "parent": "01058",
+      "name": "Bargstall"
+    },
+    {
+      "code": "01058011",
+      "parent": "01058",
+      "name": "Bargstedt"
+    },
+    {
+      "code": "01058012",
+      "parent": "01058",
+      "name": "Barkelsby"
+    },
+    {
+      "code": "01058013",
+      "parent": "01058",
+      "name": "Beldorf"
+    },
+    {
+      "code": "01058014",
+      "parent": "01058",
+      "name": "Bendorf"
+    },
+    {
+      "code": "01058015",
+      "parent": "01058",
+      "name": "Beringstedt"
+    },
+    {
+      "code": "01058016",
+      "parent": "01058",
+      "name": "Bissee"
+    },
+    {
+      "code": "01058018",
+      "parent": "01058",
+      "name": "Blumenthal"
+    },
+    {
+      "code": "01058019",
+      "parent": "01058",
+      "name": "Böhnhusen"
+    },
+    {
+      "code": "01058021",
+      "parent": "01058",
+      "name": "Bokel"
+    },
+    {
+      "code": "01058022",
+      "parent": "01058",
+      "name": "Bordesholm"
+    },
+    {
+      "code": "01058023",
+      "parent": "01058",
+      "name": "Borgdorf-Seedorf"
+    },
+    {
+      "code": "01058024",
+      "parent": "01058",
+      "name": "Borgstedt"
+    },
+    {
+      "code": "01058025",
+      "parent": "01058",
+      "name": "Bornholt"
+    },
+    {
+      "code": "01058026",
+      "parent": "01058",
+      "name": "Bovenau"
+    },
+    {
+      "code": "01058027",
+      "parent": "01058",
+      "name": "Brammer"
+    },
+    {
+      "code": "01058028",
+      "parent": "01058",
+      "name": "Bredenbek"
+    },
+    {
+      "code": "01058029",
+      "parent": "01058",
+      "name": "Breiholz"
+    },
+    {
+      "code": "01058030",
+      "parent": "01058",
+      "name": "Brekendorf"
+    },
+    {
+      "code": "01058031",
+      "parent": "01058",
+      "name": "Brinjahe"
+    },
+    {
+      "code": "01058032",
+      "parent": "01058",
+      "name": "Brodersby"
+    },
+    {
+      "code": "01058033",
+      "parent": "01058",
+      "name": "Brügge"
+    },
+    {
+      "code": "01058034",
+      "parent": "01058",
+      "name": "Büdelsdorf"
+    },
+    {
+      "code": "01058035",
+      "parent": "01058",
+      "name": "Bünsdorf"
+    },
+    {
+      "code": "01058036",
+      "parent": "01058",
+      "name": "Christiansholm"
+    },
+    {
+      "code": "01058037",
+      "parent": "01058",
+      "name": "Dänischenhagen"
+    },
+    {
+      "code": "01058038",
+      "parent": "01058",
+      "name": "Dätgen"
+    },
+    {
+      "code": "01058039",
+      "parent": "01058",
+      "name": "Damendorf"
+    },
+    {
+      "code": "01058040",
+      "parent": "01058",
+      "name": "Damp"
+    },
+    {
+      "code": "01058042",
+      "parent": "01058",
+      "name": "Dörphof"
+    },
+    {
+      "code": "01058043",
+      "parent": "01058",
+      "name": "Eckernförde"
+    },
+    {
+      "code": "01058044",
+      "parent": "01058",
+      "name": "Ehndorf"
+    },
+    {
+      "code": "01058045",
+      "parent": "01058",
+      "name": "Eisendorf"
+    },
+    {
+      "code": "01058046",
+      "parent": "01058",
+      "name": "Ellerdorf"
+    },
+    {
+      "code": "01058047",
+      "parent": "01058",
+      "name": "Elsdorf-Westermühlen"
+    },
+    {
+      "code": "01058048",
+      "parent": "01058",
+      "name": "Embühren"
+    },
+    {
+      "code": "01058049",
+      "parent": "01058",
+      "name": "Emkendorf"
+    },
+    {
+      "code": "01058050",
+      "parent": "01058",
+      "name": "Felde"
+    },
+    {
+      "code": "01058051",
+      "parent": "01058",
+      "name": "Felm"
+    },
+    {
+      "code": "01058052",
+      "parent": "01058",
+      "name": "Fleckeby"
+    },
+    {
+      "code": "01058053",
+      "parent": "01058",
+      "name": "Flintbek"
+    },
+    {
+      "code": "01058054",
+      "parent": "01058",
+      "name": "Fockbek"
+    },
+    {
+      "code": "01058055",
+      "parent": "01058",
+      "name": "Friedrichsgraben"
+    },
+    {
+      "code": "01058056",
+      "parent": "01058",
+      "name": "Friedrichsholm"
+    },
+    {
+      "code": "01058057",
+      "parent": "01058",
+      "name": "Gammelby"
+    },
+    {
+      "code": "01058058",
+      "parent": "01058",
+      "name": "Gettorf"
+    },
+    {
+      "code": "01058059",
+      "parent": "01058",
+      "name": "Gnutz"
+    },
+    {
+      "code": "01058061",
+      "parent": "01058",
+      "name": "Gokels"
+    },
+    {
+      "code": "01058062",
+      "parent": "01058",
+      "name": "Grauel"
+    },
+    {
+      "code": "01058063",
+      "parent": "01058",
+      "name": "Grevenkrug"
+    },
+    {
+      "code": "01058064",
+      "parent": "01058",
+      "name": "Groß Buchwald"
+    },
+    {
+      "code": "01058065",
+      "parent": "01058",
+      "name": "Groß Vollstedt"
+    },
+    {
+      "code": "01058066",
+      "parent": "01058",
+      "name": "Groß Wittensee"
+    },
+    {
+      "code": "01058067",
+      "parent": "01058",
+      "name": "Güby"
+    },
+    {
+      "code": "01058068",
+      "parent": "01058",
+      "name": "Haale"
+    },
+    {
+      "code": "01058069",
+      "parent": "01058",
+      "name": "Haby"
+    },
+    {
+      "code": "01058070",
+      "parent": "01058",
+      "name": "Hamdorf"
+    },
+    {
+      "code": "01058071",
+      "parent": "01058",
+      "name": "Hamweddel"
+    },
+    {
+      "code": "01058072",
+      "parent": "01058",
+      "name": "Hanerau-Hademarschen"
+    },
+    {
+      "code": "01058073",
+      "parent": "01058",
+      "name": "Haßmoor"
+    },
+    {
+      "code": "01058074",
+      "parent": "01058",
+      "name": "Heinkenborstel"
+    },
+    {
+      "code": "01058075",
+      "parent": "01058",
+      "name": "Hörsten"
+    },
+    {
+      "code": "01058076",
+      "parent": "01058",
+      "name": "Hoffeld"
+    },
+    {
+      "code": "01058077",
+      "parent": "01058",
+      "name": "Hohenwestedt"
+    },
+    {
+      "code": "01058078",
+      "parent": "01058",
+      "name": "Hohn"
+    },
+    {
+      "code": "01058080",
+      "parent": "01058",
+      "name": "Holtsee"
+    },
+    {
+      "code": "01058081",
+      "parent": "01058",
+      "name": "Holzbunge"
+    },
+    {
+      "code": "01058082",
+      "parent": "01058",
+      "name": "Holzdorf"
+    },
+    {
+      "code": "01058083",
+      "parent": "01058",
+      "name": "Hütten"
+    },
+    {
+      "code": "01058084",
+      "parent": "01058",
+      "name": "Hummelfeld"
+    },
+    {
+      "code": "01058085",
+      "parent": "01058",
+      "name": "Jahrsdorf"
+    },
+    {
+      "code": "01058086",
+      "parent": "01058",
+      "name": "Jevenstedt"
+    },
+    {
+      "code": "01058087",
+      "parent": "01058",
+      "name": "Karby"
+    },
+    {
+      "code": "01058088",
+      "parent": "01058",
+      "name": "Klein Wittensee"
+    },
+    {
+      "code": "01058089",
+      "parent": "01058",
+      "name": "Königshügel"
+    },
+    {
+      "code": "01058090",
+      "parent": "01058",
+      "name": "Kosel"
+    },
+    {
+      "code": "01058091",
+      "parent": "01058",
+      "name": "Krogaspe"
+    },
+    {
+      "code": "01058092",
+      "parent": "01058",
+      "name": "Kronshagen"
+    },
+    {
+      "code": "01058093",
+      "parent": "01058",
+      "name": "Krummwisch"
+    },
+    {
+      "code": "01058094",
+      "parent": "01058",
+      "name": "Langwedel"
+    },
+    {
+      "code": "01058096",
+      "parent": "01058",
+      "name": "Lindau"
+    },
+    {
+      "code": "01058097",
+      "parent": "01058",
+      "name": "Lohe-Föhrden"
+    },
+    {
+      "code": "01058098",
+      "parent": "01058",
+      "name": "Loop"
+    },
+    {
+      "code": "01058099",
+      "parent": "01058",
+      "name": "Loose"
+    },
+    {
+      "code": "01058100",
+      "parent": "01058",
+      "name": "Lütjenwestedt"
+    },
+    {
+      "code": "01058101",
+      "parent": "01058",
+      "name": "Luhnstedt"
+    },
+    {
+      "code": "01058102",
+      "parent": "01058",
+      "name": "Goosefeld"
+    },
+    {
+      "code": "01058103",
+      "parent": "01058",
+      "name": "Meezen"
+    },
+    {
+      "code": "01058104",
+      "parent": "01058",
+      "name": "Melsdorf"
+    },
+    {
+      "code": "01058105",
+      "parent": "01058",
+      "name": "Mielkendorf"
+    },
+    {
+      "code": "01058106",
+      "parent": "01058",
+      "name": "Mörel"
+    },
+    {
+      "code": "01058107",
+      "parent": "01058",
+      "name": "Molfsee"
+    },
+    {
+      "code": "01058108",
+      "parent": "01058",
+      "name": "Mühbrook"
+    },
+    {
+      "code": "01058109",
+      "parent": "01058",
+      "name": "Negenharrie"
+    },
+    {
+      "code": "01058110",
+      "parent": "01058",
+      "name": "Neudorf-Bornstein"
+    },
+    {
+      "code": "01058111",
+      "parent": "01058",
+      "name": "Neu Duvenstedt"
+    },
+    {
+      "code": "01058112",
+      "parent": "01058",
+      "name": "Neuwittenbek"
+    },
+    {
+      "code": "01058113",
+      "parent": "01058",
+      "name": "Nienborstel"
+    },
+    {
+      "code": "01058115",
+      "parent": "01058",
+      "name": "Nindorf"
+    },
+    {
+      "code": "01058116",
+      "parent": "01058",
+      "name": "Noer"
+    },
+    {
+      "code": "01058117",
+      "parent": "01058",
+      "name": "Nortorf"
+    },
+    {
+      "code": "01058118",
+      "parent": "01058",
+      "name": "Nübbel"
+    },
+    {
+      "code": "01058119",
+      "parent": "01058",
+      "name": "Oldenbüttel"
+    },
+    {
+      "code": "01058120",
+      "parent": "01058",
+      "name": "Oldenhütten"
+    },
+    {
+      "code": "01058121",
+      "parent": "01058",
+      "name": "Osdorf"
+    },
+    {
+      "code": "01058122",
+      "parent": "01058",
+      "name": "Ostenfeld (Rendsburg)"
+    },
+    {
+      "code": "01058123",
+      "parent": "01058",
+      "name": "Osterby"
+    },
+    {
+      "code": "01058124",
+      "parent": "01058",
+      "name": "Osterrönfeld"
+    },
+    {
+      "code": "01058125",
+      "parent": "01058",
+      "name": "Osterstedt"
+    },
+    {
+      "code": "01058126",
+      "parent": "01058",
+      "name": "Ottendorf"
+    },
+    {
+      "code": "01058127",
+      "parent": "01058",
+      "name": "Owschlag"
+    },
+    {
+      "code": "01058128",
+      "parent": "01058",
+      "name": "Padenstedt"
+    },
+    {
+      "code": "01058129",
+      "parent": "01058",
+      "name": "Prinzenmoor"
+    },
+    {
+      "code": "01058130",
+      "parent": "01058",
+      "name": "Quarnbek"
+    },
+    {
+      "code": "01058131",
+      "parent": "01058",
+      "name": "Rade b.Hohenwestedt"
+    },
+    {
+      "code": "01058132",
+      "parent": "01058",
+      "name": "Rade b.Rendsburg"
+    },
+    {
+      "code": "01058133",
+      "parent": "01058",
+      "name": "Reesdorf"
+    },
+    {
+      "code": "01058134",
+      "parent": "01058",
+      "name": "Remmels"
+    },
+    {
+      "code": "01058135",
+      "parent": "01058",
+      "name": "Rendsburg"
+    },
+    {
+      "code": "01058136",
+      "parent": "01058",
+      "name": "Rickert"
+    },
+    {
+      "code": "01058137",
+      "parent": "01058",
+      "name": "Rieseby"
+    },
+    {
+      "code": "01058138",
+      "parent": "01058",
+      "name": "Rodenbek"
+    },
+    {
+      "code": "01058139",
+      "parent": "01058",
+      "name": "Rumohr"
+    },
+    {
+      "code": "01058140",
+      "parent": "01058",
+      "name": "Schacht-Audorf"
+    },
+    {
+      "code": "01058141",
+      "parent": "01058",
+      "name": "Schierensee"
+    },
+    {
+      "code": "01058142",
+      "parent": "01058",
+      "name": "Schinkel"
+    },
+    {
+      "code": "01058143",
+      "parent": "01058",
+      "name": "Schmalstede"
+    },
+    {
+      "code": "01058144",
+      "parent": "01058",
+      "name": "Schönbek"
+    },
+    {
+      "code": "01058145",
+      "parent": "01058",
+      "name": "Schönhorst"
+    },
+    {
+      "code": "01058146",
+      "parent": "01058",
+      "name": "Schülldorf"
+    },
+    {
+      "code": "01058147",
+      "parent": "01058",
+      "name": "Schülp b.Nortorf"
+    },
+    {
+      "code": "01058148",
+      "parent": "01058",
+      "name": "Schülp b.Rendsburg"
+    },
+    {
+      "code": "01058150",
+      "parent": "01058",
+      "name": "Schwedeneck"
+    },
+    {
+      "code": "01058151",
+      "parent": "01058",
+      "name": "Seefeld"
+    },
+    {
+      "code": "01058152",
+      "parent": "01058",
+      "name": "Sehestedt"
+    },
+    {
+      "code": "01058153",
+      "parent": "01058",
+      "name": "Sören"
+    },
+    {
+      "code": "01058154",
+      "parent": "01058",
+      "name": "Sophienhamm"
+    },
+    {
+      "code": "01058155",
+      "parent": "01058",
+      "name": "Stafstedt"
+    },
+    {
+      "code": "01058156",
+      "parent": "01058",
+      "name": "Steenfeld"
+    },
+    {
+      "code": "01058157",
+      "parent": "01058",
+      "name": "Strande"
+    },
+    {
+      "code": "01058158",
+      "parent": "01058",
+      "name": "Tackesdorf"
+    },
+    {
+      "code": "01058159",
+      "parent": "01058",
+      "name": "Tappendorf"
+    },
+    {
+      "code": "01058160",
+      "parent": "01058",
+      "name": "Techelsdorf"
+    },
+    {
+      "code": "01058161",
+      "parent": "01058",
+      "name": "Thaden"
+    },
+    {
+      "code": "01058162",
+      "parent": "01058",
+      "name": "Thumby"
+    },
+    {
+      "code": "01058163",
+      "parent": "01058",
+      "name": "Timmaspe"
+    },
+    {
+      "code": "01058164",
+      "parent": "01058",
+      "name": "Todenbüttel"
+    },
+    {
+      "code": "01058165",
+      "parent": "01058",
+      "name": "Tüttendorf"
+    },
+    {
+      "code": "01058166",
+      "parent": "01058",
+      "name": "Waabs"
+    },
+    {
+      "code": "01058167",
+      "parent": "01058",
+      "name": "Wapelfeld"
+    },
+    {
+      "code": "01058168",
+      "parent": "01058",
+      "name": "Warder"
+    },
+    {
+      "code": "01058169",
+      "parent": "01058",
+      "name": "Wasbek"
+    },
+    {
+      "code": "01058170",
+      "parent": "01058",
+      "name": "Wattenbek"
+    },
+    {
+      "code": "01058171",
+      "parent": "01058",
+      "name": "Westensee"
+    },
+    {
+      "code": "01058172",
+      "parent": "01058",
+      "name": "Westerrönfeld"
+    },
+    {
+      "code": "01058173",
+      "parent": "01058",
+      "name": "Windeby"
+    },
+    {
+      "code": "01058174",
+      "parent": "01058",
+      "name": "Winnemark"
+    },
+    {
+      "code": "01058175",
+      "parent": "01058",
+      "name": "Ahlefeld-Bistensee"
+    },
+    {
+      "code": "01059001",
+      "parent": "01059",
+      "name": "Alt Bennebek"
+    },
+    {
+      "code": "01059002",
+      "parent": "01059",
+      "name": "Arnis"
+    },
+    {
+      "code": "01059005",
+      "parent": "01059",
+      "name": "Bergenhusen"
+    },
+    {
+      "code": "01059006",
+      "parent": "01059",
+      "name": "Böel"
+    },
+    {
+      "code": "01059008",
+      "parent": "01059",
+      "name": "Böklund"
+    },
+    {
+      "code": "01059009",
+      "parent": "01059",
+      "name": "Börm"
+    },
+    {
+      "code": "01059010",
+      "parent": "01059",
+      "name": "Bollingstedt"
+    },
+    {
+      "code": "01059012",
+      "parent": "01059",
+      "name": "Borgwedel"
+    },
+    {
+      "code": "01059018",
+      "parent": "01059",
+      "name": "Busdorf"
+    },
+    {
+      "code": "01059019",
+      "parent": "01059",
+      "name": "Dannewerk"
+    },
+    {
+      "code": "01059020",
+      "parent": "01059",
+      "name": "Dörpstedt"
+    },
+    {
+      "code": "01059023",
+      "parent": "01059",
+      "name": "Ellingstedt"
+    },
+    {
+      "code": "01059024",
+      "parent": "01059",
+      "name": "Erfde"
+    },
+    {
+      "code": "01059026",
+      "parent": "01059",
+      "name": "Fahrdorf"
+    },
+    {
+      "code": "01059032",
+      "parent": "01059",
+      "name": "Geltorf"
+    },
+    {
+      "code": "01059034",
+      "parent": "01059",
+      "name": "Grödersby"
+    },
+    {
+      "code": "01059035",
+      "parent": "01059",
+      "name": "Groß Rheide"
+    },
+    {
+      "code": "01059037",
+      "parent": "01059",
+      "name": "Havetoft"
+    },
+    {
+      "code": "01059039",
+      "parent": "01059",
+      "name": "Hollingstedt"
+    },
+    {
+      "code": "01059041",
+      "parent": "01059",
+      "name": "Hüsby"
+    },
+    {
+      "code": "01059042",
+      "parent": "01059",
+      "name": "Idstedt"
+    },
+    {
+      "code": "01059043",
+      "parent": "01059",
+      "name": "Jagel"
+    },
+    {
+      "code": "01059044",
+      "parent": "01059",
+      "name": "Jübek"
+    },
+    {
+      "code": "01059045",
+      "parent": "01059",
+      "name": "Kappeln"
+    },
+    {
+      "code": "01059049",
+      "parent": "01059",
+      "name": "Klappholz"
+    },
+    {
+      "code": "01059050",
+      "parent": "01059",
+      "name": "Klein Bennebek"
+    },
+    {
+      "code": "01059051",
+      "parent": "01059",
+      "name": "Klein Rheide"
+    },
+    {
+      "code": "01059053",
+      "parent": "01059",
+      "name": "Kropp"
+    },
+    {
+      "code": "01059055",
+      "parent": "01059",
+      "name": "Loit"
+    },
+    {
+      "code": "01059056",
+      "parent": "01059",
+      "name": "Lottorf"
+    },
+    {
+      "code": "01059057",
+      "parent": "01059",
+      "name": "Lürschau"
+    },
+    {
+      "code": "01059058",
+      "parent": "01059",
+      "name": "Meggerdorf"
+    },
+    {
+      "code": "01059060",
+      "parent": "01059",
+      "name": "Mohrkirch"
+    },
+    {
+      "code": "01059062",
+      "parent": "01059",
+      "name": "Neuberend"
+    },
+    {
+      "code": "01059063",
+      "parent": "01059",
+      "name": "Norderbrarup"
+    },
+    {
+      "code": "01059065",
+      "parent": "01059",
+      "name": "Nottfeld"
+    },
+    {
+      "code": "01059067",
+      "parent": "01059",
+      "name": "Oersberg"
+    },
+    {
+      "code": "01059068",
+      "parent": "01059",
+      "name": "Rabenkirchen-Faulück"
+    },
+    {
+      "code": "01059070",
+      "parent": "01059",
+      "name": "Rügge"
+    },
+    {
+      "code": "01059072",
+      "parent": "01059",
+      "name": "Saustrup"
+    },
+    {
+      "code": "01059073",
+      "parent": "01059",
+      "name": "Schaalby"
+    },
+    {
+      "code": "01059074",
+      "parent": "01059",
+      "name": "Scheggerott"
+    },
+    {
+      "code": "01059075",
+      "parent": "01059",
+      "name": "Schleswig"
+    },
+    {
+      "code": "01059076",
+      "parent": "01059",
+      "name": "Schnarup-Thumby"
+    },
+    {
+      "code": "01059077",
+      "parent": "01059",
+      "name": "Schuby"
+    },
+    {
+      "code": "01059078",
+      "parent": "01059",
+      "name": "Selk"
+    },
+    {
+      "code": "01059079",
+      "parent": "01059",
+      "name": "Silberstedt"
+    },
+    {
+      "code": "01059080",
+      "parent": "01059",
+      "name": "Steinfeld"
+    },
+    {
+      "code": "01059081",
+      "parent": "01059",
+      "name": "Stolk"
+    },
+    {
+      "code": "01059082",
+      "parent": "01059",
+      "name": "Struxdorf"
+    },
+    {
+      "code": "01059083",
+      "parent": "01059",
+      "name": "Süderbrarup"
+    },
+    {
+      "code": "01059084",
+      "parent": "01059",
+      "name": "Süderfahrenstedt"
+    },
+    {
+      "code": "01059086",
+      "parent": "01059",
+      "name": "Taarstedt"
+    },
+    {
+      "code": "01059087",
+      "parent": "01059",
+      "name": "Tetenhusen"
+    },
+    {
+      "code": "01059088",
+      "parent": "01059",
+      "name": "Tielen"
+    },
+    {
+      "code": "01059090",
+      "parent": "01059",
+      "name": "Tolk"
+    },
+    {
+      "code": "01059092",
+      "parent": "01059",
+      "name": "Treia"
+    },
+    {
+      "code": "01059093",
+      "parent": "01059",
+      "name": "Uelsby"
+    },
+    {
+      "code": "01059094",
+      "parent": "01059",
+      "name": "Ulsnis"
+    },
+    {
+      "code": "01059095",
+      "parent": "01059",
+      "name": "Wagersrott"
+    },
+    {
+      "code": "01059096",
+      "parent": "01059",
+      "name": "Wohlde"
+    },
+    {
+      "code": "01059097",
+      "parent": "01059",
+      "name": "Twedt"
+    },
+    {
+      "code": "01059098",
+      "parent": "01059",
+      "name": "Nübel"
+    },
+    {
+      "code": "01059102",
+      "parent": "01059",
+      "name": "Ahneby"
+    },
+    {
+      "code": "01059103",
+      "parent": "01059",
+      "name": "Ausacker"
+    },
+    {
+      "code": "01059105",
+      "parent": "01059",
+      "name": "Böxlund"
+    },
+    {
+      "code": "01059106",
+      "parent": "01059",
+      "name": "Dollerup"
+    },
+    {
+      "code": "01059107",
+      "parent": "01059",
+      "name": "Eggebek"
+    },
+    {
+      "code": "01059109",
+      "parent": "01059",
+      "name": "Esgrus"
+    },
+    {
+      "code": "01059112",
+      "parent": "01059",
+      "name": "Gelting"
+    },
+    {
+      "code": "01059113",
+      "parent": "01059",
+      "name": "Glücksburg (Ostsee)"
+    },
+    {
+      "code": "01059115",
+      "parent": "01059",
+      "name": "Großenwiehe"
+    },
+    {
+      "code": "01059116",
+      "parent": "01059",
+      "name": "Großsolt"
+    },
+    {
+      "code": "01059118",
+      "parent": "01059",
+      "name": "Grundhof"
+    },
+    {
+      "code": "01059120",
+      "parent": "01059",
+      "name": "Harrislee"
+    },
+    {
+      "code": "01059121",
+      "parent": "01059",
+      "name": "Hasselberg"
+    },
+    {
+      "code": "01059123",
+      "parent": "01059",
+      "name": "Hörup"
+    },
+    {
+      "code": "01059124",
+      "parent": "01059",
+      "name": "Holt"
+    },
+    {
+      "code": "01059126",
+      "parent": "01059",
+      "name": "Hürup"
+    },
+    {
+      "code": "01059127",
+      "parent": "01059",
+      "name": "Husby"
+    },
+    {
+      "code": "01059128",
+      "parent": "01059",
+      "name": "Janneby"
+    },
+    {
+      "code": "01059129",
+      "parent": "01059",
+      "name": "Jardelund"
+    },
+    {
+      "code": "01059131",
+      "parent": "01059",
+      "name": "Jerrishoe"
+    },
+    {
+      "code": "01059132",
+      "parent": "01059",
+      "name": "Jörl"
+    },
+    {
+      "code": "01059136",
+      "parent": "01059",
+      "name": "Kronsgaard"
+    },
+    {
+      "code": "01059137",
+      "parent": "01059",
+      "name": "Langballig"
+    },
+    {
+      "code": "01059138",
+      "parent": "01059",
+      "name": "Langstedt"
+    },
+    {
+      "code": "01059142",
+      "parent": "01059",
+      "name": "Maasholm"
+    },
+    {
+      "code": "01059143",
+      "parent": "01059",
+      "name": "Medelby"
+    },
+    {
+      "code": "01059144",
+      "parent": "01059",
+      "name": "Meyn"
+    },
+    {
+      "code": "01059145",
+      "parent": "01059",
+      "name": "Munkbrarup"
+    },
+    {
+      "code": "01059147",
+      "parent": "01059",
+      "name": "Nieby"
+    },
+    {
+      "code": "01059148",
+      "parent": "01059",
+      "name": "Niesgrau"
+    },
+    {
+      "code": "01059149",
+      "parent": "01059",
+      "name": "Nordhackstedt"
+    },
+    {
+      "code": "01059151",
+      "parent": "01059",
+      "name": "Osterby"
+    },
+    {
+      "code": "01059152",
+      "parent": "01059",
+      "name": "Pommerby"
+    },
+    {
+      "code": "01059154",
+      "parent": "01059",
+      "name": "Rabel"
+    },
+    {
+      "code": "01059155",
+      "parent": "01059",
+      "name": "Rabenholz"
+    },
+    {
+      "code": "01059157",
+      "parent": "01059",
+      "name": "Ringsberg"
+    },
+    {
+      "code": "01059158",
+      "parent": "01059",
+      "name": "Schafflund"
+    },
+    {
+      "code": "01059159",
+      "parent": "01059",
+      "name": "Sieverstedt"
+    },
+    {
+      "code": "01059161",
+      "parent": "01059",
+      "name": "Sörup"
+    },
+    {
+      "code": "01059162",
+      "parent": "01059",
+      "name": "Sollerup"
+    },
+    {
+      "code": "01059163",
+      "parent": "01059",
+      "name": "Stangheck"
+    },
+    {
+      "code": "01059164",
+      "parent": "01059",
+      "name": "Steinberg"
+    },
+    {
+      "code": "01059167",
+      "parent": "01059",
+      "name": "Sterup"
+    },
+    {
+      "code": "01059168",
+      "parent": "01059",
+      "name": "Stoltebüll"
+    },
+    {
+      "code": "01059169",
+      "parent": "01059",
+      "name": "Süderhackstedt"
+    },
+    {
+      "code": "01059171",
+      "parent": "01059",
+      "name": "Tarp"
+    },
+    {
+      "code": "01059173",
+      "parent": "01059",
+      "name": "Wallsbüll"
+    },
+    {
+      "code": "01059174",
+      "parent": "01059",
+      "name": "Wanderup"
+    },
+    {
+      "code": "01059176",
+      "parent": "01059",
+      "name": "Wees"
+    },
+    {
+      "code": "01059177",
+      "parent": "01059",
+      "name": "Weesby"
+    },
+    {
+      "code": "01059178",
+      "parent": "01059",
+      "name": "Westerholz"
+    },
+    {
+      "code": "01059179",
+      "parent": "01059",
+      "name": "Lindewitt"
+    },
+    {
+      "code": "01059182",
+      "parent": "01059",
+      "name": "Freienwill"
+    },
+    {
+      "code": "01059183",
+      "parent": "01059",
+      "name": "Handewitt"
+    },
+    {
+      "code": "01059184",
+      "parent": "01059",
+      "name": "Oeversee"
+    },
+    {
+      "code": "01059185",
+      "parent": "01059",
+      "name": "Mittelangeln"
+    },
+    {
+      "code": "01059186",
+      "parent": "01059",
+      "name": "Steinbergkirche"
+    },
+    {
+      "code": "01059187",
+      "parent": "01059",
+      "name": "Boren"
+    },
+    {
+      "code": "01059188",
+      "parent": "01059",
+      "name": "Stapel"
+    },
+    {
+      "code": "01059189",
+      "parent": "01059",
+      "name": "Brodersby-Goltoft"
+    },
+    {
+      "code": "01060002",
+      "parent": "01060",
+      "name": "Alveslohe"
+    },
+    {
+      "code": "01060003",
+      "parent": "01060",
+      "name": "Armstedt"
+    },
+    {
+      "code": "01060004",
+      "parent": "01060",
+      "name": "Bad Bramstedt"
+    },
+    {
+      "code": "01060005",
+      "parent": "01060",
+      "name": "Bad Segeberg"
+    },
+    {
+      "code": "01060006",
+      "parent": "01060",
+      "name": "Bahrenhof"
+    },
+    {
+      "code": "01060007",
+      "parent": "01060",
+      "name": "Bark"
+    },
+    {
+      "code": "01060008",
+      "parent": "01060",
+      "name": "Bebensee"
+    },
+    {
+      "code": "01060009",
+      "parent": "01060",
+      "name": "Bimöhlen"
+    },
+    {
+      "code": "01060010",
+      "parent": "01060",
+      "name": "Blunk"
+    },
+    {
+      "code": "01060011",
+      "parent": "01060",
+      "name": "Boostedt"
+    },
+    {
+      "code": "01060012",
+      "parent": "01060",
+      "name": "Bornhöved"
+    },
+    {
+      "code": "01060013",
+      "parent": "01060",
+      "name": "Borstel"
+    },
+    {
+      "code": "01060015",
+      "parent": "01060",
+      "name": "Bühnsdorf"
+    },
+    {
+      "code": "01060016",
+      "parent": "01060",
+      "name": "Daldorf"
+    },
+    {
+      "code": "01060017",
+      "parent": "01060",
+      "name": "Damsdorf"
+    },
+    {
+      "code": "01060018",
+      "parent": "01060",
+      "name": "Dreggers"
+    },
+    {
+      "code": "01060019",
+      "parent": "01060",
+      "name": "Ellerau"
+    },
+    {
+      "code": "01060020",
+      "parent": "01060",
+      "name": "Fahrenkrug"
+    },
+    {
+      "code": "01060021",
+      "parent": "01060",
+      "name": "Föhrden-Barl"
+    },
+    {
+      "code": "01060022",
+      "parent": "01060",
+      "name": "Fredesdorf"
+    },
+    {
+      "code": "01060023",
+      "parent": "01060",
+      "name": "Fuhlendorf"
+    },
+    {
+      "code": "01060024",
+      "parent": "01060",
+      "name": "Geschendorf"
+    },
+    {
+      "code": "01060025",
+      "parent": "01060",
+      "name": "Glasau"
+    },
+    {
+      "code": "01060026",
+      "parent": "01060",
+      "name": "Gönnebek"
+    },
+    {
+      "code": "01060027",
+      "parent": "01060",
+      "name": "Großenaspe"
+    },
+    {
+      "code": "01060028",
+      "parent": "01060",
+      "name": "Groß Kummerfeld"
+    },
+    {
+      "code": "01060029",
+      "parent": "01060",
+      "name": "Groß Niendorf"
+    },
+    {
+      "code": "01060030",
+      "parent": "01060",
+      "name": "Groß Rönnau"
+    },
+    {
+      "code": "01060031",
+      "parent": "01060",
+      "name": "Hagen"
+    },
+    {
+      "code": "01060033",
+      "parent": "01060",
+      "name": "Hardebek"
+    },
+    {
+      "code": "01060034",
+      "parent": "01060",
+      "name": "Hartenholm"
+    },
+    {
+      "code": "01060035",
+      "parent": "01060",
+      "name": "Hasenkrug"
+    },
+    {
+      "code": "01060036",
+      "parent": "01060",
+      "name": "Hasenmoor"
+    },
+    {
+      "code": "01060037",
+      "parent": "01060",
+      "name": "Heidmoor"
+    },
+    {
+      "code": "01060038",
+      "parent": "01060",
+      "name": "Heidmühlen"
+    },
+    {
+      "code": "01060039",
+      "parent": "01060",
+      "name": "Henstedt-Ulzburg"
+    },
+    {
+      "code": "01060040",
+      "parent": "01060",
+      "name": "Hitzhusen"
+    },
+    {
+      "code": "01060041",
+      "parent": "01060",
+      "name": "Högersdorf"
+    },
+    {
+      "code": "01060042",
+      "parent": "01060",
+      "name": "Hüttblek"
+    },
+    {
+      "code": "01060043",
+      "parent": "01060",
+      "name": "Itzstedt"
+    },
+    {
+      "code": "01060044",
+      "parent": "01060",
+      "name": "Kaltenkirchen"
+    },
+    {
+      "code": "01060045",
+      "parent": "01060",
+      "name": "Kattendorf"
+    },
+    {
+      "code": "01060046",
+      "parent": "01060",
+      "name": "Kayhude"
+    },
+    {
+      "code": "01060047",
+      "parent": "01060",
+      "name": "Kisdorf"
+    },
+    {
+      "code": "01060048",
+      "parent": "01060",
+      "name": "Klein Gladebrügge"
+    },
+    {
+      "code": "01060049",
+      "parent": "01060",
+      "name": "Klein Rönnau"
+    },
+    {
+      "code": "01060050",
+      "parent": "01060",
+      "name": "Krems II"
+    },
+    {
+      "code": "01060051",
+      "parent": "01060",
+      "name": "Kükels"
+    },
+    {
+      "code": "01060052",
+      "parent": "01060",
+      "name": "Latendorf"
+    },
+    {
+      "code": "01060053",
+      "parent": "01060",
+      "name": "Leezen"
+    },
+    {
+      "code": "01060054",
+      "parent": "01060",
+      "name": "Lentföhrden"
+    },
+    {
+      "code": "01060056",
+      "parent": "01060",
+      "name": "Mönkloh"
+    },
+    {
+      "code": "01060057",
+      "parent": "01060",
+      "name": "Mözen"
+    },
+    {
+      "code": "01060058",
+      "parent": "01060",
+      "name": "Nahe"
+    },
+    {
+      "code": "01060059",
+      "parent": "01060",
+      "name": "Negernbötel"
+    },
+    {
+      "code": "01060060",
+      "parent": "01060",
+      "name": "Nehms"
+    },
+    {
+      "code": "01060061",
+      "parent": "01060",
+      "name": "Neuengörs"
+    },
+    {
+      "code": "01060062",
+      "parent": "01060",
+      "name": "Neversdorf"
+    },
+    {
+      "code": "01060063",
+      "parent": "01060",
+      "name": "Norderstedt"
+    },
+    {
+      "code": "01060064",
+      "parent": "01060",
+      "name": "Nützen"
+    },
+    {
+      "code": "01060065",
+      "parent": "01060",
+      "name": "Oering"
+    },
+    {
+      "code": "01060066",
+      "parent": "01060",
+      "name": "Oersdorf"
+    },
+    {
+      "code": "01060067",
+      "parent": "01060",
+      "name": "Pronstorf"
+    },
+    {
+      "code": "01060068",
+      "parent": "01060",
+      "name": "Rickling"
+    },
+    {
+      "code": "01060069",
+      "parent": "01060",
+      "name": "Rohlstorf"
+    },
+    {
+      "code": "01060070",
+      "parent": "01060",
+      "name": "Schackendorf"
+    },
+    {
+      "code": "01060071",
+      "parent": "01060",
+      "name": "Schieren"
+    },
+    {
+      "code": "01060072",
+      "parent": "01060",
+      "name": "Schmalensee"
+    },
+    {
+      "code": "01060073",
+      "parent": "01060",
+      "name": "Schmalfeld"
+    },
+    {
+      "code": "01060074",
+      "parent": "01060",
+      "name": "Schwissel"
+    },
+    {
+      "code": "01060075",
+      "parent": "01060",
+      "name": "Seedorf"
+    },
+    {
+      "code": "01060076",
+      "parent": "01060",
+      "name": "Seth"
+    },
+    {
+      "code": "01060077",
+      "parent": "01060",
+      "name": "Sievershütten"
+    },
+    {
+      "code": "01060079",
+      "parent": "01060",
+      "name": "Stipsdorf"
+    },
+    {
+      "code": "01060080",
+      "parent": "01060",
+      "name": "Stocksee"
+    },
+    {
+      "code": "01060081",
+      "parent": "01060",
+      "name": "Strukdorf"
+    },
+    {
+      "code": "01060082",
+      "parent": "01060",
+      "name": "Struvenhütten"
+    },
+    {
+      "code": "01060084",
+      "parent": "01060",
+      "name": "Stuvenborn"
+    },
+    {
+      "code": "01060085",
+      "parent": "01060",
+      "name": "Sülfeld"
+    },
+    {
+      "code": "01060086",
+      "parent": "01060",
+      "name": "Tarbek"
+    },
+    {
+      "code": "01060087",
+      "parent": "01060",
+      "name": "Tensfeld"
+    },
+    {
+      "code": "01060088",
+      "parent": "01060",
+      "name": "Todesfelde"
+    },
+    {
+      "code": "01060089",
+      "parent": "01060",
+      "name": "Trappenkamp"
+    },
+    {
+      "code": "01060090",
+      "parent": "01060",
+      "name": "Travenhorst"
+    },
+    {
+      "code": "01060091",
+      "parent": "01060",
+      "name": "Traventhal"
+    },
+    {
+      "code": "01060092",
+      "parent": "01060",
+      "name": "Wahlstedt"
+    },
+    {
+      "code": "01060093",
+      "parent": "01060",
+      "name": "Wakendorf I"
+    },
+    {
+      "code": "01060094",
+      "parent": "01060",
+      "name": "Wakendorf II"
+    },
+    {
+      "code": "01060095",
+      "parent": "01060",
+      "name": "Weddelbrook"
+    },
+    {
+      "code": "01060096",
+      "parent": "01060",
+      "name": "Weede"
+    },
+    {
+      "code": "01060097",
+      "parent": "01060",
+      "name": "Wensin"
+    },
+    {
+      "code": "01060098",
+      "parent": "01060",
+      "name": "Westerrade"
+    },
+    {
+      "code": "01060099",
+      "parent": "01060",
+      "name": "Wiemersdorf"
+    },
+    {
+      "code": "01060100",
+      "parent": "01060",
+      "name": "Winsen"
+    },
+    {
+      "code": "01060101",
+      "parent": "01060",
+      "name": "Wittenborn"
+    },
+    {
+      "code": "01061001",
+      "parent": "01061",
+      "name": "Aasbüttel"
+    },
+    {
+      "code": "01061002",
+      "parent": "01061",
+      "name": "Aebtissinwisch"
+    },
+    {
+      "code": "01061003",
+      "parent": "01061",
+      "name": "Agethorst"
+    },
+    {
+      "code": "01061004",
+      "parent": "01061",
+      "name": "Altenmoor"
+    },
+    {
+      "code": "01061005",
+      "parent": "01061",
+      "name": "Auufer"
+    },
+    {
+      "code": "01061006",
+      "parent": "01061",
+      "name": "Bahrenfleth"
+    },
+    {
+      "code": "01061007",
+      "parent": "01061",
+      "name": "Beidenfleth"
+    },
+    {
+      "code": "01061008",
+      "parent": "01061",
+      "name": "Bekdorf"
+    },
+    {
+      "code": "01061010",
+      "parent": "01061",
+      "name": "Bekmünde"
+    },
+    {
+      "code": "01061011",
+      "parent": "01061",
+      "name": "Besdorf"
+    },
+    {
+      "code": "01061012",
+      "parent": "01061",
+      "name": "Blomesche Wildnis"
+    },
+    {
+      "code": "01061013",
+      "parent": "01061",
+      "name": "Bokelrehm"
+    },
+    {
+      "code": "01061014",
+      "parent": "01061",
+      "name": "Bokhorst"
+    },
+    {
+      "code": "01061015",
+      "parent": "01061",
+      "name": "Borsfleth"
+    },
+    {
+      "code": "01061016",
+      "parent": "01061",
+      "name": "Breitenberg"
+    },
+    {
+      "code": "01061017",
+      "parent": "01061",
+      "name": "Breitenburg"
+    },
+    {
+      "code": "01061018",
+      "parent": "01061",
+      "name": "Brokdorf"
+    },
+    {
+      "code": "01061019",
+      "parent": "01061",
+      "name": "Brokstedt"
+    },
+    {
+      "code": "01061020",
+      "parent": "01061",
+      "name": "Büttel"
+    },
+    {
+      "code": "01061021",
+      "parent": "01061",
+      "name": "Christinenthal"
+    },
+    {
+      "code": "01061022",
+      "parent": "01061",
+      "name": "Dägeling"
+    },
+    {
+      "code": "01061023",
+      "parent": "01061",
+      "name": "Dammfleth"
+    },
+    {
+      "code": "01061024",
+      "parent": "01061",
+      "name": "Drage"
+    },
+    {
+      "code": "01061025",
+      "parent": "01061",
+      "name": "Ecklak"
+    },
+    {
+      "code": "01061026",
+      "parent": "01061",
+      "name": "Elskop"
+    },
+    {
+      "code": "01061027",
+      "parent": "01061",
+      "name": "Engelbrechtsche Wildnis"
+    },
+    {
+      "code": "01061028",
+      "parent": "01061",
+      "name": "Fitzbek"
+    },
+    {
+      "code": "01061029",
+      "parent": "01061",
+      "name": "Glückstadt"
+    },
+    {
+      "code": "01061030",
+      "parent": "01061",
+      "name": "Grevenkop"
+    },
+    {
+      "code": "01061031",
+      "parent": "01061",
+      "name": "Gribbohm"
+    },
+    {
+      "code": "01061033",
+      "parent": "01061",
+      "name": "Hadenfeld"
+    },
+    {
+      "code": "01061034",
+      "parent": "01061",
+      "name": "Heiligenstedten"
+    },
+    {
+      "code": "01061035",
+      "parent": "01061",
+      "name": "Heiligenstedtenerkamp"
+    },
+    {
+      "code": "01061036",
+      "parent": "01061",
+      "name": "Hennstedt"
+    },
+    {
+      "code": "01061037",
+      "parent": "01061",
+      "name": "Herzhorn"
+    },
+    {
+      "code": "01061038",
+      "parent": "01061",
+      "name": "Hingstheide"
+    },
+    {
+      "code": "01061039",
+      "parent": "01061",
+      "name": "Hodorf"
+    },
+    {
+      "code": "01061040",
+      "parent": "01061",
+      "name": "Hohenaspe"
+    },
+    {
+      "code": "01061041",
+      "parent": "01061",
+      "name": "Hohenfelde"
+    },
+    {
+      "code": "01061042",
+      "parent": "01061",
+      "name": "Hohenlockstedt"
+    },
+    {
+      "code": "01061043",
+      "parent": "01061",
+      "name": "Holstenniendorf"
+    },
+    {
+      "code": "01061044",
+      "parent": "01061",
+      "name": "Horst (Holstein)"
+    },
+    {
+      "code": "01061045",
+      "parent": "01061",
+      "name": "Huje"
+    },
+    {
+      "code": "01061046",
+      "parent": "01061",
+      "name": "Itzehoe"
+    },
+    {
+      "code": "01061047",
+      "parent": "01061",
+      "name": "Kaaks"
+    },
+    {
+      "code": "01061048",
+      "parent": "01061",
+      "name": "Kaisborstel"
+    },
+    {
+      "code": "01061049",
+      "parent": "01061",
+      "name": "Kellinghusen"
+    },
+    {
+      "code": "01061050",
+      "parent": "01061",
+      "name": "Kiebitzreihe"
+    },
+    {
+      "code": "01061052",
+      "parent": "01061",
+      "name": "Kleve"
+    },
+    {
+      "code": "01061053",
+      "parent": "01061",
+      "name": "Kollmoor"
+    },
+    {
+      "code": "01061054",
+      "parent": "01061",
+      "name": "Krempdorf"
+    },
+    {
+      "code": "01061055",
+      "parent": "01061",
+      "name": "Krempe"
+    },
+    {
+      "code": "01061056",
+      "parent": "01061",
+      "name": "Kremperheide"
+    },
+    {
+      "code": "01061057",
+      "parent": "01061",
+      "name": "Krempermoor"
+    },
+    {
+      "code": "01061058",
+      "parent": "01061",
+      "name": "Kronsmoor"
+    },
+    {
+      "code": "01061059",
+      "parent": "01061",
+      "name": "Krummendiek"
+    },
+    {
+      "code": "01061060",
+      "parent": "01061",
+      "name": "Kudensee"
+    },
+    {
+      "code": "01061061",
+      "parent": "01061",
+      "name": "Lägerdorf"
+    },
+    {
+      "code": "01061062",
+      "parent": "01061",
+      "name": "Landrecht"
+    },
+    {
+      "code": "01061063",
+      "parent": "01061",
+      "name": "Landscheide"
+    },
+    {
+      "code": "01061064",
+      "parent": "01061",
+      "name": "Lockstedt"
+    },
+    {
+      "code": "01061065",
+      "parent": "01061",
+      "name": "Lohbarbek"
+    },
+    {
+      "code": "01061066",
+      "parent": "01061",
+      "name": "Looft"
+    },
+    {
+      "code": "01061067",
+      "parent": "01061",
+      "name": "Mehlbek"
+    },
+    {
+      "code": "01061068",
+      "parent": "01061",
+      "name": "Moordiek"
+    },
+    {
+      "code": "01061070",
+      "parent": "01061",
+      "name": "Moorhusen"
+    },
+    {
+      "code": "01061071",
+      "parent": "01061",
+      "name": "Mühlenbarbek"
+    },
+    {
+      "code": "01061072",
+      "parent": "01061",
+      "name": "Münsterdorf"
+    },
+    {
+      "code": "01061073",
+      "parent": "01061",
+      "name": "Neuenbrook"
+    },
+    {
+      "code": "01061074",
+      "parent": "01061",
+      "name": "Neuendorf b.Elmshorn"
+    },
+    {
+      "code": "01061076",
+      "parent": "01061",
+      "name": "Nienbüttel"
+    },
+    {
+      "code": "01061077",
+      "parent": "01061",
+      "name": "Nortorf"
+    },
+    {
+      "code": "01061078",
+      "parent": "01061",
+      "name": "Nutteln"
+    },
+    {
+      "code": "01061079",
+      "parent": "01061",
+      "name": "Oelixdorf"
+    },
+    {
+      "code": "01061080",
+      "parent": "01061",
+      "name": "Oeschebüttel"
+    },
+    {
+      "code": "01061081",
+      "parent": "01061",
+      "name": "Oldenborstel"
+    },
+    {
+      "code": "01061082",
+      "parent": "01061",
+      "name": "Oldendorf"
+    },
+    {
+      "code": "01061083",
+      "parent": "01061",
+      "name": "Ottenbüttel"
+    },
+    {
+      "code": "01061084",
+      "parent": "01061",
+      "name": "Peissen"
+    },
+    {
+      "code": "01061085",
+      "parent": "01061",
+      "name": "Pöschendorf"
+    },
+    {
+      "code": "01061086",
+      "parent": "01061",
+      "name": "Poyenberg"
+    },
+    {
+      "code": "01061087",
+      "parent": "01061",
+      "name": "Puls"
+    },
+    {
+      "code": "01061088",
+      "parent": "01061",
+      "name": "Quarnstedt"
+    },
+    {
+      "code": "01061089",
+      "parent": "01061",
+      "name": "Rade"
+    },
+    {
+      "code": "01061091",
+      "parent": "01061",
+      "name": "Reher"
+    },
+    {
+      "code": "01061092",
+      "parent": "01061",
+      "name": "Rethwisch"
+    },
+    {
+      "code": "01061093",
+      "parent": "01061",
+      "name": "Rosdorf"
+    },
+    {
+      "code": "01061095",
+      "parent": "01061",
+      "name": "Sankt Margarethen"
+    },
+    {
+      "code": "01061096",
+      "parent": "01061",
+      "name": "Sarlhusen"
+    },
+    {
+      "code": "01061097",
+      "parent": "01061",
+      "name": "Schenefeld"
+    },
+    {
+      "code": "01061098",
+      "parent": "01061",
+      "name": "Schlotfeld"
+    },
+    {
+      "code": "01061100",
+      "parent": "01061",
+      "name": "Silzen"
+    },
+    {
+      "code": "01061101",
+      "parent": "01061",
+      "name": "Sommerland"
+    },
+    {
+      "code": "01061102",
+      "parent": "01061",
+      "name": "Stördorf"
+    },
+    {
+      "code": "01061103",
+      "parent": "01061",
+      "name": "Störkathen"
+    },
+    {
+      "code": "01061104",
+      "parent": "01061",
+      "name": "Süderau"
+    },
+    {
+      "code": "01061105",
+      "parent": "01061",
+      "name": "Vaale"
+    },
+    {
+      "code": "01061106",
+      "parent": "01061",
+      "name": "Vaalermoor"
+    },
+    {
+      "code": "01061107",
+      "parent": "01061",
+      "name": "Wacken"
+    },
+    {
+      "code": "01061108",
+      "parent": "01061",
+      "name": "Warringholz"
+    },
+    {
+      "code": "01061109",
+      "parent": "01061",
+      "name": "Westermoor"
+    },
+    {
+      "code": "01061110",
+      "parent": "01061",
+      "name": "Wewelsfleth"
+    },
+    {
+      "code": "01061111",
+      "parent": "01061",
+      "name": "Wiedenborstel"
+    },
+    {
+      "code": "01061112",
+      "parent": "01061",
+      "name": "Willenscharen"
+    },
+    {
+      "code": "01061113",
+      "parent": "01061",
+      "name": "Wilster"
+    },
+    {
+      "code": "01061114",
+      "parent": "01061",
+      "name": "Winseldorf"
+    },
+    {
+      "code": "01061115",
+      "parent": "01061",
+      "name": "Wittenbergen"
+    },
+    {
+      "code": "01061116",
+      "parent": "01061",
+      "name": "Wrist"
+    },
+    {
+      "code": "01061117",
+      "parent": "01061",
+      "name": "Wulfsmoor"
+    },
+    {
+      "code": "01061118",
+      "parent": "01061",
+      "name": "Kollmar"
+    },
+    {
+      "code": "01061119",
+      "parent": "01061",
+      "name": "Neuendorf-Sachsenbande"
+    },
+    {
+      "code": "01062001",
+      "parent": "01062",
+      "name": "Ahrensburg"
+    },
+    {
+      "code": "01062003",
+      "parent": "01062",
+      "name": "Badendorf"
+    },
+    {
+      "code": "01062004",
+      "parent": "01062",
+      "name": "Bad Oldesloe"
+    },
+    {
+      "code": "01062005",
+      "parent": "01062",
+      "name": "Bargfeld-Stegen"
+    },
+    {
+      "code": "01062006",
+      "parent": "01062",
+      "name": "Bargteheide"
+    },
+    {
+      "code": "01062008",
+      "parent": "01062",
+      "name": "Barnitz"
+    },
+    {
+      "code": "01062009",
+      "parent": "01062",
+      "name": "Barsbüttel"
+    },
+    {
+      "code": "01062011",
+      "parent": "01062",
+      "name": "Braak"
+    },
+    {
+      "code": "01062014",
+      "parent": "01062",
+      "name": "Delingsdorf"
+    },
+    {
+      "code": "01062016",
+      "parent": "01062",
+      "name": "Elmenhorst"
+    },
+    {
+      "code": "01062018",
+      "parent": "01062",
+      "name": "Glinde"
+    },
+    {
+      "code": "01062019",
+      "parent": "01062",
+      "name": "Grabau"
+    },
+    {
+      "code": "01062020",
+      "parent": "01062",
+      "name": "Grande"
+    },
+    {
+      "code": "01062021",
+      "parent": "01062",
+      "name": "Grönwohld"
+    },
+    {
+      "code": "01062022",
+      "parent": "01062",
+      "name": "Großensee"
+    },
+    {
+      "code": "01062023",
+      "parent": "01062",
+      "name": "Großhansdorf"
+    },
+    {
+      "code": "01062025",
+      "parent": "01062",
+      "name": "Hamberge"
+    },
+    {
+      "code": "01062026",
+      "parent": "01062",
+      "name": "Hamfelde"
+    },
+    {
+      "code": "01062027",
+      "parent": "01062",
+      "name": "Hammoor"
+    },
+    {
+      "code": "01062031",
+      "parent": "01062",
+      "name": "Heidekamp"
+    },
+    {
+      "code": "01062032",
+      "parent": "01062",
+      "name": "Heilshoop"
+    },
+    {
+      "code": "01062033",
+      "parent": "01062",
+      "name": "Hohenfelde"
+    },
+    {
+      "code": "01062035",
+      "parent": "01062",
+      "name": "Hoisdorf"
+    },
+    {
+      "code": "01062036",
+      "parent": "01062",
+      "name": "Jersbek"
+    },
+    {
+      "code": "01062039",
+      "parent": "01062",
+      "name": "Klein Wesenberg"
+    },
+    {
+      "code": "01062040",
+      "parent": "01062",
+      "name": "Köthel"
+    },
+    {
+      "code": "01062045",
+      "parent": "01062",
+      "name": "Lütjensee"
+    },
+    {
+      "code": "01062046",
+      "parent": "01062",
+      "name": "Meddewade"
+    },
+    {
+      "code": "01062048",
+      "parent": "01062",
+      "name": "Mönkhagen"
+    },
+    {
+      "code": "01062050",
+      "parent": "01062",
+      "name": "Neritz"
+    },
+    {
+      "code": "01062051",
+      "parent": "01062",
+      "name": "Nienwohld"
+    },
+    {
+      "code": "01062053",
+      "parent": "01062",
+      "name": "Oststeinbek"
+    },
+    {
+      "code": "01062056",
+      "parent": "01062",
+      "name": "Pölitz"
+    },
+    {
+      "code": "01062058",
+      "parent": "01062",
+      "name": "Rausdorf"
+    },
+    {
+      "code": "01062059",
+      "parent": "01062",
+      "name": "Rehhorst"
+    },
+    {
+      "code": "01062060",
+      "parent": "01062",
+      "name": "Reinbek"
+    },
+    {
+      "code": "01062061",
+      "parent": "01062",
+      "name": "Reinfeld (Holstein)"
+    },
+    {
+      "code": "01062062",
+      "parent": "01062",
+      "name": "Rethwisch"
+    },
+    {
+      "code": "01062065",
+      "parent": "01062",
+      "name": "Rümpel"
+    },
+    {
+      "code": "01062069",
+      "parent": "01062",
+      "name": "Siek"
+    },
+    {
+      "code": "01062071",
+      "parent": "01062",
+      "name": "Stapelfeld"
+    },
+    {
+      "code": "01062076",
+      "parent": "01062",
+      "name": "Tangstedt"
+    },
+    {
+      "code": "01062078",
+      "parent": "01062",
+      "name": "Todendorf"
+    },
+    {
+      "code": "01062081",
+      "parent": "01062",
+      "name": "Tremsbüttel"
+    },
+    {
+      "code": "01062082",
+      "parent": "01062",
+      "name": "Trittau"
+    },
+    {
+      "code": "01062083",
+      "parent": "01062",
+      "name": "Westerau"
+    },
+    {
+      "code": "01062086",
+      "parent": "01062",
+      "name": "Witzhave"
+    },
+    {
+      "code": "01062087",
+      "parent": "01062",
+      "name": "Zarpen"
+    },
+    {
+      "code": "01062088",
+      "parent": "01062",
+      "name": "Brunsbek"
+    },
+    {
+      "code": "01062089",
+      "parent": "01062",
+      "name": "Lasbek"
+    },
+    {
+      "code": "01062090",
+      "parent": "01062",
+      "name": "Ammersbek"
+    },
+    {
+      "code": "01062091",
+      "parent": "01062",
+      "name": "Steinburg"
+    },
+    {
+      "code": "01062092",
+      "parent": "01062",
+      "name": "Travenbrück"
+    },
+    {
+      "code": "01062093",
+      "parent": "01062",
+      "name": "Feldhorst"
+    },
+    {
+      "code": "01062094",
+      "parent": "01062",
+      "name": "Wesenberg"
+    }
+  ]
+}

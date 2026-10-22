@@ -1,0 +1,10 @@
+{
+  "migrations": [
+    {
+      "version": "20261022210000",
+      "name": "add_schleswig_holstein_geography",
+      "file": "supabase/migrations/20261022210000_add_schleswig_holstein_geography.sql",
+      "export_sql_sha256": ""
+    }
+  ]
+}
