@@ -1264,7 +1264,7 @@ declare
   result jsonb;
   allowed_keys constant text[] := array[
     'source_id','source_listing_key','external_id','canonical_url','title','address',
-    'district','postal_code','city','state_code','admin_region_code','municipality_code','warm_rent','cold_rent,'additional_costs',
+    'district','postal_code','city','state_code','admin_region_code','municipality_code','warm_rent','cold_rent','additional_costs',
     'operating_costs','heating_costs','deposit','deposit_text','rooms','area_sqm',
     'available_from','property_type','furnished','wbs_required','image_url',
     'cross_source_hash','raw','fresh_delivery_eligible','last_seen_at','is_active'
