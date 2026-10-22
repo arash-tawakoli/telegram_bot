@@ -1001,7 +1001,7 @@
         },
         {
           "path": "supabase/functions/source-worker/shared.ts",
-          "sha256": "3506846480ad2c6cf5d6d76c0ec90e810e4e54712bd3f94a72daad5bde5b40e3",
+          "sha256": "4b62027078e74218070739b34cff678e1ca526fc630848b12300cb90e96aa2e7",
           "deployed_sha256": "f9a7dea392346caca89f020f4b5d3350b018a95354bf9156d6d9913cddfb55e4"
         },
         {
@@ -1100,7 +1100,7 @@
         },
         {
           "path": "supabase/functions/source-worker/shared.ts",
-          "sha256": "3506846480ad2c6cf5d6d76c0ec90e810e4e54712bd3f94a72daad5bde5b40e3",
+          "sha256": "4b62027078e74218070739b34cff678e1ca526fc630848b12300cb90e96aa2e7",
           "deployed_sha256": "f9a7dea392346caca89f020f4b5d3350b018a95354bf9156d6d9913cddfb55e4"
         },
         {
@@ -1165,7 +1165,7 @@
         },
         {
           "path": "supabase/functions/source-worker/generic.ts",
-          "sha256": "542f6fe7bf45ae6baf3e8007e38c7e0652d3918297195d54319c4ef258cdfe73",
+          "sha256": "1c78229aa0791a3cc0c679275904a2bd424e8be9e366e239372b21fa38a07828",
           "deployed_sha256": "e48496ea4ae8dab9298b6560b163660591424ff90ad9d86c0e24b8ad31200ed6"
         },
         {
