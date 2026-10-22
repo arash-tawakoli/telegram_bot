@@ -211,14 +211,13 @@ export async function renderSchleswigHolsteinAreas(user, chatId, messageId, draf
             button("Alle Gemeinden wählen", "sharea:all-children"),
         ]);
         for (const area of entries.slice(page * NEIGHBORHOODS_PER_PAGE, (page + 1) * NEIGHBORHOODS_PER_PAGE)) {
-            rows.push([button(`${selected.has(area.area_code) ? "✅ " : ""}${area.name}`, `sharea:${area.area_code}`)]);
+            rows.push([button(`${selected.has(area.area_code) || selected.has(parentCode) ? "✅ " : ""}${area.name}`, `sharea:${area.area_code}`)]);
         }
         rows.push([
             button("←", "sharea:prev"),
             button(`${page + 1}/${pages}`, "noop"),
             button("→", "sharea:next"),
         ]);
-        rows.push([button("Kreis gesamt anzeigen", `shregion:${parentCode}`)]);
         rows.push(backRow("location", "sharea:done"), cancelRow());
         return edit(chatId, messageId, `🗺 <b>${esc(parent?.name || "Schleswig-Holstein")}</b>\n\nWähle einzelne Gemeinden oder alle Gemeinden des Gebiets.\n\n<b>${draft.location_area_codes.length} Gebiete ausgewählt</b>`, { inline_keyboard: rows });
     }
