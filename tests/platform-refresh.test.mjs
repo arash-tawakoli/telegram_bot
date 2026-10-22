@@ -132,7 +132,7 @@ test('Immomio sources without a configured tenant fallback rediscover from their
   const fallbacks = buildImmomioHomepageFallbacks(primary, [], source);
   assert.equal(fallbacks.length, 2);
   assert.equal(fallbacks[0].config.url, source.search_url);
-  assert.equal(fallbacks[1].config.url, source.homepage_url);
+  assert.equal(fallbacks[1].config.url, new URL(source.homepage_url).href);
   assert.ok(fallbacks.every(item => item.connector_kind === 'immomio_tenant' && item.enabled && !item.shadow_only));
 });
 
@@ -148,5 +148,5 @@ test('configured Immomio tenant fallbacks remain authoritative and cross-host UR
     homepage_url: 'https://www.vhw-hamburg.de',
     search_url: 'https://different.example/listings',
   });
-  assert.deepEqual(discovered.map(item => item.config.url), ['https://www.vhw-hamburg.de']);
+  assert.deepEqual(discovered.map(item => item.config.url), ['https://www.vhw-hamburg.de/']);
 });
