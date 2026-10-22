@@ -123,8 +123,10 @@ jobs:
           version: latest
       - name: Start isolated local Supabase stack
         run: supabase start -x studio,imgproxy,vector
-      - name: Replay migrations from an empty local database
-        run: supabase db reset --local
+      - name: Bootstrap pre-repository core schema locally
+        run: psql 'postgresql://postgres:postgres@127.0.0.1:54322/postgres' -v ON_ERROR_STOP=1 -f scripts/restore-bootstrap.sql
+      - name: Replay all checked-in migrations
+        run: supabase migration up --local
       - name: Validate runtime manifest and migration registry
         env:
           RUNTIME_HASH_STRICT: '1'
