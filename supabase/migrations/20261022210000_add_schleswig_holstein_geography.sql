@@ -1422,4 +1422,19 @@ begin
 end;
 $function$
 
+-- Add a separate state-wide WG-Gesucht lane; keep the existing Hamburg lane intact.
+insert into public.source_connectors(
+  source_id,priority,label,connector_kind,config,enabled,evidence_tier,connector_role,enumerable,shadow_only
+)
+select
+  6,4,'Schleswig-Holstein public search','html_discovery',
+  jsonb_build_object(
+    'url','https://www.wg-gesucht.de/wohnungen-in-Schleswig-Holstein.0.2.1.0.html',
+    'freshness_mode','newest_first',
+    'region_state_code','SH'
+  ),
+  true,'K2','primary',false,false
+where exists(select 1 from public.sources where id=6)
+  and not exists(select 1 from public.source_connectors where source_id=6 and priority=4);
+
 commit;
