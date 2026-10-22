@@ -52,7 +52,7 @@ Both versions are retained accurately in the manifest: `git_blob_sha` records th
 
 ## Remaining blocker
 
-The latest GitHub Actions jobs are being marked failed within a few seconds, with no executed steps reported and no retrievable job logs. This prevents a reliable claim that the **current** branch passed the complete CI suite. A previous run passed 371 existing tests but failed at the strict runtime gate before the baseline reconciliation; that result does not certify the current branch.
+The latest GitHub Actions jobs are being marked failed within a few seconds, with no executed steps reported and no retrievable job logs. Switching temporarily from `ubuntu-latest` to `ubuntu-22.04` did not change the result, so the workflow was restored to its original runner label. The failure therefore cannot be corrected safely from repository code alone; repository/account Actions availability or GitHub runner provisioning must be inspected in the GitHub UI. This prevents a reliable claim that the **current** branch passed the complete CI suite. A previous run passed 371 existing tests but failed at the strict runtime gate before the baseline reconciliation; that result does not certify the current branch.
 
 **Phase 0 is therefore not declared fully complete until the current branch's test and runtime-verification workflow runs successfully.** The data and source reconciliation is prepared in the open pull request; it has not been merged and production remains unchanged.
 
