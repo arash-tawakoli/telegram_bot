@@ -3,18 +3,15 @@ import { profile } from "./profiles.js";
 import { db, PREMIUM_LINK, SAVED_PAGE_SIZE, short, button, send, edit, sendPremiumPreview, editPremiumPreview } from "./runtime.js";
 export function homeKeyboard(user) {
     const rows = [
-        [button("🔎 Suche & Filter", "profile")],
-        [
-            button(user.is_premium ? "⭐ Gespeichert" : "🔒 ⭐ Gespeichert", "saved"),
-            user.is_premium
-                ? button("⚡ Auto-Bewerbung", "platforms")
-                : button("🔒 Auto-Bewerbung", "platforms"),
-        ],
+        [button("🔎 Suchprofil erstellen", "new")],
+        [button(user.is_premium ? "👤 Bewerberprofil anlegen" : "🔒 👤 Bewerberprofil anlegen", "platforms:profile-new")],
+        [button(user.is_premium ? "⚡ Automatisierte Bewerbung" : "🔒 ⚡ Automatisierte Bewerbung", "platforms")],
+        [button("🎁 30 Tage Premium kostenlos testen", "referral")],
+        [button(user.is_premium ? "⭐ Gespeichert" : "🔒 ⭐ Gespeichert", "saved")],
         [
             button("⚙️ Einstellungen", "settings"),
             button("❓ Hilfe", "help"),
         ],
-        [button("🎁 30 Tage Premium kostenlos", "referral")],
     ];
     return { inline_keyboard: rows };
 }
