@@ -23,6 +23,7 @@ test("Schleswig-Holstein geography catalog is complete and internally consistent
   assert.ok(catalog.municipalities.every((area) => regionCodes.has(area.parent)), "every municipality must have a seeded parent region");
   assert.ok(migration.includes("'all_schleswig_holstein'"));
   assert.ok(migration.includes("'schleswig_holstein_areas'"));
+  assert.ok(migration.includes("https://www.wg-gesucht.de/wohnungen-in-Schleswig-Holstein.0.2.1.0.html"));
 });
 
 test("listing ingestion persists and validates state-aware geography", async () => {
