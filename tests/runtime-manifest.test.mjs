@@ -24,3 +24,41 @@ test('runtime gate rejects temporary credential-bearing code imports',async()=>{
  const text="import 'https://raw.githubusercontent.com/example/repo/commit/runtime.ts?token=fixture-only';";
  await assert.rejects(verifyRuntime(fixture(text),async()=>text),/Credential-bearing runtime import/);
 });
+
+test('runtime gate accepts source/deployment divergence only when the live bundle archive proves it',async()=>{
+ const source='export const version="repository";';
+ const deployed='export const version="live";';
+ const archivePath='docs/runtime-snapshot-2026-10-22/bundles/batch-01.json';
+ const manifest={functions:[{
+  slug:'example',version:2,verify_jwt:false,entrypoint:path,
+  source_archive_file:archivePath,source_archive_status:'full_source',
+  files:[{path,sha256:hash(source),deployed_sha256:hash(deployed)}]
+ }]};
+ const archive={functions:[{
+  slug:'example',version:2,verify_jwt:false,artifact_sha256:'fixture-artifact',
+  archive_status:'full_source',security_scan_flags:[],
+  files:[{path:'functions/example/index.ts',content:deployed}]
+ }]};
+ const read=async file=>file===path?source:file===archivePath?JSON.stringify(archive):(()=>{throw Error('unexpected read '+file)})();
+ const result=await verifyRuntime(manifest,read);
+ assert.equal(result.sourceDeploymentDivergences.length,1);
+ assert.equal(result.sourceDeploymentDivergences[0].slug,'example');
+});
+
+test('runtime gate rejects an archived deployed hash that does not match the recorded hash',async()=>{
+ const source='export const version="repository";';
+ const deployed='export const version="live";';
+ const archivePath='docs/runtime-snapshot-2026-10-22/bundles/batch-01.json';
+ const manifest={functions:[{
+  slug:'example',version:2,verify_jwt:false,entrypoint:path,
+  source_archive_file:archivePath,source_archive_status:'full_source',
+  files:[{path,sha256:hash(source),deployed_sha256:hash('different deployed content')}]
+ }]};
+ const archive={functions:[{
+  slug:'example',version:2,verify_jwt:false,artifact_sha256:'fixture-artifact',
+  archive_status:'full_source',security_scan_flags:[],
+  files:[{path:'functions/example/index.ts',content:deployed}]
+ }]};
+ const read=async file=>file===path?source:file===archivePath?JSON.stringify(archive):(()=>{throw Error('unexpected read '+file)})();
+ await assert.rejects(verifyRuntime(manifest,read),/Recorded deployment drift/);
+});
