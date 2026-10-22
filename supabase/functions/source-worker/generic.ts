@@ -41,6 +41,7 @@ import {
   markSuccess,
   parseFields,
   parseHtml,
+  resolveSchleswigHolsteinMunicipality,
   strongUrl,
   strip,
   upsertCandidates,
@@ -781,8 +782,17 @@ export async function runGeneric(source: Source, connectors: Connector[]) {
                 })),
                 Promise.all(work.map(async (url) => {
                   const result=await parseOne(source,c,url);
-                  const stateCode=/\/schleswig-holstein\//i.test(url)?"SH" as const:"HH" as const;
-                  return {...result,cands:result.cands.map((candidate)=>({...candidate,stateCode}))};
+                  const urlIsSchleswigHolstein=/\/schleswig-holstein\//i.test(url);
+                  const cands=await Promise.all(result.cands.map(async (candidate)=>{
+                    const rawAddress=candidate.raw?.address&&typeof candidate.raw.address==='object'?candidate.raw.address:{};
+                    const addressText=String(candidate.address||candidate.raw?.text||'');
+                    const postalTown=addressText.match(/\b\d{5}\s+([^,;\n]+)/)?.[1]?.trim();
+                    const city=String(candidate.city||rawAddress.addressLocality||rawAddress.address_locality||candidate.raw?.addressLocality||candidate.raw?.city||postalTown||'').trim();
+                    const match=!urlIsSchleswigHolstein&&city?await resolveSchleswigHolsteinMunicipality(city):null;
+                    const stateCode=urlIsSchleswigHolstein||match?'SH' as const:'HH' as const;
+                    return {...candidate,stateCode,...(match?{city,municipalityCode:match.area_code,adminRegionCode:match.parent_code}: {})};
+                  }));
+                  return {...result,cands};
                 })),
               ]),
               eligibility = new Map<
