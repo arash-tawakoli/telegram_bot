@@ -82,8 +82,8 @@
         },
         {
           "path": "supabase/functions/_shared/application-profile-adapters.ts",
-          "git_blob_sha": "9f6aea09a6b7f443db284cfe6d20ebc550edc037",
-          "deployed_git_blob_sha": "9f6aea09a6b7f443db284cfe6d20ebc550edc037"
+          "sha256": "561eef88785b5d442dbf95d42123cac1236ce0e55094bf59cf65aea099c00f64",
+          "deployed_sha256": "561eef88785b5d442dbf95d42123cac1236ce0e55094bf59cf65aea099c00f64"
         },
         {
           "path": "supabase/functions/application-worker/providers/immoscout.ts",
@@ -191,8 +191,8 @@
         },
         {
           "path": "supabase/functions/_shared/application-profile-adapters.ts",
-          "git_blob_sha": "9f6aea09a6b7f443db284cfe6d20ebc550edc037",
-          "deployed_git_blob_sha": "9f6aea09a6b7f443db284cfe6d20ebc550edc037"
+          "sha256": "561eef88785b5d442dbf95d42123cac1236ce0e55094bf59cf65aea099c00f64",
+          "deployed_sha256": "561eef88785b5d442dbf95d42123cac1236ce0e55094bf59cf65aea099c00f64"
         }
       ],
       "observed_live_version": 47,
@@ -1527,8 +1527,8 @@
         },
         {
           "path": "supabase/functions/_shared/application-profile-adapters.ts",
-          "git_blob_sha": "45e5c9eeea4e5d2ab161d1ea0072f815f58417cc",
-          "deployed_git_blob_sha": "45e5c9eeea4e5d2ab161d1ea0072f815f58417cc"
+          "sha256": "561eef88785b5d442dbf95d42123cac1236ce0e55094bf59cf65aea099c00f64",
+          "deployed_sha256": "561eef88785b5d442dbf95d42123cac1236ce0e55094bf59cf65aea099c00f64"
         },
         {
           "path": "supabase/functions/telegram-ui/handlers.js",
