@@ -19,7 +19,7 @@ test("Schleswig-Holstein geography catalog is complete and internally consistent
   const regionCodes = new Set(
     [...migration.matchAll(/\('([0-9]{5})','SH','SH','(?:county|independent_city)'/g)].map((match) => match[1]),
   );
-  assert.equal(regionCodes.size, 19, "four independent cities and fifteen counties must be seeded");
+  assert.equal(regionCodes.size, 15, "four independent cities and eleven counties must be seeded");
   assert.ok(catalog.municipalities.every((area) => regionCodes.has(area.parent)), "every municipality must have a seeded parent region");
   assert.ok(migration.includes("'all_schleswig_holstein'"));
   assert.ok(migration.includes("'schleswig_holstein_areas'"));
