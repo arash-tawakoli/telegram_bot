@@ -44,6 +44,10 @@ export type Candidate = {
   address?: string | null;
   district?: string | null;
   zip?: string | null;
+  city?: string | null;
+  stateCode?: "HH" | "SH";
+  adminRegionCode?: string | null;
+  municipalityCode?: string | null;
   warm?: number | null;
   cold?: number | null;
   additional?: number | null;
@@ -529,16 +533,56 @@ function validCandidate(source: Source, c: Candidate) {
   if (source.id === 21 && !/^https:\/\/www\.tauschwohnung\.com\/wohnung-mieten\/hamburg\//i.test(c.url) && !(c.raw?.provider === 'tauschwohnung_catalog' && c.key && c.url === `https://www.tauschwohnung.com/expose/${c.key}` && c.zip && hhZip(c.zip)))
     return false;
   if (source.id === 52 && /stellplatz|garage|parkplatz/i.test(c.url)) return false;
-  if (c.zip && !hhZip(c.zip)) return false;
+  if (c.stateCode === "SH") {
+    if (c.zip && !/^\\d{5}$/.test(String(c.zip))) return false;
+    if (!String(c.city || "").trim()) return false;
+  } else if (c.zip && !hhZip(c.zip)) return false;
   const text = `${c.title || ""} ${c.type || ""} ${c.raw?.text || ""}`;
   if (NON_RESIDENTIAL.test(text) && !RESIDENTIAL.test(text)) return false;
   return true;
+}
+let shMunicipalityCache: Map<string, Array<{area_code:string;parent_code:string|null}>> | null = null;
+function normalizeGeoName(value:unknown) {
+  return String(value || "").normalize("NFKC").toLocaleLowerCase("de-DE").replace(/^\\d{5}\\s+/,"").replace(/,\\s*(?:schleswig-holstein|deutschland|germany)$/i,"").trim();
+}
+async function resolveSchleswigHolsteinMunicipality(name:string) {
+  if (!shMunicipalityCache) {
+    const {data,error}=await db.from("geo_areas").select("area_code,parent_code,name").eq("state_code","SH").eq("area_type","municipality").eq("is_active",true);
+    if(error)throw error;
+    shMunicipalityCache=new Map();
+    for(const row of data||[]){
+      const key=normalizeGeoName(row.name), list=shMunicipalityCache.get(key)||[];
+      list.push({area_code:String(row.area_code),parent_code:row.parent_code?String(row.parent_code):null});
+      shMunicipalityCache.set(key,list);
+    }
+  }
+  const matches=shMunicipalityCache.get(normalizeGeoName(name))||[];
+  return matches.length===1?matches[0]:null;
 }
 async function normalize(
   source: Source,
   c: Candidate,
   freshDeliveryEligible: boolean,
 ) {
+  const stateCode: "HH"|"SH" = c.stateCode === "SH" ? "SH" : "HH";
+  let city = stateCode === "HH" ? "Hamburg" : normalizeGeoName(c.city);
+  let adminRegionCode = c.adminRegionCode || null;
+  let municipalityCode = c.municipalityCode || null;
+  if (stateCode === "SH") {
+    if (!city) throw new Error("missing_schleswig_holstein_city");
+    if (!municipalityCode) {
+      const match=await resolveSchleswigHolsteinMunicipality(city);
+      if (!match) throw new Error("unresolved_schleswig_holstein_city:"+city);
+      municipalityCode=match.area_code;
+      adminRegionCode=adminRegionCode||match.parent_code;
+    }
+    if (!adminRegionCode) {
+      const {data,error}=await db.from("geo_areas").select("parent_code").eq("area_code",municipalityCode).eq("state_code","SH").maybeSingle();
+      if(error)throw error;
+      adminRegionCode=data?.parent_code?String(data.parent_code):null;
+    }
+    if (!adminRegionCode) throw new Error("unresolved_schleswig_holstein_region:"+city);
+  }
   let canonicalUrl = c.url,
     keySeed = c.key || null;
   if (source.id === 10) {
@@ -567,7 +611,10 @@ async function normalize(
     address,
     district: c.district || null,
     postal_code: c.zip || null,
-    city: "Hamburg",
+    city,
+    state_code: stateCode,
+    admin_region_code: stateCode === "SH" ? adminRegionCode : null,
+    municipality_code: stateCode === "SH" ? municipalityCode : null,
     warm_rent: c.warm ?? null,
     cold_rent: c.cold ?? null,
     additional_costs: c.additional ?? null,
