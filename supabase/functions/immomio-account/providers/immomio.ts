@@ -1,5 +1,6 @@
 // @ts-nocheck
-import {saveConnection,getConnection,markConnection,deleteConnection,recordRefreshResult} from '../credentials.ts';
+import {saveConnection,saveRefreshedConnection,getConnection,markConnection,deleteConnection,recordRefreshResult} from '../credentials.ts';
+import {claimPlatformRefresh,releasePlatformRefresh,classifyOAuthRefreshFailure} from '../../_shared/platform-refresh.ts';
 const APPLY=/^https:\/\/tenant\.immomio\.com\/(?:de\/)?apply\/[0-9a-f-]{36}\/?(?:[?#].*)?$/i;
 const GQL='https://gql-ps.immomio.com/tenant/graphql',TENANT_ORIGIN='https://tenant.immomio.com',OAUTH_REDIRECT='https://tenant.immomio.com/de/auth/login',EXPECTED_KEYCLOAK_HOST='sso.immomio.com',EXPECTED_REALM='immomio',EXPECTED_CLIENT_ID='immomio-oidc-web',LOGIN_METHOD='DEFAULT';
 const BASE_HEADERS={'content-type':'application/json','accept':'application/json','origin':TENANT_ORIGIN,'referer':`${TENANT_ORIGIN}/`,'user-agent':'TraumWohnungHamburg/1.0'};
@@ -26,27 +27,40 @@ export async function beginImmomioLogin(db:any,userId:string,emailValue:any){con
 function validateCallbackUrl(v:string){let u;try{u=new URL(String(v||'').trim())}catch{throw Error('invalid_callback_url')}if(u.protocol!=='https:'||u.hostname!=='tenant.immomio.com'||u.port||u.username||u.password||u.pathname!=='/de/auth/login')throw Error('invalid_callback_url');return u}
 export async function completeImmomioLogin(db:any,userId:string,callbackUrl:string){const u=validateCallbackUrl(callbackUrl),state=u.searchParams.get('state'),code=u.searchParams.get('code');if(!state||!code)throw Error('invalid_callback_url');const{data:flow,error}=await db.from('platform_auth_flows').select('*').eq('user_id',userId).eq('provider','immomio').eq('state',state).is('consumed_at',null).gt('expires_at',new Date().toISOString()).maybeSingle();if(error||!flow)throw Error('auth_flow_expired');const{data:p}=await db.from('applicant_profiles').select('email').eq('user_id',userId).maybeSingle(),email=validEmail(p?.email);if(!email)throw Error('immomio_email_required');const c=await resolveSso(email),{response,token}=await tokenRequest(c,{grant_type:'authorization_code',code,redirect_uri:OAUTH_REDIRECT,code_verifier:String(flow.code_verifier||'')});if(!response.ok||!token?.access_token||!token?.refresh_token){await markConnection(db,userId,'immomio','needs_login','token_exchange_failed').catch(()=>{});throw Error('token_exchange_failed')}const expiresAt=new Date(Date.now()+Math.max(60,Number(token.expires_in||300))*1000).toISOString(),hint=decodeEmail(token.id_token)||email;await saveConnection(db,userId,'immomio',{access_token:String(token.access_token),refresh_token:String(token.refresh_token),expires_at:expiresAt,base_url:c.baseUrl,realm:c.realm,client_id:c.clientId,redirect_uri:OAUTH_REDIRECT},{account_hint:hint,expires_at:expiresAt});await db.from('platform_auth_flows').update({consumed_at:new Date().toISOString()}).eq('id',flow.id);const a=await immomioAccount(db,userId);return{status:'connected',authenticated:true,userId:String(flow.user_id),accountReady:!!a.id}}
 async function refresh(db:any,userId:string,c:any,force=false){
- const x=c?.credentials||{};
- if(!force&&x.access_token&&Date.parse(x.expires_at||'')>Date.now()+60000)return x;
- if(!x.refresh_token)throw Error('needs_login');
- const cfg={baseUrl:String(x.base_url||`https://${EXPECTED_KEYCLOAK_HOST}/auth`),realm:String(x.realm||EXPECTED_REALM),clientId:String(x.client_id||EXPECTED_CLIENT_ID)};
- let response:Response,token:any=null;
+ const original=c?.credentials||{};
+ if(!force&&original.access_token&&Date.parse(original.expires_at||'')>Date.now()+60000)return original;
+ if(!original.refresh_token)throw Error('needs_login');
+ const lease=await claimPlatformRefresh(db,userId,'immomio',c?.row?.updated_at);
  try{
-  const result=await tokenRequest(cfg,{grant_type:'refresh_token',refresh_token:String(x.refresh_token)});
-  response=result.response;token=result.token;
- }catch(error:any){
-  await recordRefreshResult(db,userId,'immomio',false,'refresh_network_error').catch(()=>{});
-  throw error;
- }
- if(!response.ok||!token?.access_token){
-  await recordRefreshResult(db,userId,'immomio',false,`refresh_http_${response.status}`).catch(()=>{});
-  await markConnection(db,userId,'immomio','needs_login','refresh_failed').catch(()=>{});
-  throw Error('needs_login');
- }
- const updated={...x,access_token:String(token.access_token),refresh_token:String(token.refresh_token||x.refresh_token),expires_at:new Date(Date.now()+Math.max(60,Number(token.expires_in||300))*1000).toISOString()};
- await saveConnection(db,userId,'immomio',updated,{account_hint:c.row.account_hint,expires_at:updated.expires_at});
- await recordRefreshResult(db,userId,'immomio',true,null,updated.expires_at).catch(()=>{});
- return updated;
+  const latest=await getConnection(db,userId,'immomio');
+  if(!latest)throw Error('needs_login');
+  const x=latest.credentials||{},fresh=!!x.access_token&&Date.parse(x.expires_at||'')>Date.now()+60000;
+  if(latest.row.last_refresh_error!==lease.marker){if(fresh)return x;throw Error('temporary_network_error');}
+  if(fresh&&(!force||lease.changedSinceObservation))return x;
+  if(!x.refresh_token)throw Error('needs_login');
+  const cfg={baseUrl:String(x.base_url||`https://${EXPECTED_KEYCLOAK_HOST}/auth`),realm:String(x.realm||EXPECTED_REALM),clientId:String(x.client_id||EXPECTED_CLIENT_ID)};
+  let response:Response,token:any=null;
+  try{
+   const result=await tokenRequest(cfg,{grant_type:'refresh_token',refresh_token:String(x.refresh_token)});
+   response=result.response;token=result.token;
+  }catch{
+   await recordRefreshResult(db,userId,'immomio',false,'refresh_network_error').catch(()=>{});
+   throw Error('temporary_network_error');
+  }
+  if(!response.ok||!token?.access_token){
+   const failure=classifyOAuthRefreshFailure(response.status,token);
+   await recordRefreshResult(db,userId,'immomio',false,failure.diagnostic).catch(()=>{});
+   if(failure.requiresLogin){await markConnection(db,userId,'immomio','needs_login','refresh_failed').catch(()=>{});throw Error('needs_login');}
+   if(failure.transient)throw Error('temporary_network_error');
+   if(failure.configuration){console.warn('provider_refresh_configuration_error','immomio',response.status,failure.code);await markConnection(db,userId,'immomio','connected','provider_refresh_configuration_error').catch(()=>{});}
+   throw Error('provider_contract_unverified');
+  }
+  const updated={...x,access_token:String(token.access_token),refresh_token:String(token.refresh_token||x.refresh_token),expires_at:new Date(Date.now()+Math.max(60,Number(token.expires_in||300))*1000).toISOString()};
+  try{await saveRefreshedConnection(db,userId,'immomio',updated,{account_hint:latest.row.account_hint,expires_at:updated.expires_at},lease);}
+  catch{const current=await getConnection(db,userId,'immomio').catch(()=>null),currentCredentials=current?.credentials||{};if(currentCredentials.access_token&&Date.parse(currentCredentials.expires_at||'')>Date.now()+60000)return currentCredentials;throw Error('temporary_network_error');}
+  await recordRefreshResult(db,userId,'immomio',true,null,updated.expires_at).catch(()=>{});
+  return updated;
+ }finally{await releasePlatformRefresh(db,userId,'immomio',lease).catch(()=>{});}
 }
 async function session(db:any,userId:string,force=false){
  const c=await getConnection(db,userId,'immomio');
@@ -61,7 +75,7 @@ async function authedGraphql(db:any,userId:string,q:string,v:any={}){
    refreshed=true;
    r=await rawGraphql(q,v,s.token);
   }catch(error:any){
-   if(error?.message==='temporary_network_error')throw error;
+   if(error?.message==='temporary_network_error'||error?.message==='provider_contract_unverified')throw error;
    await markConnection(db,userId,'immomio','needs_login','graphql_refresh_failed').catch(()=>{});
    throw Error('needs_login');
   }
