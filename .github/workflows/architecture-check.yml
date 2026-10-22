@@ -139,7 +139,7 @@ jobs:
             fi
           }
           trap restore_inputs EXIT
-          supabase start -x studio,imgproxy,vector
+          supabase start -x studio,imgproxy,vector,logflare,edge-runtime,storage-api,realtime,rest,postgres-meta,inbucket,supavisor,kong
           restore_inputs
           trap - EXIT
       - name: Bootstrap pre-repository core schema locally
