@@ -271,17 +271,21 @@ export async function saveState(userId, step, draft, updateId = null, attempt = 
 export async function geography() {
     if (geoCache && geoCache.expiresAt > Date.now())
         return geoCache.value;
-    const [boroughResult, neighborhoodResult] = await Promise.all([
+    const [boroughResult, neighborhoodResult, schleswigHolsteinResult] = await Promise.all([
         db.from("hamburg_boroughs").select("id,name,sort_order").order("sort_order"),
         db.from("hamburg_neighborhoods").select("id,name,borough_id").order("id"),
+        db.from("geo_areas").select("area_code,parent_code,area_type,name,state_code").eq("state_code","SH").eq("is_active",true).order("name"),
     ]);
     if (boroughResult.error)
         throw boroughResult.error;
     if (neighborhoodResult.error)
         throw neighborhoodResult.error;
+    if (schleswigHolsteinResult.error)
+        throw schleswigHolsteinResult.error;
     const value = {
         boroughs: boroughResult.data || [],
         neighborhoods: neighborhoodResult.data || [],
+        schleswigHolsteinAreas: schleswigHolsteinResult.data || [],
     };
     geoCache = { value, expiresAt: Date.now() + GEO_TTL_MS };
     return value;
