@@ -115,3 +115,12 @@ create table if not exists public.source_connectors (
 create index if not exists restore_bootstrap_sources_name_idx on public.sources(name);
 create index if not exists restore_bootstrap_listings_source_idx on public.listings(source_id);
 create index if not exists restore_bootstrap_applications_user_idx on public.applications(user_id);
+
+-- Local-only dummy secret required by historical migrations. Never a real bot token.
+do $$
+begin
+  if to_regclass('vault.decrypted_secrets') is not null
+     and not exists (select 1 from vault.decrypted_secrets where name='telegram_bot_token') then
+    perform vault.create_secret('clean-room-placeholder-not-a-real-token','telegram_bot_token','Local-only placeholder for migration replay');
+  end if;
+end $$;
