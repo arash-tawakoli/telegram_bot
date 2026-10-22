@@ -26,6 +26,8 @@ export function compareLiveRuntime(liveFunctions,manifest){
 async function main(){
  const token=process.env.SUPABASE_ACCESS_TOKEN;
  if(!token){
+  const message='SUPABASE_ACCESS_TOKEN is required for live Supabase runtime verification; configure the GitHub Actions secret.';
+  if(process.env.RUNTIME_LIVE_REQUIRED==='1')throw new Error(message);
   console.warn('::warning::Live Supabase runtime comparison skipped: configure the SUPABASE_ACCESS_TOKEN GitHub Actions secret.');
   return;
  }
