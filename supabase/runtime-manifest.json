@@ -1,5 +1,5 @@
 {
-  "observed_at": "2026-10-22T17:12:11.067Z",
+  "observed_at": "2026-10-22T17:24:29.141Z",
   "project_id": "dpmohkrwdlicexwcrqfy",
   "snapshot_kind": "repository_with_observed_deployment_hashes",
   "functions": [
@@ -72,13 +72,13 @@
         },
         {
           "path": "supabase/functions/application-worker/providers/kleinanzeigen.ts",
-          "sha256": "82ccb36d8c99aad0661cb78a271110b92bb2c62bc285437e77c5416d8c29503a",
-          "deployed_sha256": "82ccb36d8c99aad0661cb78a271110b92bb2c62bc285437e77c5416d8c29503a"
+          "git_blob_sha": "8ac3f36b7df1d0f4bac91436d7d584d988d17a41",
+          "deployed_git_blob_sha": "8ac3f36b7df1d0f4bac91436d7d584d988d17a41"
         },
         {
           "path": "supabase/functions/application-worker/credentials.ts",
-          "sha256": "f7dd03cc75db8d9a0e1e6a56bcab0b60cb0db7769b8a33bcf4ec39900d205541",
-          "deployed_sha256": "f7dd03cc75db8d9a0e1e6a56bcab0b60cb0db7769b8a33bcf4ec39900d205541"
+          "git_blob_sha": "7e89a78a0c4e50be79bdc91c16bc8d0bfe252105",
+          "deployed_git_blob_sha": "7e89a78a0c4e50be79bdc91c16bc8d0bfe252105"
         },
         {
           "path": "supabase/functions/_shared/application-profile-adapters.ts",
@@ -87,13 +87,13 @@
         },
         {
           "path": "supabase/functions/application-worker/providers/immoscout.ts",
-          "sha256": "da9830fa3c74d4fd06befecd6b232cc65145725ed9d98f2411fc6423094e3b21",
-          "deployed_sha256": "da9830fa3c74d4fd06befecd6b232cc65145725ed9d98f2411fc6423094e3b21"
+          "git_blob_sha": "b07157df2ae666d017619a6e7866e07b1b2226ec",
+          "deployed_git_blob_sha": "b07157df2ae666d017619a6e7866e07b1b2226ec"
         },
         {
           "path": "supabase/functions/application-worker/providers/immowelt.ts",
-          "sha256": "53291cce64c1970f0dd969ca1fc5db2e0e2cc2eed2743c54fb34c96abbbf4d01",
-          "deployed_sha256": "53291cce64c1970f0dd969ca1fc5db2e0e2cc2eed2743c54fb34c96abbbf4d01"
+          "git_blob_sha": "0a2d89e641ef1ed5240a2d676a880e5f639da7f7",
+          "deployed_git_blob_sha": "0a2d89e641ef1ed5240a2d676a880e5f639da7f7"
         },
         {
           "path": "supabase/functions/application-worker/providers/immomio.ts",
