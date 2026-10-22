@@ -1,5 +1,5 @@
 {
-  "observed_at": "2026-10-22T12:09:55.397Z",
+  "observed_at": "2026-10-22T14:31:41.898Z",
   "project_id": "dpmohkrwdlicexwcrqfy",
   "snapshot_kind": "repository_with_observed_deployment_hashes",
   "functions": [
@@ -82,8 +82,8 @@
         },
         {
           "path": "supabase/functions/_shared/application-profile-adapters.ts",
-          "sha256": "561eef88785b5d442dbf95d42123cac1236ce0e55094bf59cf65aea099c00f64",
-          "deployed_sha256": "561eef88785b5d442dbf95d42123cac1236ce0e55094bf59cf65aea099c00f64"
+          "git_blob_sha": "9f6aea09a6b7f443db284cfe6d20ebc550edc037",
+          "deployed_git_blob_sha": "9f6aea09a6b7f443db284cfe6d20ebc550edc037"
         },
         {
           "path": "supabase/functions/application-worker/providers/immoscout.ts",
@@ -111,14 +111,15 @@
           "deployed_sha256": "638e113afeb7895cf519d058bd1166f8ca0444a54f5eb9a573c530efc38110de"
         }
       ],
-      "observed_live_version": 190,
+      "observed_live_version": 198,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "1f7c259f67065feb5556e79fc3e73d486a036456cba5f2c42f09cd78ae588202",
-      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-01.json",
+      "observed_live_artifact_sha256": "02a7a6a55a545d4442642d4381453f51b8a5a9e5f73a8d223598398e5df7c35f",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-22/bundles/batch-02.json",
       "source_archive_file_count": 10,
       "source_archive_status": "full_source",
       "classification": "production",
-      "review_status": "production runtime; version/JWT/hash tracked against live inventory"
+      "review_status": "live version and artifact hash captured 2026-10-22; source archive refreshed from live function",
+      "source_file_count": 10
     },
     {
       "slug": "auth-facade-broker",
@@ -164,14 +165,15 @@
           "deployed_sha256": "f4c4820c3de7d5f19ee3af5cb1fee3dd5e4da4aed9cecb03df730120c27a853a"
         }
       ],
-      "observed_live_version": 122,
+      "observed_live_version": 129,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "bbc4f814838677d769bf8bd6b1989c55b1fce280573980ce56631993013a8604",
-      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-02.json",
+      "observed_live_artifact_sha256": "b2c73e1f6b1eaefbb36fb727c45222a09be2423d47b1d3f1b41d3e78269c23ad",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-22/bundles/batch-02.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
       "classification": "production",
-      "review_status": "production runtime; version/JWT/hash tracked against live inventory"
+      "review_status": "live version and artifact hash captured 2026-10-22; source archive refreshed from live function",
+      "source_file_count": 1
     },
     {
       "slug": "coach-api",
@@ -952,14 +954,15 @@
           "deployed_sha256": "4d9929f90c15e7e94acf5b8a24273abb7020da0d896f45109f7c31466a21ebb8"
         }
       ],
-      "observed_live_version": 223,
+      "observed_live_version": 230,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "20017129f5f3c6a2c87e8625287a64ec64e47e555f6fc2c7491b2444e0b857de",
-      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-18.json",
+      "observed_live_artifact_sha256": "086826ede9e4e633b58e8485ac9cbd17afe22e90d1a93952024fe7a4833fecd0",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-22/bundles/batch-02.json",
       "source_archive_file_count": 9,
       "source_archive_status": "full_source",
       "classification": "production",
-      "review_status": "production runtime; version/JWT/hash tracked against live inventory"
+      "review_status": "live version and artifact hash captured 2026-10-22; source archive refreshed from live function",
+      "source_file_count": 9
     },
     {
       "slug": "platform-connect-broker-v2",
@@ -1317,14 +1320,15 @@
           "deployed_sha256": "099441b9ada33258f02d4e5a286d130c99de9574e142ec27e2a21f32b5980327"
         }
       ],
-      "observed_live_version": 133,
+      "observed_live_version": 139,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "d051451aa7682ca489203b677c2ca4925168904047565d424958e5d8b2d7882a",
-      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-19.json",
+      "observed_live_artifact_sha256": "4348563deee8317b4a2140d73d4482c4d5b5734be69d5286f65070d06079bd68",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-22/bundles/batch-02.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
       "classification": "webhook",
-      "review_status": "webhook entrypoint; signature and event idempotency contract required"
+      "review_status": "live version and artifact hash captured 2026-10-22; source archive refreshed from live function",
+      "source_file_count": 1
     },
     {
       "slug": "telegram-fallback-logo",
@@ -1394,14 +1398,15 @@
           "deployed_git_blob_sha": "51418cf7205263223b7bec2a4fe98efe268630fc"
         }
       ],
-      "observed_live_version": 94,
+      "observed_live_version": 95,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "fc52c3f01fe1ef6795d81793aa1cab310c4c0e7164d0de68974b753303e46837",
-      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-20.json",
+      "observed_live_artifact_sha256": "7377ae78df7f3ab474a6120290b30e5f36333adcbebbc2d2b16cc58e3b1ec671",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-22/bundles/batch-02.json",
       "source_archive_file_count": 2,
       "source_archive_status": "full_source",
       "classification": "production",
-      "review_status": "production runtime; version/JWT/hash tracked against live inventory"
+      "review_status": "live version and artifact hash captured 2026-10-22; source archive refreshed from live function",
+      "source_file_count": 2
     },
     {
       "slug": "telegram-oauth-bridge",
@@ -1530,14 +1535,15 @@
           "deployed_git_blob_sha": "37f29bffdfcc3fb7ae59f7e5725b8fb5ac389be2"
         }
       ],
-      "observed_live_version": 235,
+      "observed_live_version": 241,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "be68901a0ece694d73d3d419c17f87d58b44202868c76ff1c31bdb0e1df9c50e",
-      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-22.json",
+      "observed_live_artifact_sha256": "56f2e9b47d6e3c5a3e8bfe069a769fa900ba4d4310443fa6b0fe6172f77bde45",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-22/bundles/batch-02.json",
       "source_archive_file_count": 9,
       "source_archive_status": "full_source",
       "classification": "production",
-      "review_status": "production runtime; version/JWT/hash tracked against live inventory"
+      "review_status": "live version and artifact hash captured 2026-10-22; source archive refreshed from live function",
+      "source_file_count": 9
     },
     {
       "slug": "vonovia-transport",
@@ -2629,12 +2635,12 @@
     }
   ],
   "live_inventory": {
-    "observed_at": "2026-10-21",
+    "observed_at": "2026-10-22",
     "project_id": "dpmohkrwdlicexwcrqfy",
     "live_function_count": 114,
     "repository_managed_count": 47,
     "archived_only_count": 67,
-    "source_archive": "docs/runtime-snapshot-2026-10-21/bundles/",
-    "note": "This is the captured live inventory. CI validates archive integrity locally. Live API comparison runs only when SUPABASE_ACCESS_TOKEN is configured in GitHub Actions."
+    "source_archive": "docs/runtime-snapshot-2026-10-21/bundles/ (historical) and docs/runtime-snapshot-2026-10-22/bundles/ (refreshed live versions)",
+    "note": "Inventory verified via Supabase MCP on 2026-10-22. Direct Management API comparison in CI requires SUPABASE_ACCESS_TOKEN."
   }
 }
