@@ -10,10 +10,16 @@ function normalizeArchivePath(path,slug,entrypoint){
  p=p.replace(/^user_fn_[^/]+\/source\//,'functions/'+slug+'/');
  p=p.replace(/^functions\/user_fn_[^/]+\/_shared\//,'functions/_shared/');
  p=p.replace(/^user_fn_[^/]+\/_shared\//,'functions/_shared/');
- if(p==='index.ts'){
-  if(String(entrypoint||'').startsWith('supabase/deployed-support/'))return String(entrypoint).replace(/^supabase\//,'');
-  return 'functions/'+slug+'/index.ts';
+ const normalizedEntrypoint=String(entrypoint||'').replace(/^supabase\//,'');
+ if(normalizedEntrypoint.startsWith('deployed-support/')){
+  if(p==='index.ts')return normalizedEntrypoint;
+  const relative=normalizedEntrypoint.slice('deployed-support/'.length);
+  if(p===relative||p.endsWith('/'+relative))return normalizedEntrypoint;
+  const base=relative.split('/')[0];
+  if(p.startsWith(base+'/'))return 'deployed-support/'+p;
+  if(p.startsWith('deployed-support/'))return p;
  }
+ if(p==='index.ts')return 'functions/'+slug+'/index.ts';
  if(p.startsWith('_shared/'))return 'functions/'+p;
  if(!p.startsWith('functions/')&&!p.startsWith('deployed-support/'))p='functions/'+p;
  return p;
