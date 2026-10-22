@@ -334,11 +334,11 @@ async function parseOne(source: Source, c: Connector, url: string) {
       : jsonLd.length
         ? jsonLd
         : parseHtml(r.text, r.url);
-  if(source.id===6 && /wg-gesucht\\.de\\/wohnungen-in-Schleswig-Holstein/i.test(r.url)){
+  if(source.id===6 && /wg-gesucht\.de\/wohnungen-in-Schleswig-Holstein/i.test(r.url)){
     out=out.map((candidate)=> {
       const rawAddress=candidate.raw?.address&&typeof candidate.raw.address==='object'?candidate.raw.address:{};
       const addressText=String(candidate.address||candidate.raw?.text||'');
-      const postalTown=addressText.match(/\\b\\d{5}\\s+([^,;\\n]+)/)?.[1]?.trim();
+      const postalTown=addressText.match(/\b\d{5}\s+([^,;\n]+)/)?.[1]?.trim();
       const city=String(candidate.city||rawAddress.addressLocality||rawAddress.address_locality||candidate.raw?.addressLocality||candidate.raw?.city||postalTown||candidate.district||'').trim();
       return {...candidate,city,stateCode:'SH',raw:{...(candidate.raw||{}),_source_state_code:'SH'}};
     }).filter((candidate)=>!!candidate.city);
