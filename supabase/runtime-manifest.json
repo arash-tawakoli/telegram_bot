@@ -1165,7 +1165,7 @@
         },
         {
           "path": "supabase/functions/source-worker/generic.ts",
-          "sha256": "86a7b9debf485e85cc146d7344ef45e3a22dfe82e4e88113c09b85252f74cdd8",
+          "sha256": "542f6fe7bf45ae6baf3e8007e38c7e0652d3918297195d54319c4ef258cdfe73",
           "deployed_sha256": "e48496ea4ae8dab9298b6560b163660591424ff90ad9d86c0e24b8ad31200ed6"
         },
         {
