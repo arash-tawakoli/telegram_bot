@@ -333,7 +333,12 @@ function preserveMessage(value:any){
 }
 export function applicationMessageFor(profile:any,listing:any){
  const field=applicationMessageField(listing);
- return{field,message:preserveMessage(profile?.[field])||null};
+ const template=preserveMessage(profile?.[field]);
+ const firstName=clean(profile?.first_name);
+ const message=template
+  ?template.replace(/\[\[\s*Vorname\s*\]\]/gi,firstName).replace(/[ \t]{2,}/g,' ').trim().slice(0,4000)||null
+  :null;
+ return{field,message};
 }
 
 export function profileAdapterSelfTest(){
@@ -352,7 +357,8 @@ export function profileAdapterSelfTest(){
   immomioHasNoRequirements:providerStaticMissing('immomio',{},'').length===0,
    immoweltRequiresSalutation:providerStaticMissing('immowelt',{first_name:'Alex',last_name:'Example',email:'alex@example.com'},'Message').includes('Anrede'),
   noAnswerToImmoScoutIsOmitted:providerSalutation('immoscout','NEUTRAL')===null,
-  immomioHasNoSalutation:providerSalutation('immomio','MR')===null
+  immomioHasNoSalutation:providerSalutation('immomio','MR')===null,
+  firstNamePlaceholderResolved:applicationMessageFor({first_name:'Ada',message_apartment:'Ich bin [[Vorname]]. Beste Grüße, [[Vorname]]'},{property_type:'apartment'}).message==='Ich bin Ada. Beste Grüße, Ada'
  };
  return{ok:Object.values(checks).every(Boolean),checks};
 }
