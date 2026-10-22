@@ -4,40 +4,95 @@ import {posix,resolve} from 'node:path';
 import {pathToFileURL} from 'node:url';
 const hash=s=>createHash('sha256').update(s).digest('hex');
 const gitBlobHash=s=>createHash('sha1').update(`blob ${Buffer.byteLength(s)}\0`).update(s).digest('hex');
+function normalizeArchivePath(path,slug,entrypoint){
+ let p=posix.normalize(String(path||'').replace(/^\/+/,'').replace(/^supabase\//,''));
+ p=p.replace(/^functions\/user_fn_[^/]+\/source\//,'functions/'+slug+'/');
+ p=p.replace(/^user_fn_[^/]+\/source\//,'functions/'+slug+'/');
+ p=p.replace(/^functions\/user_fn_[^/]+\/_shared\//,'functions/_shared/');
+ p=p.replace(/^user_fn_[^/]+\/_shared\//,'functions/_shared/');
+ if(p==='index.ts'){
+  if(String(entrypoint||'').startsWith('supabase/deployed-support/'))return String(entrypoint).replace(/^supabase\//,'');
+  return 'functions/'+slug+'/index.ts';
+ }
+ if(p.startsWith('_shared/'))return 'functions/'+p;
+ if(!p.startsWith('functions/')&&!p.startsWith('deployed-support/'))p='functions/'+p;
+ return p;
+}
 export async function verifyRuntime(runtime,read=readFile,options={}){
  const strictHashes=options.strictHashes!==false;
  const slugs=new Set();
  let hashWarnings=0;
+ const sourceDeploymentDivergences=[];
+ const archiveCache=new Map();
  const drift=message=>{
   if(strictHashes)throw new Error(message);
   hashWarnings++;
-  console.warn(`::warning::${message}`);
+  console.warn('::warning::'+message);
  };
+ async function archivedBundle(fn){
+  if(!fn.source_archive_file)return null;
+  let archive=archiveCache.get(fn.source_archive_file);
+  if(!archive){
+   archive=JSON.parse(String(await read(fn.source_archive_file,'utf8')));
+   archiveCache.set(fn.source_archive_file,archive);
+  }
+  const bundle=(archive.functions||[]).find(item=>item.slug===fn.slug);
+  if(!bundle)throw new Error('Archived bundle missing function: '+fn.slug);
+  if(bundle.archive_status!=='full_source'||fn.source_archive_status&&fn.source_archive_status!=='full_source')throw new Error('Archived source incomplete or redacted: '+fn.slug);
+  if((bundle.security_scan_flags||[]).length)throw new Error('Archived source requires secret review: '+fn.slug);
+  if(!Array.isArray(bundle.files)||!bundle.files.length)throw new Error('Archived source file count drift: '+fn.slug);
+  const files=new Map();
+  for(const archivedFile of bundle.files){
+   if(typeof archivedFile.path!=='string'||typeof archivedFile.content!=='string')throw new Error('Invalid archived source file: '+fn.slug);
+   const key=normalizeArchivePath(archivedFile.path,fn.slug,fn.entrypoint);
+   if(files.has(key))throw new Error('Duplicate archived source path: '+fn.slug+'/'+key);
+   files.set(key,archivedFile);
+  }
+  return {bundle,files};
+ }
  for(const fn of runtime.functions){
-  if(slugs.has(fn.slug))throw new Error(`Duplicate function: ${fn.slug}`);
+  if(slugs.has(fn.slug))throw new Error('Duplicate function: '+fn.slug);
   slugs.add(fn.slug);
   const paths=new Set(fn.files.map(f=>f.path));
-  if(paths.size!==fn.files.length||!paths.has(fn.entrypoint))throw new Error(`Invalid bundle: ${fn.slug}`);
+  if(paths.size!==fn.files.length||!paths.has(fn.entrypoint))throw new Error('Invalid bundle: '+fn.slug);
+  const archive=await archivedBundle(fn);
   for(const file of fn.files){
-   if(!/^supabase\/(functions|deployed-support)\//.test(file.path)||posix.normalize(file.path)!==file.path)throw new Error(`Invalid runtime path: ${file.path}`);
+   if(!/^supabase\/(functions|deployed-support)\//.test(file.path)||posix.normalize(file.path)!==file.path)throw new Error('Invalid runtime path: '+file.path);
    const text=String(await read(file.path));
    const sourceHash=file.git_blob_sha?gitBlobHash(text):hash(text);
    const recordedHash=file.git_blob_sha||file.sha256;
-   const deployedHash=file.deployed_git_blob_sha||file.deployed_sha256;
-   if(sourceHash!==recordedHash)drift(`Runtime drift: ${fn.slug}/${file.path}`);
-   if(deployedHash!==recordedHash)drift(`Recorded deployment drift: ${fn.slug}/${file.path}`);
-   for(const match of text.matchAll(/\b(?:from\s*|import\s*\(\s*|import\s*)["'](https?:[^"']+)["']/g)){
-    const url=new URL(match[1]);
-    if([...url.searchParams.keys()].some(key=>/^(token|access_token|auth|apikey|api_key)$/i.test(key)))throw new Error(`Credential-bearing runtime import: ${fn.slug}/${file.path}`);
+   const deployedHash=file.deployed_git_blob_sha||file.deployed_sha256||recordedHash;
+   if(sourceHash!==recordedHash)drift('Runtime drift: '+fn.slug+'/'+file.path);
+   let archivedText=null;
+   if(archive){
+    const key=normalizeArchivePath(file.path,fn.slug,fn.entrypoint);
+    const archivedFile=archive.files.get(key);
+    if(!archivedFile)throw new Error('Archived source file missing: '+fn.slug+'/'+file.path);
+    archivedText=archivedFile.content;
+    const archivedHash=file.deployed_git_blob_sha?gitBlobHash(archivedText):hash(archivedText);
+    if(archivedHash!==deployedHash)drift('Recorded deployment drift: '+fn.slug+'/'+file.path);
+    if(archivedHash!==sourceHash){
+     sourceDeploymentDivergences.push({slug:fn.slug,path:file.path,sourceHash,deployedHash:archivedHash});
+     console.warn('::warning::Captured source/deployment divergence: '+fn.slug+'/'+file.path);
+    }
+   }else if(deployedHash!==recordedHash){
+    drift('Recorded deployment drift: '+fn.slug+'/'+file.path);
+   }
+   for(const sourceText of [text,archivedText].filter(x=>typeof x==='string')){
+    for(const match of sourceText.matchAll(/\b(?:from\s*|import\s*\(\s*|import\s*)["'](https?:[^"']+)["']/g)){
+     const url=new URL(match[1]);
+     if([...url.searchParams.keys()].some(key=>/^(token|access_token|auth|apikey|api_key)$/i.test(key)))throw new Error('Credential-bearing runtime import: '+fn.slug+'/'+file.path);
+    }
    }
    for(const match of text.matchAll(/\b(?:from\s*|import\s*\(\s*|import\s*)["'](\.[^"']+)["']/g)){
     const dependency=posix.normalize(posix.join(posix.dirname(file.path),match[1]));
-    if(!paths.has(dependency))throw new Error(`Missing bundled dependency: ${fn.slug}/${dependency}`);
+    if(!paths.has(dependency))throw new Error('Missing bundled dependency: '+fn.slug+'/'+dependency);
    }
   }
  }
- return {hashWarnings};
+ return {hashWarnings,sourceDeploymentDivergences};
 }
+
 export async function verifyArchivedRuntime(runtime,read=readFile){
  const tracked=(runtime.functions||[]).filter(fn=>fn.source_archive_file).map(fn=>({...fn,archive_file:fn.source_archive_file,version:fn.observed_live_version??fn.version,verify_jwt:fn.observed_live_verify_jwt??fn.verify_jwt,artifact_sha256:fn.observed_live_artifact_sha256,source_file_count:fn.source_archive_file_count,archive_status:fn.source_archive_status}));
  const entries=[...tracked,...(runtime.archived_functions||[])];
