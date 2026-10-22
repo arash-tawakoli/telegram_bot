@@ -184,7 +184,7 @@
       "files": [
         {
           "path": "supabase/functions/coach-api/index.ts",
-          "sha256": "0066b28dc91f558bc9d7c027c70b8b13d1ac5781e0e7a285268fe7fcb9ecf35e",
+          "sha256": "448a6949cddc62de7569d306332d02e4f8cf5c6cd18e9b16427a95ae55f44305",
           "deployed_sha256": "0066b28dc91f558bc9d7c027c70b8b13d1ac5781e0e7a285268fe7fcb9ecf35e"
         },
         {
@@ -1001,7 +1001,7 @@
         },
         {
           "path": "supabase/functions/source-worker/shared.ts",
-          "sha256": "f9a7dea392346caca89f020f4b5d3350b018a95354bf9156d6d9913cddfb55e4",
+          "sha256": "3506846480ad2c6cf5d6d76c0ec90e810e4e54712bd3f94a72daad5bde5b40e3",
           "deployed_sha256": "f9a7dea392346caca89f020f4b5d3350b018a95354bf9156d6d9913cddfb55e4"
         },
         {
@@ -1100,7 +1100,7 @@
         },
         {
           "path": "supabase/functions/source-worker/shared.ts",
-          "sha256": "f9a7dea392346caca89f020f4b5d3350b018a95354bf9156d6d9913cddfb55e4",
+          "sha256": "3506846480ad2c6cf5d6d76c0ec90e810e4e54712bd3f94a72daad5bde5b40e3",
           "deployed_sha256": "f9a7dea392346caca89f020f4b5d3350b018a95354bf9156d6d9913cddfb55e4"
         },
         {
@@ -1120,7 +1120,7 @@
         },
         {
           "path": "supabase/functions/source-worker/scout.ts",
-          "sha256": "f901ddd4d7af278f43df41d7b4f8908232ac6d52a7fb6a8b313f0871e1b8ed27",
+          "sha256": "4708467e515bfa5efa7d2533f522ba44a2f4310669109cd5c8bbf586a5084895",
           "deployed_sha256": "f901ddd4d7af278f43df41d7b4f8908232ac6d52a7fb6a8b313f0871e1b8ed27"
         },
         {
@@ -1135,7 +1135,7 @@
         },
         {
           "path": "supabase/functions/source-worker/klein.ts",
-          "sha256": "9ea0c156d2f9d84353aa397e62798f71433a9c8d47010eb8b2be8c5bd06d129b",
+          "sha256": "8981e62d8f1833c305d5259b39be2b16b2c34898b5568e5d745b996b23392b7d",
           "deployed_sha256": "9ea0c156d2f9d84353aa397e62798f71433a9c8d47010eb8b2be8c5bd06d129b"
         },
         {
@@ -1150,7 +1150,7 @@
         },
         {
           "path": "supabase/functions/source-worker/immomio.ts",
-          "sha256": "fbd12e7e8526bfca3fbc34c8549d6d00301c0e18d362e9a731a87b8fa5973528",
+          "sha256": "4106c7846db5cc305ccdb9f10cdc7a99c5d123538756300e99cb67fc444d3781",
           "deployed_sha256": "fbd12e7e8526bfca3fbc34c8549d6d00301c0e18d362e9a731a87b8fa5973528"
         },
         {
@@ -1165,7 +1165,7 @@
         },
         {
           "path": "supabase/functions/source-worker/generic.ts",
-          "sha256": "e48496ea4ae8dab9298b6560b163660591424ff90ad9d86c0e24b8ad31200ed6",
+          "sha256": "86a7b9debf485e85cc146d7344ef45e3a22dfe82e4e88113c09b85252f74cdd8",
           "deployed_sha256": "e48496ea4ae8dab9298b6560b163660591424ff90ad9d86c0e24b8ad31200ed6"
         },
         {
@@ -1506,12 +1506,12 @@
         },
         {
           "path": "supabase/functions/telegram-ui/profiles.js",
-          "git_blob_sha": "22409cff21baedfa8f0daa5ccb2e180e2ca01083",
+          "git_blob_sha": "07c10e9ae326db2d680a61a7b81bf00fcaf2f85f",
           "deployed_git_blob_sha": "22409cff21baedfa8f0daa5ccb2e180e2ca01083"
         },
         {
           "path": "supabase/functions/telegram-ui/runtime.js",
-          "git_blob_sha": "035164ef733b9015cea35530f9f8359eecd49cf4",
+          "git_blob_sha": "e7d29c6cd2087ed58bf84243ed710282970b0990",
           "deployed_git_blob_sha": "035164ef733b9015cea35530f9f8359eecd49cf4"
         },
         {
@@ -1526,7 +1526,7 @@
         },
         {
           "path": "supabase/functions/telegram-ui/handlers.js",
-          "git_blob_sha": "37f29bffdfcc3fb7ae59f7e5725b8fb5ac389be2",
+          "git_blob_sha": "189fc3afe2f5502fbad75c70d0687a1095e1e358",
           "deployed_git_blob_sha": "37f29bffdfcc3fb7ae59f7e5725b8fb5ac389be2"
         }
       ],
