@@ -121,8 +121,23 @@ jobs:
       - uses: supabase/setup-cli@v1
         with:
           version: latest
-      - name: Start isolated local Supabase stack
-        run: supabase start -x studio,imgproxy,vector
+      - name: Start isolated local Supabase stack without auto-applying migrations
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Supabase CLI applies migrations during start. The earliest repository
+          # migration assumes a pre-repository bot_users table, so hide the
+          # migration directory only during stack startup, then restore it.
+          mv supabase/migrations /tmp/supabase-migrations-cleanroom
+          restore_migrations() {
+            if [[ -d /tmp/supabase-migrations-cleanroom && ! -d supabase/migrations ]]; then
+              mv /tmp/supabase-migrations-cleanroom supabase/migrations
+            fi
+          }
+          trap restore_migrations EXIT
+          supabase start -x studio,imgproxy,vector
+          restore_migrations
+          trap - EXIT
       - name: Bootstrap pre-repository core schema locally
         run: psql 'postgresql://postgres:postgres@127.0.0.1:54322/postgres' -v ON_ERROR_STOP=1 -f scripts/restore-bootstrap.sql
       - name: Replay all checked-in migrations
