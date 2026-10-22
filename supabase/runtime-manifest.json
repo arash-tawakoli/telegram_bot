@@ -1,5 +1,5 @@
 {
-  "observed_at": "2026-10-18T13:00:00.000Z",
+  "observed_at": "2026-10-22T12:09:55.397Z",
   "project_id": "dpmohkrwdlicexwcrqfy",
   "snapshot_kind": "repository_with_observed_deployment_hashes",
   "functions": [
@@ -175,17 +175,17 @@
     },
     {
       "slug": "coach-api",
-      "version": 46,
+      "version": 47,
       "verify_jwt": false,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "47e7da1c784f9f1c3da8e2987ffc1ac5f00118ca337687819fd08f89eea57cc3",
+      "observed_artifact_sha256": "0066b28dc91f558bc9d7c027c70b8b13d1ac5781e0e7a285268fe7fcb9ecf35e",
       "entrypoint": "supabase/functions/coach-api/index.ts",
       "files": [
         {
           "path": "supabase/functions/coach-api/index.ts",
-          "sha256": "47e7da1c784f9f1c3da8e2987ffc1ac5f00118ca337687819fd08f89eea57cc3",
-          "deployed_sha256": "47e7da1c784f9f1c3da8e2987ffc1ac5f00118ca337687819fd08f89eea57cc3"
+          "sha256": "0066b28dc91f558bc9d7c027c70b8b13d1ac5781e0e7a285268fe7fcb9ecf35e",
+          "deployed_sha256": "0066b28dc91f558bc9d7c027c70b8b13d1ac5781e0e7a285268fe7fcb9ecf35e"
         },
         {
           "path": "supabase/functions/_shared/application-profile-adapters.ts",
@@ -193,14 +193,14 @@
           "deployed_sha256": "561eef88785b5d442dbf95d42123cac1236ce0e55094bf59cf65aea099c00f64"
         }
       ],
-      "observed_live_version": 46,
+      "observed_live_version": 47,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "5ee1dd1d65c9f4daa6f0d86f1ce6f371d99a5f1ea996b43d2be9344ea82f3f2c",
-      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-02.json",
+      "observed_live_artifact_sha256": "c86dde15b99e8ce88a7f3f08b04bc2776ae338fb179c8f896ef76211b7ff9a4b",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-22/bundles/batch-01.json",
       "source_archive_file_count": 2,
       "source_archive_status": "full_source",
       "classification": "production",
-      "review_status": "production runtime; version/JWT/hash tracked against live inventory"
+      "review_status": "production runtime; source-health and super-admin jobseeker reads restored; deployment hash tracked against live inventory"
     },
     {
       "slug": "coach-bootstrap",
