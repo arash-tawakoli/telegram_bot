@@ -129,14 +129,18 @@ jobs:
           # migration assumes a pre-repository bot_users table, so hide the
           # migration directory only during stack startup, then restore it.
           mv supabase/migrations /tmp/supabase-migrations-cleanroom
-          restore_migrations() {
+          mv supabase/seed.sql /tmp/supabase-seed-cleanroom.sql
+          restore_inputs() {
             if [[ -d /tmp/supabase-migrations-cleanroom && ! -d supabase/migrations ]]; then
               mv /tmp/supabase-migrations-cleanroom supabase/migrations
             fi
+            if [[ -f /tmp/supabase-seed-cleanroom.sql && ! -f supabase/seed.sql ]]; then
+              mv /tmp/supabase-seed-cleanroom.sql supabase/seed.sql
+            fi
           }
-          trap restore_migrations EXIT
+          trap restore_inputs EXIT
           supabase start -x studio,imgproxy,vector
-          restore_migrations
+          restore_inputs
           trap - EXIT
       - name: Bootstrap pre-repository core schema locally
         run: psql 'postgresql://postgres:postgres@127.0.0.1:54322/postgres' -v ON_ERROR_STOP=1 -f scripts/restore-bootstrap.sql
