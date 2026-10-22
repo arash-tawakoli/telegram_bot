@@ -534,7 +534,7 @@ function validCandidate(source: Source, c: Candidate) {
     return false;
   if (source.id === 52 && /stellplatz|garage|parkplatz/i.test(c.url)) return false;
   if (c.stateCode === "SH") {
-    if (c.zip && !/^\\d{5}$/.test(String(c.zip))) return false;
+    if (c.zip && !/^\d{5}$/.test(String(c.zip))) return false;
     if (!String(c.city || "").trim()) return false;
   } else if (c.zip && !hhZip(c.zip)) return false;
   const text = `${c.title || ""} ${c.type || ""} ${c.raw?.text || ""}`;
@@ -543,7 +543,7 @@ function validCandidate(source: Source, c: Candidate) {
 }
 let shMunicipalityCache: Map<string, Array<{area_code:string;parent_code:string|null}>> | null = null;
 function normalizeGeoName(value:unknown) {
-  return String(value || "").normalize("NFKC").toLocaleLowerCase("de-DE").replace(/^\\d{5}\\s+/,"").replace(/,\\s*(?:schleswig-holstein|deutschland|germany)$/i,"").trim();
+  return String(value || "").normalize("NFKC").toLocaleLowerCase("de-DE").replace(/^\d{5}\s+/,"").replace(/,\s*(?:schleswig-holstein|deutschland|germany)$/i,"").trim();
 }
 async function resolveSchleswigHolsteinMunicipality(name:string) {
   if (!shMunicipalityCache) {
