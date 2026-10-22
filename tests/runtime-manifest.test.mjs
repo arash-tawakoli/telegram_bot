@@ -62,3 +62,22 @@ test('runtime gate rejects an archived deployed hash that does not match the rec
  const read=async file=>file===path?source:file===archivePath?JSON.stringify(archive):(()=>{throw Error('unexpected read '+file)})();
  await assert.rejects(verifyRuntime(manifest,read),/Recorded deployment drift/);
 });
+
+test('runtime gate normalizes deployed-support archives with a function-prefixed source path',async()=>{
+ const source='export const probe=true;';
+ const archivePath='docs/runtime-snapshot-2026-10-22/bundles/batch-01.json';
+ const supportPath='supabase/deployed-support/kleinanzeigen-apk-stage/index.ts';
+ const manifest={functions:[{
+  slug:'kleinanzeigen-apk-stage',version:1,verify_jwt:true,entrypoint:supportPath,
+  source_archive_file:archivePath,source_archive_status:'full_source',
+  files:[{path:supportPath,sha256:hash(source),deployed_sha256:hash(source)}]
+ }]};
+ const archive={functions:[{
+  slug:'kleinanzeigen-apk-stage',version:1,verify_jwt:true,artifact_sha256:'probe-artifact',
+  archive_status:'full_source',security_scan_flags:[],
+  files:[{path:'kleinanzeigen-apk-stage/index.ts',content:source}]
+ }]};
+ const read=async file=>file===supportPath?source:file===archivePath?JSON.stringify(archive):(()=>{throw Error('unexpected read '+file)})();
+ const result=await verifyRuntime(manifest,read);
+ assert.equal(result.sourceDeploymentDivergences.length,0);
+});
