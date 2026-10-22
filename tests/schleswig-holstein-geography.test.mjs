@@ -57,6 +57,8 @@ test("Telegram and source adapters expose Schleswig-Holstein without changing Ha
   assert.ok(scout.includes("Wohnungen zur Miete in Schleswig-Holstein"));
   assert.ok(klein.includes("s-schleswig-holstein/wohnung-mieten"));
   assert.ok(immowelt.includes("https://www.immowelt.de/suche/mieten/wohnung/schleswig-holstein/ad04de1"));
+  assert.ok(immowelt.includes("wg-gesucht.de"));
+  assert.ok(immowelt.includes("stateCode:'SH'"));
   assert.ok(shared.includes("state_code: stateCode"));
   assert.ok(shared.includes("resolveSchleswigHolsteinMunicipality"));
 });
