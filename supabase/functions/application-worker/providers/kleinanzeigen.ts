@@ -1,5 +1,6 @@
 import {claimPlatformConnectFlow,completePlatformConnectFlow} from '../../_shared/platform-auth-flow.ts';
-import {encryptCredentials,saveConnection,getConnection,markConnection,deleteConnection,recordRefreshResult} from '../credentials.ts';
+import {encryptCredentials,saveConnection,saveRefreshedConnection,getConnection,markConnection,deleteConnection,recordRefreshResult} from '../credentials.ts';
+import {claimPlatformRefresh,releasePlatformRefresh,classifyOAuthRefreshFailure} from '../../_shared/platform-refresh.ts';
 import {providerEnumCandidates,providerSalutation,providerEmployment,providerHousehold,providerIncome,providerMoveIn} from '../../_shared/application-profile-adapters.ts';
 
 const DOMAIN='login.kleinanzeigen.de';
@@ -57,27 +58,40 @@ async function finishKleinanzeigenLogin(db:any,flow:any,redirectUrl:string,confi
 export async function completeKleinanzeigenLogin(db:any,userId:string,redirectUrl:string,config?:KleinanzeigenOAuthConfig|null){let url:URL;try{url=new URL(redirectUrl.trim())}catch{throw Error('invalid_callback_url')}const state=url.searchParams.get('state');if(!state)throw Error('invalid_callback_url');const{data:flow,error}=await db.from('platform_auth_flows').select('*').eq('user_id',userId).eq('provider','kleinanzeigen').eq('state',state).is('consumed_at',null).gt('expires_at',new Date().toISOString()).maybeSingle();if(error||!flow)throw Error('auth_flow_expired');return finishKleinanzeigenLogin(db,flow,url.href,config)}
 export async function completeKleinanzeigenCallback(db:any,redirectUrl:string,config?:KleinanzeigenOAuthConfig|null){let url:URL;try{url=new URL(redirectUrl.trim())}catch{throw Error('invalid_callback_url')}const oauth=oauthConfig(config);validateCallbackTarget(url,oauth.redirectUri);const state=url.searchParams.get('state');if(!state)throw Error('invalid_callback_url');const{data:flow,error}=await db.from('platform_auth_flows').select('*').eq('provider','kleinanzeigen').eq('state',state).is('consumed_at',null).gt('expires_at',new Date().toISOString()).maybeSingle();if(error||!flow)throw Error('auth_flow_expired');if(url.searchParams.get('error')){await markConnection(db,String(flow.user_id),'kleinanzeigen','needs_login',String(url.searchParams.get('error')).slice(0,120)).catch(()=>{});throw Error('oauth_login_failed')}return finishKleinanzeigenLogin(db,flow,url.href,oauth)}
 async function refresh(db:any,userId:string,connection:any,force=false){
- const credentials=connection.credentials||{};
- if(!force&&credentials.access_token&&Date.parse(credentials.expires_at||'')>Date.now()+60000)return credentials;
- if(!credentials.refresh_token)throw Error('needs_login');
- const clientId=String(credentials.oauth_client_id||LEGACY_CLIENT_ID);
- let response:Response,token:any=null;
+ const original=connection?.credentials||{};
+ if(!force&&original.access_token&&Date.parse(original.expires_at||'')>Date.now()+60000)return original;
+ if(!original.refresh_token)throw Error('needs_login');
+ const lease=await claimPlatformRefresh(db,userId,'kleinanzeigen',connection?.row?.updated_at);
  try{
-  const result=await tokenRequest(db,clientId,{grant_type:'refresh_token',refresh_token:credentials.refresh_token});
-  response=result.response;token=result.token;
- }catch(error:any){
-  await recordRefreshResult(db,userId,'kleinanzeigen',false,'refresh_network_error').catch(()=>{});
-  throw error;
- }
- if(!response.ok||!token?.access_token){
-  await recordRefreshResult(db,userId,'kleinanzeigen',false,`refresh_http_${response.status}`).catch(()=>{});
-  await markConnection(db,userId,'kleinanzeigen','needs_login','refresh_failed');
-  throw Error('needs_login');
- }
- const updated={...credentials,access_token:token.access_token,refresh_token:token.refresh_token||credentials.refresh_token,expires_at:new Date(Date.now()+Number(token.expires_in||600)*1000).toISOString(),oauth_client_id:clientId,x_ebayk_app:credentials.x_ebayk_app||`${crypto.randomUUID()}${Date.now()}`};
- await saveConnection(db,userId,'kleinanzeigen',updated,{expires_at:updated.expires_at,account_hint:connection.row.account_hint});
- await recordRefreshResult(db,userId,'kleinanzeigen',true,null,updated.expires_at).catch(()=>{});
- return updated;
+  const latest=await getConnection(db,userId,'kleinanzeigen');
+  if(!latest)throw Error('needs_login');
+  const credentials=latest.credentials||{},fresh=!!credentials.access_token&&Date.parse(credentials.expires_at||'')>Date.now()+60000;
+  if(latest.row.last_refresh_error!==lease.marker){if(fresh)return credentials;throw Error('temporary_network_error');}
+  if(fresh&&(!force||lease.changedSinceObservation))return credentials;
+  if(!credentials.refresh_token)throw Error('needs_login');
+  const clientId=String(credentials.oauth_client_id||LEGACY_CLIENT_ID);
+  let response:Response,token:any=null;
+  try{
+   const result=await tokenRequest(db,clientId,{grant_type:'refresh_token',refresh_token:credentials.refresh_token});
+   response=result.response;token=result.token;
+  }catch(error:any){
+   await recordRefreshResult(db,userId,'kleinanzeigen',false,'refresh_network_error').catch(()=>{});
+   throw Error('temporary_network_error');
+  }
+  if(!response.ok||!token?.access_token){
+   const failure=classifyOAuthRefreshFailure(response.status,token);
+   await recordRefreshResult(db,userId,'kleinanzeigen',false,failure.diagnostic).catch(()=>{});
+   if(failure.requiresLogin){await markConnection(db,userId,'kleinanzeigen','needs_login','refresh_failed').catch(()=>{});throw Error('needs_login');}
+   if(failure.transient)throw Error('temporary_network_error');
+   if(failure.configuration){console.warn('provider_refresh_configuration_error','kleinanzeigen',response.status,failure.code);await markConnection(db,userId,'kleinanzeigen','connected','provider_refresh_configuration_error').catch(()=>{});}
+   throw Error('provider_contract_unverified');
+  }
+  const updated={...credentials,access_token:token.access_token,refresh_token:token.refresh_token||credentials.refresh_token,expires_at:new Date(Date.now()+Number(token.expires_in||600)*1000).toISOString(),oauth_client_id:clientId,x_ebayk_app:credentials.x_ebayk_app||`${crypto.randomUUID()}${Date.now()}`};
+  try{await saveRefreshedConnection(db,userId,'kleinanzeigen',updated,{expires_at:updated.expires_at,account_hint:latest.row.account_hint},lease);}
+  catch{const current=await getConnection(db,userId,'kleinanzeigen').catch(()=>null),currentCredentials=current?.credentials||{};if(currentCredentials.access_token&&Date.parse(currentCredentials.expires_at||'')>Date.now()+60000)return currentCredentials;throw Error('temporary_network_error');}
+  await recordRefreshResult(db,userId,'kleinanzeigen',true,null,updated.expires_at).catch(()=>{});
+  return updated;
+ }finally{await releasePlatformRefresh(db,userId,'kleinanzeigen',lease).catch(()=>{});}
 }
 export async function disconnectKleinanzeigen(db:any,userId:string){await deleteConnection(db,userId,'kleinanzeigen');return{status:'disconnected'}}
 export async function kleinanzeigenAccessToken(db:any,userId:string){const c=await getConnection(db,userId,'kleinanzeigen');if(!c)throw Error('needs_login');return(await refresh(db,userId,c)).access_token}
@@ -121,7 +135,7 @@ async function account(db:any,userId:string,force=false){
  if(!id)throw Error('provider_contract_unverified');
  return{...s,id:String(id),authMode:'legacy' as const};
 }
-export async function checkKleinanzeigenConnection(db:any,userId:string){const c=await getConnection(db,userId,'kleinanzeigen');if(!c)return{authenticated:false};try{const a=await account(db,userId);return{authenticated:true,authMode:a.authMode,clientVersion:APP_VERSION}}catch{return{authenticated:false}}}
+export async function checkKleinanzeigenConnection(db:any,userId:string){const c=await getConnection(db,userId,'kleinanzeigen');if(!c)return{authenticated:false,status:'disconnected'};try{const a=await account(db,userId);return{authenticated:true,status:'connected',authMode:a.authMode,clientVersion:APP_VERSION}}catch(e:any){const needsLogin=e?.message==='needs_login';return{authenticated:needsLogin?false:null,status:needsLogin?'needs_login':'error'}}}
 function formControls(ui:any){const out:any[]=[];const walk=(v:any)=>{if(!v||typeof v!=='object')return;if(Array.isArray(v)){for(const x of v)walk(x);return}if(v.type==='Control'&&typeof v.scope==='string')out.push(v);for(const x of Object.values(v))if(x&&typeof x==='object')walk(x)};walk(ui);return out}
 function formLabel(ui:any,key:string){const suffix=`/properties/${key}`;return norm(formControls(ui).find((c:any)=>String(c.scope).endsWith(suffix))?.label||key)}
 function ownValue(obj:any,key:string){return obj&&Object.prototype.hasOwnProperty.call(obj,key)?obj[key]:undefined}
