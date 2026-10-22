@@ -149,7 +149,7 @@ export function validateMigrationEntries(migrations){
 async function main(){
  const runtime=JSON.parse(await readFile('supabase/runtime-manifest.json','utf8'));
  const strictHashes=process.env.RUNTIME_HASH_STRICT==='1';
- const {hashWarnings}=await verifyRuntime(runtime,readFile,{strictHashes});
+ const {hashWarnings,sourceDeploymentDivergences}=await verifyRuntime(runtime,readFile,{strictHashes});
  await verifyArchivedRuntime(runtime,readFile);
  const migrations=await migrationRegistryEntries();
  const migrationNames=(await readdir('supabase/migrations')).filter(x=>x.endsWith('.sql')).sort();
@@ -163,6 +163,6 @@ async function main(){
   throw new Error(`Migration registry length mismatch: files=${migrationPaths.length} registry=${migrations.length} missing=${missing.length} stale=${stale.length}`);
  }
  for(const m of migrations)if(hash(await readFile(m.file))!==m.export_sql_sha256)throw new Error(`Migration content drift: ${m.file}`);
- console.log(`${runtime.functions.length} function bundles structurally verified; ${migrations.length} migrations verified${hashWarnings?`; ${hashWarnings} recorded runtime hash drift warning(s)`:''}`);
+ console.log(`${runtime.functions.length} function bundles structurally verified; ${migrations.length} migrations verified${sourceDeploymentDivergences.length?`; ${sourceDeploymentDivergences.length} captured source/deployment divergence(s) verified against archived bundles`:''}${hashWarnings?`; ${hashWarnings} recorded runtime hash drift warning(s)`:''}`);
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(resolve(process.argv[1])).href)await main();
