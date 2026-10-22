@@ -1,5 +1,5 @@
 {
-  "observed_at": "2026-10-22T17:27:14.902Z",
+  "observed_at": "2026-10-22T17:29:27.633Z",
   "project_id": "dpmohkrwdlicexwcrqfy",
   "snapshot_kind": "repository_with_observed_deployment_hashes",
   "functions": [
@@ -2655,7 +2655,7 @@
     "live_function_count": 114,
     "repository_managed_count": 47,
     "archived_only_count": 67,
-    "source_archive": "docs/runtime-snapshot-2026-10-21/bundles/ (historical) and docs/runtime-snapshot-2026-10-22/bundles/ (refreshed live versions)",
-    "note": "Inventory verified via Supabase MCP on 2026-10-22. Direct Management API comparison in CI requires SUPABASE_ACCESS_TOKEN."
+    "source_archive": "docs/runtime-snapshot-2026-10-21/bundles/ plus refreshed live snapshots in docs/runtime-snapshot-2026-10-22/bundles/",
+    "note": "Verified via Supabase MCP on 2026-10-22. All 114 live functions are represented by 47 managed and 67 archived-only entries. Managed function versions currently match the live inventory. Full direct Management API comparison in CI still requires SUPABASE_ACCESS_TOKEN."
   }
 }
