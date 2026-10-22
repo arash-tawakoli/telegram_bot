@@ -140,7 +140,23 @@ jobs:
             fi
           }
           trap restore_inputs EXIT
-          supabase start -x studio,imgproxy,vector,logflare,edge-runtime,storage-api,realtime,rest,postgres-meta,inbucket,supavisor,kong
+          # A transient local REST readiness transport error can occur while the
+          # containers are still starting. Retry the stack once after a clean stop;
+          # do not continue unless Supabase reports a healthy startup.
+          started=false
+          for attempt in 1 2 3; do
+            echo "Starting isolated Supabase stack (attempt ${attempt}/3)"
+            if supabase start -x studio,imgproxy,vector,logflare,edge-runtime,storage-api,realtime,rest,postgres-meta,inbucket,supavisor,kong; then
+              started=true
+              break
+            fi
+            supabase stop --no-backup || true
+            if [[ "$attempt" -lt 3 ]]; then sleep 5; fi
+          done
+          if [[ "$started" != "true" ]]; then
+            echo "::error::Local Supabase stack failed to become healthy after three attempts."
+            exit 1
+          fi
           restore_inputs
           trap - EXIT
       - name: Bootstrap pre-repository core schema locally
