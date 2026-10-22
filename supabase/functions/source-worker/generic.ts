@@ -56,6 +56,7 @@ const IMMOWELT_HAMBURG_AREAS = [
   "https://www.immowelt.de/suche/mieten/wohnung/hamburg-20095/nord-22415/ad09de72",
   "https://www.immowelt.de/suche/mieten/wohnung/hamburg-20095/wandsbek-22159/ad09de73",
 ];
+const IMMOWELT_SCHLESWIG_HOLSTEIN_AREAS = ["https://www.immowelt.de/suche/mieten/wohnung/schleswig-holstein/ad04de1"];
 const IMMOWELT_ROOM_SITEMAPS = [1, 2, 3, 4, 5, 6].map(
   (n) =>
     `https://www.immowelt.de/sitemaps/RENT_APARTMENT_ROOMS-MIN${n}-MAX${n}_FLATSHARING-NEW-BUILD-STOCK-SWAP-APARTMENT/rent_apartment_rooms-min${n}-max${n}_flatsharing-new-build-stock-swap-apartment_1.xml`,
@@ -237,6 +238,8 @@ function immoweltCards(html: string, base: string) {
       text = strip(v).slice(0, 8000),
       f = parseFields(`${titleAttr} ${imgAlt} ${text}`),
       image = immoweltCardImage(v, base),
+      locationMatch = text.match(/\b\d{5}\s+([A-ZÄÖÜ][\p{L}\p{M}.'’()-]*(?:\s+[A-ZÄÖÜ][\p{L}\p{M}.'’()-]*){0,3})/u),
+      city = locationMatch?.[1]?.trim() || null,
       isNew = /data-testid=["']cardmfe-tag-testid-new["']/i.test(v),
       cooperative = portalCooperativeIdentity(v),
       cooperativeCandidate = !cooperative.provider_entity && /\b(?:Baugenossenschaft|Wohnungsgenossenschaft|Wohnungsbaugenossenschaft|Wohngenossenschaft|Mietergenossenschaft|Bauverein)\b/i.test(text),
@@ -245,6 +248,7 @@ function immoweltCards(html: string, base: string) {
       url: href,
       title,
       zip: f.zip,
+      city,
       warm: f.warm ?? immoweltCardWarm(text),
       cold: f.cold,
       additional: f.additional,
@@ -287,7 +291,7 @@ async function immoweltDeepUrls() {
   for (const p of pages)
     for (const m of p.text.matchAll(/<loc>\s*([^<]+)\s*<\/loc>/gi)) {
       const u = m[1];
-      if (/\/hamburg-20095\/.*\/nbh2de/i.test(u)) urls.push(u);
+      if (/\/hamburg-20095\/.*\/nbh2de/i.test(u) || /\/schleswig-holstein\/.*\/nbh2de/i.test(u)) urls.push(u);
     }
   return [...new Set(urls)];
 }
@@ -757,11 +761,20 @@ export async function runGeneric(source: Source, connectors: Connector[]) {
               ? started
               : String(st?.cycle_started_at || started);
             const work = queue.splice(0, 8),
+              frontUrls = [
+                ...IMMOWELT_HAMBURG_AREAS.map((url) => ({url,stateCode:"HH" as const})),
+                ...IMMOWELT_SCHLESWIG_HOLSTEIN_AREAS.map((url) => ({url,stateCode:"SH" as const})),
+              ],
               [frontRs, deepRs] = await Promise.all([
-                Promise.all(
-                  IMMOWELT_HAMBURG_AREAS.map((u) => parseOne(source, c, u)),
-                ),
-                Promise.all(work.map((u) => parseOne(source, c, u))),
+                Promise.all(frontUrls.map(async (target) => {
+                  const result=await parseOne(source,c,target.url);
+                  return {...result,cands:result.cands.map((candidate)=>({...candidate,stateCode:target.stateCode}))};
+                })),
+                Promise.all(work.map(async (url) => {
+                  const result=await parseOne(source,c,url);
+                  const stateCode=/\/schleswig-holstein\//i.test(url)?"SH" as const:"HH" as const;
+                  return {...result,cands:result.cands.map((candidate)=>({...candidate,stateCode}))};
+                })),
               ]),
               eligibility = new Map<
                 string,
@@ -812,7 +825,7 @@ export async function runGeneric(source: Source, connectors: Connector[]) {
               ...meta,
               strategy: "immowelt_sitemap_room_coverage",
               freshness_mode: "front_native_new_then_deep_after_baseline",
-              pages_checked: IMMOWELT_HAMBURG_AREAS.length,
+              pages_checked: IMMOWELT_HAMBURG_AREAS.length + IMMOWELT_SCHLESWIG_HOLSTEIN_AREAS.length,
               deliverable_candidates: deliverable.length,
               deep_baseline_done: baselineDoneNext,
               deep_pages_checked: work.length,
