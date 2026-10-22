@@ -545,7 +545,7 @@ let shMunicipalityCache: Map<string, Array<{area_code:string;parent_code:string|
 function normalizeGeoName(value:unknown) {
   return String(value || "").normalize("NFKC").toLocaleLowerCase("de-DE").replace(/^\d{5}\s+/,"").replace(/,\s*(?:schleswig-holstein|deutschland|germany)$/i,"").trim();
 }
-async function resolveSchleswigHolsteinMunicipality(name:string) {
+export async function resolveSchleswigHolsteinMunicipality(name:string) {
   if (!shMunicipalityCache) {
     const {data,error}=await db.from("geo_areas").select("area_code,parent_code,name").eq("state_code","SH").eq("area_type","municipality").eq("is_active",true);
     if(error)throw error;
