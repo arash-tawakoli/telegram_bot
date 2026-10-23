@@ -27,6 +27,7 @@ test("Schleswig-Holstein geography catalog is complete and internally consistent
   assert.ok(migration.includes("('Garstedt','01060063','Stadt Norderstedt locality alias')"));
   assert.ok(migration.includes("false,'K2','primary',false,true"), "the WG-Gesucht SH lane must remain disabled until the new worker is deployed");
   assert.equal(catalog.municipalities.find((area) => area.name === "Norderstedt")?.code, "01060063");
+  assert.ok(migration.includes("return result;\nend;\n$function$;\n\n-- Add a separate state-wide WG-Gesucht lane"), "the ingestion function must be terminated before the connector seed");
   assert.ok(migration.includes("public.get_schleswig_holstein_areas()"));
   assert.ok(migration.includes("returns jsonb"), "the catalog RPC must avoid the PostgREST 1,000-row cap");
   assert.ok(migration.includes("jsonb_agg(jsonb_build_object("), "the complete geography catalog must be returned in one JSONB value");
@@ -79,7 +80,7 @@ test("Telegram and source adapters expose Schleswig-Holstein without changing Ha
   assert.ok(scout.includes("Wohnungen zur Miete in Schleswig-Holstein"));
   assert.ok(klein.includes("s-schleswig-holstein/wohnung-mieten"));
   assert.ok(immowelt.includes("https://www.immowelt.de/suche/mieten/wohnung/schleswig-holstein/ad04de1"));
-  assert.ok(immowelt.includes("wg-gesucht.de"));
+  assert.ok(migration.includes("https://www.wg-gesucht.de/wohnungen-in-Schleswig-Holstein.0.2.1.0.html"), "WG-Gesucht is configured through its own source connector, not the Immowelt adapter");
   assert.ok(immowelt.includes("stateCode:'SH'"));
   assert.ok(immowelt.includes("resolveSchleswigHolsteinMunicipality(city)"));
   assert.ok(shared.includes("state_code: stateCode"));
