@@ -25,6 +25,8 @@ test("Schleswig-Holstein geography catalog is complete and internally consistent
   assert.ok(migration.includes("'schleswig_holstein_areas'"));
   assert.ok(migration.includes("https://www.wg-gesucht.de/wohnungen-in-Schleswig-Holstein.0.2.1.0.html"));
   assert.ok(migration.includes("('Garstedt','01060063','Stadt Norderstedt locality alias')"));
+  assert.ok(migration.includes("false,'K2','primary',false,true"), "the WG-Gesucht SH lane must remain disabled until the new worker is deployed");
+  assert.equal(catalog.municipalities.find((area) => area.name === "Norderstedt")?.code, "01060063");
   assert.ok(migration.includes("public.get_schleswig_holstein_areas()"));
   assert.ok(migration.includes("returns jsonb"), "the catalog RPC must avoid the PostgREST 1,000-row cap");
   assert.ok(migration.includes("jsonb_agg(jsonb_build_object("), "the complete geography catalog must be returned in one JSONB value");
@@ -66,6 +68,10 @@ test("Telegram and source adapters expose Schleswig-Holstein without changing Ha
     assert.ok(profiles.includes(mode));
     assert.ok(handlers.includes(mode));
   }
+  assert.ok(handlers.includes('onboarding_step === "schleswig_holstein_search"'));
+  assert.ok(handlers.includes('data === "shsearch:start"'));
+  assert.ok(handlers.includes('data.startsWith("shsearch:pick:")'));
+  assert.ok(handlers.includes("geo.schleswigHolsteinAliases"));
   assert.ok(runtime.includes("schleswigHolsteinAreas"));
   assert.ok(runtime.includes('db.rpc("get_schleswig_holstein_areas")'));
   assert.ok(runtime.includes('db.rpc("get_schleswig_holstein_area_aliases")'));
@@ -78,6 +84,7 @@ test("Telegram and source adapters expose Schleswig-Holstein without changing Ha
   assert.ok(immowelt.includes("resolveSchleswigHolsteinMunicipality(city)"));
   assert.ok(shared.includes("state_code: stateCode"));
   assert.ok(shared.includes("resolveSchleswigHolsteinMunicipality"));
+  assert.ok(shared.includes("schleswig_holstein_geography_resolution_skips"), "ambiguous/unmapped public listing locations must be observable, not silently swallowed");
   assert.ok(shared.includes('db.rpc("get_schleswig_holstein_areas")'));
   assert.ok(shared.includes('db.rpc("get_schleswig_holstein_area_aliases")'));
   assert.ok(!shared.includes('db.from("geo_areas")'), "source worker should use the service-only geography RPC");
