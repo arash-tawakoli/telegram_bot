@@ -147,9 +147,20 @@ async function loadSHAreaLookup() {
   const add = (name: string, area: SchleswigHolsteinArea) => {
     const key = geoNameKey(name);
     if (!key) return;
+    if (!lookup.has(key)) {
+      lookup.set(key, area);
+      return;
+    }
     const previous = lookup.get(key);
-    if (previous && previous.area_code !== area.area_code) lookup.set(key, null);
-    else if (!lookup.has(key)) lookup.set(key, area);
+    if (!previous || previous.area_code === area.area_code) return;
+    // Where a kreisfreie Stadt also appears as its own municipality code, use the
+    // municipality record so admin_region_code points at the independent-city parent.
+    if (previous.area_type === "independent_city" && area.area_type === "municipality") {
+      lookup.set(key, area);
+      return;
+    }
+    if (previous.area_type === "municipality" && area.area_type === "independent_city") return;
+    lookup.set(key, null);
   };
   for (const area of rows) add(area.name, area);
   for (const alias of aliases.data || []) {
