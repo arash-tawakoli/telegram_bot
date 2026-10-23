@@ -48,4 +48,4 @@ Expected result: exactly one row. If no row or more than one row is returned, st
 
 ## Current validation limitation
 
-GitHub Actions has been failing before runner assignment in this environment. The PRs must remain drafts until the complete test suite, strict runtime check, and live inventory checks execute successfully. No production migration, Edge Function deployment, source activation, or Cloudflare deployment has been performed by this change set.
+GitHub Actions has been failing before any test step executes. The PRs must remain drafts until the complete test suite, strict runtime check, and live inventory checks execute successfully. The additive database migration is already applied; no Edge Function has been deployed, no Schleswig-Holstein connector has been enabled, and the Coach Portal Cloudflare Worker has not been deployed with this feature.
