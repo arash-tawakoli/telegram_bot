@@ -6,7 +6,7 @@ const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
 
 test("Schleswig-Holstein geography catalog is complete and internally consistent", async () => {
   const catalog = JSON.parse(await read("../docs/geography/schleswig-holstein-municipalities.json"));
-  const migration = await read("../supabase/migrations/20261022210000_add_schleswig_holstein_geography.sql");
+  const migration = await read("../supabase/migrations/20261023094810_add_schleswig_holstein_geography.sql");
   assert.equal(catalog.source_vintage, "2026-01-01");
   assert.equal(catalog.count, 1104);
   assert.equal(catalog.municipalities.length, catalog.count);
@@ -40,7 +40,7 @@ test("Schleswig-Holstein geography catalog is complete and internally consistent
 });
 
 test("listing ingestion persists and validates state-aware geography", async () => {
-  const migration = await read("../supabase/migrations/20261022210000_add_schleswig_holstein_geography.sql");
+  const migration = await read("../supabase/migrations/20261023094810_add_schleswig_holstein_geography.sql");
   const start = migration.indexOf("CREATE OR REPLACE FUNCTION public.ingest_listing_batch_v3");
   const end = migration.indexOf("\ncommit;", start);
   assert.ok(start >= 0 && end > start, "migration must replace the canonical ingestion RPC");
