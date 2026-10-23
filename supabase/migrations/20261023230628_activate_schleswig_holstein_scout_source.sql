@@ -1,4 +1,4 @@
--- Activate the Schleswig-Holstein source runtime after the SH-aware worker is deployed. Delivery stays in shadow mode until the follow-up delivery-mode repair.
+-- Enable the dedicated Schleswig-Holstein source only after the SH-aware worker is deployed.
 DO $enable$
 BEGIN
   IF NOT EXISTS (
@@ -28,6 +28,7 @@ $enable$;
 UPDATE public.sources
 SET enabled=true,
     runtime_mode='live',
+    delivery_mode='live',
     coverage_status='partial',
     last_checked_at=now(),
     updated_at=now()
