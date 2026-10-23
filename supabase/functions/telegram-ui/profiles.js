@@ -210,6 +210,7 @@ export async function renderSchleswigHolsteinAreas(user, chatId, messageId, draf
             button("← Kreise und Städte", "shregion:back"),
             button("Alle Gemeinden wählen", "sharea:all-children"),
         ]);
+        rows.push([button("🔎 Ort oder Gemeinde suchen", "shsearch:start")]);
         for (const area of entries.slice(page * NEIGHBORHOODS_PER_PAGE, (page + 1) * NEIGHBORHOODS_PER_PAGE)) {
             rows.push([button(`${selected.has(area.area_code) || selected.has(parentCode) ? "✅ " : ""}${area.name}`, `sharea:${area.area_code}`)]);
         }
@@ -229,6 +230,7 @@ export async function renderSchleswigHolsteinAreas(user, chatId, messageId, draf
             button("Gemeinden →", `shregion:${area.area_code}`),
         ]);
     }
+    rows.push([button("🔎 Ort oder Gemeinde suchen", "shsearch:start")]);
     rows.push([
         button("Alle 15 Kreise/Städte", "sharea:all"),
         button("Auswahl löschen", "sharea:clear"),
