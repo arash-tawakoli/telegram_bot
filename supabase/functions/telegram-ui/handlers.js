@@ -677,9 +677,7 @@ export async function handleCallback(query, user) {
         return renderNeighborhoods(user, chatId, messageId, draft);
     }
     if (data === "shsearch:start") {
-        draft.location_area_search_return_step = user.onboarding_step === "schleswig_holstein_search"
-            ? (draft.location_area_search_return_step ?? null)
-            : (user.onboarding_step ?? null);
+        delete draft.location_area_search_return_step;
         await saveState(user.id, "schleswig_holstein_search", draft, user.request_update_id, user.request_attempt);
         return send(chatId, "🔎 <b>Ort in Schleswig-Holstein suchen</b>\n\nSchreibe einen Ortsnamen, eine Gemeinde oder einen Kreis. Beispiele: Norderstedt, Kiel, Segeberg oder Garstedt.", {
             force_reply: true,
@@ -689,9 +687,7 @@ export async function handleCallback(query, user) {
     }
     if (data === "shsearch:back") {
         delete draft.location_area_search;
-        const returnStep = draft.location_area_search_return_step ?? null;
         delete draft.location_area_search_return_step;
-        await saveState(user.id, returnStep, { ...draft }, user.request_update_id, user.request_attempt);
         return renderSchleswigHolsteinAreas(user, chatId, messageId, draft);
     }
     if (data.startsWith("shsearch:pick:")) {
@@ -726,9 +722,7 @@ export async function handleCallback(query, user) {
         }
         draft.location_area_codes = [...selected];
         delete draft.location_area_search;
-        const returnStep = draft.location_area_search_return_step ?? null;
         delete draft.location_area_search_return_step;
-        await saveState(user.id, returnStep, { ...draft }, user.request_update_id, user.request_attempt);
         return renderSchleswigHolsteinAreas(user, chatId, messageId, draft);
     }
     if (data.startsWith("shregion:")) {
