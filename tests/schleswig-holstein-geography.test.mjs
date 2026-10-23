@@ -26,6 +26,8 @@ test("Schleswig-Holstein geography catalog is complete and internally consistent
   assert.ok(migration.includes("https://www.wg-gesucht.de/wohnungen-in-Schleswig-Holstein.0.2.1.0.html"));
   assert.ok(migration.includes("('Garstedt','01060063','Stadt Norderstedt locality alias')"));
   assert.ok(migration.includes("public.get_schleswig_holstein_areas()"));
+  assert.ok(migration.includes("returns jsonb"), "the catalog RPC must avoid the PostgREST 1,000-row cap");
+  assert.ok(migration.includes("jsonb_agg(jsonb_build_object("), "the complete geography catalog must be returned in one JSONB value");
   assert.ok(migration.includes("public.get_schleswig_holstein_area_aliases()"));
   assert.ok(migration.includes("grant execute on function public.get_schleswig_holstein_areas() to service_role"));
   assert.ok(migration.includes("revoke all on table public.geo_areas, public.geo_area_aliases from PUBLIC, anon, authenticated"));
@@ -65,6 +67,9 @@ test("Telegram and source adapters expose Schleswig-Holstein without changing Ha
     assert.ok(handlers.includes(mode));
   }
   assert.ok(runtime.includes("schleswigHolsteinAreas"));
+  assert.ok(runtime.includes('db.rpc("get_schleswig_holstein_areas")'));
+  assert.ok(runtime.includes('db.rpc("get_schleswig_holstein_area_aliases")'));
+  assert.ok(!runtime.includes('db.from("geo_areas")'), "Telegram should use the service-only geography RPC");
   assert.ok(scout.includes("Wohnungen zur Miete in Schleswig-Holstein"));
   assert.ok(klein.includes("s-schleswig-holstein/wohnung-mieten"));
   assert.ok(immowelt.includes("https://www.immowelt.de/suche/mieten/wohnung/schleswig-holstein/ad04de1"));
