@@ -84,8 +84,8 @@ test("Telegram and source adapters expose Schleswig-Holstein without changing Ha
   const searchPick = handlers.slice(searchPickStart, regionStart);
   assert.ok(searchBack.includes("return renderSchleswigHolsteinAreas"));
   assert.ok(searchPick.includes("return renderSchleswigHolsteinAreas"));
-  assert.doesNotMatch(searchBack, /saveState\\(user\\.id,\\s*returnStep/);
-  assert.doesNotMatch(searchPick, /saveState\\(user\\.id,\\s*returnStep/);
+  assert.doesNotMatch(searchBack, /saveState/);
+  assert.doesNotMatch(searchPick, /saveState/);
   assert.ok(handlers.includes("geo.schleswigHolsteinAliases"));
   assert.ok(runtime.includes("schleswigHolsteinAreas"));
   assert.ok(runtime.includes('db.rpc("get_schleswig_holstein_areas")'));
