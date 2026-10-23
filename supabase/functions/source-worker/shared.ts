@@ -43,6 +43,7 @@ export type Candidate = {
   title?: string | null;
   address?: string | null;
   district?: string | null;
+  city?: string | null;
   zip?: string | null;
   warm?: number | null;
   cold?: number | null;
@@ -118,6 +119,66 @@ export function absolute(base: string, href: string) {
 }
 export function hhZip(z: any) {
   return !z || HH_ZIPS.has(String(z));
+}
+
+type SchleswigHolsteinArea = { area_code: string; parent_code: string | null; name: string; area_type: string };
+let shAreaLookup: Map<string, SchleswigHolsteinArea | null> | null = null;
+function geoNameKey(value: any) {
+  return String(value || "")
+    .normalize("NFKD")
+    .replace(/[\\u0300-\\u036f]/g, "")
+    .toLocaleLowerCase("de-DE")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+async function loadSHAreaLookup() {
+  if (shAreaLookup) return shAreaLookup;
+  const [first, second, aliases] = await Promise.all([
+    db.from("geo_areas").select("area_code,parent_code,name,area_type").eq("state_code", "SH").eq("is_active", true).in("area_type", ["municipality", "independent_city"]).order("area_code").range(0, 999),
+    db.from("geo_areas").select("area_code,parent_code,name,area_type").eq("state_code", "SH").eq("is_active", true).in("area_type", ["municipality", "independent_city"]).order("area_code").range(1000, 1999),
+    db.from("geo_area_aliases").select("alias,area_code"),
+  ]);
+  if (first.error) throw first.error;
+  if (second.error) throw second.error;
+  if (aliases.error) throw aliases.error;
+  const rows = [...(first.data || []), ...(second.data || [])] as SchleswigHolsteinArea[];
+  const byCode = new Map(rows.map((area) => [String(area.area_code), area]));
+  const lookup = new Map<string, SchleswigHolsteinArea | null>();
+  const add = (name: string, area: SchleswigHolsteinArea) => {
+    const key = geoNameKey(name);
+    if (!key) return;
+    const previous = lookup.get(key);
+    if (previous && previous.area_code !== area.area_code) lookup.set(key, null);
+    else if (!lookup.has(key)) lookup.set(key, area);
+  };
+  for (const area of rows) add(area.name, area);
+  for (const alias of aliases.data || []) {
+    const area = byCode.get(String(alias.area_code));
+    if (area) add(String(alias.alias), area);
+  }
+  shAreaLookup = lookup;
+  return lookup;
+}
+async function resolveSHArea(c: Candidate): Promise<SchleswigHolsteinArea | null> {
+  const values = [
+    c.city,
+    c.raw?.entry?.address?.city,
+    c.raw?.entry?.address?.cityName,
+    c.raw?.entry?.address?.town,
+    c.raw?.entry?.city,
+    c.district,
+  ];
+  const lookup = await loadSHAreaLookup();
+  for (const value of values) {
+    const candidate = String(value || "").split(/[;,]/)[0]
+      .replace(/\\b(?:schleswig-holstein|deutschland|germany)\\b/ig, "")
+      .trim();
+    const key = geoNameKey(candidate);
+    if (!key) continue;
+    const area = lookup.get(key);
+    if (area) return area;
+  }
+  return null;
 }
 function amountAfter(s: string, labels: string) {
   return deNum(
@@ -529,7 +590,9 @@ function validCandidate(source: Source, c: Candidate) {
   if (source.id === 21 && !/^https:\/\/www\.tauschwohnung\.com\/wohnung-mieten\/hamburg\//i.test(c.url) && !(c.raw?.provider === 'tauschwohnung_catalog' && c.key && c.url === `https://www.tauschwohnung.com/expose/${c.key}` && c.zip && hhZip(c.zip)))
     return false;
   if (source.id === 52 && /stellplatz|garage|parkplatz/i.test(c.url)) return false;
-  if (c.zip && !hhZip(c.zip)) return false;
+  if (source.search_capabilities?.region_state_code === "SH") {
+    if (!(c.city || c.raw?.entry?.address?.city || c.raw?.entry?.address?.cityName || c.district)) return false;
+  } else if (c.zip && !hhZip(c.zip)) return false;
   const text = `${c.title || ""} ${c.type || ""} ${c.raw?.text || ""}`;
   if (NON_RESIDENTIAL.test(text) && !RESIDENTIAL.test(text)) return false;
   return true;
@@ -539,6 +602,9 @@ async function normalize(
   c: Candidate,
   freshDeliveryEligible: boolean,
 ) {
+  const isSH = source.search_capabilities?.region_state_code === "SH";
+  const shArea = isSH ? await resolveSHArea(c) : null;
+  if (isSH && !shArea) return null;
   let canonicalUrl = c.url,
     keySeed = c.key || null;
   if (source.id === 10) {
@@ -567,7 +633,8 @@ async function normalize(
     address,
     district: c.district || null,
     postal_code: c.zip || null,
-    city: "Hamburg",
+    city: isSH ? shArea!.name : "Hamburg",
+    ...(isSH ? { state_code: "SH", admin_region_code: shArea!.parent_code, municipality_code: shArea!.area_code } : {}),
     warm_rent: c.warm ?? null,
     cold_rent: c.cold ?? null,
     additional_costs: c.additional ?? null,
@@ -615,6 +682,7 @@ export async function upsertCandidates(
     if (!validCandidate(source, c)) continue;
     try {
       const r = await normalize(source, c, freshDeliveryEligible);
+      if (!r) continue;
       map.set(r.source_listing_key, r);
     } catch {}
   }
