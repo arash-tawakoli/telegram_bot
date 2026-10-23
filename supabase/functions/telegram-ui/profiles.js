@@ -7,6 +7,8 @@ export function emptyDraft(profileSlot = 1) {
         location_mode: null,
         borough_ids: [],
         neighborhood_ids: [],
+        location_area_codes: [],
+        area_page: 0,
         neighborhood_page: 0,
         max_warm_rent: null,
         min_rooms: null,
@@ -35,7 +37,7 @@ export function normalizeDraft(raw) {
     return {
         profile_slot: Math.max(1, Math.min(4, Number(raw?.profile_slot) || 1)),
         property_types: Array.from(new Set(propertyTypes)).slice(0, 1),
-        location_mode: ["all_hamburg", "boroughs", "neighborhoods"].includes(String(raw?.location_mode || ""))
+        location_mode: ["all_hamburg", "boroughs", "neighborhoods", "all_schleswig_holstein", "schleswig_holstein_areas"].includes(String(raw?.location_mode || ""))
             ? raw.location_mode
             : legacyMode,
         borough_ids: Array.isArray(raw?.borough_ids)
@@ -46,6 +48,12 @@ export function normalizeDraft(raw) {
             : [],
         neighborhood_page: Number.isFinite(Number(raw?.neighborhood_page))
             ? Math.max(0, Number(raw.neighborhood_page))
+            : 0,
+        location_area_codes: Array.isArray(raw?.location_area_codes)
+            ? Array.from(new Set(raw.location_area_codes.map(String).filter((value) => /^[A-Z0-9]{2,12}$/.test(value))))
+            : [],
+        area_page: Number.isFinite(Number(raw?.area_page))
+            ? Math.max(0, Number(raw.area_page))
             : 0,
         max_warm_rent: finiteOrNull(raw?.max_warm_rent ?? raw?.rent),
         min_rooms: finiteOrNull(raw?.min_rooms ?? raw?.rooms),
@@ -99,6 +107,10 @@ export function validateDraft(draft) {
         !draft.neighborhood_ids.length) {
         return "neighborhoods";
     }
+    if (draft.location_mode === "schleswig_holstein_areas" &&
+        !draft.location_area_codes.length) {
+        return "shareas";
+    }
     if (draft.max_warm_rent == null ||
         draft.max_warm_rent < 100 ||
         draft.max_warm_rent > 5000) {
@@ -137,10 +149,44 @@ export async function renderLocation(user, chatId, messageId, draft) {
             [button(`${draft.location_mode === "all_hamburg" ? "✅ " : ""}🌐 Ganz Hamburg`, "loc:all")],
             [button(`${draft.location_mode === "boroughs" ? "✅ " : ""}🏙 Bezirke auswählen`, "loc:boroughs")],
             [button(`${draft.location_mode === "neighborhoods" ? "✅ " : ""}📍 Stadtteile auswählen`, "loc:neighborhoods")],
+            [button(`${draft.location_mode === "all_schleswig_holstein" ? "✅ " : ""}🌐 Ganz Schleswig-Holstein`, "loc:all_sh")],
+            [button(`${draft.location_mode === "schleswig_holstein_areas" ? "✅ " : ""}🗺 Kreise/Gemeinden auswählen`, "loc:areas_sh")],
             backRow(draft.profile_edit ? `profile:edit:${draft.profile_slot}` : "types"),
             cancelRow(),
         ],
     });
+}
+
+export async function renderSchleswigHolsteinAreas(user, chatId, messageId, draft) {
+    const geo = await geography();
+    const areas = (geo.schleswigHolsteinAreas || []).filter((entry) => entry.area_type !== "state");
+    const areaByCode = new Map(areas.map((entry) => [String(entry.area_code), entry]));
+    const pageSize = 20;
+    const pages = Math.max(1, Math.ceil(areas.length / pageSize));
+    const page = Math.max(0, Math.min(Number(draft.area_page || 0), pages - 1));
+    draft.area_page = page;
+    await saveDraft(user, "shareas", draft);
+    const selected = new Set((draft.location_area_codes || []).map(String));
+    const entries = areas.slice(page * pageSize, (page + 1) * pageSize);
+    const rows = [];
+    for (let index = 0; index < entries.length; index += 2) {
+        rows.push(entries.slice(index, index + 2).map((area) => {
+            const parent = area.area_type === "municipality" ? areaByCode.get(String(area.parent_code)) : null;
+            const label = `${selected.has(String(area.area_code)) ? "✅ " : ""}${area.name}${parent ? ` · ${parent.name}` : ""}`;
+            return button(label, `sharea:${area.area_code}`);
+        }));
+    }
+    rows.push([
+        button("Alle auswählen", "sharea:all"),
+        button("Auswahl löschen", "sharea:clear"),
+    ], [
+        button("←", "sharea:prev"),
+        button(`${page + 1}/${pages}`, "noop"),
+        button("→", "sharea:next"),
+    ], [button("Auswahl bestätigen", "sharea:done")], backRow("location", "sharea:back"), cancelRow());
+    const text = "📍 <b>Gebiete in Schleswig-Holstein</b>\n\nWähle Kreise, kreisfreie Städte oder Gemeinden.\n\nAusgewählt: " +
+        `${selected.size}/${areas.length}`;
+    return edit(chatId, messageId, text, { inline_keyboard: rows });
 }
 
 export async function renderBoroughs(user, chatId, messageId, draft) {
@@ -251,6 +297,28 @@ export async function renderArea(user, chatId, messageId, draft) {
 
 export async function selectedPlaces(draft) {
     const geo = await geography();
+    if (draft.location_mode === "all_schleswig_holstein") {
+        return {
+            location: "Ganz Schleswig-Holstein",
+            districts: ["Ganz Schleswig-Holstein"],
+            boroughs: [],
+            neighborhoods: [],
+            location_area_codes: [],
+        };
+    }
+    if (draft.location_mode === "schleswig_holstein_areas") {
+        const codes = new Set((draft.location_area_codes || []).map(String));
+        const selected = (geo.schleswigHolsteinAreas || []).filter((area) => area.area_type !== "state" && codes.has(String(area.area_code)));
+        const names = selected.map((area) => area.name);
+        const location = names.length > 5 ? `${names.slice(0, 5).join(", ")} … (+${names.length - 5})` : names.join(", ");
+        return {
+            location: location || "Schleswig-Holstein",
+            districts: names,
+            boroughs: [],
+            neighborhoods: [],
+            location_area_codes: [...codes],
+        };
+    }
     if (draft.location_mode === "boroughs") {
         const selectedIds = new Set(draft.borough_ids);
         const boroughs = geo.boroughs
@@ -326,6 +394,8 @@ export function renderStep(user, chatId, messageId, draft, step) {
     if (step === "neighborhoods") {
         return renderNeighborhoods(user, chatId, messageId, draft);
     }
+    if (step === "shareas")
+        return renderSchleswigHolsteinAreas(user, chatId, messageId, draft);
     if (step === "rent")
         return renderRent(user, chatId, messageId, draft);
     if (step === "rent_custom") {
@@ -383,6 +453,10 @@ export async function persistProfile(user, draft) {
 export function profileLimit(user) { return user.is_premium ? 4 : 1; }
 
 export function profileLocation(current) {
+    if (current.location_mode === "all_schleswig_holstein")
+        return "Ganz Schleswig-Holstein";
+    if (current.location_mode === "schleswig_holstein_areas")
+        return (current.districts || []).join(", ") || "Schleswig-Holstein";
     return current.location_mode === "all_hamburg"
         ? "Ganz Hamburg"
         : current.location_mode === "boroughs"
@@ -412,6 +486,8 @@ export async function draftFromProfile(current) {
         neighborhood_ids: geo.neighborhoods
             .filter((entry) => neighborhoodNames.has(String(entry.name)))
             .map((entry) => entry.id),
+        location_area_codes: Array.isArray(current.location_area_codes) ? current.location_area_codes.map(String) : [],
+        area_page: 0,
         neighborhood_page: 0,
         max_warm_rent: current.max_warm_rent,
         min_rooms: current.min_rooms,
