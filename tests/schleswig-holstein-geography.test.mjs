@@ -75,6 +75,8 @@ test("Telegram and source adapters expose Schleswig-Holstein without changing Ha
   assert.ok(handlers.includes('onboarding_step === "schleswig_holstein_search"'));
   assert.ok(handlers.includes('data === "shsearch:start"'));
   assert.ok(handlers.includes('data.startsWith("shsearch:pick:")'));
+  assert.ok(handlers.includes("location_area_search_return_step"), "text search must restore the previous onboarding step after a result is selected");
+  assert.ok(handlers.includes("await saveState(user.id, returnStep, { ...draft }"), "search selection must persist the restored draft without clearing it");
   assert.ok(handlers.includes("geo.schleswigHolsteinAliases"));
   assert.ok(runtime.includes("schleswigHolsteinAreas"));
   assert.ok(runtime.includes('db.rpc("get_schleswig_holstein_areas")'));
