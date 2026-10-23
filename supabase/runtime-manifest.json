@@ -1,5 +1,5 @@
 {
-  "observed_at": "2026-10-23T09:39:52.745Z",
+  "observed_at": "2026-10-23T10:39:47.834Z",
   "project_id": "dpmohkrwdlicexwcrqfy",
   "snapshot_kind": "repository_with_observed_deployment_hashes",
   "functions": [
@@ -185,7 +185,8 @@
         {
           "path": "supabase/functions/coach-api/index.ts",
           "sha256": "7e9418aa3a9c2d1bedb0e17018f30751f7b80f4020ce9809628b0cb2cee6f519",
-          "deployed_sha256": "0066b28dc91f558bc9d7c027c70b8b13d1ac5781e0e7a285268fe7fcb9ecf35e"
+          "deployed_sha256": "0066b28dc91f558bc9d7c027c70b8b13d1ac5781e0e7a285268fe7fcb9ecf35e",
+          "git_blob_sha": "afb6477e998f17653f1d6a6325447dfbdf43b0ea"
         },
         {
           "path": "supabase/functions/_shared/application-profile-adapters.ts",
@@ -1002,7 +1003,8 @@
         {
           "path": "supabase/functions/source-worker/shared.ts",
           "sha256": "dda7f25cf759704e0404cec67c669fb7aedb6462033a19cb601be05f6d8d10f1",
-          "deployed_sha256": "f9a7dea392346caca89f020f4b5d3350b018a95354bf9156d6d9913cddfb55e4"
+          "deployed_sha256": "f9a7dea392346caca89f020f4b5d3350b018a95354bf9156d6d9913cddfb55e4",
+          "git_blob_sha": "2142e183a83e2ca16db7f4303fcd7f255b8ad37a"
         },
         {
           "path": "supabase/functions/_shared/hamburg.ts",
@@ -1101,7 +1103,8 @@
         {
           "path": "supabase/functions/source-worker/shared.ts",
           "sha256": "dda7f25cf759704e0404cec67c669fb7aedb6462033a19cb601be05f6d8d10f1",
-          "deployed_sha256": "f9a7dea392346caca89f020f4b5d3350b018a95354bf9156d6d9913cddfb55e4"
+          "deployed_sha256": "f9a7dea392346caca89f020f4b5d3350b018a95354bf9156d6d9913cddfb55e4",
+          "git_blob_sha": "2142e183a83e2ca16db7f4303fcd7f255b8ad37a"
         },
         {
           "path": "supabase/functions/_shared/hamburg.ts",
@@ -1121,7 +1124,8 @@
         {
           "path": "supabase/functions/source-worker/scout.ts",
           "sha256": "4708467e515bfa5efa7d2533f522ba44a2f4310669109cd5c8bbf586a5084895",
-          "deployed_sha256": "f901ddd4d7af278f43df41d7b4f8908232ac6d52a7fb6a8b313f0871e1b8ed27"
+          "deployed_sha256": "f901ddd4d7af278f43df41d7b4f8908232ac6d52a7fb6a8b313f0871e1b8ed27",
+          "git_blob_sha": "7324760ae7897c059409c3ba507d73a3223b6578"
         },
         {
           "path": "supabase/functions/source-worker/category-persist.ts",
@@ -1136,7 +1140,8 @@
         {
           "path": "supabase/functions/source-worker/klein.ts",
           "sha256": "8981e62d8f1833c305d5259b39be2b16b2c34898b5568e5d745b996b23392b7d",
-          "deployed_sha256": "9ea0c156d2f9d84353aa397e62798f71433a9c8d47010eb8b2be8c5bd06d129b"
+          "deployed_sha256": "9ea0c156d2f9d84353aa397e62798f71433a9c8d47010eb8b2be8c5bd06d129b",
+          "git_blob_sha": "0627ba70b1fc31de1951e23bcc4ec3ac59276916"
         },
         {
           "path": "supabase/functions/kleinanzeigen-transport/fetch-page.ts",
@@ -1151,7 +1156,8 @@
         {
           "path": "supabase/functions/source-worker/immomio.ts",
           "sha256": "3e1290f60cd1ac5a13e62062e7258c1d72067bdd73dcd09066f3ed12a6ad9848",
-          "deployed_sha256": "fbd12e7e8526bfca3fbc34c8549d6d00301c0e18d362e9a731a87b8fa5973528"
+          "deployed_sha256": "fbd12e7e8526bfca3fbc34c8549d6d00301c0e18d362e9a731a87b8fa5973528",
+          "git_blob_sha": "689160d74b771aeb74c1fb90546ba63efbd07385"
         },
         {
           "path": "supabase/functions/source-worker/immomio-inventory.ts",
@@ -1166,7 +1172,8 @@
         {
           "path": "supabase/functions/source-worker/generic.ts",
           "sha256": "50c68ce72f6ade8e69a3c79570c305a6254af0f146364270aa429454f8904560",
-          "deployed_sha256": "e48496ea4ae8dab9298b6560b163660591424ff90ad9d86c0e24b8ad31200ed6"
+          "deployed_sha256": "e48496ea4ae8dab9298b6560b163660591424ff90ad9d86c0e24b8ad31200ed6",
+          "git_blob_sha": "6eb03823b8a73a57707c763c4fb52e81fd58ab37"
         },
         {
           "path": "supabase/functions/source-worker/job-runner.ts",
