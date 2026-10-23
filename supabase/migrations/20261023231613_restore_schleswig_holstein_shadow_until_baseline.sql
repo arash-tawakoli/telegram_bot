@@ -1,12 +1,13 @@
--- Keep Schleswig-Holstein listing delivery in shadow mode until the adaptive baseline finishes.
--- The dedicated hourly enqueue function continues coverage without notifying users from an incomplete baseline.
+-- Keep Schleswig-Holstein delivery in shadow until the initial coverage baseline completes.
+-- This migration must also run on a clean preview branch where no runtime coverage row exists yet.
 DO $precheck$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM public.source_coverage_state
-    WHERE source_id=69 AND status='running'
+    SELECT 1 FROM public.sources
+    WHERE id=69
+      AND search_capabilities->>'region_state_code'='SH'
   ) THEN
-    RAISE EXCEPTION 'Schleswig-Holstein baseline coverage is not running; refusing to change delivery mode';
+    RAISE EXCEPTION 'Dedicated Schleswig-Holstein source 69 is missing or misconfigured';
   END IF;
   IF position('s.id = 69' in pg_get_functiondef('app_private.enqueue_due_source_jobs(integer)'::regprocedure))=0 THEN
     RAISE EXCEPTION 'Hourly shadow-mode enqueue support for source 69 is not installed';
