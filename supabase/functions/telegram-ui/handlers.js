@@ -586,23 +586,36 @@ export async function handleCallback(query, user) {
         const area = areas.find((entry) => String(entry.area_code) === value);
         if (!area)
             return renderSchleswigHolsteinAreas(user, chatId, messageId, draft);
-        if (selected.has(value)) {
-            selected.delete(value);
-        }
-        else if (area.area_type === "county") {
-            for (const candidate of areas) {
-                if (String(candidate.parent_code) === value)
-                    selected.delete(String(candidate.area_code));
+        if (area.area_type === "county" || area.area_type === "independent_city") {
+            if (selected.has(value)) {
+                selected.delete(value);
             }
-            selected.add(value);
+            else {
+                for (const candidate of areas) {
+                    if (String(candidate.parent_code) === value)
+                        selected.delete(String(candidate.area_code));
+                }
+                selected.add(value);
+            }
         }
         else if (area.area_type === "municipality") {
-            if (selected.has(String(area.parent_code)))
-                selected.delete(String(area.parent_code));
-            selected.add(value);
-        }
-        else {
-            selected.add(value);
+            const parentCode = String(area.parent_code);
+            if (selected.has(parentCode)) {
+                // Convert a selected parent into all of its municipalities except
+                // the clicked one, so toggling one municipality does not drop
+                // the rest of the county or independent city from the search.
+                selected.delete(parentCode);
+                for (const candidate of areas) {
+                    if (String(candidate.parent_code) === parentCode && String(candidate.area_code) !== value)
+                        selected.add(String(candidate.area_code));
+                }
+            }
+            else if (selected.has(value)) {
+                selected.delete(value);
+            }
+            else {
+                selected.add(value);
+            }
         }
         draft.location_area_codes = [...selected];
         draft.location_mode = "schleswig_holstein_areas";
