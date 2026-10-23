@@ -37,6 +37,14 @@ const mapSearch=(query:string)=>tool('property_map_de',query);
 function entryId(e:any){return String(e?.exposedId||e?.exposeId||e?.id||'')}
 async function enrichedSearch(query:string){const [r,m]=await Promise.all([search(query),mapSearch(query).then(x=>({ok:true,...x})).catch(e=>({ok:false,entries:[] as any[],total:null,error:e instanceof Error?e.message:String(e)}))]);const byId=new Map<string,any>();for(const e of m.entries||[]){const id=entryId(e);if(id)byId.set(id,e)}let enriched=0;const entries=r.entries.map((e:any)=>{const x=byId.get(entryId(e));if(!x)return e;const patch:any={};for(const k of ['totalRent','serviceCharge','heatingCosts','heatingCostsInServiceCharge'])if(x[k]!=null)patch[k]=x[k];if(Object.keys(patch).length)enriched++;return{...e,...patch}});return{...r,entries,map_entries:m.entries||[],map_ok:m.ok,map_returned:(m.entries||[]).length,map_enriched:enriched,map_error:m.ok?null:m.error||'map error'}}
 function query(x:any){const a=['Wohnung zur Miete',`in ${x.neighborhood||x.borough}, Hamburg`];if(x.min!=null&&x.max!=null)a.push(`zwischen ${Math.round(x.min)} und ${Math.round(x.max)} Euro monatlich`);else if(x.max!=null)a.push(`maximal ${Math.round(x.max)} Euro monatlich`);else if(x.min!=null)a.push(`ab ${Math.round(x.min)} Euro monatlich`);return a.join(', ')}
+function schleswigHolsteinQuery(x:any){
+  const lead=x.kind==='house'?'Häuser zur Miete':x.kind==='room'?'WG-Zimmer zur Miete':'Wohnungen zur Miete';
+  const a=[lead,'in Schleswig-Holstein','neueste Inserate'];
+  if(x.min!=null&&x.max!=null)a.push(`zwischen ${Math.round(x.min)} und ${Math.round(x.max)} Euro monatlich`);
+  else if(x.max!=null)a.push(`maximal ${Math.round(x.max)} Euro monatlich`);
+  else if(x.min!=null)a.push(`ab ${Math.round(x.min)} Euro monatlich`);
+  return a.join(', ');
+}
 function children(x:any){const lo=x.min==null?null:Number(x.min),hi=x.max==null?null:Number(x.max),d=Number(x.depth||0)+1;if(lo==null&&hi==null)return [[null,750],[750,1000],[1000,1250],[1250,1500],[1500,2000],[2000,3000],[3000,5000],[5000,null]].map(([min,max])=>({...x,min,max,depth:d}));if(lo==null&&hi!=null&&hi>50){const m=Math.round(hi/2);return[{...x,min:null,max:m,depth:d},{...x,min:m,max:hi,depth:d}]}if(lo!=null&&hi==null){const m=lo+2500;return[{...x,min:lo,max:m,depth:d},{...x,min:m,max:null,depth:d}]}if(lo!=null&&hi!=null&&hi-lo>25){const m=Math.round((lo+hi)/2);return[{...x,min:lo,max:m,depth:d},{...x,min:m,max:hi,depth:d}]}return[]}
 async function recordNeighborhoodSearch(sourceId:number,target:any,result:any,queryText:string){
   const {data:neighborhood,error:lookupError}=await db.from('hamburg_neighborhoods').select('id,name').eq('name',target.neighborhood).maybeSingle();
@@ -95,7 +103,7 @@ function scoutCooperativeIdentity(e:any){
   const candidate=/\b(?:Baugenossenschaft|Wohnungsgenossenschaft|Wohnungsbaugenossenschaft|Wohngenossenschaft|Mietergenossenschaft|Bauverein)\b/i.test(text);
   return {provider_entity:null,provider_object_ref:null,provider_registry_mode:null,provider_source_id:null,cooperative_candidate:candidate,cooperative_candidate_text:candidate?text.slice(0,1200):null};
 }
-function candidates(entries:any[],q:string):Candidate[]{return entries.map(e=>{const id=entryId(e),a=e.address||{},cooperative=scoutCooperativeIdentity(e);return{key:id,url:e.exposeUrl||`https://www.immobilienscout24.de/expose/${id}`,title:e.title||`ImmobilienScout24 ${id}`,address:[a.street,a.houseNumber].filter(Boolean).join(' ')||null,district:a.quarter||null,zip:a.postcode||null,warm:deNum(e.totalRent),cold:deNum(e.price?.value),additional:deNum(e.serviceCharge),heating:deNum(e.heatingCosts),rooms:deNum(e.rooms),area:deNum(e.size),image:Array.isArray(e.titlePictureUrls)?e.titlePictureUrls[0]?.href?.replace(/%WIDTH%/g,'1200').replace(/%HEIGHT%/g,'800'):null,raw:{provider:'immoscout_mcp',query:q,entry:e,...(cooperative.provider_entity?{provider_entity:cooperative.provider_entity}:{}),...(cooperative.provider_object_ref?{provider_object_ref:cooperative.provider_object_ref}:{}),...(cooperative.provider_entity==="SAGA"&&cooperative.provider_object_ref?{saga_object_ref:cooperative.provider_object_ref}:{}),...(cooperative.provider_entity&&(!cooperative.provider_object_ref)?{portal_enrichment_pending:true}:{}),...(cooperative.provider_registry_mode?{provider_registry_mode:cooperative.provider_registry_mode}:{}),...(cooperative.provider_source_id!=null?{provider_source_id:cooperative.provider_source_id}:{}),...(cooperative.cooperative_candidate?{cooperative_candidate:true,cooperative_candidate_text:cooperative.cooperative_candidate_text}:{})}}})}
+function candidates(entries:any[],q:string):Candidate[]{return entries.map(e=>{const id=entryId(e),a=e.address||{},cooperative=scoutCooperativeIdentity(e);return{key:id,url:e.exposeUrl||`https://www.immobilienscout24.de/expose/${id}`,title:e.title||`ImmobilienScout24 ${id}`,address:[a.street,a.houseNumber].filter(Boolean).join(' ')||null,district:a.quarter||null,city:a.city||a.cityName||e.city||e.cityName||null,zip:a.postcode||null,warm:deNum(e.totalRent),cold:deNum(e.price?.value),additional:deNum(e.serviceCharge),heating:deNum(e.heatingCosts),rooms:deNum(e.rooms),area:deNum(e.size),image:Array.isArray(e.titlePictureUrls)?e.titlePictureUrls[0]?.href?.replace(/%WIDTH%/g,'1200').replace(/%HEIGHT%/g,'800'):null,raw:{provider:'immoscout_mcp',query:q,entry:e,...(cooperative.provider_entity?{provider_entity:cooperative.provider_entity}:{}),...(cooperative.provider_object_ref?{provider_object_ref:cooperative.provider_object_ref}:{}),...(cooperative.provider_entity==="SAGA"&&cooperative.provider_object_ref?{saga_object_ref:cooperative.provider_object_ref}:{}),...(cooperative.provider_entity&&(!cooperative.provider_object_ref)?{portal_enrichment_pending:true}:{}),...(cooperative.provider_registry_mode?{provider_registry_mode:cooperative.provider_registry_mode}:{}),...(cooperative.provider_source_id!=null?{provider_source_id:cooperative.provider_source_id}:{}),...(cooperative.cooperative_candidate?{cooperative_candidate:true,cooperative_candidate_text:cooperative.cooperative_candidate_text}:{})}}})}
 function propagateDetails(items:Candidate[]){const known=new Map<string,{warm:number|null;additional:number|null;heating:number|null}>();for(const c of items){const k=String(c.key||'');if(!k)continue;const p=known.get(k)||{warm:null,additional:null,heating:null};known.set(k,{warm:c.warm??p.warm,additional:c.additional??p.additional,heating:c.heating??p.heating})}return items.map(c=>{const p=known.get(String(c.key||''));return p?{...c,warm:c.warm??p.warm,additional:c.additional??p.additional,heating:c.heating??p.heating}:c})}
 async function preserveKnown(sourceId:number,items:Candidate[]){const keys=[...new Set(items.map(c=>String(c.key||'')).filter(Boolean))],known=new Map<string,any>();for(let i=0;i<keys.length;i+=300){const{data,error}=await db.from('listings').select('source_listing_key,warm_rent,additional_costs,heating_costs').eq('source_id',sourceId).in('source_listing_key',keys.slice(i,i+300)).throwOnError();if(error)throw error;for(const x of data||[])known.set(String(x.source_listing_key),x)}return items.map(c=>{const x=known.get(String(c.key||''));return x?{...c,warm:c.warm??deNum(x.warm_rent),additional:c.additional??deNum(x.additional_costs),heating:c.heating??deNum(x.heating_costs)}:c})}
 export async function runScout(source:Source){const started=iso();try{await loadCooperativeRegistry();await init();let{data:st}=await db.from('source_coverage_state').select('*').eq('source_id',source.id).maybeSingle().throwOnError();let cycle=st?.status==='running'?String(st.cycle_id):crypto.randomUUID(),cursor:any=st?.status==='running'?(st.cursor||{}):{};if(st?.status!=='running'){cursor={queue:[...TARGET_NEIGHBORHOODS.map(target=>({borough:target.borough,neighborhood:target.name,min:null,max:null,depth:0,coverage_target:true})),...BOROUGHS.map(b=>({borough:b,min:null,max:null,depth:0}))],processed:0,fresh_borough_index:Number(st?.cursor?.fresh_borough_index||0),map_seen_ids:Array.isArray(st?.cursor?.map_seen_ids)?st.cursor.map_seen_ids:[],neighborhood_targets_seeded:true};await db.from('source_coverage_state').upsert({source_id:source.id,cycle_id:cycle,strategy:'adaptive_partition',status:'running',cursor,cycle_started_at:started,seen_count:0,request_count:0,updated_at:started}).throwOnError()};if(cursor.neighborhood_targets_seeded!==true){const queued=Array.isArray(cursor.queue)?cursor.queue:[],queuedTargets=new Set(queued.filter((x:any)=>x?.coverage_target===true).map((x:any)=>String(x.neighborhood||''))),missingTargets=TARGET_NEIGHBORHOODS.filter(target=>!queuedTargets.has(target.name)).map(target=>({borough:target.borough,neighborhood:target.name,min:null,max:null,depth:0,coverage_target:true}));cursor={...cursor,queue:[...missingTargets,...queued],neighborhood_targets_seeded:true}}
@@ -113,4 +121,90 @@ function scoutPublishedAt(entry:any){
   }
   return null;
 }
+
+export async function runScoutSchleswigHolstein(source:Source){
+  const started=iso();
+  try{
+    await loadCooperativeRegistry();
+    await init();
+    let {data:state}=await db.from('source_coverage_state').select('*').eq('source_id',source.id).maybeSingle().throwOnError();
+    const newCycle=state?.status!=='running';
+    const cycle=newCycle?crypto.randomUUID():String(state.cycle_id);
+    let cursor:any=newCycle
+      ?{queue:['apartment','house','room'].map(kind=>({kind,min:null,max:null,depth:0})),processed:0}
+      :(state?.cursor||{});
+    if(newCycle){
+      await db.from('source_coverage_state').upsert({
+        source_id:source.id,cycle_id:cycle,strategy:'schleswig_holstein_adaptive_price_mcp',
+        status:'running',cursor,cycle_started_at:started,cycle_finished_at:null,
+        seen_count:0,request_count:0,consecutive_errors:0,backoff_until:null,last_error:null,updated_at:started
+      }).throwOnError();
+      state={...state,cycle_id:cycle,cycle_started_at:started,seen_count:0,request_count:0,status:'running',cursor};
+    }
+    const queue:any[]=Array.isArray(cursor.queue)?cursor.queue:[];
+    const work=queue.splice(0,3);
+    const candidatesByKey=new Map<string,{candidate:Candidate;fresh:boolean}>();
+    let requests=0,mapErrors=0,processed=0,saturated=0,totalReported=0;
+    for(const partition of work){
+      const q=schleswigHolsteinQuery(partition);
+      const result=await enrichedSearch(q);
+      requests+=2;
+      if(!result.map_ok)mapErrors++;
+      totalReported+=Number(result.total||0);
+      const kind=partition.kind==='house'?'Haus':partition.kind==='room'?'WG':'Wohnung';
+      for(const base of candidates(result.entries,q)){
+        const published=scoutPublishedAt(base.raw?.entry);
+        const age=published?Date.now()-new Date(published).getTime():Number.POSITIVE_INFINITY;
+        const fresh=source.delivery_mode==='live'&&published!=null&&age>=-5*60*1000&&age<=24*60*60*1000;
+        const candidate:Candidate={
+          ...base,type:kind,city:base.city||base.raw?.entry?.address?.city||base.raw?.entry?.address?.cityName||null,
+          raw:{
+            ...base.raw,region_state_code:'SH',search_kind:partition.kind,
+            delivery_lane:fresh?'sh_fresh':'sh_coverage',
+            ...(published?{_newness:{method:'source_timestamp',source_published_at:published}}:{})
+          }
+        };
+        const key=String(candidate.key||candidate.url);
+        const previous=candidatesByKey.get(key);
+        if(!previous||fresh&&!previous.fresh)candidatesByKey.set(key,{candidate,fresh});
+      }
+      const isSaturated=(result.total!=null&&Number(result.total)>result.entries.length)||result.entries.length>=25;
+      if(isSaturated){
+        const next=children(partition);
+        if(next.length)queue.push(...next);
+        else saturated++;
+      }
+      processed++;
+    }
+    const freshRows=[...candidatesByKey.values()].filter(x=>x.fresh).map(x=>x.candidate);
+    const coverageRows=[...candidatesByKey.values()].filter(x=>!x.fresh).map(x=>x.candidate);
+    const presenceEpoch=String(state?.cycle_started_at||started);
+    const freshSaved=freshRows.length?await upsertCandidates(source,freshRows,true,presenceEpoch):{seen:0,fresh:0,keys:[] as string[]};
+    const coverageSaved=coverageRows.length?await upsertCandidates(source,coverageRows,false,presenceEpoch):{seen:0,fresh:0,keys:[] as string[]};
+    const seen=freshSaved.seen+coverageSaved.seen;
+    const inserted=freshSaved.fresh+coverageSaved.fresh;
+    const complete=queue.length===0;
+    const finished=iso();
+    await db.from('source_coverage_state').update({
+      status:complete?'complete':'running',
+      cursor:{queue,processed:Number(cursor.processed||0)+processed,last_partition_at:finished},
+      seen_count:Number(state?.seen_count||0)+seen,
+      request_count:Number(state?.request_count||0)+requests,
+      cycle_finished_at:complete?finished:null,
+      last_complete_at:complete?finished:state?.last_complete_at||null,
+      updated_at:finished,
+      last_error:saturated?String(saturated)+' saturated price partitions':null
+    }).eq('source_id',source.id).throwOnError();
+    await markSuccess(source,started,null,freshRows.length+coverageRows.length,inserted,{
+      strategy:'schleswig_holstein_adaptive_price_mcp',cycle_id:cycle,requests,
+      partitions:work.length,map_errors:mapErrors,remaining:queue.length,complete,
+      fresh_candidates:freshRows.length,coverage_candidates:coverageRows.length,
+      reported_total:totalReported,saturated
+    });
+    return {ok:true,source_id:source.id,fetched:freshRows.length+coverageRows.length,new:inserted,remaining:queue.length,cycle_complete:complete,requests,map_errors:mapErrors};
+  }catch(error){
+    return markFailure(source,started,error);
+  }
+}
+
 export async function runScoutCategory(source:Source,stream:any){if(stream?.category!=='house')throw new Error('unsupported Scout category stream');await loadCooperativeRegistry();await init();const q='Häuser zur Miete in Hamburg, neueste Inserate',r=await enrichedSearch(q),rows:Candidate[]=[];for(const c of candidates(r.entries,q)){const published=scoutPublishedAt(c.raw?.entry);rows.push({...c,raw:{...c.raw,...(published?{_newness:{method:'source_timestamp',source_published_at:published}}:{})}})}const saved=await persistCategoryListings(source,stream,rows,false);return{requests:4,candidates:saved.seen,fresh:saved.fresh,cursor:{query:q,returned:r.entries.length,total:r.total,map_ok:r.map_ok,map_returned:r.map_returned,last_checked_at:iso()}}}
