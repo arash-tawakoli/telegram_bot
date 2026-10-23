@@ -25,6 +25,7 @@ alter table public.search_profiles add column if not exists location_state_code 
 alter table public.listings add column if not exists state_code text not null default 'HH', add column if not exists admin_region_code text, add column if not exists municipality_code text;
 alter table public.search_profiles drop constraint if exists search_profiles_location_mode_check;
 alter table public.search_profiles add constraint search_profiles_location_mode_check check (location_mode in ('all_hamburg','boroughs','neighborhoods','all_schleswig_holstein','schleswig_holstein_areas'));
+alter table public.geo_areas enable row level security;
 insert into public.geo_areas(area_code,state_code,parent_code,area_type,name,official_code,source_name,source_vintage,is_active)
 values ('HH','HH',null,'state','Hamburg','02','Statistik Nord','2026-10-22',true),('SH','SH',null,'state','Schleswig-Holstein','01','Destatis / Statistik Nord','2026-01-01',true)
 on conflict(area_code) do update set name=excluded.name,state_code=excluded.state_code,parent_code=excluded.parent_code,area_type=excluded.area_type,is_active=true,updated_at=now();
@@ -1159,7 +1160,6 @@ insert into public.geo_areas(area_code,state_code,parent_code,area_type,name,off
 on conflict(area_code) do update set name=excluded.name,parent_code=excluded.parent_code,area_type=excluded.area_type,official_code=excluded.official_code,source_name=excluded.source_name,source_vintage=excluded.source_vintage,is_active=true,updated_at=now();
 create table if not exists public.geo_area_aliases (alias text not null,area_code text not null references public.geo_areas(area_code) on delete cascade,source_name text not null default 'manual',primary key(alias,area_code));
 create index if not exists geo_area_aliases_alias_idx on public.geo_area_aliases(lower(alias));
-alter table public.geo_areas enable row level security;
 alter table public.geo_area_aliases enable row level security;
 
 -- Keep the geographic catalog service-only and access it through narrow RPCs.
