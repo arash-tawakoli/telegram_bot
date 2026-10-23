@@ -1,5 +1,5 @@
 {
-  "observed_at": "2026-10-23T12:45:00.000Z",
+  "observed_at": "2026-10-23T12:50:00.000Z",
   "project_id": "dpmohkrwdlicexwcrqfy",
   "snapshot_kind": "repository_with_observed_deployment_hashes",
   "functions": [
@@ -361,31 +361,34 @@
         {
           "path": "supabase/functions/immomio-account/index.ts",
           "sha256": "0661d3bdfe130c77ddf4d4abdc16d0fa08840442e5730e61f379d98151def6ba",
-          "deployed_sha256": "0661d3bdfe130c77ddf4d4abdc16d0fa08840442e5730e61f379d98151def6ba"
+          "deployed_sha256": "b9d8b3f0deed44d2327cdaf2877069311516512cb1f0a1f3a6e3acdfc966ad8f",
+          "deployed_git_blob_sha": "9094ea9c08696a4ccf6104df952a4644310b0a0f"
         },
         {
           "path": "supabase/functions/immomio-account/providers/immomio.ts",
           "sha256": "1e845ed15fc6bd553c16bb9e505cccabf57af2f7c70f6780a55c4dde04a87772",
-          "deployed_sha256": "1e845ed15fc6bd553c16bb9e505cccabf57af2f7c70f6780a55c4dde04a87772"
+          "deployed_sha256": "d8c42279d70dca36e4bbb6bcf39c7acd8db060bd315c72231a8199da619e97e0",
+          "deployed_git_blob_sha": "8f972c0a1f1ba935eaa7f875c9dd6e5ba0798734"
         },
         {
           "path": "supabase/functions/immomio-account/credentials.ts",
           "sha256": "2f9ada4328121560fa9dffd639c670a507ba09d5ea3eb18f09ad070a7f705107",
-          "deployed_sha256": "2f9ada4328121560fa9dffd639c670a507ba09d5ea3eb18f09ad070a7f705107"
+          "deployed_sha256": "fabc8a7c1452e3d7a7b46a9a78dae6577d3698d6c5e051a024d08f7b7aada3cc",
+          "deployed_git_blob_sha": "2078d5be29eeb79403bb75d17dbccdcaad8e921e"
         },
         {
           "path": "supabase/functions/_shared/platform-refresh.ts",
           "sha256": "b8d377a1f4e6ea172c0cdbfe683bc18a6cb909cdc7990fa8e0583be38d1194ba",
           "git_blob_sha": "2cf1c5d1399d14f21185ce32797b1d6d1e9d9c0a",
-          "deployed_sha256": "b8d377a1f4e6ea172c0cdbfe683bc18a6cb909cdc7990fa8e0583be38d1194ba",
+          "deployed_sha256": "5ee44d2e16f1526965b05756ad35ee65ecad513a5cb728b9d7bf0f7276efd48c",
           "deployed_git_blob_sha": "2cf1c5d1399d14f21185ce32797b1d6d1e9d9c0a"
         }
       ],
-      "observed_live_version": 20,
+      "observed_live_version": 21,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "3e93ec9cdc6f5e077b559714d22aeb89a176b5eb06cc52212f1ca8d268be2419",
-      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-03.json",
-      "source_archive_file_count": 3,
+      "observed_live_artifact_sha256": "41a63bc4e9549ebacca67f5afeff2e1116a834100273c7eabf0030aa8bf8210d",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-23/bundles/batch-24.json",
+      "source_archive_file_count": 4,
       "source_archive_status": "full_source",
       "classification": "support_review",
       "review_status": "support/review; retain pending dependency-aware classification"
@@ -937,53 +940,62 @@
         {
           "path": "supabase/functions/notification-dispatcher/index.ts",
           "sha256": "44fd5cf7798c85ba56cd1bd52788e1f1dc3acd77236ebf24b759f93eb4104dae",
-          "deployed_sha256": "44fd5cf7798c85ba56cd1bd52788e1f1dc3acd77236ebf24b759f93eb4104dae"
+          "deployed_sha256": "82e14dcfa2b88a4f8479d56957bcb8cbedae0f9ba3a301300786b9070bb61c8a",
+          "deployed_git_blob_sha": "0af111544c92a42fdf6894e84f4d0f7dee8fdb2d"
         },
         {
           "path": "supabase/functions/notification-dispatcher/availability.ts",
           "sha256": "988c94c6cb00d8ab1fa0609997ff2dcc4bc6f32a09cfc5f239571c14d0a90b47",
-          "deployed_sha256": "988c94c6cb00d8ab1fa0609997ff2dcc4bc6f32a09cfc5f239571c14d0a90b47"
+          "deployed_sha256": "e6d14ca84714ffd04b8b74cf2739b22f56a20df4dc06305f67a4e39d600c46f9",
+          "deployed_git_blob_sha": "cbe6b81ecc02c11e49e477a2dd494de2d8d571fc"
         },
         {
           "path": "supabase/functions/notification-dispatcher/newness.ts",
           "sha256": "3044e4d9192c23f9df4713c2016b6f9704bcbc4ead8499e062a08af6aea1d5d4",
-          "deployed_sha256": "3044e4d9192c23f9df4713c2016b6f9704bcbc4ead8499e062a08af6aea1d5d4"
+          "deployed_sha256": "66b96f37ce2f713f0a11dbbb8208963074df777714c51b6b02664d07db887a67",
+          "deployed_git_blob_sha": "ab9d7aa373118acdd9a5328f2d830b13822b7fdf"
         },
         {
           "path": "supabase/functions/notification-dispatcher/preview-delivery.ts",
           "sha256": "c444a8db643fcd0f90f77df658a67255c989bff4443a479c393b41331b08bfbd",
-          "deployed_sha256": "c444a8db643fcd0f90f77df658a67255c989bff4443a479c393b41331b08bfbd"
+          "deployed_sha256": "f4a3e196a793623f247fe59226b1f11a14684371844624938de6f1be7b36c0c1",
+          "deployed_git_blob_sha": "dc1251e56e855e59a4c0b6d25ae6da512cc8d6b0"
         },
         {
           "path": "supabase/functions/notification-dispatcher/telegram-request.ts",
           "sha256": "5825dcd59ee688226557b7a16762b52e4ed217ee9aef2eb25ce41ade6186099e",
-          "deployed_sha256": "5825dcd59ee688226557b7a16762b52e4ed217ee9aef2eb25ce41ade6186099e"
+          "deployed_sha256": "6b7fbf7e6ca245b85ca22657889ab0d929aad5aa1d1f4544e7cc225f13e842f4",
+          "deployed_git_blob_sha": "b3663a6feea1a417af0d02d423527629814e6f5d"
         },
         {
           "path": "supabase/functions/notification-dispatcher/source-facts.ts",
           "sha256": "85dfb4932a99654edd74a04ac48c1f034f73e7420bc83f48a8c68aa2e6c47658",
-          "deployed_sha256": "85dfb4932a99654edd74a04ac48c1f034f73e7420bc83f48a8c68aa2e6c47658"
+          "deployed_sha256": "8ab9bbb7265a69f76763b0384ac43c6085d3279d54f846a5b191e35eb6475e64",
+          "deployed_git_blob_sha": "2cc41058e61a6328788975926e4a2e852c52fab9"
         },
         {
           "path": "supabase/functions/notification-dispatcher/pacing.ts",
           "sha256": "13860c42576db9075f7de9f1148c8d5c35279071c75dae841d6b830255ceb126",
-          "deployed_sha256": "13860c42576db9075f7de9f1148c8d5c35279071c75dae841d6b830255ceb126"
+          "deployed_sha256": "2d507f915076f6f3cbad953980b4f008e5c1773f236b5308360e568981c08385",
+          "deployed_git_blob_sha": "0ceec913d2216d5c0684000f13d613b15059e324"
         },
         {
           "path": "supabase/functions/notification-dispatcher/delivery-lease.ts",
           "sha256": "a67eada4d11a4a8d4c77a524bbb93b8ae1b6fbbe6519b850486fe92bb6daa05c",
-          "deployed_sha256": "a67eada4d11a4a8d4c77a524bbb93b8ae1b6fbbe6519b850486fe92bb6daa05c"
+          "deployed_sha256": "02297024a9c20e763af5a887b92d86f4259e36d8eafc57923a010c0c4b328401",
+          "deployed_git_blob_sha": "9bcda30ed38d048788b21468df14bc7c83d3a000"
         },
         {
           "path": "supabase/functions/notification-dispatcher/labels.ts",
           "sha256": "4d9929f90c15e7e94acf5b8a24273abb7020da0d896f45109f7c31466a21ebb8",
-          "deployed_sha256": "4d9929f90c15e7e94acf5b8a24273abb7020da0d896f45109f7c31466a21ebb8"
+          "deployed_sha256": "b36db3c9f4773d8bdf0bc5f7f2277c7fcb180b5ea6eb3c3f98d650f8cb895708",
+          "deployed_git_blob_sha": "4ee04f8b33a2f03fa9c7fb8d811b1eb2e67418c6"
         }
       ],
-      "observed_live_version": 223,
+      "observed_live_version": 230,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "20017129f5f3c6a2c87e8625287a64ec64e47e555f6fc2c7491b2444e0b857de",
-      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-18.json",
+      "observed_live_artifact_sha256": "086826ede9e4e633b58e8485ac9cbd17afe22e90d1a93952024fe7a4833fecd0",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-23/bundles/batch-24.json",
       "source_archive_file_count": 9,
       "source_archive_status": "full_source",
       "classification": "production",
@@ -1125,178 +1137,211 @@
         {
           "path": "supabase/functions/source-worker/index.ts",
           "sha256": "6edf5737c275fe534bcce31b071d2824a1aa1d9a46d6ad39c63548a9805aaf62",
-          "deployed_sha256": "6edf5737c275fe534bcce31b071d2824a1aa1d9a46d6ad39c63548a9805aaf62"
+          "deployed_sha256": "4d28ef0497dbdf6ad0e419e4f10fdeefffea71f23dbe94776bb220f86f9a8961",
+          "deployed_git_blob_sha": "f1d22bda2dc826fa30b05eb3f7710602303d0ec5"
         },
         {
           "path": "supabase/functions/source-worker/shared.ts",
           "sha256": "dda7f25cf759704e0404cec67c669fb7aedb6462033a19cb601be05f6d8d10f1",
-          "deployed_sha256": "f9a7dea392346caca89f020f4b5d3350b018a95354bf9156d6d9913cddfb55e4",
-          "git_blob_sha": "2142e183a83e2ca16db7f4303fcd7f255b8ad37a"
+          "deployed_sha256": "b8918f9e63b07b63ed21861cfb966d71a9adea6b8b5e783d1e0d3e2ed57e80e0",
+          "git_blob_sha": "2142e183a83e2ca16db7f4303fcd7f255b8ad37a",
+          "deployed_git_blob_sha": "9df5ad2eed0c34d795704b9248c08617bfe4b1c8"
         },
         {
           "path": "supabase/functions/_shared/hamburg.ts",
           "sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a",
-          "deployed_sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a"
+          "deployed_sha256": "f873330e4a240697d094e5bcfef596d39b5193921795ef20f4eeb9eb9b340da0",
+          "deployed_git_blob_sha": "b653ce629c63e8e0f4209fab8cf0e1866db011e0"
         },
         {
           "path": "supabase/functions/source-worker/provider-fetch.ts",
           "sha256": "ee507f7e88162e9d86298e3b9f1dcaac34799372cc039c9928f2b8619dd2d743",
-          "deployed_sha256": "ee507f7e88162e9d86298e3b9f1dcaac34799372cc039c9928f2b8619dd2d743"
+          "deployed_sha256": "8ed1b70088e6c937b55469d76cbf6da2bc51593385ae2faae69e1e01711f31b4",
+          "deployed_git_blob_sha": "6a4a60345c12f9fd2df8f6a8ea9d7cc6fb56830f"
         },
         {
           "path": "supabase/functions/source-worker/checked.ts",
           "sha256": "420fa183d20cb6d94c23752fe7df5f03d0a42fd7e2ee1af0c9ca17da101a9e39",
-          "deployed_sha256": "420fa183d20cb6d94c23752fe7df5f03d0a42fd7e2ee1af0c9ca17da101a9e39"
+          "deployed_sha256": "f96f5737e71293932b7fa273a3771238db22bcaf2b18dd205fc7e1584e1200ee",
+          "deployed_git_blob_sha": "b21b2957fc2beefcb561c93918a5c17c92ed5ff4"
         },
         {
           "path": "supabase/functions/source-worker/scout.ts",
           "sha256": "4708467e515bfa5efa7d2533f522ba44a2f4310669109cd5c8bbf586a5084895",
-          "deployed_sha256": "f901ddd4d7af278f43df41d7b4f8908232ac6d52a7fb6a8b313f0871e1b8ed27",
-          "git_blob_sha": "7324760ae7897c059409c3ba507d73a3223b6578"
+          "deployed_sha256": "2a0ad434392ee89a64a0a1e5e048a0420467452ca8c0dff39c8ffb2535fe88da",
+          "git_blob_sha": "7324760ae7897c059409c3ba507d73a3223b6578",
+          "deployed_git_blob_sha": "3ea4f7540dd525ed052dcac2201ae600d3937855"
         },
         {
           "path": "supabase/functions/source-worker/category-persist.ts",
           "sha256": "97da274915467e156987e26942992061c157e74726bf7a8bbdab509f3d9845cd",
-          "deployed_sha256": "97da274915467e156987e26942992061c157e74726bf7a8bbdab509f3d9845cd"
+          "deployed_sha256": "1ddfc6e97422e46835f9ee5c070a0b979dc6e1549ffe7cfebd9df25890e3aee5",
+          "deployed_git_blob_sha": "11e1e593c6400d6d1524b6d1b50452a526ffe8e9"
         },
         {
           "path": "supabase/functions/source-worker/coverage-newness.ts",
           "sha256": "f50d6f511b616251a4f87f4f6ad04b38368881261331bb8ce6ef463b526e792d",
-          "deployed_sha256": "f50d6f511b616251a4f87f4f6ad04b38368881261331bb8ce6ef463b526e792d"
+          "deployed_sha256": "9b71eb70cc02e9c55590b97a1b0ad68d6c896a5b2f32aa578bc9510ffb37e7db",
+          "deployed_git_blob_sha": "7469d5f4b6f3ef90f726de292ff0aaae105ef7f0"
         },
         {
           "path": "supabase/functions/source-worker/klein.ts",
           "sha256": "8981e62d8f1833c305d5259b39be2b16b2c34898b5568e5d745b996b23392b7d",
-          "deployed_sha256": "9ea0c156d2f9d84353aa397e62798f71433a9c8d47010eb8b2be8c5bd06d129b",
-          "git_blob_sha": "0627ba70b1fc31de1951e23bcc4ec3ac59276916"
+          "deployed_sha256": "4d6f8ae7bf4eab8122382d1c8c5a571d6e89f5274fbe535913bdd4661dba0ccd",
+          "git_blob_sha": "0627ba70b1fc31de1951e23bcc4ec3ac59276916",
+          "deployed_git_blob_sha": "aa02d54355603a15a5c60720eb75a16c19502084"
         },
         {
           "path": "supabase/functions/kleinanzeigen-transport/fetch-page.ts",
           "sha256": "ff9c7723574f2fb335b7a9ca82720800d68342bd83d3068345adbe88caafb9c0",
-          "deployed_sha256": "ff9c7723574f2fb335b7a9ca82720800d68342bd83d3068345adbe88caafb9c0"
+          "deployed_sha256": "d2e095238ccc4ca78821b412e3f6d6d98fa933ff07b546b98a3283035a3e8e40",
+          "deployed_git_blob_sha": "9aa0ca7aa08c8cfa6bbec3209e5445fb46988f42"
         },
         {
           "path": "supabase/functions/source-worker/gcp.ts",
           "sha256": "105dd37485968e902ba7aff58b5d93d4787c7f3b62f4f5cf3218241ff0747b53",
-          "deployed_sha256": "105dd37485968e902ba7aff58b5d93d4787c7f3b62f4f5cf3218241ff0747b53"
+          "deployed_sha256": "fb6261ee2b71d9b14d59c97d38c616698798c6bd3603fc48242ee354cfc9bee7",
+          "deployed_git_blob_sha": "a3e983be02c403200e5823531d6f8d3223721eac"
         },
         {
           "path": "supabase/functions/source-worker/immomio.ts",
           "sha256": "3e1290f60cd1ac5a13e62062e7258c1d72067bdd73dcd09066f3ed12a6ad9848",
-          "deployed_sha256": "fbd12e7e8526bfca3fbc34c8549d6d00301c0e18d362e9a731a87b8fa5973528",
-          "git_blob_sha": "689160d74b771aeb74c1fb90546ba63efbd07385"
+          "deployed_sha256": "44c1e55f9111cdd4b57a08e93ef545fb12771b8f3bf2ef6b94c6e25b27e133aa",
+          "git_blob_sha": "689160d74b771aeb74c1fb90546ba63efbd07385",
+          "deployed_git_blob_sha": "8f3432f0d6c03c580f02f825065d3c1c9019f6d5"
         },
         {
           "path": "supabase/functions/source-worker/immomio-inventory.ts",
           "sha256": "252e0b07be53a2457e436aeabf57129865ca66e5f7480172697c739ef549f038",
-          "deployed_sha256": "252e0b07be53a2457e436aeabf57129865ca66e5f7480172697c739ef549f038"
+          "deployed_sha256": "1ec83c51eaee27b273f749dd7224bc5b841214caf157f4dd0fae4cc264bf7908",
+          "deployed_git_blob_sha": "5fc07164215b6d7e35269d018ed0965574de3978"
         },
         {
           "path": "supabase/functions/source-worker/hpm.ts",
           "sha256": "020a309a173c26697709e0ce7a006ad610a4845580145bb5357391b87a1a65b8",
-          "deployed_sha256": "020a309a173c26697709e0ce7a006ad610a4845580145bb5357391b87a1a65b8"
+          "deployed_sha256": "57d45a1992e66f767d46f056a412328660f9dc95092e6e975e392edd56a8440a",
+          "deployed_git_blob_sha": "d1dd2f5f0e079eb7c86738c3b0002326dcb2e536"
         },
         {
           "path": "supabase/functions/source-worker/generic.ts",
           "sha256": "50c68ce72f6ade8e69a3c79570c305a6254af0f146364270aa429454f8904560",
-          "deployed_sha256": "e48496ea4ae8dab9298b6560b163660591424ff90ad9d86c0e24b8ad31200ed6",
-          "git_blob_sha": "6eb03823b8a73a57707c763c4fb52e81fd58ab37"
+          "deployed_sha256": "95189ca5e59f605613ca5674f4b10766d6d39dd68868171793f6922859f9fa64",
+          "git_blob_sha": "6eb03823b8a73a57707c763c4fb52e81fd58ab37",
+          "deployed_git_blob_sha": "83c5c3ee40ca83a5d3a9cceec4f4bb6adefb9083"
         },
         {
           "path": "supabase/functions/source-worker/job-runner.ts",
           "sha256": "df86fcd10904dcef618e1205c00511c978c3971ee847ac48527c03148b9b335a",
-          "deployed_sha256": "df86fcd10904dcef618e1205c00511c978c3971ee847ac48527c03148b9b335a"
+          "deployed_sha256": "106804163a28d8c1a9643476b5523dfe8e306e062764d142fee5fa615bf90117",
+          "deployed_git_blob_sha": "5715067b5e76db534e98a274d6c47f7b9a0231f2"
         },
         {
           "path": "supabase/functions/source-worker/public-inventory.ts",
           "sha256": "89fff372475de9730c01f7d27228c04981cdc3e57b34412cf7225a67d679635a",
-          "deployed_sha256": "89fff372475de9730c01f7d27228c04981cdc3e57b34412cf7225a67d679635a"
+          "deployed_sha256": "6fd96b19344824d29dcb10c9ab40b01af92af730958e9b7c3ce9ed955e45ded9",
+          "deployed_git_blob_sha": "f9a9e060b51547396d4637089f9fa84e83a0a940"
         },
         {
           "path": "supabase/functions/source-worker/cooperative-inventory.ts",
           "sha256": "7150e164c1782543e73faa888a244356d0c511a9d6df5ac446f70fc2471d8468",
-          "deployed_sha256": "7150e164c1782543e73faa888a244356d0c511a9d6df5ac446f70fc2471d8468"
+          "deployed_sha256": "f27c3bc4baf501eaab47adbd2a7ac71e2fd80d06125d0268f3124d3abb92adcd",
+          "deployed_git_blob_sha": "0f36e7b57020a9276b092a66a6de66bb957dd091"
         },
         {
           "path": "supabase/functions/source-worker/buchdrucker-public.ts",
           "sha256": "fb4f57f8b3c2a3e4088d13cb0c68b48b27bbfcb77b0419abd57e75fe04d692e5",
-          "deployed_sha256": "fb4f57f8b3c2a3e4088d13cb0c68b48b27bbfcb77b0419abd57e75fe04d692e5"
+          "deployed_sha256": "5fea482bf7c94db9b6468e17fbcae79836cb00b7c2550bd14ed197e97a766b66",
+          "deployed_git_blob_sha": "9091fb871cbd20018ef3d9e0eedc4195753d04ef"
         },
         {
           "path": "supabase/functions/source-worker/buchdrucker-refs.mjs",
           "sha256": "dd50feba88a1e633013c966404371cd638e253c4f182a570cfe6cd679a92a9f7",
-          "deployed_sha256": "dd50feba88a1e633013c966404371cd638e253c4f182a570cfe6cd679a92a9f7"
+          "deployed_sha256": "3de59f8ea98ae5332f55f7166356397c137fc0e6d2d64d55005f87d0812b3ad1",
+          "deployed_git_blob_sha": "1f53f19ef7508707538c6e53dde93faadacf23c5"
         },
         {
           "path": "supabase/functions/source-worker/nestpick.ts",
           "sha256": "1b91b6ab49905cb10a06ba07ec489e4c9e2cd2e9d36b3ed9ffe631f7113213e5",
-          "deployed_sha256": "1b91b6ab49905cb10a06ba07ec489e4c9e2cd2e9d36b3ed9ffe631f7113213e5"
+          "deployed_sha256": "9eaf119dcbab57e5dd954651cec9811e128f01a17424922b608a757254fa2d23",
+          "deployed_git_blob_sha": "07b18fd1973368eb6e12f108107dac04635295d0"
         },
         {
           "path": "supabase/functions/source-worker/catalog.ts",
           "sha256": "c8db39946b6a0e0d2b1407302d5e777f03c2233890eda95bc850f9b2cc30e9a6",
-          "deployed_sha256": "c8db39946b6a0e0d2b1407302d5e777f03c2233890eda95bc850f9b2cc30e9a6"
+          "deployed_sha256": "fd0998b53bff3a0d6d5ebaf2fe72f9cae25409017fc97df4c46ac1228be1e041",
+          "deployed_git_blob_sha": "f31713059806bb0b0d21969723c7c79d0294f3cd"
         },
         {
           "path": "supabase/functions/source-worker/category.ts",
           "sha256": "0cd4bbf49218fe768366dec5c3693b51b39e5781b7d26f93c83b0abcad179c26",
-          "deployed_sha256": "0cd4bbf49218fe768366dec5c3693b51b39e5781b7d26f93c83b0abcad179c26"
+          "deployed_sha256": "0fc7ff04ee483149142dadd8a64f600300ef45f2a939e78e02fdfbc0ba6c082f",
+          "deployed_git_blob_sha": "9cca830f3620aaf300c43fa37611c92acf142c16"
         },
         {
           "path": "supabase/functions/covivio-feed/handler.ts",
           "sha256": "5493c1b303f9230fdf51e7c93ba7af3cef2c94bdb70b9a9fc14029a2144f0330",
-          "deployed_sha256": "5493c1b303f9230fdf51e7c93ba7af3cef2c94bdb70b9a9fc14029a2144f0330"
+          "deployed_sha256": "77c039f021d9600e0e03cf1ea9574574eaf9ce18f522907c6e047b55c218798f",
+          "deployed_git_blob_sha": "8fc675e2207e9e905735494721775cb523d1b5fd"
         },
         {
           "path": "supabase/functions/immobilie1-transport/handler.ts",
           "sha256": "6f3ea2d4adfc5528bf3629562579b84b663a23042faf616ae9471a4a703083c5",
-          "deployed_sha256": "6f3ea2d4adfc5528bf3629562579b84b663a23042faf616ae9471a4a703083c5"
+          "deployed_sha256": "6a60b989f710b5533d16ada7e0bada7bf1516525a6b850792d2dcd9f8bc85b41",
+          "deployed_git_blob_sha": "d8245ce4813822e74e043a86d9b9052f6263d6c7"
         },
         {
           "path": "supabase/functions/immobilien-de-transport/handler.ts",
           "sha256": "eedd2ca0adfcb7b0a1b9fec2f3c9c87edc03df6e53c1764fc6362b7b81336b92",
-          "deployed_sha256": "eedd2ca0adfcb7b0a1b9fec2f3c9c87edc03df6e53c1764fc6362b7b81336b92"
+          "deployed_sha256": "d18cffbca45aae61e0cbb1a2e7017565da7a1fd1613ee8cbf674f0cdbefe68db",
+          "deployed_git_blob_sha": "43bc0cc68d003b05d8b631b14eaf48f7eb6f410e"
         },
         {
           "path": "supabase/functions/meravis-feed/handler.ts",
           "sha256": "65bfb5f0b3b18ec312be66828901a239dfcff8f5f5b1775c9e9166bbe19ec408",
-          "deployed_sha256": "65bfb5f0b3b18ec312be66828901a239dfcff8f5f5b1775c9e9166bbe19ec408"
+          "deployed_sha256": "1fd3177f8dc659948345659289c429a9b88ff7ae7980fc73d85dbc5c36f7348a",
+          "deployed_git_blob_sha": "1e9d3967cc9afa80a03892809b7fe9fd0f7ace2a"
         },
         {
           "path": "supabase/functions/noncoop-feed/handler.ts",
           "sha256": "e39e7408af779fc5effd3c359914922ffe00c8f2ced02669243fbb312c7885f3",
-          "deployed_sha256": "e39e7408af779fc5effd3c359914922ffe00c8f2ced02669243fbb312c7885f3"
+          "deployed_sha256": "ef27acd4546c12a377676c0d1247719fa8a0a458881dfe782fc037bda5385723",
+          "deployed_git_blob_sha": "259989123780feb8597c878207558ac3503f8d63"
         },
         {
           "path": "supabase/functions/noncoop-new-feed/handler.ts",
           "sha256": "2fb560ed373739a95472c33acd218b227f78160c41c921afb1fd38d7fa0f700d",
-          "deployed_sha256": "2fb560ed373739a95472c33acd218b227f78160c41c921afb1fd38d7fa0f700d"
+          "deployed_sha256": "c38cde7039c7bb671eb1596ae7b2babf30c40aacc8e66c240ef3bf0eed5106f6",
+          "deployed_git_blob_sha": "f1f18eb0895e6294dad4583e8ee28a91faad8f19"
         },
         {
           "path": "supabase/functions/spacest-feed/handler.ts",
           "sha256": "60b0ff738e64f228c323392e7f22a0b23c23dff430f03f602cb780c4591c3211",
-          "deployed_sha256": "60b0ff738e64f228c323392e7f22a0b23c23dff430f03f602cb780c4591c3211"
+          "deployed_sha256": "47962e0205f68c63f9798383bf061076214b88dc332fd308a28ec4b2d211d17b",
+          "deployed_git_blob_sha": "f8acf2e9cdb14286e2621aee0ee627746dc0d6d4"
         },
         {
           "path": "supabase/functions/vonovia-transport/handler.ts",
           "sha256": "82963634551e8127e59554b31abe8b86cb09fcd6cf0905159fc1eca9ade431f9",
-          "deployed_sha256": "82963634551e8127e59554b31abe8b86cb09fcd6cf0905159fc1eca9ade431f9"
+          "deployed_sha256": "ec328f304d7576594b0ae223ec1690e1fde18bcad168f3d5f24f43627747df9a",
+          "deployed_git_blob_sha": "f8a869bd6b408dac5d187df481cad7e0d801c925"
         },
         {
           "path": "supabase/functions/wunderflats-transport/handler.ts",
           "sha256": "e498a6b452fbd172fc01cc13d65a723d64552c1b72501212311417f23e559b31",
-          "deployed_sha256": "e498a6b452fbd172fc01cc13d65a723d64552c1b72501212311417f23e559b31"
+          "deployed_sha256": "f1b76f247909fd9caa4c5f87ad49ef4834bc9246f75b9a8bf4920e2d8ca15fee",
+          "deployed_git_blob_sha": "b12c0e4227157d89e5ddb9229eb0474b85001cf5"
         },
         {
           "path": "supabase/functions/source-worker/deno.json",
           "sha256": "f5a48954ebfadfc88c535c402042cd8dd8bc9a42a991b469d683a9524c8598a7",
-          "deployed_sha256": "f5a48954ebfadfc88c535c402042cd8dd8bc9a42a991b469d683a9524c8598a7"
+          "deployed_sha256": "9df63999965aeac7cd781282e4e070aa979180e851602258b30ef5d8e90642ac",
+          "deployed_git_blob_sha": "4d1c8b364256e43b5c3145c7cc6398b111a55b2c"
         }
       ],
-      "observed_live_version": 107,
+      "observed_live_version": 108,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "f1a867fddb4d7ea3e4321e79d677ed4556b45c48308afaaae98c8c5682afdadf",
-      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-19.json",
+      "observed_live_artifact_sha256": "93c6034d6faacb1f21cdacf6ba0f2f5821c8b26021b1558b3a9827e9e68f1921",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-23/bundles/batch-24.json",
       "source_archive_file_count": 33,
       "source_archive_status": "full_source",
       "classification": "production",
@@ -2669,6 +2714,6 @@
     "repository_managed_count": 47,
     "archived_only_count": 67,
     "source_archive": "docs/runtime-snapshot-2026-10-21/bundles/",
-    "note": "Read-only live inventory refreshed 2026-10-23. Current deployed source for updated managed functions is archived in docs/runtime-snapshot-2026-10-23/bundles/batch-23.json; CI live API comparison remains conditional on SUPABASE_ACCESS_TOKEN."
+    "note": "Read-only live inventory refreshed 2026-10-23. Current deployed source for updated managed functions is archived in docs/runtime-snapshot-2026-10-23/bundles/batch-24.json; CI live API comparison remains conditional on SUPABASE_ACCESS_TOKEN."
   }
 }
