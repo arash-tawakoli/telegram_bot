@@ -183,7 +183,7 @@ export async function renderSchleswigHolsteinAreas(user, chatId, messageId, draf
         button("←", "sharea:prev"),
         button(`${page + 1}/${pages}`, "noop"),
         button("→", "sharea:next"),
-    ], [button("Auswahl bestätigen", "sharea:done")], backRow("location", "sharea:back"), cancelRow());
+    ], [button("Auswahl bestätigen", "sharea:done")], backRow("location"), cancelRow());
     const text = "📍 <b>Gebiete in Schleswig-Holstein</b>\n\nWähle Kreise, kreisfreie Städte oder Gemeinden.\n\nAusgewählt: " +
         `${selected.size}/${areas.length}`;
     return edit(chatId, messageId, text, { inline_keyboard: rows });
