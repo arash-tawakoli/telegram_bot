@@ -1484,7 +1484,7 @@ select
     'freshness_mode','newest_first',
     'region_state_code','SH'
   ),
-  true,'K2','primary',false,false
+  false,'K2','primary',false,true
 where exists(select 1 from public.sources where id=6)
   and not exists(select 1 from public.source_connectors where source_id=6 and priority=4);
 
