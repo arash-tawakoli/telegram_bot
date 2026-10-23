@@ -4,13 +4,17 @@
       "version": "20261023094810",
       "name": "add_schleswig_holstein_geography",
       "file": "supabase/migrations/20261023094810_add_schleswig_holstein_geography.sql",
-      "export_sql_sha256": "179e556fa36792f481985ef7626f232b911d47f6e504076704117db569a64d93"
+      "export_sql_sha256": "65e528042af93cfac67e0984f63a36aa56bd3fca80cb44dc35c7c359ed8ba91d",
+      "registry_sql_sha256": "65e528042af93cfac67e0984f63a36aa56bd3fca80cb44dc35c7c359ed8ba91d",
+      "vault_substitution": false
     },
     {
       "version": "20261023104210",
       "name": "add_schleswig_holstein_geography",
       "file": "supabase/migrations/20261023104210_add_schleswig_holstein_geography.sql",
-      "export_sql_sha256": "179e556fa36792f481985ef7626f232b911d47f6e504076704117db569a64d93"
+      "export_sql_sha256": "65e528042af93cfac67e0984f63a36aa56bd3fca80cb44dc35c7c359ed8ba91d",
+      "registry_sql_sha256": "65e528042af93cfac67e0984f63a36aa56bd3fca80cb44dc35c7c359ed8ba91d",
+      "vault_substitution": false
     }
   ]
 }
