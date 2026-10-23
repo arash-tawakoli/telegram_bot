@@ -4,7 +4,7 @@
       "version": "20261022210000",
       "name": "add_schleswig_holstein_geography",
       "file": "supabase/migrations/20261022210000_add_schleswig_holstein_geography.sql",
-      "export_sql_sha256": "8eb71c877f68b2578750c48876d8fedfedebe5105b83bceb087605ac65b288b2"
+      "export_sql_sha256": "6296c62c50b53d244a1eb596145c398622eeba5797e0057711015155ac0898f2"
     }
   ]
 }
