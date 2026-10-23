@@ -1,5 +1,5 @@
 {
-  "observed_at": "2026-10-22T12:09:55.397Z",
+  "observed_at": "2026-10-23T09:36:56.682Z",
   "project_id": "dpmohkrwdlicexwcrqfy",
   "snapshot_kind": "repository_with_observed_deployment_hashes",
   "functions": [
@@ -184,7 +184,7 @@
       "files": [
         {
           "path": "supabase/functions/coach-api/index.ts",
-          "sha256": "448a6949cddc62de7569d306332d02e4f8cf5c6cd18e9b16427a95ae55f44305",
+          "sha256": "c69655d0810443776b98f99c294fd892997f12ed0e08a351ce1ef0b24755902a",
           "deployed_sha256": "0066b28dc91f558bc9d7c027c70b8b13d1ac5781e0e7a285268fe7fcb9ecf35e"
         },
         {
@@ -1001,7 +1001,7 @@
         },
         {
           "path": "supabase/functions/source-worker/shared.ts",
-          "sha256": "4b62027078e74218070739b34cff678e1ca526fc630848b12300cb90e96aa2e7",
+          "sha256": "348c97289232652857a03da6601594809372485e60efbdd196e39b957c4a5239",
           "deployed_sha256": "f9a7dea392346caca89f020f4b5d3350b018a95354bf9156d6d9913cddfb55e4"
         },
         {
@@ -1100,7 +1100,7 @@
         },
         {
           "path": "supabase/functions/source-worker/shared.ts",
-          "sha256": "4b62027078e74218070739b34cff678e1ca526fc630848b12300cb90e96aa2e7",
+          "sha256": "348c97289232652857a03da6601594809372485e60efbdd196e39b957c4a5239",
           "deployed_sha256": "f9a7dea392346caca89f020f4b5d3350b018a95354bf9156d6d9913cddfb55e4"
         },
         {
@@ -1150,7 +1150,7 @@
         },
         {
           "path": "supabase/functions/source-worker/immomio.ts",
-          "sha256": "4106c7846db5cc305ccdb9f10cdc7a99c5d123538756300e99cb67fc444d3781",
+          "sha256": "0c9ed6c8a3bf18e0adeac6743d82efcd3c75461907a7cdcf66de5db8ae4a8c3d",
           "deployed_sha256": "fbd12e7e8526bfca3fbc34c8549d6d00301c0e18d362e9a731a87b8fa5973528"
         },
         {
@@ -1165,7 +1165,7 @@
         },
         {
           "path": "supabase/functions/source-worker/generic.ts",
-          "sha256": "1c78229aa0791a3cc0c679275904a2bd424e8be9e366e239372b21fa38a07828",
+          "sha256": "cb37f0b9cb1942c489e8ec834959e2872dba1c4aba4aa7634eaacf8886ab956a",
           "deployed_sha256": "e48496ea4ae8dab9298b6560b163660591424ff90ad9d86c0e24b8ad31200ed6"
         },
         {
@@ -1506,12 +1506,12 @@
         },
         {
           "path": "supabase/functions/telegram-ui/profiles.js",
-          "git_blob_sha": "07c10e9ae326db2d680a61a7b81bf00fcaf2f85f",
+          "git_blob_sha": "92276d5ec38789ef3d8e633888d56e9de6aae518",
           "deployed_git_blob_sha": "22409cff21baedfa8f0daa5ccb2e180e2ca01083"
         },
         {
           "path": "supabase/functions/telegram-ui/runtime.js",
-          "git_blob_sha": "e7d29c6cd2087ed58bf84243ed710282970b0990",
+          "git_blob_sha": "1a45467af6723410bb536bd44e77edfa41fb665e",
           "deployed_git_blob_sha": "035164ef733b9015cea35530f9f8359eecd49cf4"
         },
         {
@@ -1526,7 +1526,7 @@
         },
         {
           "path": "supabase/functions/telegram-ui/handlers.js",
-          "git_blob_sha": "189fc3afe2f5502fbad75c70d0687a1095e1e358",
+          "git_blob_sha": "6d27f638484e167592c73c4b749a406148f6e47b",
           "deployed_git_blob_sha": "37f29bffdfcc3fb7ae59f7e5725b8fb5ac389be2"
         }
       ],
