@@ -1,5 +1,5 @@
 {
-  "observed_at": "2026-10-23T10:40:14.166Z",
+  "observed_at": "2026-10-23T10:48:19.005Z",
   "project_id": "dpmohkrwdlicexwcrqfy",
   "snapshot_kind": "repository_with_observed_deployment_hashes",
   "functions": [
@@ -1533,7 +1533,7 @@
         },
         {
           "path": "supabase/functions/telegram-ui/handlers.js",
-          "git_blob_sha": "6d27f638484e167592c73c4b749a406148f6e47b",
+          "git_blob_sha": "78b5b26faa1dc73eb44df31dca62aafb98b4662b",
           "deployed_git_blob_sha": "1a6f17d80c092c4cfe42816f92c72d57c54d28f2"
         }
       ],
