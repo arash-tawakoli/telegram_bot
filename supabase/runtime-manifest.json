@@ -1,5 +1,5 @@
 {
-  "observed_at": "2026-10-23T12:50:00.000Z",
+  "observed_at": "2026-10-23T12:55:00.000Z",
   "project_id": "dpmohkrwdlicexwcrqfy",
   "snapshot_kind": "repository_with_observed_deployment_hashes",
   "functions": [
@@ -1393,13 +1393,14 @@
         {
           "path": "supabase/functions/stripe-webhook/index.ts",
           "sha256": "099441b9ada33258f02d4e5a286d130c99de9574e142ec27e2a21f32b5980327",
-          "deployed_sha256": "099441b9ada33258f02d4e5a286d130c99de9574e142ec27e2a21f32b5980327"
+          "deployed_sha256": "a38ee4626c78812188bf010984c32dbaac51e7fed10bb9aa426270d5718da37d",
+          "deployed_git_blob_sha": "9ee9b85aed60b73de16d132bc46e174a681b622f"
         }
       ],
-      "observed_live_version": 133,
+      "observed_live_version": 139,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "d051451aa7682ca489203b677c2ca4925168904047565d424958e5d8b2d7882a",
-      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-19.json",
+      "observed_live_artifact_sha256": "4348563deee8317b4a2140d73d4482c4d5b5734be69d5286f65070d06079bd68",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-23/bundles/batch-25.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
       "classification": "webhook",
@@ -1465,18 +1466,20 @@
         {
           "path": "supabase/functions/telegram-gateway/index.ts",
           "git_blob_sha": "24e4b24f1828807c67b8881a8a5cbef678815647",
-          "deployed_git_blob_sha": "24e4b24f1828807c67b8881a8a5cbef678815647"
+          "deployed_git_blob_sha": "24e4b24f1828807c67b8881a8a5cbef678815647",
+          "deployed_sha256": "d29fc147c77aa4539c323ea9b63f865f4f875487d4beb7ac478647fba1530249"
         },
         {
           "path": "supabase/functions/telegram-gateway/fast-ui.ts",
           "git_blob_sha": "51418cf7205263223b7bec2a4fe98efe268630fc",
-          "deployed_git_blob_sha": "51418cf7205263223b7bec2a4fe98efe268630fc"
+          "deployed_git_blob_sha": "51418cf7205263223b7bec2a4fe98efe268630fc",
+          "deployed_sha256": "628e61dbf1a6d2c31439c8316d62612c9af12c055b0bbe13c685ebff69460ded"
         }
       ],
-      "observed_live_version": 94,
+      "observed_live_version": 95,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "fc52c3f01fe1ef6795d81793aa1cab310c4c0e7164d0de68974b753303e46837",
-      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-20.json",
+      "observed_live_artifact_sha256": "7377ae78df7f3ab474a6120290b30e5f36333adcbebbc2d2b16cc58e3b1ec671",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-23/bundles/batch-25.json",
       "source_archive_file_count": 2,
       "source_archive_status": "full_source",
       "classification": "production",
@@ -1566,53 +1569,62 @@
         {
           "path": "supabase/functions/telegram-ui/index.ts",
           "git_blob_sha": "d11049f6d8e870b25b758069714cf865ec8d1472",
-          "deployed_git_blob_sha": "d11049f6d8e870b25b758069714cf865ec8d1472"
+          "deployed_git_blob_sha": "d11049f6d8e870b25b758069714cf865ec8d1472",
+          "deployed_sha256": "a60c5098f41c130e2622c96bbbbed8e8590704fc3bf1c534aff2b684821c5b55"
         },
         {
           "path": "supabase/functions/telegram-ui/admin.js",
           "git_blob_sha": "f55d20fb4ca43f7c6bcc4a8c2f3ff85ab05b2eea",
-          "deployed_git_blob_sha": "f55d20fb4ca43f7c6bcc4a8c2f3ff85ab05b2eea"
+          "deployed_git_blob_sha": "f55d20fb4ca43f7c6bcc4a8c2f3ff85ab05b2eea",
+          "deployed_sha256": "e0368c0652ba042f05d99ce1f4c4d15cec9d827414574ee94b662b7f14598d43"
         },
         {
           "path": "supabase/functions/telegram-ui/navigation.js",
           "git_blob_sha": "62107b68a7056ebb3dc0e09f972d3006e2a5f274",
-          "deployed_git_blob_sha": "62107b68a7056ebb3dc0e09f972d3006e2a5f274"
+          "deployed_git_blob_sha": "910cb4598e9a634d5eb1965441d0413b587407a3",
+          "deployed_sha256": "f717e99e4a33b766764b601731a001ad65bd8423da7516982705763fe729da77"
         },
         {
           "path": "supabase/functions/telegram-ui/localization.js",
           "git_blob_sha": "893597c29589c8d32eb1124fad215c44033ec2b7",
-          "deployed_git_blob_sha": "893597c29589c8d32eb1124fad215c44033ec2b7"
+          "deployed_git_blob_sha": "893597c29589c8d32eb1124fad215c44033ec2b7",
+          "deployed_sha256": "c338a6103dc915f395e74ecd8a3a5fd5d114e757e5b0fb7d98b3944206892fab"
         },
         {
           "path": "supabase/functions/telegram-ui/profiles.js",
           "git_blob_sha": "92276d5ec38789ef3d8e633888d56e9de6aae518",
-          "deployed_git_blob_sha": "22409cff21baedfa8f0daa5ccb2e180e2ca01083"
+          "deployed_git_blob_sha": "22409cff21baedfa8f0daa5ccb2e180e2ca01083",
+          "deployed_sha256": "601bb07b894967655c001e9a7b804a1988d5f07b2f7511f7ad69ac81c06698aa"
         },
         {
           "path": "supabase/functions/telegram-ui/runtime.js",
           "git_blob_sha": "1a45467af6723410bb536bd44e77edfa41fb665e",
-          "deployed_git_blob_sha": "035164ef733b9015cea35530f9f8359eecd49cf4"
+          "deployed_git_blob_sha": "035164ef733b9015cea35530f9f8359eecd49cf4",
+          "deployed_sha256": "2a21a1c25a560aca4530bfd75b48ae86b9b65d386648c8d82c8694b35a12dce1"
         },
         {
           "path": "supabase/functions/telegram-ui/platform-sessions.js",
           "git_blob_sha": "ab32eca03a1b800b2a9dc4d7ebde46820ad38441",
-          "deployed_git_blob_sha": "ab32eca03a1b800b2a9dc4d7ebde46820ad38441"
+          "deployed_git_blob_sha": "ab32eca03a1b800b2a9dc4d7ebde46820ad38441",
+          "deployed_sha256": "9fa5cccf531fe9d647399f8641c3614b0bf1e904e15a7eeb340d1472e95cad6c"
         },
         {
           "path": "supabase/functions/_shared/application-profile-adapters.ts",
           "git_blob_sha": "45e5c9eeea4e5d2ab161d1ea0072f815f58417cc",
-          "deployed_git_blob_sha": "45e5c9eeea4e5d2ab161d1ea0072f815f58417cc"
+          "deployed_git_blob_sha": "45e5c9eeea4e5d2ab161d1ea0072f815f58417cc",
+          "deployed_sha256": "6508b61a3156eba6edee23bb65bd4069f0fa5aea98964f310cecdf7acd821d3c"
         },
         {
           "path": "supabase/functions/telegram-ui/handlers.js",
           "git_blob_sha": "b1a963c42082911660709f1b07899df3a18a55ee",
-          "deployed_git_blob_sha": "1a6f17d80c092c4cfe42816f92c72d57c54d28f2"
+          "deployed_git_blob_sha": "37f29bffdfcc3fb7ae59f7e5725b8fb5ac389be2",
+          "deployed_sha256": "7c78b7469de98b7fa99daed88269c1a2730417f8c243085baec6eff0d1012fec"
         }
       ],
-      "observed_live_version": 235,
+      "observed_live_version": 242,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "be68901a0ece694d73d3d419c17f87d58b44202868c76ff1c31bdb0e1df9c50e",
-      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-22.json",
+      "observed_live_artifact_sha256": "e114552933df4a9bd06f9ffb7fd8ebf321d50324934125978292f0a4c3e84cb8",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-23/bundles/batch-25.json",
       "source_archive_file_count": 9,
       "source_archive_status": "full_source",
       "classification": "production",
@@ -2714,6 +2726,6 @@
     "repository_managed_count": 47,
     "archived_only_count": 67,
     "source_archive": "docs/runtime-snapshot-2026-10-21/bundles/",
-    "note": "Read-only live inventory refreshed 2026-10-23. Current deployed source for updated managed functions is archived in docs/runtime-snapshot-2026-10-23/bundles/batch-24.json; CI live API comparison remains conditional on SUPABASE_ACCESS_TOKEN."
+    "note": "Read-only live inventory refreshed 2026-10-23. Current deployed source for updated managed functions is archived in docs/runtime-snapshot-2026-10-23/bundles/batch-25.json; CI live API comparison remains conditional on SUPABASE_ACCESS_TOKEN."
   }
 }
