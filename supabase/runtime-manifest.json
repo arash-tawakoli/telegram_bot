@@ -1,5 +1,5 @@
 {
-  "observed_at": "2026-10-23T13:00:00.000Z",
+  "observed_at": "2026-10-23T13:08:09.601Z",
   "project_id": "dpmohkrwdlicexwcrqfy",
   "snapshot_kind": "repository_with_observed_deployment_hashes",
   "functions": [
@@ -2653,7 +2653,7 @@
     "live_function_count": 114,
     "repository_managed_count": 47,
     "archived_only_count": 67,
-    "source_archive": "docs/runtime-snapshot-2026-10-21/bundles/",
-    "note": "Read-only live inventory refreshed 2026-10-23. Exact live bundles for the nine managed functions with version drift are archived in docs/runtime-snapshot-2026-10-23/bundles/batch-23.json, batch-24.json and batch-25.json. CI live API comparison remains conditional on SUPABASE_ACCESS_TOKEN."
+    "source_archive": "docs/runtime-snapshot-*/bundles/ (per-function source_archive_file is authoritative)",
+    "note": "Read-only live inventory refreshed on 2026-10-23: 114 live functions = 47 repository-managed + 67 archived-only. Exact deployed bundles for nine managed functions with version/artifact drift are archived in docs/runtime-snapshot-2026-10-23/bundles/batch-23.json, batch-24.json and batch-25.json. CI live API comparison remains conditional on SUPABASE_ACCESS_TOKEN."
   }
 }
