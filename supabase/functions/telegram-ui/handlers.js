@@ -175,10 +175,12 @@ export async function handleMessage(message, user) {
         for (const area of municipalities) {
             const matchedAliases = aliases.filter((alias) => String(alias.area_code) === String(area.area_code) && normalize(alias.alias).includes(q));
             if (!normalize(area.name).includes(q) && !matchedAliases.length) continue;
+            const exactAliases = matchedAliases.filter((alias) => normalize(alias.alias) === q);
+            const displayAliases = exactAliases.length ? exactAliases : matchedAliases.slice(0, 1);
             const region = regionByCode.get(String(area.parent_code));
             results.push({
                 area,
-                label: area.name + (matchedAliases.length ? " · " + matchedAliases.map((alias) => alias.alias).join(", ") : "") + (region ? " · " + region.name : ""),
+                label: area.name + (displayAliases.length ? " · " + displayAliases.map((alias) => alias.alias).join(", ") : "") + (region ? " · " + region.name : ""),
                 selected: selected.has(String(area.area_code)) || selected.has(String(area.parent_code)),
                 score: normalize(area.name) === q ? 0 : normalize(area.name).startsWith(q) ? 1 : matchedAliases.length ? 2 : 3,
             });
