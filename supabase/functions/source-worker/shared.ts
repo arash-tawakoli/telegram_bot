@@ -126,7 +126,7 @@ let shAreaLookup: Map<string, SchleswigHolsteinArea | null> | null = null;
 function geoNameKey(value: any) {
   return String(value || "")
     .normalize("NFKD")
-    .replace(/[\\u0300-\\u036f]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLocaleLowerCase("de-DE")
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
@@ -162,6 +162,7 @@ async function loadSHAreaLookup() {
 async function resolveSHArea(c: Candidate): Promise<SchleswigHolsteinArea | null> {
   const values = [
     c.city,
+    c.raw?.entry?.address?.city?.name,
     c.raw?.entry?.address?.city,
     c.raw?.entry?.address?.cityName,
     c.raw?.entry?.address?.town,
@@ -171,7 +172,7 @@ async function resolveSHArea(c: Candidate): Promise<SchleswigHolsteinArea | null
   const lookup = await loadSHAreaLookup();
   for (const value of values) {
     const candidate = String(value || "").split(/[;,]/)[0]
-      .replace(/\\b(?:schleswig-holstein|deutschland|germany)\\b/ig, "")
+      .replace(/\b(?:schleswig-holstein|deutschland|germany)\b/ig, "")
       .trim();
     const key = geoNameKey(candidate);
     if (!key) continue;
