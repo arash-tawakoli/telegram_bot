@@ -20,7 +20,7 @@ INSERT INTO public.sources (
   'shadow',
   'source-worker',
   1,
-  4,
+  69,
   'schleswig_holstein_adaptive_price_mcp',
   'shadow',
   'unknown',
