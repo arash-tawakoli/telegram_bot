@@ -271,10 +271,11 @@ export async function saveState(userId, step, draft, updateId = null, attempt = 
 export async function geography() {
     if (geoCache && geoCache.expiresAt > Date.now())
         return geoCache.value;
-    const [boroughResult, neighborhoodResult, schleswigHolsteinResult] = await Promise.all([
+    const [boroughResult, neighborhoodResult, schleswigHolsteinResult, schleswigHolsteinAliasResult] = await Promise.all([
         db.from("hamburg_boroughs").select("id,name,sort_order").order("sort_order"),
         db.from("hamburg_neighborhoods").select("id,name,borough_id").order("id"),
-        db.from("geo_areas").select("area_code,parent_code,area_type,name,state_code").eq("state_code","SH").eq("is_active",true).order("name"),
+        db.rpc("get_schleswig_holstein_areas"),
+        db.rpc("get_schleswig_holstein_area_aliases"),
     ]);
     if (boroughResult.error)
         throw boroughResult.error;
