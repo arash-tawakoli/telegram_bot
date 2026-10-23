@@ -1471,7 +1471,7 @@ begin
 
   return result;
 end;
-$function$
+$function$;
 
 -- Add a separate state-wide WG-Gesucht lane; keep the existing Hamburg lane intact.
 insert into public.source_connectors(
