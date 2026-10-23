@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { Connector, Source, db, emsg, internalSecret } from "./shared.ts";
-import { runScout } from "./scout.ts";
+import { runScout, runScoutSchleswigHolstein } from "./scout.ts";
 import { runKlein } from "./klein.ts";
 import { runGcp } from "./gcp.ts";
 import { runImmomio } from "./immomio.ts";
@@ -61,9 +61,10 @@ async function runPortalRegistryMirror(s:Source){
 async function processBaseSource(s:Source,connectors:Connector[]){
   const id=s.id;
   if(s.coverage_strategy==="portal_registry_mirror")return runPortalRegistryMirror(s);
+  const primary = connectors.find((c) => !c.shadow_only) || connectors[0];
+  if(primary?.config?.adapter==="source-worker/scout-schleswig-holstein")return runScoutSchleswigHolstein(s);
   if (id === 1) return runScout(s);
   if (id === 2) return runKlein(s);
-  const primary = connectors.find((c) => !c.shadow_only) || connectors[0];
   if(primary && ['source-worker/city-catalog','source-worker/wunder-catalog','source-worker/swap-catalog'].includes(String(primary.config?.adapter)))return runCatalog(s,primary);
   if(primary?.config?.adapter==='source-worker/nestpick-public')return runNestpick(s,primary);
   if(primary && ['source-worker/tag-public','source-worker/urban-public','source-worker/heim-public','source-worker/kaifu-public','source-worker/finken-public','source-worker/buchdrucker-public'].includes(String(primary.config?.adapter)))
@@ -125,7 +126,7 @@ Deno.serve(async (req) => {
         else throw item.reason;
       }
       // Large portal parsers need their own invocation CPU budget.
-      if (jobs.some((job: any) => [1, 2, 3].includes(Number(job.source_id)))) break;
+      if (jobs.some((job: any) => [1, 2, 3, 69].includes(Number(job.source_id)))) break;
     }
     return Response.json({ ok: true, architecture: "v3", claimed, results });
   } catch (e) {
