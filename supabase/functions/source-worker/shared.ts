@@ -541,23 +541,55 @@ function validCandidate(source: Source, c: Candidate) {
   if (NON_RESIDENTIAL.test(text) && !RESIDENTIAL.test(text)) return false;
   return true;
 }
-let shMunicipalityCache: Map<string, Array<{area_code:string;parent_code:string|null}>> | null = null;
+type SHMunicipality = {area_code:string;parent_code:string|null;name:string};
+let shMunicipalityCache: Map<string, SHMunicipality[]> | null = null;
+let shMunicipalityByCode: Map<string, SHMunicipality> | null = null;
 function normalizeGeoName(value:unknown) {
-  return String(value || "").normalize("NFKC").toLocaleLowerCase("de-DE").replace(/^\d{5}\s+/,"").replace(/,\s*(?:schleswig-holstein|deutschland|germany)$/i,"").trim();
+  return String(value || "").normalize("NFKC").toLocaleLowerCase("de-DE")
+    .replace(/^\d{5}\s+/,"")
+    .replace(/,\s*(?:schleswig-holstein|deutschland|germany)$/i,"")
+    .replace(/[()[\]]/g," ")
+    .replace(/\s+/g," ").trim();
+}
+async function loadSchleswigHolsteinMunicipalities() {
+  if (shMunicipalityCache && shMunicipalityByCode) return;
+  const {data,error}=await db.rpc("get_schleswig_holstein_areas");
+  if(error)throw error;
+  const byName=new Map<string,SHMunicipality[]>();
+  const byCode=new Map<string,SHMunicipality>();
+  const add=(label:string,row:SHMunicipality)=>{
+    const key=normalizeGeoName(label);
+    if(!key)return;
+    const list=byName.get(key)||[];
+    if(!list.some(item=>item.area_code===row.area_code))list.push(row);
+    byName.set(key,list);
+  };
+  for(const row of (data||[]).filter((item:any)=>item.area_type==="municipality")){
+    const municipality:SHMunicipality={
+      area_code:String(row.area_code),
+      parent_code:row.parent_code?String(row.parent_code):null,
+      name:String(row.name),
+    };
+    byCode.set(municipality.area_code,municipality);
+    add(municipality.name,municipality);
+  }
+  const {data:aliases,error:aliasError}=await db.rpc("get_schleswig_holstein_area_aliases");
+  if(aliasError)throw aliasError;
+  for(const alias of aliases||[]){
+    const municipality=byCode.get(String(alias.area_code));
+    if(municipality)add(String(alias.alias),municipality);
+  }
+  shMunicipalityCache=byName;
+  shMunicipalityByCode=byCode;
 }
 export async function resolveSchleswigHolsteinMunicipality(name:string) {
-  if (!shMunicipalityCache) {
-    const {data,error}=await db.from("geo_areas").select("area_code,parent_code,name").eq("state_code","SH").eq("area_type","municipality").eq("is_active",true);
-    if(error)throw error;
-    shMunicipalityCache=new Map();
-    for(const row of data||[]){
-      const key=normalizeGeoName(row.name), list=shMunicipalityCache.get(key)||[];
-      list.push({area_code:String(row.area_code),parent_code:row.parent_code?String(row.parent_code):null});
-      shMunicipalityCache.set(key,list);
-    }
-  }
-  const matches=shMunicipalityCache.get(normalizeGeoName(name))||[];
+  await loadSchleswigHolsteinMunicipalities();
+  const matches=shMunicipalityCache?.get(normalizeGeoName(name))||[];
   return matches.length===1?matches[0]:null;
+}
+async function schleswigHolsteinMunicipalityByCode(code:string) {
+  await loadSchleswigHolsteinMunicipalities();
+  return shMunicipalityByCode?.get(String(code))||null;
 }
 async function normalize(
   source: Source,
@@ -569,17 +601,18 @@ async function normalize(
   let adminRegionCode = c.adminRegionCode || null;
   let municipalityCode = c.municipalityCode || null;
   if (stateCode === "SH") {
-    if (!city) throw new Error("missing_schleswig_holstein_city");
+    if (!city && !municipalityCode) throw new Error("missing_schleswig_holstein_city");
     if (!municipalityCode) {
       const match=await resolveSchleswigHolsteinMunicipality(city);
       if (!match) throw new Error("unresolved_schleswig_holstein_city:"+city);
       municipalityCode=match.area_code;
       adminRegionCode=adminRegionCode||match.parent_code;
-    }
-    if (!adminRegionCode) {
-      const {data,error}=await db.from("geo_areas").select("parent_code").eq("area_code",municipalityCode).eq("state_code","SH").maybeSingle();
-      if(error)throw error;
-      adminRegionCode=data?.parent_code?String(data.parent_code):null;
+      city=match.name;
+    } else {
+      const match=await schleswigHolsteinMunicipalityByCode(municipalityCode);
+      if (!match) throw new Error("unresolved_schleswig_holstein_municipality_code:"+municipalityCode);
+      adminRegionCode=adminRegionCode||match.parent_code;
+      city=match.name;
     }
     if (!adminRegionCode) throw new Error("unresolved_schleswig_holstein_region:"+city);
   }
