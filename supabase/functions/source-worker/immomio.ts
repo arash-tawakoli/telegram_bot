@@ -31,12 +31,25 @@ export async function runImmomio(source:Source,c:Connector,fallbacks:Connector[]
   const started=iso();
   try{
     const {nodes,total,totalPages,picked,attempts}=await fetchImmomioInventory(c,fallbacks,resolve);
-    const {data:shAreas,error:geoError}=await db.from('geo_areas').select('area_code,parent_code,name').eq('state_code','SH').eq('area_type','municipality').eq('is_active',true);
+    const [{data:allAreas,error:geoError},{data:aliases,error:aliasError}]=await Promise.all([
+      db.rpc('get_schleswig_holstein_areas'),
+      db.rpc('get_schleswig_holstein_area_aliases')
+    ]);
     if(geoError)throw geoError;
-    const shByName=new Map<string,any[]>();
-    for(const row of shAreas||[]){
+    if(aliasError)throw aliasError;
+    const shAreas=(allAreas||[]).filter((row:any)=>row.area_type==='municipality');
+    const shByName=new Map<string,any[]>(),shByCode=new Map<string,any>();
+    for(const row of shAreas){
       const key=geoName(row.name),items=shByName.get(key)||[];
       items.push(row);
+      shByName.set(key,items);
+      shByCode.set(String(row.area_code),row);
+    }
+    for(const alias of aliases||[]){
+      const municipality=shByCode.get(String(alias.area_code));
+      if(!municipality)continue;
+      const key=geoName(alias.alias),items=shByName.get(key)||[];
+      if(!items.some((row:any)=>String(row.area_code)===String(municipality.area_code)))items.push(municipality);
       shByName.set(key,items);
     }
     const located=(nodes||[]).map((node:any)=>{
