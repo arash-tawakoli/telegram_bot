@@ -1174,26 +1174,38 @@ values
 on conflict(alias,area_code) do update set source_name=excluded.source_name;
 
 -- Service-side RPCs avoid requiring direct PostgREST table exposure for the catalog.
+-- Return one JSONB value so the full 1,120-row geography catalog is not truncated by the Data API row limit.
 create or replace function public.get_schleswig_holstein_areas()
-returns table(area_code text,parent_code text,area_type text,name text,state_code text,official_code text)
+returns jsonb
 language sql stable set search_path to ''
 as $function$
-  select g.area_code,g.parent_code,g.area_type,g.name,g.state_code,g.official_code
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'area_code',g.area_code,
+    'parent_code',g.parent_code,
+    'area_type',g.area_type,
+    'name',g.name,
+    'state_code',g.state_code,
+    'official_code',g.official_code
+  ) order by case g.area_type when 'state' then 0 when 'county' then 1 when 'independent_city' then 1 when 'municipality' then 2 else 3 end,g.name),'[]'::jsonb)
   from public.geo_areas g
   where g.state_code='SH' and g.is_active
-  order by case g.area_type when 'state' then 0 when 'county' then 1 when 'independent_city' then 1 when 'municipality' then 2 else 3 end,g.name
 $function$;
 
 create or replace function public.get_schleswig_holstein_area_aliases()
-returns table(alias text,area_code text,parent_code text,name text,region_name text)
+returns jsonb
 language sql stable set search_path to ''
 as $function$
-  select a.alias,g.area_code,g.parent_code,g.name,coalesce(parent.name,'Schleswig-Holstein')
+  select coalesce(jsonb_agg(jsonb_build_object(
+    'alias',a.alias,
+    'area_code',g.area_code,
+    'parent_code',g.parent_code,
+    'name',g.name,
+    'region_name',coalesce(parent.name,'Schleswig-Holstein')
+  ) order by a.alias),'[]'::jsonb)
   from public.geo_area_aliases a
   join public.geo_areas g on g.area_code=a.area_code
   left join public.geo_areas parent on parent.area_code=g.parent_code
   where g.state_code='SH' and g.area_type='municipality' and g.is_active
-  order by a.alias
 $function$;
 
 revoke all on function public.get_schleswig_holstein_areas() from PUBLIC, anon, authenticated;
