@@ -82,6 +82,7 @@ test("Telegram and source adapters expose Schleswig-Holstein without changing Ha
   assert.ok(!runtime.includes('db.from("geo_areas")'), "Telegram should use the service-only geography RPC");
   assert.ok(scout.includes("Wohnungen zur Miete in Schleswig-Holstein"));
   assert.ok(klein.includes("s-schleswig-holstein/wohnung-mieten"));
+  assert.ok(klein.includes("city=stateCode==='SH'?(loc.match"), "Kleinanzeigen SH city resolution must parse the listing location, not the whole card text");
   assert.ok(immowelt.includes("https://www.immowelt.de/suche/mieten/wohnung/schleswig-holstein/ad04de1"));
   assert.ok(migration.includes("https://www.wg-gesucht.de/wohnungen-in-Schleswig-Holstein.0.2.1.0.html"), "WG-Gesucht is configured through its own source connector, not the Immowelt adapter");
   assert.ok(immowelt.includes("stateCode:'SH'"));
