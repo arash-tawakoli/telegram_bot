@@ -330,7 +330,7 @@ async function parseOne(source: Source, c: Connector, url: string) {
       collectJson(JSON.parse(m[1]), r.url, jsonLd);
     } catch {}
   let out =
-    source.id === 3 || /(^|\\.)immowelt\\.de$/i.test(new URL(r.url).hostname)
+    source.id === 3 || /(^|\.)immowelt\.de$/i.test(new URL(r.url).hostname)
       ? immoweltCards(r.text, r.url)
       : jsonLd.length
         ? jsonLd
