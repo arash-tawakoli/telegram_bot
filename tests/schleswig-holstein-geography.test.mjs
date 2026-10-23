@@ -26,6 +26,7 @@ test("Schleswig-Holstein geography catalog is complete and internally consistent
   assert.ok(migration.includes("https://www.wg-gesucht.de/wohnungen-in-Schleswig-Holstein.0.2.1.0.html"));
   assert.ok(migration.includes("('Garstedt','01060063','Stadt Norderstedt locality alias')"));
   assert.ok(migration.includes("false,'K2','primary',false,true"), "the WG-Gesucht SH lane must remain disabled until the new worker is deployed");
+  assert.ok(migration.includes("priority >= 1 and priority <= 4"), "the dedicated fourth connector lane must be allowed by the connector priority constraint");
   assert.equal(catalog.municipalities.find((area) => area.name === "Norderstedt")?.code, "01060063");
   assert.ok(migration.includes("return result;\nend;\n$function$;\n\n-- Add a separate state-wide WG-Gesucht lane"), "the ingestion function must be terminated before the connector seed");
   assert.ok(migration.includes("public.get_schleswig_holstein_areas()"));
