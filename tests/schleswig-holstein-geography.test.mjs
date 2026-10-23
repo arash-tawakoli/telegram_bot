@@ -24,6 +24,11 @@ test("Schleswig-Holstein geography catalog is complete and internally consistent
   assert.ok(migration.includes("'all_schleswig_holstein'"));
   assert.ok(migration.includes("'schleswig_holstein_areas'"));
   assert.ok(migration.includes("https://www.wg-gesucht.de/wohnungen-in-Schleswig-Holstein.0.2.1.0.html"));
+  assert.ok(migration.includes("('Garstedt','01060063','Stadt Norderstedt locality alias')"));
+  assert.ok(migration.includes("public.get_schleswig_holstein_areas()"));
+  assert.ok(migration.includes("public.get_schleswig_holstein_area_aliases()"));
+  assert.ok(migration.includes("grant execute on function public.get_schleswig_holstein_areas() to service_role"));
+  assert.ok(migration.includes("revoke all on table public.geo_areas, public.geo_area_aliases from PUBLIC, anon, authenticated"));
 });
 
 test("listing ingestion persists and validates state-aware geography", async () => {
@@ -39,6 +44,9 @@ test("listing ingestion persists and validates state-aware geography", async () 
   }
   assert.ok(ingest.includes("municipality.parent_code=x->>'admin_region_code'"));
   assert.ok(ingest.includes("municipality.area_type='municipality'"));
+  assert.ok(ingest.includes("coalesce((c.r).state_code,'HH')"), "legacy workers that omit state_code must continue ingesting Hamburg listings");
+  assert.ok(migration.includes("p.location_mode='all_hamburg' and coalesce(l.state_code,'HH')='HH'"));
+  assert.ok(migration.includes("p.location_mode='all_schleswig_holstein' and l.state_code='SH'"));
 });
 
 test("Telegram and source adapters expose Schleswig-Holstein without changing Hamburg scope", async () => {
@@ -49,6 +57,8 @@ test("Telegram and source adapters expose Schleswig-Holstein without changing Ha
   const klein = await read("../supabase/functions/source-worker/klein.ts");
   const immowelt = await read("../supabase/functions/source-worker/generic.ts");
   const shared = await read("../supabase/functions/source-worker/shared.ts");
+  const immomio = await read("../supabase/functions/source-worker/immomio.ts");
+  const coachApi = await read("../supabase/functions/coach-api/index.ts");
 
   for (const mode of ["all_schleswig_holstein", "schleswig_holstein_areas"]) {
     assert.ok(profiles.includes(mode));
@@ -63,4 +73,11 @@ test("Telegram and source adapters expose Schleswig-Holstein without changing Ha
   assert.ok(immowelt.includes("resolveSchleswigHolsteinMunicipality(city)"));
   assert.ok(shared.includes("state_code: stateCode"));
   assert.ok(shared.includes("resolveSchleswigHolsteinMunicipality"));
+  assert.ok(shared.includes('db.rpc("get_schleswig_holstein_areas")'));
+  assert.ok(shared.includes('db.rpc("get_schleswig_holstein_area_aliases")'));
+  assert.ok(!shared.includes('db.from("geo_areas")'), "source worker should use the service-only geography RPC");
+  assert.ok(immomio.includes("get_schleswig_holstein_areas"));
+  assert.ok(immomio.includes("get_schleswig_holstein_area_aliases"));
+  assert.ok(coachApi.includes("get_schleswig_holstein_areas"));
+  assert.ok(coachApi.includes("get_schleswig_holstein_area_aliases"));
 });
