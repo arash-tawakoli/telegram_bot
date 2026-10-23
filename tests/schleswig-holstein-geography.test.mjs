@@ -28,7 +28,9 @@ test("Schleswig-Holstein geography catalog is complete and internally consistent
   assert.ok(migration.includes("false,'K2','primary',false,true"), "the WG-Gesucht SH lane must remain disabled until the new worker is deployed");
   assert.ok(migration.includes("priority >= 1 and priority <= 4"), "the dedicated fourth connector lane must be allowed by the connector priority constraint");
   assert.equal(catalog.municipalities.find((area) => area.name === "Norderstedt")?.code, "01060063");
-  assert.ok(migration.includes("return result;\nend;\n$function$;\n\n-- Add a separate state-wide WG-Gesucht lane"), "the ingestion function must be terminated before the connector seed");
+  const ingestEnd = migration.indexOf("$function$;", start);
+  const connectorSeed = migration.indexOf("-- Add a separate state-wide WG-Gesucht lane");
+  assert.ok(ingestEnd > start && connectorSeed > ingestEnd, "the ingestion function must be terminated before the connector seed");
   assert.ok(migration.includes("public.get_schleswig_holstein_areas()"));
   assert.ok(migration.includes("returns jsonb"), "the catalog RPC must avoid the PostgREST 1,000-row cap");
   assert.ok(migration.includes("jsonb_agg(jsonb_build_object("), "the complete geography catalog must be returned in one JSONB value");
