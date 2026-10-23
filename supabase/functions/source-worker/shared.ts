@@ -582,9 +582,10 @@ async function loadSchleswigHolsteinMunicipalities() {
   shMunicipalityCache=byName;
   shMunicipalityByCode=byCode;
 }
-export async function resolveSchleswigHolsteinMunicipality(name:string) {
+export async function resolveSchleswigHolsteinMunicipality(name:string,parentCode?:string|null) {
   await loadSchleswigHolsteinMunicipalities();
-  const matches=shMunicipalityCache?.get(normalizeGeoName(name))||[];
+  let matches=shMunicipalityCache?.get(normalizeGeoName(name))||[];
+  if(parentCode)matches=matches.filter(row=>String(row.parent_code)===String(parentCode));
   return matches.length===1?matches[0]:null;
 }
 async function schleswigHolsteinMunicipalityByCode(code:string) {
@@ -603,7 +604,7 @@ async function normalize(
   if (stateCode === "SH") {
     if (!city && !municipalityCode) throw new Error("missing_schleswig_holstein_city");
     if (!municipalityCode) {
-      const match=await resolveSchleswigHolsteinMunicipality(city);
+      const match=await resolveSchleswigHolsteinMunicipality(city,adminRegionCode);
       if (!match) throw new Error("unresolved_schleswig_holstein_city:"+city);
       municipalityCode=match.area_code;
       adminRegionCode=adminRegionCode||match.parent_code;
@@ -691,15 +692,31 @@ export async function upsertCandidates(
   presenceEpoch: string | null = null,
 ) {
   const map = new Map<string, any>();
+  const geographyRejects = new Map<string, number>();
   for (const c of cands) {
     if (!validCandidate(source, c)) continue;
     try {
       const r = await normalize(source, c, freshDeliveryEligible);
       map.set(r.source_listing_key, r);
-    } catch {}
+    } catch (error) {
+      const message=String((error as any)?.message||error||"");
+      if(String(c.stateCode||"").toUpperCase()==="SH"&&/schleswig_holstein_(?:city|region|municipality_code)/i.test(message)){
+        const city=normalizeGeoName(c.city||c.district||"unknown")||"unknown";
+        geographyRejects.set(city,(geographyRejects.get(city)||0)+1);
+      }
+    }
+  }
+  if(geographyRejects.size){
+    const rejected=[...geographyRejects.entries()].sort((a,b)=>b[1]-a[1]);
+    console.warn("schleswig_holstein_geography_resolution_skips",{
+      source_id:source.id,
+      rejected_candidates:rejected.reduce((sum,item)=>sum+item[1],0),
+      distinct_unresolved_names:rejected.length,
+      sample_names:rejected.slice(0,20).map(([name,count])=>({name,count})),
+    });
   }
   const rows = [...map.values()];
-  if (!rows.length) return { seen: 0, fresh: 0, keys: [] as string[] };
+  if (!rows.length) return { seen: 0, fresh: 0, keys: [] as string[], geography_skipped: [...geographyRejects.values()].reduce((sum,count)=>sum+count,0) };
   let fresh = 0;
   for (let i = 0; i < rows.length; i += 100) {
     const result = checked(
