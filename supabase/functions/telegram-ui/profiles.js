@@ -172,7 +172,10 @@ export async function renderSchleswigHolsteinAreas(user, chatId, messageId, draf
     for (let index = 0; index < entries.length; index += 2) {
         rows.push(entries.slice(index, index + 2).map((area) => {
             const parent = area.area_type === "municipality" ? areaByCode.get(String(area.parent_code)) : null;
-            const label = `${selected.has(String(area.area_code)) ? "✅ " : ""}${area.name}${parent ? ` · ${parent.name}` : ""}`;
+            const areaCode = String(area.area_code);
+            const isSelected = selected.has(areaCode) ||
+                (area.area_type === "municipality" && selected.has(String(area.parent_code)));
+            const label = `${isSelected ? "✅ " : ""}${area.name}${parent ? ` · ${parent.name}` : ""}`;
             return button(label, `sharea:${area.area_code}`);
         }));
     }
@@ -185,7 +188,7 @@ export async function renderSchleswigHolsteinAreas(user, chatId, messageId, draf
         button("→", "sharea:next"),
     ], [button("Auswahl bestätigen", "sharea:done")], backRow("location"), cancelRow());
     const text = "📍 <b>Gebiete in Schleswig-Holstein</b>\n\nWähle Kreise, kreisfreie Städte oder Gemeinden.\n\nAusgewählt: " +
-        `${selected.size}/${areas.length}`;
+        `${selected.size}`;
     return edit(chatId, messageId, text, { inline_keyboard: rows });
 }
 
