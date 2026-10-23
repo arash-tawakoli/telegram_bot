@@ -4,11 +4,11 @@
 
 This change uses the existing Supabase project, existing Edge Functions, existing Cloudflare Worker and the current GitHub repositories. It does not create a Supabase development branch, a new project, a new Cloudflare service, or any paid resource.
 
-The feature branches are not production. Do not merge or deploy them until the CI runner issue is resolved and the validation gates below pass.
+The feature branches are not production. The additive geography migration is already present in the existing production database and was verified read-only: 1,120 Schleswig-Holstein areas, two aliases, zero SH listings, and zero SH search profiles. The migration history currently contains two same-name records (20261023094810 and 20261023104210); both are represented by idempotent migration files in this branch. Do not re-run the SQL manually. Do not deploy application functions or merge the feature branches until the validation gates below pass.
 
 ## Required order
 
-1. Review and apply `supabase/migrations/20261023094810_add_schleswig_holstein_geography.sql` to the existing Supabase project. This migration extends the schema and replaces the relevant RPCs. It keeps `state_code` backward-compatible with older workers by treating omitted legacy values as `HH`. The WG-Gesucht Schleswig-Holstein connector is deliberately seeded disabled/shadow-only.
+1. Confirm the existing production migration is registered and the catalog checks below pass. The repository contains both `supabase/migrations/20261023094810_add_schleswig_holstein_geography.sql` and `supabase/migrations/20261023104210_add_schleswig_holstein_geography.sql` to reflect the two recorded migration versions. Both are idempotent. Do not run them manually a third time. The WG-Gesucht Schleswig-Holstein connector remains disabled and shadow-only.
 2. Verify the catalog before enabling any source:
    - `jsonb_array_length(public.get_schleswig_holstein_areas()) = 1120` (1 state + 15 counties/independent cities + 1,104 municipalities).
    - 1,104 unique eight-digit municipality AGS codes and 15 unique parent-region codes.
