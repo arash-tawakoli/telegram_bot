@@ -1473,6 +1473,10 @@ begin
 end;
 $function$;
 
+-- Allow one additional connector lane for the separate Schleswig-Holstein search.
+alter table public.source_connectors drop constraint if exists source_connectors_priority_check;
+alter table public.source_connectors add constraint source_connectors_priority_check check (priority >= 1 and priority <= 4);
+
 -- Add a separate state-wide WG-Gesucht lane; keep the existing Hamburg lane intact.
 insert into public.source_connectors(
   source_id,priority,label,connector_kind,config,enabled,evidence_tier,connector_role,enumerable,shadow_only
