@@ -121,8 +121,24 @@ export function hhZip(z: any) {
   return !z || HH_ZIPS.has(String(z));
 }
 
-type SchleswigHolsteinArea = { area_code: string; parent_code: string | null; name: string; area_type: string };
+type SchleswigHolsteinArea = {
+  area_code: string;
+  parent_code: string | null;
+  name: string;
+  area_type: string;
+  official_code: string | null;
+};
+type SchleswigHolsteinPostalArea = {
+  area: SchleswigHolsteinArea;
+  locality_name: string;
+};
 let shAreaLookup: Map<string, SchleswigHolsteinArea | null> | null = null;
+let shAreaByCode = new Map<string, SchleswigHolsteinArea>();
+let shAreaByOfficialCode = new Map<string, SchleswigHolsteinArea>();
+const shPostalLookup = new Map<string, SchleswigHolsteinPostalArea[]>();
+const shPostalPromises = new Map<string, Promise<SchleswigHolsteinPostalArea[]>>();
+const shPostalFailures = new Map<string, number>();
+
 function geoNameKey(value: any) {
   return String(value || "")
     .normalize("NFKD")
@@ -134,8 +150,8 @@ function geoNameKey(value: any) {
 async function loadSHAreaLookup() {
   if (shAreaLookup) return shAreaLookup;
   const [first, second, aliases] = await Promise.all([
-    db.from("geo_areas").select("area_code,parent_code,name,area_type").eq("state_code", "SH").eq("is_active", true).in("area_type", ["municipality", "independent_city"]).order("area_code").range(0, 999),
-    db.from("geo_areas").select("area_code,parent_code,name,area_type").eq("state_code", "SH").eq("is_active", true).in("area_type", ["municipality", "independent_city"]).order("area_code").range(1000, 1999),
+    db.from("geo_areas").select("area_code,parent_code,name,area_type,official_code").eq("state_code", "SH").eq("is_active", true).in("area_type", ["municipality", "independent_city"]).order("area_code").range(0, 999),
+    db.from("geo_areas").select("area_code,parent_code,name,area_type,official_code").eq("state_code", "SH").eq("is_active", true).in("area_type", ["municipality", "independent_city"]).order("area_code").range(1000, 1999),
     db.from("geo_area_aliases").select("alias,area_code"),
   ]);
   if (first.error) throw first.error;
@@ -143,6 +159,9 @@ async function loadSHAreaLookup() {
   if (aliases.error) throw aliases.error;
   const rows = [...(first.data || []), ...(second.data || [])] as SchleswigHolsteinArea[];
   const byCode = new Map(rows.map((area) => [String(area.area_code), area]));
+  const byOfficialCode = new Map(
+    rows.filter((area) => area.official_code).map((area) => [String(area.official_code), area]),
+  );
   const lookup = new Map<string, SchleswigHolsteinArea | null>();
   const add = (name: string, area: SchleswigHolsteinArea) => {
     const key = geoNameKey(name);
@@ -153,13 +172,15 @@ async function loadSHAreaLookup() {
     }
     const previous = lookup.get(key);
     if (!previous || previous.area_code === area.area_code) return;
-    // Where a kreisfreie Stadt also appears as its own municipality code, use the
-    // municipality record so admin_region_code points at the independent-city parent.
+    // Independent cities also have a municipality-level AGS. Prefer that row so
+    // admin_region_code points to the independent-city parent.
     if (previous.area_type === "independent_city" && area.area_type === "municipality") {
       lookup.set(key, area);
       return;
     }
     if (previous.area_type === "municipality" && area.area_type === "independent_city") return;
+    // Same-name municipalities in different counties remain ambiguous until a PLZ
+    // lookup identifies the correct official municipality code.
     lookup.set(key, null);
   };
   for (const area of rows) add(area.name, area);
@@ -167,30 +188,155 @@ async function loadSHAreaLookup() {
     const area = byCode.get(String(alias.area_code));
     if (area) add(String(alias.alias), area);
   }
+  shAreaByCode = byCode;
+  shAreaByOfficialCode = byOfficialCode;
   shAreaLookup = lookup;
   return lookup;
 }
-async function resolveSHArea(c: Candidate): Promise<SchleswigHolsteinArea | null> {
-  const values = [
+function shCandidateNameValues(c: Candidate) {
+  const address = c.raw?.entry?.address || {};
+  return [
     c.city,
-    c.raw?.entry?.address?.city?.name,
-    c.raw?.entry?.address?.city,
-    c.raw?.entry?.address?.cityName,
-    c.raw?.entry?.address?.town,
+    typeof address.city === "object" ? address.city?.name : address.city,
+    address.cityName,
+    address.town,
+    address.locality,
+    address.quarter,
+    address.neighborhood,
     c.raw?.entry?.city,
     c.district,
-  ];
-  const lookup = await loadSHAreaLookup();
-  for (const value of values) {
-    const candidate = String(value || "").split(/[;,]/)[0]
+  ]
+    .filter((value) => typeof value === "string" || typeof value === "number")
+    .map((value) => String(value).split(/[;,]/)[0]
       .replace(/\b(?:schleswig-holstein|deutschland|germany)\b/ig, "")
-      .trim();
-    const key = geoNameKey(candidate);
-    if (!key) continue;
-    const area = lookup.get(key);
+      .trim())
+    .filter(Boolean);
+}
+function shNameMatch(c: Candidate, lookup: Map<string, SchleswigHolsteinArea | null>) {
+  for (const value of shCandidateNameValues(c)) {
+    const area = lookup.get(geoNameKey(value));
     if (area) return area;
   }
   return null;
+}
+async function loadSHPostalAreas(postalCode: string): Promise<SchleswigHolsteinPostalArea[]> {
+  const cached = shPostalLookup.get(postalCode);
+  if (cached) return cached;
+  const pending = shPostalPromises.get(postalCode);
+  if (pending) return pending;
+  const failureUntil = shPostalFailures.get(postalCode) || 0;
+  if (failureUntil > Date.now()) return [];
+  const promise = (async () => {
+    const { data, error } = await db
+      .from("geo_area_postal_codes")
+      .select("area_code,locality_name")
+      .eq("postal_code", postalCode);
+    if (error) throw error;
+    const cachedRows = (data || [])
+      .map((row: any) => {
+        const area = shAreaByCode.get(String(row.area_code));
+        return area ? { area, locality_name: String(row.locality_name || "") } : null;
+      })
+      .filter((row): row is SchleswigHolsteinPostalArea => row !== null);
+    if (cachedRows.length) {
+      shPostalLookup.set(postalCode, cachedRows);
+      return cachedRows;
+    }
+    let response: Response;
+    try {
+      response = await fetch(
+        `https://openplzapi.org/de/Localities?postalCode=${encodeURIComponent(postalCode)}&page=1&pageSize=50`,
+        { headers: { accept: "application/json" }, signal: AbortSignal.timeout(3500) },
+      );
+    } catch {
+      shPostalFailures.set(postalCode, Date.now() + 5 * 60 * 1000);
+      return [];
+    }
+    if (!response.ok) {
+      shPostalFailures.set(postalCode, Date.now() + 5 * 60 * 1000);
+      return [];
+    }
+    const payload = await response.json().catch(() => null);
+    if (!Array.isArray(payload)) {
+      shPostalFailures.set(postalCode, Date.now() + 5 * 60 * 1000);
+      return [];
+    }
+    const unique = new Map<string, { postal_code: string; area_code: string; locality_name: string; source_name: string; updated_at: string }>();
+    const updatedAt = new Date().toISOString();
+    for (const item of payload) {
+      if (String(item?.federalState?.key || "") !== "01") continue;
+      const area = shAreaByOfficialCode.get(String(item?.municipality?.key || ""));
+      if (!area) continue;
+      const localityName = String(item?.name || "").trim().slice(0, 120);
+      const key = `${area.area_code}\u0000${localityName}`;
+      unique.set(key, {
+        postal_code: postalCode,
+        area_code: area.area_code,
+        locality_name: localityName,
+        source_name: "OpenPLZ API",
+        updated_at: updatedAt,
+      });
+    }
+    const rows = [...unique.values()];
+    if (rows.length) {
+      const { error: cacheError } = await db
+        .from("geo_area_postal_codes")
+        .upsert(rows, { onConflict: "postal_code,area_code,locality_name" });
+      if (cacheError) throw cacheError;
+    }
+    const result = rows.map((row) => ({
+      area: shAreaByCode.get(row.area_code)!,
+      locality_name: row.locality_name,
+    }));
+    shPostalLookup.set(postalCode, result);
+    return result;
+  })();
+  shPostalPromises.set(postalCode, promise);
+  try {
+    return await promise;
+  } finally {
+    shPostalPromises.delete(postalCode);
+  }
+}
+export async function resolveSHAreas(candidates: Candidate[]): Promise<Array<SchleswigHolsteinArea | null>> {
+  const lookup = await loadSHAreaLookup();
+  const result = candidates.map((candidate) => shNameMatch(candidate, lookup));
+  const postalCodes = new Set<string>();
+  for (let index = 0; index < candidates.length; index++) {
+    if (result[index]) continue;
+    const postalCode = String(candidates[index].zip || candidates[index].raw?.entry?.address?.postcode || "");
+    if (/^\d{5}$/.test(postalCode)) postalCodes.add(postalCode);
+  }
+  const uniquePostalCodes = [...postalCodes];
+  // Limit outbound requests to four at a time; repeated postcodes share one cached lookup.
+  for (let index = 0; index < uniquePostalCodes.length; index += 4) {
+    await Promise.all(uniquePostalCodes.slice(index, index + 4).map((postalCode) => loadSHPostalAreas(postalCode).catch(() => [])));
+  }
+  for (let index = 0; index < candidates.length; index++) {
+    if (result[index]) continue;
+    const candidate = candidates[index];
+    const postalCode = String(candidate.zip || candidate.raw?.entry?.address?.postcode || "");
+    if (!/^\d{5}$/.test(postalCode)) continue;
+    const postalAreas = shPostalLookup.get(postalCode) || [];
+    if (!postalAreas.length) continue;
+    const candidateNames = new Set(shCandidateNameValues(candidate).map(geoNameKey).filter(Boolean));
+    const matchingAreas = new Map<string, SchleswigHolsteinArea>();
+    for (const postalArea of postalAreas) {
+      if (candidateNames.has(geoNameKey(postalArea.locality_name)) || candidateNames.has(geoNameKey(postalArea.area.name))) {
+        matchingAreas.set(postalArea.area.area_code, postalArea.area);
+      }
+    }
+    if (matchingAreas.size === 1) {
+      result[index] = [...matchingAreas.values()][0];
+      continue;
+    }
+    const uniqueAreas = new Map(postalAreas.map((postalArea) => [postalArea.area.area_code, postalArea.area]));
+    if (uniqueAreas.size === 1) result[index] = [...uniqueAreas.values()][0];
+  }
+  return result;
+}
+export async function resolveSHArea(c: Candidate): Promise<SchleswigHolsteinArea | null> {
+  return (await resolveSHAreas([c]))[0] || null;
 }
 function amountAfter(s: string, labels: string) {
   return deNum(
