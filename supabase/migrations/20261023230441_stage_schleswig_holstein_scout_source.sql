@@ -21,7 +21,7 @@ INSERT INTO public.sources (
   'source-worker',
   1,
   69,
-  'schleswig_holstein_adaptive_price_mcp',
+  'adaptive_partition',
   'shadow',
   'unknown',
   jsonb_build_object(
