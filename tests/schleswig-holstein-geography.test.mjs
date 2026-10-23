@@ -83,6 +83,9 @@ test("Telegram and source adapters expose Schleswig-Holstein without changing Ha
   assert.ok(migration.includes("https://www.wg-gesucht.de/wohnungen-in-Schleswig-Holstein.0.2.1.0.html"), "WG-Gesucht is configured through its own source connector, not the Immowelt adapter");
   assert.ok(immowelt.includes("stateCode:'SH'"));
   assert.ok(immowelt.includes("resolveSchleswigHolsteinMunicipality(city)"));
+  assert.ok(immowelt.includes("schleswig_holstein_fresh_lane"), "WG-Gesucht SH must run independently of the existing Hamburg pagination cursor");
+  assert.ok(immowelt.includes("source.id === 6"));
+  assert.ok(immowelt.includes("region_state_code"));
   assert.ok(shared.includes("state_code: stateCode"));
   assert.ok(shared.includes("resolveSchleswigHolsteinMunicipality"));
   assert.ok(shared.includes("schleswig_holstein_geography_resolution_skips"), "ambiguous/unmapped public listing locations must be observable, not silently swallowed");
