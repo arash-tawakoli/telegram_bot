@@ -145,6 +145,60 @@ export async function handleMessage(message, user) {
     if (autoApplyMessage)
         return autoApplyMessage;
     const draft = draftFor(user);
+    if (user.onboarding_step === "schleswig_holstein_search") {
+        const queryText = String(text || "").trim();
+        const normalize = (value) => String(value || "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("de-DE").trim();
+        const q = normalize(queryText);
+        if (q.length < 2) {
+            return send(chatId, "Bitte mindestens zwei Zeichen eingeben, zum Beispiel Norderstedt, Kiel oder Garstedt.");
+        }
+        const geo = await geography();
+        const areas = geo.schleswigHolsteinAreas || [];
+        const regions = areas.filter((area) => ["county", "independent_city"].includes(area.area_type));
+        const municipalities = areas.filter((area) => area.area_type === "municipality");
+        const aliases = geo.schleswigHolsteinAliases || [];
+        const regionByCode = new Map(regions.map((area) => [String(area.area_code), area]));
+        const selected = new Set(draft.location_area_codes || []);
+        const results = [];
+        for (const area of regions) {
+            if (normalize(area.name).includes(q)) {
+                const selectedChildren = municipalities.filter((child) => String(child.parent_code) === String(area.area_code));
+                const allSelected = selectedChildren.length > 0 && selectedChildren.every((child) => selected.has(String(child.area_code)));
+                results.push({
+                    area,
+                    label: area.name + (area.area_type === "county" ? " (Kreis)" : " (kreisfreie Stadt)"),
+                    selected: selected.has(String(area.area_code)) || allSelected,
+                    score: normalize(area.name) === q ? 0 : normalize(area.name).startsWith(q) ? 1 : 3,
+                });
+            }
+        }
+        for (const area of municipalities) {
+            const matchedAliases = aliases.filter((alias) => String(alias.area_code) === String(area.area_code) && normalize(alias.alias).includes(q));
+            if (!normalize(area.name).includes(q) && !matchedAliases.length) continue;
+            const region = regionByCode.get(String(area.parent_code));
+            results.push({
+                area,
+                label: area.name + (matchedAliases.length ? " · " + matchedAliases.map((alias) => alias.alias).join(", ") : "") + (region ? " · " + region.name : ""),
+                selected: selected.has(String(area.area_code)) || selected.has(String(area.parent_code)),
+                score: normalize(area.name) === q ? 0 : normalize(area.name).startsWith(q) ? 1 : matchedAliases.length ? 2 : 3,
+            });
+        }
+        results.sort((a, b) => a.score - b.score || a.label.localeCompare(b.label, "de"));
+        if (!results.length) {
+            return send(chatId, "Keine passenden Orte für „" + queryText.replace(/[&<>]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[ch])) + "“ gefunden. Versuche einen anderen Namen oder eine kürzere Schreibweise.", {
+                inline_keyboard: [[button("← Zur Gebietsauswahl", "shsearch:back")]],
+            });
+        }
+        const safeQuery = queryText.replace(/[&<>]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[ch]));
+        const rows = results.slice(0, 8).map((item) => [
+            button((item.selected ? "✅ " : "") + item.label, "shsearch:pick:" + item.area.area_code),
+        ]);
+        rows.push([button("← Zur Gebietsauswahl", "shsearch:back")]);
+        const more = results.length > 8 ? "\n\nEs gibt weitere Treffer. Präzisiere den Suchbegriff, um sie einzugrenzen." : "";
+        return send(chatId, "🔎 <b>Suchergebnisse</b> für „" + safeQuery + "“\n\nWähle einen Kreis, eine Stadt oder Gemeinde. Die übergeordnete Region steht jeweils hinter dem Ortsnamen." + more, {
+            inline_keyboard: rows,
+        });
+    }
     if (user.onboarding_step === "rent_custom") {
         const value = Number(text.replace(/\./g, "").replace(",", "."));
         if (!Number.isFinite(value) || value < 100 || value > 5000) {
@@ -619,6 +673,52 @@ export async function handleCallback(query, user) {
             }
         }
         return renderNeighborhoods(user, chatId, messageId, draft);
+    }
+    if (data === "shsearch:start") {
+        await saveState(user.id, "schleswig_holstein_search", draft, user.request_update_id, user.request_attempt);
+        return send(chatId, "🔎 <b>Ort in Schleswig-Holstein suchen</b>\n\nSchreibe einen Ortsnamen, eine Gemeinde oder einen Kreis. Beispiele: Norderstedt, Kiel, Segeberg oder Garstedt.", {
+            force_reply: true,
+            selective: true,
+            input_field_placeholder: "Ort, Gemeinde oder Kreis",
+        });
+    }
+    if (data === "shsearch:back") {
+        delete draft.location_area_search;
+        return renderSchleswigHolsteinAreas(user, chatId, messageId, draft);
+    }
+    if (data.startsWith("shsearch:pick:")) {
+        const value = data.slice("shsearch:pick:".length);
+        const geo = await geography();
+        const areas = geo.schleswigHolsteinAreas || [];
+        const area = areas.find((entry) => String(entry.area_code) === String(value));
+        if (!area) return renderSchleswigHolsteinAreas(user, chatId, messageId, draft);
+        const selected = new Set(draft.location_area_codes || []);
+        const childrenFor = (code) => areas.filter((entry) => entry.area_type === "municipality" && String(entry.parent_code) === String(code)).map((entry) => String(entry.area_code));
+        if (area.area_type === "municipality") {
+            const parentCode = String(area.parent_code || "");
+            const siblings = childrenFor(parentCode);
+            if (selected.has(parentCode)) {
+                selected.delete(parentCode);
+                for (const code of siblings) if (code !== String(area.area_code)) selected.add(code);
+                selected.delete(String(area.area_code));
+            } else if (selected.has(String(area.area_code))) {
+                selected.delete(String(area.area_code));
+            } else {
+                selected.add(String(area.area_code));
+            }
+        } else if (["county", "independent_city"].includes(area.area_type)) {
+            const children = childrenFor(area.area_code);
+            if (selected.has(String(area.area_code))) {
+                selected.delete(String(area.area_code));
+                for (const code of children) selected.delete(code);
+            } else {
+                for (const code of children) selected.delete(code);
+                selected.add(String(area.area_code));
+            }
+        }
+        draft.location_area_codes = [...selected];
+        delete draft.location_area_search;
+        return renderSchleswigHolsteinAreas(user, chatId, messageId, draft);
     }
     if (data.startsWith("shregion:")) {
         const value = data.slice(9);
