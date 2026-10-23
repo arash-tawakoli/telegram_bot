@@ -10,7 +10,7 @@ INSERT INTO public.sources (
   true,
   'Separate Schleswig-Holstein coverage via the verified ImmoScout24 MCP adapter. Only listings resolved to an active Schleswig-Holstein municipality or independent-city code are ingested.',
   false,'ImmoScout24.de · Schleswig-Holstein','live','source-worker',
-  1,69,'schleswig_holstein_adaptive_price_mcp','live','partial',
+  1,69,'adaptive_partition','live','partial',
   jsonb_build_object(
     'version',2,'evidence','verified_category_stream','discovery','public_search_or_inventory',
     'region_state_code','SH','offer_modes',jsonb_build_array('rent'),
