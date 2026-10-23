@@ -629,6 +629,10 @@ export async function runGeneric(source: Source, connectors: Connector[]) {
       savedOverride: { seen: number; fresh: number; keys: string[] } | null = null,
       primaryTrustedSnapshot = false,
       successfulLaneCount = 0;
+    let shLaneConnector: Connector | null = null,
+      shLaneCandidates: Candidate[] = [],
+      shLaneSaved: { seen: number; fresh: number; keys: string[] } | null = null,
+      shLaneSucceeded = false;
     const attempted = new Set<string>(),
       livePriorities = connectors
         .filter((c) => !c.shadow_only)
@@ -719,6 +723,73 @@ export async function runGeneric(source: Source, connectors: Connector[]) {
           `Connector lane persistence failed: ${laneError.message}`,
         );
     };
+    // WG-Gesucht's state-wide SH lane is independent from its existing Hamburg pagination lane.
+    // Run it once per source invocation; the regular pagination cursor remains dedicated to Hamburg.
+    if (source.id === 6) {
+      const shConnector = connectors.find((connector) =>
+        !connector.shadow_only &&
+        String(connector.config?.region_state_code || "").toUpperCase() === "SH"
+      );
+      if (shConnector) {
+        const target = targetFor(source, shConnector);
+        if (target) {
+          const laneKey = shConnector.connector_kind + "|" + target;
+          attempted.add(laneKey);
+          const laneStarted = iso();
+          shLaneConnector = shConnector;
+          try {
+            const result = await parseOne(source, shConnector, target);
+            const warmed = await laneWasWarmed(shConnector);
+            const allowNew = !!source.baseline_completed_at &&
+              warmed &&
+              String(shConnector.config?.freshness_mode || "") === "newest_first";
+            const saved = await upsertAdditive(result.cands, allowNew);
+            shLaneCandidates = result.cands;
+            shLaneSaved = saved;
+            shLaneSucceeded = true;
+            successfulLaneCount++;
+            meta.connector_attempts.push({
+              priority: shConnector.priority,
+              label: shConnector.label,
+              status: "ok",
+              fetched: result.cands.length,
+              role: "schleswig_holstein_fresh_lane",
+              region_state_code: "SH",
+              warmed,
+              delivery_mode: allowNew ? "new_only" : "warmup",
+            });
+            await recordLane(
+              shConnector,
+              laneStarted,
+              true,
+              result.cands.length,
+              saved.fresh,
+              null,
+              {
+                region_state_code: "SH",
+                warmed,
+                delivery_mode: allowNew ? "new_only" : "warmup",
+                freshness_mode: "newest_first",
+              },
+            );
+          } catch (error) {
+            if (error instanceof CrawlDatabaseError) throw error;
+            const message = error instanceof Error ? error.message : String(error);
+            meta.last_connector_error = message;
+            meta.connector_attempts.push({
+              priority: shConnector.priority,
+              label: shConnector.label,
+              status: "error",
+              region_state_code: "SH",
+              error: message,
+            });
+            await recordLane(shConnector, laneStarted, false, 0, 0, message, {
+              region_state_code: "SH",
+            });
+          }
+        }
+      }
+    }
     for (const c of connectors) {
       if (c.shadow_only) continue;
       const target = targetFor(source, c);
@@ -1072,6 +1143,19 @@ export async function runGeneric(source: Source, connectors: Connector[]) {
         if (picked) await recordLane(c, laneStarted, false, 0, 0, msg);
       }
     }
+    if (shLaneSucceeded && !picked && shLaneConnector) {
+      // If the existing Hamburg connector is unavailable, keep the verified SH lane usable
+      // without claiming the source's full pagination cycle is complete.
+      picked = shLaneConnector;
+      complete = false;
+      savedOverride = { seen: 0, fresh: 0, keys: [] };
+      cands = [...shLaneCandidates];
+      successfulLaneCount = 1;
+      meta.schleswig_holstein_lane_only = true;
+    } else if (shLaneSucceeded && picked && picked !== shLaneConnector) {
+      cands = [...cands, ...shLaneCandidates];
+      successfulLaneCount = Math.max(1, successfulLaneCount) + 1;
+    }
     if (!picked)
       throw new Error(meta.last_connector_error || "no connector succeeded");
     // A generic parser accepting zero listings does not prove an empty inventory.
@@ -1087,8 +1171,15 @@ export async function runGeneric(source: Source, connectors: Connector[]) {
         picked.enumerable &&
         ["tenant_api", "full_page"].includes(source.coverage_strategy) &&
         picked.priority === effectivePrimaryPriority);
-    const saved =
+    const mainSaved =
       savedOverride || (await persistCandidates(source, cands, trustedSnapshot));
+    const saved = shLaneSucceeded && shLaneSaved
+      ? {
+          seen: mainSaved.seen + shLaneSaved.seen,
+          fresh: mainSaved.fresh + shLaneSaved.fresh,
+          keys: [...new Set([...(mainSaved.keys || []), ...(shLaneSaved.keys || [])])],
+        }
+      : mainSaved;
     if (
       successfulLaneCount <= 1 &&
       complete &&
