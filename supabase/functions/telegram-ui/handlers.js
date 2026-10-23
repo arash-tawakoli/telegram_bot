@@ -508,7 +508,7 @@ export async function handleCallback(query, user) {
         if (!PROPERTY_TYPES.includes(value)) {
             return renderTypes(user, chatId, messageId, draft);
         }
-        const hadExistingLocation = ["all_hamburg", "boroughs", "neighborhoods"].includes(String(draft.location_mode || ""));
+        const hadExistingLocation = ["all_hamburg", "boroughs", "neighborhoods", "all_schleswig_holstein", "schleswig_holstein_areas"].includes(String(draft.location_mode || ""));
         const categoryEdit = draft.profile_edit === true || draft.edit_return === true;
         draft.property_types = [value];
         draft.min_rooms = null;
@@ -540,6 +540,73 @@ export async function handleCallback(query, user) {
             draft.borough_ids = [];
             return renderNeighborhoods(user, chatId, messageId, draft);
         }
+        if (value === "all_sh") {
+            draft.location_mode = "all_schleswig_holstein";
+            draft.borough_ids = [];
+            draft.neighborhood_ids = [];
+            draft.location_area_codes = [];
+            return afterSelection(user, chatId, messageId, draft, "rent");
+        }
+        if (value === "areas_sh") {
+            draft.location_mode = "schleswig_holstein_areas";
+            draft.borough_ids = [];
+            draft.neighborhood_ids = [];
+            draft.area_page = 0;
+            return renderSchleswigHolsteinAreas(user, chatId, messageId, draft);
+        }
+    }
+    if (data.startsWith("sharea:")) {
+        const value = data.slice(7);
+        const geo = await geography();
+        const areas = (geo.schleswigHolsteinAreas || []).filter((entry) => entry.area_type !== "state");
+        const selected = new Set((draft.location_area_codes || []).map(String));
+        if (value === "back") {
+            return renderLocation(user, chatId, messageId, draft);
+        }
+        if (value === "prev" || value === "next") {
+            const pages = Math.max(1, Math.ceil(areas.length / 20));
+            draft.area_page = Math.max(0, Math.min(pages - 1, Number(draft.area_page || 0) + (value === "next" ? 1 : -1)));
+            return renderSchleswigHolsteinAreas(user, chatId, messageId, draft);
+        }
+        if (value === "clear") {
+            draft.location_area_codes = [];
+            draft.area_page = 0;
+            return renderSchleswigHolsteinAreas(user, chatId, messageId, draft);
+        }
+        if (value === "all") {
+            draft.location_mode = "all_schleswig_holstein";
+            draft.location_area_codes = [];
+            return afterSelection(user, chatId, messageId, draft, "rent");
+        }
+        if (value === "done") {
+            if (!selected.size)
+                return renderSchleswigHolsteinAreas(user, chatId, messageId, draft);
+            return afterSelection(user, chatId, messageId, draft, "rent");
+        }
+        const area = areas.find((entry) => String(entry.area_code) === value);
+        if (!area)
+            return renderSchleswigHolsteinAreas(user, chatId, messageId, draft);
+        if (selected.has(value)) {
+            selected.delete(value);
+        }
+        else if (area.area_type === "county") {
+            for (const candidate of areas) {
+                if (String(candidate.parent_code) === value)
+                    selected.delete(String(candidate.area_code));
+            }
+            selected.add(value);
+        }
+        else if (area.area_type === "municipality") {
+            if (selected.has(String(area.parent_code)))
+                selected.delete(String(area.parent_code));
+            selected.add(value);
+        }
+        else {
+            selected.add(value);
+        }
+        draft.location_area_codes = [...selected];
+        draft.location_mode = "schleswig_holstein_areas";
+        return renderSchleswigHolsteinAreas(user, chatId, messageId, draft);
     }
     if (data.startsWith("borough:")) {
         const value = data.slice(8);
