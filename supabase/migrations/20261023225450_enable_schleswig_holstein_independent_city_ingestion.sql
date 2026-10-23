@@ -1,5 +1,4 @@
--- Enable official Schleswig-Holstein municipality and independent-city codes in listing ingestion.
--- Restored from the applied live definition so GitHub migration history remains reproducible.
+-- Accept Schleswig-Holstein's four independent cities as valid official geographic targets.
 CREATE OR REPLACE FUNCTION public.ingest_listing_batch_v3(p_source_id smallint, p_rows jsonb, p_presence_epoch timestamp with time zone)
  RETURNS jsonb
  LANGUAGE plpgsql
