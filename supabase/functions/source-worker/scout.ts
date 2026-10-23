@@ -1,6 +1,6 @@
 import {persistCategoryListings} from './category-persist.ts';
 import {coverageTimestampProof} from './coverage-newness.ts';
-import {Candidate,Source,db,deNum,iso,markFailure,markSuccess,upsertCandidates,UA} from './shared.ts';
+import {Candidate,Source,db,deNum,iso,markFailure,markSuccess,resolveSHAreas,upsertCandidates,UA} from './shared.ts';
 const MCP='https://app.chatgpt.immobilienscout24.de/v2/mcp',PROTO='2025-06-18';
 const BOROUGHS=['Hamburg-Mitte','Altona','Eimsbüttel','Hamburg-Nord','Wandsbek','Bergedorf','Harburg'];
 const TARGET_NEIGHBORHOODS=[
@@ -38,7 +38,13 @@ function entryId(e:any){return String(e?.exposedId||e?.exposeId||e?.id||'')}
 async function enrichedSearch(query:string){const [r,m]=await Promise.all([search(query),mapSearch(query).then(x=>({ok:true,...x})).catch(e=>({ok:false,entries:[] as any[],total:null,error:e instanceof Error?e.message:String(e)}))]);const byId=new Map<string,any>();for(const e of m.entries||[]){const id=entryId(e);if(id)byId.set(id,e)}let enriched=0;const entries=r.entries.map((e:any)=>{const x=byId.get(entryId(e));if(!x)return e;const patch:any={};for(const k of ['totalRent','serviceCharge','heatingCosts','heatingCostsInServiceCharge'])if(x[k]!=null)patch[k]=x[k];if(Object.keys(patch).length)enriched++;return{...e,...patch}});return{...r,entries,map_entries:m.entries||[],map_ok:m.ok,map_returned:(m.entries||[]).length,map_enriched:enriched,map_error:m.ok?null:m.error||'map error'}}
 function query(x:any){const a=['Wohnung zur Miete',`in ${x.neighborhood||x.borough}, Hamburg`];if(x.min!=null&&x.max!=null)a.push(`zwischen ${Math.round(x.min)} und ${Math.round(x.max)} Euro monatlich`);else if(x.max!=null)a.push(`maximal ${Math.round(x.max)} Euro monatlich`);else if(x.min!=null)a.push(`ab ${Math.round(x.min)} Euro monatlich`);return a.join(', ')}
 function schleswigHolsteinQuery(x:any){
-  const lead=x.kind==='house'?'Häuser zur Miete':x.kind==='room'?'WG-Zimmer zur Miete':'Wohnungen zur Miete';
+  const lead=x.kind==='house'
+    ?'Häuser zur Miete'
+    :x.kind==='room'
+      ?'WG-Zimmer zur Miete'
+      :x.kind==='swap'
+        ?'Tauschwohnung'
+        :'Wohnungen zur Miete';
   const a=[lead,'in Schleswig-Holstein','neueste Inserate'];
   if(x.min!=null&&x.max!=null)a.push(`zwischen ${Math.round(x.min)} und ${Math.round(x.max)} Euro monatlich`);
   else if(x.max!=null)a.push(`maximal ${Math.round(x.max)} Euro monatlich`);
@@ -128,11 +134,29 @@ export async function runScoutSchleswigHolstein(source:Source){
     await loadCooperativeRegistry();
     await init();
     let {data:state}=await db.from('source_coverage_state').select('*').eq('source_id',source.id).maybeSingle().throwOnError();
-    const newCycle=state?.status!=='running';
+    const previousCursor:any=state?.cursor||{};
+    const previousQueue:any[]=Array.isArray(previousCursor.queue)?previousCursor.queue:[];
+    const previousBlockedSaturated=Array.isArray(previousCursor.blocked_saturated_keys)?previousCursor.blocked_saturated_keys:[];
+    const previousBlockedUnmapped=Array.isArray(previousCursor.blocked_unmapped_keys)?previousCursor.blocked_unmapped_keys:[];
+    const alreadyBlocked=previousBlockedSaturated.length>0||previousBlockedUnmapped.length>0;
+    if(state?.status==='complete'&&source.delivery_mode==='shadow'&&source.baseline_completed_at&&!previousQueue.length&&!alreadyBlocked){
+      const {error}=await db.from('sources').update({delivery_mode:'live',updated_at:started}).eq('id',source.id).eq('enabled',true).eq('runtime_mode','live');
+      if(error)throw error;
+      return {ok:true,source_id:source.id,promoted:true,coverage_already_complete:true};
+    }
+    if(state?.status==='running'&&source.delivery_mode==='shadow'&&!previousQueue.length&&alreadyBlocked){
+      return {ok:true,source_id:source.id,blocked:true,blocked_saturated:previousBlockedSaturated.length,blocked_unmapped:previousBlockedUnmapped.length};
+    }
+    const restartBlockedLive=state?.status==='running'&&source.delivery_mode==='live'&&!previousQueue.length&&alreadyBlocked;
+    const newCycle=state?.status!=='running'||restartBlockedLive;
     const cycle=newCycle?crypto.randomUUID():String(state.cycle_id);
     let cursor:any=newCycle
-      ?{queue:['apartment','house','room'].map(kind=>({kind,min:null,max:null,depth:0})),processed:0}
-      :(state?.cursor||{});
+      ?{queue:['apartment','house','room','swap'].map(kind=>({kind,min:null,max:null,depth:0})),processed:0,blocked_saturated_keys:[],blocked_unmapped_keys:[],unmapped_retry_counts:{}}
+      :previousCursor;
+    if(!Array.isArray(cursor.queue))cursor.queue=['apartment','house','room','swap'].map((kind:string)=>({kind,min:null,max:null,depth:0}));
+    if(!Array.isArray(cursor.blocked_saturated_keys))cursor.blocked_saturated_keys=[];
+    if(!Array.isArray(cursor.blocked_unmapped_keys))cursor.blocked_unmapped_keys=[];
+    if(!cursor.unmapped_retry_counts||typeof cursor.unmapped_retry_counts!=='object')cursor.unmapped_retry_counts={};
     if(newCycle){
       await db.from('source_coverage_state').upsert({
         source_id:source.id,cycle_id:cycle,strategy:'schleswig_holstein_adaptive_price_mcp',
@@ -143,7 +167,9 @@ export async function runScoutSchleswigHolstein(source:Source){
     }
     const queue:any[]=Array.isArray(cursor.queue)?cursor.queue:[];
     const work=queue.splice(0,3);
-    const candidatesByKey=new Map<string,{candidate:Candidate;fresh:boolean}>();
+    const partitionKey=(x:any)=>`${x.kind}|${x.min==null?'*':x.min}|${x.max==null?'*':x.max}|${Number(x.depth||0)}`;
+    const partitionMeta=new Map<string,{partition:any;hasChildren:boolean}>();
+    const candidatesByKey=new Map<string,{candidate:Candidate;fresh:boolean;partitionKey:string}>();
     let requests=0,mapErrors=0,processed=0,saturated=0,totalReported=0;
     for(const partition of work){
       const q=schleswigHolsteinQuery(partition);
@@ -151,11 +177,14 @@ export async function runScoutSchleswigHolstein(source:Source){
       requests+=2;
       if(!result.map_ok)mapErrors++;
       totalReported+=Number(result.total||0);
-      const kind=partition.kind==='house'?'Haus':partition.kind==='room'?'WG':'Wohnung';
+      const kind=partition.kind==='house'?'Haus':partition.kind==='room'?'WG':partition.kind==='swap'?'Tauschwohnung':'Wohnung';
+      const keyForPartition=partitionKey(partition);
       for(const base of candidates(result.entries,q)){
         const published=scoutPublishedAt(base.raw?.entry);
-        const age=published?Date.now()-new Date(published).getTime():Number.POSITIVE_INFINITY;
-        const fresh=source.delivery_mode==='live'&&published!=null&&age>=-5*60*1000&&age<=24*60*60*1000;
+        const publishedMs=published?new Date(published).getTime():null;
+        const age=publishedMs!=null?Date.now()-publishedMs:Number.POSITIVE_INFINITY;
+        const baselineMs=source.baseline_completed_at?new Date(source.baseline_completed_at).getTime():null;
+        const fresh=source.delivery_mode==='live'&&baselineMs!=null&&publishedMs!=null&&publishedMs>=baselineMs&&age>=-5*60*1000&&age<=24*60*60*1000;
         const candidate:Candidate={
           ...base,type:kind,city:base.city||base.raw?.entry?.address?.city||base.raw?.entry?.address?.cityName||null,
           raw:{
@@ -166,42 +195,94 @@ export async function runScoutSchleswigHolstein(source:Source){
         };
         const key=String(candidate.key||candidate.url);
         const previous=candidatesByKey.get(key);
-        if(!previous||fresh&&!previous.fresh)candidatesByKey.set(key,{candidate,fresh});
+        if(!previous||fresh&&!previous.fresh)candidatesByKey.set(key,{candidate,fresh,partitionKey:keyForPartition});
       }
       const isSaturated=(result.total!=null&&Number(result.total)>result.entries.length)||result.entries.length>=25;
-      if(isSaturated){
-        const next=children(partition);
-        if(next.length)queue.push(...next);
-        else saturated++;
+      const next=isSaturated?children(partition):[];
+      partitionMeta.set(keyForPartition,{partition,hasChildren:next.length>0});
+      if(next.length)queue.push(...next);
+      else if(isSaturated){
+        saturated++;
+        if(!cursor.blocked_saturated_keys.includes(keyForPartition))cursor.blocked_saturated_keys.push(keyForPartition);
       }
       processed++;
     }
-    const freshRows=[...candidatesByKey.values()].filter(x=>x.fresh).map(x=>x.candidate);
-    const coverageRows=[...candidatesByKey.values()].filter(x=>!x.fresh).map(x=>x.candidate);
+    const candidateEntries=[...candidatesByKey.values()];
+    const resolvedAreas=await resolveSHAreas(candidateEntries.map(x=>x.candidate));
+    const validEntries:{candidate:Candidate;fresh:boolean;partitionKey:string}[]=[];
+    const unmappedPartitionKeys=new Set<string>();
+    let unmapped=0;
+    for(let i=0;i<candidateEntries.length;i++){
+      if(resolvedAreas[i]){
+        validEntries.push(candidateEntries[i]);
+      }else{
+        unmapped++;
+        unmappedPartitionKeys.add(candidateEntries[i].partitionKey);
+      }
+    }
+    let retriedUnmapped=0;
+    for(const key of unmappedPartitionKeys){
+      const meta=partitionMeta.get(key);
+      if(!meta||meta.hasChildren)continue;
+      const attempts=Number(cursor.unmapped_retry_counts[key]||0);
+      if(attempts<2){
+        queue.push(meta.partition);
+        cursor.unmapped_retry_counts[key]=attempts+1;
+        retriedUnmapped++;
+      }else if(!cursor.blocked_unmapped_keys.includes(key)){
+        cursor.blocked_unmapped_keys.push(key);
+      }
+    }
+    const freshRows=validEntries.filter(x=>x.fresh).map(x=>x.candidate);
+    const coverageRows=validEntries.filter(x=>!x.fresh).map(x=>x.candidate);
     const presenceEpoch=String(state?.cycle_started_at||started);
     const freshSaved=freshRows.length?await upsertCandidates(source,freshRows,true,presenceEpoch):{seen:0,fresh:0,keys:[] as string[]};
     const coverageSaved=coverageRows.length?await upsertCandidates(source,coverageRows,false,presenceEpoch):{seen:0,fresh:0,keys:[] as string[]};
     const seen=freshSaved.seen+coverageSaved.seen;
     const inserted=freshSaved.fresh+coverageSaved.fresh;
-    const complete=queue.length===0;
+    const blockedSaturatedKeys:string[]=cursor.blocked_saturated_keys;
+    const blockedUnmappedKeys:string[]=cursor.blocked_unmapped_keys;
+    const complete=queue.length===0&&blockedSaturatedKeys.length===0&&blockedUnmappedKeys.length===0&&unmapped===0&&saturated===0;
     const finished=iso();
+    const lastError=blockedSaturatedKeys.length
+      ?`${blockedSaturatedKeys.length} saturated price partitions require a further split`
+      :blockedUnmappedKeys.length
+        ?`${blockedUnmappedKeys.length} partitions still contain unmapped Schleswig-Holstein locations`
+        :unmapped>0
+          ?`${unmapped} candidates could not yet be mapped to an official municipality; retried ${retriedUnmapped} partitions`
+          :null;
     await db.from('source_coverage_state').update({
       status:complete?'complete':'running',
-      cursor:{queue,processed:Number(cursor.processed||0)+processed,last_partition_at:finished},
+      cursor:{
+        ...cursor,queue,processed:Number(cursor.processed||0)+processed,last_partition_at:finished,
+        blocked_saturated_keys:blockedSaturatedKeys,blocked_unmapped_keys:blockedUnmappedKeys,
+        unmapped_retry_counts:cursor.unmapped_retry_counts
+      },
       seen_count:Number(state?.seen_count||0)+seen,
       request_count:Number(state?.request_count||0)+requests,
       cycle_finished_at:complete?finished:null,
       last_complete_at:complete?finished:state?.last_complete_at||null,
-      updated_at:finished,
-      last_error:saturated?String(saturated)+' saturated price partitions':null
+      updated_at:finished,last_error:lastError
     }).eq('source_id',source.id).throwOnError();
     await markSuccess(source,started,null,freshRows.length+coverageRows.length,inserted,{
       strategy:'schleswig_holstein_adaptive_price_mcp',cycle_id:cycle,requests,
       partitions:work.length,map_errors:mapErrors,remaining:queue.length,complete,
       fresh_candidates:freshRows.length,coverage_candidates:coverageRows.length,
-      reported_total:totalReported,saturated
+      reported_total:totalReported,saturated,unmapped,blocked_saturated:blockedSaturatedKeys.length,
+      blocked_unmapped:blockedUnmappedKeys.length,retried_unmapped_partitions:retriedUnmapped
     });
-    return {ok:true,source_id:source.id,fetched:freshRows.length+coverageRows.length,new:inserted,remaining:queue.length,cycle_complete:complete,requests,map_errors:mapErrors};
+    let promoted=false;
+    if(complete){
+      const {data:baseline,error:baselineError}=await db.from('sources').select('delivery_mode,baseline_completed_at').eq('id',source.id).single();
+      if(baselineError)throw baselineError;
+      if(!baseline?.baseline_completed_at)throw new Error('Coverage completed but baseline_completed_at was not recorded');
+      if(baseline.delivery_mode==='shadow'){
+        const {error:promotionError}=await db.from('sources').update({delivery_mode:'live',updated_at:finished}).eq('id',source.id).eq('enabled',true).eq('runtime_mode','live');
+        if(promotionError)throw promotionError;
+        promoted=true;
+      }
+    }
+    return {ok:true,source_id:source.id,fetched:freshRows.length+coverageRows.length,new:inserted,remaining:queue.length,cycle_complete:complete,promoted,requests,map_errors:mapErrors,unmapped,blocked_saturated:blockedSaturatedKeys.length,blocked_unmapped:blockedUnmappedKeys.length};
   }catch(error){
     return markFailure(source,started,error);
   }
