@@ -283,10 +283,13 @@ export async function geography() {
         throw neighborhoodResult.error;
     if (schleswigHolsteinResult.error)
         throw schleswigHolsteinResult.error;
+    if (schleswigHolsteinAliasResult.error)
+        throw schleswigHolsteinAliasResult.error;
     const value = {
         boroughs: boroughResult.data || [],
         neighborhoods: neighborhoodResult.data || [],
         schleswigHolsteinAreas: schleswigHolsteinResult.data || [],
+        schleswigHolsteinAliases: schleswigHolsteinAliasResult.data || [],
     };
     geoCache = { value, expiresAt: Date.now() + GEO_TTL_MS };
     return value;
