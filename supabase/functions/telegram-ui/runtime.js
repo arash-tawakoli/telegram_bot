@@ -271,17 +271,33 @@ export async function saveState(userId, step, draft, updateId = null, attempt = 
 export async function geography() {
     if (geoCache && geoCache.expiresAt > Date.now())
         return geoCache.value;
-    const [boroughResult, neighborhoodResult] = await Promise.all([
+    const [boroughResult, neighborhoodResult, schleswigResult] = await Promise.all([
         db.from("hamburg_boroughs").select("id,name,sort_order").order("sort_order"),
         db.from("hamburg_neighborhoods").select("id,name,borough_id").order("id"),
+        db.rpc("get_schleswig_holstein_areas"),
     ]);
     if (boroughResult.error)
         throw boroughResult.error;
     if (neighborhoodResult.error)
         throw neighborhoodResult.error;
+    if (schleswigResult.error)
+        throw schleswigResult.error;
+    const schleswigHolsteinAreas = Array.isArray(schleswigResult.data) ? schleswigResult.data : [];
+    const areaByCode = new Map(schleswigHolsteinAreas.map((area) => [String(area.area_code), area]));
+    const areaTypeRank = { county: 0, independent_city: 1, municipality: 2 };
+    schleswigHolsteinAreas.sort((a, b) => {
+        const rank = (areaTypeRank[a.area_type] ?? 3) - (areaTypeRank[b.area_type] ?? 3);
+        if (rank) return rank;
+        if (a.area_type === "municipality") {
+            const parent = String(areaByCode.get(String(a.parent_code))?.name || "").localeCompare(String(areaByCode.get(String(b.parent_code))?.name || ""), "de");
+            if (parent) return parent;
+        }
+        return String(a.name).localeCompare(String(b.name), "de");
+    });
     const value = {
         boroughs: boroughResult.data || [],
         neighborhoods: neighborhoodResult.data || [],
+        schleswigHolsteinAreas,
     };
     geoCache = { value, expiresAt: Date.now() + GEO_TTL_MS };
     return value;
