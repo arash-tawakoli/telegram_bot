@@ -1,5 +1,4 @@
--- Poll all live sources hourly and enqueue a bounded batch every five minutes.
--- The scheduler stays frequent enough to drain a distributed hourly workload without a single large burst.
+-- Poll every live source at most once per hour while keeping the scheduler wake-up frequent enough to drain the queue.
 UPDATE public.sources
 SET poll_interval_minutes = 60,
     updated_at = now()
