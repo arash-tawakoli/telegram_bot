@@ -1161,6 +1161,45 @@ create table if not exists public.geo_area_aliases (alias text not null,area_cod
 create index if not exists geo_area_aliases_alias_idx on public.geo_area_aliases(lower(alias));
 alter table public.geo_areas enable row level security;
 alter table public.geo_area_aliases enable row level security;
+
+-- Keep the geographic catalog service-only and access it through narrow RPCs.
+revoke all on table public.geo_areas, public.geo_area_aliases from PUBLIC, anon, authenticated;
+grant select on table public.geo_areas, public.geo_area_aliases to service_role;
+
+-- Garstedt is a locality within Norderstedt, not a separate municipality.
+insert into public.geo_area_aliases(alias,area_code,source_name)
+values
+  ('Garstedt','01060063','Stadt Norderstedt locality alias'),
+  ('Norderstedt-Garstedt','01060063','Stadt Norderstedt locality alias')
+on conflict(alias,area_code) do update set source_name=excluded.source_name;
+
+-- Service-side RPCs avoid requiring direct PostgREST table exposure for the catalog.
+create or replace function public.get_schleswig_holstein_areas()
+returns table(area_code text,parent_code text,area_type text,name text,state_code text,official_code text)
+language sql stable set search_path to ''
+as $function$
+  select g.area_code,g.parent_code,g.area_type,g.name,g.state_code,g.official_code
+  from public.geo_areas g
+  where g.state_code='SH' and g.is_active
+  order by case g.area_type when 'state' then 0 when 'county' then 1 when 'independent_city' then 1 when 'municipality' then 2 else 3 end,g.name
+$function$;
+
+create or replace function public.get_schleswig_holstein_area_aliases()
+returns table(alias text,area_code text,parent_code text,name text,region_name text)
+language sql stable set search_path to ''
+as $function$
+  select a.alias,g.area_code,g.parent_code,g.name,coalesce(parent.name,'Schleswig-Holstein')
+  from public.geo_area_aliases a
+  join public.geo_areas g on g.area_code=a.area_code
+  left join public.geo_areas parent on parent.area_code=g.parent_code
+  where g.state_code='SH' and g.area_type='municipality' and g.is_active
+  order by a.alias
+$function$;
+
+revoke all on function public.get_schleswig_holstein_areas() from PUBLIC, anon, authenticated;
+revoke all on function public.get_schleswig_holstein_area_aliases() from PUBLIC, anon, authenticated;
+grant execute on function public.get_schleswig_holstein_areas() to service_role;
+grant execute on function public.get_schleswig_holstein_area_aliases() to service_role;
 create or replace function app_private.save_search_profile_values(p_user uuid,p_values jsonb) returns uuid language plpgsql set search_path to '' as $function$
 declare
  u public.bot_users%rowtype; v public.search_profiles%rowtype; v_id uuid; slot integer; types text[]; v_type text;
@@ -1370,7 +1409,7 @@ begin
     select
       (c.r).source_id,(c.r).source_listing_key,(c.r).external_id,(c.r).canonical_url,
       (c.r).title,(c.r).address,(c.r).district,(c.r).postal_code,(c.r).city,
-      (c.r).state_code,(c.r).admin_region_code,(c.r).municipality_code,(c.r).warm_rent,(c.r).cold_rent,(c.r).additional_costs,(c.r).operating_costs,
+      coalesce((c.r).state_code,'HH'),(c.r).admin_region_code,(c.r).municipality_code,(c.r).warm_rent,(c.r).cold_rent,(c.r).additional_costs,(c.r).operating_costs,
       (c.r).heating_costs,(c.r).deposit,(c.r).deposit_text,(c.r).rooms,(c.r).area_sqm,
       (c.r).available_from,(c.r).property_type,(c.r).furnished,(c.r).wbs_required,
       (c.r).image_url,(c.r).cross_source_hash,(c.r).raw,(c.r).fresh_delivery_eligible,
