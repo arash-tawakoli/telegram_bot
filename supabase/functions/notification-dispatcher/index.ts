@@ -681,7 +681,7 @@ Deno.serve(async (req) => {
       .lt("dispatch_attempts", 5)
       .or(`next_retry_at.is.null,next_retry_at.lte.${now}`)
       .order("created_at")
-      .limit(200);
+      .limit(25);
     if (error) throw error;
     if (!events?.length) return Response.json({ok:true,totals:{sent:0,failed:0,skipped:0}});
     const token = await sec("telegram_bot_token_runtime");
