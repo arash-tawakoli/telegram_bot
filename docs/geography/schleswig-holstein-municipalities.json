@@ -2,7 +2,8 @@
   "source": "Destatis GV100-derived municipality register (2022), reconciled with Statistik Nord official changes through 2026-01-01",
   "source_urls": [
     "https://www.destatis.de/DE/Themen/Laender-Regionen/Regionales/Gemeindeverzeichnis/_inhalt.html",
-    "https://www.statistik-nord.de/zahlen-fakten/gebiet-flaeche/gebietsgliederung-schleswig-holstein"
+    "https://www.statistik-nord.de/zahlen-fakten/gebiet-flaeche/gebietsgliederung-schleswig-holstein",
+    "https://www.statistik-nord.de/zahlen-fakten/gebiet-flaeche/gebietsaenderungen"
   ],
   "source_vintage": "2026-01-01",
   "count": 1104,
@@ -5527,5 +5528,11 @@
       "parent": "01062",
       "name": "Wesenberg"
     }
+  ],
+  "reconciliation_notes": [
+    "The 1,104 municipality rows are keyed by eight-digit Amtlicher Gemeindeschlüssel (AGS) and reconciled against official administrative changes effective through 2026-01-01.",
+    "A 2026 state-government overview reports 1,106 municipalities while Statistik Nord's 2023 area data reports 1,104. The catalogue count is the number of unique municipality AGS rows after the listed mergers, not a hard-coded headline count; recheck the official current directory before the next annual refresh.",
+    "Administrative changes with a future effective date (including the Sylt change scheduled for 2027-01-01) are not applied before their effective date.",
+    "District/locality names such as Garstedt are aliases of their municipality, not separate municipalities; the current alias seed maps Garstedt to Norderstedt (AGS 01060063)."
   ]
 }
