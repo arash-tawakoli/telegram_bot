@@ -151,9 +151,9 @@ export async function runScoutSchleswigHolstein(source:Source){
     const newCycle=state?.status!=='running'||restartBlockedLive;
     const cycle=newCycle?crypto.randomUUID():String(state.cycle_id);
     let cursor:any=newCycle
-      ?{queue:['apartment','house','room','swap'].map(kind=>({kind,min:null,max:null,depth:0})),processed:0,blocked_saturated_keys:[],blocked_unmapped_keys:[],unmapped_retry_counts:{}}
+      ?{queue:['swap','apartment','house','room'].map(kind=>({kind,min:null,max:null,depth:0})),processed:0,blocked_saturated_keys:[],blocked_unmapped_keys:[],unmapped_retry_counts:{}}
       :previousCursor;
-    if(!Array.isArray(cursor.queue))cursor.queue=['apartment','house','room','swap'].map((kind:string)=>({kind,min:null,max:null,depth:0}));
+    if(!Array.isArray(cursor.queue))cursor.queue=['swap','apartment','house','room'].map((kind:string)=>({kind,min:null,max:null,depth:0}));
     if(!Array.isArray(cursor.blocked_saturated_keys))cursor.blocked_saturated_keys=[];
     if(!Array.isArray(cursor.blocked_unmapped_keys))cursor.blocked_unmapped_keys=[];
     if(!cursor.unmapped_retry_counts||typeof cursor.unmapped_retry_counts!=='object')cursor.unmapped_retry_counts={};
