@@ -1120,8 +1120,8 @@
         },
         {
           "path": "supabase/functions/source-worker/scout.ts",
-          "git_blob_sha": "acfdc3c4a559b0e55a26c7ab03b33c32cf977ad2",
-          "deployed_git_blob_sha": "acfdc3c4a559b0e55a26c7ab03b33c32cf977ad2"
+          "git_blob_sha": "a2f0e2cb0ecf0b72386be2a43ccfc4432df2dd13",
+          "deployed_git_blob_sha": "a2f0e2cb0ecf0b72386be2a43ccfc4432df2dd13"
         },
         {
           "path": "supabase/functions/source-worker/category-persist.ts",
@@ -1259,9 +1259,9 @@
           "deployed_git_blob_sha": "4d1c8b364256e43b5c3145c7cc6398b111a55b2c"
         }
       ],
-      "observed_live_version": 138,
+      "observed_live_version": 139,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "957f67f26a377a33cecdd1f8854e5ad7eee2d3b0f31ed835e0b75a62d49b1227",
+      "observed_live_artifact_sha256": "ac9eb1a09255cefdb6b0d9dbd788ea1655ec9dd6219f94b762168e9b73eb1f5b",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-19.json",
       "source_archive_file_count": 33,
       "source_archive_status": "full_source",
