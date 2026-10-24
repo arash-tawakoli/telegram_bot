@@ -215,6 +215,12 @@
       "name": "telegram_fast_review_geo_payload",
       "file": "supabase/migrations/20261024223001_telegram_fast_review_geo_payload.sql",
       "export_sql_sha256": "2918590c8eaecbe198958aa338cd65756e9cea1862ae4c68551f7d68685f5964"
+    },
+    {
+      "version": "20261024223002",
+      "name": "telegram_fast_review_geo_guard",
+      "file": "supabase/migrations/20261024223002_telegram_fast_review_geo_guard.sql",
+      "export_sql_sha256": "92f3bec149cc3821d8bd61ba9e4c881305473423966c101e6f25cb65a46626c1"
     }
   ]
 }
