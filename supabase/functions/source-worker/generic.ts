@@ -611,7 +611,7 @@ export async function runImmoweltCategory(source:Source,stream:any){
   let parsedTotal=reset?0:Number(prior.parsed_total||0);
   let acceptedTotal=reset?0:Number(prior.accepted_total||0);
   let allEmptyVerified=reset?true:prior.all_empty_verified!==false;
-  const all:Candidate[]=[],rows:Candidate[]=[];
+  const rows:Candidate[]=[];
   let requests=0,parsed=0,complete=false,verifiedEmpty=false;
   const categoryOnly=source.coverage_strategy==='category_streams_only';
   const maxPagesPerRun=6;
@@ -630,7 +630,6 @@ export async function runImmoweltCategory(source:Source,stream:any){
     }
     parsed+=cards.length;
     parsedTotal+=cards.length;
-    all.push(...cards);
     allEmptyVerified=false;
     if(total==null)total=immoweltTotal(response.text);
     const discoveredPages=maxPage(response.text);
@@ -649,7 +648,6 @@ export async function runImmoweltCategory(source:Source,stream:any){
     nextPage=pageNumber+1;
     if(reportedPages!=null&&pageNumber>=reportedPages){complete=true;break;}
   }
-  const unique=[...new Map(all.map(c=>[String(c.key||c.url),c])).values()];
   const key=(c:Candidate)=>String(c.key||c.url?.split('/').filter(Boolean).at(-1)||'').slice(0,500);
   const uniqueRows=[...new Map(rows.map(c=>[key(c),c])).values()];
   const saved=await persistCategoryListings(source,stream,uniqueRows,false);
