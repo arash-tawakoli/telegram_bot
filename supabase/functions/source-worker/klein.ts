@@ -143,29 +143,40 @@ export async function runKlein(source:Source){const started=iso();try{
 }catch(e){const t=iso(),{data:st}=await db.from('source_coverage_state').select('consecutive_errors').eq('source_id',2).maybeSingle().throwOnError();await db.from('source_coverage_state').update({status:'running',consecutive_errors:Number(st?.consecutive_errors||0)+1,last_error:String(e).slice(0,1000),backoff_until:null,updated_at:t}).eq('source_id',2).throwOnError();return markFailure(source,started,e)}}
 
 
-function kleinCategoryPageUrl(base: string, page: number) {
+function kleinCategoryPageUrls(base: string, page: number) {
   const url = new URL(base);
-  if (page <= 1) return url.href;
+  if (page <= 1) return [url.href];
   const segments = url.pathname.split("/");
-  const categoryIndex = segments.findIndex((segment) => /^(?:k\d+c\d+l\d+|c\d+l\d+)$/i.test(segment));
-  if (categoryIndex < 0) throw new Error(`Kleinanzeigen category URL has no location segment: ${base}`);
-  if (segments[categoryIndex - 1] !== `seite:${page}`) segments.splice(categoryIndex, 0, `seite:${page}`);
-  url.pathname = segments.join("/");
-  return url.href;
+  const locationIndex = segments.findIndex((segment) => /^(?:k\d+c\d+l\d+|c\d+l\d+)$/i.test(segment));
+  if (locationIndex < 0) throw new Error(`Kleinanzeigen category URL has no location segment: ${base}`);
+  const variants = new Set<string>();
+  const beforeLocation = [...segments];
+  if (beforeLocation[locationIndex - 1] !== `seite:${page}`) beforeLocation.splice(locationIndex, 0, `seite:${page}`);
+  const a = new URL(url.href); a.pathname = beforeLocation.join("/"); variants.add(a.href);
+  const categoryIndex = segments.findIndex((segment) => /^(?:wohnungen--mieten|wg-zimmer|wohnungstausch-wohnung)$/i.test(segment));
+  if (categoryIndex >= 0) {
+    const beforeCategory = [...segments];
+    if (beforeCategory[categoryIndex - 1] !== `seite:${page}`) beforeCategory.splice(categoryIndex, 0, `seite:${page}`);
+    const b = new URL(url.href); b.pathname = beforeCategory.join("/"); variants.add(b.href);
+  }
+  return [...variants];
 }
 
 async function fetchKleinCategoryPage(base: string, page: number, regionStateCode: string) {
-  const url = kleinCategoryPageUrl(base, page);
-  const response = await fetchListingPage(url, AbortSignal.timeout(15000));
-  if (!response.ok) throw new Error(`Kleinanzeigen category HTTP ${response.status}`);
-  const upstream = Number(response.headers.get("x-upstream-status") || 0);
-  if (upstream !== 200) throw new Error(`Kleinanzeigen category upstream HTTP ${upstream || "unknown"}`);
-  const html = await response.text();
-  const parsed = parsePage(html, regionStateCode);
-  const noOffers = /keine (?:passenden )?(?:angebote|anzeigen|treffer)|0 (?:angebote|treffer)|leider (?:gibt es|haben wir) (?:aktuell )?keine/i.test(strip(html));
-  if (parsed.opens === 0 && !noOffers) throw new Error(`Kleinanzeigen category page returned no cards and no verified-empty marker: ${url}`);
-  if (parsed.opens > 0 && parsed.items.length === 0) throw new Error(`Kleinanzeigen parser accepted 0/${parsed.opens} cards at ${url}`);
-  return { url: response.url || url, html, ...parsed, noOffers, total: total(html) };
+  let lastError: Error | null = null;
+  for (const url of kleinCategoryPageUrls(base, page)) {
+    const response = await fetchListingPage(url, AbortSignal.timeout(15000));
+    if (!response.ok) { lastError = new Error(`Kleinanzeigen category HTTP ${response.status} at ${url}`); continue; }
+    const upstream = Number(response.headers.get("x-upstream-status") || 0);
+    if (upstream !== 200) { lastError = new Error(`Kleinanzeigen category upstream HTTP ${upstream || "unknown"} at ${url}`); continue; }
+    const html = await response.text();
+    const parsed = parsePage(html, regionStateCode);
+    const noOffers = /keine (?:passenden )?(?:angebote|anzeigen|treffer)|0 (?:angebote|treffer)|leider (?:gibt es|haben wir) (?:aktuell )?keine/i.test(strip(html));
+    if (parsed.opens === 0 && !noOffers) { lastError = new Error(`Kleinanzeigen category page returned no cards and no verified-empty marker: ${url}`); continue; }
+    if (parsed.opens > 0 && parsed.items.length === 0) { lastError = new Error(`Kleinanzeigen parser accepted 0/${parsed.opens} cards at ${url}`); continue; }
+    return { url: response.url || url, html, ...parsed, noOffers, total: total(html) };
+  }
+  throw lastError || new Error(`Kleinanzeigen category page ${page} could not be validated: ${base}`);
 }
 
 export async function runKleinCategory(source:Source,stream:any){
