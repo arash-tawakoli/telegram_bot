@@ -49,6 +49,20 @@ test('referral preview only displays the personal link',()=>{
  assert.doesNotMatch(JSON.stringify(r),/Link teilen|Link kopieren|t\.me\/share\/url/);
 });
 
+test('completed applicant fields lose their required marker',()=>{
+ const r=renderFast({...base,view:'applicant_profile',data:{profile:{first_name:'Anna'},missing:['Nachname'],docs:[]}},update);
+ assert.match(r.text,/Vorname: Anna/);
+ assert.doesNotMatch(r.text,/Vorname \\*:/);
+ const buttons=r.reply_markup.inline_keyboard.flat();
+ assert.ok(buttons.some(x=>x.text==='Vorname'));
+ assert.ok(buttons.some(x=>x.text==='Nachname *'));
+});
+
+test('canceled premium users receive the discounted CTA',()=>{
+ const r=renderFast({...base,view:'premium',user:{subscription:{cancel_at_period_end:true}}},update);
+ assert.equal(r.reply_markup.inline_keyboard[0][0].text,'💎 Hol dir jetzt Premium mit 50 % Rabatt');
+});
+
 test('saved listings use URL buttons without extra messages',()=>{
  const r=renderFast({...base,view:'saved',is_premium:true,data:{total:1,page:0,pages:1,items:[{title:'Test',canonical_url:'https://example.com/x'}]}},update);
  assert.equal(r.method,'editMessageText');
