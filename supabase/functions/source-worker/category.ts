@@ -19,9 +19,21 @@ function pageTimestamp(text:string){
 
 async function runHtmlCategory(source:Source,stream:any){
   const r=await fetchText(String(stream.url)),parsed=parseHtml(r.text,r.url),rows:Candidate[]=[];
-  for(const c of parsed){const text=`${c.title||''} ${c.raw?.text||''}`,kind=String(stream.category);if(kind==='house'&&(!/\b(Haus|Einfamilienhaus|Reihenhaus|Doppelhaus|Doppelhaushälfte|Villa|Bungalow|Stadthaus)\b/i.test(text)||/\b(Kauf|kaufen|Mietkauf|Grundstück|Erbpacht)\b/i.test(text)))continue;if(kind==='room'&&!/\b(WG(?:-Zimmer)?|Zimmer|Mitbewohner(?:in)?)\b/i.test(text))continue;const published=pageTimestamp(text);rows.push({...c,raw:{...c.raw,...(published?{_newness:{method:'source_timestamp',source_published_at:published}}:{})}})}
-  const noOffers=/keine (?:passenden )?(?:angebote|immobilien)|0 (?:angebote|treffer)/i.test(strip(r.text));if(!parsed.length&&!noOffers)throw new Error(`${stream.adapter} category parser found no recognizable listing cards`);
-  const saved=await persistCategoryListings(source,stream,rows,false);return{requests:1,candidates:saved.seen,fresh:saved.fresh,cursor:{url:r.url,parsed:parsed.length,accepted:saved.seen,last_checked_at:iso()}};
+  const categoryOnly=source.coverage_strategy==='category_streams_only';
+  for(const c of parsed){
+    const text=`${c.title||''} ${c.raw?.text||''}`,kind=String(stream.category);
+    // Regional streams use a provider URL already scoped to the requested category.
+    // Do not reject valid house cards merely because "Haus" is absent from the title.
+    if(kind==='house'&&!categoryOnly&&(!/\b(Haus|Einfamilienhaus|Reihenhaus|Doppelhaus|Doppelhaushälfte|Villa|Bungalow|Stadthaus)\b/i.test(text)||/\b(Kauf|kaufen|Mietkauf|Grundstück|Erbpacht)\b/i.test(text)))continue;
+    if(kind==='room'&&!/\b(WG(?:-Zimmer)?|Zimmer|Mitbewohner(?:in)?)\b/i.test(text))continue;
+    const published=pageTimestamp(text);
+    rows.push({...c,raw:{...c.raw,...(published?{_newness:{method:'source_timestamp',source_published_at:published}}:{})}});
+  }
+  const noOffers=/keine (?:passenden )?(?:angebote|immobilien)|0 (?:angebote|treffer)/i.test(strip(r.text));
+  if(!parsed.length&&!noOffers)throw new Error(`${stream.adapter} category parser found no recognizable listing cards`);
+  const verifiedEmpty=parsed.length===0&&noOffers;
+  const saved=await persistCategoryListings(source,stream,rows,false);
+  return{requests:1,candidates:saved.seen,fresh:saved.fresh,cursor:{url:r.url,parsed:parsed.length,accepted:saved.seen,complete:true,verified_empty:verifiedEmpty,last_checked_at:iso()}};
 }
 
 async function finish(stream:any,success:boolean,result:any,error:string|null){
@@ -44,6 +56,10 @@ export async function runCategoryStreams(source:Source){
       else if(['wg-gesucht','ohne-makler'].includes(stream.adapter))result=await runHtmlCategory(source,stream);
       else if(stream.adapter==='immowelt')result=await runImmoweltCategory(source,stream);
       else throw new Error(`unsupported category adapter ${stream.adapter}`);
+      const parsedCount=Number(result?.cursor?.parsed??result?.cursor?.opens??0);
+      if(Number(result?.candidates||0)===0&&parsedCount>0&&result?.cursor?.verified_empty!==true){
+        throw new Error(`${stream.adapter} ${stream.category} parser saw ${parsedCount} cards but accepted zero; refusing baseline approval`);
+      }
       await finish(stream,true,result,null);
       out.push({category:stream.category,adapter:stream.adapter,ok:true,...result});
     }catch(e){
