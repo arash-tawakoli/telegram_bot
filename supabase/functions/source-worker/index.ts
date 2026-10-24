@@ -1,5 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { Connector, Source, db, emsg, internalSecret } from "./shared.ts";
+import { Connector, Source, db, emsg, internalSecret, markSuccess } from "./shared.ts";
 import { runScout, runScoutSchleswigHolstein } from "./scout.ts";
 import { runKlein } from "./klein.ts";
 import { runGcp } from "./gcp.ts";
@@ -60,6 +60,11 @@ async function runPortalRegistryMirror(s:Source){
 }
 async function processBaseSource(s:Source,connectors:Connector[]){
   const id=s.id;
+  if(s.coverage_strategy==="category_streams_only"){
+    const started=new Date().toISOString();
+    await markSuccess(s,started,null,0,0,{strategy:"category_streams_only",complete:false});
+    return {ok:true,source_id:id,fetched:0,new:0,complete:false,category_only:true};
+  }
   if(s.coverage_strategy==="portal_registry_mirror")return runPortalRegistryMirror(s);
   const primary = connectors.find((c) => !c.shadow_only) || connectors[0];
   if(primary?.config?.adapter==="source-worker/scout-schleswig-holstein")return runScoutSchleswigHolstein(s);
