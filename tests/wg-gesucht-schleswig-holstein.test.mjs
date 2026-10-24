@@ -23,11 +23,10 @@ test('WG-Gesucht directory parser extracts unique Schleswig-Holstein city IDs', 
     '<a href="/anzeigen-in-Hamburg.55.html">outside SH</a>',
     '<a href="/other-page.html">not a city</a>',
   ].join('');
-  const cities = scope.parseWgGesuchtSHCities(html, 'https://www.wg-gesucht.de/staedte-in-schleswig-holstein.13.html');
+  const cities = scope.parseWgGesuchtSHCities(html, 'https://www.wg-gesucht.de/staedte-in-schleswig-holstein.13.html', ['Eckernförde', 'Neuendorf b. Elmshorn']);
   assert.deepEqual(JSON.parse(JSON.stringify(cities)), [
     { slug: 'Eckernfoerde', id: '1280' },
     { slug: 'Neuendorf-b.-Elmshorn', id: '3456' },
-    { slug: 'Hamburg', id: '55' },
   ]);
 });
 
