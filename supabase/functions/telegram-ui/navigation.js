@@ -19,7 +19,7 @@ export function home(user, chatId, messageId) {
         "1. Suchprofil erstellen\n" +
         "2. Bewerberprofil erstellen\n" +
         "3. Auto-Bewerbung einrichten\n\n" +
-        "<b>Jetzt loslegen!</b>👇";
+        "<b>Jetzt loslegen!👇</b>";
     return messageId
         ? edit(chatId, messageId, text, homeKeyboard(user))
         : send(chatId, text, homeKeyboard(user));
