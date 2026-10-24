@@ -72,6 +72,15 @@ test('WG-Gesucht detail URLs are recognized and mapped to the listing locality',
     scope.wgGesuchtListingCity('https://www.wg-gesucht.de/wohnung-in-Bad-Bramstedt-Bad-Bramstedt.1234567.html', 'Bad Bramstedt'),
     'Bad Bramstedt',
   );
+  const officialCities = new Set(['ahrensburg', 'ammersbek', 'nienwohld', 'pinneberg']);
+  assert.equal(
+    scope.wgGesuchtListingCity('https://www.wg-gesucht.de/wg-zimmer-in-Ammersbek-Lottbek.13946475.html', 'Ammersbek', officialCities),
+    'Ammersbek',
+  );
+  assert.equal(
+    scope.wgGesuchtListingCity('https://www.wg-gesucht.de/wg-zimmer-in-Ahrensburg-Nienwohld.3923634.html', 'Ahrensburg', officialCities),
+    'Nienwohld',
+  );
   const shared = loadScope(sharedSource, {
     Deno: { env: { get: (key) => key === 'SUPABASE_URL' ? 'https://example.supabase.co' : key === 'SUPABASE_SECRET_KEYS' ? '{"default":"test"}' : 'test' } },
     createClient: () => ({}),
