@@ -170,7 +170,7 @@ async function participantDetail(a:any,publicId:string){
  const [user,profile,searches,documents,connections,prefs,apps,readiness,appsSummary]=await Promise.all([
   admin.from('bot_users').select('first_name,last_name,username,is_active,origin,telegram_user_id,plan_override,plan_override_expires_at,referral_bonus_until,created_at,updated_at').eq('id',userId).single(),
   admin.from('applicant_profiles').select('user_id,salutation,first_name,last_name,email,phone,street,house_number,postcode,city,household_size,employment_status,monthly_net_income,default_message,created_at,updated_at,schufa_status,phone_call_desired,message_apartment,message_house,message_temporary_wg,message_swap,household_type,income_range,move_in_preference,move_in_date,wbs_status,pets').eq('user_id',userId).maybeSingle(),
-  admin.from('search_profiles').select('id,user_id,name,max_warm_rent,min_rooms,min_area_sqm,districts,property_types,furnished_preference,wbs_only,move_in_from,is_active,created_at,updated_at,location_mode,boroughs,neighborhoods,profile_slot,max_deposit,require_known_warm_rent,min_room_area_sqm').eq('user_id',userId).order('profile_slot'),
+  admin.from('search_profiles').select('id,user_id,name,max_warm_rent,min_rooms,min_area_sqm,districts,property_types,furnished_preference,wbs_only,move_in_from,is_active,created_at,updated_at,location_mode,location_state_code,location_area_codes,boroughs,neighborhoods,profile_slot,max_deposit,require_known_warm_rent,min_room_area_sqm').eq('user_id',userId).order('profile_slot'),
   admin.from('applicant_documents').select('id,document_type,original_filename,mime_type,size_bytes,send_with_auto_apply,created_at,updated_at').eq('user_id',userId).order('created_at',{ascending:false}),
   admin.from('platform_connections').select('provider,status,account_hint,expires_at,last_verified_at,last_error,updated_at').eq('user_id',userId),
   admin.from('application_preferences').select('user_id,enabled,daily_limit,timezone,allowed_weekdays,send_window_start,send_window_end,immoscout_enabled,kleinanzeigen_enabled,immomio_enabled,immowelt_enabled,updated_at').eq('user_id',userId).maybeSingle(),
@@ -276,6 +276,7 @@ async function saveSearch(a:any,assignment:any,input:any){
   profile_slot:integer(input.profile_slot,1,4),
   property_types:[String(input.property_type||'')],
   location_mode:String(input.location_mode||'all_hamburg'),
+  location_area_codes:Array.isArray(input.location_area_codes)?[...new Set(input.location_area_codes.map((x:any)=>clean(x,12)).filter((x:string)=>/^[A-Z0-9]{2,12}$/.test(x)))]:[],
   boroughs:Array.isArray(input.boroughs)?input.boroughs.map((x:any)=>clean(x,120)).filter(Boolean):[],
   neighborhoods:Array.isArray(input.neighborhoods)?input.neighborhoods.map((x:any)=>clean(x,120)).filter(Boolean):[],
   max_warm_rent:input.max_warm_rent,
@@ -577,7 +578,15 @@ async function handle(req:Request){
  if(['jobseekers','jobseeker'].includes(action)&&actual.member.is_super_admin!==true)throw Error('super_admin_required');
  if(action==='me')return{member:{id:actual.member.id,displayName:actual.member.display_name,role:publicMemberRole(actual.member.role,actual.member.is_super_admin)},workspace:{name:a.workspace.name}};
  if(action==='members'){const{data,error}=await admin.from('coaching_members').select('id,display_name,role,is_super_admin,is_active,created_at'+(a.member.role==='admin'?',coaching_participants!coaching_participants_workspace_id_coach_member_id_fkey(user_id)':'')).eq('workspace_id',a.member.workspace_id).order('display_name');if(error)throw Error('members_read_failed');return{members:(data||[]).map((x:any)=>({id:x.id,displayName:x.display_name,role:publicMemberRole(x.role,x.is_super_admin),isActive:x.is_active,createdAt:x.created_at,...(a.member.role==='admin'?{participantCount:x.coaching_participants?.length||0}:{})}))};}
- if(action==='locations'){const[{data:b},{data:n}]=await Promise.all([admin.from('hamburg_boroughs').select('id,name,sort_order').order('sort_order'),admin.from('hamburg_neighborhoods').select('id,name,borough_id').order('id')]);return{boroughs:b||[],neighborhoods:n||[]};}
+ if(action==='locations'){
+  const[{data:b,error:be},{data:n,error:ne},{data:sh,error:she}]=await Promise.all([
+   admin.from('hamburg_boroughs').select('id,name,sort_order').order('sort_order'),
+   admin.from('hamburg_neighborhoods').select('id,name,borough_id').order('id'),
+   admin.rpc('get_schleswig_holstein_areas')
+  ]);
+  if(be||ne||she)throw Error('locations_read_failed');
+  return{boroughs:b||[],neighborhoods:n||[],schleswigHolsteinAreas:Array.isArray(sh)?sh:[]};
+ }
  if(action==='participants')return{participants:await participantSummary(a,body.scope==='mine'?'mine':'all')};
  if(action==='participant')return participantDetail(a,participantId(body.participantId));
  if(action==='create_participant'){
