@@ -1100,8 +1100,8 @@
         },
         {
           "path": "supabase/functions/source-worker/shared.ts",
-          "git_blob_sha": "94d5749b2a22d23adb131e5dc17be392e872cc82",
-          "deployed_git_blob_sha": "94d5749b2a22d23adb131e5dc17be392e872cc82"
+          "git_blob_sha": "586c827ca5a6661be96c40d600c6902cacf19b86",
+          "deployed_git_blob_sha": "586c827ca5a6661be96c40d600c6902cacf19b86"
         },
         {
           "path": "supabase/functions/_shared/hamburg.ts",
@@ -1259,9 +1259,9 @@
           "deployed_git_blob_sha": "4d1c8b364256e43b5c3145c7cc6398b111a55b2c"
         }
       ],
-      "observed_live_version": 142,
+      "observed_live_version": 143,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "2dc59a697686690bc3a7fc0b250a5a76938048882aa0c87a46630a2a9a8ae606",
+      "observed_live_artifact_sha256": "4fc3f4b4c6703a25c7abcb8c07c47b31259bddab985a6c2d16044a4c17b403f2",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-19.json",
       "source_archive_file_count": 33,
       "source_archive_status": "full_source",
