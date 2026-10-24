@@ -227,6 +227,12 @@
       "name": "telegram_fast_location_state_guard",
       "file": "supabase/migrations/20261024223003_telegram_fast_location_state_guard.sql",
       "export_sql_sha256": "fb812b8e6794b7299fa73efae231d01bfa9a7879abff2268fad0e64f0d9a90cc"
+    },
+    {
+      "version": "20261024223004",
+      "name": "telegram_fast_page_state_guard",
+      "file": "supabase/migrations/20261024223004_telegram_fast_page_state_guard.sql",
+      "export_sql_sha256": "c8593779c0aac2e039bc358bc57db4c0420e11711c93868468791ec8049976a4"
     }
   ]
 }
