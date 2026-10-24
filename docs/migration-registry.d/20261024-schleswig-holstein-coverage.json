@@ -161,6 +161,30 @@
       "name": "fix_schleswig_holstein_immowelt_category_coverage",
       "file": "supabase/migrations/20261024131805_fix_schleswig_holstein_immowelt_category_coverage.sql",
       "export_sql_sha256": "f7af18657b2677b8d0fd28d236aadb39f0e917f14deeb55e4c2eec22d3f00467"
+    },
+    {
+      "version": "20261024141324",
+      "name": "gate_incomplete_sh_sources_and_enable_immowelt_wg",
+      "file": "supabase/migrations/20261024141324_gate_incomplete_sh_sources_and_enable_immowelt_wg.sql",
+      "export_sql_sha256": "abc6c22810825594e10ba92801e2438a5e0bf9db7e0ff98eb6f66e84a6a43bde"
+    },
+    {
+      "version": "20261024142929",
+      "name": "disable_unverified_immowelt_wg_route",
+      "file": "supabase/migrations/20261024142929_disable_unverified_immowelt_wg_route.sql",
+      "export_sql_sha256": "46bb8b3be288089f197c4a4488b1f0cb974a8459f0814f6423443165d4085f54"
+    },
+    {
+      "version": "20261024144549",
+      "name": "mark_validated_regional_baselines_complete",
+      "file": "supabase/migrations/20261024144549_mark_validated_regional_baselines_complete.sql",
+      "export_sql_sha256": "7b7d954c09a186676b7536089e256dc8d8d96061b66f9c5e9fca9d2e75344eeb"
+    },
+    {
+      "version": "20261024145846",
+      "name": "prioritize_regional_source_jobs",
+      "file": "supabase/migrations/20261024145846_prioritize_regional_source_jobs.sql",
+      "export_sql_sha256": "31e01339d48ed356333476689357d50ab524c8705a486a127ee49ba0914c80e2"
     }
   ]
 }
