@@ -2,7 +2,7 @@ import {Candidate,Source,db,upsertCandidates} from './shared.ts';
 
 function categoryListingKey(c:any){return String(c?.key||c?.id||c?.raw?.entry?.exposedId||c?.url?.split('/').filter(Boolean).at(-1)||'').slice(0,500)}
 function categoryOfferMode(c:any){
-  const text=String(c?.title||'')+' '+String(c?.raw?.text||'')+' '+String(c?.raw?.alt||'');
+  const text=String(c?.title||'')+' '+String(c?.raw?.text||'')+' '+String(c?.raw?._provider_text||'')+' '+String(c?.raw?.alt||'');
   if(/\b(?:zum kauf|kaufpreis|zu verkaufen|verkauf|mietkauf|erbpacht)\b/i.test(text))return 'sale';
   if(/\b(?:ich|wir)\s+suche\b/i.test(text)||/\b(?:haus|wohnung|apartment|zimmer|wg-zimmer|mitbewohner(?:in)?)\s+gesucht\b/i.test(text)||/^\s*(?:tauschwohnung[: -]*)?suche\b/i.test(text))return 'wanted';
   if(/tauschwohnung|tauschangebot|wohnungstausch|wohnung[ -]*tausch|\btausche\b/i.test(text))return 'swap';
