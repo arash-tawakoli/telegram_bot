@@ -616,7 +616,7 @@ export async function runImmoweltCategory(source:Source,stream:any){
   let roomSignalCount=0;
   let requests=0,parsed=0,complete=false,verifiedEmpty=false;
   const categoryOnly=source.coverage_strategy==='category_streams_only';
-  const maxPagesPerRun=6;
+  const maxPagesPerRun=12;
   let firstUrl=baseUrl;
   for(let offset=0;offset<maxPagesPerRun;offset++){
     const pageNumber=nextPage;
