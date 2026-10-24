@@ -26,7 +26,7 @@ export async function persistCategoryListings(source:Source,stream:any,candidate
   for(const c of unique.values()){
     const key=categoryListingKey(c),old=existing.get(key),category=String(stream.category);
     const text=String(c.title||'')+' '+String(c.raw?._provider_text||'')+' '+String(c.raw?.alt||'');
-    const explicitRoomOffer=category==='room'&&/\bWG[-\s]?Zimmer\b|\bPrivatzimmer\b|\bMitbewohner(?:in)?\b|\bUntermiet(?:e|er)?\b|Wohngemeinschaft/i.test(text);
+    const explicitRoomOffer=category==='room'&&/\bWG[-\s]?Zimmer\b|Zimmer\s+in\s+(?:einer\s+)?WG|\bPrivatzimmer\b|\bMitbewohner(?:in)?\b|\bUntermiet(?:e|er)?\b|Wohngemeinschaft/i.test(text);
     const mode=source.id===73&&category!=='swap'?'rent':explicitRoomOffer?'rent':categoryOfferMode(c);
     if(mode==='sale'||(mode==='wanted'&&!explicitRoomOffer))continue;
     if(categoryOnly&&category==='swap'&&mode!=='swap')continue;
