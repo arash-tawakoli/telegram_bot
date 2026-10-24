@@ -28,6 +28,7 @@ test('main menu stays text-only to avoid photo/delete roundtrips',()=>{
  assert.match(r.text,/Premium/);
  const home=renderFast({...base,view:'home'},update);
  assert.equal(home.method,'editMessageText');
+ assert.match(home.text,/<b>Jetzt loslegen!👇<\\/b>$/);
 });
 
 test('review preserves house filters and activation action',()=>{
