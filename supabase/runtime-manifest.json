@@ -1,5 +1,5 @@
 {
-  "observed_at": "2026-10-24T13:30:18.724Z",
+  "observed_at": "2026-10-24T20:55:28.880Z",
   "project_id": "dpmohkrwdlicexwcrqfy",
   "snapshot_kind": "repository_with_observed_deployment_hashes",
   "functions": [
@@ -1376,11 +1376,11 @@
     },
     {
       "slug": "telegram-gateway",
-      "version": 93,
+      "version": 96,
       "verify_jwt": false,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "2824d259be7b1534bd54cb8a71790df6842a5e614af582b914480c8c70289e16",
+      "observed_artifact_sha256": "e879faee1a74aae2bbee7a14c370c2600177225787706066b38ea0387c00b3fe",
       "entrypoint": "supabase/functions/telegram-gateway/index.ts",
       "files": [
         {
@@ -1390,13 +1390,13 @@
         },
         {
           "path": "supabase/functions/telegram-gateway/fast-ui.ts",
-          "git_blob_sha": "51418cf7205263223b7bec2a4fe98efe268630fc",
-          "deployed_git_blob_sha": "51418cf7205263223b7bec2a4fe98efe268630fc"
+          "git_blob_sha": "5e6e23a9f12893fdb0555f83e62497ef25db6550",
+          "deployed_git_blob_sha": "5e6e23a9f12893fdb0555f83e62497ef25db6550"
         }
       ],
-      "observed_live_version": 95,
+      "observed_live_version": 96,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "7377ae78df7f3ab474a6120290b30e5f36333adcbebbc2d2b16cc58e3b1ec671",
+      "observed_live_artifact_sha256": "e879faee1a74aae2bbee7a14c370c2600177225787706066b38ea0387c00b3fe",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-20.json",
       "source_archive_file_count": 2,
       "source_archive_status": "full_source",
