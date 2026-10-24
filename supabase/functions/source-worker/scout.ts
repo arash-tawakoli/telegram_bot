@@ -188,46 +188,54 @@ export async function runScoutSchleswigHolstein(source:Source){
       state={...state,cycle_id:cycle,cycle_started_at:started,seen_count:0,request_count:0,status:'running',cursor};
     }
     const queue:any[]=Array.isArray(cursor.queue)?cursor.queue:[];
-    const work=queue.splice(0,12);
+    const work=queue.splice(0,36);
     const partitionKey=(x:any)=>`${x.kind}|${x.min==null?'*':x.min}|${x.max==null?'*':x.max}|${Number(x.depth||0)}|${x.region_code||''}|${x.municipality_code||''}`;
     const partitionMeta=new Map<string,{partition:any;hasChildren:boolean}>();
     const candidatesByKey=new Map<string,{candidate:Candidate;fresh:boolean;partitionKey:string}>();
     let requests=0,mapErrors=0,processed=0,saturated=0,totalReported=0;
-    for(const partition of work){
-      const q=schleswigHolsteinQuery(partition);
-      const result=await enrichedSearch(q);
-      requests+=2;
-      if(!result.map_ok)mapErrors++;
-      totalReported+=Number(result.total||0);
-      const kind=partition.kind==='house'?'Haus':partition.kind==='room'?'WG':partition.kind==='swap'?'Tauschwohnung':'Wohnung';
-      const keyForPartition=partitionKey(partition);
-      for(const base of candidates(result.entries,q)){
-        const published=scoutPublishedAt(base.raw?.entry);
-        const publishedMs=published?new Date(published).getTime():null;
-        const age=publishedMs!=null?Date.now()-publishedMs:Number.POSITIVE_INFINITY;
-        const baselineMs=source.baseline_completed_at?new Date(source.baseline_completed_at).getTime():null;
-        const fresh=source.delivery_mode==='live'&&baselineMs!=null&&publishedMs!=null&&publishedMs>=baselineMs&&age>=-5*60*1000&&age<=24*60*60*1000;
-        const candidate:Candidate={
-          ...base,type:kind,city:base.city||base.raw?.entry?.address?.city||base.raw?.entry?.address?.cityName||null,
-          raw:{
-            ...base.raw,region_state_code:'SH',search_kind:partition.kind,
-            delivery_lane:fresh?'sh_fresh':'sh_coverage',
-            ...(published?{_newness:{method:'source_timestamp',source_published_at:published}}:{})
-          }
-        };
-        const key=String(candidate.key||candidate.url);
-        const previous=candidatesByKey.get(key);
-        if(!previous||fresh&&!previous.fresh)candidatesByKey.set(key,{candidate,fresh,partitionKey:keyForPartition});
+    for(let offset=0;offset<work.length;offset+=6){
+      const batch=await Promise.all(work.slice(offset,offset+6).map(async partition=>{
+        const q=schleswigHolsteinQuery(partition);
+        const result=await enrichedSearch(q);
+        return{partition,q,result};
+      }));
+      requests+=batch.length*2;
+      for(const item of batch){
+        const {partition,q,result}=item;
+        if(!result.map_ok)mapErrors++;
+        totalReported+=Number(result.total||0);
+        const kind=partition.kind==='house'?'Haus':partition.kind==='room'?'WG':partition.kind==='swap'?'Tauschwohnung':'Wohnung';
+        const keyForPartition=partitionKey(partition);
+        const entries=[...(result.entries||[]),...(result.map_entries||[])];
+        for(const base of candidates(entries,q)){
+          const published=scoutPublishedAt(base.raw?.entry);
+          const publishedMs=published?new Date(published).getTime():null;
+          const age=publishedMs!=null?Date.now()-publishedMs:Number.POSITIVE_INFINITY;
+          const baselineMs=source.baseline_completed_at?new Date(source.baseline_completed_at).getTime():null;
+          const fresh=source.delivery_mode==='live'&&baselineMs!=null&&publishedMs!=null&&publishedMs>=baselineMs&&age>=-5*60*1000&&age<=24*60*60*1000;
+          const candidate:Candidate={
+            ...base,type:kind,city:base.city||base.raw?.entry?.address?.city||base.raw?.entry?.address?.cityName||null,
+            raw:{
+              ...base.raw,region_state_code:'SH',search_kind:partition.kind,
+              delivery_lane:fresh?'sh_fresh':'sh_coverage',
+              ...(published?{_newness:{method:'source_timestamp',source_published_at:published}}:{})
+            }
+          };
+          const key=String(candidate.key||candidate.url);
+          const previous=candidatesByKey.get(key);
+          if(!previous||fresh&&!previous.fresh)candidatesByKey.set(key,{candidate,fresh,partitionKey:keyForPartition});
+        }
+        const isSaturated=(result.total!=null&&Number(result.total)>result.entries.length)||result.entries.length>=25;
+        const hasRegionalMap=Boolean(partition.region_code&&result.map_ok&&((result.map_entries||[]).length>0||(Number(result.total||0)===0&&result.entries.length===0)));
+        const next=!partition.region_code&&isSaturated?await schleswigHolsteinChildren(partition):[];
+        partitionMeta.set(keyForPartition,{partition,hasChildren:next.length>0});
+        if(next.length)queue.push(...next);
+        else if(isSaturated&&!hasRegionalMap&&!partition.region_code){
+          saturated++;
+          if(!cursor.blocked_saturated_keys.includes(keyForPartition))cursor.blocked_saturated_keys.push(keyForPartition);
+        }
+        processed++;
       }
-      const isSaturated=(result.total!=null&&Number(result.total)>result.entries.length)||result.entries.length>=25;
-      const next=isSaturated?await schleswigHolsteinChildren(partition):[];
-      partitionMeta.set(keyForPartition,{partition,hasChildren:next.length>0});
-      if(next.length)queue.push(...next);
-      else if(isSaturated){
-        saturated++;
-        if(!cursor.blocked_saturated_keys.includes(keyForPartition))cursor.blocked_saturated_keys.push(keyForPartition);
-      }
-      processed++;
     }
     const candidateEntries=[...candidatesByKey.values()];
     const resolvedAreas=await resolveSHAreas(candidateEntries.map(x=>x.candidate));
