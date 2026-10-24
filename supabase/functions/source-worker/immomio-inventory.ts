@@ -1,4 +1,4 @@
-import {Connector} from './shared.ts';
+import type {Connector} from './shared.ts';
 const GQL='https://gql-hp.immomio.com/homepage/graphql';
 const QUERY=`query propertyList($input: HomepagePropertySearchRequest!) { propertyList(input:$input){ page{page size totalElements totalPages} nodes{name totalRooms size totalRentGross externalId wbs applicationLink objectId propertyType marketingType status address{city street houseNumber zipCode district} availableFrom{dateAvailable stringAvailable} titleImage{url}}}}`;
 function tokenFrom(url:string){try{const u=new URL(url);return u.hostname==='homepage.immomio.com'?u.searchParams.get('token'):null}catch{return null}}
@@ -9,6 +9,30 @@ export function validateImmomioPage(j:any,page:number){
   if(!Number.isInteger(p.page)||p.page!==page||!Number.isInteger(p.totalElements)||p.totalElements<0||!Number.isInteger(p.totalPages)||p.totalPages<0||p.totalPages>50||!Number.isInteger(p.size)||p.size<1||p.totalPages!==Math.ceil(p.totalElements/p.size))throw new Error('Immomio pagination invalid');
   if(l.nodes.length!==Math.min(p.size,Math.max(0,p.totalElements-page*p.size)))throw new Error('Immomio truncated page');
   return l;
+}
+export function buildImmomioHomepageFallbacks(primary:Connector,fallbacks:Connector[],source:any):Connector[]{
+  const configured=fallbacks.filter(c=>c.connector_kind==='immomio_tenant'&&!c.shadow_only&&c.enabled!==false);
+  if(configured.length)return configured;
+  let home:URL;
+  try{home=new URL(String(source?.homepage_url||''));}catch{return [];}
+  if(home.protocol!=='https:'||home.username||home.password)return [];
+  const urls:string[]=[];
+  for(const candidate of [source?.search_url,source?.homepage_url]){
+    try{
+      const url=new URL(String(candidate||''));
+      if(url.protocol!=='https:'||url.username||url.password||url.hostname!==home.hostname)continue;
+      if(!urls.includes(url.href))urls.push(url.href);
+    }catch{}
+  }
+  return urls.slice(0,2).map((url,index)=>({
+    ...primary,
+    priority:Number(primary.priority||1)+index+1,
+    label:`Official homepage token rediscovery ${index+1}`,
+    connector_kind:'immomio_tenant',
+    enabled:true,
+    shadow_only:false,
+    config:{url},
+  } as Connector));
 }
 export async function fetchImmomioInventory(primary:Connector,fallbacks:Connector[],resolve:(url:string)=>Promise<string>){
   const attempts:any[]=[],expected=tenant(tokenFrom(String(primary.config?.url||''))),tried=new Set<string>();
