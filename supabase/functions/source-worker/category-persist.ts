@@ -26,9 +26,11 @@ export async function persistCategoryListings(source:Source,stream:any,candidate
   for(const c of unique.values()){
     const key=categoryListingKey(c),old=existing.get(key),mode=categoryOfferMode(c),category=String(stream.category);
     if(mode==='sale'||mode==='wanted')continue;
-    if(category==='swap'&&mode!=='swap')continue;
-    if(category!=='swap'&&mode==='swap')continue;
-    const type=mode==='swap'?'Tauschwohnung':category==='house'?'Haus':category==='room'?'WG':'Wohnung';
+    if(categoryOnly&&category==='swap'&&mode!=='swap')continue;
+    if(categoryOnly&&category!=='swap'&&mode==='swap')continue;
+    const type=categoryOnly
+      ?(mode==='swap'?'Tauschwohnung':category==='house'?'Haus':category==='room'?'WG':'Wohnung')
+      :(category==='house'?(mode==='swap'?'Tauschwohnung':'Haus'):'WG');
     const next:Candidate={...c,type,raw:{...c.raw,category_stream:category,_classification:{version:1,kind:category,mode}}};
     let proof=next.raw?._newness||null,eligible=false;
     if(proof?.method==='source_timestamp'&&proof?.source_published_at){
