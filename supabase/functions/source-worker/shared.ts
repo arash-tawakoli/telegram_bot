@@ -749,7 +749,12 @@ function validCandidate(source: Source, c: Candidate) {
     return false;
   if (source.id === 52 && /stellplatz|garage|parkplatz/i.test(c.url)) return false;
   if (source.search_capabilities?.region_state_code === "SH") {
-    if (!(c.city || c.raw?.entry?.address?.city || c.raw?.entry?.address?.cityName || c.district)) return false;
+    // Some provider cards expose a postal code but omit the city field. Allow
+    // them through candidate validation so the official postal-code resolver
+    // can map them to an SH municipality; never persist them without that map.
+    const hasCity = c.city || c.raw?.entry?.address?.city || c.raw?.entry?.address?.cityName || c.district;
+    const postalCode = String(c.zip || c.raw?.entry?.address?.postcode || c.raw?.entry?.address?.postalCode || "");
+    if (!hasCity && !/^\d{5}$/.test(postalCode)) return false;
   } else if (c.zip && !hhZip(c.zip)) return false;
   const text = `${c.title || ""} ${c.type || ""} ${c.raw?.text || ""}`;
   if (NON_RESIDENTIAL.test(text) && !RESIDENTIAL.test(text)) return false;
