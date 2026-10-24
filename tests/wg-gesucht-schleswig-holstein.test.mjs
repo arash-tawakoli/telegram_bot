@@ -7,9 +7,10 @@ import vm from 'node:vm';
 const categorySource = readFileSync(new URL('../supabase/functions/source-worker/category.ts', import.meta.url), 'utf8');
 const kleinSource = readFileSync(new URL('../supabase/functions/source-worker/klein.ts', import.meta.url), 'utf8');
 const genericSource = readFileSync(new URL('../supabase/functions/source-worker/generic.ts', import.meta.url), 'utf8');
+const sharedSource = readFileSync(new URL('../supabase/functions/source-worker/shared.ts', import.meta.url), 'utf8');
 
 function loadScope(source, extra = {}) {
-  const code = stripTypeScriptTypes(source.replace(/^import[^;]+;\n/gm, '').replaceAll('export ', ''));
+  const code = stripTypeScriptTypes(source.replace(/^import[^;]+;\n/gm, '').replace(/^export\s+\{[^}]+\}\s+from[^;]+;\n/gm, '').replaceAll('export ', ''));
   const scope = { URL, Map, Set, Date, Intl, console, AbortSignal, Response, ...extra };
   vm.runInNewContext(code, scope);
   return scope;
@@ -55,6 +56,30 @@ test('WG-Gesucht pagination only queues later pages of the same city/category', 
   assert.deepEqual(JSON.parse(JSON.stringify(pages)), [
     'https://www.wg-gesucht.de/wohnungen-in-Kiel.71.2.1.0.html?page=3&city_id=71',
   ]);
+});
+
+test('WG-Gesucht detail URLs are recognized and mapped to the listing locality', () => {
+  const scope = loadScope(categorySource);
+  assert.equal(
+    scope.wgGesuchtListingCity('https://www.wg-gesucht.de/wg-zimmer-in-Ahrensburg-Ahrensburg.14216536.html', 'Ahrensburg'),
+    'Ahrensburg',
+  );
+  assert.equal(
+    scope.wgGesuchtListingCity('https://www.wg-gesucht.de/wg-zimmer-in-Ahrensburg-Nienwohld.3923634.html', 'Ahrensburg'),
+    'Nienwohld',
+  );
+  assert.equal(
+    scope.wgGesuchtListingCity('https://www.wg-gesucht.de/wohnung-in-Bad-Bramstedt-Bad-Bramstedt.1234567.html', 'Bad Bramstedt'),
+    'Bad Bramstedt',
+  );
+  const shared = loadScope(sharedSource, {
+    Deno: { env: { get: (key) => key === 'SUPABASE_URL' ? 'https://example.supabase.co' : key === 'SUPABASE_SECRET_KEYS' ? '{"default":"test"}' : 'test' } },
+    createClient: () => ({}),
+    HH_ZIPS: new Set(),
+    fetchProvider: async () => new Response(''),
+    checked: (value) => value,
+  });
+  assert.equal(shared.strongUrl('https://www.wg-gesucht.de/wg-zimmer-in-Ahrensburg-Ahrensburg.14216536.html'), true);
 });
 
 test('WG-Gesucht only accepts category-specific empty headings as verified empty results', () => {
