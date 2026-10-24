@@ -18,7 +18,7 @@ function pageTimestamp(text:string){
 }
 
 async function runHtmlCategory(source:Source,stream:any){
-  const r=await fetchText(String(stream.url)),parsed=parseHtml(r.text,r.url),rows:Candidate[]=[];
+  const r=await fetchText(String(stream.url)),regionStateCode=source.search_capabilities?.region_state_code==='SH'?'SH':'HH',parsed=parseHtml(r.text,r.url,regionStateCode),rows:Candidate[]=[];
   const categoryOnly=source.coverage_strategy==='category_streams_only';
   for(const c of parsed){
     const text=`${c.title||''} ${c.raw?.text||''}`,kind=String(stream.category);
