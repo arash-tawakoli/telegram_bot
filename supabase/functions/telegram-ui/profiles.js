@@ -9,6 +9,7 @@ export function emptyDraft(profileSlot = 1) {
         neighborhood_ids: [],
         location_area_codes: [],
         area_page: 0,
+        sh_area_level: "counties",
         neighborhood_page: 0,
         max_warm_rent: null,
         min_rooms: null,
@@ -55,6 +56,9 @@ export function normalizeDraft(raw) {
         area_page: Number.isFinite(Number(raw?.area_page))
             ? Math.max(0, Number(raw.area_page))
             : 0,
+        sh_area_level: ["counties", "municipalities", "mixed"].includes(String(raw?.sh_area_level || ""))
+            ? String(raw.sh_area_level)
+            : "counties",
         max_warm_rent: finiteOrNull(raw?.max_warm_rent ?? raw?.rent),
         min_rooms: finiteOrNull(raw?.min_rooms ?? raw?.rooms),
         min_area_sqm: finiteOrNull(raw?.min_area_sqm ?? raw?.area),
@@ -150,7 +154,8 @@ export async function renderLocation(user, chatId, messageId, draft) {
             [button(`${draft.location_mode === "boroughs" ? "✅ " : ""}🏙 Bezirke auswählen`, "loc:boroughs")],
             [button(`${draft.location_mode === "neighborhoods" ? "✅ " : ""}📍 Stadtteile auswählen`, "loc:neighborhoods")],
             [button(`${draft.location_mode === "all_schleswig_holstein" ? "✅ " : ""}🌐 Ganz Schleswig-Holstein`, "loc:all_sh")],
-            [button(`${draft.location_mode === "schleswig_holstein_areas" ? "✅ " : ""}🗺 Kreise/Gemeinden auswählen`, "loc:areas_sh")],
+            [button(`${draft.location_mode === "schleswig_holstein_areas" && draft.sh_area_level === "counties" ? "✅ " : ""}🏙 Kreise / kreisfreie Städte`, "loc:counties_sh")],
+            [button(`${draft.location_mode === "schleswig_holstein_areas" && draft.sh_area_level === "municipalities" ? "✅ " : ""}📍 Städte / Gemeinden`, "loc:municipalities_sh")],
             backRow(draft.profile_edit ? `profile:edit:${draft.profile_slot}` : "types"),
             cancelRow(),
         ],
@@ -159,8 +164,17 @@ export async function renderLocation(user, chatId, messageId, draft) {
 
 export async function renderSchleswigHolsteinAreas(user, chatId, messageId, draft) {
     const geo = await geography();
-    const areas = (geo.schleswigHolsteinAreas || []).filter((entry) => entry.area_type !== "state");
-    const areaByCode = new Map(areas.map((entry) => [String(entry.area_code), entry]));
+    const allAreas = (geo.schleswigHolsteinAreas || []).filter((entry) => entry.area_type !== "state");
+    const level = ["counties", "municipalities", "mixed"].includes(String(draft.sh_area_level || ""))
+        ? String(draft.sh_area_level)
+        : "counties";
+    draft.sh_area_level = level;
+    const areas = level === "counties"
+        ? allAreas.filter((entry) => ["county", "independent_city"].includes(entry.area_type))
+        : level === "municipalities"
+            ? allAreas.filter((entry) => entry.area_type === "municipality")
+            : allAreas;
+    const areaByCode = new Map(allAreas.map((entry) => [String(entry.area_code), entry]));
     const pageSize = 20;
     const pages = Math.max(1, Math.ceil(areas.length / pageSize));
     const page = Math.max(0, Math.min(Number(draft.area_page || 0), pages - 1));
@@ -179,16 +193,26 @@ export async function renderSchleswigHolsteinAreas(user, chatId, messageId, draf
             return button(label, `sharea:${area.area_code}`);
         }));
     }
+    const allLabel = level === "counties" ? "Alle Kreise" : level === "municipalities" ? "Alle Gemeinden" : "Alle Gebiete";
     rows.push([
-        button("Alle auswählen", "sharea:all"),
+        button(allLabel, "sharea:all"),
         button("Auswahl löschen", "sharea:clear"),
     ], [
         button("←", "sharea:prev"),
         button(`${page + 1}/${pages}`, "noop"),
         button("→", "sharea:next"),
     ], [button("Auswahl bestätigen", "sharea:done")], backRow("location"), cancelRow());
-    const text = "📍 <b>Gebiete in Schleswig-Holstein</b>\n\nWähle Kreise, kreisfreie Städte oder Gemeinden.\n\nAusgewählt: " +
-        `${selected.size}`;
+    const heading = level === "counties"
+        ? "Kreise und kreisfreie Städte"
+        : level === "municipalities"
+            ? "Städte und Gemeinden"
+            : "Kreise und Gemeinden";
+    const instructions = level === "counties"
+        ? "Wähle einen oder mehrere Kreise bzw. kreisfreie Städte."
+        : level === "municipalities"
+            ? "Wähle einzelne Städte oder Gemeinden. Der Kreis steht zur Orientierung hinter dem Namen."
+            : "Wähle Kreise oder einzelne Gemeinden. Bereits ausgewählte Kreise bleiben als gesamte Region markiert.";
+    const text = `📍 <b>${heading}</b>\n\n${instructions}\n\n<b>${selected.size} Gebiete ausgewählt</b>`;
     return edit(chatId, messageId, text, { inline_keyboard: rows });
 }
 
@@ -491,6 +515,15 @@ export async function draftFromProfile(current) {
             .map((entry) => entry.id),
         location_area_codes: Array.isArray(current.location_area_codes) ? current.location_area_codes.map(String) : [],
         area_page: 0,
+        sh_area_level: (() => {
+            const selectedCodes = new Set((current.location_area_codes || []).map(String));
+            const selectedTypes = geo.schleswigHolsteinAreas
+                .filter((area) => selectedCodes.has(String(area.area_code)))
+                .map((area) => area.area_type);
+            const hasCounty = selectedTypes.some((type) => ["county", "independent_city"].includes(type));
+            const hasMunicipality = selectedTypes.includes("municipality");
+            return hasCounty && hasMunicipality ? "mixed" : hasMunicipality ? "municipalities" : "counties";
+        })(),
         neighborhood_page: 0,
         max_warm_rent: current.max_warm_rent,
         min_rooms: current.min_rooms,
