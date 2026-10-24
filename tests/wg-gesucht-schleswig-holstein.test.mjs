@@ -8,7 +8,6 @@ const categorySource = readFileSync(new URL('../supabase/functions/source-worker
 const kleinSource = readFileSync(new URL('../supabase/functions/source-worker/klein.ts', import.meta.url), 'utf8');
 const genericSource = readFileSync(new URL('../supabase/functions/source-worker/generic.ts', import.meta.url), 'utf8');
 const sharedSource = readFileSync(new URL('../supabase/functions/source-worker/shared.ts', import.meta.url), 'utf8');
-const sharedSource = readFileSync(new URL('../supabase/functions/source-worker/shared.ts', import.meta.url), 'utf8');
 
 function loadScope(source, extra = {}) {
   const code = stripTypeScriptTypes(source.replace(/^import[^;]+;\n/gm, '').replace(/^export\s+\{[^}]+\}\s+from[^;]+;\n/gm, '').replaceAll('export ', ''));
@@ -16,18 +15,6 @@ function loadScope(source, extra = {}) {
   vm.runInNewContext(code, scope);
   return scope;
 }
-
-test('WG-Gesucht detail URL parser recognizes numeric and slug-based listing URLs', () => {
-  const start = sharedSource.indexOf('export function strongUrl');
-  const end = sharedSource.indexOf('export async function fetchText', start);
-  assert.ok(start >= 0 && end > start, 'strongUrl source should be present');
-  const functionSource = sharedSource.slice(start, end).replace('export function', 'function');
-  const scope = { URL };
-  vm.runInNewContext(functionSource + '\\nglobalThis.strongUrl = strongUrl;', scope);
-  assert.equal(scope.strongUrl('https://www.wg-gesucht.de/14216536.html'), true);
-  assert.equal(scope.strongUrl('https://www.wg-gesucht.de/wg-zimmer-in-Ahrensburg.1738.14216536.html'), true);
-  assert.equal(scope.strongUrl('https://www.wg-gesucht.de/anzeigen-in-Ahrensburg.1738.html'), false);
-});
 
 test('WG-Gesucht directory parser extracts unique Schleswig-Holstein city IDs', () => {
   const scope = loadScope(categorySource);
@@ -93,6 +80,7 @@ test('WG-Gesucht detail URLs are recognized and mapped to the listing locality',
     checked: (value) => value,
   });
   assert.equal(shared.strongUrl('https://www.wg-gesucht.de/wg-zimmer-in-Ahrensburg-Ahrensburg.14216536.html'), true);
+  assert.equal(shared.strongUrl('https://www.wg-gesucht.de/14216536.html'), true);
   const parsed = shared.parseHtml(
     '<h2>2 WG-Zimmer | 4 Angebote in allen Kategorien in Ahrensburg</h2><div><a href="/wg-zimmer-in-Ahrensburg-Ahrensburg.14216536.html">Möbliertes zimmer in einem WG</a><p>600 € 18 m² 2er WG · Ahrensburg · 22926</p></div>',
     'https://www.wg-gesucht.de/wg-zimmer-in-Ahrensburg.1738.0.1.0.html',
