@@ -209,6 +209,15 @@ export async function acknowledge(id, text) {
     }
 }
 
+export function hasCanceledPremium(user) {
+    const subscription = user?.subscription;
+    if (!subscription)
+        return false;
+    const status = String(subscription.status || "").toLowerCase();
+    return subscription.cancel_at_period_end === true ||
+        ["canceled", "cancelled", "incomplete_expired", "unpaid"].includes(status);
+}
+
 export async function withPlan(user, subscription = undefined) {
     if (subscription === undefined) {
     const { data, error } = await db
