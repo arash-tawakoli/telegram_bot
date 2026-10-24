@@ -10,9 +10,19 @@ function wg(s:any){return typeOf(s)==="WG"}
 function checkout(user:any){return PREMIUM_LINK+"?client_reference_id="+encodeURIComponent(String(user?.id||""))}
 function homeRows(user?:any){const p=user?.is_premium===true;return [[b("🔎 Suche & Filter","profile")],[b(p?"⭐ Gespeichert":"🔒 ⭐ Gespeichert","saved"),b(p?"⚡ Auto-Bewerbung":"🔒 Auto-Bewerbung","platforms")],[b("⚙️ Einstellungen","settings"),b("❓ Hilfe","help")],[b("🎁 30 Tage Premium kostenlos","referral")]]}
 function settingsRows(user:any){return [[user?.is_premium?b("⚡ Bewerbung & Konten","platforms"):{text:"🔒 ⚡ Bewerbung & Konten",url:checkout(user)}],[b("🌐 Sprache","language"),b(user?.is_premium?"💎 Premium aktiv":"💎 Premium","premium")],[b("📡 Systemstatus","status")],[b("← Start","home")]]}
-function profileLocation(p:any){return p?.location_mode==="all_hamburg"?"Ganz Hamburg":p?.location_mode==="boroughs"?(p?.boroughs||[]).join(", ")||"Hamburg":(p?.neighborhoods||[]).join(", ")||(p?.districts||[]).join(", ")||"Hamburg"}
+function profileLocation(p:any){
+ if(p?.location_mode==="all_schleswig_holstein")return "Ganz Schleswig-Holstein";
+ if(p?.location_mode==="schleswig_holstein_areas"){
+  const districts=Array.isArray(p?.districts)?p.districts.filter(Boolean):[];
+  if(districts.length)return districts.length>5?districts.slice(0,5).join(", ")+" … (+"+(districts.length-5)+")":districts.join(", ");
+  return "Schleswig-Holstein";
+ }
+ return p?.location_mode==="all_hamburg"?"Ganz Hamburg":p?.location_mode==="boroughs"?(p?.boroughs||[]).join(", ")||"Hamburg":(p?.neighborhoods||[]).join(", ")||(p?.districts||[]).join(", ")||"Hamburg"
+}
 function selectedPlaces(state:any,data:any){
  const boroughs=data?.boroughs||[],hoods=data?.neighborhoods||[];
+ if(state?.location_mode==="all_schleswig_holstein")return "Ganz Schleswig-Holstein";
+ if(state?.location_mode==="schleswig_holstein_areas")return "Schleswig-Holstein (ausgewählte Gebiete)";
  if(state?.location_mode==="boroughs"){const ids=new Set((state.borough_ids||[]).map(Number));return boroughs.filter((x:any)=>ids.has(Number(x.id))).map((x:any)=>x.name).join(", ")||"Hamburg"}
  if(state?.location_mode==="neighborhoods"){const ids=new Set((state.neighborhood_ids||[]).map(Number));const names=hoods.filter((x:any)=>ids.has(Number(x.id))).map((x:any)=>x.name);return names.length>12?names.slice(0,12).join(", ")+" … (+"+(names.length-12)+")":names.join(", ")||"Hamburg"}
  return "Ganz Hamburg";
@@ -77,7 +87,16 @@ export function renderFast(x:any,update:any){
  if(view==="profile_detail"){const p=d.profile||{},slot=Number(p.profile_slot||1),types=p.property_types||[];const text="🔎 <b>"+esc(p.name||("Meine Suche "+slot))+"</b>\n\nStatus: "+(p.is_active?"aktiv":"pausiert")+"\nTyp: "+esc(types.join(", "))+"\nGebiet: "+esc(profileLocation(p))+"\nWarmmiete: bis "+esc(money(p.max_warm_rent))+"\nZimmer: "+esc(p.min_rooms??"–")+"+\nFläche: "+(Number(p.min_area_sqm||0)>0?esc(p.min_area_sqm)+" m²+":"egal");return result("editMessageText",update,text,[[b("✏️ Suchprofil ändern","profile:edit:"+slot)],[b(p.is_active?"⏸ Pausieren":"▶️ Fortsetzen",p.is_active?"profile:pause:"+slot:"profile:resume:"+slot)],[b("🗑 Profil löschen","profile:delete:"+slot)],[b("← Zurück","profile")]])}
  if(view==="profile_delete_confirm"){const slot=Number(d.slot||1);return result("editMessageText",update,"🗑 <b>Suchprofil löschen?</b>\n\nDiese Aktion kann nicht rückgängig gemacht werden.",[[b("🗑 Ja, löschen","profile:delete-confirm:"+slot)],[b("← Abbrechen","profile:view:"+slot)]])}
  if(view==="types"){const type=typeOf(s),mark=(v:string,l:string)=>(type===v?"✅ ":"")+l,rows=[[b(mark("Wohnung","🏢 Wohnung"),"type:Wohnung"),b(mark("Haus","🏡 Haus"),"type:Haus")],[b(mark("WG","🛏 WG-Zimmer"),"type:WG"),b(mark("Tauschwohnung","🔁 Tauschwohnung"),"type:Tauschwohnung")],[b("← Start","home")],[b("✖️ Abbrechen","cancel")]];return result("editMessageText",update,"🏠 <b>Was möchtest du mieten?</b>\n\nWähle genau eine Wohnform. Gebiet, Warmmiete, Zimmer und Fläche bleiben für alle Wohnformen gleich.",rows)}
- if(view==="location")return result("editMessageText",update,"📍 <b>Wo möchtest du suchen?</b>",[[b((s.location_mode==="all_hamburg"?"✅ ":"")+"🌐 Ganz Hamburg","loc:all")],[b((s.location_mode==="boroughs"?"✅ ":"")+"🏙 Bezirke auswählen","loc:boroughs")],[b((s.location_mode==="neighborhoods"?"✅ ":"")+"📍 Stadtteile auswählen","loc:neighborhoods")],[b("← Zurück","types")],[b("✖️ Abbrechen","cancel")]]);
+ if(view==="location")return result("editMessageText",update,"📍 <b>Wo möchtest du suchen?</b>",[
+  [b((s.location_mode==="all_hamburg"?"✅ ":"")+"🌐 Ganz Hamburg","loc:all")],
+  [b((s.location_mode==="boroughs"?"✅ ":"")+"🏙 Bezirke auswählen","loc:boroughs")],
+  [b((s.location_mode==="neighborhoods"?"✅ ":"")+"📍 Stadtteile auswählen","loc:neighborhoods")],
+  [b((s.location_mode==="all_schleswig_holstein"?"✅ ":"")+"🌐 Ganz Schleswig-Holstein","loc:all_sh")],
+  [b((s.location_mode==="schleswig_holstein_areas"&&["counties","mixed"].includes(String(s.sh_area_level||""))?"✅ ":"")+"🏙 Kreise / kreisfreie Städte","loc:counties_sh")],
+  [b((s.location_mode==="schleswig_holstein_areas"&&["municipalities","mixed"].includes(String(s.sh_area_level||""))?"✅ ":"")+"📍 Städte / Gemeinden","loc:municipalities_sh")],
+  [b("← Zurück","types")],
+  [b("✖️ Abbrechen","cancel")]
+ ]);
  if(view==="boroughs"){const selected=new Set((s.borough_ids||[]).map(Number)),rows:any[]=[];const arr=d.boroughs||[];for(let i=0;i<arr.length;i+=2)rows.push(arr.slice(i,i+2).map((q:any)=>b((selected.has(Number(q.id))?"✅ ":"")+q.name,"borough:"+q.id)));rows.push([b("Alle auswählen","borough:all"),b("Auswahl löschen","borough:clear")],[b("← Zurück","location"),b("Weiter →","borough:done")],[b("✖️ Abbrechen","cancel")]);return maybeMarkup(update,"boroughs",rows,result("editMessageText",update,"📍 <b>Hamburger Bezirke</b>\n\nWähle einen oder mehrere der 7 Bezirke.",rows))}
  if(view==="neighborhoods"){const all=d.neighborhoods||[],sel=new Set((s.neighborhood_ids||[]).map(Number)),pages=Math.max(1,Math.ceil(all.length/10)),page=Math.max(0,Math.min(Number(s.neighborhood_page||0),pages-1)),entries=all.slice(page*10,(page+1)*10),rows:any[]=[];for(let i=0;i<entries.length;i+=2)rows.push(entries.slice(i,i+2).map((q:any)=>b((sel.has(Number(q.id))?"✅ ":"")+q.name,"neighborhood:"+q.id)));rows.push([b("Alle auswählen","neighborhood:all"),b("Auswahl löschen","neighborhood:clear")],[b("←","neighborhood:prev"),b((page+1)+"/"+pages,"noop"),b("→","neighborhood:next")],[b("← Zurück","location"),b("Weiter →","neighborhood:done")],[b("✖️ Abbrechen","cancel")]);return result("editMessageText",update,"📍 <b>Hamburger Stadtteile</b>\n\n<b>"+sel.size+"/"+all.length+" ausgewählt</b>",rows)}
  if(view==="rent"){const v=Number(s.max_warm_rent),sel=(n:number)=>(v===n?"✅ ":""),question="💶 <b>Wie hoch darf die Warmmiete maximal sein?</b>";return result("editMessageText",update,question,[[b(sel(800)+"800 €","rent:800"),b(sel(1000)+"1.000 €","rent:1000")],[b(sel(1250)+"1.250 €","rent:1250"),b(sel(2000)+"2.000 €","rent:2000")],[b([800,1000,1250,2000].includes(v)?"✏️ Eigener Betrag":(Number.isFinite(v)&&v>0?"✅ Eigener Betrag · "+money(v):"✏️ Eigener Betrag"),"rent:custom")],[b("← Zurück","location")],[b("✖️ Abbrechen","cancel")]])}
