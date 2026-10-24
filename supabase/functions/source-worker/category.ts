@@ -61,7 +61,7 @@ async function runHtmlCategory(source:Source,stream:any){
 type WgGesuchtSHCity = { slug: string; id: string; name?: string | null };
 type WgGesuchtSHQueueItem = { url: string; city: string | null };
 const WG_SH_DIRECTORY_URL = "https://www.wg-gesucht.de/staedte-in-schleswig-holstein.13.html";
-const WG_SH_BATCH_SIZE = 10;
+const WG_SH_BATCH_SIZE = 40;
 let wgSHCityCache: { at: number; cities: WgGesuchtSHCity[] } | null = null;
 let wgSHOfficialCityKeysCache: { at: number; keys: Set<string> } | null = null;
 
