@@ -1,5 +1,5 @@
 {
-  "observed_at": "2026-10-24T21:17:34.390Z",
+  "observed_at": "2026-10-24T22:01:27.836Z",
   "project_id": "dpmohkrwdlicexwcrqfy",
   "snapshot_kind": "repository_with_observed_deployment_hashes",
   "functions": [
@@ -1376,11 +1376,11 @@
     },
     {
       "slug": "telegram-gateway",
-      "version": 99,
+      "version": 100,
       "verify_jwt": false,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "e8e79a0e71faa2bdb80df0250ca545b89bb25e95235973113ef089d602b682fb",
+      "observed_artifact_sha256": "612fd68226d733fb0e0f1ddfd31b256946bc196dc28726acf5d5498a4146318c",
       "entrypoint": "supabase/functions/telegram-gateway/index.ts",
       "files": [
         {
@@ -1390,13 +1390,13 @@
         },
         {
           "path": "supabase/functions/telegram-gateway/fast-ui.ts",
-          "git_blob_sha": "3da1c90db31a9e226153efef0bde5ba1ee1cfa7e",
-          "deployed_git_blob_sha": "3da1c90db31a9e226153efef0bde5ba1ee1cfa7e"
+          "git_blob_sha": "70b1f651087a36eace0d6ada3ed25c3502f0608d",
+          "deployed_git_blob_sha": "70b1f651087a36eace0d6ada3ed25c3502f0608d"
         }
       ],
-      "observed_live_version": 99,
+      "observed_live_version": 100,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "e8e79a0e71faa2bdb80df0250ca545b89bb25e95235973113ef089d602b682fb",
+      "observed_live_artifact_sha256": "612fd68226d733fb0e0f1ddfd31b256946bc196dc28726acf5d5498a4146318c",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-20.json",
       "source_archive_file_count": 2,
       "source_archive_status": "full_source",
@@ -1477,11 +1477,11 @@
     },
     {
       "slug": "telegram-ui",
-      "version": 375,
+      "version": 376,
       "verify_jwt": false,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "f4376eae3a9da0aedee455dbeef7d366bab1544247ca47b77b00607eacd4edf1",
+      "observed_artifact_sha256": "22bad3657d8d7c3b2449ce48c5f7fedede3b53ec8649988749e22e18ada6080f",
       "entrypoint": "supabase/functions/telegram-ui/index.ts",
       "files": [
         {
@@ -1526,13 +1526,13 @@
         },
         {
           "path": "supabase/functions/telegram-ui/handlers.js",
-          "git_blob_sha": "3dad784bf55cde19cf2329231f3c66ca732ae4c3",
-          "deployed_git_blob_sha": "3dad784bf55cde19cf2329231f3c66ca732ae4c3"
+          "git_blob_sha": "f05390b3cc478a3eb4f06af868a88f88f9685434",
+          "deployed_git_blob_sha": "f05390b3cc478a3eb4f06af868a88f88f9685434"
         }
       ],
-      "observed_live_version": 375,
+      "observed_live_version": 376,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "f4376eae3a9da0aedee455dbeef7d366bab1544247ca47b77b00607eacd4edf1",
+      "observed_live_artifact_sha256": "22bad3657d8d7c3b2449ce48c5f7fedede3b53ec8649988749e22e18ada6080f",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-22.json",
       "source_archive_file_count": 9,
       "source_archive_status": "full_source",
