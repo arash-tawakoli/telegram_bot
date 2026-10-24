@@ -3,26 +3,23 @@ import { profile } from "./profiles.js";
 import { db, PREMIUM_LINK, SAVED_PAGE_SIZE, short, button, send, edit, sendPremiumPreview, editPremiumPreview } from "./runtime.js";
 export function homeKeyboard(user) {
     const rows = [
-        [button("🔎 Suche & Filter", "profile")],
-        [
-            button(user.is_premium ? "⭐ Gespeichert" : "🔒 ⭐ Gespeichert", "saved"),
-            user.is_premium
-                ? button("⚡ Auto-Bewerbung", "platforms")
-                : button("🔒 Auto-Bewerbung", "platforms"),
-        ],
-        [
-            button("⚙️ Einstellungen", "settings"),
-            button("❓ Hilfe", "help"),
-        ],
-        [button("🎁 30 Tage Premium kostenlos", "referral")],
+        [button("🔎 Suchprofil", "profile")],
+        [button("👤 Bewerberprofil", "platforms:profile-new")],
+        [button(user.is_premium ? "⚡ Auto-Bewerbung" : "🔒 Auto-Bewerbung", "platforms")],
+        [button("💎 Premium", "premium")],
+        [button("⚙️ Einstellungen", "settings")],
     ];
     return { inline_keyboard: rows };
 }
 
 export function home(user, chatId, messageId) {
     const text = "🏠 <b>Traumwohnung Hamburg</b>\n\n" +
-        "Finde passende Mietangebote in Hamburg – automatisch und direkt per Telegram.\n\n" +
-        "Wähle unten, was du machen möchtest.";
+        "Dein Bot, der rund um die Uhr passende Wohnungen sucht und dich automatisch bewirbt.\n\n" +
+        "<b>In 3 Schritten zur automatisierten Bewerbung:</b>\n\n" +
+        "1. Suchprofil erstellen\n" +
+        "2. Bewerberprofil erstellen\n" +
+        "3. Auto-Bewerbung einrichten\n\n" +
+        "👇 <b>Jetzt loslegen!</b>";
     return messageId
         ? edit(chatId, messageId, text, homeKeyboard(user))
         : send(chatId, text, homeKeyboard(user));
@@ -140,10 +137,18 @@ export async function referralPage(user, chatId, messageId) {
             throw result.error;
         code = result.data;
     }
+    const link = `https://t.me/traumwohnunghamburgbot?start=ref_${code.code}`;
+    const share = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent("Traumwohnung Hamburg")}`;
     await send(chatId, "🎁 <b>30 Tage Premium für 0 €</b>\n\n" +
-        "Empfehle Traumwohnung Hamburg weiter und ihr erhaltet beide 30 Tage Premium kostenlos 💎\n\n" +
-        "Teile jetzt diesen Link 👇");
-    return send(chatId, `https://t.me/traumwohnunghamburgbot?start=ref_${code.code}`);
+        "Empfehle Traumwohnung Hamburg weiter und ihr erhaltet beide Premium kostenlos 💎\n\n" +
+        "Teile oder kopiere deinen persönlichen Link:");
+    return send(chatId, link, {
+        inline_keyboard: [
+            [{ text: "📤 Link teilen", url: share }],
+            [{ text: "📋 Link kopieren", copy_text: { text: link } }],
+            [button("← Einstellungen", "settings")],
+        ],
+    });
 }
 
 export async function languagePage(user, chatId, messageId) {
@@ -156,13 +161,12 @@ export async function languagePage(user, chatId, messageId) {
 }
 
 export async function settings(user, chatId, messageId) {
-    const text = "⚙️ <b>Einstellungen</b>\n\nKonten, Sprache, Premium und Systeminformationen.";
+    const text = "⚙️ <b>Einstellungen</b>\n\nGespeicherte Inserate, Sprache, Hilfe und Premium-Empfehlungen.";
     const markup = { inline_keyboard: [
-            [user.is_premium
-                ? button("⚡ Bewerbung & Konten", "platforms")
-                : { text: "🔒 ⚡ Bewerbung & Konten", url: `${PREMIUM_LINK}?client_reference_id=${encodeURIComponent(user.id)}` }],
-            [button("🌐 Sprache", "language"), button(user.is_premium ? "💎 Premium aktiv" : "💎 Premium", "premium")],
-            [button("📡 Systemstatus", "status")],
+            [button(user.is_premium ? "⭐ Gespeichert" : "🔒 ⭐ Gespeichert", "saved")],
+            [button("🌐 Sprache", "language")],
+            [button("❓ Hilfe", "help")],
+            [button("🎁 30 Tage Premium kostenlos", "referral")],
             [button("← Start", "home")],
         ] };
     return messageId ? edit(chatId, messageId, text, markup) : send(chatId, text, markup);
