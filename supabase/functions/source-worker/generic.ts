@@ -612,6 +612,8 @@ export async function runImmoweltCategory(source:Source,stream:any){
   let acceptedTotal=reset?0:Number(prior.accepted_total||0);
   let allEmptyVerified=reset?true:prior.all_empty_verified!==false;
   const rows:Candidate[]=[];
+  const roomSamples:any[]=[];
+  let roomSignalCount=0;
   let requests=0,parsed=0,complete=false,verifiedEmpty=false;
   const categoryOnly=source.coverage_strategy==='category_streams_only';
   const maxPagesPerRun=6;
@@ -641,7 +643,12 @@ export async function runImmoweltCategory(source:Source,stream:any){
     for(const c of cards){
       const textOfCandidate=String(c.title||'')+' '+String(c.raw?.alt||'')+' '+String(c.raw?._provider_text||'');
       if(category==='house'&&!categoryOnly&&!/\b(Haus|Einfamilienhaus|Reihenhaus|Doppelhaus|Doppelhaushälfte|Villa|Bungalow|Stadthaus)\b/i.test(textOfCandidate))continue;
-      if(category==='room'&&!/\bWG[-\s]?Zimmer\b|Zimmer\s+in\s+(?:einer\s+)?WG|Wohngemeinschaft/i.test(textOfCandidate))continue;
+      const roomSignal=category==='room'&&/\bWG[-\s]?Zimmer\b|Zimmer\s+in\s+(?:einer\s+)?WG|Wohngemeinschaft/i.test(textOfCandidate);
+      if(category==='room'){
+        if(roomSignal)roomSignalCount++;
+        if(roomSamples.length<5)roomSamples.push({title:c.title,alt:c.raw?.alt,text:String(c.raw?._provider_text||'').slice(0,180),match:roomSignal});
+      }
+      if(category==='room'&&!roomSignal)continue;
       if(category==='swap'&&!/Tauschwohnung|Tauschangebot|Wohnungstausch|Wohnung[ -]*tausch|\btausche\b/i.test(textOfCandidate))continue;
       rows.push(c);
     }
@@ -659,6 +666,7 @@ export async function runImmoweltCategory(source:Source,stream:any){
       initialized:true,next_page:complete?1:nextPage,reported_pages:reportedPages,total,
       parsed,parsed_total:parsedTotal,accepted:saved.seen,accepted_total:acceptedTotal,
       all_empty_verified:allEmptyVerified,complete,verified_empty:verifiedEmpty,
+      ...(category==='room'?{room_signal_count:roomSignalCount,sample_cards:roomSamples}:{}),
       last_checked_at:iso()
     }
   };
