@@ -196,7 +196,7 @@ export async function runKleinCategory(source:Source,stream:any){
     }
     for(const candidate of page.items){
       const title=String(candidate.title||"");
-      if(category==="house"&&!/\b(Haus|Einfamilienhaus|Reihenhaus|Doppelhaus|Doppelhaushälfte|Villa|Bungalow|Stadthaus)\b/i.test(title))continue;
+      if(category==="house"&&source.coverage_strategy!=="category_streams_only"&&!/\b(Haus|Einfamilienhaus|Reihenhaus|Doppelhaus|Doppelhaushälfte|Villa|Bungalow|Stadthaus)\b/i.test(title))continue;
       if(category==="room"&&source.coverage_strategy!=="category_streams_only"){
         const roomSignal=/\b(?:WG(?:[- ]?Zimmer)?|Privatzimmer|Mitbewohner(?:in)?|Untermiet(?:e|er)?|Zimmer)\b/i.test(title);
         const wholeUnit=/\b(?:gesamte|komplette)\s+(?:Unterkunft|Wohnung)\b|\b\d+(?:[.,]\d+)?[ -]?Zimmer\b.{0,40}\bWohnung\b|\bApartment\b/i.test(title);
