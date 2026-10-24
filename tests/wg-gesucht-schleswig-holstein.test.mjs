@@ -80,6 +80,13 @@ test('WG-Gesucht detail URLs are recognized and mapped to the listing locality',
     checked: (value) => value,
   });
   assert.equal(shared.strongUrl('https://www.wg-gesucht.de/wg-zimmer-in-Ahrensburg-Ahrensburg.14216536.html'), true);
+  const parsed = shared.parseHtml(
+    '<h2>2 WG-Zimmer | 4 Angebote in allen Kategorien in Ahrensburg</h2><div><a href="/wg-zimmer-in-Ahrensburg-Ahrensburg.14216536.html">Möbliertes zimmer in einem WG</a><p>600 € 18 m² 2er WG · Ahrensburg · 22926</p></div>',
+    'https://www.wg-gesucht.de/wg-zimmer-in-Ahrensburg.1738.0.1.0.html',
+    'SH',
+  );
+  assert.equal(parsed.length, 1);
+  assert.equal(parsed[0].url, 'https://www.wg-gesucht.de/wg-zimmer-in-Ahrensburg-Ahrensburg.14216536.html');
 });
 
 test('WG-Gesucht only accepts category-specific empty headings as verified empty results', () => {
