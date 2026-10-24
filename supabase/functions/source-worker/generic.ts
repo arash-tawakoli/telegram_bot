@@ -601,7 +601,7 @@ async function runMeinestadtMirrorMonitor(
 }
 export async function runImmoweltCategory(source:Source,stream:any){
   const category=String(stream?.category||'');
-  if(!['house','apartment'].includes(category))throw new Error('unsupported Immowelt category stream');
+  if(!['house','apartment','room','swap'].includes(category))throw new Error('unsupported Immowelt category stream');
   if(source.id===3)await loadCooperativeRegistry();
   const url=String(stream.url),first=await fetchText(url),firstCards=immoweltCards(first.text,first.url);
   const noOffers=/0\s+(?:angebote|treffer)|keine\s+(?:angebote|immobilien)/i.test(strip(first.text));
@@ -617,7 +617,14 @@ export async function runImmoweltCategory(source:Source,stream:any){
   const key=(c:Candidate)=>String(c.key||c.url?.split('/').filter(Boolean).at(-1)||'').slice(0,500);
   const unique=[...new Map(all.map(c=>[key(c),c])).values()];
   const categoryOnly=source.coverage_strategy==='category_streams_only';
-  const rows=unique.filter(c=>category!=='house'||categoryOnly||/\b(Haus|Einfamilienhaus|Reihenhaus|Doppelhaus|Doppelhaushälfte|Villa|Bungalow|Stadthaus)\b/i.test(String(c.title||'')+' '+String(c.raw?.alt||'')));
+  const textOf=(c:Candidate)=>String(c.title||'')+' '+String(c.raw?.alt||'')+' '+String(c.raw?._provider_text||'');
+  const rows=unique.filter(c=>{
+    const text=textOf(c);
+    if(category==='house')return categoryOnly||/\b(Haus|Einfamilienhaus|Reihenhaus|Doppelhaus|Doppelhaushälfte|Villa|Bungalow|Stadthaus)\b/i.test(text);
+    if(category==='room')return /\bWG[-\s]?Zimmer\b|Zimmer\s+in\s+(?:einer\s+)?WG|Wohngemeinschaft/i.test(text);
+    if(category==='swap')return /Tauschwohnung|Tauschangebot|Wohnungstausch|Wohnung[ -]*tausch|\btausche\b/i.test(text);
+    return !/Tauschwohnung|Tauschangebot|Wohnungstausch|Wohnung[ -]*tausch|\btausche\b/i.test(text);
+  });
   const complete=pages>=reportedPages;
   const verifiedEmpty=all.length===0&&noOffers&&complete;
   const saved=await persistCategoryListings(source,stream,rows,complete);
