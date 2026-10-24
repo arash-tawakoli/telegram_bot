@@ -188,7 +188,7 @@ export async function runScoutSchleswigHolstein(source:Source){
       state={...state,cycle_id:cycle,cycle_started_at:started,seen_count:0,request_count:0,status:'running',cursor};
     }
     const queue:any[]=Array.isArray(cursor.queue)?cursor.queue:[];
-    const work=queue.splice(0,36);
+    const work=queue.splice(0,24);
     const partitionKey=(x:any)=>`${x.kind}|${x.min==null?'*':x.min}|${x.max==null?'*':x.max}|${Number(x.depth||0)}|${x.region_code||''}|${x.municipality_code||''}`;
     const partitionMeta=new Map<string,{partition:any;hasChildren:boolean}>();
     const candidatesByKey=new Map<string,{candidate:Candidate;fresh:boolean;partitionKey:string}>();
