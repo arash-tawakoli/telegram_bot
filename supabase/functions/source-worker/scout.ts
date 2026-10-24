@@ -166,7 +166,7 @@ export async function runScoutSchleswigHolstein(source:Source){
       state={...state,cycle_id:cycle,cycle_started_at:started,seen_count:0,request_count:0,status:'running',cursor};
     }
     const queue:any[]=Array.isArray(cursor.queue)?cursor.queue:[];
-    const work=queue.splice(0,3);
+    const work=queue.splice(0,6);
     const partitionKey=(x:any)=>`${x.kind}|${x.min==null?'*':x.min}|${x.max==null?'*':x.max}|${Number(x.depth||0)}`;
     const partitionMeta=new Map<string,{partition:any;hasChildren:boolean}>();
     const candidatesByKey=new Map<string,{candidate:Candidate;fresh:boolean;partitionKey:string}>();
@@ -276,7 +276,7 @@ export async function runScoutSchleswigHolstein(source:Source){
       const {data:baseline,error:baselineError}=await db.from('sources').select('delivery_mode,baseline_completed_at').eq('id',source.id).single();
       if(baselineError)throw baselineError;
       if(!baseline)throw new Error('Schleswig-Holstein source disappeared before baseline promotion');
-      const patch:any={coverage_status:'complete',updated_at:finished};
+      const patch:any={coverage_status:'complete',poll_interval_minutes:60,updated_at:finished};
       if(!baseline.baseline_completed_at)patch.baseline_completed_at=finished;
       if(baseline.delivery_mode==='shadow')patch.delivery_mode='live';
       const {data:updated,error:promotionError}=await db.from('sources')
