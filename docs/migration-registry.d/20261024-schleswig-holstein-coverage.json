@@ -209,6 +209,12 @@
       "name": "telegram_fast_architecture_consistency",
       "file": "supabase/migrations/20261024223000_telegram_fast_architecture_consistency.sql",
       "export_sql_sha256": "3cc868945e72a0d7a3dc9b3a4376b1566c1344f8f1827e5b99452b0fcd6fcd2f"
+    },
+    {
+      "version": "20261024223001",
+      "name": "telegram_fast_review_geo_payload",
+      "file": "supabase/migrations/20261024223001_telegram_fast_review_geo_payload.sql",
+      "export_sql_sha256": "2918590c8eaecbe198958aa338cd65756e9cea1862ae4c68551f7d68685f5964"
     }
   ]
 }
