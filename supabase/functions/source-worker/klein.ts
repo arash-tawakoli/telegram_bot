@@ -35,33 +35,33 @@ function sortingDateIso(label:string|null){
 function parsePage(h:string,regionStateCode='HH'){
   const dates=listingDates(h),items:Candidate[]=[];
   let opens=0;
-  for(const m of h.matchAll(/<article\\b[^>]*data-adid=["'](\\d+)["'][^>]*data-href=["']([^"']+)["'][^>]*>/gi)){
+  for(const m of h.matchAll(/<article\b[^>]*data-adid=["'](\d+)["'][^>]*data-href=["']([^"']+)["'][^>]*>/gi)){
     opens++;
     const st=m.index||0,en=h.indexOf('</article>',st);
     if(en<0)continue;
     const b=h.slice(st,en+10),plain=strip(b);
-    const title=strip(b.match(/<a\\b[^>]*class=["'][^"']*ellipsis[^"']*["'][^>]*>([\\s\\S]*?)<\\/a>/i)?.[1]||b.match(/<h[23]\\b[^>]*>([\\s\\S]*?)<\\/h[23]>/i)?.[1]||'');
+    const title=strip(b.match(/<a\b[^>]*class=["'][^"']*ellipsis[^"']*["'][^>]*>([\s\S]*?)<\/a>/i)?.[1]||b.match(/<h[23]\b[^>]*>([\s\S]*?)<\/h[23]>/i)?.[1]||'');
     if(!title)continue;
-    let loc=strip(b.match(/aditem-main--top--left[^>]*>([\\s\\S]*?)<\\/div>/i)?.[1]||b.match(/<span\\b[^>]*>\\s*(\\d{5}\\s+Hamburg[^<]*)<\\/span>/i)?.[1]||'');
-    let zip=loc.match(/\\b(\\d{5})\\b/)?.[1]||(regionStateCode==='SH'?plain.match(/\\b(\\d{5})\\b/)?.[1]:plain.match(/\\b(\\d{5})\\s+Hamburg\\b/i)?.[1]);
+    let loc=strip(b.match(/aditem-main--top--left[^>]*>([\s\S]*?)<\/div>/i)?.[1]||b.match(/<span\b[^>]*>\s*(\d{5}\s+Hamburg[^<]*)<\/span>/i)?.[1]||'');
+    let zip=loc.match(/\b(\d{5})\b/)?.[1]||(regionStateCode==='SH'?plain.match(/\b(\d{5})\b/)?.[1]:plain.match(/\b(\d{5})\s+Hamburg\b/i)?.[1]);
     if(!zip||(regionStateCode!=='SH'&&!HH_ZIPS.has(zip)))continue;
     if(!loc){
       if(regionStateCode==='SH'){
-        const lm=plain.match(new RegExp(`\\\\b${zip}\\\\s+[A-Za-zÄÖÜäöüß&;#0-9.-]+(?:\\\\s+[A-Za-zÄÖÜäöüß&;#0-9.-]+){0,3}`,'i'));
+        const lm=plain.match(new RegExp(`\\b${zip}\\s+[A-Za-zÄÖÜäöüß&;#0-9.-]+(?:\\s+[A-Za-zÄÖÜäöüß&;#0-9.-]+){0,3}`,'i'));
         loc=lm?.[0]||`${zip} Schleswig-Holstein`;
       }else{
-        const lm=plain.match(new RegExp(`\\\\b${zip}\\\\s+Hamburg(?:\\\\s+[A-Za-zÄÖÜäöüß&;#0-9.-]+){0,3}`,'i'));
+        const lm=plain.match(new RegExp(`\\b${zip}\\s+Hamburg(?:\\s+[A-Za-zÄÖÜäöüß&;#0-9.-]+){0,3}`,'i'));
         loc=lm?.[0]||`${zip} Hamburg`;
       }
     }
-    const tags=strip(b.match(/aditem-main--middle--tags[^>]*>([\\s\\S]*?)<\\/(?:div|p)>/i)?.[1]||'');
-    const price=strip(b.match(/aditem-main--middle--price-shipping--price[^>]*>([\\s\\S]*?)<\\/p>/i)?.[1]||b.match(/<p\\b[^>]*>\\s*([\\d.]+(?:,\\d{1,2})?\\s*€(?:\\s*VB)?)\\s*<\\/p>/i)?.[1]||'');
-    const image=b.match(/<img\\b[^>]*(?:src|data-src)=["']([^"']+)["']/i)?.[1]||null;
-    const district=loc.replace(/^\\d{5}\\s+/,'').replace(/^Hamburg\\s+/i,'').replace(/\\s*\\(Stadtteil\\)$/i,'').trim();
+    const tags=strip(b.match(/aditem-main--middle--tags[^>]*>([\s\S]*?)<\/(?:div|p)>/i)?.[1]||'');
+    const price=strip(b.match(/aditem-main--middle--price-shipping--price[^>]*>([\s\S]*?)<\/p>/i)?.[1]||b.match(/<p\b[^>]*>\s*([\d.]+(?:,\d{1,2})?\s*€(?:\s*VB)?)\s*<\/p>/i)?.[1]||'');
+    const image=b.match(/<img\b[^>]*(?:src|data-src)=["']([^"']+)["']/i)?.[1]||null;
+    const district=loc.replace(/^\d{5}\s+/,'').replace(/^Hamburg\s+/i,'').replace(/\s*\(Stadtteil\)$/i,'').trim();
     const sortingDate=dates.get(m[1])||null;
     items.push({
       key:m[1],url:m[2].startsWith('http')?m[2]:'https://www.kleinanzeigen.de'+m[2],title,district,zip,
-      cold:deNum(price),rooms:deNum(tags.match(/([\\d.,]+)\\s*Zi/i)?.[1]),area:deNum(tags.match(/([\\d.,]+)\\s*m²/i)?.[1]),image,
+      cold:deNum(price),rooms:deNum(tags.match(/([\d.,]+)\s*Zi/i)?.[1]),area:deNum(tags.match(/([\d.,]+)\s*m²/i)?.[1]),image,
       raw:{provider:'kleinanzeigen',native_offer:true,location:loc,price_text:price,sorting_date:sortingDate}
     });
   }
