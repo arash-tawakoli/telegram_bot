@@ -44,7 +44,7 @@ function parsePage(h:string,regionStateCode='HH'){
     if(!title)continue;
     let loc=strip(b.match(/aditem-main--top--left[^>]*>([\s\S]*?)<\/div>/i)?.[1]||b.match(/<span\b[^>]*>\s*(\d{5}\s+Hamburg[^<]*)<\/span>/i)?.[1]||'');
     let zip=loc.match(/\b(\d{5})\b/)?.[1]||(regionStateCode==='SH'?plain.match(/\b(\d{5})\b/)?.[1]:plain.match(/\b(\d{5})\s+Hamburg\b/i)?.[1]);
-    if(!zip||(regionStateCode!=='SH'&&!HH_ZIPS.has(zip)))continue;
+    if((!zip&&regionStateCode!=='SH')||(zip&&regionStateCode!=='SH'&&!HH_ZIPS.has(zip)))continue;
     if(!loc){
       if(regionStateCode==='SH'){
         const lm=plain.match(new RegExp(`\\b${zip}\\s+[A-Za-zÄÖÜäöüß&;#0-9.-]+(?:\\s+[A-Za-zÄÖÜäöüß&;#0-9.-]+){0,3}`,'i'));
@@ -143,4 +143,91 @@ export async function runKlein(source:Source){const started=iso();try{
 }catch(e){const t=iso(),{data:st}=await db.from('source_coverage_state').select('consecutive_errors').eq('source_id',2).maybeSingle().throwOnError();await db.from('source_coverage_state').update({status:'running',consecutive_errors:Number(st?.consecutive_errors||0)+1,last_error:String(e).slice(0,1000),backoff_until:null,updated_at:t}).eq('source_id',2).throwOnError();return markFailure(source,started,e)}}
 
 
-export async function runKleinCategory(source:Source,stream:any){const url=String(stream.url||''),response=await fetchListingPage(url,AbortSignal.timeout(15000));if(!response.ok)throw new Error(`Kleinanzeigen category HTTP ${response.status}`);const upstream=Number(response.headers.get('x-upstream-status')||0);if(upstream!==200)throw new Error(`Kleinanzeigen category upstream HTTP ${upstream||'unknown'}`);const html=await response.text(),regionStateCode=source.search_capabilities?.region_state_code==='SH'?'SH':'HH',parsed=parsePage(html,regionStateCode);if(parsed.opens===0)throw new Error('Kleinanzeigen category result HTML empty');const rows:Candidate[]=[];const categoryOnly=source.coverage_strategy==='category_streams_only';for(const c of parsed.items){const title=String(c.title||'');if(stream.category==='house'&&!categoryOnly&&(!/\b(Haus|Einfamilienhaus|Reihenhaus|Doppelhaus|Doppelhaushälfte|Villa|Bungalow|Stadthaus)\b/i.test(title)||/\b(Kauf|kaufen|Mietkauf|Bauen statt Mieten|Grundstück|Erbpacht)\b/i.test(title)))continue;if(stream.category==='room'){const roomSignal=/\b(?:WG(?:[- ]?Zimmer)?|Privatzimmer|Mitbewohner(?:in)?|Untermiet(?:e|er)?|Zimmer)\b/i.test(title),wholeUnit=/\b(?:gesamte|komplette)\s+(?:Unterkunft|Wohnung)\b|\b\d+(?:[.,]\d+)?[ -]?Zimmer\b.{0,40}\bWohnung\b|\bApartment\b/i.test(title),strongRoom=/\b(?:WG(?:[- ]?Zimmer)?|Privatzimmer|Mitbewohner(?:in)?|Untermiet(?:e|er)?)\b/i.test(title);if(!roomSignal||(wholeUnit&&!strongRoom))continue}const published=sortingDateIso(String(c.raw?.sorting_date||''));rows.push({...c,raw:{...c.raw,...(published?{_newness:{method:'source_timestamp',source_published_at:published}}:{})}})}const saved=await persistCategoryListings(source,stream,rows,false);return{requests:1,candidates:saved.seen,fresh:saved.fresh,cursor:{opens:parsed.opens,accepted:saved.seen,complete:true,last_checked_at:iso()}}}
+function kleinCategoryPageUrl(base: string, page: number) {
+  const url = new URL(base);
+  if (page <= 1) return url.href;
+  const segments = url.pathname.split("/");
+  const categoryIndex = segments.findIndex((segment) => /^(?:k\d+c\d+l\d+|c\d+l\d+)$/i.test(segment));
+  if (categoryIndex < 0) throw new Error(`Kleinanzeigen category URL has no location segment: ${base}`);
+  if (segments[categoryIndex - 1] !== `seite:${page}`) segments.splice(categoryIndex, 0, `seite:${page}`);
+  url.pathname = segments.join("/");
+  return url.href;
+}
+
+async function fetchKleinCategoryPage(base: string, page: number, regionStateCode: string) {
+  const url = kleinCategoryPageUrl(base, page);
+  const response = await fetchListingPage(url, AbortSignal.timeout(15000));
+  if (!response.ok) throw new Error(`Kleinanzeigen category HTTP ${response.status}`);
+  const upstream = Number(response.headers.get("x-upstream-status") || 0);
+  if (upstream !== 200) throw new Error(`Kleinanzeigen category upstream HTTP ${upstream || "unknown"}`);
+  const html = await response.text();
+  const parsed = parsePage(html, regionStateCode);
+  const noOffers = /keine (?:passenden )?(?:angebote|anzeigen|treffer)|0 (?:angebote|treffer)|leider (?:gibt es|haben wir) (?:aktuell )?keine/i.test(strip(html));
+  if (parsed.opens === 0 && !noOffers) throw new Error(`Kleinanzeigen category page returned no cards and no verified-empty marker: ${url}`);
+  if (parsed.opens > 0 && parsed.items.length === 0) throw new Error(`Kleinanzeigen parser accepted 0/${parsed.opens} cards at ${url}`);
+  return { url: response.url || url, html, ...parsed, noOffers, total: total(html) };
+}
+
+export async function runKleinCategory(source:Source,stream:any){
+  const base=String(stream.url||"");
+  if(!base)throw new Error("Kleinanzeigen category URL is missing");
+  const category=String(stream.category||"");
+  const regionStateCode=source.search_capabilities?.region_state_code==="SH"?"SH":"HH";
+  const prior=stream.cursor&&typeof stream.cursor==="object"?stream.cursor:{};
+  const reset=prior.complete===true||prior.initialized!==true;
+  let nextPage=reset?1:Math.max(1,Number(prior.next_page||1));
+  let totalPages=reset?null:(Number(prior.total_pages||0)||null);
+  let parsedTotal=reset?0:Number(prior.parsed_total||0);
+  let acceptedTotal=reset?0:Number(prior.accepted_total||0);
+  let allEmptyVerified=reset?true:prior.all_empty_verified!==false;
+  const rows:Candidate[]=[];
+  let requests=0,parsedCount=0,complete=false,verifiedEmpty=false;
+  const maxPagesPerRun=4;
+  for(let index=0;index<maxPagesPerRun;index++){
+    const page=await fetchKleinCategoryPage(base,nextPage,regionStateCode);
+    requests++;
+    parsedCount+=page.opens;
+    parsedTotal+=page.opens;
+    if(page.items.length)allEmptyVerified=false;
+    if(page.opens===0&&page.noOffers){
+      complete=true;
+      verifiedEmpty=acceptedTotal===0&&allEmptyVerified;
+      break;
+    }
+    for(const candidate of page.items){
+      const title=String(candidate.title||"");
+      if(category==="house"&&!/\b(Haus|Einfamilienhaus|Reihenhaus|Doppelhaus|Doppelhaushälfte|Villa|Bungalow|Stadthaus)\b/i.test(title))continue;
+      if(category==="room"&&source.coverage_strategy!=="category_streams_only"){
+        const roomSignal=/\b(?:WG(?:[- ]?Zimmer)?|Privatzimmer|Mitbewohner(?:in)?|Untermiet(?:e|er)?|Zimmer)\b/i.test(title);
+        const wholeUnit=/\b(?:gesamte|komplette)\s+(?:Unterkunft|Wohnung)\b|\b\d+(?:[.,]\d+)?[ -]?Zimmer\b.{0,40}\bWohnung\b|\bApartment\b/i.test(title);
+        const strongRoom=/\b(?:WG(?:[- ]?Zimmer)?|Privatzimmer|Mitbewohner(?:in)?|Untermiet(?:e|er)?)\b/i.test(title);
+        if(!roomSignal||(wholeUnit&&!strongRoom))continue;
+      }
+      const published=sortingDateIso(String(candidate.raw?.sorting_date||""));
+      rows.push({...candidate,raw:{...candidate.raw,...(published?{_newness:{method:"source_timestamp",source_published_at:published}}:{})}});
+    }
+    if(page.total!=null&&page.total>0)totalPages=Math.max(1,Math.ceil(page.total/25));
+    const hasNextByTotal=totalPages!=null&&nextPage<totalPages;
+    const pageFull=page.opens>=25;
+    nextPage++;
+    if(!hasNextByTotal&&(totalPages!=null||!pageFull)){
+      complete=true;
+      break;
+    }
+    if(totalPages!=null&&nextPage>totalPages){
+      complete=true;
+      break;
+    }
+  }
+  const saved=await persistCategoryListings(source,stream,rows,false);
+  acceptedTotal+=saved.seen;
+  verifiedEmpty=complete&&acceptedTotal===0&&allEmptyVerified;
+  return{
+    requests,candidates:saved.seen,fresh:saved.fresh,
+    cursor:{
+      initialized:true,next_page:complete?1:nextPage,total_pages:totalPages,
+      parsed:parsedCount,parsed_total:parsedTotal,accepted:saved.seen,accepted_total:acceptedTotal,
+      all_empty_verified:allEmptyVerified,complete,verified_empty:verifiedEmpty,last_checked_at:iso()
+    }
+  };
+}
