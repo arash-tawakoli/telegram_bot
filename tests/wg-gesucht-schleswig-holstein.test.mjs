@@ -77,6 +77,14 @@ test('WG-Gesucht only accepts category-specific empty headings as verified empty
     scope.wgGesuchtVerifiedEmptyResult('<h2>0 Häuser | 0 Angebote in Ahneby</h2>', 'house'),
     true,
   );
+  assert.equal(
+    scope.wgGesuchtVerifiedEmptyResult('<h2>1 Angebot in allen Kategorien in Ammersbek</h2>', 'house'),
+    true,
+  );
+  assert.equal(
+    scope.wgGesuchtVerifiedEmptyResult('<h2>1 Angebot in allen Kategorien in Ammersbek</h2><a href="/14216536.html">Hausangebot</a>', 'house'),
+    false,
+  );
 });
 
 test('regional crawl batch limits remain bounded', () => {
