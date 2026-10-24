@@ -1159,12 +1159,16 @@
         {
           "path": "supabase/functions/source-worker/immomio.ts",
           "sha256": "fbd12e7e8526bfca3fbc34c8549d6d00301c0e18d362e9a731a87b8fa5973528",
-          "deployed_sha256": "fbd12e7e8526bfca3fbc34c8549d6d00301c0e18d362e9a731a87b8fa5973528"
+          "deployed_sha256": "fbd12e7e8526bfca3fbc34c8549d6d00301c0e18d362e9a731a87b8fa5973528",
+          "git_blob_sha": "8f3432f0d6c03c580f02f825065d3c1c9019f6d5",
+          "deployed_git_blob_sha": "8f3432f0d6c03c580f02f825065d3c1c9019f6d5"
         },
         {
           "path": "supabase/functions/source-worker/immomio-inventory.ts",
           "sha256": "252e0b07be53a2457e436aeabf57129865ca66e5f7480172697c739ef549f038",
-          "deployed_sha256": "252e0b07be53a2457e436aeabf57129865ca66e5f7480172697c739ef549f038"
+          "deployed_sha256": "252e0b07be53a2457e436aeabf57129865ca66e5f7480172697c739ef549f038",
+          "git_blob_sha": "5fc07164215b6d7e35269d018ed0965574de3978",
+          "deployed_git_blob_sha": "5fc07164215b6d7e35269d018ed0965574de3978"
         },
         {
           "path": "supabase/functions/source-worker/hpm.ts",
