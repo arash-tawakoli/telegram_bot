@@ -177,14 +177,14 @@ export function wgGesuchtVerifiedEmptyResult(html: string, category: string): bo
     house: "(?:Haus|Häuser)",
   };
   const label = labels[category];
-  const headings = [...html.matchAll(/<h[1-4]\\b[^>]*>([\\s\\S]*?)<\\/h[1-4]>/gi)]
+  const headings = [...html.matchAll(/<h[1-4]\b[^>]*>([\s\S]*?)<\/h[1-4]>/gi)]
     .map((match) => strip(match[1]))
     .join(" ");
   if (label) {
-    const count = headings.match(new RegExp(`\\\\b(\\\\d+)\\\\s+${label}\\\\b`, "i"));
+    const count = headings.match(new RegExp(\`\\\\b(\\\\d+)\\\\s+\${label}\\\\b\`, "i"));
     if (count) return Number(count[1]) === 0;
   }
-  if (/href=["'][^"'<>]*\\/\\d{6,}\\.html(?:[?#][^"'<>]*)?["']/i.test(html)) return false;
+  if (/href=["'][^"'<>]*\/\d{6,}\.html(?:[?#][^"'<>]*)?["']/i.test(html)) return false;
   return /keine (?:passenden )?(?:angebote|anzeigen|immobilien)|0 (?:angebote|treffer)|leider (?:gibt es|haben wir) (?:aktuell )?keine/i.test(headings);
 }
 
