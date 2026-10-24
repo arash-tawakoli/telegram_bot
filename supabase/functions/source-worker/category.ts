@@ -57,7 +57,7 @@ export async function runCategoryStreams(source:Source){
       else if(stream.adapter==='immowelt')result=await runImmoweltCategory(source,stream);
       else throw new Error(`unsupported category adapter ${stream.adapter}`);
       const parsedCount=Number(result?.cursor?.parsed??result?.cursor?.opens??0);
-      if(Number(result?.candidates||0)===0&&parsedCount>0&&result?.cursor?.verified_empty!==true){
+      if(source.coverage_strategy==='category_streams_only'&&Number(result?.candidates||0)===0&&parsedCount>0&&result?.cursor?.verified_empty!==true){
         throw new Error(`${stream.adapter} ${stream.category} parser saw ${parsedCount} cards but accepted zero; refusing baseline approval`);
       }
       await finish(stream,true,result,null);
