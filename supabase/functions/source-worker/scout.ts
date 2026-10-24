@@ -275,12 +275,20 @@ export async function runScoutSchleswigHolstein(source:Source){
     if(complete){
       const {data:baseline,error:baselineError}=await db.from('sources').select('delivery_mode,baseline_completed_at').eq('id',source.id).single();
       if(baselineError)throw baselineError;
-      if(!baseline?.baseline_completed_at)throw new Error('Coverage completed but baseline_completed_at was not recorded');
-      if(baseline.delivery_mode==='shadow'){
-        const {error:promotionError}=await db.from('sources').update({delivery_mode:'live',updated_at:finished}).eq('id',source.id).eq('enabled',true).eq('runtime_mode','live');
-        if(promotionError)throw promotionError;
-        promoted=true;
-      }
+      if(!baseline)throw new Error('Schleswig-Holstein source disappeared before baseline promotion');
+      const patch:any={coverage_status:'complete',updated_at:finished};
+      if(!baseline.baseline_completed_at)patch.baseline_completed_at=finished;
+      if(baseline.delivery_mode==='shadow')patch.delivery_mode='live';
+      const {data:updated,error:promotionError}=await db.from('sources')
+        .update(patch)
+        .eq('id',source.id)
+        .eq('enabled',true)
+        .eq('runtime_mode','live')
+        .select('delivery_mode,baseline_completed_at')
+        .single();
+      if(promotionError)throw promotionError;
+      if(!updated?.baseline_completed_at)throw new Error('Schleswig-Holstein baseline timestamp was not persisted');
+      promoted=baseline.delivery_mode==='shadow'&&updated.delivery_mode==='live';
     }
     return {ok:true,source_id:source.id,fetched:freshRows.length+coverageRows.length,new:inserted,remaining:queue.length,cycle_complete:complete,promoted,requests,map_errors:mapErrors,unmapped,blocked_saturated:blockedSaturatedKeys.length,blocked_unmapped:blockedUnmappedKeys.length};
   }catch(error){
