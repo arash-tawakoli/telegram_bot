@@ -624,6 +624,9 @@ export async function runImmoweltCategory(source:Source,stream:any){
     const response=await fetchText(url);
     requests++;
     if(pageNumber===1)firstUrl=response.url;
+    if(category==='room'&&pageNumber===1&&!new URL(response.url).pathname.includes('/wohngemeinschaft/')){
+      throw new Error(`Immowelt WG route redirected to a general results page (${response.url}); refusing to mark WG coverage complete`);
+    }
     const cards=immoweltCards(response.text,response.url);
     const noOffers=/keine\s+(?:passenden\s+)?(?:angebote|treffer|immobilien)|0\s+(?:angebote|treffer)|leider\s+(?:gibt\s+es|haben\s+wir)\s+(?:aktuell\s+)?keine/i.test(strip(response.text));
     if(!cards.length){
