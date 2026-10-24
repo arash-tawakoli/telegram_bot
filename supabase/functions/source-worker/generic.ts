@@ -609,8 +609,7 @@ export async function runImmoweltCategory(source:Source,stream:any){
   let reportedPages=Math.max(1,maxPage(first.text)),total=immoweltTotal(first.text);
   if(reportedPages===1&&total&&firstCards.length)reportedPages=Math.max(1,Math.ceil(total/firstCards.length));
   // A capped, partial crawl must never qualify as a complete baseline.
-  const pageCap=source.coverage_strategy==='category_streams_only'?12:12;
-  const pages=Math.min(reportedPages,pageCap),all=[...firstCards];
+  const pages=Math.min(reportedPages,12),all=[...firstCards];
   if(pages>1){
     const rest=await Promise.all(Array.from({length:pages-1},(_,i)=>fetchText(pageUrl(url,i+2,3))));
     for(const r of rest)all.push(...immoweltCards(r.text,r.url));
