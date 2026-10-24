@@ -221,7 +221,7 @@ async function runWgGesuchtSHCategory(source: Source, stream: any) {
       raw: { ...candidate.raw, region_state_code: "SH", provider_city: entry.city || null },
     }));
     const noOffers = /keine (?:passenden )?(?:angebote|anzeigen|immobilien)|0 (?:angebote|treffer)|leider (?:gibt es|haben wir) (?:aktuell )?keine/i.test(strip(response.text));
-    if (!parsedRows.length && !noOffers) throw new Error(`WG-Gesucht ${category} parser found no cards and no verified-empty marker at ${entry.url}`);
+    if (!parsedRows.length && !noOffers) throw new Error(`WG-Gesucht ${category} parser found no cards and no verified-empty marker at ${entry.url}; sample=${strip(response.text).slice(0,350)}`);
     const rows = parsedRows.map((candidate) => {
       const published = pageTimestamp(`${candidate.title || ""} ${candidate.raw?.text || ""}`);
       return { ...candidate, raw: { ...candidate.raw, ...(published ? { _newness: { method: "source_timestamp", source_published_at: published } } : {}) } };
@@ -249,6 +249,7 @@ async function runWgGesuchtSHCategory(source: Source, stream: any) {
     cursor: {
       initialized, queue, city_count: cityCount, processed_pages: processedPages,
       parsed, parsed_total: parsedTotal, accepted: saved.seen, accepted_total: acceptedTotal,
+      ...(saved.seen===0&&candidates.length?{sample_cards:candidates.slice(0,5).map(candidate=>({title:candidate.title,url:candidate.url,city:candidate.city,zip:candidate.zip,text:String(candidate.raw?.text||'').slice(0,180)}))}:{}),
       all_empty_verified: allEmptyVerified, complete, verified_empty: verifiedEmpty,
       last_checked_at: iso()
     }
