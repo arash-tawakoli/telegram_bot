@@ -459,7 +459,9 @@ export async function persistProfile(user, draft) {
     const places = await selectedPlaces(draft);
     const values = {
         ...draft,
-        districts: places.districts,
+        // The database derives SH district labels from canonical area codes.
+        // Avoid duplicating 1,100+ municipality names in the RPC payload.
+        districts: draft.location_mode === "schleswig_holstein_areas" ? [] : places.districts,
         boroughs: places.boroughs,
         neighborhoods: places.neighborhoods,
         min_rooms: draft.min_rooms,
