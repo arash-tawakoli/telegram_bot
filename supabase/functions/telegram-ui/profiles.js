@@ -154,8 +154,8 @@ export async function renderLocation(user, chatId, messageId, draft) {
             [button(`${draft.location_mode === "boroughs" ? "✅ " : ""}🏙 Bezirke auswählen`, "loc:boroughs")],
             [button(`${draft.location_mode === "neighborhoods" ? "✅ " : ""}📍 Stadtteile auswählen`, "loc:neighborhoods")],
             [button(`${draft.location_mode === "all_schleswig_holstein" ? "✅ " : ""}🌐 Ganz Schleswig-Holstein`, "loc:all_sh")],
-            [button(`${draft.location_mode === "schleswig_holstein_areas" && draft.sh_area_level === "counties" ? "✅ " : ""}🏙 Kreise / kreisfreie Städte`, "loc:counties_sh")],
-            [button(`${draft.location_mode === "schleswig_holstein_areas" && draft.sh_area_level === "municipalities" ? "✅ " : ""}📍 Städte / Gemeinden`, "loc:municipalities_sh")],
+            [button(`${draft.location_mode === "schleswig_holstein_areas" && ["counties", "mixed"].includes(draft.sh_area_level) ? "✅ " : ""}🏙 Kreise / kreisfreie Städte`, "loc:counties_sh")],
+            [button(`${draft.location_mode === "schleswig_holstein_areas" && ["municipalities", "mixed"].includes(draft.sh_area_level) ? "✅ " : ""}📍 Städte / Gemeinden`, "loc:municipalities_sh")],
             backRow(draft.profile_edit ? `profile:edit:${draft.profile_slot}` : "types"),
             cancelRow(),
         ],
@@ -484,8 +484,13 @@ export function profileLimit(user) { return user.is_premium ? 4 : 1; }
 export function profileLocation(current) {
     if (current.location_mode === "all_schleswig_holstein")
         return "Ganz Schleswig-Holstein";
-    if (current.location_mode === "schleswig_holstein_areas")
-        return (current.districts || []).join(", ") || "Schleswig-Holstein";
+    if (current.location_mode === "schleswig_holstein_areas") {
+        const districts = current.districts || [];
+        const location = districts.length > 5
+            ? `${districts.slice(0, 5).join(", ")} … (+${districts.length - 5})`
+            : districts.join(", ");
+        return location || "Schleswig-Holstein";
+    }
     return current.location_mode === "all_hamburg"
         ? "Ganz Hamburg"
         : current.location_mode === "boroughs"
