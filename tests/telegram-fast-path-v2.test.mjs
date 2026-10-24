@@ -52,7 +52,7 @@ test('referral preview only displays the personal link',()=>{
 test('completed applicant fields lose their required marker',()=>{
  const r=renderFast({...base,view:'applicant_profile',data:{profile:{first_name:'Anna'},missing:['Nachname'],docs:[]}},update);
  assert.match(r.text,/Vorname: Anna/);
- assert.doesNotMatch(r.text,/Vorname \\*:/);
+ assert.doesNotMatch(r.text,/Vorname \*:/);
  const buttons=r.reply_markup.inline_keyboard.flat();
  assert.ok(buttons.some(x=>x.text==='Vorname'));
  assert.ok(buttons.some(x=>x.text==='Nachname *'));
