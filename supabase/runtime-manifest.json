@@ -111,9 +111,9 @@
           "deployed_sha256": "638e113afeb7895cf519d058bd1166f8ca0444a54f5eb9a573c530efc38110de"
         }
       ],
-      "observed_live_version": 306,
+      "observed_live_version": 320,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "3fe47451157962333e10b85797b12a88790476110490764df3ae2962b580dc43",
+      "observed_live_artifact_sha256": "c2e658be5a3b3035cd65c05a65a81ea0072130b9ff88640e129aea58b2d2472b",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-01.json",
       "source_archive_file_count": 10,
       "source_archive_status": "full_source",
@@ -164,9 +164,9 @@
           "deployed_sha256": "f4c4820c3de7d5f19ee3af5cb1fee3dd5e4da4aed9cecb03df730120c27a853a"
         }
       ],
-      "observed_live_version": 236,
+      "observed_live_version": 250,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "56ae440bc171dde0290e0827f4392f66faf42193d4c8a1b2151f3c52954c6eb6",
+      "observed_live_artifact_sha256": "349b5f3772a3fa68bb0e022818974f628ba9a3f2b90a4d4cf6c4b5a4a6df902d",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-02.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
@@ -952,9 +952,9 @@
           "deployed_sha256": "4d9929f90c15e7e94acf5b8a24273abb7020da0d896f45109f7c31466a21ebb8"
         }
       ],
-      "observed_live_version": 337,
+      "observed_live_version": 351,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "f066a378fb8e90425caad9bdbafa6c0471f22d2fc8185a956f58665804886b79",
+      "observed_live_artifact_sha256": "4d120c02f6b65593c1145da242c465ade0ed5a291368dab18ea9a69473752e88",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-18.json",
       "source_archive_file_count": 9,
       "source_archive_status": "full_source",
@@ -1317,9 +1317,9 @@
           "deployed_sha256": "099441b9ada33258f02d4e5a286d130c99de9574e142ec27e2a21f32b5980327"
         }
       ],
-      "observed_live_version": 242,
+      "observed_live_version": 256,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "cabdd8cff85ff588b1cc90fdaf433580e66bcf170bce62e58d208d059f288ac8",
+      "observed_live_artifact_sha256": "2c89cacdf5f1e18d8682597178c3e3bae4ba2b144c20390879d9f33cc830b8c4",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-19.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
@@ -1530,9 +1530,9 @@
           "deployed_git_blob_sha": "37f29bffdfcc3fb7ae59f7e5725b8fb5ac389be2"
         }
       ],
-      "observed_live_version": 351,
+      "observed_live_version": 365,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "034e18fcfaaacc83bf7f44e67803b33db110ea55cd3c865c6ba2beaad29c0695",
+      "observed_live_artifact_sha256": "d09461d9f82378f975c0d1a349db44434722f960b6307b32a609bcf32a8f2e5d",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-22.json",
       "source_archive_file_count": 9,
       "source_archive_status": "full_source",
