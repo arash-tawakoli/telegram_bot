@@ -111,9 +111,9 @@
           "deployed_sha256": "638e113afeb7895cf519d058bd1166f8ca0444a54f5eb9a573c530efc38110de"
         }
       ],
-      "observed_live_version": 190,
+      "observed_live_version": 306,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "1f7c259f67065feb5556e79fc3e73d486a036456cba5f2c42f09cd78ae588202",
+      "observed_live_artifact_sha256": "3fe47451157962333e10b85797b12a88790476110490764df3ae2962b580dc43",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-01.json",
       "source_archive_file_count": 10,
       "source_archive_status": "full_source",
@@ -164,9 +164,9 @@
           "deployed_sha256": "f4c4820c3de7d5f19ee3af5cb1fee3dd5e4da4aed9cecb03df730120c27a853a"
         }
       ],
-      "observed_live_version": 122,
+      "observed_live_version": 236,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "bbc4f814838677d769bf8bd6b1989c55b1fce280573980ce56631993013a8604",
+      "observed_live_artifact_sha256": "56ae440bc171dde0290e0827f4392f66faf42193d4c8a1b2151f3c52954c6eb6",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-02.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
@@ -193,9 +193,9 @@
           "deployed_sha256": "561eef88785b5d442dbf95d42123cac1236ce0e55094bf59cf65aea099c00f64"
         }
       ],
-      "observed_live_version": 47,
+      "observed_live_version": 49,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "c86dde15b99e8ce88a7f3f08b04bc2776ae338fb179c8f896ef76211b7ff9a4b",
+      "observed_live_artifact_sha256": "4313a043483653d03634a041758e3fd8764bef480097d1226c323ee75e6dfe81",
       "source_archive_file": "docs/runtime-snapshot-2026-10-22/bundles/batch-01.json",
       "source_archive_file_count": 2,
       "source_archive_status": "full_source",
@@ -353,9 +353,9 @@
           "deployed_sha256": "2f9ada4328121560fa9dffd639c670a507ba09d5ea3eb18f09ad070a7f705107"
         }
       ],
-      "observed_live_version": 20,
+      "observed_live_version": 21,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "3e93ec9cdc6f5e077b559714d22aeb89a176b5eb06cc52212f1ca8d268be2419",
+      "observed_live_artifact_sha256": "41a63bc4e9549ebacca67f5afeff2e1116a834100273c7eabf0030aa8bf8210d",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-03.json",
       "source_archive_file_count": 3,
       "source_archive_status": "full_source",
@@ -952,9 +952,9 @@
           "deployed_sha256": "4d9929f90c15e7e94acf5b8a24273abb7020da0d896f45109f7c31466a21ebb8"
         }
       ],
-      "observed_live_version": 223,
+      "observed_live_version": 337,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "20017129f5f3c6a2c87e8625287a64ec64e47e555f6fc2c7491b2444e0b857de",
+      "observed_live_artifact_sha256": "f066a378fb8e90425caad9bdbafa6c0471f22d2fc8185a956f58665804886b79",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-18.json",
       "source_archive_file_count": 9,
       "source_archive_status": "full_source",
@@ -1100,8 +1100,8 @@
         },
         {
           "path": "supabase/functions/source-worker/shared.ts",
-          "git_blob_sha": "71627a7bcf7b9e5915bd72d52b7edb0cac4ca6ee",
-          "deployed_git_blob_sha": "71627a7bcf7b9e5915bd72d52b7edb0cac4ca6ee"
+          "git_blob_sha": "94d5749b2a22d23adb131e5dc17be392e872cc82",
+          "deployed_git_blob_sha": "94d5749b2a22d23adb131e5dc17be392e872cc82"
         },
         {
           "path": "supabase/functions/_shared/hamburg.ts",
@@ -1120,8 +1120,8 @@
         },
         {
           "path": "supabase/functions/source-worker/scout.ts",
-          "git_blob_sha": "7e1a66937412dc53db1d637c9f47f1e983a4bbb6",
-          "deployed_git_blob_sha": "7e1a66937412dc53db1d637c9f47f1e983a4bbb6"
+          "git_blob_sha": "acfdc3c4a559b0e55a26c7ab03b33c32cf977ad2",
+          "deployed_git_blob_sha": "acfdc3c4a559b0e55a26c7ab03b33c32cf977ad2"
         },
         {
           "path": "supabase/functions/source-worker/category-persist.ts",
@@ -1165,8 +1165,8 @@
         },
         {
           "path": "supabase/functions/source-worker/generic.ts",
-          "git_blob_sha": "fe00b161f3ce61726f3b9d6530df78b6d58ff268",
-          "deployed_git_blob_sha": "fe00b161f3ce61726f3b9d6530df78b6d58ff268"
+          "git_blob_sha": "0a1a1adf7a51c4996ed04c3b344edb7fb1fe3356",
+          "deployed_git_blob_sha": "0a1a1adf7a51c4996ed04c3b344edb7fb1fe3356"
         },
         {
           "path": "supabase/functions/source-worker/job-runner.ts",
@@ -1205,8 +1205,8 @@
         },
         {
           "path": "supabase/functions/source-worker/category.ts",
-          "git_blob_sha": "2974c752588ca149a88e2827b53f5dc50d2ba99f",
-          "deployed_git_blob_sha": "2974c752588ca149a88e2827b53f5dc50d2ba99f"
+          "git_blob_sha": "32ce2b500a00c7dd00f0a2e574a5b8d6acca095b",
+          "deployed_git_blob_sha": "32ce2b500a00c7dd00f0a2e574a5b8d6acca095b"
         },
         {
           "path": "supabase/functions/covivio-feed/handler.ts",
@@ -1259,9 +1259,9 @@
           "deployed_git_blob_sha": "4d1c8b364256e43b5c3145c7cc6398b111a55b2c"
         }
       ],
-      "observed_live_version": 137,
+      "observed_live_version": 138,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "a1788233dff74d3d45ab0860198cf00f2322147c0e4ff5a22518ee40ccdb7350",
+      "observed_live_artifact_sha256": "957f67f26a377a33cecdd1f8854e5ad7eee2d3b0f31ed835e0b75a62d49b1227",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-19.json",
       "source_archive_file_count": 33,
       "source_archive_status": "full_source",
@@ -1317,9 +1317,9 @@
           "deployed_sha256": "099441b9ada33258f02d4e5a286d130c99de9574e142ec27e2a21f32b5980327"
         }
       ],
-      "observed_live_version": 133,
+      "observed_live_version": 242,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "d051451aa7682ca489203b677c2ca4925168904047565d424958e5d8b2d7882a",
+      "observed_live_artifact_sha256": "cabdd8cff85ff588b1cc90fdaf433580e66bcf170bce62e58d208d059f288ac8",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-19.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
@@ -1394,9 +1394,9 @@
           "deployed_git_blob_sha": "51418cf7205263223b7bec2a4fe98efe268630fc"
         }
       ],
-      "observed_live_version": 94,
+      "observed_live_version": 95,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "fc52c3f01fe1ef6795d81793aa1cab310c4c0e7164d0de68974b753303e46837",
+      "observed_live_artifact_sha256": "7377ae78df7f3ab474a6120290b30e5f36333adcbebbc2d2b16cc58e3b1ec671",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-20.json",
       "source_archive_file_count": 2,
       "source_archive_status": "full_source",
@@ -1530,9 +1530,9 @@
           "deployed_git_blob_sha": "37f29bffdfcc3fb7ae59f7e5725b8fb5ac389be2"
         }
       ],
-      "observed_live_version": 235,
+      "observed_live_version": 351,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "be68901a0ece694d73d3d419c17f87d58b44202868c76ff1c31bdb0e1df9c50e",
+      "observed_live_artifact_sha256": "034e18fcfaaacc83bf7f44e67803b33db110ea55cd3c865c6ba2beaad29c0695",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-22.json",
       "source_archive_file_count": 9,
       "source_archive_status": "full_source",
