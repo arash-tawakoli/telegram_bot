@@ -1,5 +1,5 @@
 {
-  "observed_at": "2026-10-24T21:15:10.811Z",
+  "observed_at": "2026-10-24T21:17:34.390Z",
   "project_id": "dpmohkrwdlicexwcrqfy",
   "snapshot_kind": "repository_with_observed_deployment_hashes",
   "functions": [
@@ -1477,11 +1477,11 @@
     },
     {
       "slug": "telegram-ui",
-      "version": 374,
+      "version": 375,
       "verify_jwt": false,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "d709d15ed87068e8e827f56e5a24362d0baefc45478245c51cde17b6256e9307",
+      "observed_artifact_sha256": "f4376eae3a9da0aedee455dbeef7d366bab1544247ca47b77b00607eacd4edf1",
       "entrypoint": "supabase/functions/telegram-ui/index.ts",
       "files": [
         {
@@ -1526,13 +1526,13 @@
         },
         {
           "path": "supabase/functions/telegram-ui/handlers.js",
-          "git_blob_sha": "8f49bf0ce624ccc348ad69cb5efc8ab29f7495e3",
-          "deployed_git_blob_sha": "8f49bf0ce624ccc348ad69cb5efc8ab29f7495e3"
+          "git_blob_sha": "3dad784bf55cde19cf2329231f3c66ca732ae4c3",
+          "deployed_git_blob_sha": "3dad784bf55cde19cf2329231f3c66ca732ae4c3"
         }
       ],
-      "observed_live_version": 374,
+      "observed_live_version": 375,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "d709d15ed87068e8e827f56e5a24362d0baefc45478245c51cde17b6256e9307",
+      "observed_live_artifact_sha256": "f4376eae3a9da0aedee455dbeef7d366bab1544247ca47b77b00607eacd4edf1",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-22.json",
       "source_archive_file_count": 9,
       "source_archive_status": "full_source",
