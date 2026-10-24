@@ -39,13 +39,13 @@ export async function persistCategoryListings(source:Source,stream:any,candidate
     }
     if(categoryOnly&&source.delivery_mode==='live'&&Number.isFinite(sourceBaseline)&&old?.fresh_delivery_eligible===true&&old?.raw?._newness){
       const oldProof=old.raw._newness;
-      const observed=oldProof?.source_published_at?Date.parse(oldProof.source_published_at):oldProof?.observed_at?Date.parse(oldProof.observed_at):NaN;
+      const observed=oldProof?.source_published_at?Date.parse(oldProof.source_published_at):oldProof?.previous_success_at?Date.parse(oldProof.previous_success_at):oldProof?.observed_at?Date.parse(oldProof.observed_at):NaN;
       if(Number.isFinite(observed)&&observed>=sourceBaseline&&observed>=now-86400000&&observed<=now+300000){
         proof=oldProof;next.raw={...next.raw,_newness:proof};eligible=true;
       }
     }
     if(categoryOnly&&source.delivery_mode==='live'&&Number.isFinite(sourceBaseline)&&!old&&c.raw?.is_new===true){
-      proof={method:'provider_new_badge',provider:String(source.name),observed_at:new Date().toISOString()};
+      proof={method:'poll_delta',previous_success_at:source.baseline_completed_at};
       next.raw={...next.raw,_newness:proof};eligible=true;
     }
     if(!categoryOnly&&!eligible&&old?.fresh_delivery_eligible===true&&old?.raw?._newness){
