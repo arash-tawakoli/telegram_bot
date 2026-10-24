@@ -80,7 +80,7 @@ export async function runCategoryStreams(source:Source){
       else throw new Error(`unsupported category adapter ${stream.adapter}`);
       const parsedCount=Number(result?.cursor?.parsed??result?.cursor?.opens??0);
       if(source.coverage_strategy==='category_streams_only'&&Number(result?.candidates||0)===0&&parsedCount>0&&result?.cursor?.verified_empty!==true){
-        throw new Error(`${stream.adapter} ${stream.category} parser saw ${parsedCount} cards but accepted zero; refusing baseline approval`);
+        throw new Error(`${stream.adapter} ${stream.category} parser saw ${parsedCount} cards but accepted zero; sample=${JSON.stringify(result?.cursor?.sample_cards||[]).slice(0,900)}; refusing baseline approval`);
       }
       await finish(stream,true,result,null);
       out.push({category:stream.category,adapter:stream.adapter,ok:true,...result});
