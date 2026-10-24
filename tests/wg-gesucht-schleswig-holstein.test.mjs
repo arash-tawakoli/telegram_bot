@@ -44,7 +44,7 @@ test('WG-Gesucht category URLs match the provider city/category URL contract', (
 test('WG-Gesucht pagination only queues later pages of the same city/category', () => {
   const scope = loadScope(categorySource);
   const current = 'https://www.wg-gesucht.de/wohnungen-in-Kiel.71.2.1.0.html';
-  const queued = new Set([current, 'https://www.wg-gesucht.de/wohnungen-in-Kiel.71.2.1.0.html?page=2']);
+  const queued = new Set([current, 'https://www.wg-gesucht.de/wohnungen-in-Kiel.71.2.1.0.html?page=2&city_id=71']);
   const html = [
     '<a href="?page=2&amp;city_id=71">2</a>',
     '<a href="?page=3&amp;city_id=71">3</a>',
