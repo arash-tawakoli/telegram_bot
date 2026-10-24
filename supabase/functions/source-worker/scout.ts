@@ -206,7 +206,7 @@ export async function runScoutSchleswigHolstein(source:Source){
         totalReported+=Number(result.total||0);
         const kind=partition.kind==='house'?'Haus':partition.kind==='room'?'WG':partition.kind==='swap'?'Tauschwohnung':'Wohnung';
         const keyForPartition=partitionKey(partition);
-        const entries=[...(result.entries||[]),...(result.map_entries||[])];
+        const entries=[...(result.entries||[])];
         for(const base of candidates(entries,q)){
           const published=scoutPublishedAt(base.raw?.entry);
           const publishedMs=published?new Date(published).getTime():null;
