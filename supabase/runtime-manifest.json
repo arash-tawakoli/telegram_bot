@@ -1205,8 +1205,8 @@
         },
         {
           "path": "supabase/functions/source-worker/category.ts",
-          "git_blob_sha": "48d4bb0a9be03e84b5bea9cd7010baa9f4fb3738",
-          "deployed_git_blob_sha": "48d4bb0a9be03e84b5bea9cd7010baa9f4fb3738"
+          "git_blob_sha": "2974c752588ca149a88e2827b53f5dc50d2ba99f",
+          "deployed_git_blob_sha": "2974c752588ca149a88e2827b53f5dc50d2ba99f"
         },
         {
           "path": "supabase/functions/covivio-feed/handler.ts",
@@ -1259,9 +1259,9 @@
           "deployed_git_blob_sha": "4d1c8b364256e43b5c3145c7cc6398b111a55b2c"
         }
       ],
-      "observed_live_version": 136,
+      "observed_live_version": 137,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "a7ab49e09ad25d3b1568272238aa05ea34e8a5b996fc0935896a0081a48b7343",
+      "observed_live_artifact_sha256": "a1788233dff74d3d45ab0860198cf00f2322147c0e4ff5a22518ee40ccdb7350",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-19.json",
       "source_archive_file_count": 33,
       "source_archive_status": "full_source",
