@@ -545,20 +545,32 @@ export async function handleCallback(query, user) {
             draft.borough_ids = [];
             draft.neighborhood_ids = [];
             draft.location_area_codes = [];
+            draft.area_page = 0;
             return afterSelection(user, chatId, messageId, draft, "rent");
         }
-        if (value === "areas_sh") {
+        if (value === "counties_sh" || value === "municipalities_sh" || value === "areas_sh") {
             draft.location_mode = "schleswig_holstein_areas";
             draft.borough_ids = [];
             draft.neighborhood_ids = [];
             draft.area_page = 0;
+            if (value === "counties_sh") draft.sh_area_level = "counties";
+            else if (value === "municipalities_sh") draft.sh_area_level = "municipalities";
+            else if (!["counties", "municipalities", "mixed"].includes(String(draft.sh_area_level || ""))) draft.sh_area_level = "counties";
             return renderSchleswigHolsteinAreas(user, chatId, messageId, draft);
         }
     }
     if (data.startsWith("sharea:")) {
         const value = data.slice(7);
         const geo = await geography();
-        const areas = (geo.schleswigHolsteinAreas || []).filter((entry) => entry.area_type !== "state");
+        const allAreas = (geo.schleswigHolsteinAreas || []).filter((entry) => entry.area_type !== "state");
+        const level = ["counties", "municipalities", "mixed"].includes(String(draft.sh_area_level || ""))
+            ? String(draft.sh_area_level)
+            : "counties";
+        const areas = level === "counties"
+            ? allAreas.filter((entry) => ["county", "independent_city"].includes(entry.area_type))
+            : level === "municipalities"
+                ? allAreas.filter((entry) => entry.area_type === "municipality")
+                : allAreas;
         const selected = new Set((draft.location_area_codes || []).map(String));
         if (value === "back") {
             return renderLocation(user, chatId, messageId, draft);
@@ -574,16 +586,18 @@ export async function handleCallback(query, user) {
             return renderSchleswigHolsteinAreas(user, chatId, messageId, draft);
         }
         if (value === "all") {
-            draft.location_mode = "all_schleswig_holstein";
-            draft.location_area_codes = [];
-            return afterSelection(user, chatId, messageId, draft, "rent");
+            selected.clear();
+            for (const area of areas) selected.add(String(area.area_code));
+            draft.location_area_codes = [...selected];
+            draft.location_mode = "schleswig_holstein_areas";
+            return renderSchleswigHolsteinAreas(user, chatId, messageId, draft);
         }
         if (value === "done") {
             if (!selected.size)
                 return renderSchleswigHolsteinAreas(user, chatId, messageId, draft);
             return afterSelection(user, chatId, messageId, draft, "rent");
         }
-        const area = areas.find((entry) => String(entry.area_code) === value);
+        const area = allAreas.find((entry) => String(entry.area_code) === value);
         if (!area)
             return renderSchleswigHolsteinAreas(user, chatId, messageId, draft);
         if (area.area_type === "county" || area.area_type === "independent_city") {
@@ -591,7 +605,7 @@ export async function handleCallback(query, user) {
                 selected.delete(value);
             }
             else {
-                for (const candidate of areas) {
+                for (const candidate of allAreas) {
                     if (String(candidate.parent_code) === value)
                         selected.delete(String(candidate.area_code));
                 }
@@ -601,11 +615,9 @@ export async function handleCallback(query, user) {
         else if (area.area_type === "municipality") {
             const parentCode = String(area.parent_code);
             if (selected.has(parentCode)) {
-                // Convert a selected parent into all of its municipalities except
-                // the clicked one, so toggling one municipality does not drop
-                // the rest of the county or independent city from the search.
+                // Convert a selected parent to its municipalities except the clicked one.
                 selected.delete(parentCode);
-                for (const candidate of areas) {
+                for (const candidate of allAreas) {
                     if (String(candidate.parent_code) === parentCode && String(candidate.area_code) !== value)
                         selected.add(String(candidate.area_code));
                 }
