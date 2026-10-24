@@ -764,28 +764,21 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   }
  }
 
- const [{data:connections,error},{data:state,error:stateError},{data:prefs,error:prefsError}]=await Promise.all([
+  const [{data:connections,error},{data:state,error:stateError}]=await Promise.all([
   db.from('platform_connections').select('provider,status').eq('user_id',user.id),
-  db.from('bot_users').select('auto_apply_enabled').eq('id',user.id).single(),
-  db.from('application_preferences').select('enabled,immoscout_enabled,kleinanzeigen_enabled,immomio_enabled,immowelt_enabled').eq('user_id',user.id).maybeSingle()
+  db.from('bot_users').select('auto_apply_enabled').eq('id',user.id).single()
  ]);
- if(error||stateError||prefsError)throw Error('Auto-Bewerbung konnte nicht geladen werden.');
+ if(error||stateError)throw Error('Auto-Bewerbung konnte nicht geladen werden.');
  const connection=(key)=>connections?.find(r=>r.provider===key);
- const providerEnabled=(meta)=>prefs?.[meta.field]??state.auto_apply_enabled;
- const rows=[[button('👤 Bewerberprofil','platforms:profile')]];
+ const rows=[];
  for(const sourceId of [1,2,3,4]){
   const meta=AUTO_APPLY_PROVIDERS[sourceId],connected=connection(meta.key)?.status==='connected';
-  if(!connected){
-   rows.push([button(`🔐 ${meta.name} verbinden`,`platforms:login:${sourceId}`)]);
-   continue;
-  }
-  const enabled=providerEnabled(meta);
-  rows.push([
-   button(`✅ ${meta.name}`,`platforms:provider:${sourceId}`),
-   button(enabled?'⏸ Pausieren':'▶ Fortsetzen',`platforms:${enabled?'pause':'resume'}:${sourceId}`)
-  ]);
+  rows.push([connected
+   ? button(`✅ ${meta.name}`,`platforms:provider:${sourceId}`)
+   : button(`🔐 ${meta.name} verbinden`,`platforms:login:${sourceId}`)]);
  }
  rows.push([button(state.auto_apply_enabled?'⚡ Auto-Bewerbung deaktivieren':'⚡ Auto-Bewerbung aktivieren',`platforms:${state.auto_apply_enabled?'off':'on'}`)]);
  rows.push([button('← Einstellungen','settings')]);
- return render('⚡ <b>Automatische Bewerbung</b>\n\nVerwalte dein Bewerberprofil und deine Plattformen. Auto-Bewerbungen kannst du jederzeit pro Plattform pausieren.',rows);
+ return render('⚡ <b>Automatische Bewerbung</b>\n\nVerbinde deine Plattformen und aktiviere oder deaktiviere die automatische Bewerbung zentral.',rows);
+
 }
