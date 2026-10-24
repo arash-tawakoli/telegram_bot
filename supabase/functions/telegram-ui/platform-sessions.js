@@ -320,7 +320,7 @@ async function renderApplicantProfile(user,chat,messageId,notice=''){
  if(!p){
   return render(`👤 <b>Bewerberprofil</b>\n\n${notice?`${notice}\n\n`:''}Noch kein Bewerberprofil vorbereitet.`,[
    [button('👤 Bewerberprofil öffnen','platforms:profile-new')],
-   [button('← Automatische Bewerbung','platforms')]
+   [button('← Start','home')]
   ]);
  }
  if(missingResult.error)throw Error('Profilstatus konnte nicht geladen werden.');
@@ -341,7 +341,7 @@ async function renderApplicantProfile(user,chat,messageId,notice=''){
   [f('move_in_preference','Einzugstermin')],
   [button('✍️ Bewerbungstext','platforms:profile-texts')],
   [button('📎 Dokumente verwalten','platforms:docs')],
-  [button('← Automatische Bewerbung','platforms')]
+  [button('← Start','home')]
  ]);
 }
 
@@ -778,7 +778,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
    : button(`🔐 ${meta.name} verbinden`,`platforms:login:${sourceId}`)]);
  }
  rows.push([button(state.auto_apply_enabled?'⚡ Auto-Bewerbung deaktivieren':'⚡ Auto-Bewerbung aktivieren',`platforms:${state.auto_apply_enabled?'off':'on'}`)]);
- rows.push([button('← Einstellungen','settings')]);
+ rows.push([button('← Start','home')]);
  return render('⚡ <b>Automatische Bewerbung</b>\n\nVerbinde deine Plattformen und aktiviere oder deaktiviere die automatische Bewerbung zentral.',rows);
 
 }
