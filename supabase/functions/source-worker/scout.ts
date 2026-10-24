@@ -246,6 +246,11 @@ export async function runScoutSchleswigHolstein(source:Source){
       if(resolvedAreas[i]){
         validEntries.push(candidateEntries[i]);
       }else{
+        const partition=partitionMeta.get(candidateEntries[i].partitionKey)?.partition;
+        // Kreispartitionen can contain provider cards without a city field.
+        // The validated regional map is sufficient coverage evidence; discard
+        // only the incomplete card and keep top-level mapping failures blocking.
+        if(partition?.region_code) continue;
         unmapped++;
         unmappedPartitionKeys.add(candidateEntries[i].partitionKey);
       }
