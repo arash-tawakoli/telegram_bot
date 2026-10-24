@@ -169,6 +169,25 @@ function wgGesuchtPaginationUrls(html: string, currentUrl: string, queued: Set<s
   return pages;
 }
 
+export function wgGesuchtVerifiedEmptyResult(html: string, category: string): boolean {
+  const labels: Record<string, string> = {
+    room: "WG[- ]Zimmer",
+    one_room: "1-Zimmer-Wohnungen?",
+    apartment: "Wohnungen?",
+    house: "(?:Haus|Häuser)",
+  };
+  const label = labels[category];
+  const headings = [...html.matchAll(/<h[1-4]\\b[^>]*>([\\s\\S]*?)<\\/h[1-4]>/gi)]
+    .map((match) => strip(match[1]))
+    .join(" ");
+  if (label) {
+    const count = headings.match(new RegExp(`\\\\b(\\\\d+)\\\\s+${label}\\\\b`, "i"));
+    if (count) return Number(count[1]) === 0;
+  }
+  if (/href=["'][^"'<>]*\\/\\d{6,}\\.html(?:[?#][^"'<>]*)?["']/i.test(html)) return false;
+  return /keine (?:passenden )?(?:angebote|anzeigen|immobilien)|0 (?:angebote|treffer)|leider (?:gibt es|haben wir) (?:aktuell )?keine/i.test(headings);
+}
+
 async function runWgGesuchtSHCategory(source: Source, stream: any) {
   const category = String(stream.category || "");
   const prior = stream.cursor && typeof stream.cursor === "object" ? stream.cursor : {};
@@ -220,7 +239,7 @@ async function runWgGesuchtSHCategory(source: Source, stream: any) {
       city: entry.city || candidate.city || null,
       raw: { ...candidate.raw, region_state_code: "SH", provider_city: entry.city || null },
     }));
-    const noOffers = /keine (?:passenden )?(?:angebote|anzeigen|immobilien)|0 (?:angebote|treffer)|leider (?:gibt es|haben wir) (?:aktuell )?keine/i.test(strip(response.text));
+    const noOffers = wgGesuchtVerifiedEmptyResult(response.text, category);
     if (!parsedRows.length && !noOffers) throw new Error(`WG-Gesucht ${category} parser found no cards and no verified-empty marker at ${entry.url}; sample=${strip(response.text).slice(0,350)}`);
     const rows = parsedRows.map((candidate) => {
       const published = pageTimestamp(`${candidate.title || ""} ${candidate.raw?.text || ""}`);
