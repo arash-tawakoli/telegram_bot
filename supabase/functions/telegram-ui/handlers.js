@@ -333,6 +333,7 @@ export async function handleCallback(query, user) {
             "location",
             "boroughs",
             "neighborhoods",
+            "shareas",
             "rent",
             "rent_custom",
             "roomarea",
