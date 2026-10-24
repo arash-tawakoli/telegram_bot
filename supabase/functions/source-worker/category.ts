@@ -58,7 +58,8 @@ async function runHtmlCategory(source:Source,stream:any){
   return{requests:1,candidates:saved.seen,fresh:saved.fresh,cursor:{url:r.url,parsed:parsed.length,accepted:saved.seen,complete:true,verified_empty:verifiedEmpty,last_checked_at:iso()}};
 }
 
-type WgGesuchtSHCity = { slug: string; id: string };
+type WgGesuchtSHCity = { slug: string; id: string; name?: string | null };
+type WgGesuchtSHQueueItem = { url: string; city: string | null };
 const WG_SH_DIRECTORY_URL = "https://www.wg-gesucht.de/staedte-in-schleswig-holstein.13.html";
 const WG_SH_BATCH_SIZE = 5;
 let wgSHCityCache: { at: number; cities: WgGesuchtSHCity[] } | null = null;
@@ -102,18 +103,47 @@ export function wgGesuchtSHCategoryUrl(city: WgGesuchtSHCity, category: string):
 
 async function loadWgGesuchtSHCities(): Promise<WgGesuchtSHCity[]> {
   if (wgSHCityCache && Date.now() - wgSHCityCache.at < 60 * 60 * 1000) return wgSHCityCache.cities;
-  const [{ data: areas, error }, response] = await Promise.all([
+  const [{ data: areas, error }, { data: aliases, error: aliasError }, response] = await Promise.all([
     db.rpc("get_schleswig_holstein_areas"),
+    db.from("geo_area_aliases").select("alias,area_code"),
     fetchText(WG_SH_DIRECTORY_URL),
   ]);
   if (error) throw error;
+  if (aliasError) throw aliasError;
   const rows = (areas || []).filter((area: any) => ["municipality", "independent_city"].includes(String(area.area_type)));
   const byCode = new Map(rows.map((area: any) => [String(area.area_code), area]));
-  const allowedNames = rows.flatMap((area: any) => {
+  const byName = new Map<string, any | null>();
+  const addName = (name: string, area: any) => {
+    const key = wgGesuchtCityKey(name);
+    if (!key) return;
+    if (!byName.has(key)) { byName.set(key, area); return; }
+    const previous = byName.get(key);
+    if (!previous || String(previous.area_code) === String(area.area_code)) return;
+    if (previous.area_type === "independent_city" && area.area_type === "municipality") { byName.set(key, area); return; }
+    if (previous.area_type === "municipality" && area.area_type === "independent_city") return;
+    byName.set(key, null);
+  };
+  const allowedNames: string[] = [];
+  for (const area of rows) {
+    addName(String(area.name), area);
+    allowedNames.push(String(area.name));
     const parent = byCode.get(String(area.parent_code)) as any;
-    return [String(area.name), ...(parent ? [`${area.name} ${parent.name}`, `${parent.name} ${area.name}`] : [])];
+    if (parent) {
+      for (const combined of [`${area.name} ${parent.name}`, `${parent.name} ${area.name}`]) {
+        addName(combined, area);
+        allowedNames.push(combined);
+      }
+    }
+  }
+  for (const alias of aliases || []) {
+    const area = byCode.get(String(alias.area_code));
+    if (area) { addName(String(alias.alias), area); allowedNames.push(String(alias.alias)); }
+  }
+  const discovered = parseWgGesuchtSHCities(response.text, response.url, allowedNames);
+  const cities = discovered.map((city) => {
+    const area = byName.get(wgGesuchtCityKey(city.slug.replace(/-/g, " ")));
+    return { ...city, name: area?.name ? String(area.name) : city.slug.replace(/-/g, " ") };
   });
-  const cities = parseWgGesuchtSHCities(response.text, response.url, allowedNames);
   const minimum = Math.ceil(rows.length * 0.85);
   if (cities.length < minimum) throw new Error(`WG-Gesucht Schleswig-Holstein directory mapped only ${cities.length}/${rows.length} official areas (minimum ${minimum}); refusing partial baseline`);
   wgSHCityCache = { at: Date.now(), cities };
@@ -142,50 +172,68 @@ function wgGesuchtPaginationUrls(html: string, currentUrl: string, queued: Set<s
 async function runWgGesuchtSHCategory(source: Source, stream: any) {
   const category = String(stream.category || "");
   const prior = stream.cursor && typeof stream.cursor === "object" ? stream.cursor : {};
-  let queue: string[] = Array.isArray(prior.queue) ? prior.queue.map(String) : [];
+  let queue: WgGesuchtSHQueueItem[] = Array.isArray(prior.queue)
+    ? prior.queue.map((entry: any) => typeof entry === "string"
+      ? { url: entry, city: null }
+      : { url: String(entry?.url || ""), city: entry?.city ? String(entry.city) : null })
+      .filter((entry: WgGesuchtSHQueueItem) => !!entry.url)
+    : [];
   let initialized = prior.initialized === true;
   let cityCount = Number(prior.city_count || 0);
   let processedPages = Number(prior.processed_pages || 0);
   let parsedTotal = Number(prior.parsed_total || 0);
   let acceptedTotal = Number(prior.accepted_total || 0);
   let allEmptyVerified = prior.all_empty_verified !== false;
+  let directoryRequested = false;
   if (!initialized || prior.complete === true) {
     const cities = await loadWgGesuchtSHCities();
-    queue = cities.map((city) => wgGesuchtSHCategoryUrl(city, category));
+    directoryRequested = true;
+    queue = cities.map((city) => ({ url: wgGesuchtSHCategoryUrl(city, category), city: city.name || null }));
     initialized = true;
     cityCount = cities.length;
     processedPages = 0;
     parsedTotal = 0;
     acceptedTotal = 0;
     allEmptyVerified = true;
+  } else if (queue.some((entry) => !entry.city)) {
+    const cities = await loadWgGesuchtSHCities();
+    directoryRequested = true;
+    const cityById = new Map(cities.map((city) => [city.id, city.name || city.slug.replace(/-/g, " ")]));
+    queue = queue.map((entry) => {
+      if (entry.city) return entry;
+      const match = new URL(entry.url).pathname.match(/\.(\d+)\.(?:0|1|2|3)\.1\.0\.html$/i)
+        || new URL(entry.url).pathname.match(/\.(\d+)\.\d+\.1\.0\.html$/i);
+      return { ...entry, city: match ? cityById.get(match[1]) || null : null };
+    });
   }
   const batch = queue.splice(0, WG_SH_BATCH_SIZE);
   if (!batch.length) throw new Error("WG-Gesucht Schleswig-Holstein has no pending city pages");
-  const queued = new Set(queue);
+  const queued = new Set(queue.map((entry) => entry.url));
   const candidates: Candidate[] = [];
   let parsed = 0;
   let requests = 0;
   let batchEmptyVerified = true;
-  for (let offset = 0; offset < batch.length; offset += WG_SH_BATCH_SIZE) {
-    const pages = await Promise.all(batch.slice(offset, offset + WG_SH_BATCH_SIZE).map(async (url) => {
-      const response = await fetchText(url);
-      const regionStateCode = "SH";
-      const parsedRows = parseHtml(response.text, response.url, regionStateCode);
-      const noOffers = /keine (?:passenden )?(?:angebote|anzeigen|immobilien)|0 (?:angebote|treffer)|leider (?:gibt es|haben wir) (?:aktuell )?keine/i.test(strip(response.text));
-      if (!parsedRows.length && !noOffers) throw new Error(`WG-Gesucht ${category} parser found no cards and no verified-empty marker at ${url}`);
-      const rows = parsedRows.map((candidate) => {
-        const published = pageTimestamp(`${candidate.title || ""} ${candidate.raw?.text || ""}`);
-        return { ...candidate, raw: { ...candidate.raw, ...(published ? { _newness: { method: "source_timestamp", source_published_at: published } } : {}) } };
-      });
-      return { url: response.url, html: response.text, parsedRows, rows, noOffers };
+  const pageResults = await Promise.all(batch.map(async (entry) => {
+    const response = await fetchText(entry.url);
+    const parsedRows = parseHtml(response.text, response.url, "SH").map((candidate) => ({
+      ...candidate,
+      city: entry.city || candidate.city || null,
+      raw: { ...candidate.raw, region_state_code: "SH", provider_city: entry.city || null },
     }));
-    requests += pages.length;
-    for (const page of pages) {
-      parsed += page.parsedRows.length;
-      candidates.push(...page.rows);
-      if (page.parsedRows.length || !page.noOffers) batchEmptyVerified = false;
-      for (const next of wgGesuchtPaginationUrls(page.html, page.url, queued)) queue.push(next);
-    }
+    const noOffers = /keine (?:passenden )?(?:angebote|anzeigen|immobilien)|0 (?:angebote|treffer)|leider (?:gibt es|haben wir) (?:aktuell )?keine/i.test(strip(response.text));
+    if (!parsedRows.length && !noOffers) throw new Error(`WG-Gesucht ${category} parser found no cards and no verified-empty marker at ${entry.url}`);
+    const rows = parsedRows.map((candidate) => {
+      const published = pageTimestamp(`${candidate.title || ""} ${candidate.raw?.text || ""}`);
+      return { ...candidate, raw: { ...candidate.raw, ...(published ? { _newness: { method: "source_timestamp", source_published_at: published } } : {}) } };
+    });
+    return { url: response.url, html: response.text, city: entry.city, parsedRows, rows, noOffers };
+  }));
+  requests += pageResults.length;
+  for (const page of pageResults) {
+    parsed += page.parsedRows.length;
+    candidates.push(...page.rows);
+    if (page.parsedRows.length || !page.noOffers) batchEmptyVerified = false;
+    for (const next of wgGesuchtPaginationUrls(page.html, page.url, queued)) queue.push({ url: next, city: page.city });
   }
   const saved = await persistCategoryListings(source, stream, candidates, false);
   parsedTotal += parsed;
@@ -195,7 +243,7 @@ async function runWgGesuchtSHCategory(source: Source, stream: any) {
   allEmptyVerified = allEmptyVerified && batchEmptyVerified;
   const verifiedEmpty = complete && acceptedTotal === 0 && allEmptyVerified;
   return {
-    requests: requests + (prior.initialized === true && prior.complete !== true ? 0 : 1),
+    requests: requests + (directoryRequested ? 1 : 0),
     candidates: saved.seen,
     fresh: saved.fresh,
     cursor: {
