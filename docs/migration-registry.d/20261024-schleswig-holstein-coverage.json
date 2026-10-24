@@ -191,6 +191,12 @@
       "name": "prioritize_incomplete_category_streams",
       "file": "supabase/migrations/20261024203500_prioritize_incomplete_category_streams.sql",
       "export_sql_sha256": "6e676fb0ebf85d5117c215c46f9ffe2834a6a6b9eb1bfd9283630a04a77b72b8"
+    },
+    {
+      "version": "20261024211000",
+      "name": "telegram_fast_schleswig_holstein_selection",
+      "file": "supabase/migrations/20261024211000_telegram_fast_schleswig_holstein_selection.sql",
+      "export_sql_sha256": "4bb936209a88e51baec07645a0f379b2002bc85dd1e76b3113d5c60a02ea565d"
     }
   ]
 }
