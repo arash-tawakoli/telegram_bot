@@ -52,29 +52,29 @@ const EMPLOYMENT_CHOICES={
 };
 const PET_CHOICES={NONE:'Keine Angaben',YES:'Ja',NO:'Nein'};
 const PROFILE_FIELDS={
- salutation:{label:'Anrede',type:'choice',max:40},
+ salutation:{label:'Anrede',type:'choice',required:true,max:40},
  first_name:{label:'Vorname',required:true,max:120},
  last_name:{label:'Nachname',required:true,max:120},
  email:{label:'E-Mail-Adresse',required:true,max:320,hint:'ImmoScout24 und Immowelt: Pflichtfeld beim Bewerben. Kleinanzeigen prüft das konkrete Formular. Immomio: nötig zum Verbinden des Kontos; beim Bewerben kein Feld.'},
- phone:{label:'Telefonnummer',max:80},
- street:{label:'Straße',max:160},
- house_number:{label:'Hausnummer',max:40},
- postcode:{label:'PLZ',max:10},
- city:{label:'Ort',max:120},
- household_type:{label:'Haushaltstyp',type:'choice'},
- employment_status:{label:'Beschäftigungsstatus',type:'choice',max:160},
- income_range:{label:'Haushalts-Nettoeinkommen',type:'choice'},
- pets:{label:'Haustiere',type:'choice',max:160},
- wbs_status:{label:'WBS-Status',max:160},
- move_in_preference:{label:'Einzugstermin',type:'choice'},
+ phone:{label:'Telefonnummer',required:true,max:80},
+ street:{label:'Straße',required:true,max:160},
+ house_number:{label:'Hausnummer',required:true,max:40},
+ postcode:{label:'PLZ',required:true,max:10},
+ city:{label:'Ort',required:true,max:120},
+ household_type:{label:'Haushaltstyp',required:true,type:'choice'},
+ employment_status:{label:'Beschäftigungsstatus',required:true,type:'choice',max:160},
+ income_range:{label:'Haushalts-Nettoeinkommen',required:true,type:'choice'},
+ pets:{label:'Haustiere',required:true,type:'choice',max:160},
+ wbs_status:{label:'WBS-Status',required:true,max:160},
+ move_in_preference:{label:'Einzugstermin',required:true,type:'choice'},
  move_in_date:{label:'Gewünschtes Einzugsdatum',required:true,type:'date'},
  household_size:{label:'Haushaltsgröße (Legacy)',type:'integer'},
  monthly_net_income:{label:'Monatliches Nettoeinkommen (Legacy)',type:'money'},
- schufa_status:{label:'SCHUFA-Status',type:'choice'},
- message_apartment:{label:'Bewerbungstext Wohnung',max:4000},
- message_house:{label:'Bewerbungstext Haus',max:4000},
- message_temporary_wg:{label:'Bewerbungstext Auf Zeit & WG',max:4000},
- message_swap:{label:'Bewerbungstext Tauschwohnung',max:4000}
+ schufa_status:{label:'SCHUFA-Status',required:true,type:'choice'},
+ message_apartment:{label:'Bewerbungstext Wohnung',required:true,max:4000},
+ message_house:{label:'Bewerbungstext Haus',required:true,max:4000},
+ message_temporary_wg:{label:'Bewerbungstext Auf Zeit & WG',required:true,max:4000},
+ message_swap:{label:'Bewerbungstext Tauschwohnung',required:true,max:4000}
 };
 const DOCUMENT_BUCKET='applicant-documents';
 const MAX_DOCUMENT_BYTES=6*1024*1024;
@@ -328,17 +328,18 @@ async function renderApplicantProfile(user,chat,messageId,notice=''){
  const req=(key,label,value,required=false)=>`${label}${required?' *':''}: ${missingSet.has(key)?'⚠️ fehlt':value}`;
  const messageCount=[p.message_apartment,p.message_house,p.message_temporary_wg,p.message_swap].filter(v=>String(v||'').trim()).length;
  const text=`👤 <b>Bewerberprofil</b>\n\n${notice?`${notice}\n\n`:''}Profilstatus: ${ready?'✅ vollständig':`⚠️ ${missing.length} Basisangabe${missing.length===1?' offen':'n offen'}`}\n\n`+
-  `${req('Anrede','Anrede',salutationLabel(p.salutation))}\n${req('Vorname','Vorname',shown(p.first_name),true)}\n${req('Nachname','Nachname',shown(p.last_name),true)}\n${req('E-Mail-Adresse','E-Mail',shown(p.email),true)}\n${req('Telefonnummer','Telefonnummer',shown(p.phone))}\n${req('Straße','Straße',shown(p.street))}\n${req('Hausnummer','Hausnummer',shown(p.house_number))}\n${req('PLZ','PLZ',shown(p.postcode))}\n${req('Ort','Ort',shown(p.city))}\n${req('Haushaltstyp','Haushaltstyp',householdLabel(p))}\n${req('Beschäftigungsstatus','Beschäftigungsstatus',employmentLabel(p.employment_status))}\n${req('Haushalts-Nettoeinkommen','Haushalts-Nettoeinkommen',incomeLabel(p))}\n${req('Haustiere','Haustiere',shown(p.pets))}\n${req('Einzugstermin','Einzugstermin',moveInLabel(p))}\n${req('SCHUFA-Status','SCHUFA-Status',schufaLabel(p.schufa_status))}\nWBS-Status: ${shown(p.wbs_status)}\n\n✍️ Bewerbungstexte: ${messageCount}/4 hinterlegt\n\nDokumente: ${docs.length} gespeichert · ${selectedDocs} ausgewählt`;
+  `${req('Anrede','Anrede',salutationLabel(p.salutation),true)}\n${req('Vorname','Vorname',shown(p.first_name),true)}\n${req('Nachname','Nachname',shown(p.last_name),true)}\n${req('E-Mail-Adresse','E-Mail',shown(p.email),true)}\n${req('Telefonnummer','Telefonnummer',shown(p.phone),true)}\n${req('Straße','Straße',shown(p.street),true)}\n${req('Hausnummer','Hausnummer',shown(p.house_number),true)}\n${req('PLZ','PLZ',shown(p.postcode),true)}\n${req('Ort','Ort',shown(p.city),true)}\n${req('Haushaltstyp','Haushaltstyp',householdLabel(p),true)}\n${req('Beschäftigungsstatus','Beschäftigungsstatus',employmentLabel(p.employment_status),true)}\n${req('Haushalts-Nettoeinkommen','Haushalts-Nettoeinkommen',incomeLabel(p),true)}\n${req('Haustiere','Haustiere',shown(p.pets),true)}\n${req('Einzugstermin','Einzugstermin',moveInLabel(p),true)}\n${req('SCHUFA-Status','SCHUFA-Status',schufaLabel(p.schufa_status),true)}\n${req('WBS-Status','WBS-Status',shown(p.wbs_status),true)}\n\n✍️ Bewerbungstexte: ${messageCount}/4 hinterlegt\n\nDokumente: ${docs.length} gespeichert · ${selectedDocs} ausgewählt`;
  const f=(name,label)=>button(label,`platforms:profile-field:${name}`);
  return render(text,[
-  [f('salutation','Anrede'),f('schufa_status','SCHUFA')],
+  [f('salutation','Anrede *'),f('schufa_status','SCHUFA *')],
   [f('first_name','Vorname *'),f('last_name','Nachname *')],
-  [f('email','E-Mail *'),f('phone','Telefon')],
-  [f('street','Straße'),f('house_number','Hausnr.')],
-  [f('postcode','PLZ'),f('city','Ort')],
-  [f('household_type','Haushalt'),f('employment_status','Beschäftigung')],
-  [f('income_range','Einkommen'),f('pets','Haustiere')],
-  [f('move_in_preference','Einzugstermin')],
+  [f('email','E-Mail *'),f('phone','Telefon *')],
+  [f('street','Straße *'),f('house_number','Hausnr. *')],
+  [f('postcode','PLZ *'),f('city','Ort *')],
+  [f('household_type','Haushalt *'),f('employment_status','Beschäftigung *')],
+  [f('income_range','Einkommen *'),f('pets','Haustiere *')],
+  [f('move_in_preference','Einzugstermin *')],
+  [f('wbs_status','WBS-Status *')],
   [button('✍️ Bewerbungstext','platforms:profile-texts')],
   [button('📎 Dokumente verwalten','platforms:docs')],
   [button('← Start','home')]
@@ -351,8 +352,8 @@ async function renderApplicationTexts(user,chat,messageId){
  const entry=(name,label,value)=>button(`${String(value??'').trim()?'✅':'⚠️'} ${label}`,`platforms:profile-text:${name}`);
  const text='✍️ <b>Bewerbungstext</b>\n\nWähle eine Wohnform, um den hinterlegten Bewerbungstext als Vorschau zu öffnen und zu bearbeiten.';
  return render(text,[
-  [entry('message_house','Haus',p.message_house),entry('message_apartment','Wohnung',p.message_apartment)],
-  [entry('message_temporary_wg','Auf Zeit & WG',p.message_temporary_wg),entry('message_swap','Tauschwohnung',p.message_swap)],
+  [entry('message_house','Haus *',p.message_house),entry('message_apartment','Wohnung *',p.message_apartment)],
+  [entry('message_temporary_wg','Auf Zeit & WG *',p.message_temporary_wg),entry('message_swap','Tauschwohnung *',p.message_swap)],
   [button('← Bewerberprofil','platforms:profile')]
  ]);
 }
