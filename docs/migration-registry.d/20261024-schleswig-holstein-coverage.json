@@ -1,0 +1,166 @@
+{
+  "migrations": [
+    {
+      "version": "20261023094810",
+      "name": "add_schleswig_holstein_geography",
+      "file": "supabase/migrations/20261023094810_add_schleswig_holstein_geography.sql",
+      "export_sql_sha256": "d4721d0c773fab3aee68f5c4a5eea0adb04cfc7bd73c6b3df7f86edf81b6f219"
+    },
+    {
+      "version": "20261023104210",
+      "name": "add_schleswig_holstein_geography",
+      "file": "supabase/migrations/20261023104210_add_schleswig_holstein_geography.sql",
+      "export_sql_sha256": "cb87c4f0d8276100021875b081741113e202292ff98c62e9a8b70e024cb9ed93"
+    },
+    {
+      "version": "20261023204050",
+      "name": "throttle_source_scheduler_during_compute_pressure",
+      "file": "supabase/migrations/20261023204050_throttle_source_scheduler_during_compute_pressure.sql",
+      "export_sql_sha256": "2e75b0dfce27d782a1950eaf037ce30b15f40ac44b397af8f21af91e637ed829"
+    },
+    {
+      "version": "20261023213550",
+      "name": "stabilize_compute_pressure_and_source_health",
+      "file": "supabase/migrations/20261023213550_stabilize_compute_pressure_and_source_health.sql",
+      "export_sql_sha256": "c81a4b41956d38e9c965806d89b5829625108475a445982ef0095444d9b4da9a"
+    },
+    {
+      "version": "20261023213828",
+      "name": "index_normalized_neighborhood_lookup",
+      "file": "supabase/migrations/20261023213828_index_normalized_neighborhood_lookup.sql",
+      "export_sql_sha256": "aee863798bf624c85777320abefbfa537410c9d2e702991c9b4254ae3ee0c896"
+    },
+    {
+      "version": "20261023220437",
+      "name": "reduce_maintenance_disk_io",
+      "file": "supabase/migrations/20261023220437_reduce_maintenance_disk_io.sql",
+      "export_sql_sha256": "364c3673686d8aa1978ad4d35ed48f4a55b831dc86eecd1903092652f045db84"
+    },
+    {
+      "version": "20261023221322",
+      "name": "hourly_source_polling_and_bounded_enqueue",
+      "file": "supabase/migrations/20261023221322_hourly_source_polling_and_bounded_enqueue.sql",
+      "export_sql_sha256": "58d3bdd2c5c45dbcdfed7b742b420bd6957f0365356b81e406a3c76e9e8ea384"
+    },
+    {
+      "version": "20261023222355",
+      "name": "optimize_slow_health_and_saga_queries",
+      "file": "supabase/migrations/20261023222355_optimize_slow_health_and_saga_queries.sql",
+      "export_sql_sha256": "4906da3357f000890216dfe83249b404a53f670e808a62fd997e71d1407b564e"
+    },
+    {
+      "version": "20261023225450",
+      "name": "enable_schleswig_holstein_independent_city_ingestion",
+      "file": "supabase/migrations/20261023225450_enable_schleswig_holstein_independent_city_ingestion.sql",
+      "export_sql_sha256": "453637e257dcf051c52430e2f3c6881dd675c98b592bc9852b0c0bbed2842a5e"
+    },
+    {
+      "version": "20261023230003",
+      "name": "add_schleswig_holstein_immoscout_source",
+      "file": "supabase/migrations/20261023230003_add_schleswig_holstein_immoscout_source.sql",
+      "export_sql_sha256": "c0667f27ac0783f483c2d274bf7eae234e89520bd674aca204d089b482289b7b"
+    },
+    {
+      "version": "20261023230441",
+      "name": "stage_schleswig_holstein_scout_source",
+      "file": "supabase/migrations/20261023230441_stage_schleswig_holstein_scout_source.sql",
+      "export_sql_sha256": "f713a501c6fb7a8ff5bc150176f13fdb45b470e5f0a842abe06e0a12badd0df6"
+    },
+    {
+      "version": "20261023230628",
+      "name": "activate_schleswig_holstein_scout_source",
+      "file": "supabase/migrations/20261023230628_activate_schleswig_holstein_scout_source.sql",
+      "export_sql_sha256": "70fa70db59b7b28b8398775d88de4213f0c8362ef30100e4f7b1bc04560c98e5"
+    },
+    {
+      "version": "20261023231317",
+      "name": "repair_schleswig_holstein_source_delivery_mode_v2",
+      "file": "supabase/migrations/20261023231317_repair_schleswig_holstein_source_delivery_mode_v2.sql",
+      "export_sql_sha256": "e923c69f8f34d355a0709660f5528ef1478a76853accaa3f3f8b3142ddf32595"
+    },
+    {
+      "version": "20261023231335",
+      "name": "enqueue_shadow_schleswig_holstein_coverage_hourly",
+      "file": "supabase/migrations/20261023231335_enqueue_shadow_schleswig_holstein_coverage_hourly.sql",
+      "export_sql_sha256": "9ea88b3ac1d18cf9d69a1d181c8813d4accb4664d545cbd3d0432d13a3ae4992"
+    },
+    {
+      "version": "20261023231558",
+      "name": "hold_schleswig_holstein_delivery_until_baseline",
+      "file": "supabase/migrations/20261023231558_hold_schleswig_holstein_delivery_until_baseline.sql",
+      "export_sql_sha256": "4518059034a99460aa8634d302d43ec0ac83ed2f3df2fd37d8fade7fd14a6a88"
+    },
+    {
+      "version": "20261023231613",
+      "name": "restore_schleswig_holstein_shadow_until_baseline",
+      "file": "supabase/migrations/20261023231613_restore_schleswig_holstein_shadow_until_baseline.sql",
+      "export_sql_sha256": "22852c3805b9b5e6090075c6fb3d6b4f4647d1b2516d500eda10c89e27783aea"
+    },
+    {
+      "version": "20261023235056",
+      "name": "create_geo_area_postal_codes",
+      "file": "supabase/migrations/20261023235056_create_geo_area_postal_codes.sql",
+      "export_sql_sha256": "2f1264bb551e9b333e519275afc9ffbcab5c4e29abd3ea6b9882f2dfdcb0cad7"
+    },
+    {
+      "version": "20261023235120",
+      "name": "enable_schleswig_holstein_swap_coverage",
+      "file": "supabase/migrations/20261023235120_enable_schleswig_holstein_swap_coverage.sql",
+      "export_sql_sha256": "50aa29e713890e855a5e5ad5e0ffa4981df2de985b9c5530570cd0d765bd0c7a"
+    },
+    {
+      "version": "20261023235606",
+      "name": "prioritize_schleswig_holstein_swap_baseline",
+      "file": "supabase/migrations/20261023235606_prioritize_schleswig_holstein_swap_baseline.sql",
+      "export_sql_sha256": "d0d61d9d8a5cc96059ebec3052c808011aca70fa3b8da014ffdae995c1ff8f2b"
+    },
+    {
+      "version": "20261024001000",
+      "name": "enable_schleswig_holstein_independent_city_ingestion",
+      "file": "supabase/migrations/20261024001000_enable_schleswig_holstein_independent_city_ingestion.sql",
+      "export_sql_sha256": "94c30bf545d29722b4c502e3d74e77899b43f625667442621f09a33e7bae6be1"
+    },
+    {
+      "version": "20261024001500",
+      "name": "add_schleswig_holstein_immoscout_source",
+      "file": "supabase/migrations/20261024001500_add_schleswig_holstein_immoscout_source.sql",
+      "export_sql_sha256": "993779ff23a692431f146bf6c8c6566edcf023e3a277c6c64c54565885e00c56"
+    },
+    {
+      "version": "20261024002751",
+      "name": "add_schleswig_holstein_category_streams",
+      "file": "supabase/migrations/20261024002751_add_schleswig_holstein_category_streams.sql",
+      "export_sql_sha256": "abc234af74104b19d2e9a96a249a15040ea9a37e9d59b26dd0ac2a4a4c4332c3"
+    },
+    {
+      "version": "20261024053959",
+      "name": "gate_regional_category_baselines_on_validated_results",
+      "file": "supabase/migrations/20261024053959_gate_regional_category_baselines_on_validated_results.sql",
+      "export_sql_sha256": "b51c3b63be1638fad65f4da6c064f22c635bd28e3aa0bb873e76ffe3c20e0cb6"
+    },
+    {
+      "version": "20261024094347",
+      "name": "expand_immowelt_schleswig_holstein_categories",
+      "file": "supabase/migrations/20261024094347_expand_immowelt_schleswig_holstein_categories.sql",
+      "export_sql_sha256": "6848c6520b84130b84f343bafa6ce2e643d38c0151ffee70ba2ba176bd6821e5"
+    },
+    {
+      "version": "20261024113010",
+      "name": "add_wg_gesucht_schleswig_holstein_source",
+      "file": "supabase/migrations/20261024113010_add_wg_gesucht_schleswig_holstein_source.sql",
+      "export_sql_sha256": "28187cb336e6ca86bf2ce1b562343a2b43df539b962756014120d4c132a71342"
+    },
+    {
+      "version": "20261024122000",
+      "name": "expand_immowelt_schleswig_holstein_categories",
+      "file": "supabase/migrations/20261024122000_expand_immowelt_schleswig_holstein_categories.sql",
+      "export_sql_sha256": "981f45116e405bfb275c0cb80045b7e0510a57423998ca8202857439d8df6fa0"
+    },
+    {
+      "version": "20261024131805",
+      "name": "fix_schleswig_holstein_immowelt_category_coverage",
+      "file": "supabase/migrations/20261024131805_fix_schleswig_holstein_immowelt_category_coverage.sql",
+      "export_sql_sha256": "f7af18657b2677b8d0fd28d236aadb39f0e917f14deeb55e4c2eec22d3f00467"
+    }
+  ]
+}
