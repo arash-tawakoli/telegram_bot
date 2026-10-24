@@ -325,11 +325,12 @@ async function renderApplicantProfile(user,chat,messageId,notice=''){
  }
  if(missingResult.error)throw Error('Profilstatus konnte nicht geladen werden.');
  const missing=Array.isArray(missingResult.data)?missingResult.data:[],missingSet=new Set(missing),ready=missing.length===0,selectedDocs=docs.filter(d=>d.send_with_auto_apply).length;
- const req=(key,label,value,required=false)=>`${label}${required?' *':''}: ${missingSet.has(key)?'⚠️ fehlt':value}`;
+ const isMissing=(key,label)=>missingSet.has(key)||missingSet.has(label);
+ const req=(key,label,value,required=false)=>`${label}${required&&isMissing(key,label)?' *':''}: ${isMissing(key,label)?'⚠️ fehlt':value}`;
  const messageCount=[p.message_apartment,p.message_house,p.message_temporary_wg,p.message_swap].filter(v=>String(v||'').trim()).length;
  const text=`👤 <b>Bewerberprofil</b>\n\n${notice?`${notice}\n\n`:''}Profilstatus: ${ready?'✅ vollständig':`⚠️ ${missing.length} Pflichtfeld${missing.length===1?' offen':'n offen'}`}\n\n`+
   `${req('Anrede','Anrede',salutationLabel(p.salutation),true)}\n${req('Vorname','Vorname',shown(p.first_name),true)}\n${req('Nachname','Nachname',shown(p.last_name),true)}\n${req('E-Mail-Adresse','E-Mail',shown(p.email),true)}\n${req('Telefonnummer','Telefonnummer',shown(p.phone),true)}\n${req('Straße','Straße',shown(p.street),true)}\n${req('Hausnummer','Hausnummer',shown(p.house_number),true)}\n${req('PLZ','PLZ',shown(p.postcode),true)}\n${req('Ort','Ort',shown(p.city),true)}\n${req('Haushaltstyp','Haushaltstyp',householdLabel(p),true)}\n${req('Beschäftigungsstatus','Beschäftigungsstatus',employmentLabel(p.employment_status),true)}\n${req('Haushalts-Nettoeinkommen','Haushalts-Nettoeinkommen',incomeLabel(p),true)}\n${req('Haustiere','Haustiere',shown(p.pets),true)}\n${req('Einzugstermin','Einzugstermin',moveInLabel(p),true)}\n${req('SCHUFA-Status','SCHUFA-Status',schufaLabel(p.schufa_status),true)}\n${req('WBS-Status','WBS-Status',shown(p.wbs_status),true)}\n\n✍️ Bewerbungstexte: ${messageCount}/4 hinterlegt\n\nDokumente: ${docs.length} gespeichert · ${selectedDocs} ausgewählt`;
- const f=(name,label)=>button(label,`platforms:profile-field:${name}`);
+ const f=(name,label)=>{const clean=String(label).replace(/ \\*$/,'');return button(isMissing(name,clean)?`${clean} *`:clean,`platforms:profile-field:${name}`)};
  return render(text,[
   [f('salutation','Anrede *'),f('schufa_status','SCHUFA *')],
   [f('first_name','Vorname *'),f('last_name','Nachname *')],
@@ -349,7 +350,7 @@ async function renderApplicantProfile(user,chat,messageId,notice=''){
 async function renderApplicationTexts(user,chat,messageId){
  const p=await ensureApplicantProfile(user.id);
  const render=(text,rows)=>messageId?edit(chat.id,messageId,text,{inline_keyboard:rows}):send(chat.id,text,{inline_keyboard:rows});
- const entry=(name,label,value)=>button(`${String(value??'').trim()?'✅':'⚠️'} ${label}`,`platforms:profile-text:${name}`);
+ const entry=(name,label,value)=>{const clean=String(label).replace(/ \\*$/,'');const filled=String(value??'').trim()!=='';return button(`${filled?'✅':'⚠️'} ${filled?clean:`${clean} *`}`,`platforms:profile-text:${name}`)};
  const text='✍️ <b>Bewerbungstext</b>\n\nWähle eine Wohnform, um den hinterlegten Bewerbungstext als Vorschau zu öffnen und zu bearbeiten.';
  return render(text,[
   [entry('message_house','Haus *',p.message_house),entry('message_apartment','Wohnung *',p.message_apartment)],
