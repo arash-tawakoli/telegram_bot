@@ -45,13 +45,35 @@ function schleswigHolsteinQuery(x:any){
       :x.kind==='swap'
         ?'Tauschwohnung'
         :'Wohnungen zur Miete';
-  const a=[lead,'in Schleswig-Holstein','neueste Inserate'];
+  const location=x.municipality_name
+    ? `in ${x.municipality_name}, Schleswig-Holstein`
+    : x.region_name
+      ? `in ${x.region_type==='county'?'Kreis ':''}${x.region_name}, Schleswig-Holstein`
+      : 'in Schleswig-Holstein';
+  const a=[lead,location,'neueste Inserate'];
   if(x.min!=null&&x.max!=null)a.push(`zwischen ${Math.round(x.min)} und ${Math.round(x.max)} Euro monatlich`);
   else if(x.max!=null)a.push(`maximal ${Math.round(x.max)} Euro monatlich`);
   else if(x.min!=null)a.push(`ab ${Math.round(x.min)} Euro monatlich`);
   return a.join(', ');
 }
 function children(x:any){const lo=x.min==null?null:Number(x.min),hi=x.max==null?null:Number(x.max),d=Number(x.depth||0)+1;if(lo==null&&hi==null)return [[null,750],[750,1000],[1000,1250],[1250,1500],[1500,2000],[2000,3000],[3000,5000],[5000,null]].map(([min,max])=>({...x,min,max,depth:d}));if(lo==null&&hi!=null&&hi>50){const m=Math.round(hi/2);return[{...x,min:null,max:m,depth:d},{...x,min:m,max:hi,depth:d}]}if(lo!=null&&hi==null){const m=lo+2500;return[{...x,min:lo,max:m,depth:d},{...x,min:m,max:null,depth:d}]}if(lo!=null&&hi!=null&&hi-lo>25){const m=Math.round((lo+hi)/2);return[{...x,min:lo,max:m,depth:d},{...x,min:m,max:hi,depth:d}]}return[]}
+async function schleswigHolsteinChildren(x:any){
+  const lo=x.min==null?null:Number(x.min),hi=x.max==null?null:Number(x.max),depth=Number(x.depth||0)+1;
+  if(lo!=null&&hi!=null&&hi-lo<=25){
+    if(!x.region_code){
+      const {data,error}=await db.from('geo_areas').select('area_code,name,area_type').eq('state_code','SH').eq('is_active',true).in('area_type',['county','independent_city']).order('name');
+      if(error)throw error;
+      return (data||[]).map((area:any)=>({...x,region_code:String(area.area_code),region_name:String(area.name),region_type:String(area.area_type),depth}));
+    }
+    if(!x.municipality_code){
+      const {data,error}=await db.from('geo_areas').select('area_code,name').eq('state_code','SH').eq('is_active',true).eq('area_type','municipality').eq('parent_code',String(x.region_code)).order('name');
+      if(error)throw error;
+      return (data||[]).map((area:any)=>({...x,municipality_code:String(area.area_code),municipality_name:String(area.name),depth}));
+    }
+    return [];
+  }
+  return children(x);
+}
 async function recordNeighborhoodSearch(sourceId:number,target:any,result:any,queryText:string){
   const {data:neighborhood,error:lookupError}=await db.from('hamburg_neighborhoods').select('id,name').eq('name',target.neighborhood).maybeSingle();
   if(lookupError)throw lookupError;
@@ -167,7 +189,7 @@ export async function runScoutSchleswigHolstein(source:Source){
     }
     const queue:any[]=Array.isArray(cursor.queue)?cursor.queue:[];
     const work=queue.splice(0,6);
-    const partitionKey=(x:any)=>`${x.kind}|${x.min==null?'*':x.min}|${x.max==null?'*':x.max}|${Number(x.depth||0)}`;
+    const partitionKey=(x:any)=>`${x.kind}|${x.min==null?'*':x.min}|${x.max==null?'*':x.max}|${Number(x.depth||0)}|${x.region_code||''}|${x.municipality_code||''}`;
     const partitionMeta=new Map<string,{partition:any;hasChildren:boolean}>();
     const candidatesByKey=new Map<string,{candidate:Candidate;fresh:boolean;partitionKey:string}>();
     let requests=0,mapErrors=0,processed=0,saturated=0,totalReported=0;
@@ -198,7 +220,7 @@ export async function runScoutSchleswigHolstein(source:Source){
         if(!previous||fresh&&!previous.fresh)candidatesByKey.set(key,{candidate,fresh,partitionKey:keyForPartition});
       }
       const isSaturated=(result.total!=null&&Number(result.total)>result.entries.length)||result.entries.length>=25;
-      const next=isSaturated?children(partition):[];
+      const next=isSaturated?await schleswigHolsteinChildren(partition):[];
       partitionMeta.set(keyForPartition,{partition,hasChildren:next.length>0});
       if(next.length)queue.push(...next);
       else if(isSaturated){
