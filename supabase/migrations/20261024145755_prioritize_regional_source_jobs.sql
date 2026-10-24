@@ -1,7 +1,7 @@
 -- Prevent the large, high-priority Hamburg portal crawls from starving the
 -- four requested Schleswig-Holstein baselines in the limited source-job queue.
 -- Once a regional baseline is complete, it naturally returns to normal crawl priority.
-CREATE OR REPLACE FUNCTION app_private.enqueue_due_source_jobs(p_limit integer)
+CREATE OR REPLACE FUNCTION app_private.enqueue_due_source_jobs(p_limit integer DEFAULT 65)
 RETURNS integer
 LANGUAGE plpgsql
 SET search_path TO ''
