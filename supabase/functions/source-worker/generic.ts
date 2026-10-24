@@ -602,7 +602,7 @@ async function runMeinestadtMirrorMonitor(
 export async function runImmoweltCategory(source:Source,stream:any){
   const category=String(stream?.category||'');
   if(!['house','apartment'].includes(category))throw new Error('unsupported Immowelt category stream');
-  await loadCooperativeRegistry();
+  if(source.id===3)await loadCooperativeRegistry();
   const url=String(stream.url),first=await fetchText(url),firstCards=immoweltCards(first.text,first.url);
   if(!firstCards.length&&!/0\s+(?:angebote|treffer)|keine\s+(?:angebote|immobilien)/i.test(strip(first.text)))throw new Error(`Immowelt ${category} parser found no recognizable listing cards`);
   let reportedPages=Math.max(1,maxPage(first.text)),total=immoweltTotal(first.text);
