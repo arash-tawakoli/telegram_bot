@@ -261,12 +261,15 @@ async function runWgGesuchtSHCategory(source: Source, stream: any) {
   let batchEmptyVerified = true;
   const pageResults = await Promise.all(batch.map(async (entry) => {
     const response = await fetchText(entry.url);
-    const parsedRows = parseHtml(response.text, response.url, "SH").map((candidate) => ({
-      ...candidate,
-      city: wgGesuchtListingCity(candidate.url, entry.city) || candidate.city || entry.city || null,
-      raw: { ...candidate.raw, region_state_code: "SH", provider_city: entry.city || null,
-        provider_listing_city: wgGesuchtListingCity(candidate.url, entry.city) || entry.city || null },
-    }));
+    const parsedRows = parseHtml(response.text, response.url, "SH").map((candidate) => {
+      const listingCity = wgGesuchtListingCity(candidate.url, entry.city) || candidate.city || entry.city || null;
+      return {
+        ...candidate,
+        city: listingCity,
+        raw: { ...candidate.raw, region_state_code: "SH", provider_city: entry.city || null,
+          provider_listing_city: listingCity || entry.city || null },
+      };
+    });
     const noOffers = wgGesuchtVerifiedEmptyResult(response.text, category);
     if (!parsedRows.length && !noOffers) throw new Error(`WG-Gesucht ${category} parser found no cards and no verified-empty marker at ${entry.url}; sample=${strip(response.text).slice(0,350)}`);
     const rows = parsedRows.map((candidate) => {
