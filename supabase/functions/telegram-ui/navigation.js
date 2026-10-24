@@ -1,12 +1,12 @@
 import { LANGS } from "./localization.js";
 import { profile } from "./profiles.js";
-import { db, PREMIUM_LINK, SAVED_PAGE_SIZE, short, button, send, edit, sendPremiumPreview, editPremiumPreview } from "./runtime.js";
+import { db, PREMIUM_LINK, SAVED_PAGE_SIZE, short, button, send, edit, sendPremiumPreview, editPremiumPreview, hasCanceledPremium } from "./runtime.js";
 export function homeKeyboard(user) {
     const rows = [
         [button("🔎 Suchprofil", "profile")],
         [button("👤 Bewerberprofil", "platforms:profile-new")],
         [button(user.is_premium ? "⚡ Auto-Bewerbung" : "🔒 Auto-Bewerbung", "platforms")],
-        [button("💎 Premium", "premium")],
+        [button(hasCanceledPremium(user) ? "💎 Hol dir jetzt Premium mit 50 % Rabatt" : "💎 Premium testen", "premium")],
         [button("⚙️ Einstellungen", "settings")],
     ];
     return { inline_keyboard: rows };
@@ -19,7 +19,7 @@ export function home(user, chatId, messageId) {
         "1. Suchprofil erstellen\n" +
         "2. Bewerberprofil erstellen\n" +
         "3. Auto-Bewerbung einrichten\n\n" +
-        "👇 <b>Jetzt loslegen!</b>";
+        "<b>Jetzt loslegen!</b>👇";
     return messageId
         ? edit(chatId, messageId, text, homeKeyboard(user))
         : send(chatId, text, homeKeyboard(user));
@@ -29,6 +29,7 @@ export async function premium(user, chatId, messageId, messageHasPhoto = false) 
     const rows = [];
     let text;
     const checkoutUrl = `${PREMIUM_LINK}?client_reference_id=${encodeURIComponent(user.id)}`;
+    const discounted = hasCanceledPremium(user);
     if (user.is_premium) {
         text = "💎 <b>Traumwohnung Premium</b>\n\n✅ <b>Premium ist aktiv.</b>\n\n<b>Deine Vorteile:</b>\n⚡ Sofortige Zustellung\n🔎 Bis zu 4 Suchprofile\n🤖 Auto-Bewerbung\n🔓 Baugenossenschafts-Angebote öffnen\n⭐️ Inserate speichern";
         let portal = null;
@@ -43,8 +44,8 @@ export async function premium(user, chatId, messageId, messageHasPhoto = false) 
         rows.push([{ text: "💳 Abo verwalten", url: billingUrl }]);
     }
     else {
-        text = "💎 <b>Traumwohnung Premium</b>\n\n<b>Deine Vorteile:</b>\n⚡ Sofortige Zustellung\n🔎 Bis zu 4 Suchprofile\n🤖 Auto-Bewerbung\n🔓 Baugenossenschafts-Angebote öffnen\n⭐️ Inserate speichern\n\n<s>1,99 €</s> <b>0,99 € / Monat</b>\nKeine Mindestlaufzeit · jederzeit kündbar";
-        rows.push([{ text: "💎 Jetzt abonnieren", url: checkoutUrl }]);
+        text = "💎 <b>Traumwohnung Premium</b>\n\n<b>Deine Vorteile:</b>\n⚡ Sofortige Zustellung\n🔎 Bis zu 4 Suchprofile\n🤖 Auto-Bewerbung\n🔓 Baugenossenschafts-Angebote öffnen\n⭐️ Inserate speichern\n\n" + (discounted ? "<s>1,99 €</s> <b>0,99 € / Monat</b>" : "<b>1,99 € / Monat</b>") + "\nKeine Mindestlaufzeit · jederzeit kündbar";
+        rows.push([{ text: discounted ? "💎 Hol dir jetzt Premium mit 50 % Rabatt" : "💎 Premium testen", url: checkoutUrl }]);
     }
     rows.push([button("← Zurück", "home")]);
     const markup = { inline_keyboard: rows };
@@ -138,14 +139,11 @@ export async function referralPage(user, chatId, messageId) {
         code = result.data;
     }
     const link = `https://t.me/traumwohnunghamburgbot?start=ref_${code.code}`;
-    const share = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent("Traumwohnung Hamburg")}`;
     await send(chatId, "🎁 <b>30 Tage Premium für 0 €</b>\n\n" +
         "Empfehle Traumwohnung Hamburg weiter und ihr erhaltet beide Premium kostenlos 💎\n\n" +
-        "Teile oder kopiere deinen persönlichen Link:");
+        "Dein persönlicher Link:");
     return send(chatId, link, {
         inline_keyboard: [
-            [{ text: "📤 Link teilen", url: share }],
-            [{ text: "📋 Link kopieren", copy_text: { text: link } }],
             [button("← Einstellungen", "settings")],
         ],
     });
