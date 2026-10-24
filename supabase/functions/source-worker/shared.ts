@@ -519,7 +519,7 @@ function meaningfulTitle(v: string) {
     return null;
   return s;
 }
-export function parseHtml(html: string, base: string) {
+export function parseHtml(html: string, base: string, regionStateCode = "HH") {
   const out: Candidate[] = [],
     seen = new Set<string>();
   for (const m of html.matchAll(
@@ -535,7 +535,7 @@ export function parseHtml(html: string, base: string) {
       ),
       text = strip(chunk).slice(0, 5000),
       f = parseFields(text);
-    if (f.zip && !hhZip(f.zip)) continue;
+    if (f.zip && regionStateCode !== "SH" && !hhZip(f.zip)) continue;
     if (
       !strongUrl(u) &&
       [f.warm, f.cold, f.rooms, f.area].filter((x) => x != null).length < 2
