@@ -599,7 +599,26 @@ async function runMeinestadtMirrorMonitor(
     indexed_inventory_count: max,
   };
 }
-export async function runImmoweltCategory(source:Source,stream:any){if(stream?.category!=='house')throw new Error('unsupported Immowelt category stream');await loadCooperativeRegistry();const url=String(stream.url),first=await fetchText(url),firstCards=immoweltCards(first.text,first.url);if(!firstCards.length&&!/0\s+(?:angebote|treffer)|keine\s+(?:angebote|immobilien)/i.test(strip(first.text)))throw new Error('Immowelt house parser found no recognizable listing cards');let pages=Math.max(1,maxPage(first.text)),total=immoweltTotal(first.text);if(pages===1&&total&&firstCards.length)pages=Math.max(1,Math.ceil(total/firstCards.length));pages=Math.min(pages,12);const all=[...firstCards];if(pages>1){const rest=await Promise.all(Array.from({length:pages-1},(_,i)=>fetchText(pageUrl(url,i+2,3))));for(const r of rest)all.push(...immoweltCards(r.text,r.url))}const key=(c:Candidate)=>String(c.key||c.url?.split('/').filter(Boolean).at(-1)||'').slice(0,500),rows=[...new Map(all.map(c=>[key(c),c])).values()].filter(c=>/\b(Haus|Einfamilienhaus|Reihenhaus|Doppelhaus|Doppelhaushälfte|Villa|Bungalow|Stadthaus)\b/i.test(String(c.title||'')+' '+String(c.raw?.alt||'')));const saved=await persistCategoryListings(source,stream,rows,true);return{requests:pages,candidates:saved.seen,fresh:saved.fresh,cursor:{url:first.url,pages,total,parsed:all.length,accepted:saved.seen,last_checked_at:iso(),complete:true}}}
+export async function runImmoweltCategory(source:Source,stream:any){
+  const category=String(stream?.category||'');
+  if(!['house','apartment'].includes(category))throw new Error('unsupported Immowelt category stream');
+  await loadCooperativeRegistry();
+  const url=String(stream.url),first=await fetchText(url),firstCards=immoweltCards(first.text,first.url);
+  if(!firstCards.length&&!/0\\s+(?:angebote|treffer)|keine\\s+(?:angebote|immobilien)/i.test(strip(first.text)))throw new Error(`Immowelt ${category} parser found no recognizable listing cards`);
+  let reportedPages=Math.max(1,maxPage(first.text)),total=immoweltTotal(first.text);
+  if(reportedPages===1&&total&&firstCards.length)reportedPages=Math.max(1,Math.ceil(total/firstCards.length));
+  const pageCap=source.coverage_strategy==='category_streams_only'?3:12;
+  const pages=Math.min(reportedPages,pageCap),all=[...firstCards];
+  if(pages>1){
+    const rest=await Promise.all(Array.from({length:pages-1},(_,i)=>fetchText(pageUrl(url,i+2,3))));
+    for(const r of rest)all.push(...immoweltCards(r.text,r.url));
+  }
+  const key=(c:Candidate)=>String(c.key||c.url?.split('/').filter(Boolean).at(-1)||'').slice(0,500);
+  const rows=[...new Map(all.map(c=>[key(c),c])).values()].filter(c=>category!=='house'||/\\b(Haus|Einfamilienhaus|Reihenhaus|Doppelhaus|Doppelhaushälfte|Villa|Bungalow|Stadthaus)\\b/i.test(String(c.title||'')+' '+String(c.raw?.alt||'')));
+  const complete=pages>=reportedPages;
+  const saved=await persistCategoryListings(source,stream,rows,complete);
+  return{requests:pages,candidates:saved.seen,fresh:saved.fresh,cursor:{url:first.url,pages,total,reported_pages:reportedPages,parsed:all.length,accepted:saved.seen,last_checked_at:iso(),complete,truncated:!complete}};
+}
 export async function runGeneric(source: Source, connectors: Connector[]) {
   const started = iso();
   try {
