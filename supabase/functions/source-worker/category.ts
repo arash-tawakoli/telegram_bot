@@ -17,6 +17,27 @@ function pageTimestamp(text:string){
   return new Date(guess.getTime()-offset*60000).toISOString();
 }
 
+function regionalHtmlTitle(candidate:Candidate,category:string){
+  const current=String(candidate.title||'').trim();
+  const generic=/^(?:Zimmer|Wohnung|Haus|Immobilie|Wohnungsangebot|Angebot|Mehr erfahren|Details?)$/i;
+  if(current&&!generic.test(current))return current;
+  const raw=String(candidate.raw?.text||'').replace(/\\s+/g,' ').trim();
+  const postalCode=String(candidate.zip||'');
+  const postalIndex=postalCode?raw.indexOf(postalCode):-1;
+  const locationIndex=postalIndex>=0?postalIndex:raw.search(/\\b\\d{5}\\b/);
+  const fallback=category==='house'?'Haus in Schleswig-Holstein':category==='room'?'WG-Zimmer in Schleswig-Holstein':category==='swap'?'Tauschwohnung in Schleswig-Holstein':'Wohnung in Schleswig-Holstein';
+  if(locationIndex<0)return current||fallback;
+  const before=raw.slice(0,locationIndex).trim();
+  const prices=[...before.matchAll(/(?:Monatsrate\\s+ca\\.\\s*)?[\\d.]+(?:,[\\d]{1,2})?\\s*€/gi)];
+  const last=prices.at(-1);
+  if(!last)return current||fallback;
+  const title=before.slice((last.index||0)+last[0].length).trim().replace(/\\s+/g,' ');
+  if(title.length<8||/^(?:Sortierung|Preis|Neueste|Älteste|Monatsrate|Angebote|Treffer)\\b/i.test(title))return current||fallback;
+  if(/\\b(?:Wohnung|Apartment|Appartement|Haus|Einfamilienhaus|Reihenhaus|Doppelhaus|Doppelhaushälfte|Bungalow|Townhouse|Zimmer|WG|Maisonette|Villa|Loft)\\b/i.test(title))return title.slice(0,240);
+  const label=category==='house'?'Haus':category==='room'?'WG-Zimmer':category==='swap'?'Tauschwohnung':'Wohnung';
+  return `${label} in ${title}`.slice(0,240);
+}
+
 async function runHtmlCategory(source:Source,stream:any){
   const r=await fetchText(String(stream.url)),regionStateCode=source.search_capabilities?.region_state_code==='SH'?'SH':'HH',parsed=parseHtml(r.text,r.url,regionStateCode),rows:Candidate[]=[];
   const categoryOnly=source.coverage_strategy==='category_streams_only';
@@ -27,7 +48,8 @@ async function runHtmlCategory(source:Source,stream:any){
     if(kind==='house'&&!categoryOnly&&(!/\b(Haus|Einfamilienhaus|Reihenhaus|Doppelhaus|Doppelhaushälfte|Villa|Bungalow|Stadthaus)\b/i.test(text)||/\b(Kauf|kaufen|Mietkauf|Grundstück|Erbpacht)\b/i.test(text)))continue;
     if(kind==='room'&&!/\b(WG(?:-Zimmer)?|Zimmer|Mitbewohner(?:in)?)\b/i.test(text))continue;
     const published=pageTimestamp(text);
-    rows.push({...c,raw:{...c.raw,...(published?{_newness:{method:'source_timestamp',source_published_at:published}}:{})}});
+    const title=categoryOnly?regionalHtmlTitle(c,kind):c.title;
+    rows.push({...c,title,raw:{...c.raw,...(published?{_newness:{method:'source_timestamp',source_published_at:published}}:{})}});
   }
   const noOffers=/keine (?:passenden )?(?:angebote|immobilien)|0 (?:angebote|treffer)/i.test(strip(r.text));
   if(!parsed.length&&!noOffers)throw new Error(`${stream.adapter} category parser found no recognizable listing cards`);
