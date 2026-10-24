@@ -59,7 +59,7 @@ test('WG-Gesucht pagination only queues later pages of the same city/category', 
 
 test('WG-Gesucht only accepts category-specific empty headings as verified empty results', () => {
   const scope = loadScope(categorySource, {
-    strip: (html) => html.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/\\s+/g, ' ').trim(),
+    strip: (html) => html.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/\s+/g, ' ').trim(),
   });
   assert.equal(
     scope.wgGesuchtVerifiedEmptyResult('<h2>2 WG-Zimmer | 4 Angebote in allen Kategorien in Ahrensburg</h2><a href="/14216536.html">Zimmer</a>', 'room'),
