@@ -617,11 +617,13 @@ export async function runImmoweltCategory(source:Source,stream:any){
   let requests=0,parsed=0,complete=false,verifiedEmpty=false;
   const categoryOnly=source.coverage_strategy==='category_streams_only';
   const maxPagesPerRun=6;
+  let firstUrl=baseUrl;
   for(let offset=0;offset<maxPagesPerRun;offset++){
     const pageNumber=nextPage;
     const url=pageNumber===1?baseUrl:pageUrl(baseUrl,pageNumber,source.id);
     const response=await fetchText(url);
     requests++;
+    if(pageNumber===1)firstUrl=response.url;
     const cards=immoweltCards(response.text,response.url);
     const noOffers=/keine\s+(?:passenden\s+)?(?:angebote|treffer|immobilien)|0\s+(?:angebote|treffer)|leider\s+(?:gibt\s+es|haben\s+wir)\s+(?:aktuell\s+)?keine/i.test(strip(response.text));
     if(!cards.length){
@@ -663,7 +665,7 @@ export async function runImmoweltCategory(source:Source,stream:any){
   return{
     requests,candidates:saved.seen,fresh:saved.fresh,
     cursor:{
-      initialized:true,next_page:complete?1:nextPage,reported_pages:reportedPages,total,
+      initialized:true,next_page:complete?1:nextPage,first_url:firstUrl,reported_pages:reportedPages,total,
       parsed,parsed_total:parsedTotal,accepted:saved.seen,accepted_total:acceptedTotal,
       all_empty_verified:allEmptyVerified,complete,verified_empty:verifiedEmpty,
       ...(category==='room'?{room_signal_count:roomSignalCount,sample_cards:roomSamples}:{}),
