@@ -7,6 +7,13 @@ ALTER TABLE app_private.source_category_streams
   ADD CONSTRAINT source_category_streams_category_check
   CHECK (category = ANY (ARRAY['apartment'::text,'house'::text,'room'::text,'swap'::text,'one_room'::text]));
 
+ALTER TABLE app_private.source_category_streams
+  DROP CONSTRAINT IF EXISTS source_category_streams_adapter_check;
+
+ALTER TABLE app_private.source_category_streams
+  ADD CONSTRAINT source_category_streams_adapter_check
+  CHECK (adapter = ANY (ARRAY['scout'::text,'kleinanzeigen'::text,'ohne-makler'::text,'wg-gesucht'::text,'wg-gesucht-sh'::text,'immowelt'::text,'immobilien-de'::text,'immobilie1'::text]));
+
 INSERT INTO public.sources (
   id,source_type,name,tier,homepage_url,search_url,poll_interval_minutes,
   enabled,notes,warmed_up,button_label,delivery_mode,worker_slug,
