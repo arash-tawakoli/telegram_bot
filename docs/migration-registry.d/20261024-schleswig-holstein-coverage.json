@@ -203,6 +203,12 @@
       "name": "allow_shareas_ui_state",
       "file": "supabase/migrations/20261024211500_allow_shareas_ui_state.sql",
       "export_sql_sha256": "cdf53967d31a0467e366c6c3c264584263ffe095dbe8b84816c0cdb50512588e"
+    },
+    {
+      "version": "20261024223000",
+      "name": "telegram_fast_architecture_consistency",
+      "file": "supabase/migrations/20261024223000_telegram_fast_architecture_consistency.sql",
+      "export_sql_sha256": "3cc868945e72a0d7a3dc9b3a4376b1566c1344f8f1827e5b99452b0fcd6fcd2f"
     }
   ]
 }
