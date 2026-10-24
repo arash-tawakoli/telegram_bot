@@ -12,7 +12,7 @@ test('Telegram search profile offers statewide, county and municipality selectio
   assert.match(profiles, /Kreise \/ kreisfreie Städte/);
   assert.match(profiles, /Städte \/ Gemeinden/);
   assert.match(profiles, /area_type === "municipality"/);
-  assert.match(profiles, /area_type === "county"/);
+  assert.match(profiles, /independent_city/);
 });
 
 test('Telegram persists selected SH area codes without changing the canonical location modes', () => {
