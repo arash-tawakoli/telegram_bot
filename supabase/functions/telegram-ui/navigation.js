@@ -44,7 +44,7 @@ export async function premium(user, chatId, messageId, messageHasPhoto = false) 
         rows.push([{ text: "💳 Abo verwalten", url: billingUrl }]);
     }
     else {
-        text = "💎 <b>Traumwohnung Premium</b>\n\n<b>Deine Vorteile:</b>\n⚡ Sofortige Zustellung\n🔎 Bis zu 4 Suchprofile\n🤖 Auto-Bewerbung\n🔓 Baugenossenschafts-Angebote öffnen\n⭐️ Inserate speichern\n\n" + (discounted ? "<s>1,99 €</s> <b>0,99 € / Monat</b>" : "<s>1,99 €</s> <b>0,99 € / Monat</b>") + "\nKeine Mindestlaufzeit · jederzeit kündbar";
+        text = "💎 <b>Traumwohnung Premium</b>\n\n<b>Deine Vorteile:</b>\n⚡ Sofortige Zustellung\n🔎 Bis zu 4 Suchprofile\n🤖 Auto-Bewerbung\n🔓 Baugenossenschafts-Angebote öffnen\n⭐️ Inserate speichern\n\n" + "<s>1,99 €</s> <b>0,99 € / Monat</b>" + "\nKeine Mindestlaufzeit · jederzeit kündbar";
         rows.push([{ text: discounted ? "💎 Hol dir jetzt Premium mit 50 % Rabatt" : "💎 Premium testen", url: checkoutUrl }]);
     }
     rows.push([button("← Zurück", "home")]);
