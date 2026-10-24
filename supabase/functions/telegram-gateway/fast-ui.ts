@@ -22,7 +22,12 @@ function profileLocation(p:any){
 function selectedPlaces(state:any,data:any){
  const boroughs=data?.boroughs||[],hoods=data?.neighborhoods||[];
  if(state?.location_mode==="all_schleswig_holstein")return "Ganz Schleswig-Holstein";
- if(state?.location_mode==="schleswig_holstein_areas")return "Schleswig-Holstein (ausgewählte Gebiete)";
+ if(state?.location_mode==="schleswig_holstein_areas"){
+  const codes=new Set((state?.location_area_codes||[]).map(String));
+  const areas=(data?.schleswig_holstein_areas||[]).filter((area:any)=>area?.area_type!=="state"&&codes.has(String(area?.area_code)));
+  const names=areas.map((area:any)=>String(area?.name||"")).filter(Boolean);
+  return names.length>5?names.slice(0,5).join(", ")+" … (+"+(names.length-5)+")":names.join(", ")||"Schleswig-Holstein";
+ }
  if(state?.location_mode==="boroughs"){const ids=new Set((state.borough_ids||[]).map(Number));return boroughs.filter((x:any)=>ids.has(Number(x.id))).map((x:any)=>x.name).join(", ")||"Hamburg"}
  if(state?.location_mode==="neighborhoods"){const ids=new Set((state.neighborhood_ids||[]).map(Number));const names=hoods.filter((x:any)=>ids.has(Number(x.id))).map((x:any)=>x.name);return names.length>12?names.slice(0,12).join(", ")+" … (+"+(names.length-12)+")":names.join(", ")||"Hamburg"}
  return "Ganz Hamburg";
@@ -103,7 +108,7 @@ export function renderFast(x:any,update:any){
   const all=(d.schleswig_holstein_areas||[]).filter((entry:any)=>entry.area_type!=="state");
   const level=["counties","municipalities","mixed"].includes(String(s.sh_area_level||""))?String(s.sh_area_level):"counties";
   const areas=level==="counties"?all.filter((entry:any)=>["county","independent_city"].includes(entry.area_type)):level==="municipalities"?all.filter((entry:any)=>entry.area_type==="municipality"):all;
-  const pageSize=20,pages=Math.max(1,Math.ceil(areas.length/pageSize)),page=Math.max(0,Math.min(Number(s.area_page||0),pages-1));
+  const pageSize=20,pages=Math.max(1,Math.ceil(areas.length/pageSize)),rawPage=Number(s.area_page||0),page=Number.isFinite(rawPage)?Math.max(0,Math.min(rawPage,pages-1)):0;
   const selected=new Set((s.location_area_codes||[]).map(String)),byCode=new Map(all.map((entry:any)=>[String(entry.area_code),entry])),rows:any[]=[];
   const entries=areas.slice(page*pageSize,(page+1)*pageSize);
   for(let i=0;i<entries.length;i+=2)rows.push(entries.slice(i,i+2).map((area:any)=>{
