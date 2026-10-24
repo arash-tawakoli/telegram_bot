@@ -41,12 +41,12 @@ test('review preserves house filters and activation action',()=>{
 test('referral preview only displays the personal link',()=>{
  const r=renderFast({...base,view:'referral',data:{code:'ABC123'}},update);
  assert.equal(r.method,'editMessageText');
- assert.match(r.text,/t\\.me\\/traumwohnunghamburgbot\\?start=ref_ABC123/);
+ assert.match(r.text,/t\.me\/traumwohnunghamburgbot\?start=ref_ABC123/);
  const controls=r.reply_markup.inline_keyboard.flat();
  assert.equal(controls.length,1);
  assert.equal(controls[0].text,'← Einstellungen');
  assert.equal(controls[0].url,undefined);
- assert.doesNotMatch(JSON.stringify(r),/Link teilen|Link kopieren|t\\.me\\/share\\/url/);
+ assert.doesNotMatch(JSON.stringify(r),/Link teilen|Link kopieren|t\.me\/share\/url/);
 });
 
 test('saved listings use URL buttons without extra messages',()=>{
