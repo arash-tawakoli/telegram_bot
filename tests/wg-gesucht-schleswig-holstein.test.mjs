@@ -8,7 +8,7 @@ const categorySource = readFileSync(new URL('../supabase/functions/source-worker
 const kleinSource = readFileSync(new URL('../supabase/functions/source-worker/klein.ts', import.meta.url), 'utf8');
 
 function loadScope(source, extra = {}) {
-  const code = stripTypeScriptTypes(source.replace(/^import[^;]+;\\n/gm, '').replaceAll('export ', ''));
+  const code = stripTypeScriptTypes(source.replace(/^import[^;]+;\n/gm, '').replaceAll('export ', ''));
   const scope = { URL, Map, Set, Date, Intl, console, AbortSignal, Response, ...extra };
   vm.runInNewContext(code, scope);
   return scope;
