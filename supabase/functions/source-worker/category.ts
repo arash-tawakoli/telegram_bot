@@ -63,7 +63,17 @@ const WG_SH_DIRECTORY_URL = "https://www.wg-gesucht.de/staedte-in-schleswig-hols
 const WG_SH_BATCH_SIZE = 5;
 let wgSHCityCache: { at: number; cities: WgGesuchtSHCity[] } | null = null;
 
-export function parseWgGesuchtSHCities(html: string, base = WG_SH_DIRECTORY_URL): WgGesuchtSHCity[] {
+function wgGesuchtCityKey(value: string) {
+  return String(value || "")
+    .toLocaleLowerCase("de-DE")
+    .replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss")
+    .normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/ae/g, "a").replace(/oe/g, "o").replace(/ue/g, "u")
+    .replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+export function parseWgGesuchtSHCities(html: string, base = WG_SH_DIRECTORY_URL, allowedNames?: string[]): WgGesuchtSHCity[] {
+  const allowed = allowedNames ? new Set(allowedNames.map(wgGesuchtCityKey)) : null;
   const cities = new Map<string, WgGesuchtSHCity>();
   for (const match of html.matchAll(/href=["']([^"'<>]*anzeigen-in-[^"'<>]+\.html(?:\?[^"'<>]*)?)["']/gi)) {
     let url: URL;
@@ -72,6 +82,7 @@ export function parseWgGesuchtSHCities(html: string, base = WG_SH_DIRECTORY_URL)
     const path = url.pathname.split("/").pop() || "";
     const city = path.match(/^anzeigen-in-(.+)\.(\d+)\.html$/i);
     if (!city || !city[1] || !city[2]) continue;
+    if (allowed && !allowed.has(wgGesuchtCityKey(city[1].replace(/-/g, " ")))) continue;
     cities.set(city[2], { slug: city[1], id: city[2] });
   }
   return [...cities.values()];
@@ -91,9 +102,20 @@ export function wgGesuchtSHCategoryUrl(city: WgGesuchtSHCity, category: string):
 
 async function loadWgGesuchtSHCities(): Promise<WgGesuchtSHCity[]> {
   if (wgSHCityCache && Date.now() - wgSHCityCache.at < 60 * 60 * 1000) return wgSHCityCache.cities;
-  const response = await fetchText(WG_SH_DIRECTORY_URL);
-  const cities = parseWgGesuchtSHCities(response.text, response.url);
-  if (cities.length < 500) throw new Error(`WG-Gesucht Schleswig-Holstein directory returned only ${cities.length} city links; refusing partial baseline`);
+  const [{ data: areas, error }, response] = await Promise.all([
+    db.rpc("get_schleswig_holstein_areas"),
+    fetchText(WG_SH_DIRECTORY_URL),
+  ]);
+  if (error) throw error;
+  const rows = (areas || []).filter((area: any) => ["municipality", "independent_city"].includes(String(area.area_type)));
+  const byCode = new Map(rows.map((area: any) => [String(area.area_code), area]));
+  const allowedNames = rows.flatMap((area: any) => {
+    const parent = byCode.get(String(area.parent_code)) as any;
+    return [String(area.name), ...(parent ? [`${area.name} ${parent.name}`, `${parent.name} ${area.name}`] : [])];
+  });
+  const cities = parseWgGesuchtSHCities(response.text, response.url, allowedNames);
+  const minimum = Math.ceil(rows.length * 0.85);
+  if (cities.length < minimum) throw new Error(`WG-Gesucht Schleswig-Holstein directory mapped only ${cities.length}/${rows.length} official areas (minimum ${minimum}); refusing partial baseline`);
   wgSHCityCache = { at: Date.now(), cities };
   return cities;
 }
