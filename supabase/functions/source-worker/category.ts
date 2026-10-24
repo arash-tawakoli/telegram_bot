@@ -181,7 +181,7 @@ export function wgGesuchtVerifiedEmptyResult(html: string, category: string): bo
     .map((match) => strip(match[1]))
     .join(" ");
   if (label) {
-    const count = headings.match(new RegExp(\`\\\\b(\\\\d+)\\\\s+\${label}\\\\b\`, "i"));
+    const count = headings.match(new RegExp("\\b(\\d+)\\s+" + label + "\\b", "i"));
     if (count) return Number(count[1]) === 0;
   }
   if (/href=["'][^"'<>]*\/\d{6,}\.html(?:[?#][^"'<>]*)?["']/i.test(html)) return false;
