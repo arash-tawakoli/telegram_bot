@@ -628,7 +628,7 @@ export async function runImmoweltCategory(source:Source,stream:any){
   const complete=pages>=reportedPages;
   const verifiedEmpty=all.length===0&&noOffers&&complete;
   const saved=await persistCategoryListings(source,stream,rows,complete);
-  return{requests:pages,candidates:saved.seen,fresh:saved.fresh,cursor:{url:first.url,pages,total,reported_pages:reportedPages,parsed:all.length,accepted:saved.seen,sample_cards:category==='room'&&saved.seen===0?unique.slice(0,5).map(c=>({title:c.title,alt:c.raw?.alt,area:c.area,rooms:c.rooms,text:String(c.raw?._provider_text||'').slice(0,160)})):[],last_checked_at:iso(),complete,verified_empty:verifiedEmpty,truncated:!complete}};
+  return{requests:pages,candidates:saved.seen,fresh:saved.fresh,cursor:{url:first.url,pages,total,reported_pages:reportedPages,parsed:all.length,accepted:saved.seen,room_signal_count:category==='room'?unique.filter(c=>/WG|Zimmer|Wohngemeinschaft|Privatzimmer|Mitbewohner/i.test(String(c.title||'')+' '+String(c.raw?.alt||'')+' '+String(c.raw?._provider_text||''))).length:0,sample_cards:category==='room'&&saved.seen===0?unique.filter(c=>/WG|Zimmer|Wohngemeinschaft|Privatzimmer|Mitbewohner/i.test(String(c.title||'')+' '+String(c.raw?.alt||'')+' '+String(c.raw?._provider_text||''))).slice(0,10).map(c=>({title:c.title,alt:c.raw?.alt,area:c.area,rooms:c.rooms,text:String(c.raw?._provider_text||'').slice(0,180)})).concat(unique.slice(-3).map(c=>({title:c.title,alt:c.raw?.alt,area:c.area,rooms:c.rooms,text:String(c.raw?._provider_text||'').slice(0,180)})):[],last_checked_at:iso(),complete,verified_empty:verifiedEmpty,truncated:!complete}};
 }
 export async function runGeneric(source: Source, connectors: Connector[]) {
   const started = iso();
