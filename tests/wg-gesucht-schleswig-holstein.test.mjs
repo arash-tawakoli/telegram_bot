@@ -57,6 +57,33 @@ test('WG-Gesucht pagination only queues later pages of the same city/category', 
   ]);
 });
 
+test('WG-Gesucht only accepts category-specific empty headings as verified empty results', () => {
+  const scope = loadScope(categorySource, {
+    strip: (html) => html.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/gi, ' ').replace(/\\s+/g, ' ').trim(),
+  });
+  assert.equal(
+    scope.wgGesuchtVerifiedEmptyResult('<h2>2 WG-Zimmer | 4 Angebote in allen Kategorien in Ahrensburg</h2><a href="/14216536.html">Zimmer</a>', 'room'),
+    false,
+  );
+  assert.equal(
+    scope.wgGesuchtVerifiedEmptyResult('<h2>0 WG-Zimmer | 0 Angebote in Ahlefeld-Bistensee</h2>', 'room'),
+    true,
+  );
+  assert.equal(
+    scope.wgGesuchtVerifiedEmptyResult('<h2>3 Wohnungen | 5 Angebote in Kiel</h2>', 'apartment'),
+    false,
+  );
+  assert.equal(
+    scope.wgGesuchtVerifiedEmptyResult('<h2>0 Häuser | 0 Angebote in Ahneby</h2>', 'house'),
+    true,
+  );
+});
+
+test('regional crawl batch limits remain bounded', () => {
+  assert.match(categorySource, /const WG_SH_BATCH_SIZE = 10;/);
+  assert.match(kleinSource, /const maxPagesPerRun=6;/);
+});
+
 test('Kleinanzeigen category pagination supports both provider route layouts', () => {
   const scope = loadScope(kleinSource);
   const base = 'https://www.kleinanzeigen.de/s-wohnung-mieten/schleswig-holstein/wohnungen--mieten/k0c203l408?sortingField=SORTING_DATE';
