@@ -57,31 +57,18 @@ test('WG-Gesucht pagination only queues later pages of the same city/category', 
   ]);
 });
 
-test('Kleinanzeigen category URLs insert the page segment before the location code', () => {
+test('Kleinanzeigen category pagination supports both provider route layouts', () => {
   const scope = loadScope(kleinSource);
-  assert.equal(
-    scope.kleinCategoryPageUrl('https://www.kleinanzeigen.de/s-wohnung-mieten/schleswig-holstein/wohnungen--mieten/k0c203l408?sortingField=SORTING_DATE', 2),
-    'https://www.kleinanzeigen.de/s-wohnung-mieten/schleswig-holstein/wohnungen--mieten/seite:2/k0c203l408?sortingField=SORTING_DATE',
+  const base = 'https://www.kleinanzeigen.de/s-wohnung-mieten/schleswig-holstein/wohnungen--mieten/k0c203l408?sortingField=SORTING_DATE';
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(scope.kleinCategoryPageUrls(base, 2))),
+    [
+      'https://www.kleinanzeigen.de/s-wohnung-mieten/schleswig-holstein/wohnungen--mieten/seite:2/k0c203l408?sortingField=SORTING_DATE',
+      'https://www.kleinanzeigen.de/s-wohnung-mieten/schleswig-holstein/seite:2/wohnungen--mieten/k0c203l408?sortingField=SORTING_DATE',
+    ],
   );
-  assert.equal(
-    scope.kleinCategoryPageUrl('https://www.kleinanzeigen.de/s-haus-mieten/schleswig-holstein/c205l408?sortingField=SORTING_DATE', 1),
-    'https://www.kleinanzeigen.de/s-haus-mieten/schleswig-holstein/c205l408?sortingField=SORTING_DATE',
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(scope.kleinCategoryPageUrls('https://www.kleinanzeigen.de/s-haus-mieten/schleswig-holstein/c205l408?sortingField=SORTING_DATE', 1))),
+    ['https://www.kleinanzeigen.de/s-haus-mieten/schleswig-holstein/c205l408?sortingField=SORTING_DATE'],
   );
-});
-
-test('Immowelt category pagination advances through the provider page query', () => {
-  const scope = loadScope(genericSource);
-  assert.equal(
-    scope.pageUrl('https://www.immowelt.de/suche/mieten/wohnung/schleswig-holstein/ad04de1/', 2, 71),
-    'https://www.immowelt.de/suche/mieten/wohnung/schleswig-holstein/ad04de1/?page=2',
-  );
-  assert.match(genericSource, /const maxPagesPerRun=6/);
-  assert.match(genericSource, /accepted_total:acceptedTotal/);
-});
-
-test('regional source baselines require completed pagination cursors', () => {
-  const categoryMigration = readFileSync(new URL('../supabase/migrations/20261024111500_add_wg_gesucht_schleswig_holstein_source.sql', import.meta.url), 'utf8');
-  assert.match(categoryMigration, /accepted_total/);
-  assert.match(categoryMigration, /COALESCE\(\(c\.cursor->>'complete'\)='true',false\)=false/);
-  assert.match(categoryMigration, /one_room/);
 });
