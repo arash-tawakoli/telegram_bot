@@ -529,16 +529,22 @@ export async function handleCallback(query, user) {
             draft.location_mode = "all_hamburg";
             draft.borough_ids = [];
             draft.neighborhood_ids = [];
+            draft.location_area_codes = [];
+            draft.area_page = 0;
             return afterSelection(user, chatId, messageId, draft, "rent");
         }
         if (value === "boroughs") {
             draft.location_mode = "boroughs";
             draft.neighborhood_ids = [];
+            draft.location_area_codes = [];
+            draft.area_page = 0;
             return renderBoroughs(user, chatId, messageId, draft);
         }
         if (value === "neighborhoods") {
             draft.location_mode = "neighborhoods";
             draft.borough_ids = [];
+            draft.location_area_codes = [];
+            draft.area_page = 0;
             return renderNeighborhoods(user, chatId, messageId, draft);
         }
         if (value === "all_sh") {
@@ -553,6 +559,7 @@ export async function handleCallback(query, user) {
             draft.location_mode = "schleswig_holstein_areas";
             draft.borough_ids = [];
             draft.neighborhood_ids = [];
+            draft.location_area_codes = [];
             draft.area_page = 0;
             if (value === "counties_sh") draft.sh_area_level = "counties";
             else if (value === "municipalities_sh") draft.sh_area_level = "municipalities";
