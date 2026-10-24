@@ -298,7 +298,7 @@ export async function runScoutSchleswigHolstein(source:Source){
       const {data:baseline,error:baselineError}=await db.from('sources').select('delivery_mode,baseline_completed_at').eq('id',source.id).single();
       if(baselineError)throw baselineError;
       if(!baseline)throw new Error('Schleswig-Holstein source disappeared before baseline promotion');
-      const patch:any={coverage_status:'complete',poll_interval_minutes:60,crawl_priority:69,updated_at:finished};
+      const patch:any={coverage_status:'complete',poll_interval_minutes:60,updated_at:finished};
       if(!baseline.baseline_completed_at)patch.baseline_completed_at=finished;
       if(baseline.delivery_mode==='shadow')patch.delivery_mode='live';
       const {data:updated,error:promotionError}=await db.from('sources')
