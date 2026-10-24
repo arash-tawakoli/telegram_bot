@@ -603,33 +603,69 @@ export async function runImmoweltCategory(source:Source,stream:any){
   const category=String(stream?.category||'');
   if(!['house','apartment','room','swap'].includes(category))throw new Error('unsupported Immowelt category stream');
   if(source.id===3)await loadCooperativeRegistry();
-  const url=String(stream.url),first=await fetchText(url),firstCards=immoweltCards(first.text,first.url);
-  const noOffers=/0\s+(?:angebote|treffer)|keine\s+(?:angebote|immobilien)/i.test(strip(first.text));
-  if(!firstCards.length&&!noOffers)throw new Error(`Immowelt ${category} parser found no recognizable listing cards`);
-  let reportedPages=Math.max(1,maxPage(first.text)),total=immoweltTotal(first.text);
-  if(reportedPages===1&&total&&firstCards.length)reportedPages=Math.max(1,Math.ceil(total/firstCards.length));
-  // A capped, partial crawl must never qualify as a complete baseline.
-  const pages=Math.min(reportedPages,12),all=[...firstCards];
-  if(pages>1){
-    const rest=await Promise.all(Array.from({length:pages-1},(_,i)=>fetchText(pageUrl(url,i+2,3))));
-    for(const r of rest)all.push(...immoweltCards(r.text,r.url));
-  }
-  const key=(c:Candidate)=>String(c.key||c.url?.split('/').filter(Boolean).at(-1)||'').slice(0,500);
-  const unique=[...new Map(all.map(c=>[key(c),c])).values()];
+  const baseUrl=String(stream.url),prior=stream.cursor&&typeof stream.cursor==='object'?stream.cursor:{};
+  const reset=prior.complete===true||prior.initialized!==true;
+  let nextPage=reset?1:Math.max(1,Number(prior.next_page||1));
+  let reportedPages=reset?null:(Number(prior.reported_pages||0)||null);
+  let total=reset?null:(Number(prior.total||0)||null);
+  let parsedTotal=reset?0:Number(prior.parsed_total||0);
+  let acceptedTotal=reset?0:Number(prior.accepted_total||0);
+  let allEmptyVerified=reset?true:prior.all_empty_verified!==false;
+  const all:Candidate[]=[],rows:Candidate[]=[];
+  let requests=0,parsed=0,complete=false,verifiedEmpty=false;
   const categoryOnly=source.coverage_strategy==='category_streams_only';
-  const textOf=(c:Candidate)=>String(c.title||'')+' '+String(c.raw?.alt||'')+' '+String(c.raw?._provider_text||'');
-  const rows=unique.filter(c=>{
-    const text=textOf(c);
-    if(category==='house')return categoryOnly||/\b(Haus|Einfamilienhaus|Reihenhaus|Doppelhaus|Doppelhaushälfte|Villa|Bungalow|Stadthaus)\b/i.test(text);
-    if(category==='room')return /\bWG[-\s]?Zimmer\b|Zimmer\s+in\s+(?:einer\s+)?WG|Wohngemeinschaft/i.test(text);
-    if(category==='swap')return /Tauschwohnung|Tauschangebot|Wohnungstausch|Wohnung[ -]*tausch|\btausche\b/i.test(text);
-    return !/Tauschwohnung|Tauschangebot|Wohnungstausch|Wohnung[ -]*tausch|\btausche\b/i.test(text);
-  });
-  const complete=pages>=reportedPages;
-  const verifiedEmpty=all.length===0&&noOffers&&complete;
-  const saved=await persistCategoryListings(source,stream,rows,complete);
-  return{requests:pages,candidates:saved.seen,fresh:saved.fresh,cursor:{url:first.url,pages,total,reported_pages:reportedPages,parsed:all.length,accepted:saved.seen,room_signal_count:category==='room'?unique.filter(c=>/WG|Zimmer|Wohngemeinschaft|Privatzimmer|Mitbewohner/i.test(String(c.title||'')+' '+String(c.raw?.alt||'')+' '+String(c.raw?._provider_text||''))).length:0,sample_cards:category==='room'&&saved.seen===0?unique.filter(c=>/WG|Zimmer|Wohngemeinschaft|Privatzimmer|Mitbewohner/i.test(String(c.title||'')+' '+String(c.raw?.alt||'')+' '+String(c.raw?._provider_text||''))).slice(0,10).map(c=>({title:c.title,alt:c.raw?.alt,area:c.area,rooms:c.rooms,text:String(c.raw?._provider_text||'').slice(0,180)})).concat(unique.slice(-3).map(c=>({title:c.title,alt:c.raw?.alt,area:c.area,rooms:c.rooms,text:String(c.raw?._provider_text||'').slice(0,180)})):[],last_checked_at:iso(),complete,verified_empty:verifiedEmpty,truncated:!complete}};
+  const maxPagesPerRun=6;
+  for(let offset=0;offset<maxPagesPerRun;offset++){
+    const pageNumber=nextPage;
+    const url=pageNumber===1?baseUrl:pageUrl(baseUrl,pageNumber,source.id);
+    const response=await fetchText(url);
+    requests++;
+    const cards=immoweltCards(response.text,response.url);
+    const noOffers=/keine\s+(?:passenden\s+)?(?:angebote|treffer|immobilien)|0\s+(?:angebote|treffer)|leider\s+(?:gibt\s+es|haben\s+wir)\s+(?:aktuell\s+)?keine/i.test(strip(response.text));
+    if(!cards.length){
+      if(!noOffers)throw new Error(`Immowelt ${category} page ${pageNumber} returned no recognizable cards and no verified-empty marker`);
+      complete=true;
+      verifiedEmpty=acceptedTotal===0&&allEmptyVerified;
+      break;
+    }
+    parsed+=cards.length;
+    parsedTotal+=cards.length;
+    all.push(...cards);
+    allEmptyVerified=false;
+    if(total==null)total=immoweltTotal(response.text);
+    const discoveredPages=maxPage(response.text);
+    if(discoveredPages>1)reportedPages=Math.max(reportedPages||1,discoveredPages);
+    if(total!=null&&cards.length){
+      const size=Math.max(1,cards.length);
+      reportedPages=Math.max(reportedPages||1,Math.ceil(total/size));
+    }
+    for(const c of cards){
+      const textOfCandidate=String(c.title||'')+' '+String(c.raw?.alt||'')+' '+String(c.raw?._provider_text||'');
+      if(category==='house'&&!categoryOnly&&!/\b(Haus|Einfamilienhaus|Reihenhaus|Doppelhaus|Doppelhaushälfte|Villa|Bungalow|Stadthaus)\b/i.test(textOfCandidate))continue;
+      if(category==='room'&&!/\bWG[-\s]?Zimmer\b|Zimmer\s+in\s+(?:einer\s+)?WG|Wohngemeinschaft/i.test(textOfCandidate))continue;
+      if(category==='swap'&&!/Tauschwohnung|Tauschangebot|Wohnungstausch|Wohnung[ -]*tausch|\btausche\b/i.test(textOfCandidate))continue;
+      rows.push(c);
+    }
+    nextPage=pageNumber+1;
+    if(reportedPages!=null&&pageNumber>=reportedPages){complete=true;break;}
+  }
+  const unique=[...new Map(all.map(c=>[String(c.key||c.url),c])).values()];
+  const key=(c:Candidate)=>String(c.key||c.url?.split('/').filter(Boolean).at(-1)||'').slice(0,500);
+  const uniqueRows=[...new Map(rows.map(c=>[key(c),c])).values()];
+  const saved=await persistCategoryListings(source,stream,uniqueRows,false);
+  acceptedTotal+=saved.seen;
+  verifiedEmpty=complete&&acceptedTotal===0&&allEmptyVerified;
+  return{
+    requests,candidates:saved.seen,fresh:saved.fresh,
+    cursor:{
+      initialized:true,next_page:complete?1:nextPage,reported_pages:reportedPages,total,
+      parsed,parsed_total:parsedTotal,accepted:saved.seen,accepted_total:acceptedTotal,
+      all_empty_verified:allEmptyVerified,complete,verified_empty:verifiedEmpty,
+      last_checked_at:iso()
+    }
+  };
 }
+
 export async function runGeneric(source: Source, connectors: Connector[]) {
   const started = iso();
   try {
