@@ -197,6 +197,12 @@
       "name": "telegram_fast_schleswig_holstein_selection",
       "file": "supabase/migrations/20261024211000_telegram_fast_schleswig_holstein_selection.sql",
       "export_sql_sha256": "4bb936209a88e51baec07645a0f379b2002bc85dd1e76b3113d5c60a02ea565d"
+    },
+    {
+      "version": "20261024211500",
+      "name": "allow_shareas_ui_state",
+      "file": "supabase/migrations/20261024211500_allow_shareas_ui_state.sql",
+      "export_sql_sha256": "cdf53967d31a0467e366c6c3c264584263ffe095dbe8b84816c0cdb50512588e"
     }
   ]
 }
