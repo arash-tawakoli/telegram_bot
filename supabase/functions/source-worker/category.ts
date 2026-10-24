@@ -63,6 +63,7 @@ type WgGesuchtSHQueueItem = { url: string; city: string | null };
 const WG_SH_DIRECTORY_URL = "https://www.wg-gesucht.de/staedte-in-schleswig-holstein.13.html";
 const WG_SH_BATCH_SIZE = 10;
 let wgSHCityCache: { at: number; cities: WgGesuchtSHCity[] } | null = null;
+let wgSHOfficialCityKeysCache: { at: number; keys: Set<string> } | null = null;
 
 function wgGesuchtCityKey(value: string) {
   return String(value || "")
@@ -177,7 +178,25 @@ function wgGesuchtSlugKey(value: string) {
     .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
-export function wgGesuchtListingCity(url: string, requestedCity: string | null): string | null {
+async function loadWgGesuchtSHOfficialCityKeys(): Promise<Set<string>> {
+  if (wgSHOfficialCityKeysCache && Date.now() - wgSHOfficialCityKeysCache.at < 60 * 60 * 1000)
+    return wgSHOfficialCityKeysCache.keys;
+  const [{ data: areas, error }, { data: aliases, error: aliasError }] = await Promise.all([
+    db.from("geo_areas").select("area_code,name,area_type").eq("state_code", "SH").eq("is_active", true)
+      .in("area_type", ["municipality", "independent_city"]),
+    db.from("geo_area_aliases").select("alias,area_code"),
+  ]);
+  if (error) throw error;
+  if (aliasError) throw aliasError;
+  const codes = new Set((areas || []).map((area: any) => String(area.area_code)));
+  const keys = new Set<string>((areas || []).map((area: any) => wgGesuchtSlugKey(String(area.name))));
+  for (const alias of aliases || [])
+    if (codes.has(String(alias.area_code))) keys.add(wgGesuchtSlugKey(String(alias.alias)));
+  wgSHOfficialCityKeysCache = { at: Date.now(), keys };
+  return keys;
+}
+
+export function wgGesuchtListingCity(url: string, requestedCity: string | null, officialCityKeys?: Set<string>): string | null {
   try {
     const path = new URL(url).pathname.split("/").pop() || "";
     const match = path.match(/^(?:wg-zimmer|1-zimmer-wohnung|wohnung|wohnungen|haus|haeuser)-in-(.+)\.\d{6,}\.html$/i);
@@ -185,11 +204,12 @@ export function wgGesuchtListingCity(url: string, requestedCity: string | null):
     const slug = match[1];
     const requestedSlug = wgGesuchtSlugKey(String(requestedCity || ""));
     const listingSlug = wgGesuchtSlugKey(slug);
-    if (requestedSlug && listingSlug.startsWith(requestedSlug + "-")) {
-      const suffix = slug.split("-").slice(requestedSlug.split("-").length).join(" ").trim();
-      return suffix || requestedCity;
-    }
-    return slug.replace(/-/g, " ").trim() || requestedCity;
+    let locality = slug.replace(/-/g, " ").trim();
+    if (requestedSlug && listingSlug.startsWith(requestedSlug + "-"))
+      locality = slug.split("-").slice(requestedSlug.split("-").length).join(" ").trim() || String(requestedCity || "");
+    if (officialCityKeys && locality && !officialCityKeys.has(wgGesuchtSlugKey(locality)))
+      return requestedCity;
+    return locality || requestedCity;
   } catch {
     return requestedCity;
   }
@@ -259,15 +279,16 @@ async function runWgGesuchtSHCategory(source: Source, stream: any) {
   let parsed = 0;
   let requests = 0;
   let batchEmptyVerified = true;
+  const officialCityKeys = await loadWgGesuchtSHOfficialCityKeys();
   const pageResults = await Promise.all(batch.map(async (entry) => {
     const response = await fetchText(entry.url);
     const parsedRows = parseHtml(response.text, response.url, "SH").map((candidate) => {
-      const listingCity = wgGesuchtListingCity(candidate.url, entry.city) || candidate.city || entry.city || null;
+      const listingCity = wgGesuchtListingCity(candidate.url, entry.city, officialCityKeys) || candidate.city || entry.city || null;
       return {
         ...candidate,
         city: listingCity,
         raw: { ...candidate.raw, region_state_code: "SH", provider_city: entry.city || null,
-          provider_listing_city: listingCity || entry.city || null },
+          provider_listing_city: wgGesuchtListingCity(candidate.url, entry.city) || entry.city || null },
       };
     });
     const noOffers = wgGesuchtVerifiedEmptyResult(response.text, category);
