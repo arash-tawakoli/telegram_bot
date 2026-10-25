@@ -6,6 +6,7 @@ export function recentInventory(l:any, now=Date.now()) {
   const r=l.raw||{};
   return [6,10,19].includes(Number(l.source_id)) ||
     (Number(l.source_id)===1 && r.provider==='immoscout_mcp' && (['fresh_global','fresh_borough','coverage_proven','map_delta'].includes(r.delivery_lane))) ||
+    (Number(l.source_id)===69 && ['sh_fresh','sh_observed'].includes(r.delivery_lane)) ||
     (r.provider==='kleinanzeigen' && r.native_offer===true && r.lane==='fast') ||
     (Number(l.source_id)===3 && r.provider==='immowelt') ||
     r.provider==='immosolve_hpm_rest';
