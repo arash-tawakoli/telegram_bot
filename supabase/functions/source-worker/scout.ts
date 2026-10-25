@@ -153,7 +153,14 @@ function scoutPublishedAt(entry:any){
 async function promoteObservedSHFresh(source:Source,state:any,entries:{candidate:Candidate;fresh:boolean;partitionKey:string}[]){
   const baselineMs=source.baseline_completed_at?Date.parse(String(source.baseline_completed_at)):NaN;
   const completeMs=state?.last_complete_at?Date.parse(String(state.last_complete_at)):NaN;
-  if(source.delivery_mode!=='live'||!Number.isFinite(baselineMs)||!Number.isFinite(completeMs)||!entries.length)return entries;
+  const cycleStartedMs=state?.cycle_started_at?Date.parse(String(state.cycle_started_at)):NaN;
+  // A running Schleswig-Holstein cycle already provides a safe observation
+  // boundary. Waiting for all price/area partitions would delay delivery for
+  // hours while the same cycle is still discovering new inventory.
+  const observationStartMs=Number.isFinite(cycleStartedMs)
+    ? Math.max(baselineMs,cycleStartedMs)
+    : Math.max(baselineMs,completeMs);
+  if(source.delivery_mode!=='live'||!Number.isFinite(baselineMs)||!Number.isFinite(observationStartMs)||!entries.length)return entries;
   const listingKey=(c:Candidate)=>String(c.key||c.url.split('/').filter(Boolean).at(-1)||'');
   const keys=[...new Set(entries.map(x=>listingKey(x.candidate)).filter(Boolean))];
   const existing=new Map<string,any>();
@@ -171,7 +178,7 @@ async function promoteObservedSHFresh(source:Source,state:any,entries:{candidate
     const previous=existing.get(listingKey(item.candidate));
     if(previous?.fresh_delivery_eligible)return {...item,fresh:true};
     const firstSeenMs=previous?.first_seen_at?Date.parse(String(previous.first_seen_at)):NaN;
-    if(!previous||(Number.isFinite(firstSeenMs)&&firstSeenMs>=Math.max(baselineMs,completeMs))){
+    if(!previous||(Number.isFinite(firstSeenMs)&&firstSeenMs>=observationStartMs)){
       return {...item,fresh:true,candidate:{...item.candidate,raw:{...item.candidate.raw,
         delivery_lane:'sh_observed',
         _newness:{method:'observation_after_complete_cycle',observed_at:promotedAt,previous_complete_at:state.last_complete_at}
