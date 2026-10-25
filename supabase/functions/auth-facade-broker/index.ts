@@ -8,6 +8,11 @@ const APPLICATION_WORKER=`${SUPABASE_URL}/functions/v1/application-worker`;
 const IMMOMIO_AUTH=`${SUPABASE_URL}/functions/v1/immomio-account`;
 const SCOUT_AUTH=`${SUPABASE_URL}/functions/v1/immoscout-auth-bridge`;
 const IMMOWELT_AUTH=`${SUPABASE_URL}/functions/v1/immowelt-auth-bridge`;
+const INDEED_AUTHORIZE='https://secure.indeed.com/oauth/v2/authorize';
+const INDEED_TOKEN='https://apis.indeed.com/oauth/v2/tokens';
+const INDEED_USERINFO='https://secure.indeed.com/v2/api/userinfo';
+const INDEED_REDIRECT='https://login.traumwohnunghamburg.de/connect/indeed/callback';
+const INDEED_SCOPE='email offline_access';
 const SUPABASE_ORIGIN=new URL(SUPABASE_URL).origin;
 const KLEIN_AUTHORIZE='https://login.kleinanzeigen.de/authorize';
 const KLEIN_CLIENT_ID='uV5j90myVPc2XzEOFuWUD2At17OACEGQ';
@@ -28,7 +33,7 @@ const unb64=(value:string)=>Uint8Array.from(atob(value),c=>c.charCodeAt(0));
 async function challenge(v:string){return b64url(new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(v))))}
 async function eligible(userId:string){const {data,error}=await db.rpc('application_user_eligible',{p_user:userId});if(error||data!==true)throw Error('premium_required')}
 async function secret(name:string){const {data,error}=await db.rpc('get_bot_secret',{secret_name:name});if(error||!data)throw Error('configuration_unavailable');return String(data)}
-function providerLabel(provider:any){return provider==='kleinanzeigen'?'Kleinanzeigen':provider==='immomio'?'Immomio':provider==='immowelt'?'Immowelt':'ImmoScout24'}
+function providerLabel(provider:any){return provider==='indeed'?'Indeed':provider==='kleinanzeigen'?'Kleinanzeigen':provider==='immomio'?'Immomio':provider==='immowelt'?'Immowelt':'ImmoScout24'}
 async function notifyConnected(flow:any,result:any){
  if(flow?.return_target!=='telegram'||(result?.authenticated!==true&&result?.status!=='connected'))return;
  try{
@@ -65,8 +70,13 @@ async function flowFor(value:any,allowConsumed=false){
  else q=q.gt('created_at',new Date(Date.now()-2*60*60*1000).toISOString());
  const {data,error}=await q.limit(2);
  if(error||!Array.isArray(data)||data.length!==1)throw Error('auth_flow_expired');
- const flow=data[0];await eligible(String(flow.user_id));await validateFlowContext(flow);
- if(!['kleinanzeigen','immoscout','immomio','immowelt'].includes(String(flow.provider)))throw Error('provider_unsupported');
+ const flow=data[0];
+ if(String(flow.provider)==='indeed'&&flow.origin==='coach'){
+  const{data:issuer,error:issuerError}=await db.from('coaching_members').select('is_super_admin').eq('auth_user_id',flow.issued_by).maybeSingle();
+  if(issuerError||issuer?.is_super_admin!==true)throw Error('premium_required');
+ }else await eligible(String(flow.user_id));
+ await validateFlowContext(flow);
+ if(!['kleinanzeigen','immoscout','immomio','immowelt','indeed'].includes(String(flow.provider)))throw Error('provider_unsupported');
  return flow
 }
 async function profileEmail(userId:string){const {data,error}=await db.from('applicant_profiles').select('email').eq('user_id',userId).maybeSingle();const email=clean(data?.email,320).toLowerCase();if(error||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw Error('profile_email_required');return email}
@@ -89,6 +99,12 @@ async function immomioUrl(flow:any,codeChallenge:string,emailValue:any){const em
 async function resolve(value:any){
  const flow=await flowFor(value),provider=String(flow.provider),hint=await accountHint(flow),info=await participantInfo(flow);
  const base={ok:true,provider,accountHint:hint,participantLabel:info.participantLabel,origin:flow.origin,returnTarget:flow.return_target,expiresAt:flow.expires_at};
+ if(provider==='indeed'){
+  const clientId=await secret('indeed_client_id');
+  const u=new URL(INDEED_AUTHORIZE);
+  for(const[k,v]of Object.entries({client_id:clientId,redirect_uri:INDEED_REDIRECT,response_type:'code',scope:INDEED_SCOPE,state:String(flow.state)}))u.searchParams.set(k,String(v));
+  return{...base,mode:'indeed_oauth',url:u.href,callbackPath:'/connect/indeed/callback',requiresManualCallback:false};
+ }
  if(provider==='immoscout'||provider==='immomio'||provider==='immowelt')return{...base,mode:'credentials'};
  const verifier=String(flow.code_verifier||'');if(!verifier)throw Error('auth_flow_expired');const codeChallenge=await challenge(verifier);
  if(provider==='kleinanzeigen')return{...base,mode:'provider_web',url:kleinUrl(flow,codeChallenge),requiresManualCallback:false,callbackTransport:'remote-browser-handoff'};
@@ -161,6 +177,31 @@ async function status(value:any){
  const completed=!!flow.context?.completed_at&&!!flow.consumed_at,connected=completed&&connection?.status==='connected';
  return{ok:true,provider:flow.provider,status:completed?(connection?.status||'disconnected'):'pending',connected,accountHint:completed?(connection?.account_hint||null):null,lastVerifiedAt:completed?(connection?.last_verified_at||null):null,lastError:completed?(connection?.last_error||null):null,participantLabel:info.participantLabel,origin:flow.origin,returnTarget:flow.return_target}
 }
+async function completeIndeed(value:any,codeValue:any,issuerValue:any,errorValue:any){
+ const flow=await flowFor(value);if(String(flow.provider)!=='indeed')throw Error('provider_unsupported');
+ const code=String(codeValue||'').trim();if(!code||code.length>4096)throw Error('invalid_callback_url');
+ const issuer=String(issuerValue||'').trim();if(issuer&&!/^https:\/\/secure\\.indeed\\.com\/?$/i.test(issuer))throw Error('invalid_callback_url');
+ if(String(errorValue||'').trim())throw Error('oauth_login_failed');
+ const clientId=await secret('indeed_client_id'),clientSecret=await secret('indeed_client_secret');
+ let tokenResponse:Response;
+ try{
+  const basic=b64(enc.encode(clientId+':'+clientSecret));
+  tokenResponse=await fetch(INDEED_TOKEN,{method:'POST',headers:{accept:'application/json','content-type':'application/x-www-form-urlencoded',authorization:'Basic '+basic},body:new URLSearchParams({grant_type:'authorization_code',code,redirect_uri:INDEED_REDIRECT}),signal:AbortSignal.timeout(25000)});
+ }catch{throw Error('temporary_network_error')}
+ const token=await tokenResponse.json().catch(()=>null);
+ if(!tokenResponse.ok||!token?.access_token)throw Error('token_exchange_failed');
+ let userResponse:Response;
+ try{userResponse=await fetch(INDEED_USERINFO,{headers:{accept:'application/json',authorization:'Bearer '+String(token.access_token)},signal:AbortSignal.timeout(25000)})}catch{throw Error('temporary_network_error')}
+ const user=await userResponse.json().catch(()=>null);
+ if(!userResponse.ok||!user||typeof user!=='object')throw Error('userinfo_failed');
+ const accountHint=clean(user.email,320).toLowerCase()||clean(user.accountKey||user.account_key||user.sub,320);
+ if(!accountHint)throw Error('userinfo_failed');
+ const expiresAt=new Date(Date.now()+Math.max(60,Number(token.expires_in||3600))*1000).toISOString();
+ const encrypted=await encryptProviderConnection(String(flow.user_id),'indeed',{access_token:String(token.access_token),refresh_token:token.refresh_token?String(token.refresh_token):null,id_token:token.id_token?String(token.id_token):null,token_type:String(token.token_type||'Bearer'),scope:String(token.scope||INDEED_SCOPE),expires_at:expiresAt,account_hint:accountHint,account_key:clean(user.accountKey||user.account_key||user.sub,320)||null,client_id:clientId,redirect_uri:INDEED_REDIRECT});
+ await completePlatformConnectFlow(db,flow,{...encrypted,account_hint:accountHint,expires_at:expiresAt});
+ const result={status:'connected',authenticated:true,accountReady:true,accountHint};await notifyConnected(flow,result);return result;
+}
+
 async function completeWeb(value:any,callbackUrl:any){
  const flow=await flowFor(value),userId=String(flow.user_id);let result:any;
  if(flow.provider==='immoscout')result=await internalCall(SCOUT_AUTH,{action:'complete_login',userId,callbackUrl:String(callbackUrl||'')});
@@ -174,7 +215,7 @@ async function completeWeb(value:any,callbackUrl:any){
 }
 const HEADERS={'content-type':'application/json','cache-control':'no-store, max-age=0','x-content-type-options':'nosniff','referrer-policy':'no-referrer'};
 function json(body:any,status=200){return new Response(JSON.stringify(body),{status,headers:HEADERS})}
-function publicError(error:any){const code=String(error?.message||'auth_facade_failed'),safe=new Set(['invalid_ticket','auth_flow_expired','premium_required','provider_unsupported','profile_email_required','provider_contract_unverified','temporary_network_error','invalid_action','invalid_callback_url','provider_completion_failed','token_exchange_failed','login_failed','provider_interactive_challenge','human_verification_required','device_confirmation_required','provider_route_required','provider_email_required','mfa_required','mfa_factor_unsupported','mfa_invalid_code','mfa_challenge_failed','mfa_expired','invalid_state','account_temporarily_locked']);const status=code==='invalid_ticket'||code==='invalid_callback_url'?400:code==='auth_flow_expired'||code==='mfa_expired'||code==='invalid_state'?410:code==='premium_required'?403:code==='account_temporarily_locked'?423:code==='login_failed'||code==='mfa_invalid_code'?401:code.startsWith('mfa_')||code==='provider_interactive_challenge'||code==='human_verification_required'||code==='device_confirmation_required'||code==='provider_route_required'?409:503;return json({error:safe.has(code)?code:'auth_facade_failed'},status)}
+function publicError(error:any){const code=String(error?.message||'auth_facade_failed'),safe=new Set(['invalid_ticket','auth_flow_expired','premium_required','provider_unsupported','profile_email_required','provider_contract_unverified','temporary_network_error','invalid_action','invalid_callback_url','provider_completion_failed','token_exchange_failed','login_failed','provider_interactive_challenge','human_verification_required','device_confirmation_required','provider_route_required','provider_email_required','configuration_unavailable','userinfo_failed','oauth_login_failed','mfa_required','mfa_factor_unsupported','mfa_invalid_code','mfa_challenge_failed','mfa_expired','invalid_state','account_temporarily_locked']);const status=code==='invalid_ticket'||code==='invalid_callback_url'?400:code==='auth_flow_expired'||code==='mfa_expired'||code==='invalid_state'?410:code==='premium_required'?403:code==='account_temporarily_locked'?423:code==='login_failed'||code==='mfa_invalid_code'?401:code.startsWith('mfa_')||code==='provider_interactive_challenge'||code==='human_verification_required'||code==='device_confirmation_required'||code==='provider_route_required'?409:503;return json({error:safe.has(code)?code:'auth_facade_failed'},status)}
 Deno.serve(async req=>{try{
  if(req.method!=='POST')return new Response('method not allowed',{status:405,headers:{'cache-control':'no-store'}});
  const body=await req.json().catch(()=>({})),action=String(body.action||'');
@@ -185,6 +226,7 @@ Deno.serve(async req=>{try{
  if(action==='mfa_start')return json(await mfaStart(body.ticket,body.mfaTicket,body.factorId));
  if(action==='mfa_verify')return json(await mfaVerify(body.ticket,body.mfaTicket,body.factorId,body.passCode));
  if(action==='complete_web')return json(await completeWeb(body.ticket,body.callbackUrl));
+ if(action==='complete_indeed')return json(await completeIndeed(body.ticket,body.code,body.iss,body.error));
  if(action==='complete_session')return json(await completeSession(body.ticket,body.session,body.accountHint));
  throw Error('invalid_action')
 }catch(error:any){return publicError(error)}});
