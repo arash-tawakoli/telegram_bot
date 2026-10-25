@@ -179,9 +179,9 @@ async function status(value:any){
 }
 async function completeIndeed(value:any,codeValue:any,issuerValue:any,errorValue:any){
  const flow=await flowFor(value);if(String(flow.provider)!=='indeed')throw Error('provider_unsupported');
- const code=String(codeValue||'').trim();if(!code||code.length>4096)throw Error('invalid_callback_url');
- const issuer=String(issuerValue||'').trim();if(issuer&&!/^https:\/\/secure\\.indeed\\.com\/?$/i.test(issuer))throw Error('invalid_callback_url');
  if(String(errorValue||'').trim())throw Error('oauth_login_failed');
+ const code=String(codeValue||'').trim();if(!code||code.length>4096)throw Error('invalid_callback_url');
+ const issuer=String(issuerValue||'').trim();if(issuer&&!/^https:\/\/secure\.indeed\.com\/?$/i.test(issuer))throw Error('invalid_callback_url');
  const clientId=await secret('indeed_client_id'),clientSecret=await secret('indeed_client_secret');
  let tokenResponse:Response;
  try{
