@@ -8,7 +8,7 @@ const SECRET=secretKeys.default||Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const PUBLISHABLE=publishableKeys.default||Deno.env.get('SUPABASE_ANON_KEY')!;
 const admin=createClient(URL,SECRET,{auth:{persistSession:false,autoRefreshToken:false}});
 const ORIGINS=new Set(['https://intern.traumwohnunghamburg.de','http://localhost:4321','http://127.0.0.1:4321']);
-const PROVIDERS=new Set(['immoscout','kleinanzeigen','immomio','immowelt']);
+const PROVIDERS=new Set(['immoscout','kleinanzeigen','immomio','immowelt','indeed']);
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PUBLIC_ID=/^cp_[a-f0-9]{24}$/;
 const DASHBOARD_PROVIDER_DEFAULTS={immoscout:0,kleinanzeigen:0,immomio:0,immowelt:0,unknown:0};
@@ -212,14 +212,25 @@ async function participantDetail(a:any,publicId:string){
  };
 }
 async function providerDisconnect(userId:string,p:string){
+ if(p==='indeed'){
+  const[connection,flow]=await Promise.all([
+   admin.from('platform_connections').delete().eq('user_id',userId).eq('provider','indeed'),
+   admin.from('platform_auth_flows').delete().eq('user_id',userId).eq('provider','indeed')
+  ]);
+  if(connection.error||flow.error)throw Error('provider_disconnect_failed');
+  return{status:'disconnected'};
+ }
  if(p==='kleinanzeigen')return internalCall(URL+'/functions/v1/application-worker',{action:'disconnect',userId,source:2});
  if(p==='immomio')return internalCall(URL+'/functions/v1/immomio-account',{action:'disconnect',userId});
  if(p==='immowelt')return internalCall(URL+'/functions/v1/application-worker',{action:'disconnect',userId,source:4});
  return internalCall(URL+'/functions/v1/immoscout-auth-bridge',{action:'disconnect',userId});
 }
 async function startConnect(a:any,assignment:any,p:string,shareLink=false){
- const userId=assignment.user_id,premium=await effectivePremium([String(userId)]);
- if(premium.get(String(userId))!==true)throw Error('premium_required');
+ const userId=assignment.user_id;
+ if(p!=='indeed'||a.member.is_super_admin!==true){
+  const premium=await effectivePremium([String(userId)]);
+  if(premium.get(String(userId))!==true)throw Error('premium_required');
+ }
  if(p==='kleinanzeigen'&&!shareLink){
   const health=await internalCall(URL+'/functions/v1/application-worker',{action:'health'}).catch(()=>null);
   const direct=health?.kleinanzeigenOAuthClientProvisioned===true;
@@ -716,7 +727,7 @@ async function handle(req:Request){
  if(action==='retention'){const mode=body.mode==='delete_on_date'?'delete_on_date':'manual',date=mode==='delete_on_date'?String(body.delete_on||''):null;if(mode==='delete_on_date'&&!/^\d{4}-\d{2}-\d{2}$/.test(date||''))throw Error('invalid_retention_date');const{error}=await admin.from('coaching_participants').update({retention_mode:mode,retention_delete_on:date,status:mode==='delete_on_date'?'pending_deletion':'active',updated_at:new Date().toISOString()}).eq('user_id',assignment.user_id);if(error)throw Error('retention_save_failed');await audit(a,assignment.user_id,'retention_changed',{mode,delete_on:date});return{ok:true};}
  if(action==='telegram_link'){const{data,error}=await admin.rpc('issue_telegram_link_token',{p_user:assignment.user_id,p_created_by:a.user.id});if(error)throw Error(error.message||'telegram_link_failed');return{url:'https://t.me/traumwohnunghamburgbot?start='+encodeURIComponent(String(data)),expiresInSeconds:1200};}
  if(action==='start_connect')return startConnect(a,assignment,provider(body.provider),body.shareLink===true);
- if(action==='disconnect_provider'){const p=provider(body.provider),result=await providerDisconnect(assignment.user_id,p);await admin.from('application_preferences').update({[p+'_enabled']:false}).eq('user_id',assignment.user_id);await audit(a,assignment.user_id,'provider_disconnected',{provider:p});return{ok:true,result};}
+ if(action==='disconnect_provider'){const p=provider(body.provider),result=await providerDisconnect(assignment.user_id,p);if(p!=='indeed')await admin.from('application_preferences').update({[p+'_enabled']:false}).eq('user_id',assignment.user_id);await audit(a,assignment.user_id,'provider_disconnected',{provider:p});return{ok:true,result};}
  if(action==='request_upload')return requestUpload(a,assignment,body);
  if(action==='register_upload')return registerUpload(a,assignment,body);
  if(action==='open_document'){
@@ -772,7 +783,7 @@ async function handle(req:Request){
  if(action==='set_coach_active'){if(a.member.role!=='admin')throw Error('admin_required');const id=uuid(body.memberId);if(id===a.member.id)throw Error('coach_unavailable');const{data:member,error:memberError}=await admin.from('coaching_members').select('id,role,is_super_admin').eq('id',id).eq('workspace_id',a.member.workspace_id).maybeSingle();if(memberError||!member||member.is_super_admin===true||!(member.role==='coach'||(a.member.is_super_admin===true&&member.role==='admin')))throw Error('member_management_forbidden');const{data:updated,error}=await admin.from('coaching_members').update({is_active:Boolean(body.active),updated_at:new Date().toISOString()}).eq('id',id).eq('workspace_id',a.member.workspace_id).select('id').maybeSingle();if(error)throw Error('coach_update_failed');if(!updated)throw Error('coach_unavailable');await audit(a,null,'coach_status_changed',{member_id:id,active:Boolean(body.active)});return{ok:true};}
  throw Error('invalid_action');
 }
-function publicError(error:any){const code=String(error?.message||'coach_api_failed').slice(0,160);const known=new Set(['unauthorized','coach_forbidden','workspace_unavailable','participant_forbidden','admin_required','invalid_id','invalid_participant','invalid_email','invalid_number','invalid_member_role','provider_unsupported','invalid_property_type','invalid_location','invalid_search_limits','location_required','invalid_document','invalid_document_type','invalid_document_path','upload_not_found','upload_invalid','document_not_found','document_open_failed','invalid_retention_date','password_too_short','cannot_disable_self','premium_required','import_candidates_failed','import_candidate_invalid','participant_adopt_failed','participant_create_failed','participant_assignment_failed','participant_already_assigned','participant_unavailable','participant_delete_failed','participant_delete_restricted','participant_document_delete_failed','participant_block_failed','invalid_import_selection','request_id_required','request_id_conflict','request_in_progress','oauth_client_not_provisioned','coach_unavailable','member_management_forbidden','super_admin_protected','super_admin_required','preview_read_only','invalid_password','coach_password_update_failed','coach_delete_failed','member_role_update_failed','deletion_confirmation_required','auth_flow_expired','jobseeker_read_failed']);return known.has(code)?code:(code.includes('profile_slot_not_allowed')?'profile_slot_not_allowed':'operation_failed');}
+function publicError(error:any){const code=String(error?.message||'coach_api_failed').slice(0,160);const known=new Set(['unauthorized','coach_forbidden','workspace_unavailable','participant_forbidden','admin_required','invalid_id','invalid_participant','invalid_email','invalid_number','invalid_member_role','provider_unsupported','invalid_property_type','invalid_location','invalid_search_limits','location_required','invalid_document','invalid_document_type','invalid_document_path','upload_not_found','upload_invalid','document_not_found','document_open_failed','invalid_retention_date','password_too_short','cannot_disable_self','premium_required','import_candidates_failed','import_candidate_invalid','participant_adopt_failed','participant_create_failed','participant_assignment_failed','participant_already_assigned','participant_unavailable','participant_delete_failed','participant_delete_restricted','participant_document_delete_failed','participant_block_failed','invalid_import_selection','request_id_required','request_id_conflict','request_in_progress','oauth_client_not_provisioned','configuration_unavailable','userinfo_failed','oauth_login_failed','provider_disconnect_failed','coach_unavailable','member_management_forbidden','super_admin_protected','super_admin_required','preview_read_only','invalid_password','coach_password_update_failed','coach_delete_failed','member_role_update_failed','deletion_confirmation_required','auth_flow_expired','jobseeker_read_failed']);return known.has(code)?code:(code.includes('profile_slot_not_allowed')?'profile_slot_not_allowed':'operation_failed');}
 
 Deno.serve(async req=>{
  if(req.method==='OPTIONS')return new Response(null,{status:204,headers:cors(req)});
