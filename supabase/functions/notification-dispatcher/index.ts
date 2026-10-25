@@ -680,6 +680,7 @@ Deno.serve(async (req) => {
       .eq("delivery_outcome_unknown", false)
       .lt("dispatch_attempts", 5)
       .or(`next_retry_at.is.null,next_retry_at.lte.${now}`)
+      .order("dispatch_attempts", { ascending: true })
       .order("created_at")
       .limit(25);
     if (error) throw error;
