@@ -1,7 +1,8 @@
 // Online is evidence of an advertised offer, never a landlord's availability guarantee.
 export function recentInventory(l:any, now=Date.now()) {
   const age=now-Date.parse(l.last_seen_at);
-  const maxAge=Number(l.source_id)===6 ? 60*60*1000 : 10*60*1000;
+  const shFresh=Number(l.source_id)===69 && ['sh_fresh','sh_observed'].includes(String(l.raw?.delivery_lane||''));
+  const maxAge=shFresh ? 24*60*60*1000 : Number(l.source_id)===6 ? 60*60*1000 : 10*60*1000;
   if(!l.is_active || !l.fresh_delivery_eligible || !Number.isFinite(age) || age<0 || age>maxAge)return false;
   const r=l.raw||{};
   return [6,10,19].includes(Number(l.source_id)) ||
