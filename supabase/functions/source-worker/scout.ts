@@ -150,6 +150,37 @@ function scoutPublishedAt(entry:any){
   return null;
 }
 
+async function promoteObservedSHFresh(source:Source,state:any,entries:{candidate:Candidate;fresh:boolean;partitionKey:string}[]){
+  const baselineMs=source.baseline_completed_at?Date.parse(String(source.baseline_completed_at)):NaN;
+  const completeMs=state?.last_complete_at?Date.parse(String(state.last_complete_at)):NaN;
+  if(source.delivery_mode!=='live'||!Number.isFinite(baselineMs)||!Number.isFinite(completeMs)||!entries.length)return entries;
+  const listingKey=(c:Candidate)=>String(c.key||c.url.split('/').filter(Boolean).at(-1)||'');
+  const keys=[...new Set(entries.map(x=>listingKey(x.candidate)).filter(Boolean))];
+  const existing=new Map<string,any>();
+  for(let i=0;i<keys.length;i+=300){
+    const {data,error}=await db.from('listings')
+      .select('source_listing_key,first_seen_at,fresh_delivery_eligible')
+      .eq('source_id',source.id)
+      .in('source_listing_key',keys.slice(i,i+300));
+    if(error)throw error;
+    for(const row of data||[])existing.set(String(row.source_listing_key),row);
+  }
+  const promotedAt=iso();
+  return entries.map(item=>{
+    if(item.fresh||item.candidate.raw?._newness?.method==='source_timestamp')return item;
+    const previous=existing.get(listingKey(item.candidate));
+    if(previous?.fresh_delivery_eligible)return {...item,fresh:true};
+    const firstSeenMs=previous?.first_seen_at?Date.parse(String(previous.first_seen_at)):NaN;
+    if(!previous||(Number.isFinite(firstSeenMs)&&firstSeenMs>=Math.max(baselineMs,completeMs))){
+      return {...item,fresh:true,candidate:{...item.candidate,raw:{...item.candidate.raw,
+        delivery_lane:'sh_observed',
+        _newness:{method:'observation_after_complete_cycle',observed_at:promotedAt,previous_complete_at:state.last_complete_at}
+      }}};
+    }
+    return item;
+  });
+}
+
 export async function runScoutSchleswigHolstein(source:Source){
   const started=iso();
   try{
@@ -268,8 +299,9 @@ export async function runScoutSchleswigHolstein(source:Source){
         cursor.blocked_unmapped_keys.push(key);
       }
     }
-    const freshRows=validEntries.filter(x=>x.fresh).map(x=>x.candidate);
-    const coverageRows=validEntries.filter(x=>!x.fresh).map(x=>x.candidate);
+    const promotedEntries=await promoteObservedSHFresh(source,state,validEntries);
+    const freshRows=promotedEntries.filter(x=>x.fresh).map(x=>x.candidate);
+    const coverageRows=promotedEntries.filter(x=>!x.fresh).map(x=>x.candidate);
     const presenceEpoch=String(state?.cycle_started_at||started);
     const freshSaved=freshRows.length?await upsertCandidates(source,freshRows,true,presenceEpoch):{seen:0,fresh:0,keys:[] as string[]};
     const coverageSaved=coverageRows.length?await upsertCandidates(source,coverageRows,false,presenceEpoch):{seen:0,fresh:0,keys:[] as string[]};
