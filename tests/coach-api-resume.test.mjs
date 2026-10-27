@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
 const source=readFileSync(new URL('../supabase/functions/coach-api/index.ts',import.meta.url),'utf8');
-const migration=readFileSync(new URL('../supabase/migrations/20261027215300_coach_resume_drafts.sql',import.meta.url),'utf8');
+const migration=readFileSync(new URL('../supabase/migrations/20261027222332_coach_resume_drafts.sql',import.meta.url),'utf8');
 
 const preview=source.match(/const allowed=new Set\(\[([^\]]+)\]\);/);
 assert.ok(preview,'Preview action allowlist should exist');
