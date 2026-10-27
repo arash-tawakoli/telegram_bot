@@ -175,17 +175,17 @@
     },
     {
       "slug": "coach-api",
-      "version": 47,
+      "version": 57,
       "verify_jwt": false,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "c86dde15b99e8ce88a7f3f08b04bc2776ae338fb179c8f896ef76211b7ff9a4b",
+      "observed_artifact_sha256": "9d60b18ca796680a7d72549682413f1012c325af02c4229ae4e1d0938edc67a4",
       "entrypoint": "supabase/functions/coach-api/index.ts",
       "files": [
         {
           "path": "supabase/functions/coach-api/index.ts",
-          "sha256": "0066b28dc91f558bc9d7c027c70b8b13d1ac5781e0e7a285268fe7fcb9ecf35e",
-          "deployed_sha256": "0066b28dc91f558bc9d7c027c70b8b13d1ac5781e0e7a285268fe7fcb9ecf35e"
+          "sha256": "ec6ba8bc7b46ce90ba69ab9f9d34a460a2e9bc9f2e23c4c59111f2e04553f89e",
+          "deployed_sha256": "ec6ba8bc7b46ce90ba69ab9f9d34a460a2e9bc9f2e23c4c59111f2e04553f89e"
         },
         {
           "path": "supabase/functions/_shared/application-profile-adapters.ts",
@@ -193,14 +193,14 @@
           "deployed_sha256": "561eef88785b5d442dbf95d42123cac1236ce0e55094bf59cf65aea099c00f64"
         }
       ],
-      "observed_live_version": 49,
+      "observed_live_version": 57,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "4313a043483653d03634a041758e3fd8764bef480097d1226c323ee75e6dfe81",
-      "source_archive_file": "docs/runtime-snapshot-2026-10-22/bundles/batch-01.json",
+      "observed_live_artifact_sha256": "9d60b18ca796680a7d72549682413f1012c325af02c4229ae4e1d0938edc67a4",
+      "source_archive_file": "docs/runtime-snapshot-2026-10-27/bundles/batch-01.json",
       "source_archive_file_count": 2,
       "source_archive_status": "full_source",
       "classification": "production",
-      "review_status": "production runtime; source-health and super-admin jobseeker reads restored; deployment hash tracked against live inventory"
+      "review_status": "production runtime; resume draft CRUD is scoped by workspace and owner member; RLS and service-role-only table access verified; source and live artifact captured"
     },
     {
       "slug": "coach-bootstrap",
