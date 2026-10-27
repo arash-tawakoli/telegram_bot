@@ -4,8 +4,8 @@
       "version": "20261027215300",
       "name": "coach_resume_drafts",
       "file": "supabase/migrations/20261027215300_coach_resume_drafts.sql",
-      "registry_sql_sha256": "ce283c52c1e50e2e0758eb2ba1d8d63eb0a7e12361588fd86259e38359310a49",
-      "export_sql_sha256": "ce283c52c1e50e2e0758eb2ba1d8d63eb0a7e12361588fd86259e38359310a49",
+      "registry_sql_sha256": "6f2e05da231b8162cb06d9f930dde157f8706c828fbc00808d29d06463822fe1",
+      "export_sql_sha256": "6f2e05da231b8162cb06d9f930dde157f8706c828fbc00808d29d06463822fe1",
       "vault_substitution": false
     }
   ]
