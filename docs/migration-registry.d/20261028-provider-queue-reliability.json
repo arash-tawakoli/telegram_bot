@@ -1,0 +1,28 @@
+{
+  "migrations": [
+    {
+      "version": "20261028132000",
+      "name": "prioritize_sh_source_polling",
+      "file": "supabase/migrations/20261028132000_prioritize_sh_source_polling.sql",
+      "registry_sql_sha256": "f3ad419da8b3fec23f1fd24d0f3792f867dd6b96349954753939bee7645d2c7b",
+      "export_sql_sha256": "f3ad419da8b3fec23f1fd24d0f3792f867dd6b96349954753939bee7645d2c7b",
+      "vault_substitution": false
+    },
+    {
+      "version": "20261028133000",
+      "name": "recover_expired_category_stream_leases",
+      "file": "supabase/migrations/20261028133000_recover_expired_category_stream_leases.sql",
+      "registry_sql_sha256": "a3a6baa62cd655e09133ad1f97954cccf2ca4ecff5b55fcdfea2a9c11f81cc2f",
+      "export_sql_sha256": "a3a6baa62cd655e09133ad1f97954cccf2ca4ecff5b55fcdfea2a9c11f81cc2f",
+      "vault_substitution": false
+    },
+    {
+      "version": "20261028134000",
+      "name": "increase_application_queue_drain_frequency",
+      "file": "supabase/migrations/20261028134000_increase_application_queue_drain_frequency.sql",
+      "registry_sql_sha256": "1bcb356adcfc9df4a37ce5a583cd7d4e4909ebf7cde2f2e4358f363f0c07f36a",
+      "export_sql_sha256": "1bcb356adcfc9df4a37ce5a583cd7d4e4909ebf7cde2f2e4358f363f0c07f36a",
+      "vault_substitution": false
+    }
+  ]
+}
