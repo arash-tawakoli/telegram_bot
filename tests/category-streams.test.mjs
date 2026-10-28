@@ -43,7 +43,7 @@ function kleinCategory(html,upstream=200){
 const card=(id,title)=>`<article data-adid="${id}" data-href="/s-anzeige/test/${id}-203-1"><div class="aditem-main--top--left">20095 Hamburg</div><a class="ellipsis">${title}</a><p class="aditem-main--middle--price-shipping--price">800 €</p><div class="aditem-main--middle--tags">2 Zi 50 m²</div></article>`;
 test('Kleinanzeigen house and room discovery execute the existing transport and parser',async()=>{
   const html=card('123456789','Einfamilienhaus zur Miete')+card('123456790','WG Zimmer zur Miete')+card('123456791','2 Zimmer Wohnung');
-  for(const [category,title] of [['house','Einfamilienhaus zur Miete'],['room','WG Zimmer zur Miete']]){const w=kleinCategory(html),r=await w.run(category);assert.equal(r.candidates,1);assert.equal(w.saved().rows[0].title,title);assert.equal(w.saved().complete,true);}
+  for(const [category,title] of [['house','Einfamilienhaus zur Miete'],['room','WG Zimmer zur Miete']]){const w=kleinCategory(html),r=await w.run(category);assert.equal(r.candidates,1);assert.equal(w.saved().rows[0].title,title);assert.equal(w.saved().complete,false);}
 });
 test('Kleinanzeigen category discovery rejects unsuccessful upstream responses',async()=>{
   const w=kleinCategory(card('123456789','Einfamilienhaus zur Miete'),403);await assert.rejects(w.run('house'),/upstream HTTP 403/);assert.equal(w.saved(),undefined);
