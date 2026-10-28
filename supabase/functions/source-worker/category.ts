@@ -61,7 +61,7 @@ async function runHtmlCategory(source:Source,stream:any){
 type WgGesuchtSHCity = { slug: string; id: string; name?: string | null };
 type WgGesuchtSHQueueItem = { url: string; city: string | null };
 const WG_SH_DIRECTORY_URL = "https://www.wg-gesucht.de/staedte-in-schleswig-holstein.13.html";
-const WG_SH_BATCH_SIZE = 60;
+const WG_SH_BATCH_SIZE = 10;
 let wgSHCityCache: { at: number; cities: WgGesuchtSHCity[] } | null = null;
 let wgSHOfficialCityKeysCache: { at: number; keys: Set<string> } | null = null;
 
@@ -231,7 +231,7 @@ export function wgGesuchtVerifiedEmptyResult(html: string, category: string): bo
     if (count) return Number(count[1]) === 0;
   }
   if (/href=["'][^"'<>]*\/[^/"'<>]*\.\d{6,}\.html(?:[?#][^"'<>]*)?["']/i.test(html)) return false;
-  if (/\b\d+\s+Angebot(?:e)?\s+in allen Kategorien\b/i.test(headings)) return true;
+  if (/\b0\s+Angebot(?:e)?\s+in allen Kategorien\b/i.test(headings)) return true;
   return /keine (?:passenden )?(?:angebote|anzeigen|immobilien)|0 (?:angebote|treffer)|leider (?:gibt es|haben wir) (?:aktuell )?keine/i.test(headings);
 }
 

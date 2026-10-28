@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readdirSync,readFileSync,statSync} from 'node:fs';
 import {join} from 'node:path';
+import {fileURLToPath} from 'node:url';
 
 function files(dir){
   const out=[];
@@ -14,7 +15,7 @@ function files(dir){
 }
 
 test('runtime architecture has no legacy Schnellbewerbung/manual apply callback path',()=>{
-  const root=new URL('../supabase/functions/',import.meta.url).pathname;
+  const root=fileURLToPath(new URL('../supabase/functions/',import.meta.url));
   const hits=[];
   for(const p of files(root)){
     const s=readFileSync(p,'utf8');

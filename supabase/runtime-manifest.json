@@ -903,18 +903,18 @@
       "verify_jwt": false,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "20017129f5f3c6a2c87e8625287a64ec64e47e555f6fc2c7491b2444e0b857de",
+      "observed_artifact_sha256": "921a759ba80c40b804d686d296325966eeaeba1c26e08f790febb6d6955ceff9",
       "entrypoint": "supabase/functions/notification-dispatcher/index.ts",
       "files": [
         {
           "path": "supabase/functions/notification-dispatcher/index.ts",
-          "sha256": "44fd5cf7798c85ba56cd1bd52788e1f1dc3acd77236ebf24b759f93eb4104dae",
-          "deployed_sha256": "44fd5cf7798c85ba56cd1bd52788e1f1dc3acd77236ebf24b759f93eb4104dae"
+          "sha256": "21843f7028e2eb9c4b98ae037193d12f18b10f4f34ae9e789673bbf0d8248c76",
+          "deployed_sha256": "21843f7028e2eb9c4b98ae037193d12f18b10f4f34ae9e789673bbf0d8248c76"
         },
         {
           "path": "supabase/functions/notification-dispatcher/availability.ts",
-          "sha256": "988c94c6cb00d8ab1fa0609997ff2dcc4bc6f32a09cfc5f239571c14d0a90b47",
-          "deployed_sha256": "988c94c6cb00d8ab1fa0609997ff2dcc4bc6f32a09cfc5f239571c14d0a90b47"
+          "sha256": "64277cd6131fa2c7464f4c93037e801e12a5dc982c9682800a93ec7b6121fc17",
+          "deployed_sha256": "64277cd6131fa2c7464f4c93037e801e12a5dc982c9682800a93ec7b6121fc17"
         },
         {
           "path": "supabase/functions/notification-dispatcher/newness.ts",
@@ -928,8 +928,8 @@
         },
         {
           "path": "supabase/functions/notification-dispatcher/telegram-request.ts",
-          "sha256": "5825dcd59ee688226557b7a16762b52e4ed217ee9aef2eb25ce41ade6186099e",
-          "deployed_sha256": "5825dcd59ee688226557b7a16762b52e4ed217ee9aef2eb25ce41ade6186099e"
+          "sha256": "cb7d11292653e2de6da6378c427899f195feca3c55f7fa71f68c0878c4da7938",
+          "deployed_sha256": "cb7d11292653e2de6da6378c427899f195feca3c55f7fa71f68c0878c4da7938"
         },
         {
           "path": "supabase/functions/notification-dispatcher/source-facts.ts",
@@ -952,9 +952,9 @@
           "deployed_sha256": "4d9929f90c15e7e94acf5b8a24273abb7020da0d896f45109f7c31466a21ebb8"
         }
       ],
-      "observed_live_version": 354,
+      "observed_live_version": 363,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "f25a728db441a245203766694a941adeccd8ecf9cdcaf2a0b9545b14156746d9",
+      "observed_live_artifact_sha256": "921a759ba80c40b804d686d296325966eeaeba1c26e08f790febb6d6955ceff9",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-18.json",
       "source_archive_file_count": 9,
       "source_archive_status": "full_source",
@@ -1090,7 +1090,7 @@
       "verify_jwt": false,
       "import_map": true,
       "retired": false,
-      "observed_artifact_sha256": "ddc9e4a45550d89a980bf7804fe800fac169d932fd63354673fbec81ee088003",
+      "observed_artifact_sha256": "8efacebb97f82e9ba61b969bfd60b8362c39067db119f8bb4c53c2877314d97f",
       "entrypoint": "supabase/functions/source-worker/index.ts",
       "files": [
         {
@@ -1120,8 +1120,8 @@
         },
         {
           "path": "supabase/functions/source-worker/scout.ts",
-          "git_blob_sha": "f67b5cd00f8f7a5a5825ded35967839d807e1358",
-          "deployed_git_blob_sha": "f67b5cd00f8f7a5a5825ded35967839d807e1358"
+          "git_blob_sha": "e0f9def87313518e898a68c73d3910052c077108",
+          "deployed_git_blob_sha": "e0f9def87313518e898a68c73d3910052c077108"
         },
         {
           "path": "supabase/functions/source-worker/category-persist.ts",
@@ -1135,8 +1135,8 @@
         },
         {
           "path": "supabase/functions/source-worker/klein.ts",
-          "git_blob_sha": "30616178bfeffabd447975ea6a65cd08513f823f",
-          "deployed_git_blob_sha": "30616178bfeffabd447975ea6a65cd08513f823f"
+          "git_blob_sha": "792a4afea7cf5e6acc64d5d68c9817abc10b3b8e",
+          "deployed_git_blob_sha": "792a4afea7cf5e6acc64d5d68c9817abc10b3b8e"
         },
         {
           "path": "supabase/functions/kleinanzeigen-transport/fetch-page.ts",
@@ -1205,8 +1205,8 @@
         },
         {
           "path": "supabase/functions/source-worker/category.ts",
-          "git_blob_sha": "f22a45b143c002307f198ce97ab073f9898b1fe3",
-          "deployed_git_blob_sha": "f22a45b143c002307f198ce97ab073f9898b1fe3"
+          "git_blob_sha": "cd4dd008ebf356c7b00e833ac85e3aadfdb54969",
+          "deployed_git_blob_sha": "cd4dd008ebf356c7b00e833ac85e3aadfdb54969"
         },
         {
           "path": "supabase/functions/covivio-feed/handler.ts",
@@ -1259,9 +1259,9 @@
           "deployed_git_blob_sha": "4d1c8b364256e43b5c3145c7cc6398b111a55b2c"
         }
       ],
-      "observed_live_version": 144,
+      "observed_live_version": 148,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "9221f5da8a6f409a03ed9b13566ec07a0e71934b3520277068e4edadb06c1bc8",
+      "observed_live_artifact_sha256": "8efacebb97f82e9ba61b969bfd60b8362c39067db119f8bb4c53c2877314d97f",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-19.json",
       "source_archive_file_count": 33,
       "source_archive_status": "full_source",

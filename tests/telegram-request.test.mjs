@@ -10,6 +10,14 @@ test('confirmed image rejection may use image fallback',async()=>{
 test('Telegram retry_after is preserved',async()=>{
  await assert.rejects(telegramRequest('https://test',{},async()=>Response.json({ok:false,description:'Too Many Requests',parameters:{retry_after:300}},{status:429})),e=>e.retryAfter===300&&!e.allowImageFallback);
 });
+test('caller cancellation reaches Telegram transport',async()=>{
+ const controller=new AbortController();
+ await assert.rejects(telegramRequest('https://test',{signal:controller.signal},async(_url,init)=>{
+  controller.abort();
+  assert.equal(init.signal.aborted,true);
+  throw new Error('aborted');
+ }),e=>e instanceof TelegramFailure&&e.outcomeUnknown);
+});
 test('pacing waits until the persistent slot and refuses slots beyond the run budget',async()=>{
  let now=1000;const db={rpc:async()=>({data:new Date(16000).toISOString(),error:null})};
  assert.equal(await waitForDispatchSlot(db,'owner',20000,()=>now,async ms=>{now+=ms}),true);assert.equal(now,16000);

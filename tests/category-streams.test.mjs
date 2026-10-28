@@ -38,7 +38,7 @@ function kleinCategory(html,upstream=200){
   const code=stripTypeScriptTypes(klein.replace(/^import[^;]+;\n/gm,'').replaceAll('export ',''));
   const scope={Response,AbortSignal,Date,URL,console,iso:()=>new Date().toISOString(),HH_ZIPS:new Set(['20095']),decode:s=>s,strip:s=>s.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim(),deNum:s=>{const n=Number(String(s??'').replace(/[^\d.,]/g,'').replace(',','.'));return Number.isFinite(n)?n:null},fetchListingPage:async()=>new Response(html,{headers:{'x-upstream-status':String(upstream)}}),persistCategoryListings:async(_source,_stream,rows,complete)=>{saved={rows,complete};return{seen:rows.length,fresh:0}}};
   vm.runInNewContext(code,scope);
-  return{run:category=>scope.runKleinCategory({id:2},{category}),saved:()=>saved};
+  return{run:category=>scope.runKleinCategory({id:2,search_capabilities:{region_state_code:'HH'}},{category,url:category==='house'?'https://www.kleinanzeigen.de/s-haus-mieten/hamburg/c205l20095':'https://www.kleinanzeigen.de/s-zimmer-mieten/hamburg/c199l20095'}),saved:()=>saved};
 }
 const card=(id,title)=>`<article data-adid="${id}" data-href="/s-anzeige/test/${id}-203-1"><div class="aditem-main--top--left">20095 Hamburg</div><a class="ellipsis">${title}</a><p class="aditem-main--middle--price-shipping--price">800 €</p><div class="aditem-main--middle--tags">2 Zi 50 m²</div></article>`;
 test('Kleinanzeigen house and room discovery execute the existing transport and parser',async()=>{

@@ -121,7 +121,7 @@ test('WG-Gesucht only accepts category-specific empty headings as verified empty
   );
   assert.equal(
     scope.wgGesuchtVerifiedEmptyResult('<h2>1 Angebot in allen Kategorien in Ammersbek</h2>', 'house'),
-    true,
+    false,
   );
   assert.equal(
     scope.wgGesuchtVerifiedEmptyResult('<h2>1 Angebot in allen Kategorien in Ammersbek</h2><a href="/14216536.html">Hausangebot</a>', 'house'),
@@ -131,7 +131,7 @@ test('WG-Gesucht only accepts category-specific empty headings as verified empty
 
 test('regional crawl batch limits remain bounded', () => {
   assert.match(categorySource, /const WG_SH_BATCH_SIZE = 10;/);
-  assert.match(kleinSource, /const maxPagesPerRun=6;/);
+  assert.match(kleinSource, /const maxPagesPerRun=2;/);
 });
 
 test('Kleinanzeigen category pagination supports both provider route layouts', () => {

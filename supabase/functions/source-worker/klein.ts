@@ -193,7 +193,7 @@ export async function runKleinCategory(source:Source,stream:any){
   let allEmptyVerified=reset?true:prior.all_empty_verified!==false;
   const rows:Candidate[]=[];
   let requests=0,parsedCount=0,complete=false,verifiedEmpty=false;
-  const maxPagesPerRun=6;
+  const maxPagesPerRun=2;
   for(let index=0;index<maxPagesPerRun;index++){
     const page=await fetchKleinCategoryPage(base,nextPage,regionStateCode);
     requests++;

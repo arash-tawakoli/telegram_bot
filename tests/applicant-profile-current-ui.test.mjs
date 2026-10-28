@@ -11,7 +11,7 @@ test('Telegram applicant profile uses one current UI for existing and future use
     read('supabase/migrations/20260930115818_unify_current_applicant_profile_ui_v2.sql'),
   ]);
 
-  assert.match(fast, /b\("E-Mail \*","platforms:profile-field:email"\)/);
+  assert.match(fast, /fieldButton\("email","E-Mail"\)/);
   assert.match(core, /email:\{label:'E-Mail-Adresse',required:true/);
   assert.match(core, /f\('email','E-Mail \*'\)/);
   assert.doesNotMatch(fast, /<b>Pflichtfelder pro Portal<\/b>/);
