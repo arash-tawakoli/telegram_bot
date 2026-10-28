@@ -24,7 +24,7 @@ test('Kleinanzeigen cannot continue crawling after a failed cursor read',async()
 test('Immomio fails when it cannot reconcile active inventory',async()=>{
  let successes=0;
  let writes=0;
- const run=load('immomio',{db:failingDb(),fetch:async()=>({ok:true,json:async()=>({data:{propertyList:{page:{page:0,size:250,totalPages:0,totalElements:0},nodes:[]}}})}),upsertCandidates:async()=>{writes++;return {seen:0,fresh:0}},markFailure:async()=>({ok:false}),markSuccess:async()=>{successes++}},';runImmomio;');
+ const run=load('immomio',{db:failingDb(),fetch:async()=>({ok:true,json:async()=>({data:{propertyList:{page:{page:0,size:250,totalPages:1,totalElements:1},nodes:[{propertyType:'FLAT',marketingType:'RENT',status:'AVAILABLE',address:{city:'Hamburg',zipCode:'20095'},applicationLink:'https://tenant.immomio.com/de/apply/12345678-1234-1234-1234-123456789abc',objectId:'obj-1',externalId:'ext-1'}]}}})}),upsertCandidates:async()=>{writes++;return {seen:0,fresh:0}},markFailure:async()=>({ok:false}),markSuccess:async()=>{successes++}},';runImmomio;');
  assert.equal((await run({id:23,baseline_completed_at:'2026-08-01'},{config:{url:'https://homepage.immomio.com/?token=fixture'}})).ok,false);assert.equal(successes,0);assert.equal(writes,1);
 });
 const config={mandator_id:'123',server:'example.test',mandator_hash:'fixture',object_identifiers:[1],presentation_id:'fixture'};
