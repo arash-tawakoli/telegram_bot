@@ -1,0 +1,12 @@
+{
+  "migrations": [
+    {
+      "version": "20261027222332",
+      "name": "coach_resume_drafts",
+      "file": "supabase/migrations/20261027222332_coach_resume_drafts.sql",
+      "registry_sql_sha256": "6f2e05da231b8162cb06d9f930dde157f8706c828fbc00808d29d06463822fe1",
+      "export_sql_sha256": "6f2e05da231b8162cb06d9f930dde157f8706c828fbc00808d29d06463822fe1",
+      "vault_substitution": false
+    }
+  ]
+}

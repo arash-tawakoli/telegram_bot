@@ -378,10 +378,26 @@ async function applicationPage(a:any,scope='all',input:any={}){
  if(error||!data)throw Error('applications_read_failed');
  return{...data,applications:(data.applications||[]).map((x:any)=>({...without(x,'user_id'),participant:publicByUser.get(String(x.user_id))||null}))};
 }
+async function dashboardParticipantSummary(a:any,scope='all',providedAssignments:any[]|null=null){
+ const data:any[]=providedAssignments||await visibleAssignments(a,scope),users=data.map(x=>x.user_id);
+ const readiness=await readinessCore(users);
+ return data.map((x:any)=>{
+  const u=x.bot_users||{},ready=readinessView(readiness.get(String(x.user_id)),x.status);
+  return{
+   participantId:x.public_id,coachMemberId:x.coach_member_id,coach:x.coach||null,status:x.status,
+   retentionMode:x.retention_mode,retentionDeleteOn:x.retention_delete_on,updatedAt:x.updated_at,createdAt:x.created_at,
+   participant:{firstName:u.first_name,lastName:u.last_name,isActive:u.is_active,origin:u.origin,telegramConnected:u.telegram_user_id!=null,isPremium:ready.isPremium,planOverride:u.plan_override||null,planExpiresAt:u.plan_override_expires_at,referralBonusUntil:u.referral_bonus_until},
+   profile:null,automation:{enabled:ready.automationEnabled},readiness:{...ready,searchProfileCount:ready.activeSearchCount},
+   applications:{total:0,sent:0,failed:0,pending:0}
+  };
+ });
+}
 async function dashboardData(a:any,scope='all',input:any={}){
  const assignments=await visibleAssignments(a,scope);
- const participants=await participantSummary(a,scope,assignments);
- const dashboard=await admin.rpc('coach_dashboard_application_summary_v1',{p_user_ids:assignments.map((x:any)=>String(x.user_id)),p_days:filterDays(input.days)});
+ const [participants,dashboard]=await Promise.all([
+  dashboardParticipantSummary(a,scope,assignments),
+  admin.rpc('coach_dashboard_application_summary_v1',{p_user_ids:assignments.map((x:any)=>String(x.user_id)),p_days:filterDays(input.days)})
+ ]);
  if(dashboard.error)throw Error('dashboard_applications_read_failed');
  const summary=dashboard.data||{};
  const connections={immoscout:0,kleinanzeigen:0,immomio:0,immowelt:0};
@@ -574,12 +590,84 @@ async function importCandidates(a:any,includeUserId=false){
  }));
 }
 
+
+function resumeText(value:any,max=5000){
+ return String(value??'').replace(/\r\n?/g,'\n').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g,'').split('\n').map((line:string)=>line.replace(/[ \t]+/g,' ').trim()).join('\n').trim().slice(0,max);
+}
+function normalizeResumeData(input:any){
+ if(!input||typeof input!=='object'||Array.isArray(input))throw Error('resume_data_invalid');
+ const p=input.personal&&typeof input.personal==='object'&&!Array.isArray(input.personal)?input.personal:{};
+ const list=(value:any,limit:number,max:number)=>{
+  const values=Array.isArray(value)?value:typeof value==='string'?value.split(/\r?\n/):[];
+  return values.slice(0,limit).map((value:any)=>resumeText(value,max)).filter(Boolean);
+ };
+ const experience=Array.isArray(input.experience)?input.experience.slice(0,20).filter((x:any)=>x&&typeof x==='object'&&!Array.isArray(x)).map((x:any)=>({
+  role:resumeText(x.role,240),company:resumeText(x.company,240),location:resumeText(x.location,240),
+  startDate:resumeText(x.startDate,24),endDate:resumeText(x.endDate,24),current:x.current===true,
+  description:resumeText(x.description,5000)
+ })).filter((x:any)=>[x.role,x.company,x.location,x.startDate,x.endDate,x.description].some(Boolean)):[];
+ const education=Array.isArray(input.education)?input.education.slice(0,20).filter((x:any)=>x&&typeof x==='object'&&!Array.isArray(x)).map((x:any)=>({
+  degree:resumeText(x.degree,240),institution:resumeText(x.institution,240),location:resumeText(x.location,240),
+  startDate:resumeText(x.startDate,24),endDate:resumeText(x.endDate,24),description:resumeText(x.description,3000)
+ })).filter((x:any)=>[x.degree,x.institution,x.location,x.startDate,x.endDate,x.description].some(Boolean)):[];
+ const languages=Array.isArray(input.languages)?input.languages.slice(0,30).filter((x:any)=>x&&typeof x==='object'&&!Array.isArray(x)).map((x:any)=>({name:resumeText(x.name,120),level:resumeText(x.level,120)})).filter((x:any)=>x.name||x.level):[];
+ const links=Array.isArray(input.links)?input.links.slice(0,20).filter((x:any)=>x&&typeof x==='object'&&!Array.isArray(x)).map((x:any)=>({label:resumeText(x.label,120),url:resumeText(x.url,500)})).filter((x:any)=>x.label||x.url):[];
+ const data={
+  personal:{
+   firstName:resumeText(p.firstName,120),lastName:resumeText(p.lastName,120),email:resumeText(p.email,320),
+   phone:resumeText(p.phone,100),address:resumeText(p.address,240),postalCode:resumeText(p.postalCode,24),
+   city:resumeText(p.city,120),website:resumeText(p.website,500),linkedin:resumeText(p.linkedin,500)
+  },
+  targetRole:resumeText(input.targetRole,180),summary:resumeText(input.summary,5000),
+  experience,education,skills:list(input.skills,80,120),languages,
+  certificates:list(input.certificates,40,240),links,sourceText:resumeText(input.sourceText,40000)
+ };
+ if(JSON.stringify(data).length>85000)throw Error('resume_too_large');
+ return data;
+}
+async function listResumeDrafts(a:any){
+ const{data,error}=await admin.from('coach_resume_drafts').select('id,title,resume_data,created_at,updated_at')
+  .eq('workspace_id',a.member.workspace_id).eq('owner_member_id',a.member.id)
+  .order('updated_at',{ascending:false}).limit(100);
+ if(error)throw Error('resume_read_failed');
+ return{drafts:(data||[]).map((row:any)=>({id:row.id,title:row.title,data:row.resume_data,createdAt:row.created_at,updatedAt:row.updated_at}))};
+}
+async function saveResumeDraft(a:any,body:any){
+ const title=clean(body.title,120)||'Mein Lebenslauf',resumeData=normalizeResumeData(body.data);
+ const id=body.draftId?uuid(body.draftId):null;
+ let row:any;
+ if(id){
+  const{data,error}=await admin.from('coach_resume_drafts').update({title,resume_data:resumeData,updated_at:new Date().toISOString()})
+   .eq('id',id).eq('workspace_id',a.member.workspace_id).eq('owner_member_id',a.member.id)
+   .select('id,title,resume_data,created_at,updated_at').maybeSingle();
+  if(error)throw Error('resume_save_failed');
+  if(!data)throw Error('resume_not_found');
+  row=data;
+ }else{
+  const{data,error}=await admin.from('coach_resume_drafts').insert({workspace_id:a.member.workspace_id,owner_member_id:a.member.id,title,resume_data:resumeData})
+   .select('id,title,resume_data,created_at,updated_at').single();
+  if(error||!data)throw Error('resume_save_failed');
+  row=data;
+ }
+ await audit(a,null,'resume_draft_saved',{resume_id:row.id});
+ return{draft:{id:row.id,title:row.title,data:row.resume_data,createdAt:row.created_at,updatedAt:row.updated_at}};
+}
+async function deleteResumeDraft(a:any,body:any){
+ const id=uuid(body.draftId);
+ const{data,error}=await admin.from('coach_resume_drafts').delete().eq('id',id)
+  .eq('workspace_id',a.member.workspace_id).eq('owner_member_id',a.member.id).select('id').maybeSingle();
+ if(error)throw Error('resume_delete_failed');
+ if(!data)throw Error('resume_not_found');
+ await audit(a,null,'resume_draft_deleted',{resume_id:id});
+ return{ok:true};
+}
+
 async function handle(req:Request){
  const actual=await actor(req),body=await req.json().catch(()=>({})),action=String(body.action||'');
  let a=actual;
  if(body.previewMemberId){
   if(actual.member.role!=='admin')throw Error('admin_required');
-  const allowed=new Set(['me','members','locations','participants','participant','dashboard','applications','analytics','open_document','application_events']);
+  const allowed=new Set(['me','members','locations','participants','participant','dashboard','applications','analytics','open_document','application_events','resume_list']);
   if(!allowed.has(action))throw Error('preview_read_only');
   const{data:preview,error}=await admin.from('coaching_members').select('id,auth_user_id,workspace_id,display_name,role,is_active')
    .eq('id',uuid(body.previewMemberId)).eq('workspace_id',actual.member.workspace_id).eq('role','coach').eq('is_active',true).maybeSingle();
@@ -587,6 +675,9 @@ async function handle(req:Request){
   a={...actual,member:preview};
  }
  if(['jobseekers','jobseeker'].includes(action)&&actual.member.is_super_admin!==true)throw Error('super_admin_required');
+ if(action==='resume_list')return listResumeDrafts(a);
+ if(action==='resume_save')return saveResumeDraft(a,body);
+ if(action==='resume_delete')return deleteResumeDraft(a,body);
  if(action==='me')return{member:{id:actual.member.id,displayName:actual.member.display_name,role:publicMemberRole(actual.member.role,actual.member.is_super_admin)},workspace:{name:a.workspace.name}};
  if(action==='members'){const{data,error}=await admin.from('coaching_members').select('id,display_name,role,is_super_admin,is_active,created_at'+(a.member.role==='admin'?',coaching_participants!coaching_participants_workspace_id_coach_member_id_fkey(user_id)':'')).eq('workspace_id',a.member.workspace_id).order('display_name');if(error)throw Error('members_read_failed');return{members:(data||[]).map((x:any)=>({id:x.id,displayName:x.display_name,role:publicMemberRole(x.role,x.is_super_admin),isActive:x.is_active,createdAt:x.created_at,...(a.member.role==='admin'?{participantCount:x.coaching_participants?.length||0}:{})}))};}
  if(action==='locations'){
@@ -783,7 +874,7 @@ async function handle(req:Request){
  if(action==='set_coach_active'){if(a.member.role!=='admin')throw Error('admin_required');const id=uuid(body.memberId);if(id===a.member.id)throw Error('coach_unavailable');const{data:member,error:memberError}=await admin.from('coaching_members').select('id,role,is_super_admin').eq('id',id).eq('workspace_id',a.member.workspace_id).maybeSingle();if(memberError||!member||member.is_super_admin===true||!(member.role==='coach'||(a.member.is_super_admin===true&&member.role==='admin')))throw Error('member_management_forbidden');const{data:updated,error}=await admin.from('coaching_members').update({is_active:Boolean(body.active),updated_at:new Date().toISOString()}).eq('id',id).eq('workspace_id',a.member.workspace_id).select('id').maybeSingle();if(error)throw Error('coach_update_failed');if(!updated)throw Error('coach_unavailable');await audit(a,null,'coach_status_changed',{member_id:id,active:Boolean(body.active)});return{ok:true};}
  throw Error('invalid_action');
 }
-function publicError(error:any){const code=String(error?.message||'coach_api_failed').slice(0,160);const known=new Set(['unauthorized','coach_forbidden','workspace_unavailable','participant_forbidden','admin_required','invalid_id','invalid_participant','invalid_email','invalid_number','invalid_member_role','provider_unsupported','invalid_property_type','invalid_location','invalid_search_limits','location_required','invalid_document','invalid_document_type','invalid_document_path','upload_not_found','upload_invalid','document_not_found','document_open_failed','invalid_retention_date','password_too_short','cannot_disable_self','premium_required','import_candidates_failed','import_candidate_invalid','participant_adopt_failed','participant_create_failed','participant_assignment_failed','participant_already_assigned','participant_unavailable','participant_delete_failed','participant_delete_restricted','participant_document_delete_failed','participant_block_failed','invalid_import_selection','request_id_required','request_id_conflict','request_in_progress','oauth_client_not_provisioned','configuration_unavailable','userinfo_failed','oauth_login_failed','provider_disconnect_failed','coach_unavailable','member_management_forbidden','super_admin_protected','super_admin_required','preview_read_only','invalid_password','coach_password_update_failed','coach_delete_failed','member_role_update_failed','deletion_confirmation_required','auth_flow_expired','jobseeker_read_failed']);return known.has(code)?code:(code.includes('profile_slot_not_allowed')?'profile_slot_not_allowed':'operation_failed');}
+function publicError(error:any){const code=String(error?.message||'coach_api_failed').slice(0,160);const known=new Set(['unauthorized','coach_forbidden','workspace_unavailable','participant_forbidden','admin_required','invalid_id','invalid_participant','invalid_email','invalid_number','invalid_member_role','provider_unsupported','invalid_property_type','invalid_location','invalid_search_limits','location_required','invalid_document','invalid_document_type','invalid_document_path','upload_not_found','upload_invalid','document_not_found','document_open_failed','invalid_retention_date','password_too_short','cannot_disable_self','premium_required','import_candidates_failed','import_candidate_invalid','participant_adopt_failed','participant_create_failed','participant_assignment_failed','participant_already_assigned','participant_unavailable','participant_delete_failed','participant_delete_restricted','participant_document_delete_failed','participant_block_failed','invalid_import_selection','request_id_required','request_id_conflict','request_in_progress','oauth_client_not_provisioned','configuration_unavailable','userinfo_failed','oauth_login_failed','provider_disconnect_failed','coach_unavailable','member_management_forbidden','super_admin_protected','super_admin_required','preview_read_only','invalid_password','coach_password_update_failed','coach_delete_failed','member_role_update_failed','deletion_confirmation_required','auth_flow_expired','jobseeker_read_failed','resume_data_invalid','resume_too_large','resume_not_found','resume_read_failed','resume_save_failed','resume_delete_failed']);return known.has(code)?code:(code.includes('profile_slot_not_allowed')?'profile_slot_not_allowed':'operation_failed');}
 
 Deno.serve(async req=>{
  if(req.method==='OPTIONS')return new Response(null,{status:204,headers:cors(req)});
