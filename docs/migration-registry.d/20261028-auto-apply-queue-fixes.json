@@ -1,0 +1,20 @@
+{
+  "migrations": [
+    {
+      "version": "20261028130000",
+      "name": "fix_application_queue_and_source_poll_priority",
+      "file": "supabase/migrations/20261028130000_fix_application_queue_and_source_poll_priority.sql",
+      "registry_sql_sha256": "5d6ecef2757a2b67e56c521fbb8d5f96c510181ed0c374bf88d8312bad0b2233",
+      "export_sql_sha256": "5d6ecef2757a2b67e56c521fbb8d5f96c510181ed0c374bf88d8312bad0b2233",
+      "vault_substitution": false
+    },
+    {
+      "version": "20261028131500",
+      "name": "fix_platform_connection_auth_status",
+      "file": "supabase/migrations/20261028131500_fix_platform_connection_auth_status.sql",
+      "registry_sql_sha256": "b803f480f2b3f5c678543bec6e3a191c935caf523f312fa32b7e2c1e88bf85fb",
+      "export_sql_sha256": "b803f480f2b3f5c678543bec6e3a191c935caf523f312fa32b7e2c1e88bf85fb",
+      "vault_substitution": false
+    }
+  ]
+}
