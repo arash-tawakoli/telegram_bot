@@ -231,7 +231,7 @@ export function wgGesuchtVerifiedEmptyResult(html: string, category: string): bo
     if (count) return Number(count[1]) === 0;
   }
   if (/href=["'][^"'<>]*\/[^/"'<>]*\.\d{6,}\.html(?:[?#][^"'<>]*)?["']/i.test(html)) return false;
-  if (/\b\d+\s+Angebot(?:e)?\s+in allen Kategorien\b/i.test(headings)) return true;
+  if (/\b0\s+Angebot(?:e)?\s+in allen Kategorien\b/i.test(headings)) return true;
   return /keine (?:passenden )?(?:angebote|anzeigen|immobilien)|0 (?:angebote|treffer)|leider (?:gibt es|haben wir) (?:aktuell )?keine/i.test(headings);
 }
 
