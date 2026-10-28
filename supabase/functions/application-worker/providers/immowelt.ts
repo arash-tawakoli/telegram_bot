@@ -315,7 +315,7 @@ async function immoweltFallbackSession(db:any,userId:string,connection:any,force
  return token?{ok:true,token,cookies,userAgent,refreshed:true,httpStatus:response.status}:{ok:false,error:'session_token_missing',cookies,userAgent,refreshed:true,httpStatus:response.status};
 }
 async function sendImmoweltSessionFallback(input:any){
- const{db,userId,connection,profile,listing,fullMessage}=input||{};
+ const{db,userId,connection,profile,listing,fullMessage,authorize,authorized=false}=input||{};
  let session=await immoweltFallbackSession(db,String(userId||''),connection);
  if(!session.ok)return{success:false,error:session.error||'session_fallback_unavailable',diagnostic:{transport:'contact_request_service_session_fallback',sessionRefreshed:!!session.refreshed,refreshHttpStatus:session.httpStatus||null}};
  const context=await immoweltContactContext(session,listing,profile);
@@ -364,6 +364,9 @@ async function sendImmoweltSessionFallback(input:any){
   }catch{return{response:null as any,text:'',networkError:true,diagnostic:null}}
   return{response,text,networkError:false,diagnostic:immoweltResponseDiagnostic(response.status,text)};
  };
+ if(!authorized){
+  if(typeof authorize!=='function'||await authorize()!==true)return{success:false,status:'pending',error:'send_not_authorized',diagnostic:{provider:'immowelt',transport:'contact_request_service_session_fallback',authorized:false,...mappingDiagnostic}};
+ }
  let attempt=await submit(session),authRetryAttempted=false;
  if(attempt.networkError)return{success:false,error:'session_fallback_network_error',diagnostic:{
   transport:'contact_request_service_session_fallback',sessionRefreshed:!!session.refreshed,
@@ -424,7 +427,16 @@ export async function sendImmoweltApplication(input:any){
  let estateGuid=ids.estateGuid;
  if(!estateGuid){
   const resolved=await immoweltEstateGuid(db,ids.onlineId||identifier);
-  if(!resolved.guid)return{success:false,status:'manual_required',error:resolved.error||'provider_identifier_unresolved',diagnostic:{provider:'immowelt',transport:'estate_guid_lookup',onlineId:ids.onlineId||identifier}};
+  if(!resolved.guid){
+   const resolveError=String(resolved.error||'provider_identifier_unresolved');
+   if(['provider_credentials_missing','provider_credentials_invalid','provider_identifier_unresolved'].includes(resolveError)){
+    const fallback=await sendImmoweltSessionFallback({db,userId,connection,profile,listing,fullMessage,authorize});
+    if(fallback?.success)return fallback;
+    if(fallback?.error==='send_not_authorized')return{success:false,status:'pending',error:'send_not_authorized',diagnostic:fallback.diagnostic||{provider:'immowelt',transport:'contact_request_service_session_fallback'}};
+    return{success:false,status:'manual_required',error:fallback?.error||resolveError,diagnostic:{provider:'immowelt',transport:'estate_guid_lookup_fallback',onlineId:ids.onlineId||identifier,originalError:resolveError,sessionFallback:fallback?.diagnostic||null}};
+   }
+   return{success:false,status:'manual_required',error:resolveError,diagnostic:{provider:'immowelt',transport:'estate_guid_lookup',onlineId:ids.onlineId||identifier}};
+  }
   estateGuid=String(resolved.guid).replace(/[{}-]/g,'').toUpperCase();
   if(!/^[0-9A-F]{32}$/.test(estateGuid))return{success:false,status:'manual_required',error:'provider_identifier_unresolved',diagnostic:{provider:'immowelt',transport:'estate_guid_lookup',onlineId:ids.onlineId||identifier}};
  }
@@ -464,7 +476,7 @@ export async function sendImmoweltApplication(input:any){
  if(success)return{success:true,status:'sent',confirmation:'immowelt_communication_service',diagnostic:{provider:'immowelt',transport:'communication_service_link_to_detail',httpStatus:response.status,onlineId:identifier,profileFields:['salutation','first_name','last_name','email','street','house_number','postcode','city','household_type','employment_status','income_range','move_in_preference','move_in_date'],phoneIncluded:!!phone,estateGuidProvided:true}};
  const explicitFalse=/<SendContactMailResult>\s*false\s*<\/SendContactMailResult>/i.test(text);
  if(explicitFalse){
-  const fallback=await sendImmoweltSessionFallback({db,userId,connection,profile,listing,fullMessage});
+  const fallback=await sendImmoweltSessionFallback({db,userId,connection,profile,listing,fullMessage,authorized:true});
   if(fallback?.success)return fallback;
   return{success:false,status:'manual_required',error:'provider_rejected',diagnostic:{provider:'immowelt',transport:'communication_service',httpStatus:response.status,authorized:true,soapResult:'false',estateGuidProvided:true,onlineId:ids.onlineId||identifier,sessionFallback:fallback?.diagnostic||{error:fallback?.error||'session_fallback_unavailable'}}};
  }
