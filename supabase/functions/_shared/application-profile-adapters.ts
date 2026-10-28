@@ -331,9 +331,14 @@ function preserveMessage(value:any){
  return String(value??'').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g,' ')
   .replace(/\r\n?/g,'\n').split('\n').map(line=>line.replace(/[ \t]+/g,' ').trim()).join('\n').trim().slice(0,4000);
 }
+const GENERIC_APPLICATION_MESSAGE='Guten Tag, ich interessiere mich für die angebotene Immobilie und freue mich über eine Rückmeldung.';
 export function applicationMessageFor(profile:any,listing:any){
  const field=applicationMessageField(listing);
- return{field,message:preserveMessage(profile?.[field])||null};
+ const specific=preserveMessage(profile?.[field]);
+ if(specific)return{field,message:specific,source:'category'};
+ const fallback=preserveMessage(profile?.default_message);
+ if(fallback)return{field,message:fallback,source:'default'};
+ return{field,message:GENERIC_APPLICATION_MESSAGE,source:'generic'};
 }
 
 export function profileAdapterSelfTest(){
@@ -352,7 +357,10 @@ export function profileAdapterSelfTest(){
   immomioHasNoRequirements:providerStaticMissing('immomio',{},'').length===0,
    immoweltRequiresSalutation:providerStaticMissing('immowelt',{first_name:'Alex',last_name:'Example',email:'alex@example.com'},'Message').includes('Anrede'),
   noAnswerToImmoScoutIsOmitted:providerSalutation('immoscout','NEUTRAL')===null,
-  immomioHasNoSalutation:providerSalutation('immomio','MR')===null
+  immomioHasNoSalutation:providerSalutation('immomio','MR')===null,
+  categoryMessageWins:applicationMessageFor({message_apartment:'Individuelle Nachricht',default_message:'Standardnachricht'},{property_type:'Wohnung'}).message==='Individuelle Nachricht',
+  defaultMessageFallback:applicationMessageFor({default_message:'Standardnachricht'},{property_type:'Wohnung'}).message==='Standardnachricht',
+  genericMessageFallback:applicationMessageFor({},{property_type:'Wohnung'}).message===GENERIC_APPLICATION_MESSAGE
  };
  return{ok:Object.values(checks).every(Boolean),checks};
 }
