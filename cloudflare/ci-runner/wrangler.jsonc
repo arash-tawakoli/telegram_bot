@@ -38,6 +38,12 @@
     }
   ],
   "vars": {
-    "CI_MAX_ARCHIVE_BYTES": "104857600"
-  }
+    "CI_MAX_ARCHIVE_BYTES": "314572800"
+  },
+  "r2_buckets": [
+    {
+      "binding": "CI_ARCHIVES",
+      "bucket_name": "nexalabs-ci-archives"
+    }
+  ]
 }
