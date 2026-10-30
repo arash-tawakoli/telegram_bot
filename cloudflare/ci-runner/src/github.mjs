@@ -7,15 +7,61 @@ function base64Url(value) {
   return btoa(binary).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
 }
 
-function privateKeyBytes(pem) {
-  const body = String(pem ?? "")
-    .replace(/-----BEGIN PRIVATE KEY-----/g, "")
-    .replace(/-----END PRIVATE KEY-----/g, "")
-    .replace(/\\s+/g, "");
-  if (!body) throw new Error("GitHub App private key is missing");
+function concatenate(parts) {
+  const length = parts.reduce((sum, part) => sum + part.length, 0);
+  const output = new Uint8Array(length);
+  let offset = 0;
+  for (const part of parts) {
+    output.set(part, offset);
+    offset += part.length;
+  }
+  return output;
+}
 
+function der(tag, content) {
+  const length = content.length;
+  let lengthBytes;
+  if (length < 128) {
+    lengthBytes = new Uint8Array([length]);
+  } else {
+    const bytes = [];
+    let remaining = length;
+    while (remaining > 0) {
+      bytes.unshift(remaining & 255);
+      remaining = Math.floor(remaining / 256);
+    }
+    lengthBytes = new Uint8Array([0x80 | bytes.length, ...bytes]);
+  }
+  return concatenate([new Uint8Array([tag]), lengthBytes, content]);
+}
+
+function privateKeyBytes(pem) {
+  const text = String(pem ?? "").trim();
+  const match = text.match(/-----BEGIN ([A-Z ]+)-----([\\s\\S]+?)-----END \\1-----/);
+  if (!match) throw new Error("GitHub App private key PEM is invalid");
+
+  const label = match[1];
+  const body = match[2].replace(/\\s+/g, "");
   const binary = atob(body);
-  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
+  const decoded = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+
+  if (label === "PRIVATE KEY") return decoded;
+  if (label !== "RSA PRIVATE KEY") {
+    throw new Error("GitHub App key must be an RSA PRIVATE KEY or PKCS8 PRIVATE KEY");
+  }
+
+  // Web Crypto imports PKCS#8. GitHub commonly downloads PKCS#1 RSA PEM keys,
+  // so wrap the PKCS#1 payload in the standard PKCS#8 PrivateKeyInfo structure.
+  const version = der(0x02, new Uint8Array([0]));
+  const rsaEncryptionOid = new Uint8Array([
+    0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01
+  ]);
+  const algorithm = der(0x30, concatenate([
+    der(0x06, rsaEncryptionOid),
+    der(0x05, new Uint8Array())
+  ]));
+  const privateKey = der(0x04, decoded);
+  return der(0x30, concatenate([version, algorithm, privateKey]));
 }
 
 export async function createGitHubAppJwt(env, now = Date.now()) {
