@@ -108,10 +108,10 @@ export class CIRunWorkflow extends WorkflowEntrypoint {
                 archiveBytes
               })
             }));
+            containerStarted = true;
             if (!begin.ok) {
               throw new Error(`Container rejected CI job initialization: HTTP ${begin.status}`);
             }
-            containerStarted = true;
 
             const chunkSize = 50 * 1024 * 1024;
             for (let offset = 0; offset < archiveBytes; offset += chunkSize) {
