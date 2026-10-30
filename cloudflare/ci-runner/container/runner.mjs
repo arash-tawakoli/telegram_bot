@@ -38,6 +38,7 @@ export function planForRepository(repository, workspace) {
         args: [
           "--test",
           "cloudflare/ci-runner/test/shared.test.mjs",
+          "cloudflare/ci-runner/test/github.test.mjs",
           "cloudflare/ci-runner/test/runner.test.mjs"
         ],
         cwd: workspace
