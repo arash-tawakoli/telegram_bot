@@ -40,6 +40,12 @@ export function planForRepository(repository, workspace) {
           "cloudflare/ci-runner/test/runner.test.mjs"
         ],
         cwd: workspace
+      },
+      {
+        name: "Validate repository architecture invariants",
+        command: "node",
+        args: ["cloudflare/ci-runner/scripts/verify-telegram-repo.mjs"],
+        cwd: workspace
       }
     ];
   }
