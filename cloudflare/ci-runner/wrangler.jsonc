@@ -45,5 +45,10 @@
       "binding": "CI_ARCHIVES",
       "bucket_name": "nexalabs-ci-archives"
     }
-  ]
+  ],
+  "triggers": {
+    "crons": [
+      "0 * * * *"
+    ]
+  }
 }
