@@ -13,7 +13,7 @@ GitHub remains the source-control and pull-request system. A GitHub App sends si
 - Only the two allowlisted repositories are accepted.
 - Push events run only for `main`; pull-request events run only for same-repository branches. Fork PRs are rejected.
 - The GitHub App private key and short-lived installation tokens remain in the Worker/Workflow runtime. They are never passed to the Container. The Worker accepts both GitHub's PKCS#1 RSA PEM and PKCS#8 PEM formats.
-- The Container receives only a source archive and non-secret job metadata.
+- The Container receives only non-secret job metadata and 50 MiB archive chunks streamed from a private R2 bucket. The GitHub token is never sent to the Container.
 - The optional Supabase Management API token remains in the Worker. The Worker compares the live function inventory itself; it is never passed to the Container.
 - The Durable Object Container has outbound Internet access for npm installs, but no GitHub or Supabase credentials.
 - Container concurrency is capped at three `standard-2` instances. Each instance sleeps after 30 seconds of inactivity.
@@ -22,7 +22,7 @@ GitHub remains the source-control and pull-request system. A GitHub App sends si
 
 Cloudflare Workflows are available on Workers Free. The current Free allowances include 3,000 Workflow steps per day and 1 GB-month of persisted Workflow state. Workers Free also has a 100,000-request daily account limit. Containers require Workers Paid, so the actual shell/build executor cannot be deployed until the account is upgraded.
 
-This runner does not use Workers Builds for each test run. Repository commands execute inside on-demand Containers. The Container usage is metered separately by active CPU, provisioned memory and disk; it is not an unlimited service. This configuration caps concurrency at three `standard-2` instances, limits each uploaded repository archive to 100 MB, limits the long-running Workflow step to 30 minutes, and sleeps idle containers after 30 seconds.
+This runner does not use Workers Builds for each test run. Repository commands execute inside on-demand Containers. The Container usage is metered separately by active CPU, provisioned memory and disk; it is not an unlimited service. This configuration caps concurrency at three `standard-2` instances, limits each repository archive to 300 MB, streams it through 50 MiB R2 chunks to stay below per-request limits, limits the long-running Workflow step to 30 minutes, and sleeps idle containers after 30 seconds.
 
 No Paid subscription is activated by this repository.
 
