@@ -26,7 +26,12 @@ export class CIContainer extends DurableObject {
     const url = new URL(request.url);
     url.protocol = "http:";
     url.host = "container";
-    const forwarded = new Request(url, request);
+    const forwarded = new Request(url, {
+      method: request.method,
+      headers: request.headers,
+      body: request.body,
+      redirect: request.redirect
+    });
     forwarded.headers.delete("host");
     return this.ctx.container.getTcpPort(8080).fetch(forwarded);
   }
@@ -35,6 +40,8 @@ export class CIContainer extends DurableObject {
     const container = this.ctx.container;
     if (!container) throw new Error("CI Container binding is unavailable");
 
+    await container.setInactivityTimeout(30_000);
+
     if (!container.running) {
       await container.start({
         image: container.images.base,
@@ -42,8 +49,6 @@ export class CIContainer extends DurableObject {
         enableInternet: true
       });
     }
-
-    await container.setInactivityTimeout(30_000);
     const port = container.getTcpPort(8080);
     let lastError;
 
@@ -75,7 +80,7 @@ export class CIRunWorkflow extends WorkflowEntrypoint {
         "run-isolated-repository-checks",
         {
           timeout: "30 minutes",
-          retries: { limit: 2, delay: "15 seconds", backoff: "exponential" }
+          retries: { limit: 5, delay: "15 seconds", backoff: "exponential" }
         },
         async () => {
           const token = await getGitHubInstallationToken(this.env);
