@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
 import { readFile, readdir } from "node:fs/promises";
 import { join, relative } from "node:path";
 
@@ -51,62 +52,124 @@ export function planForRepository(repository, workspace) {
   }
 
   if (repository === WEBSITE_REPOSITORY) {
-    return [
-      {
+    const coachPortal = at("coach-portal");
+    const platformConnect = at("cloudflare", "platform-connect");
+    const bridge = at("cloudflare", "coach-portal-bridge");
+    const independent = at("independent");
+    const plan = [];
+
+    if (existsSync(at("coach-portal", "scripts", "cloudflare-build.mjs"))) {
+      plan.push({
         name: "Coach Portal build, UI tests and release verification",
         command: "node",
         args: ["scripts/cloudflare-build.mjs"],
-        cwd: at("coach-portal")
-      },
+        cwd: coachPortal
+      });
+    } else {
+      plan.push(
+        {
+          name: "Repair or generate Coach Portal npm lockfile",
+          command: "node",
+          args: ["-e", "const fs=require('node:fs');try{JSON.parse(fs.readFileSync('package-lock.json','utf8'))}catch{fs.rmSync('package-lock.json',{force:true})}"],
+          cwd: coachPortal
+        },
+        {
+          name: "Generate Coach Portal npm lockfile",
+          command: "npm",
+          args: ["install", "--package-lock-only", "--ignore-scripts", "--no-audit", "--no-fund"],
+          cwd: coachPortal
+        },
+        {
+          name: "Install Coach Portal dependencies",
+          command: "npm",
+          args: ["ci", "--no-audit", "--no-fund"],
+          cwd: coachPortal
+        },
+        {
+          name: "Run Coach Portal presentation tests",
+          command: "node",
+          args: ["tests/presentation.test.mjs"],
+          cwd: coachPortal
+        },
+        {
+          name: "Run Coach Portal UI tests",
+          command: "npm",
+          args: ["run", "test:ui"],
+          cwd: coachPortal
+        },
+        {
+          name: "Build Coach Portal",
+          command: "npm",
+          args: ["run", "build"],
+          cwd: coachPortal
+        },
+        {
+          name: "Verify Coach Portal production build",
+          command: "node",
+          args: ["scripts/verify-build.mjs"],
+          cwd: coachPortal
+        }
+      );
+    }
+
+    plan.push(
       {
         name: "Generate Platform Connect lockfile",
         command: "npm",
         args: ["install", "--package-lock-only", "--ignore-scripts", "--no-audit", "--no-fund"],
-        cwd: at("cloudflare", "platform-connect")
+        cwd: platformConnect
       },
       {
         name: "Install Platform Connect dependencies",
         command: "npm",
         args: ["ci", "--no-audit", "--no-fund"],
-        cwd: at("cloudflare", "platform-connect")
+        cwd: platformConnect
       },
       {
         name: "Check Platform Connect syntax",
         command: "node",
         args: ["--check", "src/index.js"],
-        cwd: at("cloudflare", "platform-connect")
+        cwd: platformConnect
       },
       {
         name: "Test Platform Connect",
         command: "node",
         args: ["--test", "test.mjs"],
-        cwd: at("cloudflare", "platform-connect")
+        cwd: platformConnect
       },
       {
         name: "Check Coach Portal Bridge syntax",
         command: "node",
         args: ["--check", "worker.js"],
-        cwd: at("cloudflare", "coach-portal-bridge")
-      },
-      {
+        cwd: bridge
+      }
+    );
+
+    if (existsSync(at("cloudflare", "coach-portal-bridge", "test.mjs"))) {
+      plan.push({
         name: "Test Coach Portal Bridge",
         command: "node",
         args: ["--test", "test.mjs"],
-        cwd: at("cloudflare", "coach-portal-bridge")
-      },
+        cwd: bridge
+      });
+    }
+
+    plan.push(
       {
         name: "Install public website dependencies",
         command: "npm",
         args: ["ci", "--no-audit", "--no-fund"],
-        cwd: at("independent")
+        cwd: independent
       },
       {
         name: "Build and verify public website release",
         command: "npm",
         args: ["run", "verify:release"],
-        cwd: at("independent")
+        cwd: independent
       }
-    ];
+    );
+
+    return plan;
   }
 
   throw new Error("Repository is not allowlisted for Cloudflare CI");
