@@ -1,5 +1,4 @@
-import { WorkflowEntrypoint } from "cloudflare:workers";
-import { Container, getContainer } from "@cloudflare/containers";
+import { DurableObject, WorkflowEntrypoint } from "cloudflare:workers";
 import {
   ALLOWED_REPOSITORIES,
   compareLiveRuntime,
@@ -15,14 +14,55 @@ import {
 
 const TELEGRAM_REPOSITORY = "arash-tawakoli/telegram_bot";
 
-export class CIContainer extends Container {
-  defaultPort = 8080;
-  sleepAfter = "30s";
-  enableInternet = true;
-  envVars = {
-    NODE_ENV: "production",
-    CI_MAX_ARCHIVE_BYTES: "104857600"
-  };
+export class CIContainer extends DurableObject {
+  starting;
+
+  async fetch(request) {
+    this.starting ??= this.startAndWaitForPort().finally(() => {
+      this.starting = undefined;
+    });
+    await this.starting;
+
+    const url = new URL(request.url);
+    url.protocol = "http:";
+    url.host = "container";
+    const forwarded = new Request(url, request);
+    forwarded.headers.delete("host");
+    return this.ctx.container.getTcpPort(8080).fetch(forwarded);
+  }
+
+  async startAndWaitForPort() {
+    const container = this.ctx.container;
+    if (!container) throw new Error("CI Container binding is unavailable");
+
+    if (!container.running) {
+      await container.start({
+        image: container.images.base,
+        instance: "standard-2",
+        enableInternet: true
+      });
+    }
+
+    await container.setInactivityTimeout(30_000);
+    const port = container.getTcpPort(8080);
+    let lastError;
+
+    for (let attempt = 0; attempt < 100; attempt++) {
+      try {
+        const response = await port.fetch("http://container/health", {
+          signal: AbortSignal.timeout(1000)
+        });
+        await response.body?.cancel();
+        if (!response.ok) throw new Error("Container health check returned " + response.status);
+        return;
+      } catch (error) {
+        lastError = error;
+        await scheduler.wait(200);
+      }
+    }
+
+    throw new Error("CI Container did not become ready on port 8080", { cause: lastError });
+  }
 }
 
 export class CIRunWorkflow extends WorkflowEntrypoint {
@@ -40,10 +80,7 @@ export class CIRunWorkflow extends WorkflowEntrypoint {
         async () => {
           const token = await getGitHubInstallationToken(this.env);
           const archive = await fetchGitHubArchive(token, job);
-          const container = getContainer(
-            this.env.CI_CONTAINER,
-            `ci-${job.workflowId}`
-          );
+          const container = this.env.CI_CONTAINER.getByName(`ci-${job.workflowId}`);
 
           const response = await container.fetch(new Request("http://container/run", {
             method: "POST",
