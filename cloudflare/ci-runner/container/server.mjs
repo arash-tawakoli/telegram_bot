@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
@@ -88,7 +88,7 @@ const server = createServer(async (request, response) => {
     if (!totalBytes) return send(response, 400, { ok: false, summary: "Empty source archive" });
 
     await writeFile(archivePath, Buffer.concat(chunks));
-    await import("node:fs/promises").then(({ mkdir }) => mkdir(workspace, { recursive: true }));
+    await mkdir(workspace, { recursive: true });
     await extractArchive(archivePath, workspace);
 
     const result = await runRepositoryChecks(repository, workspace);
