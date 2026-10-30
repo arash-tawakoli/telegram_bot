@@ -64,11 +64,25 @@ Record:
 
 Do not use a personal access token. The Worker creates short-lived installation tokens automatically.
 
-### 3. Deploy after upgrading Workers Paid
+### 3. Enable R2 and create the temporary archive bucket
+
+R2 is not enabled on the current Cloudflare account yet. Enable it from Cloudflare Dashboard → Storage & databases → R2. R2 has a Free tier of 10 GB-month storage, 1 million Class A operations and 10 million Class B operations per month.
+
+Then create the Standard bucket in Western Europe:
+
+```sh
+npx wrangler r2 bucket create nexalabs-ci-archives --location weur
+```
+
+The Worker streams private GitHub source archives into this temporary bucket, transfers them to the Container in 50 MiB chunks, and deletes them after each run. An hourly Cron Trigger removes any archive left behind by an interrupted Workflow.
+
+### 4. Deploy after upgrading Workers Paid
 
 ```sh
 cd cloudflare/ci-runner
-npm ci
+npm install --ignore-scripts --no-audit --no-fund
+npm test
+npx wrangler types
 npx wrangler deploy
 npx wrangler secret put GITHUB_APP_ID
 npx wrangler secret put GITHUB_INSTALLATION_ID
@@ -84,7 +98,7 @@ npx wrangler secret put SUPABASE_ACCESS_TOKEN
 
 The Supabase token is used only by the Worker to call the Supabase Management API. It is never injected into the build Container.
 
-### 4. Configure GitHub App installation
+### 5. Configure GitHub App installation
 
 Install the App on both repositories and configure the webhook endpoint:
 
@@ -96,7 +110,7 @@ Enable Push and Pull request events. The Worker creates a commit status named:
 
 After the first successful run, configure this status as a required check in each repository's branch protection/ruleset.
 
-### 5. Retire GitHub-hosted runner workflow
+### 6. Retire GitHub-hosted runner workflow
 
 The existing `.github/workflows/architecture-check.yml` is changed to manual-only on this branch. Do not merge this branch until:
 
