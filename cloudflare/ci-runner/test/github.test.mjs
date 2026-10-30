@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createSign, generateKeyPairSync } from "node:crypto";
+import { createVerify, generateKeyPairSync } from "node:crypto";
 import { createGitHubAppJwt } from "../src/github.mjs";
 
 test("GitHub App JWT signs correctly with PKCS#1 and PKCS#8 PEM keys", async () => {
@@ -20,19 +20,11 @@ test("GitHub App JWT signs correctly with PKCS#1 and PKCS#8 PEM keys", async () 
     const [header, payload, signature] = jwt.split(".");
     assert.ok(header && payload && signature);
 
-    const verifier = createSign("RSA-SHA256");
-    verifier.update(`${header}.${payload}`);
-    verifier.end();
-
     const signatureBytes = Buffer.from(
       signature.replace(/-/g, "+").replace(/_/g, "/"),
       "base64"
     );
-    assert.equal(
-      pair.publicKey.verify ? true : false,
-      true
-    );
-    const verify = (await import("node:crypto")).createVerify("RSA-SHA256");
+    const verify = createVerify("RSA-SHA256");
     verify.update(`${header}.${payload}`);
     verify.end();
     assert.equal(verify.verify(publicKey, signatureBytes), true);
