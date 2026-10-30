@@ -7,9 +7,13 @@
   "containers": [
     {
       "class_name": "CIContainer",
-      "image": "./Dockerfile",
-      "max_instances": 3,
-      "instance_type": "standard-2"
+      "scheduling_policy": "durable_object",
+      "images": {
+        "base": {
+          "dockerfile": "./Dockerfile"
+        }
+      },
+      "max_instances": 3
     }
   ],
   "durable_objects": {
