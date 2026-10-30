@@ -79,26 +79,73 @@ export class CIRunWorkflow extends WorkflowEntrypoint {
         },
         async () => {
           const token = await getGitHubInstallationToken(this.env);
-          const archive = await fetchGitHubArchive(token, job);
-          const container = this.env.CI_CONTAINER.getByName(`ci-${job.workflowId}`);
+          const archiveKey = `ci-archives/${job.workflowId}.tar.gz`;
+          try {
+            const archive = await fetchGitHubArchive(token, job);
+            const stored = await this.env.CI_ARCHIVES.put(archiveKey, archive.body, {
+              httpMetadata: { contentType: "application/gzip" }
+            });
+            const archiveBytes = Number(stored.size || 0);
+            const maxArchiveBytes = Number(this.env.CI_MAX_ARCHIVE_BYTES || 314572800);
+            if (!archiveBytes || archiveBytes > maxArchiveBytes) {
+              throw new Error(`Source archive size ${archiveBytes} exceeds the configured ${maxArchiveBytes} byte limit`);
+            }
 
-          const response = await container.fetch(new Request("http://container/run", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/gzip",
-              "X-CI-Repository": job.repository,
-              "X-CI-SHA": job.sha,
-              "X-CI-Event": job.eventName,
-              "X-CI-Delivery": job.deliveryId
-            },
-            body: archive.body
-          }));
+            const container = this.env.CI_CONTAINER.getByName(`ci-${job.workflowId}`);
+            const headers = {
+              "Content-Type": "application/json",
+              "X-CI-Job-ID": job.workflowId
+            };
+            const begin = await container.fetch(new Request("http://container/begin", {
+              method: "POST",
+              headers,
+              body: JSON.stringify({
+                repository: job.repository,
+                sha: job.sha,
+                eventName: job.eventName,
+                archiveBytes
+              })
+            }));
+            if (!begin.ok) {
+              throw new Error(`Container rejected CI job initialization: HTTP ${begin.status}`);
+            }
 
-          if (!response.ok) {
-            throw new Error(`Cloudflare CI container returned HTTP ${response.status}`);
+            const chunkSize = 50 * 1024 * 1024;
+            for (let offset = 0; offset < archiveBytes; offset += chunkSize) {
+              const length = Math.min(chunkSize, archiveBytes - offset);
+              const part = await this.env.CI_ARCHIVES.get(archiveKey, {
+                range: { offset, length }
+              });
+              if (!part) throw new Error(`CI source archive chunk missing at offset ${offset}`);
+
+              const chunkResponse = await container.fetch(new Request("http://container/chunk", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/octet-stream",
+                  "X-CI-Job-ID": job.workflowId,
+                  "X-CI-Offset": String(offset),
+                  "X-CI-Chunk-Length": String(length)
+                },
+                body: part.body
+              }));
+              if (!chunkResponse.ok) {
+                throw new Error(`Container rejected archive chunk at ${offset}: HTTP ${chunkResponse.status}`);
+              }
+            }
+
+            const response = await container.fetch(new Request("http://container/finish", {
+              method: "POST",
+              headers,
+              body: "{}"
+            }));
+            if (!response.ok) {
+              throw new Error(`Cloudflare CI container returned HTTP ${response.status}`);
+            }
+
+            return response.json();
+          } finally {
+            await this.env.CI_ARCHIVES.delete(archiveKey).catch(() => {});
           }
-
-          return response.json();
         }
       );
 
