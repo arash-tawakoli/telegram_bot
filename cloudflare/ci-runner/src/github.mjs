@@ -37,11 +37,11 @@ function der(tag, content) {
 
 function privateKeyBytes(pem) {
   const text = String(pem ?? "").trim();
-  const match = text.match(/-----BEGIN ([A-Z ]+)-----([\\s\\S]+?)-----END \\1-----/);
+  const match = text.match(/-----BEGIN ([A-Z ]+)-----([\s\S]+?)-----END \1-----/);
   if (!match) throw new Error("GitHub App private key PEM is invalid");
 
   const label = match[1];
-  const body = match[2].replace(/\\s+/g, "");
+  const body = match[2].replace(/\s+/g, "");
   const binary = atob(body);
   const decoded = Uint8Array.from(binary, (character) => character.charCodeAt(0));
 
