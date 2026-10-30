@@ -5,7 +5,7 @@ This project replaces GitHub-hosted Actions runners for the NexaLabs repositorie
 - `arash-tawakoli/telegram_bot`
 - `arash-tawakoli/website_traumwohnung`
 
-GitHub remains the source-control and pull-request system. A GitHub App sends signed webhooks to this Worker. Cloudflare Workflows durably orchestrates each run, and an isolated Cloudflare Container downloads the exact commit archive and executes the repository-specific checks.
+GitHub remains the source-control and pull-request system. A GitHub App sends signed webhooks to this Worker. Cloudflare Workflows durably orchestrates each run, and a Durable Object using Cloudflare's recommended Container API receives the exact commit archive and executes the repository-specific checks.
 
 ## Security boundaries
 
@@ -15,7 +15,7 @@ GitHub remains the source-control and pull-request system. A GitHub App sends si
 - The GitHub App private key and installation token remain in the Worker/Workflow runtime. They are never passed to the Container.
 - The Container receives only a source archive and non-secret job metadata.
 - The optional Supabase Management API token remains in the Worker. The Worker compares the live function inventory itself; it is never passed to the Container.
-- The Container has outbound Internet access for npm installs, but no GitHub or Supabase credentials.
+- The Durable Object Container has outbound Internet access for npm installs, but no GitHub or Supabase credentials.
 - Container concurrency is capped at three `standard-2` instances. Each instance sleeps after 30 seconds of inactivity.
 
 ## Free-plan preparation and Paid-plan activation
