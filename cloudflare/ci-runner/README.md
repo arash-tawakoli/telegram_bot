@@ -34,9 +34,10 @@ From this directory:
 npm install --ignore-scripts --no-audit --no-fund
 npm test
 npx wrangler types
+git add package.json package-lock.json
 ```
 
-These checks validate the pure webhook, routing, runtime-comparison and repository-plan logic. A production deploy requires Workers Paid because the configuration provisions a Container.
+These checks validate the pure webhook, routing, runtime-comparison and repository-plan logic. Commit the generated `package-lock.json` so the runner's own deployment dependencies remain reproducible. A production deploy requires Workers Paid because the configuration provisions a Container.
 
 ### 2. Create a GitHub App
 
