@@ -1,0 +1,39 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "nexalabs-ci-runner",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-30",
+  "workers_dev": true,
+  "containers": [
+    {
+      "class_name": "CIContainer",
+      "image": "./Dockerfile",
+      "max_instances": 3,
+      "instance_type": "standard-2"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "CI_CONTAINER",
+        "class_name": "CIContainer"
+      }
+    ]
+  },
+  "exports": {
+    "CIContainer": {
+      "type": "durable-object",
+      "storage": "sqlite"
+    }
+  },
+  "workflows": [
+    {
+      "name": "nexalabs-ci-workflow",
+      "binding": "CI_WORKFLOW",
+      "class_name": "CIRunWorkflow"
+    }
+  ],
+  "vars": {
+    "CI_MAX_ARCHIVE_BYTES": "104857600"
+  }
+}
