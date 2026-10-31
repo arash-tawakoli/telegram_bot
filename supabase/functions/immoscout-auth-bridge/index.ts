@@ -158,7 +158,7 @@ async function mfaStart(ticketValue:any,factorIdValue:any){
 async function mfaVerify(ticketValue:any,factorIdValue:any,passCodeValue:any){
  const passCode=String(passCodeValue||'').trim();if(!/^[0-9]{4,10}$/.test(passCode))throw Error('mfa_invalid_code');
  const ticket=await openMfaTicket(String(ticketValue||'')),factorId=String(factorIdValue||''),allowed=(ticket.factors||[]).find((f:any)=>f.id===factorId);if(!allowed)throw Error('mfa_factor_unsupported');
- const flow=await flowByState(String(ticket.flowState),String(ticket.userId));await eligible(String(ticket.userId));
+ const flow=await flowByState(String(ticket.flowState),String(ticket.userId));
  const {response,body}=await verifyFactor(factorId,String(ticket.stateToken),passCode);const status=clean(body?.status,60).toUpperCase();
  if(status==='SUCCESS'&&body?.sessionToken)return finishWithSession(flow,String(ticket.userId),String(ticket.email),String(body.sessionToken));
  if(response.status===403||String(body?.errorCode||'')==='E0000068')throw Error('mfa_invalid_code');
@@ -175,7 +175,7 @@ async function disconnect(userId:string){await Promise.all([db.from('platform_co
 
 const CORS={'access-control-allow-origin':HANDOFF_ORIGIN,'access-control-allow-methods':'POST,OPTIONS','access-control-allow-headers':'content-type','cache-control':'no-store','vary':'Origin'};
 function publicJson(body:any,status=200){return Response.json(body,{status,headers:CORS})}
-function publicError(error:any){const code=String(error?.message||'immoscout_operation_failed'),safe=new Set(['login_failed','mfa_required','mfa_factor_unsupported','mfa_invalid_code','mfa_challenge_failed','mfa_expired','auth_flow_expired','invalid_state']);const status=code==='login_failed'||code==='mfa_invalid_code'?401:code==='auth_flow_expired'||code==='invalid_state'||code==='mfa_expired'?410:code.startsWith('mfa_')?409:503;return publicJson({error:safe.has(code)?code:'immoscout_operation_failed'},status)}
+function publicError(error:any){const code=String(error?.message||'immoscout_operation_failed'),safe=new Set(['login_failed','mfa_required','mfa_factor_unsupported','mfa_invalid_code','mfa_challenge_failed','mfa_expired','auth_flow_expired','invalid_state','central_account_mismatch']);const status=code==='login_failed'||code==='mfa_invalid_code'?401:code==='auth_flow_expired'||code==='invalid_state'||code==='mfa_expired'?410:code.startsWith('mfa_')?409:503;return publicJson({error:safe.has(code)?code:'immoscout_operation_failed'},status)}
 
 Deno.serve(async req=>{try{
  const origin=req.headers.get('origin')||'';
@@ -195,4 +195,4 @@ Deno.serve(async req=>{try{
  if(body.action==='inspect')return Response.json(await inspect(userId));
  if(body.action==='disconnect')return Response.json(await disconnect(userId));
  throw Error('invalid_action');
-}catch(error:any){const code=String(error?.message||'immoscout_operation_failed'),safe=new Set(['configuration_unavailable','credential_key_invalid','premium_required','invalid_user','invalid_action','immoscout_email_required','auth_flow_create_failed','connection_update_failed','connection_save_failed','connection_read_failed','invalid_callback_url','invalid_state','auth_flow_expired','oauth_login_failed','authorization_code_missing','token_exchange_failed','refresh_token_missing','userinfo_failed','temporary_network_error','needs_login','login_failed','mfa_required','mfa_factor_unsupported','mfa_invalid_code','mfa_challenge_failed','mfa_expired']);return Response.json({error:safe.has(code)?code:'immoscout_operation_failed'},{status:503})}});
+}catch(error:any){const code=String(error?.message||'immoscout_operation_failed'),safe=new Set(['configuration_unavailable','credential_key_invalid','premium_required','invalid_user','invalid_action','immoscout_email_required','auth_flow_create_failed','connection_update_failed','connection_save_failed','connection_read_failed','invalid_callback_url','invalid_state','auth_flow_expired','oauth_login_failed','authorization_code_missing','token_exchange_failed','refresh_token_missing','userinfo_failed','temporary_network_error','needs_login','login_failed','mfa_required','mfa_factor_unsupported','mfa_invalid_code','mfa_challenge_failed','mfa_expired','central_account_mismatch']);return Response.json({error:safe.has(code)?code:'immoscout_operation_failed'},{status:503})}});
