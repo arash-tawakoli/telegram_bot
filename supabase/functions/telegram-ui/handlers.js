@@ -88,6 +88,31 @@ function secureToken(bytes = 32) {
     return btoa(raw).split("+").join("-").split("/").join("_").replace(/=+$/g, "");
 }
 
+async function centralImmoScoutTokenStatus(chatId) {
+    const { data, error } = await db.rpc("get_immoscout_central_credential_status");
+    if (error)
+        throw new Error("central_credential_status_unavailable");
+    const status = Array.isArray(data) ? data[0] : data;
+    if (status?.configured !== true) {
+        return send(chatId, "Noch kein zentraler ImmoScout24-Zugang gespeichert. Starte mit /token.");
+    }
+    const enabled = status.enabled === true;
+    const verified = status.last_verified_at ? new Date(status.last_verified_at).toLocaleString("de-DE") : "Noch nicht geprüft";
+    return send(chatId,
+        `<b>Zentraler ImmoScout24-Zugang</b>\\nKonto: <b>${status.account_hint || "—"}</b>\\nVerbindung: <b>${status.status || "unbekannt"}</b>\\nAuto-Bewerbung: <b>${enabled ? "aktiv" : "deaktiviert"}</b>\\nZuletzt geprüft: ${verified}\\n\\nAktivieren: /token aktivieren\\nDeaktivieren: /token deaktivieren`);
+}
+
+async function setCentralImmoScoutEnabled(chatId, enabled) {
+    const { data, error } = await db.rpc("set_immoscout_central_enabled", { p_enabled: enabled });
+    if (error)
+        throw new Error("central_credential_status_update_failed");
+    if (data !== true)
+        return send(chatId, "Kein verbundener zentraler ImmoScout24-Zugang vorhanden. Bitte zuerst /token ausführen.");
+    return send(chatId, enabled
+        ? "✅ Zentraler ImmoScout24-Zugang aktiviert. Neue freigegebene Bewerbungen können jetzt über das NexaLabs-Konto versendet werden."
+        : "⏸ Zentraler ImmoScout24-Zugang deaktiviert. Der Bot verwendet wieder verbundene Teilnehmerkonten, sofern vorhanden.");
+}
+
 async function startCentralImmoScoutToken(user, chatId) {
     const state = secureToken(32);
     const verifier = secureToken(48);
@@ -113,7 +138,7 @@ async function startCentralImmoScoutToken(user, chatId) {
         console.error("immoscout_central_status", statusError.message);
     const status = Array.isArray(statusData) ? statusData[0] : statusData;
     const current = status?.configured === true && status?.status === "connected"
-        ? "Der zentrale Zugang ist bereits verbunden. Nach erfolgreicher erneuter Anmeldung wird der gespeicherte Token ersetzt."
+        ? `Der zentrale Zugang ist bereits verbunden. Auto-Bewerbung ist derzeit ${status.enabled === true ? "aktiv" : "deaktiviert"}. Nach erfolgreicher erneuter Anmeldung wird der gespeicherte Token ersetzt.`
         : "Es ist noch kein zentraler ImmoScout24-Zugang gespeichert.";
     const url = `https://login.traumwohnunghamburg.de/connect?ticket=${encodeURIComponent(state)}`;
     return send(chatId,
@@ -136,6 +161,13 @@ export async function handleMessage(message, user) {
     if (command === "/token") {
         if (!isAdmin(user))
             return;
+        const mode = argument.trim().toLowerCase();
+        if (mode === "status")
+            return centralImmoScoutTokenStatus(chatId);
+        if (mode === "aktivieren" || mode === "enable")
+            return setCentralImmoScoutEnabled(chatId, true);
+        if (mode === "deaktivieren" || mode === "disable")
+            return setCentralImmoScoutEnabled(chatId, false);
         return startCentralImmoScoutToken(user, chatId);
     }
     if (command === "/announcement") {
