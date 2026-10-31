@@ -34,6 +34,16 @@ const unb64=(value:string)=>Uint8Array.from(atob(value),c=>c.charCodeAt(0));
 async function challenge(v:string){return b64url(new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(v))))}
 async function eligible(userId:string){const {data,error}=await db.rpc('application_user_eligible',{p_user:userId});if(error||data!==true)throw Error('premium_required')}
 async function secret(name:string){const {data,error}=await db.rpc('get_bot_secret',{secret_name:name});if(error||!data)throw Error('configuration_unavailable');return String(data)}
+const CENTRAL_IMMOSCOUT_WORKER='https://immoscout-central-token-staging.arash-ce5.workers.dev';
+async function centralImmoScoutApi(path:string,body:any={},method='POST'){
+ const apiSecret=await secret('immoscout_central_cloudflare_api_secret');
+ let response:Response;
+ try{response=await fetch(`${CENTRAL_IMMOSCOUT_WORKER}${path}`,{method,headers:{authorization:`Bearer ${apiSecret}`,accept:'application/json','content-type':'application/json'},...(method==='GET'?{}:{body:JSON.stringify(body)}),signal:AbortSignal.timeout(30000)})}
+ catch{throw Error('temporary_network_error')}
+ const data=await response.json().catch(()=>null);
+ if(!response.ok||!data){const error:any=new Error(data?.error||'central_immoscout_unavailable');error.status=response.status;throw error}
+ return data;
+}
 
 function providerLabel(provider:any){return provider==='indeed'?'Indeed':provider==='kleinanzeigen'?'Kleinanzeigen':provider==='immomio'?'Immomio':provider==='immowelt'?'Immowelt':'ImmoScout24'}
 async function notifyConnected(flow:any,result:any){
@@ -69,16 +79,22 @@ async function validateFlowContext(flow:any){
  }
 }
 async function flowFor(value:any,allowConsumed=false){
- const state=ticket(value),hashed=await challenge(state),now=new Date().toISOString();
+ const state=ticket(value);
+ if(state.startsWith('cf_')){
+  const remote=await centralImmoScoutApi('/internal/resolve',{state,allow_consumed:allowConsumed});
+  const flow:any={id:state,user_id:String(remote.user_id||''),provider:'immoscout',state,code_verifier:'',origin:'telegram',return_target:'telegram',expires_at:remote.expires_at,consumed_at:remote.consumed?new Date().toISOString():null,context:{central_account:true,account_hint:remote.account_hint||'arash@nexalabs.de'}};
+  if(!flow.user_id||!await isTelegramAdminUser(db,flow.user_id))throw Error('auth_flow_expired');
+  await validateFlowContext(flow);
+  return flow;
+ }
+ const hashed=await challenge(state),now=new Date().toISOString();
  let q=db.from('platform_auth_flows').select('*').in('state',[state,hashed]);
  if(!allowConsumed)q=q.is('consumed_at',null).gt('expires_at',now);
  else q=q.gt('created_at',new Date(Date.now()-2*60*60*1000).toISOString());
  const {data,error}=await q.limit(2);
  if(error||!Array.isArray(data)||data.length!==1)throw Error('auth_flow_expired');
  const flow=data[0];
- if(flow.context?.central_account===true){
-  if(String(flow.provider)!=='immoscout'||flow.origin!=='telegram'||!await isTelegramAdminUser(db,String(flow.user_id)))throw Error('auth_flow_expired');
- }else if(String(flow.provider)==='indeed'&&flow.origin==='coach'){
+ if(String(flow.provider)==='indeed'&&flow.origin==='coach'){
   const{data:issuer,error:issuerError}=await db.from('coaching_members').select('is_super_admin').eq('auth_user_id',flow.issued_by).maybeSingle();
   if(issuerError||issuer?.is_super_admin!==true)throw Error('premium_required');
  }else await eligible(String(flow.user_id));
@@ -147,7 +163,8 @@ async function scoutPublic(body:any){
 async function passwordLogin(value:any,emailValue:any,passwordValue:any){
  const flow=await flowFor(value);let result:any;
  if(flow.provider==='immomio')result=await immomioPasswordLogin(value,emailValue,passwordValue);
- else if(flow.provider==='immoscout')result=await scoutPublic({action:'password_login',state:String(flow.state),email:emailValue,password:passwordValue});
+ else if(flow.provider==='immoscout'&&flow.context?.central_account===true)result=await centralImmoScoutApi('/internal/password_login',{state:String(flow.state),email:emailValue,password:passwordValue});
+  else if(flow.provider==='immoscout')result=await scoutPublic({action:'password_login',state:String(flow.state),email:emailValue,password:passwordValue});
  else if(flow.provider==='immowelt'){
   result=await internalCall(IMMOWELT_AUTH,{action:'password_login',state:String(flow.state),email:emailValue,password:passwordValue});
   if(result?.authenticated===true&&result?.session)return completeSession(value,result.session,result.accountHint||emailValue);
@@ -173,15 +190,15 @@ async function mfaVerify(value:any,mfaTicket:any,factorId:any,passCode:any){
   return result;
  }
  if(flow.provider!=='immoscout')throw Error('provider_interactive_challenge');
- const result=await scoutPublic({action:'mfa_verify',mfaTicket:String(mfaTicket||''),factorId:String(factorId||''),passCode:String(passCode||'')});
+ const result=flow.context?.central_account===true
+   ?await centralImmoScoutApi('/internal/mfa_verify',{mfaTicket:String(mfaTicket||''),factorId:String(factorId||''),passCode:String(passCode||'')})
+   :await scoutPublic({action:'mfa_verify',mfaTicket:String(mfaTicket||''),factorId:String(factorId||''),passCode:String(passCode||'')});
  await notifyConnected(flow,result);return result
 }
 async function status(value:any){
  const flow=await flowFor(value,true);
  if(flow.context?.central_account===true){
-  const{data,error}=await db.rpc('get_immoscout_central_credential_status');
-  if(error)throw Error('connection_read_failed');
-  const row=Array.isArray(data)?data[0]:data;
+  const row=await centralImmoScoutApi('/internal/status',{},'GET');
   return{ok:true,provider:flow.provider,centralAccount:true,status:row?.status||'disconnected',connected:row?.configured===true&&row?.status==='connected',accountHint:row?.account_hint||null,lastVerifiedAt:row?.last_verified_at||null,lastError:row?.last_error||null,origin:flow.origin,returnTarget:flow.return_target};
  }
  const info=await participantInfo(flow),connection=info.connection;
