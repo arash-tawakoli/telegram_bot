@@ -37,12 +37,8 @@ options (
   rowid_column 'id'
 );
 
-revoke all on schema app_private from public, anon, authenticated;
-grant usage on schema app_private to service_role;
-revoke all on app_private.immoscout_central_credentials from public, anon, authenticated;
-revoke all on app_private.immoscout_central_audit_events from public, anon, authenticated;
-grant select, insert, update on app_private.immoscout_central_credentials to service_role;
-grant select, insert on app_private.immoscout_central_audit_events to service_role;
+revoke all on app_private.immoscout_central_credentials from public, anon, authenticated, service_role;
+revoke all on app_private.immoscout_central_audit_events from public, anon, authenticated, service_role;
 
 create or replace function public.get_immoscout_central_credentials()
 returns table (
