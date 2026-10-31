@@ -36,6 +36,17 @@ async function openMfaTicket(ticket:string){const parts=String(ticket||'').split
 function uuid(v:any){const s=String(v||'');if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s))throw Error('invalid_user');return s}
 function validEmail(v:any){const e=clean(v,320).toLowerCase();return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)?e:null}
 async function eligible(userId:string){const {data,error}=await db.rpc('application_user_eligible',{p_user:userId});if(error||data!==true)throw Error('premium_required')}
+const CENTRAL_IMMOSCOUT_WORKER = "https://immoscout-central-token-staging.arash-ce5.workers.dev";
+async function centralImmoScoutApi(path:string,body:any={},method='POST'){
+ const apiSecret=await secret('immoscout_central_cloudflare_api_secret');
+ let response:Response;
+ try{response=await fetch(`${CENTRAL_IMMOSCOUT_WORKER}${path}`,{method,headers:{authorization:`Bearer ${apiSecret}`,accept:'application/json','content-type':'application/json'},...(method==='GET'?{}:{body:JSON.stringify(body)}),signal:AbortSignal.timeout(15000)})}
+ catch{throw Error('temporary_network_error')}
+ const data=await response.json().catch(()=>null);
+ if(!response.ok||!data){const error:any=new Error(data?.error||'central_immoscout_unavailable');error.status=response.status;throw error}
+ return data;
+}
+
 async function profileEmail(userId:string){const {data,error}=await db.from('applicant_profiles').select('email').eq('user_id',userId).maybeSingle();const email=validEmail(data?.email);if(error||!email)throw Error('immoscout_email_required');return email}
 
 async function mark(userId:string,status:string,lastError:string|null=null,patch:any={}){const {error}=await db.from('platform_connections').upsert({user_id:userId,provider:PROVIDER,status,last_error:lastError,updated_at:new Date().toISOString(),...patch},{onConflict:'user_id,provider'});if(error)throw Error('connection_update_failed')}
@@ -58,6 +69,13 @@ async function assertFlowAccess(flow:any){
 }
 async function flowByState(state:string,userId?:string){
  if(!/^[A-Za-z0-9_-]{20,80}$/.test(state))throw Error('invalid_state');
+ if(state.startsWith('cf_')){
+  const remote=await centralImmoScoutApi('/internal/flow/inspect',{state});
+  if(userId&&String(remote.user_id)!==String(userId))throw Error('auth_flow_expired');
+  const flow:any={id:state,user_id:String(remote.user_id||''),provider:PROVIDER,state,code_verifier:String(remote.verifier||''),origin:'telegram',return_target:'telegram',expires_at:remote.expires_at,consumed_at:null,context:{central_account:true,account_hint:CENTRAL_ACCOUNT_EMAIL}};
+  await assertFlowAccess(flow);
+  return flow;
+ }
  let q=db.from('platform_auth_flows').select('*').eq('provider',PROVIDER).eq('state',state).is('consumed_at',null).gt('expires_at',new Date().toISOString());
  if(userId)q=q.eq('user_id',userId);
  const {data,error}=await q.maybeSingle();
@@ -67,32 +85,30 @@ async function flowByState(state:string,userId?:string){
 }
 async function markFlow(flow:any,userId:string,status:string,lastError:string|null=null,patch:any={}){
  if(isCentralFlow(flow)){
-  if(status!=='pending')await db.rpc('mark_immoscout_central_credentials',{p_status:status==='needs_login'?'needs_login':'error',p_last_error:lastError}).catch(()=>{});
+  if(status!=='pending')await centralImmoScoutApi('/internal/mark',{status,last_error:lastError||null}).catch(()=>{});
   return;
  }
  await mark(userId,status,lastError,patch);
 }
-async function encryptCentralCredentials(value:any){
- const key=await keyMaterial(1),iv=crypto.getRandomValues(new Uint8Array(12));
- const aad=enc.encode('nexalabs:immoscout:central:v1'),plain=enc.encode(JSON.stringify(value));
- const cipher=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:aad},key,plain));
- return{credential_ciphertext:b64(cipher),credential_iv:b64(iv),key_version:1};
-}
 async function saveCentralCredentials(flow:any,userId:string,credentials:any,accountHint:string,expiresAt:string){
- const encrypted=await encryptCentralCredentials(credentials);
- const {data,error}=await db.rpc('complete_immoscout_central_auth_flow',{
-  p_flow:flow.id,p_user:userId,p_claim:String(flow.centralCompletionClaim||''),
-  p_credential_ciphertext:encrypted.credential_ciphertext,p_credential_iv:encrypted.credential_iv,
-  p_key_version:encrypted.key_version,p_account_hint:accountHint,p_expires_at:expiresAt
+ await centralImmoScoutApi('/internal/store',{
+  account_hint:accountHint,
+  access_token:credentials.access_token,
+  refresh_token:credentials.refresh_token,
+  id_token:credentials.id_token,
+  token_type:credentials.token_type,
+  scope:credentials.scope,
+  expires_at:expiresAt,
+  flow_state:flow.state,
+  preserve_enabled:false
  });
- if(error||data!==true)throw Error('connection_save_failed');
 }
 async function claimFlow(flow:any){
  if(isCentralFlow(flow)){
-  const claim=random();
-  const {data,error}=await db.rpc('claim_immoscout_central_auth_flow',{p_flow:flow.id,p_user:flow.user_id,p_claim:claim});
-  if(error||data!==true)throw Error('auth_flow_expired');
-  flow.centralCompletionClaim=claim;
+  const claimed=await centralImmoScoutApi('/internal/flow/claim',{state:flow.state});
+  if(String(claimed.user_id)!==String(flow.user_id)||String(claimed.admin_telegram_id)!=='')throw Error('auth_flow_expired');
+  flow.code_verifier=String(claimed.verifier||'');
+  if(!flow.code_verifier)throw Error('auth_flow_expired');
   return;
  }
  await claimPlatformConnectFlow(db,flow);
