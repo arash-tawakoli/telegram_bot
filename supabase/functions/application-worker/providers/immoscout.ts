@@ -1,10 +1,12 @@
-import {saveConnection,getConnection,markConnection,deleteConnection,recordRefreshResult} from '../credentials.ts';
+import {saveConnection,getConnection,markConnection,deleteConnection,recordRefreshResult,getCentralImmoScoutConnection,saveCentralImmoScoutCredentials,markCentralImmoScoutConnection} from '../credentials.ts';
 import {providerSalutation,providerHousehold,providerEmployment,providerIncome,providerMoveIn,providerPets,canonicalSalutation,canonicalHousehold,canonicalEmployment,canonicalIncome,canonicalMoveIn} from '../../_shared/application-profile-adapters.ts';
 
 const PROVIDER='immoscout';
 const OPTIONAL_PROFILE_FIELDS=new Set(['firstname','contactfirstname','givenname','vorname','lastname','contactlastname','surname','familyname','nachname','phonenumber','phone','mobilephone','mobilenumber','telephone','telefonnummer','telefon','mobilnummer','handynummer','emailaddress','email','emailadresse','address','anschrift','adresse','street','strasse','housenumber','hausnummer','postcode','postalcode','zipcode','plz','postleitzahl','city','stadt','ort','moveindate','desiredmoveindate','einzugsdatum','gewunschteeinzugsdatum','petsinhousehold','pets','pet','haustiere','haustier','numberofpersons','numberofresidents','householdsize','residents','personenanzahl','anzahlpersonen','personenimhaushalt','haushaltsgrosse','numberofadults','numberofchildren','employmentrelationship','employmentstatus','occupation','profession','beschaftigungsstatus','arbeitsverhaltnis','berufstatigkeit','income','incomeamount','monthlyincome','monthlynetincome','netincome','einkommen','nettoeinkommen','monatlichesnettoeinkommen','salutation','anrede','message','contactmessage','messagetext','nachricht','bewerbungstext','kontaktnachricht']);
 const CLIENT_ID='is24-android-de';
 const TOKEN='https://login.immobilienscout24.de/oauth2/aus1227au6oBg6hGH417/v1/token';
+const USERINFO='https://login.immobilienscout24.de/oauth2/aus1227au6oBg6hGH417/v1/userinfo';
+const CENTRAL_ACCOUNT_EMAIL='arash@nexalabs.de';
 const UA='ImmoScout24_1458_34_._';
 const OAUTH_UA='okta-oauth2-kotlin/2.0.3 Android/34';
 const enc=new TextEncoder();
@@ -40,7 +42,41 @@ async function refresh(db:any,userId:string,connection:any,force=false){
  await recordRefreshResult(db,userId,PROVIDER,true,null,expiresAt).catch(()=>{});
  return updated;
 }
+async function refreshCentral(db:any,connection:any,force=false){
+ const c=connection?.credentials||{};
+ if(!force&&c.access_token&&Date.parse(c.expires_at||'')>Date.now()+60000)return{...c,__centralAccount:true};
+ if(!c.refresh_token){await markCentralImmoScoutConnection(db,'needs_login','refresh_token_missing').catch(()=>{});throw Error('needs_login')}
+ let response:Response,token:any=null;
+ try{
+  response=await fetch(TOKEN,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded',accept:'application/json','user-agent':OAUTH_UA},body:new URLSearchParams({grant_type:'refresh_token',refresh_token:String(c.refresh_token),client_id:CLIENT_ID}),signal:AbortSignal.timeout(25000)});
+  token=await response.json().catch(()=>null);
+ }catch{throw Error('temporary_network_error')}
+ if(!response.ok||!token?.access_token){
+  await markCentralImmoScoutConnection(db,'needs_login','refresh_failed').catch(()=>{});
+  throw Error('needs_login');
+ }
+ let info: any=null;
+ try{
+  const verified=await fetch(USERINFO,{headers:{accept:'application/json',authorization:`Bearer ${token.access_token}`,'user-agent':OAUTH_UA},signal:AbortSignal.timeout(20000)});
+  info=await verified.json().catch(()=>null);
+  if(!verified.ok||String(info?.email||'').trim().toLowerCase()!==CENTRAL_ACCOUNT_EMAIL){
+   await markCentralImmoScoutConnection(db,'needs_login','central_account_mismatch').catch(()=>{});
+   throw Error('needs_login');
+  }
+ }catch(error:any){if(error?.message==='needs_login')throw error;throw Error('temporary_network_error')}
+ const expiresAt=new Date(Date.now()+Math.max(60,Number(token.expires_in||3600))*1000).toISOString();
+ const updated={...c,access_token:String(token.access_token),refresh_token:String(token.refresh_token||c.refresh_token),id_token:token.id_token?String(token.id_token):c.id_token,expires_at:expiresAt,token_type:String(token.token_type||c.token_type||'Bearer'),scope:String(token.scope||c.scope||'openid profile offline_access'),account_hint:CENTRAL_ACCOUNT_EMAIL};
+ await saveCentralImmoScoutCredentials(db,updated);
+ return{...updated,__centralAccount:true};
+}
 async function session(db:any,userId:string,force=false){
+ try{
+  const central=await getCentralImmoScoutConnection(db);
+  if(central?.row?.status==='connected'&&central.credentials?.access_token){
+   try{return await refreshCentral(db,central,force)}
+   catch(error:any){if(error?.message==='temporary_network_error')throw error;if(error?.message!=='needs_login')throw error;}
+  }
+ }catch(error:any){if(error?.message==='temporary_network_error')throw error;}
  const connection=await getConnection(db,userId,PROVIDER);
  if(!connection)throw Error('needs_login');
  if(connection.credentials?.refresh_token||connection.credentials?.access_token)return refresh(db,userId,connection,force);
@@ -187,7 +223,14 @@ async function detailWithRefresh(db:any,userId:string,id:string){
  catch(error:any){
   if(error?.message!=='needs_login')throw error;
   credentials=await session(db,userId,true);
-  return{credentials,before:await detail(String(credentials.access_token),id),refreshed:true};
+  try{return{credentials,before:await detail(String(credentials.access_token),id),refreshed:true}}
+  catch(retryError:any){
+   if(retryError?.message==='needs_login'){
+    if(credentials?.__centralAccount)await markCentralImmoScoutConnection(db,'needs_login','session_invalid').catch(()=>{});
+    else await markConnection(db,userId,PROVIDER,'needs_login','session_invalid').catch(()=>{});
+   }
+   throw retryError;
+  }
  }
 }
 function diagnosticText(v:any,max=800){return clean(v,max).replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi,'[email]').replace(/\+?\d[\d\s().\/-]{6,}\d/g,'[phone]');}
