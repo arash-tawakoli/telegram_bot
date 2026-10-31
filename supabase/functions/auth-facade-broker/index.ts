@@ -180,7 +180,10 @@ async function mfaStart(value:any,mfaTicket:any,factorId:any){
   return result;
  }
  if(flow.provider!=='immoscout')throw Error('provider_interactive_challenge');
- return scoutPublic({action:'mfa_start',mfaTicket:String(mfaTicket||''),factorId:String(factorId||'')})
+ const result=flow.context?.central_account===true
+  ?await centralImmoScoutApi('/internal/mfa_start',{mfaTicket:String(mfaTicket||''),factorId:String(factorId||'')})
+  :await scoutPublic({action:'mfa_start',mfaTicket:String(mfaTicket||''),factorId:String(factorId||'')});
+ await notifyConnected(flow,result);return result
 }
 async function mfaVerify(value:any,mfaTicket:any,factorId:any,passCode:any){
  const flow=await flowFor(value);
