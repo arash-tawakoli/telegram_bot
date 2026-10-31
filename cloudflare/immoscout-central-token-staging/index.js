@@ -119,7 +119,7 @@ function supportedFactors(body) {
 }
 async function getFlow(env, state, allowConsumed = false) {
   const token = String(state || "");
-  if (!/^cf_[A-Za-z0-9_-]{40,80}$/.test(token)) throw new Error("invalid_state");
+  if (!/^cfcentral_[A-Za-z0-9_-]{40,80}$/.test(token)) throw new Error("invalid_state");
   const row = await env.DB.prepare(
     "SELECT state_hash,verifier_ciphertext,verifier_iv,admin_telegram_id,user_id,expires_at,consumed_at FROM oauth_flows WHERE state_hash=?"
   ).bind(await digest(token)).first();
@@ -132,7 +132,7 @@ async function startFlow(env, body) {
   const adminId = String(body.admin_telegram_id || "");
   const userId = validUserId(body.user_id);
   if (!ADMIN_IDS.has(adminId) || !userId) throw new Error("admin_required");
-  const state = `cf_${randomToken(32)}`;
+  const state = `cfcentral_${randomToken(32)}`;
   const verifier = randomToken(48);
   const sealed = await encrypt({ verifier }, env, FLOW_AAD);
   const expires = new Date(Date.now() + 15 * 60_000).toISOString();
