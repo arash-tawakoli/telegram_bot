@@ -154,13 +154,18 @@ for each row execute function app_private.restore_immoscout_service_placeholder(
 
 -- Admin-issued central-account flows are restricted to active Super Admins.
 -- They use the admin's own bot profile only as an OAuth-flow anchor.
+alter table public.platform_auth_flows
+  drop constraint if exists platform_auth_flows_origin_check;
+alter table public.platform_auth_flows
+  add constraint platform_auth_flows_origin_check
+  check (origin = any (array['telegram'::text,'coach'::text,'shared'::text,'admin'::text]));
+
 create or replace function app_private.assert_platform_connect_context(p_flow public.platform_auth_flows)
 returns void
 language plpgsql
 set search_path=''
-as $$
-declare
-  v_issuer public.coaching_members%rowtype;
+as $
+declare v_issuer public.coaching_members%rowtype;
 begin
   if p_flow.origin='admin' then
     if p_flow.provider<>'immoscout' or p_flow.context->>'scope'<>'central' then
@@ -180,7 +185,7 @@ begin
 
   perform 1 from public.bot_users where id=p_flow.user_id and is_active for share;
   if not found then raise exception 'auth_flow_expired'; end if;
-  if not exists(
+  if p_flow.provider<>'wg_gesucht' and not exists(
     select 1 from public.coach_effective_premium_status(array[p_flow.user_id])
     where is_premium
   ) then raise exception 'premium_required'; end if;
@@ -202,11 +207,13 @@ begin
       select 1 from public.bot_users
       where id=p_flow.user_id and telegram_user_id is not null and chat_id is not null
     ) then raise exception 'auth_flow_expired'; end if;
+  elsif p_flow.origin='shared' then
+    if p_flow.provider<>'wg_gesucht' then raise exception 'auth_flow_expired'; end if;
   else
     raise exception 'auth_flow_expired';
   end if;
 end
-$$;
+$;
 revoke all on function app_private.assert_platform_connect_context(public.platform_auth_flows) from public,anon,authenticated;
 grant execute on function app_private.assert_platform_connect_context(public.platform_auth_flows) to service_role;
 
@@ -225,6 +232,7 @@ begin
   where id=p_flow and user_id=p_user and provider=p_provider;
   if not found then raise exception 'auth_flow_expired'; end if;
   perform app_private.assert_platform_connect_context(v_flow);
+  if v_flow.origin='admin' then raise exception 'auth_flow_expired'; end if;
   select * into v_flow from public.platform_auth_flows
   where id=p_flow and user_id=p_user and provider=p_provider for update;
   if not found or v_flow.consumed_at is not null or v_flow.expires_at<=clock_timestamp()
