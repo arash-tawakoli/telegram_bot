@@ -79,15 +79,7 @@ async function validateFlowContext(flow:any){
  }
 }
 async function flowFor(value:any,allowConsumed=false){
- const state=ticket(value);
- if(state.startsWith('cf_')){
-  const remote=await centralImmoScoutApi(allowConsumed?'/internal/flow/status':'/internal/flow/inspect',{state});
-  const flow:any={id:state,user_id:String(remote.user_id||''),provider:'immoscout',state,code_verifier:String(remote.verifier||''),origin:'telegram',return_target:'telegram',expires_at:remote.expires_at,consumed_at:remote.consumed?new Date().toISOString():null,context:{central_account:true,account_hint:'arash@nexalabs.de',completed_at:remote.completed_at||null}};
-  if(!flow.user_id||!await isTelegramAdminUser(db,flow.user_id))throw Error('auth_flow_expired');
-  await validateFlowContext(flow);
-  return flow;
- }
- const hashed=await challenge(state),now=new Date().toISOString();
+ const state=ticket(value),hashed=await challenge(state),now=new Date().toISOString();
  let q=db.from('platform_auth_flows').select('*').in('state',[state,hashed]);
  if(!allowConsumed)q=q.is('consumed_at',null).gt('expires_at',now);
  else q=q.gt('created_at',new Date(Date.now()-2*60*60*1000).toISOString());
