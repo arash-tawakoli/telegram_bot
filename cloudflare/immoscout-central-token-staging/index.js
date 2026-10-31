@@ -116,6 +116,10 @@ async function internal(request, env, path) {
         key_version=1,status='connected',enabled=CASE WHEN ?=1 THEN central_credentials.enabled ELSE 0 END,expires_at=excluded.expires_at,
         last_verified_at=CURRENT_TIMESTAMP,last_error=NULL,updated_at=CURRENT_TIMESTAMP
     `).bind(email, sealed.ciphertext, sealed.iv, body.preserve_enabled === true ? 1 : 0, expires.toISOString()).run();
+    if (typeof body.flow_state === "string" && body.flow_state.startsWith("cf_")) {
+      await env.DB.prepare("UPDATE oauth_flows SET completed_at=CURRENT_TIMESTAMP WHERE state_hash=?")
+        .bind(await digest(body.flow_state)).run();
+    }
     await env.DB.prepare("INSERT INTO audit_events(event_type,account_hint) VALUES('credential_stored',?)").bind(email).run();
     return json({ stored: true, account_hint: email, enabled: false, expires_at: expires.toISOString() });
   }
@@ -188,10 +192,10 @@ async function internal(request, env, path) {
     const body = await bodyJson(request);
     const state = String(body.state || "");
     const row = await env.DB.prepare(
-      "SELECT admin_telegram_id,user_id,expires_at,consumed_at FROM oauth_flows WHERE state_hash=?"
+      "SELECT admin_telegram_id,user_id,expires_at,consumed_at,completed_at FROM oauth_flows WHERE state_hash=?"
     ).bind(await digest(state)).first();
     if (!row || Date.parse(row.expires_at) <= Date.now()) return json({ error: "flow_expired" }, 410);
-    return json({ state, admin_telegram_id: row.admin_telegram_id, user_id: row.user_id, expires_at: row.expires_at, consumed: !!row.consumed_at });
+    return json({ state, admin_telegram_id: row.admin_telegram_id, user_id: row.user_id, expires_at: row.expires_at, consumed: !!row.consumed_at, completed_at: row.completed_at || null });
   }
   return json({ error: "not_found" }, 404);
 }
