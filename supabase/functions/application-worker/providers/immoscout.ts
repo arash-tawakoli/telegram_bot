@@ -72,7 +72,7 @@ async function refreshCentral(db:any,connection:any,force=false){
 async function session(db:any,userId:string,force=false){
  try{
   const central=await getCentralImmoScoutConnection(db);
-  if(central?.row?.status==='connected'&&central.credentials?.access_token){
+  if(central?.row?.status==='connected'&&central.row.enabled===true&&central.credentials?.access_token){
    try{return await refreshCentral(db,central,force)}
    catch(error:any){if(error?.message==='temporary_network_error')throw error;if(error?.message!=='needs_login')throw error;}
   }
