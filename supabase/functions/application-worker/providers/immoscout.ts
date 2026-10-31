@@ -326,10 +326,10 @@ export async function sendImmoScoutApplication(input:any){
    return{success:false,status:'manual_required',error:'needs_login'};
   }
  }
- if(attempt.response.ok)return{success:true,status:'sent',error:null,confirmation:'official_rest_2xx',connectionScope:connectionScope==='service'?'central':'participant',diagnostic:{sessionRefreshed:detailRefreshed||contactRefreshed}};
+ if(attempt.response.ok)return{success:true,status:'sent',error:null,confirmation:'official_rest_2xx',connectionScope:connectionScope==='service'?'central':'participant',diagnostic:{connectionScope:connectionScope==='service'?'central':'participant',sessionRefreshed:detailRefreshed||contactRefreshed}};
  if(classified.error==='needs_login'){
   if(connectionScope==='service')await markServiceConnection(db,PROVIDER,'needs_login','contact_auth_failed').catch(()=>{});
   else await markConnection(db,userId,PROVIDER,'needs_login','contact_auth_failed').catch(()=>{});
  }
- return{success:false,...classified,diagnostic:{...(classified.diagnostic||{}),sessionRefreshed:detailRefreshed||contactRefreshed}};
+ return{success:false,...classified,connectionScope:connectionScope==='service'?'central':'participant',diagnostic:{...(classified.diagnostic||{}),connectionScope:connectionScope==='service'?'central':'participant',sessionRefreshed:detailRefreshed||contactRefreshed}};
 }
