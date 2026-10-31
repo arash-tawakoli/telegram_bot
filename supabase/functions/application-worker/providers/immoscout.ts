@@ -80,7 +80,7 @@ export async function checkImmoScoutConnection(db:any,userId:string){
  if(service?.row?.status==='connected'&&service.credentials){
   try{
    await refreshService(db,service);
-   return {authenticated:true,status:'connected',connectionScope:'service',accountHint:service.row.account_hint||null};
+   return {authenticated:true,status:'connected',connectionScope:'service',accountHint:'Zentral verwaltet durch NexaLabs'};
   }catch(error:any){
    if(error?.message==='temporary_network_error')return {authenticated:false,status:'temporary_error',connectionScope:'service'};
   }
