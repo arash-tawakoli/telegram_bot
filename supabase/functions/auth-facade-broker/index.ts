@@ -48,6 +48,12 @@ async function validateFlowContext(flow:any){
  const userId=String(flow.user_id||'');
  const{data:user,error:userError}=await db.from('bot_users').select('is_active,telegram_user_id,chat_id').eq('id',userId).maybeSingle();
  if(userError||!user?.is_active)throw Error('auth_flow_expired');
+ if(flow.origin==='admin'){
+  const{data:issuer,error:issuerError}=await db.from('coaching_members').select('is_active,is_super_admin').eq('auth_user_id',flow.issued_by).maybeSingle();
+  const accountEmail=clean(flow.context?.account_email,320).toLowerCase();
+  if(issuerError||issuer?.is_active!==true||issuer?.is_super_admin!==true||flow.provider!=='immoscout'||flow.context?.scope!=='central'||!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(accountEmail))throw Error('auth_flow_expired');
+  return;
+ }
  if(flow.origin==='telegram'){
   if(user.telegram_user_id==null||user.chat_id==null)throw Error('auth_flow_expired');
   return;
@@ -71,7 +77,10 @@ async function flowFor(value:any,allowConsumed=false){
  const {data,error}=await q.limit(2);
  if(error||!Array.isArray(data)||data.length!==1)throw Error('auth_flow_expired');
  const flow=data[0];
- if(String(flow.provider)==='indeed'&&flow.origin==='coach'){
+ if(flow.origin==='admin'){
+  const{data:issuer,error:issuerError}=await db.from('coaching_members').select('is_active,is_super_admin').eq('auth_user_id',flow.issued_by).maybeSingle();
+  if(issuerError||issuer?.is_active!==true||issuer?.is_super_admin!==true||flow.provider!=='immoscout'||flow.context?.scope!=='central')throw Error('premium_required');
+ }else if(String(flow.provider)==='indeed'&&flow.origin==='coach'){
   const{data:issuer,error:issuerError}=await db.from('coaching_members').select('is_super_admin').eq('auth_user_id',flow.issued_by).maybeSingle();
   if(issuerError||issuer?.is_super_admin!==true)throw Error('premium_required');
  }else await eligible(String(flow.user_id));
@@ -82,17 +91,19 @@ async function flowFor(value:any,allowConsumed=false){
 async function profileEmail(userId:string){const {data,error}=await db.from('applicant_profiles').select('email').eq('user_id',userId).maybeSingle();const email=clean(data?.email,320).toLowerCase();if(error||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw Error('profile_email_required');return email}
 function participantLabel(first:any,last:any){const f=clean(first,80),l=clean(last,80);return [f,l?l[0]+'.':''].filter(Boolean).join(' ')||'Teilnehmer'}
 async function participantInfo(flow:any){
- const[{data:p},{data:connection}]=await Promise.all([
+ const central=flow.origin==='admin'&&flow.context?.scope==='central';
+ const[{data:p},{data:connection},{data:service}]=await Promise.all([
   db.from('applicant_profiles').select('first_name,last_name,email').eq('user_id',flow.user_id).maybeSingle(),
-  db.from('platform_connections').select('status,account_hint,last_verified_at,last_error').eq('user_id',flow.user_id).eq('provider',flow.provider).maybeSingle()
+  db.from('platform_connections').select('status,account_hint,last_verified_at,last_error').eq('user_id',flow.user_id).eq('provider',flow.provider).maybeSingle(),
+  central?db.from('platform_service_connections').select('status,account_hint,last_verified_at,last_error').eq('provider','immoscout').maybeSingle():Promise.resolve({data:null})
  ]);
  return{
-  participantLabel:participantLabel(p?.first_name,p?.last_name),
+  participantLabel:central?'NexaLabs · zentraler ImmoScout24-Zugang':participantLabel(p?.first_name,p?.last_name),
   profileEmail:clean(p?.email,320)||null,
-  connection:connection||null
+  connection:central?(service||null):(connection||null)
  };
 }
-async function accountHint(flow:any){const {data}=await db.from('platform_connections').select('account_hint').eq('user_id',flow.user_id).eq('provider',flow.provider).maybeSingle();return clean(data?.account_hint,320)||null}
+async function accountHint(flow:any){if(flow.origin==='admin'&&flow.context?.scope==='central'){const{data}=await db.from('platform_service_connections').select('account_hint').eq('provider','immoscout').maybeSingle();return clean(data?.account_hint,320)||clean(flow.context?.account_email,320)||null}const {data}=await db.from('platform_connections').select('account_hint').eq('user_id',flow.user_id).eq('provider',flow.provider).maybeSingle();return clean(data?.account_hint,320)||null}
 function kleinUrl(flow:any,codeChallenge:string){const u=new URL(KLEIN_AUTHORIZE);for(const[k,v]of Object.entries({client_id:KLEIN_CLIENT_ID,response_type:'code',redirect_uri:KLEIN_REDIRECT,scope:KLEIN_SCOPE,code_challenge:codeChallenge,code_challenge_method:'S256',state:String(flow.state),prompt:'login'}))u.searchParams.set(k,String(v));return u.href}
 async function resolveSso(email:string){const query='query sso($email: String, $redirectUri: String!, $loginMethod: String) { sso(input: { email: $email redirectUri: $redirectUri loginMethod: $loginMethod }) { baseUrl clientId realm } }';let response:Response;try{response=await fetch(IMMOMIO_GQL,{method:'POST',headers:{'content-type':'application/json','accept':'application/json','origin':IMMOMIO_TENANT,'referer':IMMOMIO_TENANT+'/'},body:JSON.stringify({query,variables:{email,redirectUri:IMMOMIO_REDIRECT,loginMethod:'DEFAULT'}}),signal:AbortSignal.timeout(20000)})}catch{throw Error('temporary_network_error')}const body=await response.json().catch(()=>null),sso=body?.data?.sso;if(!response.ok||body?.errors?.length||!sso||String(sso.clientId)!==IMMOMIO_CLIENT||String(sso.realm)!==IMMOMIO_REALM)throw Error('provider_contract_unverified');return{baseUrl:IMMOMIO_BASE,realm:IMMOMIO_REALM,clientId:IMMOMIO_CLIENT}}
 async function immomioUrl(flow:any,codeChallenge:string,emailValue:any){const email=clean(emailValue,320).toLowerCase();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw Error('provider_email_required');const cfg=await resolveSso(email);const u=new URL(`${cfg.baseUrl}/realms/${IMMOMIO_REALM}/protocol/openid-connect/auth`);for(const[k,v]of Object.entries({client_id:IMMOMIO_CLIENT,redirect_uri:IMMOMIO_REDIRECT,response_type:'code',response_mode:'query',scope:'openid profile email',state:String(flow.state),code_challenge:codeChallenge,code_challenge_method:'S256',login_hint:email,prompt:'login'}))u.searchParams.set(k,String(v));return u.href}
@@ -173,9 +184,9 @@ async function mfaVerify(value:any,mfaTicket:any,factorId:any,passCode:any){
  await notifyConnected(flow,result);return result
 }
 async function status(value:any){
- const flow=await flowFor(value,true),info=await participantInfo(flow),connection=info.connection;
+ const flow=await flowFor(value,true),info=await participantInfo(flow),connection=info.connection,central=flow.origin==='admin'&&flow.context?.scope==='central';
  const completed=!!flow.context?.completed_at&&!!flow.consumed_at,connected=completed&&connection?.status==='connected';
- return{ok:true,provider:flow.provider,status:completed?(connection?.status||'disconnected'):'pending',connected,accountHint:completed?(connection?.account_hint||null):null,lastVerifiedAt:completed?(connection?.last_verified_at||null):null,lastError:completed?(connection?.last_error||null):null,participantLabel:info.participantLabel,origin:flow.origin,returnTarget:flow.return_target}
+ return{ok:true,provider:flow.provider,status:completed?(connection?.status||'disconnected'):'pending',connected,accountHint:completed?(connection?.account_hint||null):null,lastVerifiedAt:completed?(connection?.last_verified_at||null):null,lastError:completed?(connection?.last_error||null):null,participantLabel:info.participantLabel,origin:flow.origin,returnTarget:flow.return_target,connectionScope:central?'service':'participant'}
 }
 async function completeIndeed(value:any,codeValue:any,issuerValue:any,errorValue:any){
  const flow=await flowFor(value);if(String(flow.provider)!=='indeed')throw Error('provider_unsupported');
