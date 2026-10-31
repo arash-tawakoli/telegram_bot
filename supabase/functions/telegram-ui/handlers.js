@@ -85,7 +85,7 @@ function secureToken(bytes = 32) {
     let raw = "";
     for (const value of values)
         raw += String.fromCharCode(value);
-    return btoa(raw).replace(/\\+/g, "-").replace(/\\//g, "_").replace(/=+$/g, "");
+    return btoa(raw).split("+").join("-").split("/").join("_").replace(/=+$/g, "");
 }
 
 async function startCentralImmoScoutToken(user, chatId) {
