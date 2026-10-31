@@ -54,7 +54,7 @@ test('central credentials are encrypted in Cloudflare D1 and never stored in par
 });
 
 test('central token is used only when explicitly enabled; participant OAuth remains fallback', () => {
-  assert.match(worker, /enabled INTEGER NOT NULL DEFAULT 0/);
+  assert.match(schema, /enabled INTEGER NOT NULL DEFAULT 0/);
   assert.match(worker, /\/internal\/enable/);
   assert.match(adapter, /getCentralImmoScoutConnection/);
   assert.match(adapter, /refreshCentral/);
