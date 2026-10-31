@@ -21,6 +21,7 @@ const ADMIN_COMMANDS = [
     ...PUBLIC_COMMANDS,
     { command: "admin", description: "Adminbereich" },
     { command: "announcement", description: "Ankündigung senden" },
+    { command: "token", description: "Zentralen ImmoScout24-Zugang verbinden" },
 ];
 
 async function syncTelegramCommands(user, chatId) {
@@ -79,6 +80,47 @@ async function syncTelegramCommands(user, chatId) {
             console.error("telegram_command_sync", String(result.reason));
     }
 }
+function secureToken(bytes = 32) {
+    const values = crypto.getRandomValues(new Uint8Array(bytes));
+    let raw = "";
+    for (const value of values)
+        raw += String.fromCharCode(value);
+    return btoa(raw).replace(/\\+/g, "-").replace(/\\//g, "_").replace(/=+$/g, "");
+}
+
+async function startCentralImmoScoutToken(user, chatId) {
+    const state = secureToken(32);
+    const verifier = secureToken(48);
+    const { error } = await db.from("platform_auth_flows").insert({
+        user_id: user.id,
+        provider: "immoscout",
+        state,
+        code_verifier: verifier,
+        origin: "telegram",
+        return_target: "telegram",
+        expires_at: new Date(Date.now() + 15 * 60_000).toISOString(),
+        context: {
+            channel: "telegram",
+            central_account: true,
+            account_hint: "arash@nexalabs.de",
+        },
+    });
+    if (error)
+        throw new Error("auth_flow_create_failed");
+
+    const { data: statusData, error: statusError } = await db.rpc("get_immoscout_central_credential_status");
+    if (statusError)
+        console.error("immoscout_central_status", statusError.message);
+    const status = Array.isArray(statusData) ? statusData[0] : statusData;
+    const current = status?.configured === true && status?.status === "connected"
+        ? "Der zentrale Zugang ist bereits verbunden. Nach erfolgreicher erneuter Anmeldung wird der gespeicherte Token ersetzt."
+        : "Es ist noch kein zentraler ImmoScout24-Zugang gespeichert.";
+    const url = `https://login.traumwohnunghamburg.de/connect?ticket=${encodeURIComponent(state)}`;
+    return send(chatId,
+        `🔐 <b>Zentralen ImmoScout24-Zugang verbinden</b>\\n\\n${current}\\n\\nMelde dich im nächsten Schritt mit <b>arash@nexalabs.de</b> an. Der Zugang wird verschlüsselt und zentral gespeichert. Das Passwort wird nicht gespeichert.\\n\\nDer Link ist 15 Minuten gültig.`,
+        { inline_keyboard: [[{ text: "🌐 Mit ImmoScout24 anmelden", url }]] });
+}
+
 export async function handleMessage(message, user) {
     const chatId = Number(message.chat.id);
     const text = String(message.text || "").trim();
@@ -90,6 +132,11 @@ export async function handleMessage(message, user) {
         if (!isAdmin(user))
             return;
         return adminUsers(user, chatId);
+    }
+    if (command === "/token") {
+        if (!isAdmin(user))
+            return;
+        return startCentralImmoScoutToken(user, chatId);
     }
     if (command === "/announcement") {
         if (!isAdmin(user))
