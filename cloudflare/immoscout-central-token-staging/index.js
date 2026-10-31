@@ -116,10 +116,6 @@ async function internal(request, env, path) {
         key_version=1,status='connected',enabled=CASE WHEN ?=1 THEN central_credentials.enabled ELSE 0 END,expires_at=excluded.expires_at,
         last_verified_at=CURRENT_TIMESTAMP,last_error=NULL,updated_at=CURRENT_TIMESTAMP
     `).bind(email, sealed.ciphertext, sealed.iv, expires.toISOString(), body.preserve_enabled === true ? 1 : 0).run();
-    if (typeof body.flow_state === "string" && body.flow_state.startsWith("cf_")) {
-      await env.DB.prepare("UPDATE oauth_flows SET completed_at=CURRENT_TIMESTAMP WHERE state_hash=?")
-        .bind(await digest(body.flow_state)).run();
-    }
     await env.DB.prepare("INSERT INTO audit_events(event_type,account_hint) VALUES('credential_stored',?)").bind(email).run();
     return json({ stored: true, account_hint: email, enabled: false, expires_at: expires.toISOString() });
   }
@@ -150,52 +146,6 @@ async function internal(request, env, path) {
     await env.DB.prepare("INSERT INTO audit_events(event_type,account_hint) SELECT ?,account_hint FROM central_credentials WHERE singleton='central'")
       .bind(body.enabled ? "auto_apply_enabled" : "auto_apply_disabled").run();
     return json({ enabled: body.enabled });
-  }
-  if (path === "/internal/flow" && request.method === "POST") {
-    const body = await bodyJson(request);
-    const adminId = String(body.admin_telegram_id || "");
-    if (!ADMIN_IDS.has(adminId)) return json({ error: "admin_required" }, 403);
-    const state = `cf_${randomToken(32)}`;
-    const verifier = randomToken(48);
-    const sealed = await encrypt({ verifier }, env, "nexalabs:immoscout:oauth-flow:v1");
-    const expires = new Date(Date.now() + 15 * 60_000).toISOString();
-    await env.DB.prepare(
-      "INSERT INTO oauth_flows(state_hash,verifier_ciphertext,verifier_iv,admin_telegram_id,user_id,expires_at) VALUES(?,?,?,?,?,?)"
-    ).bind(await digest(state), sealed.ciphertext, sealed.iv, adminId, String(body.user_id || ""), expires).run();
-    return json({ state, expires_at: expires });
-  }
-  if (path === "/internal/flow/inspect" && request.method === "POST") {
-    const body = await bodyJson(request);
-    const state = String(body.state || "");
-    const row = await env.DB.prepare(
-      "SELECT state_hash,verifier_ciphertext,verifier_iv,admin_telegram_id,user_id,expires_at,consumed_at FROM oauth_flows WHERE state_hash=?"
-    ).bind(await digest(state)).first();
-    if (!row || row.consumed_at || Date.parse(row.expires_at) <= Date.now()) return json({ error: "flow_expired" }, 410);
-    const secret = await decrypt(row.verifier_ciphertext, row.verifier_iv, env, "nexalabs:immoscout:oauth-flow:v1");
-    return json({ state, verifier: secret.verifier, admin_telegram_id: row.admin_telegram_id, user_id: row.user_id, expires_at: row.expires_at, consumed: false });
-  }
-  if (path === "/internal/flow/claim" && request.method === "POST") {
-    const body = await bodyJson(request);
-    const state = String(body.state || "");
-    const row = await env.DB.prepare(
-      "SELECT state_hash,verifier_ciphertext,verifier_iv,admin_telegram_id,user_id,expires_at,consumed_at FROM oauth_flows WHERE state_hash=?"
-    ).bind(await digest(state)).first();
-    if (!row || row.consumed_at || Date.parse(row.expires_at) <= Date.now()) return json({ error: "flow_expired" }, 410);
-    const claimed = await env.DB.prepare(
-      "UPDATE oauth_flows SET consumed_at=CURRENT_TIMESTAMP WHERE state_hash=? AND consumed_at IS NULL AND expires_at>CURRENT_TIMESTAMP"
-    ).bind(row.state_hash).run();
-    if (!claimed.meta.changes) return json({ error: "flow_expired" }, 410);
-    const secret = await decrypt(row.verifier_ciphertext, row.verifier_iv, env, "nexalabs:immoscout:oauth-flow:v1");
-    return json({ state, verifier: secret.verifier, admin_telegram_id: row.admin_telegram_id, user_id: row.user_id, expires_at: row.expires_at, consumed: true });
-  }
-  if (path === "/internal/flow/status" && request.method === "POST") {
-    const body = await bodyJson(request);
-    const state = String(body.state || "");
-    const row = await env.DB.prepare(
-      "SELECT admin_telegram_id,user_id,expires_at,consumed_at,completed_at FROM oauth_flows WHERE state_hash=?"
-    ).bind(await digest(state)).first();
-    if (!row || Date.parse(row.expires_at) <= Date.now()) return json({ error: "flow_expired" }, 410);
-    return json({ state, admin_telegram_id: row.admin_telegram_id, user_id: row.user_id, expires_at: row.expires_at, consumed: !!row.consumed_at, completed_at: row.completed_at || null });
   }
   return json({ error: "not_found" }, 404);
 }
