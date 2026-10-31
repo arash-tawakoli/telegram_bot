@@ -106,7 +106,8 @@ async function saveCentralCredentials(flow:any,userId:string,credentials:any,acc
 async function claimFlow(flow:any){
  if(isCentralFlow(flow)){
   const claimed=await centralImmoScoutApi('/internal/flow/claim',{state:flow.state});
-  if(String(claimed.user_id)!==String(flow.user_id)||String(claimed.admin_telegram_id)!=='')throw Error('auth_flow_expired');
+  const {data:admin,error}=await db.from('bot_users').select('telegram_user_id').eq('id',flow.user_id).maybeSingle();
+  if(error||String(claimed.user_id)!==String(flow.user_id)||String(claimed.admin_telegram_id)!==String(admin?.telegram_user_id))throw Error('auth_flow_expired');
   flow.code_verifier=String(claimed.verifier||'');
   if(!flow.code_verifier)throw Error('auth_flow_expired');
   return;
