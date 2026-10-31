@@ -19,3 +19,30 @@ export async function recordRefreshResult(db:any,userId:string,provider:string,s
  });
  if(rpcError)console.error('connection_refresh_telemetry',provider,rpcError.message);
 }
+
+const CENTRAL_IMMOSCOUT_AAD='nexalabs:immoscout:central:v1';
+export async function getCentralImmoScoutConnection(db:any){
+ const {data,error}=await db.rpc('get_immoscout_central_credentials');
+ if(error)throw Error('central_credential_read_failed');
+ const row=Array.isArray(data)?data[0]:data;
+ if(!row?.credential_ciphertext||!row?.credential_iv)return null;
+ const version=Number(row.key_version)||1,key=await keyMaterial(db,version);
+ try{
+  const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(row.credential_iv),additionalData:enc.encode(CENTRAL_IMMOSCOUT_AAD)},key,unb64(row.credential_ciphertext));
+  return{row,credentials:JSON.parse(dec.decode(plain))};
+ }catch{throw Error('credential_decrypt_failed');}
+}
+export async function saveCentralImmoScoutCredentials(db:any,credentials:any){
+ const version=1,key=await keyMaterial(db,version),iv=crypto.getRandomValues(new Uint8Array(12));
+ const plain=enc.encode(JSON.stringify(credentials));
+ const cipher=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:enc.encode(CENTRAL_IMMOSCOUT_AAD)},key,plain));
+ const {data,error}=await db.rpc('update_immoscout_central_credentials',{
+  p_credential_ciphertext:b64(cipher),p_credential_iv:b64(iv),p_key_version:version,
+  p_expires_at:credentials?.expires_at||null
+ });
+ if(error||data!==true)throw Error('central_credential_update_failed');
+}
+export async function markCentralImmoScoutConnection(db:any,status:string,lastError:string|null=null){
+ const {error}=await db.rpc('mark_immoscout_central_credentials',{p_status:status,p_last_error:lastError});
+ if(error)throw Error('central_credential_status_update_failed');
+}
