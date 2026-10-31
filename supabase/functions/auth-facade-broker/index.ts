@@ -42,7 +42,7 @@ async function notifyConnected(flow:any,result:any){
   if(!user?.chat_id)return;
   const token=await secret('telegram_bot_token_runtime'),name=providerLabel(flow.provider);
   const text=flow.context?.central_account===true
-   ?`✅ <b>Zentraler ImmoScout24-Zugang gespeichert</b>\\n\\nDas NexaLabs-Konto ${clean(result?.accountHint,320)} wurde erfolgreich verbunden. Der Token ist verschlüsselt gespeichert.`
+   ?`✅ <b>Zentraler ImmoScout24-Zugang gespeichert</b>\\n\\nDas NexaLabs-Konto ${clean(result?.accountHint,320)} wurde erfolgreich verbunden. Der Token ist verschlüsselt gespeichert. Auto-Bewerbung bleibt bis zur Aktivierung über /token aktivieren deaktiviert.`
    :`✅ <b>${name} verbunden</b>\\n\\nDein Konto wurde erfolgreich verbunden.`;
   await fetch(`https://api.telegram.org/bot${token}/sendMessage`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({chat_id:user.chat_id,parse_mode:'HTML',text}),signal:AbortSignal.timeout(10000)});
  }catch(error){console.error('telegram_connection_notice',String(error))}
