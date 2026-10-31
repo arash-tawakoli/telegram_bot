@@ -115,7 +115,7 @@ async function internal(request, env, path) {
         account_hint=excluded.account_hint,ciphertext=excluded.ciphertext,iv=excluded.iv,
         key_version=1,status='connected',enabled=CASE WHEN ?=1 THEN central_credentials.enabled ELSE 0 END,expires_at=excluded.expires_at,
         last_verified_at=CURRENT_TIMESTAMP,last_error=NULL,updated_at=CURRENT_TIMESTAMP
-    `).bind(email, sealed.ciphertext, sealed.iv, body.preserve_enabled === true ? 1 : 0, expires.toISOString()).run();
+    `).bind(email, sealed.ciphertext, sealed.iv, expires.toISOString(), body.preserve_enabled === true ? 1 : 0).run();
     if (typeof body.flow_state === "string" && body.flow_state.startsWith("cf_")) {
       await env.DB.prepare("UPDATE oauth_flows SET completed_at=CURRENT_TIMESTAMP WHERE state_hash=?")
         .bind(await digest(body.flow_state)).run();
