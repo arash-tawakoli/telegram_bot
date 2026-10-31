@@ -65,7 +65,7 @@ begin
     user_id,provider,status,connection_scope,account_hint,key_version,
     last_verified_at,last_error,created_at,updated_at
   )
-  select b.id,'immoscout','connected','service',new.account_hint,1,
+  select b.id,'immoscout','connected','service','Zentral verwaltet durch NexaLabs',1,
          new.last_verified_at,null,clock_timestamp(),clock_timestamp()
   from public.bot_users b
   where b.is_active
@@ -101,7 +101,7 @@ begin
       user_id,provider,status,connection_scope,account_hint,key_version,
       last_verified_at,last_error,created_at,updated_at
     )
-    select new.id,'immoscout','connected','service',s.account_hint,1,
+    select new.id,'immoscout','connected','service','Zentral verwaltet durch NexaLabs',1,
            s.last_verified_at,null,clock_timestamp(),clock_timestamp()
     from public.platform_service_connections s
     where s.provider='immoscout' and s.status='connected'
