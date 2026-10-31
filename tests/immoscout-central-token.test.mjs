@@ -11,6 +11,7 @@ const auth = read('../supabase/functions/immoscout-auth-bridge/index.ts');
 const credentials = read('../supabase/functions/application-worker/credentials.ts');
 const adapter = read('../supabase/functions/application-worker/providers/immoscout.ts');
 const worker = read('../cloudflare/immoscout-central-token-staging/index.js');
+const schema = read('../cloudflare/immoscout-central-token-staging/schema.sql');
 
 test('the /token command is exposed only in the admin Telegram command scope', () => {
   const publicCommands = handlers.match(/const PUBLIC_COMMANDS = \[([\s\S]*?)\];/)?.[1] || '';
@@ -43,7 +44,7 @@ test('central credentials are encrypted in Cloudflare D1 and never stored in par
   assert.match(worker, /TOKEN_ENCRYPTION_KEY/);
   assert.match(worker, /INSERT INTO central_credentials/);
   assert.match(worker, /account_hint: email/);
-  assert.match(worker, /enabled INTEGER NOT NULL DEFAULT 0/);
+  assert.match(schema, /enabled INTEGER NOT NULL DEFAULT 0/);
   assert.match(auth, /centralImmoScoutApi\('\/internal\/store'/);
   assert.match(credentials, /\/internal\/credentials/);
   assert.match(auth, /centralImmoScoutApi\('\/internal\/store'/);
