@@ -52,6 +52,7 @@ test('central token is used first with participant OAuth retained as fallback', 
   assert.match(adapter, /const connection=await getConnection\(db,userId,PROVIDER\)/);
   assert.match(adapter, /emailaddress:\(\)=>clean\(profile\?\.email,320\)\|\|null/);
   assert.match(adapter, /CENTRAL_ACCOUNT_EMAIL/);
+  assert.match(adapter, /central.row.enabled===true/);
 });
 
 test('central credential refresh preserves account identity and updates encrypted storage', () => {
