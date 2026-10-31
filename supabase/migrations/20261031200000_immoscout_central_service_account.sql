@@ -72,10 +72,11 @@ begin
   on conflict(user_id,provider) do update set
     status=excluded.status,
     account_hint=excluded.account_hint,
-    last_verified_at=excluded.last_verified_at,
     last_error=null,
     updated_at=clock_timestamp()
-  where public.platform_connections.connection_scope='service';
+  where public.platform_connections.connection_scope='service'
+    and (public.platform_connections.status is distinct from excluded.status
+      or public.platform_connections.account_hint is distinct from excluded.account_hint);
 
   return new;
 end
@@ -115,42 +116,6 @@ drop trigger if exists bot_users_ensure_immoscout_service_placeholder on public.
 create trigger bot_users_ensure_immoscout_service_placeholder
 after insert on public.bot_users
 for each row execute function app_private.ensure_immoscout_service_placeholder_for_user();
-
-create or replace function app_private.restore_immoscout_service_placeholder()
-returns trigger
-language plpgsql
-security definer
-set search_path=''
-as $$
-begin
-  if old.provider='immoscout'
-     and old.connection_scope='participant'
-     and exists (
-       select 1 from public.bot_users b where b.id=old.user_id and b.is_active
-     )
-     and exists (
-       select 1 from public.platform_service_connections s
-       where s.provider='immoscout' and s.status='connected'
-     ) then
-    insert into public.platform_connections(
-      user_id,provider,status,connection_scope,account_hint,key_version,
-      last_verified_at,last_error,created_at,updated_at
-    )
-    select old.user_id,'immoscout','connected','service',s.account_hint,1,
-           s.last_verified_at,null,clock_timestamp(),clock_timestamp()
-    from public.platform_service_connections s
-    where s.provider='immoscout' and s.status='connected'
-    on conflict(user_id,provider) do nothing;
-  end if;
-  return old;
-end
-$$;
-revoke all on function app_private.restore_immoscout_service_placeholder() from public,anon,authenticated;
-
-drop trigger if exists platform_connections_restore_immoscout_service on public.platform_connections;
-create trigger platform_connections_restore_immoscout_service
-after delete on public.platform_connections
-for each row execute function app_private.restore_immoscout_service_placeholder();
 
 -- Admin-issued central-account flows are restricted to active Super Admins.
 -- They use the admin's own bot profile only as an OAuth-flow anchor.
