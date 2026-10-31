@@ -88,11 +88,28 @@ function secureToken(bytes = 32) {
     return btoa(raw).split("+").join("-").split("/").join("_").replace(/=+$/g, "");
 }
 
+const CENTRAL_IMMOSCOUT_WORKER = "https://immoscout-central-token-staging.arash-ce5.workers.dev";
+
+async function centralImmoScoutApi(path, method = "GET", body = undefined) {
+    const apiSecret = await secret("immoscout_central_cloudflare_api_secret");
+    const response = await fetch(`${CENTRAL_IMMOSCOUT_WORKER}${path}`, {
+        method,
+        headers: {
+            authorization: `Bearer ${apiSecret}`,
+            accept: "application/json",
+            ...(body === undefined ? {} : { "content-type": "application/json" }),
+        },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+        signal: AbortSignal.timeout(15000),
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok || !data)
+        throw new Error(data?.error || "central_immoscout_unavailable");
+    return data;
+}
+
 async function centralImmoScoutTokenStatus(chatId) {
-    const { data, error } = await db.rpc("get_immoscout_central_credential_status");
-    if (error)
-        throw new Error("central_credential_status_unavailable");
-    const status = Array.isArray(data) ? data[0] : data;
+    const status = await centralImmoScoutApi("/internal/status");
     if (status?.configured !== true) {
         return send(chatId, "Noch kein zentraler ImmoScout24-Zugang gespeichert. Starte mit /token.");
     }
@@ -103,46 +120,31 @@ async function centralImmoScoutTokenStatus(chatId) {
 }
 
 async function setCentralImmoScoutEnabled(chatId, enabled) {
-    const { data, error } = await db.rpc("set_immoscout_central_enabled", { p_enabled: enabled });
-    if (error)
-        throw new Error("central_credential_status_update_failed");
-    if (data !== true)
-        return send(chatId, "Kein verbundener zentraler ImmoScout24-Zugang vorhanden. Bitte zuerst /token ausführen.");
+    try {
+        await centralImmoScoutApi("/internal/enable", "POST", { enabled });
+    }
+    catch (error) {
+        if (String(error?.message || "").includes("credential_not_connected"))
+            return send(chatId, "Kein verbundener zentraler ImmoScout24-Zugang vorhanden. Bitte zuerst /token ausführen.");
+        throw error;
+    }
     return send(chatId, enabled
         ? "✅ Zentraler ImmoScout24-Zugang aktiviert. Neue freigegebene Bewerbungen können jetzt über das NexaLabs-Konto versendet werden."
         : "⏸ Zentraler ImmoScout24-Zugang deaktiviert. Der Bot verwendet wieder verbundene Teilnehmerkonten, sofern vorhanden.");
 }
 
 async function startCentralImmoScoutToken(user, chatId) {
-    const state = secureToken(32);
-    const verifier = secureToken(48);
-    const { error } = await db.from("platform_auth_flows").insert({
-        user_id: user.id,
-        provider: "immoscout",
-        state,
-        code_verifier: verifier,
-        origin: "telegram",
-        return_target: "telegram",
-        expires_at: new Date(Date.now() + 15 * 60_000).toISOString(),
-        context: {
-            channel: "telegram",
-            central_account: true,
-            account_hint: "arash@nexalabs.de",
-        },
+    const flow = await centralImmoScoutApi("/internal/flow", "POST", {
+        admin_telegram_id: String(user.telegram_user_id),
+        user_id: String(user.id),
     });
-    if (error)
-        throw new Error("auth_flow_create_failed");
-
-    const { data: statusData, error: statusError } = await db.rpc("get_immoscout_central_credential_status");
-    if (statusError)
-        console.error("immoscout_central_status", statusError.message);
-    const status = Array.isArray(statusData) ? statusData[0] : statusData;
-    const current = status?.configured === true && status?.status === "connected"
+    const status = await centralImmoScoutApi("/internal/status");
+    const current = status.configured === true && status.status === "connected"
         ? `Der zentrale Zugang ist bereits verbunden. Auto-Bewerbung ist derzeit ${status.enabled === true ? "aktiv" : "deaktiviert"}. Nach erfolgreicher erneuter Anmeldung wird der gespeicherte Token ersetzt.`
         : "Es ist noch kein zentraler ImmoScout24-Zugang gespeichert.";
-    const url = `https://login.traumwohnunghamburg.de/connect?ticket=${encodeURIComponent(state)}`;
+    const url = `https://login.traumwohnunghamburg.de/connect?ticket=${encodeURIComponent(flow.state)}`;
     return send(chatId,
-        `🔐 <b>Zentralen ImmoScout24-Zugang verbinden</b>\n\n${current}\n\nMelde dich im nächsten Schritt mit <b>arash@nexalabs.de</b> an. Der Zugang wird verschlüsselt und zentral gespeichert. Das Passwort wird nicht gespeichert.\n\nDer Versand bleibt zunächst deaktiviert. Nach dem Verbindungstest kannst du ihn mit /token aktivieren einschalten.\n\nDer Link ist 15 Minuten gültig.`,
+        `🔐 <b>Zentralen ImmoScout24-Zugang verbinden</b>\n\n${current}\n\nMelde dich im nächsten Schritt mit <b>arash@nexalabs.de</b> an. Der Zugang wird verschlüsselt in Cloudflare D1 gespeichert. Das Passwort wird nicht gespeichert.\n\nDer Versand bleibt zunächst deaktiviert. Nach dem Verbindungstest kannst du ihn mit /token aktivieren einschalten.\n\nDer Link ist 15 Minuten gültig.`,
         { inline_keyboard: [[{ text: "🌐 Mit ImmoScout24 anmelden", url }]] });
 }
 
