@@ -69,13 +69,6 @@ async function assertFlowAccess(flow:any){
 }
 async function flowByState(state:string,userId?:string){
  if(!/^[A-Za-z0-9_-]{20,80}$/.test(state))throw Error('invalid_state');
- if(state.startsWith('cf_')){
-  const remote=await centralImmoScoutApi('/internal/flow/inspect',{state});
-  if(userId&&String(remote.user_id)!==String(userId))throw Error('auth_flow_expired');
-  const flow:any={id:state,user_id:String(remote.user_id||''),provider:PROVIDER,state,code_verifier:String(remote.verifier||''),origin:'telegram',return_target:'telegram',expires_at:remote.expires_at,consumed_at:null,context:{central_account:true,account_hint:CENTRAL_ACCOUNT_EMAIL}};
-  await assertFlowAccess(flow);
-  return flow;
- }
  let q=db.from('platform_auth_flows').select('*').eq('provider',PROVIDER).eq('state',state).is('consumed_at',null).gt('expires_at',new Date().toISOString());
  if(userId)q=q.eq('user_id',userId);
  const {data,error}=await q.maybeSingle();
@@ -105,11 +98,13 @@ async function saveCentralCredentials(flow:any,userId:string,credentials:any,acc
 }
 async function claimFlow(flow:any){
  if(isCentralFlow(flow)){
-  const claimed=await centralImmoScoutApi('/internal/flow/claim',{state:flow.state});
-  const {data:admin,error}=await db.from('bot_users').select('telegram_user_id').eq('id',flow.user_id).maybeSingle();
-  if(error||String(claimed.user_id)!==String(flow.user_id)||String(claimed.admin_telegram_id)!==String(admin?.telegram_user_id))throw Error('auth_flow_expired');
-  flow.code_verifier=String(claimed.verifier||'');
-  if(!flow.code_verifier)throw Error('auth_flow_expired');
+  const claim=random();
+  const context={...(flow.context||{}),completion_claim:claim};
+  const {data,error}=await db.from('platform_auth_flows').update({consumed_at:new Date().toISOString(),context})
+   .eq('id',flow.id).eq('user_id',flow.user_id).eq('provider',PROVIDER)
+   .is('consumed_at',null).gt('expires_at',new Date().toISOString()).select('id').maybeSingle();
+  if(error||!data)throw Error('auth_flow_expired');
+  flow.centralCompletionClaim=claim;
   return;
  }
  await claimPlatformConnectFlow(db,flow);
