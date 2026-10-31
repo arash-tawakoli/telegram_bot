@@ -188,7 +188,7 @@ async function participantDetail(a:any,publicId:string){
  const{data:centralImmoScout}=await admin.from('platform_service_connections').select('status,account_hint,expires_at,last_verified_at,last_error,updated_at').eq('provider','immoscout').maybeSingle();
  const connectionRows=[...(connections.data||[])];
  if(centralImmoScout?.status==='connected'){
-  const centralRow={provider:'immoscout',status:'connected',account_hint:centralImmoScout.account_hint||null,expires_at:centralImmoScout.expires_at||null,last_verified_at:centralImmoScout.last_verified_at||null,last_error:null,updated_at:centralImmoScout.updated_at,connection_scope:'service'};
+  const centralRow={provider:'immoscout',status:'connected',account_hint:'Zentral verwaltet durch NexaLabs',expires_at:centralImmoScout.expires_at||null,last_verified_at:centralImmoScout.last_verified_at||null,last_error:null,updated_at:centralImmoScout.updated_at,connection_scope:'service'};
   const index=connectionRows.findIndex((x:any)=>x.provider==='immoscout');
   if(index>=0)connectionRows[index]=centralRow;else connectionRows.push(centralRow);
  }
