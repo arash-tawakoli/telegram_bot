@@ -172,7 +172,7 @@ async function participantDetail(a:any,publicId:string){
   admin.from('applicant_profiles').select('user_id,salutation,first_name,last_name,email,phone,street,house_number,postcode,city,household_size,employment_status,monthly_net_income,default_message,created_at,updated_at,schufa_status,phone_call_desired,message_apartment,message_house,message_temporary_wg,message_swap,household_type,income_range,move_in_preference,move_in_date,wbs_status,pets').eq('user_id',userId).maybeSingle(),
   admin.from('search_profiles').select('id,user_id,name,max_warm_rent,min_rooms,min_area_sqm,districts,property_types,furnished_preference,wbs_only,move_in_from,is_active,created_at,updated_at,location_mode,location_state_code,location_area_codes,boroughs,neighborhoods,profile_slot,max_deposit,require_known_warm_rent,min_room_area_sqm').eq('user_id',userId).order('profile_slot'),
   admin.from('applicant_documents').select('id,document_type,original_filename,mime_type,size_bytes,send_with_auto_apply,created_at,updated_at').eq('user_id',userId).order('created_at',{ascending:false}),
-  admin.from('platform_connections').select('provider,status,account_hint,expires_at,last_verified_at,last_error,updated_at').eq('user_id',userId),
+  admin.from('platform_connections').select('provider,status,account_hint,expires_at,last_verified_at,last_error,updated_at,connection_scope').eq('user_id',userId),
   admin.from('application_preferences').select('user_id,enabled,daily_limit,timezone,allowed_weekdays,send_window_start,send_window_end,immoscout_enabled,kleinanzeigen_enabled,immomio_enabled,immowelt_enabled,updated_at').eq('user_id',userId).maybeSingle(),
   admin.from('applications').select('id,listing_id,source_id,status,attempts,last_error,wait_reason,created_at,sent_at,next_attempt_at,listings(title,canonical_url,district,postal_code,city,sources(name))').eq('user_id',userId).order('created_at',{ascending:false}).limit(50),
   readinessCore([String(userId)]),
@@ -184,6 +184,13 @@ async function participantDetail(a:any,publicId:string){
   const{data:events,error:eventError}=await admin.from('application_events').select('application_id,provider,document_result,status,reason,created_at').in('application_id',appIds).order('created_at',{ascending:false});
   if(eventError)throw Error('applications_read_failed');
   for(const event of events||[])if(!latest.has(String(event.application_id)))latest.set(String(event.application_id),event);
+ }
+ const{data:centralImmoScout}=await admin.from('platform_service_connections').select('status,account_hint,expires_at,last_verified_at,last_error,updated_at').eq('provider','immoscout').maybeSingle();
+ const connectionRows=[...(connections.data||[])];
+ if(centralImmoScout?.status==='connected'){
+  const centralRow={provider:'immoscout',status:'connected',account_hint:centralImmoScout.account_hint||null,expires_at:centralImmoScout.expires_at||null,last_verified_at:centralImmoScout.last_verified_at||null,last_error:null,updated_at:centralImmoScout.updated_at,connection_scope:'service'};
+  const index=connectionRows.findIndex((x:any)=>x.provider==='immoscout');
+  if(index>=0)connectionRows[index]=centralRow;else connectionRows.push(centralRow);
  }
  const safeAssignment={participantId:assignment.public_id,coachMemberId:assignment.coach_member_id,status:assignment.status,retentionMode:assignment.retention_mode,retentionDeleteOn:assignment.retention_delete_on,assignmentVersion:assignment.assignment_version,archivedAt:assignment.archived_at,createdAt:assignment.created_at,updatedAt:assignment.updated_at};
  const ready={...readinessView(readiness.get(String(userId)),assignment.status),searchProfileCount:(searches.data||[]).length};
@@ -205,7 +212,7 @@ async function participantDetail(a:any,publicId:string){
    assignment:safeAssignment,user:safeUser,readiness:ready,quota,
    profile:without(profile.data,'user_id'),providerProfileReadiness:providerProfileReadiness(profile.data),
    searchProfiles:(searches.data||[]).map((x:any)=>without(x,'user_id')),
-   documents:documents.data||[],connections:connections.data||[],
+   documents:documents.data||[],connections:connectionRows,
    preferences:without(prefs.data,'user_id'),
    applications:appRows.map((x:any)=>({...x,latestEvent:without(latest.get(String(x.id)),'application_id')})),
    applicationSummary:(appsSummary.data||[]).map((x:any)=>({total:Number(x.total||0),sent:Number(x.sent||0),failed:Number(x.failed||0),pending:Number(x.pending||0)}))[0]||{total:appRows.length,sent:appRows.filter((x:any)=>x.status==='sent'||x.sent_at!=null).length,failed:appRows.filter((x:any)=>x.status==='failed'||x.status==='manual_required').length,pending:appRows.filter((x:any)=>['pending','processing','queued','retrying'].includes(String(x.status||''))).length}
@@ -679,6 +686,27 @@ async function handle(req:Request){
  if(action==='resume_save')return saveResumeDraft(a,body);
  if(action==='resume_delete')return deleteResumeDraft(a,body);
  if(action==='me')return{member:{id:actual.member.id,displayName:actual.member.display_name,role:publicMemberRole(actual.member.role,actual.member.is_super_admin)},workspace:{name:a.workspace.name}};
+ if(action==='immoscout_central_status'){
+  if(actual.member.is_super_admin!==true)throw Error('super_admin_required');
+  const{data,error}=await admin.from('platform_service_connections').select('status,account_hint,expires_at,last_verified_at,last_refresh_at,refresh_attempts,last_error,updated_at').eq('provider','immoscout').maybeSingle();
+  if(error)throw Error('central_connection_read_failed');
+  return{provider:'immoscout',connected:data?.status==='connected',status:data?.status||'disconnected',accountHint:data?.account_hint||null,expiresAt:data?.expires_at||null,lastVerifiedAt:data?.last_verified_at||null,lastRefreshAt:data?.last_refresh_at||null,refreshAttempts:Number(data?.refresh_attempts||0),lastError:data?.last_error||null,updatedAt:data?.updated_at||null};
+ }
+ if(action==='start_immoscout_central_connect'){
+  if(actual.member.is_super_admin!==true)throw Error('super_admin_required');
+  const state=random(32),verifier=random(64);
+  const{data,error}=await admin.rpc('coach_issue_immoscout_central_connect_flow',{p_actor:actual.member.id,p_state:state,p_verifier:verifier});
+  if(error||!data?.expiresAt)throw Error(error?.message||'auth_flow_create_failed');
+  await audit(actual,null,'central_provider_connect_started',{provider:'immoscout'});
+  return{url:'https://login.traumwohnunghamburg.de/connect?ticket='+encodeURIComponent(state),expiresAt:data.expiresAt,expiresInSeconds:1800};
+ }
+ if(action==='disconnect_immoscout_central'){
+  if(actual.member.is_super_admin!==true)throw Error('super_admin_required');
+  const{error}=await admin.from('platform_service_connections').delete().eq('provider','immoscout');
+  if(error)throw Error('central_connection_delete_failed');
+  await audit(actual,null,'central_provider_disconnected',{provider:'immoscout'});
+  return{ok:true,status:'disconnected'};
+ }
  if(action==='members'){const{data,error}=await admin.from('coaching_members').select('id,display_name,role,is_super_admin,is_active,created_at'+(a.member.role==='admin'?',coaching_participants!coaching_participants_workspace_id_coach_member_id_fkey(user_id)':'')).eq('workspace_id',a.member.workspace_id).order('display_name');if(error)throw Error('members_read_failed');return{members:(data||[]).map((x:any)=>({id:x.id,displayName:x.display_name,role:publicMemberRole(x.role,x.is_super_admin),isActive:x.is_active,createdAt:x.created_at,...(a.member.role==='admin'?{participantCount:x.coaching_participants?.length||0}:{})}))};}
  if(action==='locations'){
   const[{data:b,error:be},{data:n,error:ne},{data:sh,error:she}]=await Promise.all([
