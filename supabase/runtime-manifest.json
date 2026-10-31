@@ -122,29 +122,34 @@
     },
     {
       "slug": "auth-facade-broker",
-      "version": 21,
+      "version": 24,
       "verify_jwt": false,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "08a874152363b864f567f211ae1fcc18d37c13c67a7ce76b562736c94f607732",
+      "observed_artifact_sha256": "0c424a2a82d6b1a62822fc7cffd86bc1429bd4726893bce77b8002d7b037f427",
       "entrypoint": "supabase/functions/auth-facade-broker/index.ts",
       "files": [
         {
           "path": "supabase/functions/auth-facade-broker/index.ts",
-          "sha256": "9f20cf097e8f3bb36ed2b181e7e73ef274fd7cfccbbb2f5b34b82601e221b550",
-          "deployed_sha256": "9f20cf097e8f3bb36ed2b181e7e73ef274fd7cfccbbb2f5b34b82601e221b550"
+          "git_blob_sha": "f14274034573ef9ac8a5837af819167793692c01",
+          "deployed_git_blob_sha": "f14274034573ef9ac8a5837af819167793692c01"
         },
         {
           "path": "supabase/functions/_shared/platform-auth-flow.ts",
-          "sha256": "638e113afeb7895cf519d058bd1166f8ca0444a54f5eb9a573c530efc38110de",
-          "deployed_sha256": "638e113afeb7895cf519d058bd1166f8ca0444a54f5eb9a573c530efc38110de"
+          "git_blob_sha": "13315e30c931836ec6427261d3bc3a653c24e498",
+          "deployed_git_blob_sha": "13315e30c931836ec6427261d3bc3a653c24e498"
+        },
+        {
+          "path": "supabase/functions/_shared/telegram-admin.ts",
+          "git_blob_sha": "9868a1e114b476e39cd3c4d0248844c20593d03c",
+          "deployed_git_blob_sha": "9868a1e114b476e39cd3c4d0248844c20593d03c"
         }
       ],
-      "observed_live_version": 22,
+      "observed_live_version": 24,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "7de179fdd1abec2ac76c7ec46ea69a234c7af67b789d60b1924a0021c3463c74",
+      "observed_live_artifact_sha256": "0c424a2a82d6b1a62822fc7cffd86bc1429bd4726893bce77b8002d7b037f427",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-02.json",
-      "source_archive_file_count": 2,
+      "source_archive_file_count": 3,
       "source_archive_status": "full_source",
       "classification": "internal",
       "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
