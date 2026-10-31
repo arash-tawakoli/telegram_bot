@@ -21,46 +21,43 @@ export async function recordRefreshResult(db:any,userId:string,provider:string,s
 }
 
 
-const CENTRAL_IMMOSCOUT_WORKER='https://immoscout-central-token-staging.arash-ce5.workers.dev';
-async function centralImmoScoutApi(db:any,path:string,method='GET',body:any=undefined){
- const {data,error}=await db.rpc('get_bot_secret',{secret_name:'immoscout_central_cloudflare_api_secret'});
- if(error||!data)throw Error('central_credential_service_unavailable');
- let response:Response;
+
+const CENTRAL_IMMOSCOUT_AAD='nexalabs:immoscout:central:v1';
+async function encryptCentralCredentials(db:any,credentials:any){
+ const key=await keyMaterial(db,1),iv=crypto.getRandomValues(new Uint8Array(12));
+ const plain=enc.encode(JSON.stringify(credentials));
+ const cipher=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:enc.encode(CENTRAL_IMMOSCOUT_AAD)},key,plain));
+ return{ciphertext:b64(cipher),iv:b64(iv),key_version:1};
+}
+async function decryptCentralCredentials(db:any,row:any){
+ if(!row?.ciphertext||!row?.iv)return null;
+ const key=await keyMaterial(db,Number(row.key_version)||1);
  try{
-  response=await fetch(`${CENTRAL_IMMOSCOUT_WORKER}${path}`,{
-   method,
-   headers:{authorization:`Bearer ${String(data)}`,accept:'application/json',...(body===undefined?{}:{'content-type':'application/json'})},
-   ...(body===undefined?{}:{body:JSON.stringify(body)}),
-   signal:AbortSignal.timeout(15000)
-  });
- }catch{throw Error('temporary_network_error')}
- const result=await response.json().catch(()=>null);
- if(!response.ok||!result){
-  if(response.status===404&&['needs_login','credential_not_connected'].includes(String(result?.error||'')))return null;
-  throw Error(result?.error||'central_credential_service_unavailable');
- }
- return result;
+  const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(row.iv),additionalData:enc.encode(CENTRAL_IMMOSCOUT_AAD)},key,unb64(row.ciphertext));
+  return JSON.parse(dec.decode(plain));
+ }catch{throw Error('credential_decrypt_failed')}
 }
 export async function getCentralImmoScoutConnection(db:any){
- const result=await centralImmoScoutApi(db,'/internal/credentials','GET');
- if(!result)return null;
- const {account_hint,enabled,status,...credentials}=result;
- return{row:{account_hint,status,enabled:enabled===true,expires_at:credentials.expires_at},credentials};
+ const {data,error}=await db.rpc('get_immoscout_central_credentials');
+ if(error)throw Error('central_credential_read_failed');
+ const row=Array.isArray(data)?data[0]:data;
+ if(!row?.ciphertext||!row?.iv)return null;
+ return{row,credentials:await decryptCentralCredentials(db,row)};
 }
-export async function saveCentralImmoScoutCredentials(db:any,credentials:any){
- const result=await centralImmoScoutApi(db,'/internal/store','POST',{
-  account_hint:'arash@nexalabs.de',
-  access_token:credentials?.access_token,
-  refresh_token:credentials?.refresh_token,
-  id_token:credentials?.id_token||null,
-  token_type:credentials?.token_type||'Bearer',
-  scope:credentials?.scope||'openid profile offline_access',
-  expires_at:credentials?.expires_at,
-  preserve_enabled:true
+export async function saveCentralImmoScoutCredentials(db:any,credentials:any,preserveEnabled=true,adminTelegramId:string|null=null){
+ const encrypted=await encryptCentralCredentials(db,credentials);
+ const {data,error}=await db.rpc('store_immoscout_central_credentials',{
+  p_account_hint:'arash@nexalabs.de',
+  p_ciphertext:encrypted.ciphertext,
+  p_iv:encrypted.iv,
+  p_key_version:encrypted.key_version,
+  p_expires_at:credentials?.expires_at||null,
+  p_preserve_enabled:preserveEnabled,
+  p_admin_telegram_id:adminTelegramId
  });
- if(!result?.stored)throw Error('central_credential_update_failed');
+ if(error||data!==true)throw Error('central_credential_update_failed');
 }
 export async function markCentralImmoScoutConnection(db:any,status:string,lastError:string|null=null){
- const result=await centralImmoScoutApi(db,'/internal/mark','POST',{status,last_error:lastError});
- if(result?.status!==status)throw Error('central_credential_status_update_failed');
+ const {data,error}=await db.rpc('mark_immoscout_central_credentials',{p_status:status,p_last_error:lastError});
+ if(error||data!==true)throw Error('central_credential_status_update_failed');
 }
