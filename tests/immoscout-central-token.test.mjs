@@ -50,7 +50,7 @@ test('Cloudflare owns central OAuth flow, PKCE, MFA and admin validation', () =>
 });
 
 test('the facade proxies central ImmoScout flows to Cloudflare while participant OAuth stays unchanged', () => {
-  assert.match(facade, /state\.startsWith\('cf_'\)/);
+  assert.match(facade, /state\.startsWith\('cfcentral_'\)/);
   assert.match(facade, /isTelegramAdminUser/);
   assert.match(facade, /centralImmoScoutApi\('\/internal\/password_login'/);
   assert.match(facade, /centralImmoScoutApi\('\/internal\/mfa_start'/);
