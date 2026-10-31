@@ -1,4 +1,5 @@
 import {createClient} from "npm:@supabase/supabase-js@2.112.4";
+import { ADMIN_TELEGRAM_USER_IDS } from "../_shared/telegram-admin.ts";
 import { localizeText, localizeMarkup } from "./localization.js";
 import { premium } from "./navigation.js";
 import { profile } from "./profiles.js";
