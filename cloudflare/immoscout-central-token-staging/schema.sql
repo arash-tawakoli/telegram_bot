@@ -19,3 +19,14 @@ CREATE TABLE IF NOT EXISTS audit_events (
   admin_telegram_id TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS oauth_flows (
+  state_hash TEXT PRIMARY KEY,
+  verifier_ciphertext TEXT NOT NULL,
+  verifier_iv TEXT NOT NULL,
+  admin_telegram_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  consumed_at TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
