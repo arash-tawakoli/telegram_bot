@@ -142,7 +142,7 @@ async function startCentralImmoScoutToken(user, chatId) {
         : "Es ist noch kein zentraler ImmoScout24-Zugang gespeichert.";
     const url = `https://login.traumwohnunghamburg.de/connect?ticket=${encodeURIComponent(state)}`;
     return send(chatId,
-        `🔐 <b>Zentralen ImmoScout24-Zugang verbinden</b>\n\n${current}\n\nMelde dich im nächsten Schritt mit <b>arash@nexalabs.de</b> an. Der Zugang wird verschlüsselt und zentral gespeichert. Das Passwort wird nicht gespeichert.\n\nDer Link ist 15 Minuten gültig.`,
+        `🔐 <b>Zentralen ImmoScout24-Zugang verbinden</b>\n\n${current}\n\nMelde dich im nächsten Schritt mit <b>arash@nexalabs.de</b> an. Der Zugang wird verschlüsselt und zentral gespeichert. Das Passwort wird nicht gespeichert.\n\nDer Versand bleibt zunächst deaktiviert. Nach dem Verbindungstest kannst du ihn mit /token aktivieren einschalten.\n\nDer Link ist 15 Minuten gültig.`,
         { inline_keyboard: [[{ text: "🌐 Mit ImmoScout24 anmelden", url }]] });
 }
 
