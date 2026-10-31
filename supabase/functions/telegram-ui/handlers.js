@@ -99,7 +99,7 @@ async function centralImmoScoutTokenStatus(chatId) {
     const enabled = status.enabled === true;
     const verified = status.last_verified_at ? new Date(status.last_verified_at).toLocaleString("de-DE") : "Noch nicht geprüft";
     return send(chatId,
-        `<b>Zentraler ImmoScout24-Zugang</b>\\nKonto: <b>${status.account_hint || "—"}</b>\\nVerbindung: <b>${status.status || "unbekannt"}</b>\\nAuto-Bewerbung: <b>${enabled ? "aktiv" : "deaktiviert"}</b>\\nZuletzt geprüft: ${verified}\\n\\nAktivieren: /token aktivieren\\nDeaktivieren: /token deaktivieren`);
+        \`<b>Zentraler ImmoScout24-Zugang</b>\nKonto: <b>\${status.account_hint || "—"}</b>\nVerbindung: <b>\${status.status || "unbekannt"}</b>\nAuto-Bewerbung: <b>\${enabled ? "aktiv" : "deaktiviert"}</b>\nZuletzt geprüft: \${verified}\n\nAktivieren: /token aktivieren\nDeaktivieren: /token deaktivieren\`);
 }
 
 async function setCentralImmoScoutEnabled(chatId, enabled) {
