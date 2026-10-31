@@ -80,7 +80,7 @@ async function validateFlowContext(flow:any){
 }
 async function flowFor(value:any,allowConsumed=false){
  const state=ticket(value);
- if(state.startsWith('cf_')){
+ if(state.startsWith('cfcentral_')){
   const remote=await centralImmoScoutApi('/internal/resolve',{state,allow_consumed:allowConsumed});
   const flow:any={id:state,user_id:String(remote.user_id||''),provider:'immoscout',state,code_verifier:'',origin:'telegram',return_target:'telegram',expires_at:remote.expires_at,consumed_at:remote.consumed?new Date().toISOString():null,context:{central_account:true,account_hint:remote.account_hint||'arash@nexalabs.de'}};
   if(!flow.user_id||!await isTelegramAdminUser(db,flow.user_id))throw Error('auth_flow_expired');
