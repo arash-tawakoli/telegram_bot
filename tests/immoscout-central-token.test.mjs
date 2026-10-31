@@ -22,20 +22,19 @@ test('the /token command is exposed only in the admin Telegram command scope', (
 });
 
 test('central OAuth flows are admin-scoped and stored in Cloudflare D1', () => {
-  assert.match(handlers, /centralImmoScoutApi\("\/internal\/flow", "POST"/);
-  assert.match(handlers, /admin_telegram_id: String\(user.telegram_user_id\)/);
-  assert.match(handlers, /user_id: String\(user.id\)/);
+  assert.match(handlers, /db\.from\("platform_auth_flows"\)\.insert/);
+  assert.match(handlers, /central_account: true/);
+  assert.match(handlers, /account_hint: "arash@nexalabs\.de"/);
   assert.match(admin, /8538226539/);
   assert.match(admin, /414638980/);
-  assert.match(facade, /state.startsWith\('cf_'\)/);
+  assert.match(facade, /flow\.context\?\.central_account===true/);
   assert.match(facade, /isTelegramAdminUser/);
-  assert.match(auth, /state.startsWith\('cf_'\)/);
+  assert.match(auth, /function isCentralFlow/);
+  assert.match(auth, /isTelegramAdminUser/);
   assert.match(auth, /CENTRAL_ACCOUNT_EMAIL='arash@nexalabs.de'/);
   assert.match(auth, /verifiedEmail!==CENTRAL_ACCOUNT_EMAIL/);
   assert.match(worker, /ADMIN_IDS = new Set/);
-  assert.match(worker, /oauth_flows/);
-  assert.match(worker, /\/internal\/flow\/inspect/);
-  assert.match(worker, /\/internal\/flow\/claim/);
+
 });
 
 test('central credentials are encrypted in Cloudflare D1 and never stored in participant connections', () => {
@@ -47,7 +46,9 @@ test('central credentials are encrypted in Cloudflare D1 and never stored in par
   assert.match(worker, /enabled INTEGER NOT NULL DEFAULT 0/);
   assert.match(auth, /centralImmoScoutApi\('\/internal\/store'/);
   assert.match(credentials, /\/internal\/credentials/);
+  assert.match(auth, /centralImmoScoutApi\('\/internal\/store'/);
   assert.match(credentials, /\/internal\/store/);
+  assert.match(handlers, /centralImmoScoutApi\("\/internal\/status"\)/);
   assert.match(credentials, /get_bot_secret/);
 });
 
