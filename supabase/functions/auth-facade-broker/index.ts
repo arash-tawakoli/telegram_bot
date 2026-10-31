@@ -41,7 +41,10 @@ async function notifyConnected(flow:any,result:any){
   const {data:user}=await db.from('bot_users').select('chat_id').eq('id',flow.user_id).maybeSingle();
   if(!user?.chat_id)return;
   const token=await secret('telegram_bot_token_runtime'),name=providerLabel(flow.provider);
-  await fetch(`https://api.telegram.org/bot${token}/sendMessage`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({chat_id:user.chat_id,parse_mode:'HTML',text:`✅ <b>${name} verbunden</b>\n\nDein Konto wurde erfolgreich verbunden.`}),signal:AbortSignal.timeout(10000)});
+  const text=flow.context?.central_account===true
+   ?`✅ <b>Zentraler ImmoScout24-Zugang gespeichert</b>\\n\\nDas NexaLabs-Konto ${clean(result?.accountHint,320)} wurde erfolgreich verbunden. Der Token ist verschlüsselt gespeichert.`
+   :`✅ <b>${name} verbunden</b>\\n\\nDein Konto wurde erfolgreich verbunden.`;
+  await fetch(`https://api.telegram.org/bot${token}/sendMessage`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({chat_id:user.chat_id,parse_mode:'HTML',text}),signal:AbortSignal.timeout(10000)});
  }catch(error){console.error('telegram_connection_notice',String(error))}
 }
 function ticket(value:any){const v=String(value||'');if(!/^[A-Za-z0-9_-]{20,100}$/.test(v))throw Error('invalid_ticket');return v}
@@ -83,15 +86,12 @@ async function flowFor(value:any,allowConsumed=false){
 async function profileEmail(userId:string){const {data,error}=await db.from('applicant_profiles').select('email').eq('user_id',userId).maybeSingle();const email=clean(data?.email,320).toLowerCase();if(error||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw Error('profile_email_required');return email}
 function participantLabel(first:any,last:any){const f=clean(first,80),l=clean(last,80);return [f,l?l[0]+'.':''].filter(Boolean).join(' ')||'Teilnehmer'}
 async function participantInfo(flow:any){
+ if(flow.context?.central_account===true)return{participantLabel:'NexaLabs · zentraler ImmoScout24-Zugang',profileEmail:null,connection:null};
  const[{data:p},{data:connection}]=await Promise.all([
   db.from('applicant_profiles').select('first_name,last_name,email').eq('user_id',flow.user_id).maybeSingle(),
   db.from('platform_connections').select('status,account_hint,last_verified_at,last_error').eq('user_id',flow.user_id).eq('provider',flow.provider).maybeSingle()
  ]);
- return{
-  participantLabel:participantLabel(p?.first_name,p?.last_name),
-  profileEmail:clean(p?.email,320)||null,
-  connection:connection||null
- };
+ return{participantLabel:participantLabel(p?.first_name,p?.last_name),profileEmail:clean(p?.email,320)||null,connection:connection||null};
 }
 async function accountHint(flow:any){if(flow.context?.central_account===true)return clean(flow.context?.account_hint,320)||'arash@nexalabs.de';const {data}=await db.from('platform_connections').select('account_hint').eq('user_id',flow.user_id).eq('provider',flow.provider).maybeSingle();return clean(data?.account_hint,320)||null}
 function kleinUrl(flow:any,codeChallenge:string){const u=new URL(KLEIN_AUTHORIZE);for(const[k,v]of Object.entries({client_id:KLEIN_CLIENT_ID,response_type:'code',redirect_uri:KLEIN_REDIRECT,scope:KLEIN_SCOPE,code_challenge:codeChallenge,code_challenge_method:'S256',state:String(flow.state),prompt:'login'}))u.searchParams.set(k,String(v));return u.href}
@@ -174,7 +174,14 @@ async function mfaVerify(value:any,mfaTicket:any,factorId:any,passCode:any){
  await notifyConnected(flow,result);return result
 }
 async function status(value:any){
- const flow=await flowFor(value,true),info=await participantInfo(flow),connection=info.connection;
+ const flow=await flowFor(value,true);
+ if(flow.context?.central_account===true){
+  const{data,error}=await db.rpc('get_immoscout_central_credential_status');
+  if(error)throw Error('connection_read_failed');
+  const row=Array.isArray(data)?data[0]:data;
+  return{ok:true,provider:flow.provider,centralAccount:true,status:row?.status||'disconnected',connected:row?.configured===true&&row?.status==='connected',accountHint:row?.account_hint||null,lastVerifiedAt:row?.last_verified_at||null,lastError:row?.last_error||null,origin:flow.origin,returnTarget:flow.return_target};
+ }
+ const info=await participantInfo(flow),connection=info.connection;
  const completed=!!flow.context?.completed_at&&!!flow.consumed_at,connected=completed&&connection?.status==='connected';
  return{ok:true,provider:flow.provider,status:completed?(connection?.status||'disconnected'):'pending',connected,accountHint:completed?(connection?.account_hint||null):null,lastVerifiedAt:completed?(connection?.last_verified_at||null):null,lastError:completed?(connection?.last_error||null):null,participantLabel:info.participantLabel,origin:flow.origin,returnTarget:flow.return_target}
 }
