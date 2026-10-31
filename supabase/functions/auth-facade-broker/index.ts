@@ -75,7 +75,9 @@ async function flowFor(value:any,allowConsumed=false){
  const {data,error}=await q.limit(2);
  if(error||!Array.isArray(data)||data.length!==1)throw Error('auth_flow_expired');
  const flow=data[0];
- if(String(flow.provider)==='indeed'&&flow.origin==='coach'){
+ if(flow.context?.central_account===true){
+  if(String(flow.provider)!=='immoscout'||flow.origin!=='telegram'||!await isTelegramAdminUser(db,String(flow.user_id)))throw Error('auth_flow_expired');
+ }else if(String(flow.provider)==='indeed'&&flow.origin==='coach'){
   const{data:issuer,error:issuerError}=await db.from('coaching_members').select('is_super_admin').eq('auth_user_id',flow.issued_by).maybeSingle();
   if(issuerError||issuer?.is_super_admin!==true)throw Error('premium_required');
  }else await eligible(String(flow.user_id));
