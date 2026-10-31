@@ -134,15 +134,29 @@ async function setCentralImmoScoutEnabled(chatId, enabled) {
 }
 
 async function startCentralImmoScoutToken(user, chatId) {
-    const flow = await centralImmoScoutApi("/internal/flow", "POST", {
-        admin_telegram_id: String(user.telegram_user_id),
-        user_id: String(user.id),
+    const state = secureToken(32);
+    const verifier = secureToken(48);
+    const { error } = await db.from("platform_auth_flows").insert({
+        user_id: user.id,
+        provider: "immoscout",
+        state,
+        code_verifier: verifier,
+        origin: "telegram",
+        return_target: "telegram",
+        expires_at: new Date(Date.now() + 15 * 60_000).toISOString(),
+        context: {
+            channel: "telegram",
+            central_account: true,
+            account_hint: "arash@nexalabs.de",
+        },
     });
+    if (error)
+        throw new Error("auth_flow_create_failed");
     const status = await centralImmoScoutApi("/internal/status");
     const current = status.configured === true && status.status === "connected"
         ? `Der zentrale Zugang ist bereits verbunden. Auto-Bewerbung ist derzeit ${status.enabled === true ? "aktiv" : "deaktiviert"}. Nach erfolgreicher erneuter Anmeldung wird der gespeicherte Token ersetzt.`
         : "Es ist noch kein zentraler ImmoScout24-Zugang gespeichert.";
-    const url = `https://login.traumwohnunghamburg.de/connect?ticket=${encodeURIComponent(flow.state)}`;
+    const url = `https://login.traumwohnunghamburg.de/connect?ticket=${encodeURIComponent(state)}`;
     return send(chatId,
         `🔐 <b>Zentralen ImmoScout24-Zugang verbinden</b>\n\n${current}\n\nMelde dich im nächsten Schritt mit <b>arash@nexalabs.de</b> an. Der Zugang wird verschlüsselt in Cloudflare D1 gespeichert. Das Passwort wird nicht gespeichert.\n\nDer Versand bleibt zunächst deaktiviert. Nach dem Verbindungstest kannst du ihn mit /token aktivieren einschalten.\n\nDer Link ist 15 Minuten gültig.`,
         { inline_keyboard: [[{ text: "🌐 Mit ImmoScout24 anmelden", url }]] });
