@@ -88,28 +88,15 @@ function secureToken(bytes = 32) {
     return btoa(raw).split("+").join("-").split("/").join("_").replace(/=+$/g, "");
 }
 
-const CENTRAL_IMMOSCOUT_WORKER = "https://immoscout-central-token-staging.arash-ce5.workers.dev";
-
-async function centralImmoScoutApi(path, method = "GET", body = undefined) {
-    const apiSecret = await secret("immoscout_central_cloudflare_api_secret");
-    const response = await fetch(`${CENTRAL_IMMOSCOUT_WORKER}${path}`, {
-        method,
-        headers: {
-            authorization: `Bearer ${apiSecret}`,
-            accept: "application/json",
-            ...(body === undefined ? {} : { "content-type": "application/json" }),
-        },
-        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-        signal: AbortSignal.timeout(15000),
-    });
-    const data = await response.json().catch(() => null);
-    if (!response.ok || !data)
-        throw new Error(data?.error || "central_immoscout_unavailable");
-    return data;
+async function centralImmoScoutStatus() {
+    const { data, error } = await db.rpc("get_immoscout_central_credential_status");
+    if (error)
+        throw new Error("central_credential_status_unavailable");
+    return Array.isArray(data) ? data[0] : data;
 }
 
 async function centralImmoScoutTokenStatus(chatId) {
-    const status = await centralImmoScoutApi("/internal/status");
+    const status = await centralImmoScoutStatus();
     if (status?.configured !== true) {
         return send(chatId, "Noch kein zentraler ImmoScout24-Zugang gespeichert. Starte mit /token.");
     }
@@ -120,14 +107,11 @@ async function centralImmoScoutTokenStatus(chatId) {
 }
 
 async function setCentralImmoScoutEnabled(chatId, enabled) {
-    try {
-        await centralImmoScoutApi("/internal/enable", "POST", { enabled });
-    }
-    catch (error) {
-        if (String(error?.message || "").includes("credential_not_connected"))
-            return send(chatId, "Kein verbundener zentraler ImmoScout24-Zugang vorhanden. Bitte zuerst /token ausführen.");
-        throw error;
-    }
+    const { data, error } = await db.rpc("set_immoscout_central_enabled", { p_enabled: enabled });
+    if (error)
+        throw new Error("central_credential_status_update_failed");
+    if (data !== true)
+        return send(chatId, "Kein verbundener zentraler ImmoScout24-Zugang vorhanden. Bitte zuerst /token ausführen.");
     return send(chatId, enabled
         ? "✅ Zentraler ImmoScout24-Zugang aktiviert. Neue freigegebene Bewerbungen können jetzt über das NexaLabs-Konto versendet werden."
         : "⏸ Zentraler ImmoScout24-Zugang deaktiviert. Der Bot verwendet wieder verbundene Teilnehmerkonten, sofern vorhanden.");
@@ -152,7 +136,7 @@ async function startCentralImmoScoutToken(user, chatId) {
     });
     if (error)
         throw new Error("auth_flow_create_failed");
-    const status = await centralImmoScoutApi("/internal/status");
+    const status = await centralImmoScoutStatus();
     const current = status.configured === true && status.status === "connected"
         ? `Der zentrale Zugang ist bereits verbunden. Auto-Bewerbung ist derzeit ${status.enabled === true ? "aktiv" : "deaktiviert"}. Nach erfolgreicher erneuter Anmeldung wird der gespeicherte Token ersetzt.`
         : "Es ist noch kein zentraler ImmoScout24-Zugang gespeichert.";
