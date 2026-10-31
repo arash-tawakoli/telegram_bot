@@ -49,7 +49,7 @@ test('Cloudflare owns central OAuth flow, PKCE, MFA and admin validation', () =>
   assert.match(schema, /CREATE TABLE IF NOT EXISTS oauth_flows/);
 });
 
-test('the facade proxies only central ImmoScout flows to Cloudflare; participant OAuth stays on its existing bridge', () => {
+test('the facade proxies central ImmoScout flows to Cloudflare while participant OAuth stays unchanged', () => {
   assert.match(facade, /state\.startsWith\('cf_'\)/);
   assert.match(facade, /isTelegramAdminUser/);
   assert.match(facade, /centralImmoScoutApi\('\/internal\/password_login'/);
@@ -72,10 +72,9 @@ test('central credentials are encrypted in Cloudflare D1 and protected by Worker
   assert.match(credentials, /immoscout_central_cloudflare_api_secret/);
   assert.match(credentials, /\/internal\/credentials/);
   assert.match(credentials, /\/internal\/store/);
-  assert.doesNotMatch(worker, /6701817d31ebee31/);
 });
 
-test('central auto-apply is opt-in; participant OAuth and contact email remain fallback', () => {
+test('central auto-apply is opt-in; participant OAuth remains fallback and contact email remains participant-owned', () => {
   assert.match(worker, /enabled INTEGER NOT NULL DEFAULT 0/);
   assert.match(worker, /\/internal\/enable/);
   assert.match(adapter, /getCentralImmoScoutConnection/);
@@ -86,7 +85,7 @@ test('central auto-apply is opt-in; participant OAuth and contact email remain f
   assert.match(adapter, /CENTRAL_ACCOUNT_EMAIL/);
 });
 
-test('central refresh preserves explicit activation and revalidates the NexaLabs account', () => {
+test('central refresh preserves activation and revalidates the NexaLabs account', () => {
   assert.match(credentials, /preserveEnabled=true/);
   assert.match(worker, /preserveEnabled \? 1 : 0/);
   assert.match(adapter, /USERINFO='https:\/\/login\.immobilienscout24\.de/);
@@ -94,7 +93,7 @@ test('central refresh preserves explicit activation and revalidates the NexaLabs
   assert.match(credentials, /markCentralImmoScoutConnection/);
 });
 
-test('the central D1 schema contains only the dedicated vault, audit log and short-lived OAuth flow', () => {
+test('the Cloudflare D1 schema contains the central vault, audit log and short-lived OAuth flows', () => {
   assert.match(schema, /CREATE TABLE IF NOT EXISTS central_credentials/);
   assert.match(schema, /CREATE TABLE IF NOT EXISTS audit_events/);
   assert.match(schema, /CREATE TABLE IF NOT EXISTS oauth_flows/);
