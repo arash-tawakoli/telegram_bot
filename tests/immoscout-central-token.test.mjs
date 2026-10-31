@@ -10,7 +10,7 @@ const facade = read('../supabase/functions/auth-facade-broker/index.ts');
 const auth = read('../supabase/functions/immoscout-auth-bridge/index.ts');
 const credentials = read('../supabase/functions/application-worker/credentials.ts');
 const adapter = read('../supabase/functions/application-worker/providers/immoscout.ts');
-const migration = read('../supabase/migrations/20261031194500_immoscout_central_account_token.sql');
+const worker = read('../cloudflare/immoscout-central-token-staging/index.js');
 
 test('the /token command is exposed only in the admin Telegram command scope', () => {
   const publicCommands = handlers.match(/const PUBLIC_COMMANDS = \[([\s\S]*?)\];/)?.[1] || '';
@@ -21,50 +21,59 @@ test('the /token command is exposed only in the admin Telegram command scope', (
   assert.match(runtime, /import \{ ADMIN_TELEGRAM_USER_IDS \} from "\.\.\/_shared\/telegram-admin\.ts"/);
 });
 
-test('central OAuth flow is scoped to the configured NexaLabs ImmoScout account', () => {
-  assert.match(handlers, /central_account: true/);
-  assert.match(handlers, /account_hint: "arash@nexalabs\.de"/);
-  assert.match(handlers, /platform_auth_flows/);
-  assert.match(handlers, /15 \* 60_000/);
+test('central OAuth flows are admin-scoped and stored in Cloudflare D1', () => {
+  assert.match(handlers, /centralImmoScoutApi\("\/internal\/flow", "POST"/);
+  assert.match(handlers, /admin_telegram_id: String\(user.telegram_user_id\)/);
+  assert.match(handlers, /user_id: String\(user.id\)/);
   assert.match(admin, /8538226539/);
   assert.match(admin, /414638980/);
+  assert.match(facade, /state.startsWith\('cf_'\)/);
   assert.match(facade, /isTelegramAdminUser/);
-  assert.match(auth, /isTelegramAdminUser/);
-  assert.match(auth, /CENTRAL_ACCOUNT_EMAIL='arash@nexalabs\.de'/);
+  assert.match(auth, /state.startsWith\('cf_'\)/);
+  assert.match(auth, /CENTRAL_ACCOUNT_EMAIL='arash@nexalabs.de'/);
   assert.match(auth, /verifiedEmail!==CENTRAL_ACCOUNT_EMAIL/);
+  assert.match(worker, /ADMIN_IDS = new Set/);
+  assert.match(worker, /oauth_flows/);
+  assert.match(worker, /\/internal\/flow\/inspect/);
+  assert.match(worker, /\/internal\/flow\/claim/);
 });
 
-test('central OAuth tokens are encrypted and never saved in participant platform_connections', () => {
-  assert.match(auth, /nexalabs:immoscout:central:v1/);
-  assert.match(auth, /name:'AES-GCM'/);
-  assert.match(auth, /complete_immoscout_central_auth_flow/);
-  assert.match(migration, /create table if not exists app_private\.immoscout_central_credentials/);
-  assert.match(migration, /enable row level security/);
-  assert.match(migration, /revoke all on app_private\.immoscout_central_credentials from public, anon, authenticated/);
-  assert.match(migration, /grant execute on function public\.complete_immoscout_central_auth_flow[\s\S]*?to service_role/);
+test('central credentials are encrypted in Cloudflare D1 and never stored in participant connections', () => {
+  assert.match(worker, /name: "AES-GCM"/);
+  assert.match(worker, /nexalabs:immoscout:central:v1/);
+  assert.match(worker, /TOKEN_ENCRYPTION_KEY/);
+  assert.match(worker, /INSERT INTO central_credentials/);
+  assert.match(worker, /account_hint: email/);
+  assert.match(worker, /enabled INTEGER NOT NULL DEFAULT 0/);
+  assert.match(auth, /centralImmoScoutApi\('\/internal\/store'/);
+  assert.match(credentials, /\/internal\/credentials/);
+  assert.match(credentials, /\/internal\/store/);
+  assert.match(credentials, /get_bot_secret/);
 });
 
-test('central token is used first with participant OAuth retained as fallback', () => {
-  assert.match(credentials, /get_immoscout_central_credentials/);
-  assert.match(credentials, /nexalabs:immoscout:central:v1/);
+test('central token is used only when explicitly enabled; participant OAuth remains fallback', () => {
+  assert.match(worker, /enabled INTEGER NOT NULL DEFAULT 0/);
+  assert.match(worker, /\/internal\/enable/);
   assert.match(adapter, /getCentralImmoScoutConnection/);
   assert.match(adapter, /refreshCentral/);
+  assert.match(adapter, /central.row.enabled===true/);
   assert.match(adapter, /const connection=await getConnection\(db,userId,PROVIDER\)/);
   assert.match(adapter, /emailaddress:\(\)=>clean\(profile\?\.email,320\)\|\|null/);
   assert.match(adapter, /CENTRAL_ACCOUNT_EMAIL/);
-  assert.match(adapter, /central.row.enabled===true/);
 });
 
-test('central credential refresh preserves account identity and updates encrypted storage', () => {
+test('token refresh preserves explicit activation and verifies the central account identity', () => {
+  assert.match(worker, /preserve_enabled/);
+  assert.match(worker, /enabled=CASE WHEN \?=1 THEN central_credentials.enabled ELSE 0 END/);
   assert.match(adapter, /USERINFO='https:\/\/login\.immobilienscout24\.de/);
   assert.match(adapter, /info\?\.email\|\|''\)\.trim\(\)\.toLowerCase\(\)!==CENTRAL_ACCOUNT_EMAIL/);
-  assert.match(credentials, /update_immoscout_central_credentials/);
-  assert.match(credentials, /mark_immoscout_central_credentials/);
+  assert.match(credentials, /preserve_enabled:true/);
+  assert.match(credentials, /\/internal\/mark/);
 });
 
-test('database RPCs are service-role only and central account email is constrained', () => {
-  assert.match(migration, /lower\(account_hint\) = 'arash@nexalabs\.de'/);
-  assert.match(migration, /telegram_user_id in \(8538226539,414638980\)/);
-  assert.match(migration, /revoke all on function public\.get_immoscout_central_credentials\(\) from public, anon, authenticated/);
-  assert.match(migration, /grant execute on function public\.get_immoscout_central_credentials\(\) to service_role/);
+test('central token service rejects missing credentials and unauthorized requests', () => {
+  assert.match(worker, /return json\(\{ error: "unauthorized" \}, 401\)/);
+  assert.match(worker, /central_account_mismatch/);
+  assert.match(worker, /if \(!row \|\| row.status !== "connected"\)/);
+  assert.match(worker, /cache-control": "no-store"/);
 });
