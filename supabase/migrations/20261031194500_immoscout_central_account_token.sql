@@ -9,6 +9,7 @@ create table if not exists app_private.immoscout_central_credentials (
   key_version smallint not null default 1 check (key_version > 0),
   account_hint text not null check (lower(account_hint) = 'arash@nexalabs.de'),
   status text not null default 'connected' check (status in ('connected','needs_login','error')),
+  enabled boolean not null default false,
   expires_at timestamptz,
   last_verified_at timestamptz not null default now(),
   last_error text,
@@ -144,6 +145,7 @@ returns table (
   key_version smallint,
   account_hint text,
   status text,
+  enabled boolean,
   expires_at timestamptz,
   last_verified_at timestamptz,
   last_error text
@@ -154,7 +156,7 @@ set search_path = ''
 stable
 as $function$
   select c.credential_ciphertext, c.credential_iv, c.key_version,
-         c.account_hint, c.status, c.expires_at, c.last_verified_at, c.last_error
+         c.account_hint, c.status, c.enabled, c.expires_at, c.last_verified_at, c.last_error
   from app_private.immoscout_central_credentials c
   where c.singleton = 1;
 $function$;
@@ -164,6 +166,7 @@ returns table (
   configured boolean,
   account_hint text,
   status text,
+  enabled boolean,
   expires_at timestamptz,
   last_verified_at timestamptz,
   last_error text,
@@ -174,14 +177,31 @@ security definer
 set search_path = ''
 stable
 as $function$
-  select true, c.account_hint, c.status, c.expires_at,
+  select true, c.account_hint, c.status, c.enabled, c.expires_at,
          c.last_verified_at, c.last_error, c.updated_at
   from app_private.immoscout_central_credentials c
   where c.singleton = 1
   union all
-  select false, null::text, 'disconnected'::text, null::timestamptz,
+  select false, null::text, 'disconnected'::text, false, null::timestamptz,
          null::timestamptz, null::text, null::timestamptz
   where not exists (select 1 from app_private.immoscout_central_credentials);
+$function$;
+
+create or replace function public.set_immoscout_central_enabled(
+  p_enabled boolean
+) returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+begin
+  update app_private.immoscout_central_credentials
+  set enabled = coalesce(p_enabled,false),
+      updated_at = clock_timestamp()
+  where singleton = 1 and status = 'connected';
+
+  return found;
+end
 $function$;
 
 create or replace function public.update_immoscout_central_credentials(
@@ -245,12 +265,14 @@ revoke all on function public.complete_immoscout_central_auth_flow(uuid,uuid,tex
 revoke all on function public.get_immoscout_central_credentials() from public, anon, authenticated;
 revoke all on function public.get_immoscout_central_credential_status() from public, anon, authenticated;
 revoke all on function public.update_immoscout_central_credentials(text,text,smallint,timestamptz) from public, anon, authenticated;
+revoke all on function public.set_immoscout_central_enabled(boolean) from public, anon, authenticated;
 revoke all on function public.mark_immoscout_central_credentials(text,text) from public, anon, authenticated;
 grant execute on function public.claim_immoscout_central_auth_flow(uuid,uuid,text) to service_role;
 grant execute on function public.complete_immoscout_central_auth_flow(uuid,uuid,text,text,text,smallint,text,timestamptz) to service_role;
 grant execute on function public.get_immoscout_central_credentials() to service_role;
 grant execute on function public.get_immoscout_central_credential_status() to service_role;
 grant execute on function public.update_immoscout_central_credentials(text,text,smallint,timestamptz) to service_role;
+grant execute on function public.set_immoscout_central_enabled(boolean) to service_role;
 grant execute on function public.mark_immoscout_central_credentials(text,text) to service_role;
 
 commit;
