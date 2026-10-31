@@ -52,6 +52,7 @@ async function flowByState(state:string,userId?:string){if(!/^[A-Za-z0-9_-]{20,8
 async function claimFlow(flow:any){await claimPlatformConnectFlow(db,flow)}
 
 async function beginLogin(userId:string){
+ await eligible(userId);
  const email=await profileEmail(userId);
  await db.from('platform_auth_flows').delete().eq('user_id',userId).eq('provider',PROVIDER).is('consumed_at',null);
  const verifier=random(),state=random().slice(0,43),{error:flowError}=await db.from('platform_auth_flows').insert({user_id:userId,provider:PROVIDER,state,code_verifier:verifier});if(flowError)throw Error('auth_flow_create_failed');
@@ -69,10 +70,10 @@ async function authorizeWithSession(flow:any,email:string,sessionToken:string){
 
 async function exchangeAndSave(userId:string,flow:any,code:string,emailFallback:string|null){
  const {response,body}=await tokenRequest({grant_type:'authorization_code',code,redirect_uri:REDIRECT_URI,code_verifier:String(flow.code_verifier||'')});
- if(!response.ok||!body?.access_token){const reason=clean(`${body?.error||'token_exchange_failed'}:${body?.error_description||response.status}`,160);await mark(userId,'needs_login',reason).catch(()=>{});throw Error('token_exchange_failed')}
- if(!body?.refresh_token){await mark(userId,'needs_login','refresh_token_missing').catch(()=>{});throw Error('refresh_token_missing')}
- const info=await userInfo(String(body.access_token));if(!info.response.ok||!info.body?.sub){await mark(userId,'needs_login','userinfo_failed').catch(()=>{});throw Error('userinfo_failed')}
- const accountHint=validEmail(info.body?.email)||emailFallback,expiresAt=new Date(Date.now()+Math.max(60,Number(body.expires_in||3600))*1000).toISOString();
+ if(!response.ok||!body?.access_token){const reason=clean(`${body?.error||'token_exchange_failed'}:${body?.error_description||response.status}`,160);await markFlow(flow,userId,'needs_login',reason).catch(()=>{});throw Error('token_exchange_failed')}
+ if(!body?.refresh_token){await markFlow(flow,userId,'needs_login','refresh_token_missing').catch(()=>{});throw Error('refresh_token_missing')}
+ const info=await userInfo(String(body.access_token));if(!info.response.ok||!info.body?.sub){await markFlow(flow,userId,'needs_login','userinfo_failed').catch(()=>{});throw Error('userinfo_failed')}
+ const accountHint=validEmail(info.body?.email)||emailFallback;if(flow?.origin==='admin'&&flow?.context?.scope==='central'&&validEmail(accountHint)!==validEmail(flow.context?.account_email))throw Error('central_account_mismatch');const expiresAt=new Date(Date.now()+Math.max(60,Number(body.expires_in||3600))*1000).toISOString();
  await save(userId,{access_token:String(body.access_token),refresh_token:String(body.refresh_token),id_token:body.id_token?String(body.id_token):null,expires_at:expiresAt,token_type:String(body.token_type||'Bearer'),scope:String(body.scope||SCOPE),client_id:CLIENT_ID,redirect_uri:REDIRECT_URI,issuer:ISSUER,sub:String(info.body.sub)},accountHint,expiresAt,flow);
  return{status:'connected',authenticated:true,accountReady:true,accountHint};
 }
@@ -80,22 +81,22 @@ async function finishWithSession(flow:any,userId:string,email:string,sessionToke
 
 async function passwordLogin(state:string,emailValue:any,passwordValue:any){
  const email=validEmail(emailValue),password=String(passwordValue||'');if(!email||!password||password.length>1024)throw Error('login_failed');
- const flow=await flowByState(state),userId=uuid(flow.user_id);await eligible(userId);
+ const flow=await flowByState(state),userId=uuid(flow.user_id);await assertFlowAllowed(flow);if(flow.origin==='admin'&&validEmail(email)!==validEmail(flow.context?.account_email))throw Error('central_account_mismatch');
  const {response,body}=await authn(email,password);
  const status=clean(body?.status,60).toUpperCase();
  if(status==='MFA_REQUIRED'||status==='MFA_CHALLENGE'){
-   const factors=supportedFactors(body),stateToken=String(body?.stateToken||'');if(!stateToken||!factors.length){await mark(userId,'needs_login','mfa_factor_unsupported',{account_hint:email}).catch(()=>{});throw Error('mfa_factor_unsupported')}
+   const factors=supportedFactors(body),stateToken=String(body?.stateToken||'');if(!stateToken||!factors.length){await markFlow(flow,userId,'needs_login','mfa_factor_unsupported',{account_hint:email}).catch(()=>{});throw Error('mfa_factor_unsupported')}
    const mfaTicket=await sealMfaTicket({v:1,exp:Date.now()+10*60*1000,flowState:String(flow.state),userId,email,stateToken,factors:factors.map((f:any)=>({id:f.id,type:f.type}))});
-   await mark(userId,'pending','mfa_required',{account_hint:email}).catch(()=>{});
+   await markFlow(flow,userId,'pending','mfa_required',{account_hint:email}).catch(()=>{});
    return{status:'mfa_required',authenticated:false,mfaRequired:true,mfaTicket,factors};
  }
- if(!response.ok||status!=='SUCCESS'||!body?.sessionToken){await mark(userId,'pending','login_failed',{account_hint:email}).catch(()=>{});throw Error('login_failed')}
+ if(!response.ok||status!=='SUCCESS'||!body?.sessionToken){await markFlow(flow,userId,'pending','login_failed',{account_hint:email}).catch(()=>{});throw Error('login_failed')}
  return finishWithSession(flow,userId,email,String(body.sessionToken));
 }
 
 async function mfaStart(ticketValue:any,factorIdValue:any){
  const ticket=await openMfaTicket(String(ticketValue||'')),factorId=String(factorIdValue||''),allowed=(ticket.factors||[]).find((f:any)=>f.id===factorId);if(!allowed)throw Error('mfa_factor_unsupported');
- const flow=await flowByState(String(ticket.flowState),String(ticket.userId));await eligible(String(ticket.userId));
+ const flow=await flowByState(String(ticket.flowState),String(ticket.userId));await assertFlowAllowed(flow);
  if(allowed.type==='token:software:totp')return{status:'mfa_code_required',mfaRequired:true,mfaTicket:String(ticketValue),factorId,factorType:allowed.type};
  const {response,body}=await verifyFactor(factorId,String(ticket.stateToken));const status=clean(body?.status,60).toUpperCase();
  if(status==='SUCCESS'&&body?.sessionToken)return finishWithSession(flow,String(ticket.userId),String(ticket.email),String(body.sessionToken));
@@ -107,7 +108,7 @@ async function mfaStart(ticketValue:any,factorIdValue:any){
 async function mfaVerify(ticketValue:any,factorIdValue:any,passCodeValue:any){
  const passCode=String(passCodeValue||'').trim();if(!/^[0-9]{4,10}$/.test(passCode))throw Error('mfa_invalid_code');
  const ticket=await openMfaTicket(String(ticketValue||'')),factorId=String(factorIdValue||''),allowed=(ticket.factors||[]).find((f:any)=>f.id===factorId);if(!allowed)throw Error('mfa_factor_unsupported');
- const flow=await flowByState(String(ticket.flowState),String(ticket.userId));await eligible(String(ticket.userId));
+ const flow=await flowByState(String(ticket.flowState),String(ticket.userId));await assertFlowAllowed(flow);
  const {response,body}=await verifyFactor(factorId,String(ticket.stateToken),passCode);const status=clean(body?.status,60).toUpperCase();
  if(status==='SUCCESS'&&body?.sessionToken)return finishWithSession(flow,String(ticket.userId),String(ticket.email),String(body.sessionToken));
  if(response.status===403||String(body?.errorCode||'')==='E0000068')throw Error('mfa_invalid_code');
@@ -115,12 +116,12 @@ async function mfaVerify(ticketValue:any,factorIdValue:any,passCodeValue:any){
  throw Error('mfa_challenge_failed');
 }
 
-async function completeLogin(userId:string,callbackUrl:string){const parsed=callbackParts(callbackUrl);if(!parsed.state)throw Error('invalid_callback_url');if(parsed.oauthError){await mark(userId,'needs_login',clean(parsed.oauthError,120)).catch(()=>{});throw Error('oauth_login_failed')}if(!parsed.code)throw Error('invalid_callback_url');const flow=await flowByState(parsed.state,userId);await claimFlow(flow);return exchangeAndSave(userId,flow,parsed.code,await profileEmail(userId).catch(()=>null))}
+async function completeLogin(userId:string,callbackUrl:string){const parsed=callbackParts(callbackUrl);if(!parsed.state)throw Error('invalid_callback_url');if(parsed.oauthError){const flow=await flowByState(parsed.state,userId);await assertFlowAllowed(flow);await markFlow(flow,userId,'needs_login',clean(parsed.oauthError,120)).catch(()=>{});throw Error('oauth_login_failed')}if(!parsed.code)throw Error('invalid_callback_url');const flow=await flowByState(parsed.state,userId);await assertFlowAllowed(flow);await claimFlow(flow);return exchangeAndSave(userId,flow,parsed.code,await profileEmail(userId).catch(()=>null))}
 
 async function refresh(userId:string,row:any,credentials:any){if(credentials?.access_token&&Date.parse(credentials.expires_at||'')>Date.now()+60000)return credentials;if(!credentials?.refresh_token)throw Error('needs_login');const {response,body}=await tokenRequest({grant_type:'refresh_token',refresh_token:String(credentials.refresh_token)});if(!response.ok||!body?.access_token){await mark(userId,'needs_login',clean(`${body?.error||'refresh_failed'}:${body?.error_description||response.status}`,160)).catch(()=>{});throw Error('needs_login')}const expiresAt=new Date(Date.now()+Math.max(60,Number(body.expires_in||3600))*1000).toISOString(),updated={...credentials,access_token:String(body.access_token),refresh_token:String(body.refresh_token||credentials.refresh_token),id_token:body.id_token?String(body.id_token):credentials.id_token,expires_at:expiresAt,token_type:String(body.token_type||credentials.token_type||'Bearer'),scope:String(body.scope||credentials.scope||SCOPE),client_id:CLIENT_ID,redirect_uri:REDIRECT_URI};await save(userId,updated,row.account_hint||null,expiresAt);return updated}
-async function checkConnection(userId:string){const {data:row,error}=await db.from('platform_connections').select('*').eq('user_id',userId).eq('provider',PROVIDER).maybeSingle();if(error)throw Error('connection_read_failed');if(!row)return{authenticated:false,status:'disconnected'};if(!row.credential_ciphertext)return{authenticated:null,status:row.status,lastError:row.last_error||null};try{const credentials=await decryptCredentials(row),active=await refresh(userId,row,credentials),info=await userInfo(String(active.access_token));if(!info.response.ok||!info.body?.sub){await mark(userId,'needs_login','userinfo_failed').catch(()=>{});return{authenticated:false,status:'needs_login'}}await mark(userId,'connected',null,{last_verified_at:new Date().toISOString(),account_hint:validEmail(info.body?.email)||row.account_hint});return{authenticated:true,status:'connected',accountReady:true,accountHint:validEmail(info.body?.email)||row.account_hint}}catch(error:any){if(error?.message==='needs_login')return{authenticated:false,status:'needs_login'};return{authenticated:false,status:'error'}}}
-async function inspect(userId:string){const {data:row,error}=await db.from('platform_connections').select('*').eq('user_id',userId).eq('provider',PROVIDER).maybeSingle();if(error||!row)return{status:'disconnected',hasCredentials:false};const credentials=await decryptCredentials(row).catch(()=>null);return{status:row.status,lastError:row.last_error||null,hasCredentials:!!credentials,expiresAt:credentials?.expires_at||row.expires_at||null,hasRefreshToken:!!credentials?.refresh_token,accountHint:row.account_hint||null,clientId:credentials?.client_id||CLIENT_ID}}
-async function disconnect(userId:string){await Promise.all([db.from('platform_connections').delete().eq('user_id',userId).eq('provider',PROVIDER),db.from('platform_auth_flows').delete().eq('user_id',userId).eq('provider',PROVIDER)]);return{status:'disconnected'}}
+async function checkConnection(userId:string){const{data:service,error:serviceError}=await db.from('platform_service_connections').select('status,account_hint,last_verified_at,last_error,expires_at').eq('provider',PROVIDER).maybeSingle();if(serviceError)throw Error('connection_read_failed');if(service?.status==='connected')return{authenticated:true,status:'connected',accountReady:true,accountHint:service.account_hint||null,connectionScope:'service',lastVerifiedAt:service.last_verified_at||null};await eligible(userId);const {data:row,error}=await db.from('platform_connections').select('*').eq('user_id',userId).eq('provider',PROVIDER).maybeSingle();if(error)throw Error('connection_read_failed');if(!row)return{authenticated:false,status:'disconnected'};if(row.connection_scope==='service')return{authenticated:false,status:'disconnected'};if(!row.credential_ciphertext)return{authenticated:null,status:row.status,lastError:row.last_error||null};try{const credentials=await decryptCredentials(row),active=await refresh(userId,row,credentials),info=await userInfo(String(active.access_token));if(!info.response.ok||!info.body?.sub){await mark(userId,'needs_login','userinfo_failed').catch(()=>{});return{authenticated:false,status:'needs_login'}}await mark(userId,'connected',null,{last_verified_at:new Date().toISOString(),account_hint:validEmail(info.body?.email)||row.account_hint});return{authenticated:true,status:'connected',accountReady:true,accountHint:validEmail(info.body?.email)||row.account_hint}}catch(error:any){if(error?.message==='needs_login')return{authenticated:false,status:'needs_login'};return{authenticated:false,status:'error'}}}
+async function inspect(userId:string){const{data:service,error:serviceError}=await db.from('platform_service_connections').select('status,account_hint,last_verified_at,last_error,expires_at').eq('provider',PROVIDER).maybeSingle();if(serviceError)throw Error('connection_read_failed');if(service?.status==='connected')return{status:'connected',hasCredentials:false,connectionScope:'service',accountHint:service.account_hint||null,expiresAt:service.expires_at||null,lastVerifiedAt:service.last_verified_at||null,lastError:service.last_error||null};const {data:row,error}=await db.from('platform_connections').select('*').eq('user_id',userId).eq('provider',PROVIDER).maybeSingle();if(error||!row||row.connection_scope==='service')return{status:'disconnected',hasCredentials:false};const credentials=await decryptCredentials(row).catch(()=>null);return{status:row.status,lastError:row.last_error||null,hasCredentials:!!credentials,expiresAt:credentials?.expires_at||row.expires_at||null,hasRefreshToken:!!credentials?.refresh_token,accountHint:row.account_hint||null,clientId:credentials?.client_id||CLIENT_ID,connectionScope:'participant'}}
+async function disconnect(userId:string){const{data:row}=await db.from('platform_connections').select('connection_scope').eq('user_id',userId).eq('provider',PROVIDER).maybeSingle();if(row?.connection_scope==='service')throw Error('central_connection_managed');await Promise.all([db.from('platform_connections').delete().eq('user_id',userId).eq('provider',PROVIDER),db.from('platform_auth_flows').delete().eq('user_id',userId).eq('provider',PROVIDER)]);const{data:service}=await db.from('platform_service_connections').select('status,account_hint').eq('provider',PROVIDER).maybeSingle();if(service?.status==='connected')return{status:'connected',connectionScope:'service',accountHint:service.account_hint||null};return{status:'disconnected'}}
 
 const CORS={'access-control-allow-origin':HANDOFF_ORIGIN,'access-control-allow-methods':'POST,OPTIONS','access-control-allow-headers':'content-type','cache-control':'no-store','vary':'Origin'};
 function publicJson(body:any,status=200){return Response.json(body,{status,headers:CORS})}
@@ -137,7 +138,7 @@ Deno.serve(async req=>{try{
  }
  if(req.headers.get('x-internal-secret')!==await secret('internal_worker_secret'))return new Response('unauthorized',{status:401});
  if(body.action==='health')return Response.json({ok:true,mode:'immoscout-one-time-password-mfa-pkce-handoff',clientId:CLIENT_ID,redirectUri:REDIRECT_URI,marksConnectedAfterUserInfo:true,expiresInSeconds:1800,passwordStored:false,mfaStored:false,mfaTicketEncrypted:true});
- const userId=uuid(body.userId);if(body.action!=='disconnect')await eligible(userId);
+ const userId=uuid(body.userId);
  if(body.action==='login')return Response.json(await beginLogin(userId));
  if(body.action==='complete_login')return Response.json(await completeLogin(userId,String(body.callbackUrl||'')));
  if(body.action==='check')return Response.json(await checkConnection(userId));
