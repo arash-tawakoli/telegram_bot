@@ -53,67 +53,67 @@
     },
     {
       "slug": "application-worker",
-      "version": 178,
+      "version": 332,
       "verify_jwt": false,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "d4354d15e0150beffdbf71b68dd04eefd06f4f165214f021ead86f4d26664ffa",
+      "observed_artifact_sha256": "ea96613f2e13add31536b0acb2185b4491acb5e8f9ccabe8b74e6410f87fe56b",
       "entrypoint": "supabase/functions/application-worker/index.ts",
       "files": [
         {
           "path": "supabase/functions/application-worker/index.ts",
-          "sha256": "bf931f1038ed84027eb46fbe9bba691aacc7c1b05a2d15f8877b64a20da653d1",
-          "deployed_sha256": "bf931f1038ed84027eb46fbe9bba691aacc7c1b05a2d15f8877b64a20da653d1"
+          "git_blob_sha": "dcfc529b9dccde684009a8aefb6abdd087e22d1d",
+          "deployed_git_blob_sha": "dcfc529b9dccde684009a8aefb6abdd087e22d1d"
         },
         {
           "path": "supabase/functions/application-worker/profile-page.ts",
-          "sha256": "c0fd1c76acdb712aa51e25ffdfd702256dd1a26d7c44ff24d3f1fc836648e654",
-          "deployed_sha256": "c0fd1c76acdb712aa51e25ffdfd702256dd1a26d7c44ff24d3f1fc836648e654"
+          "git_blob_sha": "69697f782830ab0e8459c0090bd046a6a08ec333",
+          "deployed_git_blob_sha": "69697f782830ab0e8459c0090bd046a6a08ec333"
         },
         {
           "path": "supabase/functions/application-worker/providers/kleinanzeigen.ts",
-          "sha256": "82ccb36d8c99aad0661cb78a271110b92bb2c62bc285437e77c5416d8c29503a",
-          "deployed_sha256": "82ccb36d8c99aad0661cb78a271110b92bb2c62bc285437e77c5416d8c29503a"
-        },
-        {
-          "path": "supabase/functions/application-worker/credentials.ts",
-          "sha256": "f7dd03cc75db8d9a0e1e6a56bcab0b60cb0db7769b8a33bcf4ec39900d205541",
-          "deployed_sha256": "f7dd03cc75db8d9a0e1e6a56bcab0b60cb0db7769b8a33bcf4ec39900d205541"
-        },
-        {
-          "path": "supabase/functions/_shared/application-profile-adapters.ts",
-          "sha256": "561eef88785b5d442dbf95d42123cac1236ce0e55094bf59cf65aea099c00f64",
-          "deployed_sha256": "561eef88785b5d442dbf95d42123cac1236ce0e55094bf59cf65aea099c00f64"
-        },
-        {
-          "path": "supabase/functions/application-worker/providers/immoscout.ts",
-          "sha256": "da9830fa3c74d4fd06befecd6b232cc65145725ed9d98f2411fc6423094e3b21",
-          "deployed_sha256": "da9830fa3c74d4fd06befecd6b232cc65145725ed9d98f2411fc6423094e3b21"
-        },
-        {
-          "path": "supabase/functions/application-worker/providers/immowelt.ts",
-          "sha256": "53291cce64c1970f0dd969ca1fc5db2e0e2cc2eed2743c54fb34c96abbbf4d01",
-          "deployed_sha256": "53291cce64c1970f0dd969ca1fc5db2e0e2cc2eed2743c54fb34c96abbbf4d01"
-        },
-        {
-          "path": "supabase/functions/application-worker/providers/immomio.ts",
-          "sha256": "43c80dff38303dd0af13475c95437593bb532ea85a69bf1e4fdf76354de6d0da",
-          "deployed_sha256": "43c80dff38303dd0af13475c95437593bb532ea85a69bf1e4fdf76354de6d0da"
-        },
-        {
-          "path": "supabase/functions/application-worker/providers/router.ts",
-          "sha256": "c7f00c006239b9d2f6bea535e1dbfc33152c8c8b364bf770adbd957a26de0a1b",
-          "deployed_sha256": "c7f00c006239b9d2f6bea535e1dbfc33152c8c8b364bf770adbd957a26de0a1b"
+          "git_blob_sha": "40a972066a343e747e71bb60631bdcb878aa41a0",
+          "deployed_git_blob_sha": "40a972066a343e747e71bb60631bdcb878aa41a0"
         },
         {
           "path": "supabase/functions/_shared/platform-auth-flow.ts",
-          "sha256": "638e113afeb7895cf519d058bd1166f8ca0444a54f5eb9a573c530efc38110de",
-          "deployed_sha256": "638e113afeb7895cf519d058bd1166f8ca0444a54f5eb9a573c530efc38110de"
+          "git_blob_sha": "13315e30c931836ec6427261d3bc3a653c24e498",
+          "deployed_git_blob_sha": "13315e30c931836ec6427261d3bc3a653c24e498"
+        },
+        {
+          "path": "supabase/functions/application-worker/credentials.ts",
+          "git_blob_sha": "18051c12dcd2604859547dbd7ed1d4bcae24897a",
+          "deployed_git_blob_sha": "18051c12dcd2604859547dbd7ed1d4bcae24897a"
+        },
+        {
+          "path": "supabase/functions/_shared/application-profile-adapters.ts",
+          "git_blob_sha": "45e5c9eeea4e5d2ab161d1ea0072f815f58417cc",
+          "deployed_git_blob_sha": "45e5c9eeea4e5d2ab161d1ea0072f815f58417cc"
+        },
+        {
+          "path": "supabase/functions/application-worker/providers/immoscout.ts",
+          "git_blob_sha": "ccc7996317614a271f3f784776a156214fa64690",
+          "deployed_git_blob_sha": "ccc7996317614a271f3f784776a156214fa64690"
+        },
+        {
+          "path": "supabase/functions/application-worker/providers/immowelt.ts",
+          "git_blob_sha": "b49f75495243c96fbb23f87d755533211a4cb93d",
+          "deployed_git_blob_sha": "b49f75495243c96fbb23f87d755533211a4cb93d"
+        },
+        {
+          "path": "supabase/functions/application-worker/providers/immomio.ts",
+          "git_blob_sha": "437c9984e4aff8ccb82a54b85899e86694ef8b6c",
+          "deployed_git_blob_sha": "437c9984e4aff8ccb82a54b85899e86694ef8b6c"
+        },
+        {
+          "path": "supabase/functions/application-worker/providers/router.ts",
+          "git_blob_sha": "f9c38bfdce6466ca81bad8d41b27c1dd7e680c44",
+          "deployed_git_blob_sha": "f9c38bfdce6466ca81bad8d41b27c1dd7e680c44"
         }
       ],
-      "observed_live_version": 323,
+      "observed_live_version": 332,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "39b88a2306e244f4b9c16e2e8d587d26b5c2661b6d8db9b75df454e4afc33ecf",
+      "observed_live_artifact_sha256": "ea96613f2e13add31536b0acb2185b4491acb5e8f9ccabe8b74e6410f87fe56b",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-01.json",
       "source_archive_file_count": 10,
       "source_archive_status": "full_source",
