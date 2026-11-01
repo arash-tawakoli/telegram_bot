@@ -509,7 +509,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
     telegramUserId:Number(user.telegram_user_id)
    });
    return platformSessions(user,chat,messageId,'platforms');
-  }catch(error:any){
+  }catch(error){
    return render('⚠️ <b>Testmodus konnte nicht '+(enabled?'aktiviert':'deaktiviert')+' werden</b>\n\n'+esc(error?.message||'Unbekannter Fehler'),[
     [button(enabled?'Test erneut aktivieren':'Test erneut deaktivieren','platforms:test:'+(enabled?'on':'off'))],
     ...back
