@@ -6,7 +6,7 @@ alter table public.bot_users
   add column if not exists test_auto_apply_disabled_at timestamptz,
   add column if not exists test_auto_apply_updated_by_telegram_id bigint;
 
-do $
+do $owner$
 declare
   v_owner_count integer;
 begin
@@ -36,7 +36,7 @@ begin
       test_auto_apply_disabled_at=null
   where telegram_user_id=8538226539;
 end
-$;
+$owner$;
 
 comment on column public.bot_users.test_auto_apply_allowed is
   'Server-side allowlist for the isolated personal ImmoScout24 auto-apply test mode.';
