@@ -24,7 +24,13 @@ export async function verifyRuntime(runtime,read=readFile,options={}){
    const sourceHash=file.git_blob_sha?gitBlobHash(text):hash(text);
    const recordedHash=file.git_blob_sha||file.sha256;
    const deployedHash=file.deployed_git_blob_sha||file.deployed_sha256;
-   if(sourceHash!==recordedHash)drift(`Runtime drift: ${fn.slug}/${file.path}`);
+   const knownDrift=(fn.known_source_drift||[]).find(item=>item.path===file.path&&typeof item.reason==='string'&&item.reason.trim());
+   if(sourceHash!==recordedHash){
+    if(knownDrift){
+     hashWarnings++;
+     console.warn(`::warning::Known runtime source drift: ${fn.slug}/${file.path} — ${knownDrift.reason}`);
+    }else drift(`Runtime drift: ${fn.slug}/${file.path}`);
+   }
    if(deployedHash!==recordedHash)drift(`Recorded deployment drift: ${fn.slug}/${file.path}`);
    for(const match of text.matchAll(/\b(?:from\s*|import\s*\(\s*|import\s*)["'](https?:[^"']+)["']/g)){
     const url=new URL(match[1]);

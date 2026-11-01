@@ -1,4 +1,5 @@
 import {completePlatformConnectFlow} from '../_shared/platform-auth-flow.ts';
+import {isTelegramAdminUser} from '../_shared/telegram-admin.ts';
 import {createClient} from 'npm:@supabase/supabase-js@2.112.4';
 
 const keys=JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')||'{}');
@@ -33,6 +34,17 @@ const unb64=(value:string)=>Uint8Array.from(atob(value),c=>c.charCodeAt(0));
 async function challenge(v:string){return b64url(new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(v))))}
 async function eligible(userId:string){const {data,error}=await db.rpc('application_user_eligible',{p_user:userId});if(error||data!==true)throw Error('premium_required')}
 async function secret(name:string){const {data,error}=await db.rpc('get_bot_secret',{secret_name:name});if(error||!data)throw Error('configuration_unavailable');return String(data)}
+const CENTRAL_IMMOSCOUT_WORKER='https://immoscout-central-token-staging.arash-ce5.workers.dev';
+async function centralImmoScoutApi(path:string,body:any={},method='POST'){
+ const apiSecret=await secret('immoscout_central_cloudflare_api_secret');
+ let response:Response;
+ try{response=await fetch(`${CENTRAL_IMMOSCOUT_WORKER}${path}`,{method,headers:{authorization:`Bearer ${apiSecret}`,accept:'application/json','content-type':'application/json'},...(method==='GET'?{}:{body:JSON.stringify(body)}),signal:AbortSignal.timeout(30000)})}
+ catch{throw Error('temporary_network_error')}
+ const data=await response.json().catch(()=>null);
+ if(!response.ok||!data){const error:any=new Error(data?.error||'central_immoscout_unavailable');error.status=response.status;throw error}
+ return data;
+}
+
 function providerLabel(provider:any){return provider==='indeed'?'Indeed':provider==='kleinanzeigen'?'Kleinanzeigen':provider==='immomio'?'Immomio':provider==='immowelt'?'Immowelt':'ImmoScout24'}
 async function notifyConnected(flow:any,result:any){
  if(flow?.return_target!=='telegram'||(result?.authenticated!==true&&result?.status!=='connected'))return;
@@ -40,7 +52,10 @@ async function notifyConnected(flow:any,result:any){
   const {data:user}=await db.from('bot_users').select('chat_id').eq('id',flow.user_id).maybeSingle();
   if(!user?.chat_id)return;
   const token=await secret('telegram_bot_token_runtime'),name=providerLabel(flow.provider);
-  await fetch(`https://api.telegram.org/bot${token}/sendMessage`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({chat_id:user.chat_id,parse_mode:'HTML',text:`✅ <b>${name} verbunden</b>\n\nDein Konto wurde erfolgreich verbunden.`}),signal:AbortSignal.timeout(10000)});
+  const text=flow.context?.central_account===true
+   ?`✅ <b>Zentraler ImmoScout24-Zugang gespeichert</b>\\n\\nDas NexaLabs-Konto ${clean(result?.accountHint,320)} wurde erfolgreich verbunden. Der Token ist verschlüsselt gespeichert. Auto-Bewerbung bleibt bis zur Aktivierung über /token aktivieren deaktiviert.`
+   :`✅ <b>${name} verbunden</b>\\n\\nDein Konto wurde erfolgreich verbunden.`;
+  await fetch(`https://api.telegram.org/bot${token}/sendMessage`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({chat_id:user.chat_id,parse_mode:'HTML',text}),signal:AbortSignal.timeout(10000)});
  }catch(error){console.error('telegram_connection_notice',String(error))}
 }
 function ticket(value:any){const v=String(value||'');if(!/^[A-Za-z0-9_-]{20,100}$/.test(v))throw Error('invalid_ticket');return v}
@@ -64,7 +79,15 @@ async function validateFlowContext(flow:any){
  }
 }
 async function flowFor(value:any,allowConsumed=false){
- const state=ticket(value),hashed=await challenge(state),now=new Date().toISOString();
+ const state=ticket(value);
+ if(state.startsWith('cfcentral_')){
+  const remote=await centralImmoScoutApi('/internal/resolve',{state,allow_consumed:allowConsumed});
+  const flow:any={id:state,user_id:String(remote.user_id||''),provider:'immoscout',state,code_verifier:'',origin:'telegram',return_target:'telegram',expires_at:remote.expires_at,consumed_at:remote.consumed?new Date().toISOString():null,context:{central_account:true,account_hint:remote.account_hint||'arash@nexalabs.de'}};
+  if(!flow.user_id||!await isTelegramAdminUser(db,flow.user_id))throw Error('auth_flow_expired');
+  await validateFlowContext(flow);
+  return flow;
+ }
+ const hashed=await challenge(state),now=new Date().toISOString();
  let q=db.from('platform_auth_flows').select('*').in('state',[state,hashed]);
  if(!allowConsumed)q=q.is('consumed_at',null).gt('expires_at',now);
  else q=q.gt('created_at',new Date(Date.now()-2*60*60*1000).toISOString());
@@ -82,23 +105,20 @@ async function flowFor(value:any,allowConsumed=false){
 async function profileEmail(userId:string){const {data,error}=await db.from('applicant_profiles').select('email').eq('user_id',userId).maybeSingle();const email=clean(data?.email,320).toLowerCase();if(error||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw Error('profile_email_required');return email}
 function participantLabel(first:any,last:any){const f=clean(first,80),l=clean(last,80);return [f,l?l[0]+'.':''].filter(Boolean).join(' ')||'Teilnehmer'}
 async function participantInfo(flow:any){
+ if(flow.context?.central_account===true)return{participantLabel:'NexaLabs · zentraler ImmoScout24-Zugang',profileEmail:null,connection:null};
  const[{data:p},{data:connection}]=await Promise.all([
   db.from('applicant_profiles').select('first_name,last_name,email').eq('user_id',flow.user_id).maybeSingle(),
   db.from('platform_connections').select('status,account_hint,last_verified_at,last_error').eq('user_id',flow.user_id).eq('provider',flow.provider).maybeSingle()
  ]);
- return{
-  participantLabel:participantLabel(p?.first_name,p?.last_name),
-  profileEmail:clean(p?.email,320)||null,
-  connection:connection||null
- };
+ return{participantLabel:participantLabel(p?.first_name,p?.last_name),profileEmail:clean(p?.email,320)||null,connection:connection||null};
 }
-async function accountHint(flow:any){const {data}=await db.from('platform_connections').select('account_hint').eq('user_id',flow.user_id).eq('provider',flow.provider).maybeSingle();return clean(data?.account_hint,320)||null}
+async function accountHint(flow:any){if(flow.context?.central_account===true)return clean(flow.context?.account_hint,320)||'arash@nexalabs.de';const {data}=await db.from('platform_connections').select('account_hint').eq('user_id',flow.user_id).eq('provider',flow.provider).maybeSingle();return clean(data?.account_hint,320)||null}
 function kleinUrl(flow:any,codeChallenge:string){const u=new URL(KLEIN_AUTHORIZE);for(const[k,v]of Object.entries({client_id:KLEIN_CLIENT_ID,response_type:'code',redirect_uri:KLEIN_REDIRECT,scope:KLEIN_SCOPE,code_challenge:codeChallenge,code_challenge_method:'S256',state:String(flow.state),prompt:'login'}))u.searchParams.set(k,String(v));return u.href}
 async function resolveSso(email:string){const query='query sso($email: String, $redirectUri: String!, $loginMethod: String) { sso(input: { email: $email redirectUri: $redirectUri loginMethod: $loginMethod }) { baseUrl clientId realm } }';let response:Response;try{response=await fetch(IMMOMIO_GQL,{method:'POST',headers:{'content-type':'application/json','accept':'application/json','origin':IMMOMIO_TENANT,'referer':IMMOMIO_TENANT+'/'},body:JSON.stringify({query,variables:{email,redirectUri:IMMOMIO_REDIRECT,loginMethod:'DEFAULT'}}),signal:AbortSignal.timeout(20000)})}catch{throw Error('temporary_network_error')}const body=await response.json().catch(()=>null),sso=body?.data?.sso;if(!response.ok||body?.errors?.length||!sso||String(sso.clientId)!==IMMOMIO_CLIENT||String(sso.realm)!==IMMOMIO_REALM)throw Error('provider_contract_unverified');return{baseUrl:IMMOMIO_BASE,realm:IMMOMIO_REALM,clientId:IMMOMIO_CLIENT}}
 async function immomioUrl(flow:any,codeChallenge:string,emailValue:any){const email=clean(emailValue,320).toLowerCase();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw Error('provider_email_required');const cfg=await resolveSso(email);const u=new URL(`${cfg.baseUrl}/realms/${IMMOMIO_REALM}/protocol/openid-connect/auth`);for(const[k,v]of Object.entries({client_id:IMMOMIO_CLIENT,redirect_uri:IMMOMIO_REDIRECT,response_type:'code',response_mode:'query',scope:'openid profile email',state:String(flow.state),code_challenge:codeChallenge,code_challenge_method:'S256',login_hint:email,prompt:'login'}))u.searchParams.set(k,String(v));return u.href}
 async function resolve(value:any){
  const flow=await flowFor(value),provider=String(flow.provider),hint=await accountHint(flow),info=await participantInfo(flow);
- const base={ok:true,provider,accountHint:hint,participantLabel:info.participantLabel,origin:flow.origin,returnTarget:flow.return_target,expiresAt:flow.expires_at};
+ const base={ok:true,provider,accountHint:hint,participantLabel:info.participantLabel,centralAccount:flow.context?.central_account===true,origin:flow.origin,returnTarget:flow.return_target,expiresAt:flow.expires_at};
  if(provider==='indeed'){
   const clientId=await secret('indeed_client_id');
   const u=new URL(INDEED_AUTHORIZE);
@@ -143,7 +163,8 @@ async function scoutPublic(body:any){
 async function passwordLogin(value:any,emailValue:any,passwordValue:any){
  const flow=await flowFor(value);let result:any;
  if(flow.provider==='immomio')result=await immomioPasswordLogin(value,emailValue,passwordValue);
- else if(flow.provider==='immoscout')result=await scoutPublic({action:'password_login',state:String(flow.state),email:emailValue,password:passwordValue});
+ else if(flow.provider==='immoscout'&&flow.context?.central_account===true)result=await centralImmoScoutApi('/internal/password_login',{state:String(flow.state),email:emailValue,password:passwordValue});
+  else if(flow.provider==='immoscout')result=await scoutPublic({action:'password_login',state:String(flow.state),email:emailValue,password:passwordValue});
  else if(flow.provider==='immowelt'){
   result=await internalCall(IMMOWELT_AUTH,{action:'password_login',state:String(flow.state),email:emailValue,password:passwordValue});
   if(result?.authenticated===true&&result?.session)return completeSession(value,result.session,result.accountHint||emailValue);
@@ -159,7 +180,10 @@ async function mfaStart(value:any,mfaTicket:any,factorId:any){
   return result;
  }
  if(flow.provider!=='immoscout')throw Error('provider_interactive_challenge');
- return scoutPublic({action:'mfa_start',mfaTicket:String(mfaTicket||''),factorId:String(factorId||'')})
+ const result=flow.context?.central_account===true
+  ?await centralImmoScoutApi('/internal/mfa_start',{mfaTicket:String(mfaTicket||''),factorId:String(factorId||'')})
+  :await scoutPublic({action:'mfa_start',mfaTicket:String(mfaTicket||''),factorId:String(factorId||'')});
+ await notifyConnected(flow,result);return result
 }
 async function mfaVerify(value:any,mfaTicket:any,factorId:any,passCode:any){
  const flow=await flowFor(value);
@@ -169,11 +193,18 @@ async function mfaVerify(value:any,mfaTicket:any,factorId:any,passCode:any){
   return result;
  }
  if(flow.provider!=='immoscout')throw Error('provider_interactive_challenge');
- const result=await scoutPublic({action:'mfa_verify',mfaTicket:String(mfaTicket||''),factorId:String(factorId||''),passCode:String(passCode||'')});
+ const result=flow.context?.central_account===true
+   ?await centralImmoScoutApi('/internal/mfa_verify',{mfaTicket:String(mfaTicket||''),factorId:String(factorId||''),passCode:String(passCode||'')})
+   :await scoutPublic({action:'mfa_verify',mfaTicket:String(mfaTicket||''),factorId:String(factorId||''),passCode:String(passCode||'')});
  await notifyConnected(flow,result);return result
 }
 async function status(value:any){
- const flow=await flowFor(value,true),info=await participantInfo(flow),connection=info.connection;
+ const flow=await flowFor(value,true);
+ if(flow.context?.central_account===true){
+  const row=await centralImmoScoutApi('/internal/status',{},'GET');
+  return{ok:true,provider:flow.provider,centralAccount:true,status:row?.status||'disconnected',connected:row?.configured===true&&row?.status==='connected',accountHint:row?.account_hint||null,lastVerifiedAt:row?.last_verified_at||null,lastError:row?.last_error||null,origin:flow.origin,returnTarget:flow.return_target};
+ }
+ const info=await participantInfo(flow),connection=info.connection;
  const completed=!!flow.context?.completed_at&&!!flow.consumed_at,connected=completed&&connection?.status==='connected';
  return{ok:true,provider:flow.provider,status:completed?(connection?.status||'disconnected'):'pending',connected,accountHint:completed?(connection?.account_hint||null):null,lastVerifiedAt:completed?(connection?.last_verified_at||null):null,lastError:completed?(connection?.last_error||null):null,participantLabel:info.participantLabel,origin:flow.origin,returnTarget:flow.return_target}
 }
@@ -215,7 +246,7 @@ async function completeWeb(value:any,callbackUrl:any){
 }
 const HEADERS={'content-type':'application/json','cache-control':'no-store, max-age=0','x-content-type-options':'nosniff','referrer-policy':'no-referrer'};
 function json(body:any,status=200){return new Response(JSON.stringify(body),{status,headers:HEADERS})}
-function publicError(error:any){const code=String(error?.message||'auth_facade_failed'),safe=new Set(['invalid_ticket','auth_flow_expired','premium_required','provider_unsupported','profile_email_required','provider_contract_unverified','temporary_network_error','invalid_action','invalid_callback_url','provider_completion_failed','token_exchange_failed','login_failed','provider_interactive_challenge','human_verification_required','device_confirmation_required','provider_route_required','provider_email_required','configuration_unavailable','userinfo_failed','oauth_login_failed','mfa_required','mfa_factor_unsupported','mfa_invalid_code','mfa_challenge_failed','mfa_expired','invalid_state','account_temporarily_locked']);const status=code==='invalid_ticket'||code==='invalid_callback_url'?400:code==='auth_flow_expired'||code==='mfa_expired'||code==='invalid_state'?410:code==='premium_required'?403:code==='account_temporarily_locked'?423:code==='login_failed'||code==='mfa_invalid_code'?401:code.startsWith('mfa_')||code==='provider_interactive_challenge'||code==='human_verification_required'||code==='device_confirmation_required'||code==='provider_route_required'?409:503;return json({error:safe.has(code)?code:'auth_facade_failed'},status)}
+function publicError(error:any){const code=String(error?.message||'auth_facade_failed'),safe=new Set(['invalid_ticket','auth_flow_expired','premium_required','provider_unsupported','profile_email_required','provider_contract_unverified','temporary_network_error','invalid_action','invalid_callback_url','provider_completion_failed','token_exchange_failed','login_failed','provider_interactive_challenge','human_verification_required','device_confirmation_required','provider_route_required','provider_email_required','configuration_unavailable','userinfo_failed','oauth_login_failed','mfa_required','mfa_factor_unsupported','mfa_invalid_code','mfa_challenge_failed','mfa_expired','invalid_state','account_temporarily_locked','central_account_mismatch']);const status=code==='invalid_ticket'||code==='invalid_callback_url'?400:code==='auth_flow_expired'||code==='mfa_expired'||code==='invalid_state'?410:code==='premium_required'?403:code==='account_temporarily_locked'?423:code==='login_failed'||code==='mfa_invalid_code'?401:code.startsWith('mfa_')||code==='provider_interactive_challenge'||code==='human_verification_required'||code==='device_confirmation_required'||code==='provider_route_required'?409:503;return json({error:safe.has(code)?code:'auth_facade_failed'},status)}
 Deno.serve(async req=>{try{
  if(req.method!=='POST')return new Response('method not allowed',{status:405,headers:{'cache-control':'no-store'}});
  const body=await req.json().catch(()=>({})),action=String(body.action||'');

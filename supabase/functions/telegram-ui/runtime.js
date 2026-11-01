@@ -1,4 +1,5 @@
 import {createClient} from "npm:@supabase/supabase-js@2.112.4";
+import { ADMIN_TELEGRAM_USER_IDS } from "../_shared/telegram-admin.ts";
 import { localizeText, localizeMarkup } from "./localization.js";
 import { premium } from "./navigation.js";
 import { profile } from "./profiles.js";
@@ -36,7 +37,7 @@ export const SECRET_TTL_MS = 5 * 60_000;
 
 export const GEO_TTL_MS = 30 * 60_000;
 
-export const ADMIN_TELEGRAM_USER_IDS = new Set([8538226539, 414638980]);
+export { ADMIN_TELEGRAM_USER_IDS };
 
 export const secretCache = new Map();
 

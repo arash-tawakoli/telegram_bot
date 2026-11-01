@@ -19,3 +19,51 @@ export async function recordRefreshResult(db:any,userId:string,provider:string,s
  });
  if(rpcError)console.error('connection_refresh_telemetry',provider,rpcError.message);
 }
+
+
+
+
+const CENTRAL_IMMOSCOUT_WORKER='https://immoscout-central-token-staging.arash-ce5.workers.dev';
+async function centralImmoScoutApi(db:any,path:string,method='GET',body:any=undefined){
+ const {data,error}=await db.rpc('get_bot_secret',{secret_name:'immoscout_central_cloudflare_api_secret'});
+ if(error||!data)throw Error('central_credential_service_unavailable');
+ let response:Response;
+ try{
+  response=await fetch(`${CENTRAL_IMMOSCOUT_WORKER}${path}`,{
+   method,
+   headers:{authorization:`Bearer ${String(data)}`,accept:'application/json',...(body===undefined?{}:{'content-type':'application/json'})},
+   ...(body===undefined?{}:{body:JSON.stringify(body)}),
+   signal:AbortSignal.timeout(20000)
+  });
+ }catch{throw Error('temporary_network_error')}
+ const result=await response.json().catch(()=>null);
+ if(!response.ok||!result){
+  if(response.status===404&&['needs_login','credential_not_connected'].includes(String(result?.error||'')))return null;
+  throw Error(result?.error||'central_credential_service_unavailable');
+ }
+ return result;
+}
+export async function getCentralImmoScoutConnection(db:any){
+ const result=await centralImmoScoutApi(db,'/internal/credentials','GET');
+ if(!result)return null;
+ const {account_hint,enabled,status,...credentials}=result;
+ return{row:{account_hint,status,enabled:enabled===true,expires_at:credentials.expires_at},credentials};
+}
+export async function saveCentralImmoScoutCredentials(db:any,credentials:any,preserveEnabled=true,adminTelegramId:string|null=null){
+ const result=await centralImmoScoutApi(db,'/internal/store','POST',{
+  account_hint:'arash@nexalabs.de',
+  access_token:credentials?.access_token,
+  refresh_token:credentials?.refresh_token,
+  id_token:credentials?.id_token||null,
+  token_type:credentials?.token_type||'Bearer',
+  scope:credentials?.scope||'openid profile offline_access',
+  expires_at:credentials?.expires_at,
+  preserve_enabled:preserveEnabled,
+  admin_telegram_id:adminTelegramId
+ });
+ if(!result?.stored)throw Error('central_credential_update_failed');
+}
+export async function markCentralImmoScoutConnection(db:any,status:string,lastError:string|null=null){
+ const result=await centralImmoScoutApi(db,'/internal/mark','POST',{status,last_error:lastError});
+ if(result?.status!==status)throw Error('central_credential_status_update_failed');
+}

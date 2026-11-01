@@ -21,6 +21,7 @@ const ADMIN_COMMANDS = [
     ...PUBLIC_COMMANDS,
     { command: "admin", description: "Adminbereich" },
     { command: "announcement", description: "Ankündigung senden" },
+    { command: "token", description: "Zentralen ImmoScout24-Zugang verbinden" },
 ];
 
 async function syncTelegramCommands(user, chatId) {
@@ -79,6 +80,70 @@ async function syncTelegramCommands(user, chatId) {
             console.error("telegram_command_sync", String(result.reason));
     }
 }
+function secureToken(bytes = 32) {
+    const values = crypto.getRandomValues(new Uint8Array(bytes));
+    let raw = "";
+    for (const value of values)
+        raw += String.fromCharCode(value);
+    return btoa(raw).split("+").join("-").split("/").join("_").replace(/=+$/g, "");
+}
+
+const CENTRAL_IMMOSCOUT_WORKER = "https://immoscout-central-token-staging.arash-ce5.workers.dev";
+async function centralImmoScoutApi(path, method = "GET", body = undefined) {
+    const apiSecret = await secret("immoscout_central_cloudflare_api_secret");
+    const response = await fetch(`${CENTRAL_IMMOSCOUT_WORKER}${path}`, {
+        method,
+        headers: {
+            authorization: `Bearer ${apiSecret}`,
+            accept: "application/json",
+            ...(body === undefined ? {} : { "content-type": "application/json" }),
+        },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+        signal: AbortSignal.timeout(30000),
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok || !data)
+        throw new Error(data?.error || "central_immoscout_unavailable");
+    return data;
+}
+
+async function centralImmoScoutTokenStatus(chatId) {
+    const status = await centralImmoScoutApi("/internal/status");
+    if (status?.configured !== true) {
+        return send(chatId, "Noch kein zentraler ImmoScout24-Zugang gespeichert. Starte mit /token.");
+    }
+    const enabled = status.enabled === true;
+    const verified = status.last_verified_at ? new Date(status.last_verified_at).toLocaleString("de-DE") : "Noch nicht geprüft";
+    return send(chatId,
+        `<b>Zentraler ImmoScout24-Zugang</b>\nKonto: <b>${status.account_hint || "—"}</b>\nVerbindung: <b>${status.status || "unbekannt"}</b>\nAuto-Bewerbung: <b>${enabled ? "aktiv" : "deaktiviert"}</b>\nZuletzt geprüft: ${verified}\n\nAktivieren: /token aktivieren\nDeaktivieren: /token deaktivieren`);
+}
+
+async function setCentralImmoScoutEnabled(user, chatId, enabled) {
+    const result = await centralImmoScoutApi("/internal/enable", "POST", {
+        enabled,
+        admin_telegram_id: String(user.telegram_user_id),
+    });
+    if (result?.enabled !== enabled)
+        throw new Error("central_credential_status_update_failed");
+    return send(chatId, enabled
+        ? "✅ Zentraler ImmoScout24-Zugang aktiviert. Neue freigegebene Bewerbungen können jetzt über das NexaLabs-Konto versendet werden."
+        : "⏸ Zentraler ImmoScout24-Zugang deaktiviert. Der Bot verwendet wieder verbundene Teilnehmerkonten, sofern vorhanden.");
+}
+
+async function startCentralImmoScoutToken(user, chatId) {
+    const flow = await centralImmoScoutApi("/internal/start", "POST", {
+        admin_telegram_id: String(user.telegram_user_id),
+        user_id: String(user.id),
+    });
+    const status = flow.current_status || await centralImmoScoutApi("/internal/status");
+    const current = status.configured === true && status.status === "connected"
+        ? `Der zentrale Zugang ist bereits verbunden. Auto-Bewerbung ist derzeit ${status.enabled === true ? "aktiv" : "deaktiviert"}. Nach erfolgreicher erneuter Anmeldung wird der gespeicherte Token ersetzt.`
+        : "Es ist noch kein zentraler ImmoScout24-Zugang gespeichert.";
+    return send(chatId,
+        `🔐 <b>Zentralen ImmoScout24-Zugang verbinden</b>\n\n${current}\n\nMelde dich im nächsten Schritt mit <b>arash@nexalabs.de</b> an. Die OAuth- und MFA-Verarbeitung sowie die verschlüsselte Token-Speicherung laufen über Cloudflare. Das Passwort wird nicht gespeichert.\n\nDer Versand bleibt zunächst deaktiviert. Nach dem Verbindungstest kannst du ihn mit /token aktivieren einschalten.\n\nDer Link ist 15 Minuten gültig.`,
+        { inline_keyboard: [[{ text: "🌐 Mit ImmoScout24 anmelden", url: flow.url }]] });
+}
+
 export async function handleMessage(message, user) {
     const chatId = Number(message.chat.id);
     const text = String(message.text || "").trim();
@@ -90,6 +155,18 @@ export async function handleMessage(message, user) {
         if (!isAdmin(user))
             return;
         return adminUsers(user, chatId);
+    }
+    if (command === "/token") {
+        if (!isAdmin(user))
+            return;
+        const mode = argument.trim().toLowerCase();
+        if (mode === "status")
+            return centralImmoScoutTokenStatus(chatId);
+        if (mode === "aktivieren" || mode === "enable")
+            return setCentralImmoScoutEnabled(user, chatId, true);
+        if (mode === "deaktivieren" || mode === "disable")
+            return setCentralImmoScoutEnabled(user, chatId, false);
+        return startCentralImmoScoutToken(user, chatId);
     }
     if (command === "/announcement") {
         if (!isAdmin(user))

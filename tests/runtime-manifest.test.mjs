@@ -24,3 +24,18 @@ test('runtime gate rejects temporary credential-bearing code imports',async()=>{
  const text="import 'https://raw.githubusercontent.com/example/repo/commit/runtime.ts?token=fixture-only';";
  await assert.rejects(verifyRuntime(fixture(text),async()=>text),/Credential-bearing runtime import/);
 });
+
+test('runtime gate permits only explicitly documented source snapshot drift',async()=>{
+ const text='export const newerSource=true;',deployed='export const olderDeployedSource=true;';
+ const sha256=hash(deployed);
+ const runtime={functions:[{
+  slug:'source-shadow',
+  entrypoint:path,
+  known_source_drift:[{path,reason:'Live source-shadow v18 retains an older shared.ts snapshot; deployment is intentionally deferred for separate dependency review.'}],
+  files:[{path,sha256,deployed_sha256:sha256}]
+ }]};
+ const result=await verifyRuntime(runtime,async()=>text);
+ assert.equal(result.hashWarnings,1);
+ runtime.functions[0].files[0].deployed_sha256='unexpected';
+ await assert.rejects(verifyRuntime(runtime,async()=>text),/Recorded deployment drift/);
+});

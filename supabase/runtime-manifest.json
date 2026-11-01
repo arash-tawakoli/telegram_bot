@@ -1,5 +1,5 @@
 {
-  "observed_at": "2026-10-24T23:35:36.370Z",
+  "observed_at": "2026-10-31T23:20:00Z",
   "project_id": "dpmohkrwdlicexwcrqfy",
   "snapshot_kind": "repository_with_observed_deployment_hashes",
   "functions": [
@@ -53,101 +53,106 @@
     },
     {
       "slug": "application-worker",
-      "version": 178,
+      "version": 333,
       "verify_jwt": false,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "d4354d15e0150beffdbf71b68dd04eefd06f4f165214f021ead86f4d26664ffa",
+      "observed_artifact_sha256": "61956b658d9ab20f58cf6df01d54c4ecdcd379ab3a5657cd6674b57c03ea371f",
       "entrypoint": "supabase/functions/application-worker/index.ts",
       "files": [
         {
           "path": "supabase/functions/application-worker/index.ts",
-          "sha256": "bf931f1038ed84027eb46fbe9bba691aacc7c1b05a2d15f8877b64a20da653d1",
-          "deployed_sha256": "bf931f1038ed84027eb46fbe9bba691aacc7c1b05a2d15f8877b64a20da653d1"
+          "git_blob_sha": "dcfc529b9dccde684009a8aefb6abdd087e22d1d",
+          "deployed_git_blob_sha": "dcfc529b9dccde684009a8aefb6abdd087e22d1d"
         },
         {
           "path": "supabase/functions/application-worker/profile-page.ts",
-          "sha256": "c0fd1c76acdb712aa51e25ffdfd702256dd1a26d7c44ff24d3f1fc836648e654",
-          "deployed_sha256": "c0fd1c76acdb712aa51e25ffdfd702256dd1a26d7c44ff24d3f1fc836648e654"
+          "git_blob_sha": "69697f782830ab0e8459c0090bd046a6a08ec333",
+          "deployed_git_blob_sha": "69697f782830ab0e8459c0090bd046a6a08ec333"
         },
         {
           "path": "supabase/functions/application-worker/providers/kleinanzeigen.ts",
-          "sha256": "82ccb36d8c99aad0661cb78a271110b92bb2c62bc285437e77c5416d8c29503a",
-          "deployed_sha256": "82ccb36d8c99aad0661cb78a271110b92bb2c62bc285437e77c5416d8c29503a"
-        },
-        {
-          "path": "supabase/functions/application-worker/credentials.ts",
-          "sha256": "f7dd03cc75db8d9a0e1e6a56bcab0b60cb0db7769b8a33bcf4ec39900d205541",
-          "deployed_sha256": "f7dd03cc75db8d9a0e1e6a56bcab0b60cb0db7769b8a33bcf4ec39900d205541"
-        },
-        {
-          "path": "supabase/functions/_shared/application-profile-adapters.ts",
-          "sha256": "561eef88785b5d442dbf95d42123cac1236ce0e55094bf59cf65aea099c00f64",
-          "deployed_sha256": "561eef88785b5d442dbf95d42123cac1236ce0e55094bf59cf65aea099c00f64"
-        },
-        {
-          "path": "supabase/functions/application-worker/providers/immoscout.ts",
-          "sha256": "da9830fa3c74d4fd06befecd6b232cc65145725ed9d98f2411fc6423094e3b21",
-          "deployed_sha256": "da9830fa3c74d4fd06befecd6b232cc65145725ed9d98f2411fc6423094e3b21"
-        },
-        {
-          "path": "supabase/functions/application-worker/providers/immowelt.ts",
-          "sha256": "53291cce64c1970f0dd969ca1fc5db2e0e2cc2eed2743c54fb34c96abbbf4d01",
-          "deployed_sha256": "53291cce64c1970f0dd969ca1fc5db2e0e2cc2eed2743c54fb34c96abbbf4d01"
-        },
-        {
-          "path": "supabase/functions/application-worker/providers/immomio.ts",
-          "sha256": "43c80dff38303dd0af13475c95437593bb532ea85a69bf1e4fdf76354de6d0da",
-          "deployed_sha256": "43c80dff38303dd0af13475c95437593bb532ea85a69bf1e4fdf76354de6d0da"
-        },
-        {
-          "path": "supabase/functions/application-worker/providers/router.ts",
-          "sha256": "c7f00c006239b9d2f6bea535e1dbfc33152c8c8b364bf770adbd957a26de0a1b",
-          "deployed_sha256": "c7f00c006239b9d2f6bea535e1dbfc33152c8c8b364bf770adbd957a26de0a1b"
+          "git_blob_sha": "40a972066a343e747e71bb60631bdcb878aa41a0",
+          "deployed_git_blob_sha": "40a972066a343e747e71bb60631bdcb878aa41a0"
         },
         {
           "path": "supabase/functions/_shared/platform-auth-flow.ts",
-          "sha256": "638e113afeb7895cf519d058bd1166f8ca0444a54f5eb9a573c530efc38110de",
-          "deployed_sha256": "638e113afeb7895cf519d058bd1166f8ca0444a54f5eb9a573c530efc38110de"
+          "git_blob_sha": "13315e30c931836ec6427261d3bc3a653c24e498",
+          "deployed_git_blob_sha": "13315e30c931836ec6427261d3bc3a653c24e498"
+        },
+        {
+          "path": "supabase/functions/application-worker/credentials.ts",
+          "git_blob_sha": "18051c12dcd2604859547dbd7ed1d4bcae24897a",
+          "deployed_git_blob_sha": "18051c12dcd2604859547dbd7ed1d4bcae24897a"
+        },
+        {
+          "path": "supabase/functions/_shared/application-profile-adapters.ts",
+          "git_blob_sha": "45e5c9eeea4e5d2ab161d1ea0072f815f58417cc",
+          "deployed_git_blob_sha": "45e5c9eeea4e5d2ab161d1ea0072f815f58417cc"
+        },
+        {
+          "path": "supabase/functions/application-worker/providers/immoscout.ts",
+          "git_blob_sha": "ccc7996317614a271f3f784776a156214fa64690",
+          "deployed_git_blob_sha": "ccc7996317614a271f3f784776a156214fa64690"
+        },
+        {
+          "path": "supabase/functions/application-worker/providers/immowelt.ts",
+          "git_blob_sha": "b49f75495243c96fbb23f87d755533211a4cb93d",
+          "deployed_git_blob_sha": "b49f75495243c96fbb23f87d755533211a4cb93d"
+        },
+        {
+          "path": "supabase/functions/application-worker/providers/immomio.ts",
+          "git_blob_sha": "437c9984e4aff8ccb82a54b85899e86694ef8b6c",
+          "deployed_git_blob_sha": "437c9984e4aff8ccb82a54b85899e86694ef8b6c"
+        },
+        {
+          "path": "supabase/functions/application-worker/providers/router.ts",
+          "git_blob_sha": "f9c38bfdce6466ca81bad8d41b27c1dd7e680c44",
+          "deployed_git_blob_sha": "f9c38bfdce6466ca81bad8d41b27c1dd7e680c44"
         }
       ],
-      "observed_live_version": 323,
+      "observed_live_version": 333,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "39b88a2306e244f4b9c16e2e8d587d26b5c2661b6d8db9b75df454e4afc33ecf",
+      "observed_live_artifact_sha256": "61956b658d9ab20f58cf6df01d54c4ecdcd379ab3a5657cd6674b57c03ea371f",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-01.json",
       "source_archive_file_count": 10,
       "source_archive_status": "full_source",
       "classification": "production",
-      "review_status": "production runtime; version/JWT/hash tracked against live inventory"
+      "review_status": "production runtime; refreshed after central ImmoScout rollout 2026-11-01"
     },
     {
       "slug": "auth-facade-broker",
-      "version": 21,
+      "version": 25,
       "verify_jwt": false,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "08a874152363b864f567f211ae1fcc18d37c13c67a7ce76b562736c94f607732",
+      "observed_artifact_sha256": "0dc77c725b7c48a1a4d843397af0e6fde1fcf44308c6203e6d3efdf2976fb929",
       "entrypoint": "supabase/functions/auth-facade-broker/index.ts",
       "files": [
         {
           "path": "supabase/functions/auth-facade-broker/index.ts",
-          "sha256": "9f20cf097e8f3bb36ed2b181e7e73ef274fd7cfccbbb2f5b34b82601e221b550",
-          "deployed_sha256": "9f20cf097e8f3bb36ed2b181e7e73ef274fd7cfccbbb2f5b34b82601e221b550"
+          "git_blob_sha": "f14274034573ef9ac8a5837af819167793692c01",
+          "deployed_git_blob_sha": "f14274034573ef9ac8a5837af819167793692c01"
         },
         {
           "path": "supabase/functions/_shared/platform-auth-flow.ts",
-          "sha256": "638e113afeb7895cf519d058bd1166f8ca0444a54f5eb9a573c530efc38110de",
-          "deployed_sha256": "638e113afeb7895cf519d058bd1166f8ca0444a54f5eb9a573c530efc38110de"
+          "git_blob_sha": "13315e30c931836ec6427261d3bc3a653c24e498",
+          "deployed_git_blob_sha": "13315e30c931836ec6427261d3bc3a653c24e498"
+        },
+        {
+          "path": "supabase/functions/_shared/telegram-admin.ts",
+          "git_blob_sha": "9868a1e114b476e39cd3c4d0248844c20593d03c",
+          "deployed_git_blob_sha": "9868a1e114b476e39cd3c4d0248844c20593d03c"
         }
       ],
-      "observed_live_version": 22,
+      "observed_live_version": 25,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "7de179fdd1abec2ac76c7ec46ea69a234c7af67b789d60b1924a0021c3463c74",
+      "observed_live_artifact_sha256": "0dc77c725b7c48a1a4d843397af0e6fde1fcf44308c6203e6d3efdf2976fb929",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-02.json",
-      "source_archive_file_count": 2,
+      "source_archive_file_count": 3,
       "source_archive_status": "full_source",
       "classification": "internal",
-      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
+      "review_status": "production runtime; refreshed after central ImmoScout rollout 2026-11-01"
     },
     {
       "slug": "billing-maintenance",
@@ -164,10 +169,10 @@
           "deployed_sha256": "f4c4820c3de7d5f19ee3af5cb1fee3dd5e4da4aed9cecb03df730120c27a853a"
         }
       ],
-      "observed_live_version": 253,
+      "observed_live_version": 258,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "2da02e38d32b0e9ba0ebbe851c77ccacd1d0b5c2f14d1f2fa7c43a3be9af1aac",
-      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-02.json",
+      "observed_live_artifact_sha256": "e7f0a03a3f27f1bda4f455f293a3969ed9dbcdc262e8899f665eb19db637dad0",
+      "source_archive_file": "docs/runtime-snapshot-2026-11-01/bundles/batch-02.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
       "classification": "production",
@@ -356,8 +361,8 @@
       "observed_live_version": 21,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "41a63bc4e9549ebacca67f5afeff2e1116a834100273c7eabf0030aa8bf8210d",
-      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-03.json",
-      "source_archive_file_count": 3,
+      "source_archive_file": "docs/runtime-snapshot-2026-11-01/bundles/batch-03.json",
+      "source_archive_file_count": 4,
       "source_archive_status": "full_source",
       "classification": "support_review",
       "review_status": "support/review; retain pending dependency-aware classification"
@@ -955,7 +960,7 @@
       "observed_live_version": 363,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "921a759ba80c40b804d686d296325966eeaeba1c26e08f790febb6d6955ceff9",
-      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-18.json",
+      "source_archive_file": "docs/runtime-snapshot-2026-11-01/bundles/batch-18.json",
       "source_archive_file_count": 9,
       "source_archive_status": "full_source",
       "classification": "production",
@@ -1082,7 +1087,13 @@
       "source_archive_file_count": 16,
       "source_archive_status": "full_source",
       "classification": "internal",
-      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked",
+      "known_source_drift": [
+        {
+          "path": "supabase/functions/source-worker/shared.ts",
+          "reason": "Live source-shadow v18 retains an older shared.ts snapshot; the active source-worker file is newer. Deployment is deferred for separate dependency-aware review."
+        }
+      ]
     },
     {
       "slug": "source-worker",
@@ -1262,7 +1273,7 @@
       "observed_live_version": 148,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "8efacebb97f82e9ba61b969bfd60b8362c39067db119f8bb4c53c2877314d97f",
-      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-19.json",
+      "source_archive_file": "docs/runtime-snapshot-2026-11-01/bundles/batch-19.json",
       "source_archive_file_count": 33,
       "source_archive_status": "full_source",
       "classification": "production",
@@ -1317,10 +1328,10 @@
           "deployed_sha256": "099441b9ada33258f02d4e5a286d130c99de9574e142ec27e2a21f32b5980327"
         }
       ],
-      "observed_live_version": 259,
+      "observed_live_version": 264,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "13f5c8b2b966ddd13d336bf429bce9d7c705535fa7a0faffc39e5dd8a411de6c",
-      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-19.json",
+      "observed_live_artifact_sha256": "2d1b96e31abe439d2968f8087f1d9e80f2295c3f1e3f254f8a511925103b2ebd",
+      "source_archive_file": "docs/runtime-snapshot-2026-11-01/bundles/batch-19.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
       "classification": "webhook",
@@ -1397,7 +1408,7 @@
       "observed_live_version": 106,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "2f3c447f8e84e8343a08ad7119348a16c292300d366fbbf3f2c7ca96b12fae22",
-      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-20.json",
+      "source_archive_file": "docs/runtime-snapshot-2026-11-01/bundles/batch-20.json",
       "source_archive_file_count": 2,
       "source_archive_status": "full_source",
       "classification": "production",
@@ -1477,11 +1488,11 @@
     },
     {
       "slug": "telegram-ui",
-      "version": 381,
+      "version": 383,
       "verify_jwt": false,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "a00159f204e82641835d1581792426d3337b0e9851fbab182403bee4966c9008",
+      "observed_artifact_sha256": "1a4b9925daa3f5d29d5e80f5930e86f246f0fe8b458c85e95dec104ee636be63",
       "entrypoint": "supabase/functions/telegram-ui/index.ts",
       "files": [
         {
@@ -1501,18 +1512,18 @@
         },
         {
           "path": "supabase/functions/telegram-ui/localization.js",
-          "git_blob_sha": "893597c29589c8d32eb1124fad215c44033ec2b7",
-          "deployed_git_blob_sha": "893597c29589c8d32eb1124fad215c44033ec2b7"
+          "git_blob_sha": "b994f0a45db971c7d8e98d4278f147d98e48b89d",
+          "deployed_git_blob_sha": "b994f0a45db971c7d8e98d4278f147d98e48b89d"
         },
         {
           "path": "supabase/functions/telegram-ui/profiles.js",
-          "git_blob_sha": "22409cff21baedfa8f0daa5ccb2e180e2ca01083",
-          "deployed_git_blob_sha": "22409cff21baedfa8f0daa5ccb2e180e2ca01083"
+          "git_blob_sha": "bac60fb41287c7e2d61dd8d632355ffac4f20b49",
+          "deployed_git_blob_sha": "bac60fb41287c7e2d61dd8d632355ffac4f20b49"
         },
         {
           "path": "supabase/functions/telegram-ui/runtime.js",
-          "git_blob_sha": "c1bdac228b5bed3f488a65e2df204d5e82ffe80a",
-          "deployed_git_blob_sha": "c1bdac228b5bed3f488a65e2df204d5e82ffe80a"
+          "git_blob_sha": "56ded90a9df64725d57e57e017d46b872bc732b2",
+          "deployed_git_blob_sha": "56ded90a9df64725d57e57e017d46b872bc732b2"
         },
         {
           "path": "supabase/functions/telegram-ui/platform-sessions.js",
@@ -1526,18 +1537,23 @@
         },
         {
           "path": "supabase/functions/telegram-ui/handlers.js",
-          "git_blob_sha": "f05390b3cc478a3eb4f06af868a88f88f9685434",
-          "deployed_git_blob_sha": "f05390b3cc478a3eb4f06af868a88f88f9685434"
+          "git_blob_sha": "d774623847eae420cf67e8dab4a19214112321ef",
+          "deployed_git_blob_sha": "d774623847eae420cf67e8dab4a19214112321ef"
+        },
+        {
+          "path": "supabase/functions/_shared/telegram-admin.ts",
+          "git_blob_sha": "9868a1e114b476e39cd3c4d0248844c20593d03c",
+          "deployed_git_blob_sha": "9868a1e114b476e39cd3c4d0248844c20593d03c"
         }
       ],
-      "observed_live_version": 381,
+      "observed_live_version": 383,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "a00159f204e82641835d1581792426d3337b0e9851fbab182403bee4966c9008",
-      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-22.json",
-      "source_archive_file_count": 9,
+      "observed_live_artifact_sha256": "1a4b9925daa3f5d29d5e80f5930e86f246f0fe8b458c85e95dec104ee636be63",
+      "source_archive_file": "docs/runtime-snapshot-2026-11-01/bundles/batch-01.json",
+      "source_archive_file_count": 10,
       "source_archive_status": "full_source",
       "classification": "production",
-      "review_status": "production runtime; version/JWT/hash tracked against live inventory"
+      "review_status": "production runtime; refreshed after central ImmoScout rollout 2026-11-01"
     },
     {
       "slug": "vonovia-transport",
