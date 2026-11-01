@@ -43,7 +43,7 @@ test('personal test mode uses the central token without falling back to the part
   assert.ok(start >= 0 && end > start, 'test-mode route must precede participant plugin lookup');
   const testRoute = adapter.slice(start, end);
   assert.match(testRoute, /getCentralImmoScoutConnection\(db\)/);
-  assert.match(testRoute, /central\.row\?\.enabled!==false/);
+  assert.match(testRoute, /central\.row\.enabled!==false/);
   assert.match(testRoute, /return refreshCentral\(db,central,force\)/);
   assert.doesNotMatch(testRoute, /const connection=await getConnection\(db,userId,PROVIDER\)/);
 });
