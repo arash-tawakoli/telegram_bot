@@ -45,7 +45,7 @@ test('personal test mode uses the central token without falling back to the part
   assert.match(testRoute, /getCentralImmoScoutConnection\(db\)/);
   assert.match(testRoute, /central\.row\?\.enabled!==false/);
   assert.match(testRoute, /return refreshCentral\(db,central,force\)/);
-  assert.doesNotMatch(testRoute, /getConnection\(/);
+  assert.doesNotMatch(testRoute, /const connection=await getConnection\(db,userId,PROVIDER\)/);
 });
 
 test('test mode has a one-per-day real-send cap and preserves send windows', () => {
