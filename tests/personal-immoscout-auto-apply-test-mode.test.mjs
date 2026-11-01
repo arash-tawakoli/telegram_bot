@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
-const migration = read('../supabase/migrations/20261101223000_personal_immoscout_auto_apply_test_mode.sql');
+const migration = read('../supabase/migrations/20261101221736_personal_immoscout_auto_apply_test_mode.sql');
 const worker = read('../supabase/functions/application-worker/index.ts');
 const adapter = read('../supabase/functions/application-worker/providers/immoscout.ts');
 const telegram = read('../supabase/functions/telegram-ui/platform-sessions.js');
@@ -76,9 +76,9 @@ test('Telegram exposes an owner-only Test Aktivieren/Deaktivieren control and te
 
 test('the migration registry records the exact migration content hash', () => {
   const hash = createHash('sha256').update(migration).digest('hex');
-  const entry = registry.migrations.find(row => row.version === '20261101223000');
+  const entry = registry.migrations.find(row => row.version === '20261101221736');
   assert.ok(entry, 'migration registry entry missing');
-  assert.equal(entry.file, 'supabase/migrations/20261101223000_personal_immoscout_auto_apply_test_mode.sql');
+  assert.equal(entry.file, 'supabase/migrations/20261101221736_personal_immoscout_auto_apply_test_mode.sql');
   assert.equal(entry.registry_sql_sha256, hash);
   assert.equal(entry.export_sql_sha256, hash);
 });
