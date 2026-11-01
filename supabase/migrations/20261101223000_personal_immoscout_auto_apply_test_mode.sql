@@ -6,7 +6,9 @@ alter table public.bot_users
   add column if not exists test_auto_apply_disabled_at timestamptz,
   add column if not exists test_auto_apply_updated_by_telegram_id bigint;
 
-do $$
+do $
+declare
+  v_owner_count integer;
 begin
   if not exists (
     select 1 from pg_constraint
@@ -18,6 +20,14 @@ begin
       check (test_auto_apply_daily_limit between 1 and 5);
   end if;
 
+  select count(*) into v_owner_count
+  from public.bot_users
+  where telegram_user_id=8538226539;
+
+  if v_owner_count<>1 then
+    raise exception 'personal_auto_apply_test_owner_not_unique';
+  end if;
+
   update public.bot_users
   set test_auto_apply_allowed=true,
       test_auto_apply_enabled=false,
@@ -25,12 +35,8 @@ begin
       test_auto_apply_enabled_at=null,
       test_auto_apply_disabled_at=null
   where telegram_user_id=8538226539;
-
-  if not found then
-    raise exception 'personal_auto_apply_test_owner_not_found';
-  end if;
 end
-$$;
+$;
 
 comment on column public.bot_users.test_auto_apply_allowed is
   'Server-side allowlist for the isolated personal ImmoScout24 auto-apply test mode.';
