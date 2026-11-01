@@ -201,10 +201,10 @@ async function authorizeWithSession(flow, email, sessionToken) {
 async function digestChallenge(value) {
   return b64url(new Uint8Array(await crypto.subtle.digest("SHA-256", enc.encode(value))));
 }
-async function persistCredentials(env, credentials, preserveEnabled = false, adminId = null) {
+async function persistCredentials(env, credentials, preserveEnabled = false, adminId = null, requireDisabled = false) {
   const sealed = await encrypt(credentials, env, CREDENTIAL_AAD);
   const expiresAt = new Date(credentials.expires_at || Date.now() + 3600000).toISOString();
-  await env.DB.prepare(`
+  const result = await env.DB.prepare(`
     INSERT INTO central_credentials
       (singleton,account_hint,ciphertext,iv,key_version,status,enabled,expires_at,last_verified_at,last_error,updated_at)
     VALUES ('central',?,?,?,1,'connected',0,?,CURRENT_TIMESTAMP,NULL,CURRENT_TIMESTAMP)
@@ -213,7 +213,9 @@ async function persistCredentials(env, credentials, preserveEnabled = false, adm
       key_version=1,status='connected',
       enabled=CASE WHEN ?=1 THEN central_credentials.enabled ELSE 0 END,
       expires_at=excluded.expires_at,last_verified_at=CURRENT_TIMESTAMP,last_error=NULL,updated_at=CURRENT_TIMESTAMP
-  `).bind(ACCOUNT_EMAIL, sealed.ciphertext, sealed.iv, expiresAt, preserveEnabled ? 1 : 0).run();
+    WHERE ?=0 OR central_credentials.enabled=0
+  `).bind(ACCOUNT_EMAIL, sealed.ciphertext, sealed.iv, expiresAt, preserveEnabled ? 1 : 0, requireDisabled ? 1 : 0).run();
+  if (requireDisabled && !result.meta.changes) throw new Error("auto_apply_state_changed");
   await env.DB.prepare("INSERT INTO audit_events(event_type,account_hint,admin_telegram_id) VALUES('credential_stored',?,?)")
     .bind(ACCOUNT_EMAIL, adminId ? String(adminId) : null).run();
   return { status: "connected", accountHint: ACCOUNT_EMAIL, expiresAt };
@@ -348,11 +350,75 @@ async function credentialStatus(env) {
     updated_at: row?.updated_at || null,
   };
 }
+async function refreshCredentialsForTest(env, adminId) {
+  if (!ADMIN_IDS.has(String(adminId || ""))) throw new Error("admin_required");
+  const row = await env.DB.prepare(
+    "SELECT ciphertext,iv,status,enabled FROM central_credentials WHERE singleton='central'"
+  ).first();
+  if (!row || row.status !== "connected") throw new Error("needs_login");
+  if (row.enabled !== 0) throw new Error("auto_apply_must_be_disabled");
+
+  let stage = "decrypt";
+  try {
+    const current = await decrypt(row.ciphertext, row.iv, env, CREDENTIAL_AAD);
+    if (!current?.refresh_token) throw new Error("refresh_token_missing");
+
+    stage = "token_refresh";
+    const { response, body } = await tokenRequest({
+      grant_type: "refresh_token",
+      refresh_token: String(current.refresh_token),
+    });
+    if (!response.ok || !body?.access_token) throw new Error("token_refresh_failed");
+
+    stage = "userinfo";
+    const info = await userInfo(String(body.access_token));
+    if (!info.response.ok || !info.body?.sub) throw new Error("userinfo_failed");
+    const verifiedEmail = validEmail(info.body?.email);
+    if (verifiedEmail !== ACCOUNT_EMAIL) throw new Error("central_account_mismatch");
+
+    stage = "persist";
+    const expiresAt = new Date(Date.now() + Math.max(60, Number(body.expires_in || 3600)) * 1000).toISOString();
+    await persistCredentials(env, {
+      ...current,
+      access_token: String(body.access_token),
+      refresh_token: String(body.refresh_token || current.refresh_token),
+      id_token: body.id_token ? String(body.id_token) : current.id_token,
+      expires_at: expiresAt,
+      token_type: String(body.token_type || current.token_type || "Bearer"),
+      scope: String(body.scope || current.scope || SCOPE),
+      sub: String(info.body.sub),
+    }, true, adminId, true);
+
+    const status = await credentialStatus(env);
+    if (status.enabled !== false) throw new Error("auto_apply_state_changed");
+    await env.DB.prepare(
+      "INSERT INTO audit_events(event_type,account_hint,admin_telegram_id) VALUES('refresh_test_succeeded',?,?)"
+    ).bind(ACCOUNT_EMAIL, String(adminId)).run();
+    return {
+      status: "refreshed",
+      verified: true,
+      account_hint: ACCOUNT_EMAIL,
+      expires_at: expiresAt,
+      enabled: false,
+    };
+  } catch (error) {
+    const code = safeDiagnosticCode(error);
+    await env.DB.prepare(
+      "INSERT INTO audit_events(event_type,account_hint,admin_telegram_id) VALUES(?,?,?)"
+    ).bind(`refresh_test_failed:${stage}:${code}`.slice(0, 160), ACCOUNT_EMAIL, String(adminId)).run().catch(() => {});
+    if (error && typeof error === "object") error.stage = stage;
+    throw error;
+  }
+}
+
 async function internal(request, env, path) {
   if (!await authorize(request, env)) return json({ error: "unauthorized" }, 401);
   if (path === "/internal/status" && request.method === "GET") return json(await credentialStatus(env));
   const body = request.method === "POST" ? await bodyJson(request) : {};
   if (path === "/internal/start" && request.method === "POST") return json(await startFlow(env, body));
+  if (path === "/internal/refresh-test" && request.method === "POST") {
+    return json(await refreshCredentialsForTest(env, body.admin_telegram_id));
+  }
   if (path === "/internal/resolve" && request.method === "POST") {
     const flow = await getFlow(env, body.state, body.allow_consumed === true);
     return json({
@@ -422,11 +488,14 @@ function publicError(error) {
     "central_account_mismatch", "temporary_network_error", "authorization_code_missing",
     "token_exchange_failed", "refresh_token_missing", "userinfo_failed", "oauth_login_failed",
     "invalid_callback_url", "provider_response_invalid", "admin_required",
+    "needs_login", "refresh_token_missing", "token_refresh_failed",
+    "auto_apply_must_be_disabled", "auto_apply_state_changed",
   ]);
   const status = code === "login_failed" || code === "mfa_invalid_code" ? 401
     : code === "invalid_callback_url" ? 400
     : code === "auth_flow_expired" || code === "invalid_state" || code === "mfa_expired" ? 410
-    : code.startsWith("mfa_") ? 409 : code === "admin_required" ? 403 : 503;
+    : code.startsWith("mfa_") || code === "auto_apply_must_be_disabled" || code === "auto_apply_state_changed" ? 409
+    : code === "admin_required" ? 403 : 503;
   const outwardCode = ({
     authorization_code_missing: "oauth_login_failed",
     refresh_token_missing: "token_exchange_failed",

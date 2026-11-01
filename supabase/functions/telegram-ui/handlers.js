@@ -115,7 +115,18 @@ async function centralImmoScoutTokenStatus(chatId) {
     const enabled = status.enabled === true;
     const verified = status.last_verified_at ? new Date(status.last_verified_at).toLocaleString("de-DE") : "Noch nicht geprüft";
     return send(chatId,
-        `<b>Zentraler ImmoScout24-Zugang</b>\nKonto: <b>${status.account_hint || "—"}</b>\nVerbindung: <b>${status.status || "unbekannt"}</b>\nAuto-Bewerbung: <b>${enabled ? "aktiv" : "deaktiviert"}</b>\nZuletzt geprüft: ${verified}\n\nAktivieren: /token aktivieren\nDeaktivieren: /token deaktivieren`);
+        `<b>Zentraler ImmoScout24-Zugang</b>\nKonto: <b>${status.account_hint || "—"}</b>\nVerbindung: <b>${status.status || "unbekannt"}</b>\nAuto-Bewerbung: <b>${enabled ? "aktiv" : "deaktiviert"}</b>\nZuletzt geprüft: ${verified}\n\nToken-Refresh testen: /token testen\nAktivieren: /token aktivieren\nDeaktivieren: /token deaktivieren`);
+}
+
+async function testCentralImmoScoutRefresh(user, chatId) {
+    const result = await centralImmoScoutApi("/internal/refresh-test", "POST", {
+        admin_telegram_id: String(user.telegram_user_id),
+    });
+    if (result?.status !== "refreshed" || result?.verified !== true || result?.enabled !== false)
+        throw new Error("central_token_refresh_test_failed");
+    const expires = result.expires_at ? new Date(result.expires_at).toLocaleString("de-DE") : "unbekannt";
+    return send(chatId,
+        `✅ <b>ImmoScout24-Token-Refresh erfolgreich</b>\nKonto: <b>${result.account_hint || "—"}</b>\nToken gültig bis: <b>${expires}</b>\nAuto-Bewerbung: <b>weiterhin deaktiviert</b>\n\nDer neue Token wurde verschlüsselt gespeichert. Es wurde keine Bewerbung versendet.`);
 }
 
 async function setCentralImmoScoutEnabled(user, chatId, enabled) {
@@ -162,6 +173,8 @@ export async function handleMessage(message, user) {
         const mode = argument.trim().toLowerCase();
         if (mode === "status")
             return centralImmoScoutTokenStatus(chatId);
+        if (mode === "testen" || mode === "refresh-test")
+            return testCentralImmoScoutRefresh(user, chatId);
         if (mode === "aktivieren" || mode === "enable")
             return setCentralImmoScoutEnabled(user, chatId, true);
         if (mode === "deaktivieren" || mode === "disable")

@@ -1553,7 +1553,13 @@
       "source_archive_file_count": 10,
       "source_archive_status": "full_source",
       "classification": "production",
-      "review_status": "production runtime; refreshed after central ImmoScout rollout 2026-11-01"
+      "review_status": "production runtime; refreshed after central ImmoScout rollout 2026-11-01",
+      "known_source_drift": [
+        {
+          "path": "supabase/functions/telegram-ui/handlers.js",
+          "reason": "Admin-only central ImmoScout refresh-test command is awaiting the version 384 staging verification deployment; reconcile the live snapshot immediately after deployment."
+        }
+      ]
     },
     {
       "slug": "vonovia-transport",
