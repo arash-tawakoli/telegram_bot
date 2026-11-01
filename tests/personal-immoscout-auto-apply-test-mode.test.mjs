@@ -21,7 +21,7 @@ test('personal test mode is opt-in and allowlisted for one Telegram owner', () =
 });
 
 test('test mode uses the active applicant and search profiles without changing plugin preferences', () => {
-  assert.match(migration, /application_profile_missing_fields\(p_user\)/);
+  assert.match(worker, /application_profile_missing_fields\(\{p_user:userId\}\)/);
   assert.match(migration, /from public\.search_profiles s[\s\S]*?s\.user_id=p_user[\s\S]*?s\.is_active/i);
   assert.match(migration, /insert into public\.application_preferences[\s\S]*?values\(p_user,false,false,false,false,false\)/i);
   assert.doesNotMatch(migration, /update public\.application_preferences\s+set enabled=true/i);
