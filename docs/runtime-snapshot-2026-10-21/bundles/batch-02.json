@@ -4,12 +4,12 @@
   "functions": [
     {
       "slug": "auth-facade-broker",
-      "version": 24,
+      "version": 25,
       "status": "ACTIVE",
       "verify_jwt": false,
       "import_map": false,
-      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_9291b16f-002d-47d7-a845-511bf0b82aca_22/source/supabase/functions/auth-facade-broker/index.ts",
-      "artifact_sha256": "0c424a2a82d6b1a62822fc7cffd86bc1429bd4726893bce77b8002d7b037f427",
+      "entrypoint_path": "/tmp/user_fn_dpmohkrwdlicexwcrqfy_9291b16f-002d-47d7-a845-511bf0b82aca_25/source/index.ts",
+      "artifact_sha256": "0dc77c725b7c48a1a4d843397af0e6fde1fcf44308c6203e6d3efdf2976fb929",
       "archive_status": "full_source",
       "security_scan_flags": [],
       "files": [
