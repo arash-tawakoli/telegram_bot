@@ -73,7 +73,8 @@ begin
     if not app_private.user_is_premium(p_user) then
       raise exception 'premium_required';
     end if;
-    if not app_private.applicant_profile_identity_ready(p_user) then
+    if not app_private.applicant_profile_identity_ready(p_user)
+       or coalesce(cardinality(public.application_profile_missing_fields(p_user)),0)>0 then
       raise exception 'test_mode_profile_incomplete';
     end if;
     if not exists (
@@ -451,6 +452,15 @@ begin
       v_window_ok := v_local_time >= v_pref.send_window_start
                      or v_local_time <= v_pref.send_window_end;
     end if;
+  end if;
+
+  if not v_window_ok then
+    update public.applications
+    set wait_reason='outside_send_window',
+        next_attempt_at=now()+interval '15 minutes',
+        lease_until=null
+    where id=p_id;
+    return false;
   end if;
 
   v_effective_daily_limit := case
