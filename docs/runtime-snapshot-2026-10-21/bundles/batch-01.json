@@ -38,12 +38,12 @@
     },
     {
       "slug": "application-worker",
-      "version": 332,
+      "version": 333,
       "status": "ACTIVE",
       "verify_jwt": false,
       "import_map": false,
-      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_1abd3eb5-b635-4dcd-8c97-5907c35fc4a7_190/source/functions/application-worker/index.ts",
-      "artifact_sha256": "ea96613f2e13add31536b0acb2185b4491acb5e8f9ccabe8b74e6410f87fe56b",
+      "entrypoint_path": "/tmp/user_fn_dpmohkrwdlicexwcrqfy_1abd3eb5-b635-4dcd-8c97-5907c35fc4a7_333/source/index.ts",
+      "artifact_sha256": "61956b658d9ab20f58cf6df01d54c4ecdcd379ab3a5657cd6674b57c03ea371f",
       "archive_status": "full_source",
       "security_scan_flags": [],
       "files": [
