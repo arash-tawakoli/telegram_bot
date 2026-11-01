@@ -99,3 +99,13 @@ test('the Cloudflare D1 schema contains the central vault, audit log and short-l
   assert.match(schema, /CREATE TABLE IF NOT EXISTS oauth_flows/);
   assert.match(worker, /cache-control": "no-store"/);
 });
+
+test('central OAuth finalization failures are diagnosable and pre-code failures can retry the same flow', () => {
+  assert.match(worker, /central_immoscout_request_failed/);
+  assert.match(worker, /oauth_failed:\$\{stage\}:\$\{code\}/);
+  assert.match(worker, /releaseFlow\(env, flow\)/);
+  assert.match(worker, /stage === "authorize"/);
+  assert.match(worker, /authorization_code_missing/);
+  assert.match(facade, /authorization_code_missing/);
+  assert.match(facade, /provider_response_invalid/);
+});
