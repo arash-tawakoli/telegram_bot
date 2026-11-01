@@ -21,12 +21,12 @@
     },
     {
       "slug": "telegram-ui",
-      "version": 382,
+      "version": 383,
       "status": "ACTIVE",
       "verify_jwt": false,
       "import_map": false,
-      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_bcd97126-08a7-46c1-9ef3-15b93f63df78_235/source/functions/telegram-ui/index.ts",
-      "artifact_sha256": "78f3e6acd0baf9fc8c47cb19b77daf52306771ff5cd9fc6c470165c6852eb770",
+      "entrypoint_path": "/tmp/user_fn_dpmohkrwdlicexwcrqfy_bcd97126-08a7-46c1-9ef3-15b93f63df78_383/source/index.ts",
+      "artifact_sha256": "1a4b9925daa3f5d29d5e80f5930e86f246f0fe8b458c85e95dec104ee636be63",
       "archive_status": "full_source",
       "security_scan_flags": [],
       "files": [
