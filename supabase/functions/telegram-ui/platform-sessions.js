@@ -834,7 +834,9 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
       return '• '+title+' — <b>'+status+'</b> · '+esc(when)+error;
      }).join('\n')
    : 'Noch keine Testbewerbungen.';
-  testSection='\n\n🧪 <b>Persönlicher Testbetrieb</b>\nStatus: <b>'+(testModeEnabled?'Aktiv':'Deaktiviert')+'</b>\nQuelle: ImmoScout24 über den zentralen NexaLabs-Zugang — unabhängig von deiner persönlichen ImmoScout24-Plugin-Verbindung.\nProfil: dein aktives Suchprofil und dein Bewerberprofil.\nTageslimit: <b>'+Number(state.test_auto_apply_daily_limit||1)+' echte Bewerbung(en)</b>.\nAndere Plattformen und die Plugin-Verbindungen anderer Nutzer bleiben unverändert.\n\n<b>Letzte Testbewerbungen</b>\n'+history;
+  const dailyLimit=Number(state.test_auto_apply_daily_limit||1);
+  const dailyLabel=dailyLimit===1?'1 echte Bewerbung':dailyLimit+' echte Bewerbungen';
+  testSection='\n\n🧪 <b>Persönlicher Testbetrieb</b>\nStatus: <b>'+(testModeEnabled?'Aktiv':'Deaktiviert')+'</b>\nQuelle: ImmoScout24 über den zentralen NexaLabs-Zugang — unabhängig von deiner persönlichen ImmoScout24-Plugin-Verbindung.\nProfil: dein aktives Suchprofil und dein Bewerberprofil.\nTageslimit: <b>'+dailyLabel+' pro Tag</b>.\nDeine Plugin-Verbindungen werden dafür nicht benötigt und nicht verändert. Die Verbindungen anderer Nutzer bleiben unverändert.\n\n<b>Letzte Testbewerbungen</b>\n'+history;
   rows.push([button(testModeEnabled?'Test Deaktivieren':'Test Aktivieren','platforms:test:'+(testModeEnabled?'off':'on'))]);
  }
 
