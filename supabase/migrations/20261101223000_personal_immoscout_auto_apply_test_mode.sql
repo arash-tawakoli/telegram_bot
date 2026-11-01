@@ -367,7 +367,6 @@ declare
   v_next timestamptz;
   v_test_mode_enabled boolean := false;
   v_test_daily_limit integer;
-  v_test_enabled_at timestamptz;
   v_effective_daily_limit integer;
 begin
   select * into a from public.applications where id=p_id for update;
@@ -382,9 +381,8 @@ begin
 
   select
     coalesce(u.test_auto_apply_allowed and u.test_auto_apply_enabled and not u.auto_apply_enabled,false),
-    u.test_auto_apply_daily_limit,
-    u.test_auto_apply_enabled_at
-  into v_test_mode_enabled,v_test_daily_limit,v_test_enabled_at
+    u.test_auto_apply_daily_limit
+  into v_test_mode_enabled,v_test_daily_limit
   from public.bot_users u
   where u.id=a.user_id;
 
@@ -481,7 +479,6 @@ begin
       where q.user_id=a.user_id
         and q.source_id=a.source_id
         and q.quota_local_date=v_local_date
-        and q.created_at>=coalesce(v_test_enabled_at,statement_timestamp())
         and q.provider_state->>'test_mode'='true'
         and q.id<>a.id;
     else
