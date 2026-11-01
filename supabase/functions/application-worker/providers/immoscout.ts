@@ -70,6 +70,18 @@ async function refreshCentral(db:any,connection:any,force=false){
  return{...updated,__centralAccount:true};
 }
 async function session(db:any,userId:string,force=false){
+ const {data:mode,error:modeError}=await db.from('bot_users')
+  .select('test_auto_apply_allowed,test_auto_apply_enabled,auto_apply_enabled')
+  .eq('id',userId).maybeSingle();
+ if(modeError)throw Error('test_mode_read_failed');
+ const personalTestMode=mode?.test_auto_apply_allowed===true
+  &&mode?.test_auto_apply_enabled===true
+  &&mode?.auto_apply_enabled!==true;
+ if(personalTestMode){
+  const central=await getCentralImmoScoutConnection(db);
+  if(central?.row?.status!=='connected'||central.row.enabled!==false||!central.credentials?.refresh_token)throw Error('needs_login');
+  return refreshCentral(db,central,force);
+ }
  try{
   const central=await getCentralImmoScoutConnection(db);
   if(central?.row?.status==='connected'&&central.row.enabled===true&&central.credentials?.access_token){
