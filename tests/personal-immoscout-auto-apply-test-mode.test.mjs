@@ -16,7 +16,7 @@ test('personal test mode is opt-in and allowlisted for one Telegram owner', () =
   assert.match(migration, /test_auto_apply_enabled boolean not null default false/i);
   assert.match(migration, /where telegram_user_id=8538226539/i);
   assert.match(migration, /test_auto_apply_enabled=false/i);
-  assert.match(migration, /do \\$owner\\$[\\s\\S]*?end\\s+\\$owner\\$;/i);
+  assert.match(migration, /do \$owner\$[\s\S]*?end\s+\$owner\$;/i);
   assert.match(migration, /revoke all on function public\.set_application_test_mode\(uuid,bigint,boolean\) from public, anon, authenticated/i);
   assert.match(migration, /grant execute on function public\.set_application_test_mode\(uuid,bigint,boolean\) to service_role/i);
 });
