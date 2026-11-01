@@ -53,11 +53,11 @@
     },
     {
       "slug": "application-worker",
-      "version": 332,
+      "version": 333,
       "verify_jwt": false,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "ea96613f2e13add31536b0acb2185b4491acb5e8f9ccabe8b74e6410f87fe56b",
+      "observed_artifact_sha256": "61956b658d9ab20f58cf6df01d54c4ecdcd379ab3a5657cd6674b57c03ea371f",
       "entrypoint": "supabase/functions/application-worker/index.ts",
       "files": [
         {
@@ -111,22 +111,22 @@
           "deployed_git_blob_sha": "f9c38bfdce6466ca81bad8d41b27c1dd7e680c44"
         }
       ],
-      "observed_live_version": 332,
+      "observed_live_version": 333,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "ea96613f2e13add31536b0acb2185b4491acb5e8f9ccabe8b74e6410f87fe56b",
+      "observed_live_artifact_sha256": "61956b658d9ab20f58cf6df01d54c4ecdcd379ab3a5657cd6674b57c03ea371f",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-01.json",
       "source_archive_file_count": 10,
       "source_archive_status": "full_source",
       "classification": "production",
-      "review_status": "production runtime; version/JWT/hash tracked against live inventory"
+      "review_status": "production runtime; refreshed after central ImmoScout rollout 2026-11-01"
     },
     {
       "slug": "auth-facade-broker",
-      "version": 24,
+      "version": 25,
       "verify_jwt": false,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "0c424a2a82d6b1a62822fc7cffd86bc1429bd4726893bce77b8002d7b037f427",
+      "observed_artifact_sha256": "0dc77c725b7c48a1a4d843397af0e6fde1fcf44308c6203e6d3efdf2976fb929",
       "entrypoint": "supabase/functions/auth-facade-broker/index.ts",
       "files": [
         {
@@ -145,14 +145,14 @@
           "deployed_git_blob_sha": "9868a1e114b476e39cd3c4d0248844c20593d03c"
         }
       ],
-      "observed_live_version": 24,
+      "observed_live_version": 25,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "0c424a2a82d6b1a62822fc7cffd86bc1429bd4726893bce77b8002d7b037f427",
+      "observed_live_artifact_sha256": "0dc77c725b7c48a1a4d843397af0e6fde1fcf44308c6203e6d3efdf2976fb929",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-02.json",
       "source_archive_file_count": 3,
       "source_archive_status": "full_source",
       "classification": "internal",
-      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
+      "review_status": "production runtime; refreshed after central ImmoScout rollout 2026-11-01"
     },
     {
       "slug": "billing-maintenance",
@@ -1482,11 +1482,11 @@
     },
     {
       "slug": "telegram-ui",
-      "version": 382,
+      "version": 383,
       "verify_jwt": false,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "78f3e6acd0baf9fc8c47cb19b77daf52306771ff5cd9fc6c470165c6852eb770",
+      "observed_artifact_sha256": "1a4b9925daa3f5d29d5e80f5930e86f246f0fe8b458c85e95dec104ee636be63",
       "entrypoint": "supabase/functions/telegram-ui/index.ts",
       "files": [
         {
@@ -1540,14 +1540,14 @@
           "deployed_git_blob_sha": "9868a1e114b476e39cd3c4d0248844c20593d03c"
         }
       ],
-      "observed_live_version": 382,
+      "observed_live_version": 383,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "78f3e6acd0baf9fc8c47cb19b77daf52306771ff5cd9fc6c470165c6852eb770",
+      "observed_live_artifact_sha256": "1a4b9925daa3f5d29d5e80f5930e86f246f0fe8b458c85e95dec104ee636be63",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-22.json",
       "source_archive_file_count": 10,
       "source_archive_status": "full_source",
       "classification": "production",
-      "review_status": "production runtime; version/JWT/hash tracked against live inventory"
+      "review_status": "production runtime; refreshed after central ImmoScout rollout 2026-11-01"
     },
     {
       "slug": "vonovia-transport",
