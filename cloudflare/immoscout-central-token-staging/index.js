@@ -427,7 +427,13 @@ function publicError(error) {
     : code === "invalid_callback_url" ? 400
     : code === "auth_flow_expired" || code === "invalid_state" || code === "mfa_expired" ? 410
     : code.startsWith("mfa_") ? 409 : code === "admin_required" ? 403 : 503;
-  return json({ error: safe.has(code) ? code : "immoscout_operation_failed" }, status);
+  const outwardCode = ({
+    authorization_code_missing: "oauth_login_failed",
+    refresh_token_missing: "token_exchange_failed",
+    invalid_callback_url: "oauth_login_failed",
+    provider_response_invalid: "oauth_login_failed",
+  })[code] || (safe.has(code) ? code : "token_exchange_failed");
+  return json({ error: outwardCode }, status);
 }
 export default {
   async fetch(request, env) {
