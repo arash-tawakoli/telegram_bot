@@ -112,6 +112,12 @@ export async function applicationWorker(action,userId,source,extra={}){
   if(code==='invalid_callback_url')throw Error('Der Plattform-Rücksprung ist unvollständig. Bitte den Login erneut starten.');
   if(code==='token_exchange_failed')throw Error('Die Plattform konnte die Anmeldung nicht abschließen. Bitte erneut versuchen.');
   if(code==='immomio_email_required')throw Error('Im Bewerberprofil fehlt eine gültige E-Mail-Adresse.');
+  if(code==='test_mode_forbidden')throw Error('Der persönliche Testbetrieb ist nur für das freigegebene Konto verfügbar.');
+  if(code==='test_mode_global_auto_apply_active')throw Error('Deaktiviere zuerst die reguläre Auto-Bewerbung.');
+  if(code==='test_mode_profile_incomplete')throw Error('Dein Bewerberprofil ist noch nicht vollständig.');
+  if(code==='test_mode_search_profile_missing')throw Error('Aktiviere zuerst mindestens ein Suchprofil.');
+  if(code==='test_mode_central_account_unavailable')throw Error('Der zentrale ImmoScout24-Zugang ist nicht verfügbar oder global freigegeben.');
+  if(code==='test_mode_update_failed')throw Error('Der persönliche Testmodus konnte nicht gespeichert werden.');
   throw Error('Plattformverbindung momentan nicht verfügbar.');
  }
  return result;
@@ -495,6 +501,22 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  const render=(text,rows)=>messageId?edit(chat.id,messageId,text,{inline_keyboard:rows}):send(chat.id,text,{inline_keyboard:rows});
  const back=[[button('← Automatische Bewerbung','platforms')]];
 
+ if(action==='test'){
+  const enabled=arg==='on';
+  try{
+   await applicationWorker('set_test_mode',user.id,1,{
+    enabled,
+    telegramUserId:Number(user.telegram_user_id)
+   });
+   return platformSessions(user,chat,messageId,'platforms');
+  }catch(error:any){
+   return render('⚠️ <b>Testmodus konnte nicht '+(enabled?'aktiviert':'deaktiviert')+' werden</b>\n\n'+esc(error?.message||'Unbekannter Fehler'),[
+    [button(enabled?'Test erneut aktivieren':'Test erneut deaktivieren','platforms:test:'+(enabled?'on':'off'))],
+    ...back
+   ]);
+  }
+ }
+
  if(action==='profile'){
   if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
   return renderApplicantProfile(user,chat,messageId);
@@ -755,11 +777,13 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
     const {error}=await db.rpc('set_application_enabled_shared',{p_user:user.id,p_enabled:true});
     if(error){
      const reason=String(error.message||'');
-     const message=reason.includes('provider_required')
-      ? 'Verbinde zuerst mindestens eine Bewerbungsplattform.'
-      : reason.includes('profile_incomplete')
-       ? 'Im Bewerberprofil fehlen noch Pflichtfelder.'
-       : 'Der globale Auto-Bewerbungs-Schalter konnte nicht gespeichert werden. Bitte prüfe die Verbindung und versuche es erneut.';
+     const message=reason.includes('test_mode_active')
+      ? 'Deaktiviere zuerst den persönlichen Testmodus.'
+      : reason.includes('provider_required')
+       ? 'Verbinde zuerst mindestens eine Bewerbungsplattform.'
+       : reason.includes('profile_incomplete')
+        ? 'Im Bewerberprofil fehlen noch Pflichtfelder.'
+        : 'Der globale Auto-Bewerbungs-Schalter konnte nicht gespeichert werden. Bitte prüfe die Verbindung und versuche es erneut.';
      return render(`⚠️ <b>Auto-Bewerbung nicht aktiviert</b>\n\n${message}`,[[button('👤 Bewerberprofil','platforms:profile')],...back]);
     }
    }
@@ -768,19 +792,54 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
 
   const [{data:connections,error},{data:state,error:stateError}]=await Promise.all([
   db.from('platform_connections').select('provider,status').eq('user_id',user.id),
-  db.from('bot_users').select('auto_apply_enabled').eq('id',user.id).single()
+  db.from('bot_users').select('auto_apply_enabled,test_auto_apply_allowed,test_auto_apply_enabled,test_auto_apply_daily_limit,test_auto_apply_enabled_at,test_auto_apply_disabled_at').eq('id',user.id).single()
  ]);
  if(error||stateError)throw Error('Auto-Bewerbung konnte nicht geladen werden.');
  const connection=(key)=>connections?.find(r=>r.provider===key);
+ const testModeEnabled=state.test_auto_apply_allowed===true&&state.test_auto_apply_enabled===true&&state.auto_apply_enabled!==true;
  const rows=[];
  for(const sourceId of [1,2,3,4]){
   const meta=AUTO_APPLY_PROVIDERS[sourceId],connected=connection(meta.key)?.status==='connected';
   rows.push([connected
-   ? button(`✅ ${meta.name}`,`platforms:provider:${sourceId}`)
-   : button(`🔐 ${meta.name} verbinden`,`platforms:login:${sourceId}`)]);
+   ? button('✅ '+meta.name,'platforms:provider:'+sourceId)
+   : button('🔐 '+meta.name+' verbinden','platforms:login:'+sourceId)]);
  }
- rows.push([button(state.auto_apply_enabled?'⚡ Auto-Bewerbung deaktivieren':'⚡ Auto-Bewerbung aktivieren',`platforms:${state.auto_apply_enabled?'off':'on'}`)]);
+
+ let testSection='';
+ if(state.test_auto_apply_allowed===true){
+  const {data:testApps,error:testAppsError}=await db.from('applications')
+   .select('id,status,last_error,sent_at,created_at,listing_id')
+   .eq('user_id',user.id).eq('source_id',1)
+   .contains('provider_state',{test_mode:true})
+   .order('created_at',{ascending:false}).limit(5);
+  if(testAppsError)throw Error('Testverlauf konnte nicht geladen werden.');
+  const listingIds=[...new Set((testApps||[]).map(row=>row.listing_id).filter(Boolean))];
+  let listingMap=new Map();
+  if(listingIds.length){
+   const {data:listings,error:listingsError}=await db.from('listings').select('id,title').in('id',listingIds);
+   if(listingsError)throw Error('Testverlauf konnte nicht geladen werden.');
+   listingMap=new Map((listings||[]).map(row=>[row.id,row.title]));
+  }
+  const statusLabels={sent:'Versendet',pending:'Wartet',processing:'Wird versendet',failed:'Fehlgeschlagen',manual_required:'Manuelle Prüfung'};
+  const history=(testApps||[]).length
+   ? (testApps||[]).map(row=>{
+      const title=esc(listingMap.get(row.listing_id)||'ImmoScout24-Inserat');
+      const status=esc(statusLabels[row.status]||row.status||'Unbekannt');
+      const when=new Date(row.sent_at||row.created_at).toLocaleString('de-DE');
+      const error=row.last_error?' · '+esc(row.last_error):'';
+      return '• '+title+' — <b>'+status+'</b> · '+esc(when)+error;
+     }).join('\n')
+   : 'Noch keine Testbewerbungen.';
+  testSection='\n\n🧪 <b>Persönlicher Testbetrieb</b>\nStatus: <b>'+(testModeEnabled?'Aktiv':'Deaktiviert')+'</b>\nQuelle: ImmoScout24 über den zentralen NexaLabs-Zugang — unabhängig von deiner persönlichen ImmoScout24-Plugin-Verbindung.\nProfil: dein aktives Suchprofil und dein Bewerberprofil.\nTageslimit: <b>'+Number(state.test_auto_apply_daily_limit||1)+' echte Bewerbung(en)</b>.\nAndere Plattformen und die Plugin-Verbindungen anderer Nutzer bleiben unverändert.\n\n<b>Letzte Testbewerbungen</b>\n'+history;
+  rows.push([button(testModeEnabled?'Test Deaktivieren':'Test Aktivieren','platforms:test:'+(testModeEnabled?'off':'on'))]);
+ }
+
+ if(!testModeEnabled){
+  rows.push([button(state.auto_apply_enabled?'⚡ Auto-Bewerbung deaktivieren':'⚡ Auto-Bewerbung aktivieren','platforms:'+(state.auto_apply_enabled?'off':'on'))]);
+ }else{
+  testSection+='\n\nDie reguläre Auto-Bewerbung bleibt während des Testbetriebs deaktiviert.';
+ }
  rows.push([button('← Start','home')]);
- return render('⚡ <b>Automatische Bewerbung</b>\n\nVerbinde deine Plattformen und aktiviere oder deaktiviere die automatische Bewerbung zentral.',rows);
+ return render('⚡ <b>Automatische Bewerbung</b>\n\nVerbinde Plattformen und verwalte die automatische Bewerbung. '+testSection,rows);
 
 }
