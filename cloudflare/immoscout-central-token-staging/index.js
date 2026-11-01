@@ -154,6 +154,11 @@ async function claimFlow(env, flow) {
   ).bind(flow.state_hash).run();
   if (!result.meta.changes) throw new Error("auth_flow_expired");
 }
+async function releaseFlow(env, flow) {
+  await env.DB.prepare(
+    "UPDATE oauth_flows SET consumed_at=NULL WHERE state_hash=? AND consumed_at IS NOT NULL"
+  ).bind(flow.state_hash).run();
+}
 async function tokenRequest(payload) {
   return fetchJson(TOKEN, {
     method: "POST",
@@ -214,32 +219,49 @@ async function persistCredentials(env, credentials, preserveEnabled = false, adm
   return { status: "connected", accountHint: ACCOUNT_EMAIL, expiresAt };
 }
 async function finishWithSession(env, flow, email, sessionToken) {
+  let stage = "claim_flow";
   await claimFlow(env, flow);
-  const code = await authorizeWithSession(flow, email, sessionToken);
-  const { response, body } = await tokenRequest({
-    grant_type: "authorization_code", code, redirect_uri: REDIRECT_URI, code_verifier: flow.verifier,
-  });
-  if (!response.ok || !body?.access_token) throw new Error("token_exchange_failed");
-  if (!body?.refresh_token) throw new Error("refresh_token_missing");
-  const info = await userInfo(String(body.access_token));
-  if (!info.response.ok || !info.body?.sub) throw new Error("userinfo_failed");
-  const verifiedEmail = validEmail(info.body?.email);
-  if (verifiedEmail !== ACCOUNT_EMAIL) throw new Error("central_account_mismatch");
-  const expiresAt = new Date(Date.now() + Math.max(60, Number(body.expires_in || 3600)) * 1000).toISOString();
-  const credentials = {
-    access_token: String(body.access_token),
-    refresh_token: String(body.refresh_token),
-    id_token: body.id_token ? String(body.id_token) : null,
-    expires_at: expiresAt,
-    token_type: String(body.token_type || "Bearer"),
-    scope: String(body.scope || SCOPE),
-    client_id: CLIENT_ID,
-    redirect_uri: REDIRECT_URI,
-    issuer: ISSUER,
-    sub: String(info.body.sub),
-  };
-  await persistCredentials(env, credentials, false, flow.admin_telegram_id);
-  return { status: "connected", authenticated: true, accountReady: true, accountHint: verifiedEmail, passwordStored: false };
+  try {
+    stage = "authorize";
+    const code = await authorizeWithSession(flow, email, sessionToken);
+    stage = "token_exchange";
+    const { response, body } = await tokenRequest({
+      grant_type: "authorization_code", code, redirect_uri: REDIRECT_URI, code_verifier: flow.verifier,
+    });
+    if (!response.ok || !body?.access_token) throw new Error("token_exchange_failed");
+    if (!body?.refresh_token) throw new Error("refresh_token_missing");
+    stage = "userinfo";
+    const info = await userInfo(String(body.access_token));
+    if (!info.response.ok || !info.body?.sub) throw new Error("userinfo_failed");
+    const verifiedEmail = validEmail(info.body?.email);
+    if (verifiedEmail !== ACCOUNT_EMAIL) throw new Error("central_account_mismatch");
+    const expiresAt = new Date(Date.now() + Math.max(60, Number(body.expires_in || 3600)) * 1000).toISOString();
+    const credentials = {
+      access_token: String(body.access_token),
+      refresh_token: String(body.refresh_token),
+      id_token: body.id_token ? String(body.id_token) : null,
+      expires_at: expiresAt,
+      token_type: String(body.token_type || "Bearer"),
+      scope: String(body.scope || SCOPE),
+      client_id: CLIENT_ID,
+      redirect_uri: REDIRECT_URI,
+      issuer: ISSUER,
+      sub: String(info.body.sub),
+    };
+    stage = "persist";
+    await persistCredentials(env, credentials, false, flow.admin_telegram_id);
+    return { status: "connected", authenticated: true, accountReady: true, accountHint: verifiedEmail, passwordStored: false };
+  } catch (error) {
+    const code = String(error?.message || "immoscout_operation_failed");
+    if (stage === "authorize" && ["authorization_code_missing", "temporary_network_error"].includes(code)) {
+      await releaseFlow(env, flow).catch(() => {});
+    }
+    if (error && typeof error === "object") error.stage = stage;
+    await env.DB.prepare(
+      "INSERT INTO audit_events(event_type,account_hint,admin_telegram_id) VALUES(?,?,?)"
+    ).bind(`oauth_failed:${stage}:${code}`.slice(0,160), ACCOUNT_EMAIL, flow.admin_telegram_id).run().catch(() => {});
+    throw error;
+  }
 }
 async function passwordLogin(env, state, emailValue, passwordValue) {
   const email = validEmail(emailValue);
@@ -388,16 +410,21 @@ async function internal(request, env, path) {
   }
   return json({ error: "not_found" }, 404);
 }
-function publicError(error) {
+function safeDiagnosticCode(error) {
   const code = String(error?.message || "immoscout_operation_failed");
+  return /^[a-z0-9_]{1,80}$/.test(code) ? code : "immoscout_operation_failed";
+}
+function publicError(error) {
+  const code = safeDiagnosticCode(error);
   const safe = new Set([
     "login_failed", "mfa_required", "mfa_factor_unsupported", "mfa_invalid_code",
     "mfa_challenge_failed", "mfa_expired", "auth_flow_expired", "invalid_state",
     "central_account_mismatch", "temporary_network_error", "authorization_code_missing",
     "token_exchange_failed", "refresh_token_missing", "userinfo_failed", "oauth_login_failed",
-    "admin_required",
+    "invalid_callback_url", "provider_response_invalid", "admin_required",
   ]);
   const status = code === "login_failed" || code === "mfa_invalid_code" ? 401
+    : code === "invalid_callback_url" ? 400
     : code === "auth_flow_expired" || code === "invalid_state" || code === "mfa_expired" ? 410
     : code.startsWith("mfa_") ? 409 : code === "admin_required" ? 403 : 503;
   return json({ error: safe.has(code) ? code : "immoscout_operation_failed" }, status);
@@ -412,6 +439,11 @@ export default {
     try {
       return await internal(request, env, url.pathname);
     } catch (error) {
+      console.error("central_immoscout_request_failed", {
+        path: url.pathname,
+        stage: String(error?.stage || "request"),
+        code: safeDiagnosticCode(error),
+      });
       return publicError(error);
     }
   },
