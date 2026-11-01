@@ -4,8 +4,8 @@
       "version": "20261101223000",
       "name": "personal_immoscout_auto_apply_test_mode",
       "file": "supabase/migrations/20261101223000_personal_immoscout_auto_apply_test_mode.sql",
-      "registry_sql_sha256": "cb45e3051d683606c423a4f8fb989274a2b899d3f179d71a7bfac252b83fbbb8",
-      "export_sql_sha256": "cb45e3051d683606c423a4f8fb989274a2b899d3f179d71a7bfac252b83fbbb8",
+      "registry_sql_sha256": "5cc62d28608eb057bb1edb969ada09464bf86b6514bdb7656d8256aec8400d4b",
+      "export_sql_sha256": "5cc62d28608eb057bb1edb969ada09464bf86b6514bdb7656d8256aec8400d4b",
       "vault_substitution": false
     }
   ]
