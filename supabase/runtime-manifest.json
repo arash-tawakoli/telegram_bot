@@ -1488,11 +1488,11 @@
     },
     {
       "slug": "telegram-ui",
-      "version": 383,
+      "version": 384,
       "verify_jwt": false,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "1a4b9925daa3f5d29d5e80f5930e86f246f0fe8b458c85e95dec104ee636be63",
+      "observed_artifact_sha256": "0d7ce27ab0f7ed9a4d727a93c82f39bdefb497cc0ee83c79622d86112860420e",
       "entrypoint": "supabase/functions/telegram-ui/index.ts",
       "files": [
         {
@@ -1537,8 +1537,8 @@
         },
         {
           "path": "supabase/functions/telegram-ui/handlers.js",
-          "git_blob_sha": "d774623847eae420cf67e8dab4a19214112321ef",
-          "deployed_git_blob_sha": "d774623847eae420cf67e8dab4a19214112321ef"
+          "git_blob_sha": "24b5062a1b279a465ee93700500669994a27fa97",
+          "deployed_git_blob_sha": "24b5062a1b279a465ee93700500669994a27fa97"
         },
         {
           "path": "supabase/functions/_shared/telegram-admin.ts",
@@ -1546,20 +1546,14 @@
           "deployed_git_blob_sha": "9868a1e114b476e39cd3c4d0248844c20593d03c"
         }
       ],
-      "observed_live_version": 383,
+      "observed_live_version": 384,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "1a4b9925daa3f5d29d5e80f5930e86f246f0fe8b458c85e95dec104ee636be63",
+      "observed_live_artifact_sha256": "0d7ce27ab0f7ed9a4d727a93c82f39bdefb497cc0ee83c79622d86112860420e",
       "source_archive_file": "docs/runtime-snapshot-2026-11-01/bundles/batch-01.json",
       "source_archive_file_count": 10,
       "source_archive_status": "full_source",
       "classification": "production",
-      "review_status": "production runtime; refreshed after central ImmoScout rollout 2026-11-01",
-      "known_source_drift": [
-        {
-          "path": "supabase/functions/telegram-ui/handlers.js",
-          "reason": "Admin-only central ImmoScout refresh-test command is awaiting the version 384 staging verification deployment; reconcile the live snapshot immediately after deployment."
-        }
-      ]
+      "review_status": "production runtime; reconciled after central ImmoScout refresh-test rollout 2026-11-01"
     },
     {
       "slug": "vonovia-transport",
