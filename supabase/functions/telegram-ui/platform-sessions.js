@@ -800,6 +800,10 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  const rows=[];
  for(const sourceId of [1,2,3,4]){
   const meta=AUTO_APPLY_PROVIDERS[sourceId],connected=connection(meta.key)?.status==='connected';
+  if(testModeEnabled&&sourceId===1){
+   rows.push([button('🧪 ImmoScout24 · Testzugang','noop')]);
+   continue;
+  }
   rows.push([connected
    ? button('✅ '+meta.name,'platforms:provider:'+sourceId)
    : button('🔐 '+meta.name+' verbinden','platforms:login:'+sourceId)]);
