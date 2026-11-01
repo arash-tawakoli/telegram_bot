@@ -53,17 +53,17 @@
     },
     {
       "slug": "application-worker",
-      "version": 333,
+      "version": 334,
       "verify_jwt": false,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "61956b658d9ab20f58cf6df01d54c4ecdcd379ab3a5657cd6674b57c03ea371f",
+      "observed_artifact_sha256": "a502cb7235b0f30ba5638f92d5fa8aab3b2a79d7d79c5ace0250af0e21102206",
       "entrypoint": "supabase/functions/application-worker/index.ts",
       "files": [
         {
           "path": "supabase/functions/application-worker/index.ts",
-          "git_blob_sha": "dcfc529b9dccde684009a8aefb6abdd087e22d1d",
-          "deployed_git_blob_sha": "dcfc529b9dccde684009a8aefb6abdd087e22d1d"
+          "git_blob_sha": "305b8c4de472dbbd913119fffa1310f1550c8c24",
+          "deployed_git_blob_sha": "305b8c4de472dbbd913119fffa1310f1550c8c24"
         },
         {
           "path": "supabase/functions/application-worker/profile-page.ts",
@@ -92,8 +92,8 @@
         },
         {
           "path": "supabase/functions/application-worker/providers/immoscout.ts",
-          "git_blob_sha": "ccc7996317614a271f3f784776a156214fa64690",
-          "deployed_git_blob_sha": "ccc7996317614a271f3f784776a156214fa64690"
+          "git_blob_sha": "5557995dcf0395d1ef2a59a5a8b5e6deb83242ac",
+          "deployed_git_blob_sha": "5557995dcf0395d1ef2a59a5a8b5e6deb83242ac"
         },
         {
           "path": "supabase/functions/application-worker/providers/immowelt.ts",
@@ -111,24 +111,14 @@
           "deployed_git_blob_sha": "f9c38bfdce6466ca81bad8d41b27c1dd7e680c44"
         }
       ],
-      "observed_live_version": 333,
+      "observed_live_version": 334,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "61956b658d9ab20f58cf6df01d54c4ecdcd379ab3a5657cd6674b57c03ea371f",
+      "observed_live_artifact_sha256": "a502cb7235b0f30ba5638f92d5fa8aab3b2a79d7d79c5ace0250af0e21102206",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-01.json",
       "source_archive_file_count": 10,
       "source_archive_status": "full_source",
       "classification": "production",
-      "review_status": "production runtime; refreshed after central ImmoScout rollout 2026-11-01",
-      "known_source_drift": [
-        {
-          "path": "supabase/functions/application-worker/index.ts",
-          "reason": "Personal ImmoScout test-mode gate and owner-only toggle are staged in the feature branch; production runtime remains unchanged until the migration and functions are released."
-        },
-        {
-          "path": "supabase/functions/application-worker/providers/immoscout.ts",
-          "reason": "Personal test mode routes only the allowlisted owner through the central D1 credential and bypasses that user's plugin connection; deployment pending."
-        }
-      ]
+      "review_status": "production runtime; personal ImmoScout test mode deployed and verified 2026-11-01"
     },
     {
       "slug": "auth-facade-broker",
@@ -1498,11 +1488,11 @@
     },
     {
       "slug": "telegram-ui",
-      "version": 384,
+      "version": 385,
       "verify_jwt": false,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "0d7ce27ab0f7ed9a4d727a93c82f39bdefb497cc0ee83c79622d86112860420e",
+      "observed_artifact_sha256": "e25ca584f55a5b469a972b686d83ecf0564bbe71413cfa3a7fab24da335af146",
       "entrypoint": "supabase/functions/telegram-ui/index.ts",
       "files": [
         {
@@ -1537,8 +1527,8 @@
         },
         {
           "path": "supabase/functions/telegram-ui/platform-sessions.js",
-          "git_blob_sha": "607b812b48379c8f0f141a7ce763e5adfb13662a",
-          "deployed_git_blob_sha": "607b812b48379c8f0f141a7ce763e5adfb13662a"
+          "git_blob_sha": "eea1e26755710ddf7ad4dc42610b97b59fbd5af0",
+          "deployed_git_blob_sha": "eea1e26755710ddf7ad4dc42610b97b59fbd5af0"
         },
         {
           "path": "supabase/functions/_shared/application-profile-adapters.ts",
@@ -1556,20 +1546,14 @@
           "deployed_git_blob_sha": "9868a1e114b476e39cd3c4d0248844c20593d03c"
         }
       ],
-      "observed_live_version": 384,
+      "observed_live_version": 385,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "0d7ce27ab0f7ed9a4d727a93c82f39bdefb497cc0ee83c79622d86112860420e",
+      "observed_live_artifact_sha256": "e25ca584f55a5b469a972b686d83ecf0564bbe71413cfa3a7fab24da335af146",
       "source_archive_file": "docs/runtime-snapshot-2026-11-01/bundles/batch-01.json",
       "source_archive_file_count": 10,
       "source_archive_status": "full_source",
       "classification": "production",
-      "review_status": "production runtime; reconciled after central ImmoScout refresh-test rollout 2026-11-01",
-      "known_source_drift": [
-        {
-          "path": "supabase/functions/telegram-ui/platform-sessions.js",
-          "reason": "Owner-only Test Aktivieren/Deaktivieren control and application status history are staged; production runtime remains unchanged until release."
-        }
-      ]
+      "review_status": "production runtime; personal auto-apply test toggle and history deployed 2026-11-01"
     },
     {
       "slug": "vonovia-transport",
