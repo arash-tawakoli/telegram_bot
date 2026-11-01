@@ -120,3 +120,17 @@ test('central ImmoScout OAuth requests the OIDC email claim used for account ver
   assert.match(worker, /validEmail\(info\.body\?\.email\)/);
   assert.match(worker, /verifiedEmail !== ACCOUNT_EMAIL/);
 });
+
+
+test('central refresh test is admin-only, requires auto-apply disabled and preserves that state', () => {
+  assert.match(worker, /async function refreshCredentialsForTest/);
+  assert.match(worker, /if \(!ADMIN_IDS\.has\(String\(adminId \|\| ""\)\)\) throw new Error\("admin_required"\)/);
+  assert.match(worker, /if \(row\.enabled !== 0\) throw new Error\("auto_apply_must_be_disabled"\)/);
+  assert.match(worker, /grant_type: "refresh_token"/);
+  assert.match(worker, /refresh_test_succeeded/);
+  assert.match(worker, /WHERE \?=0 OR central_credentials\.enabled=0/);
+  assert.match(worker, /path === "\/internal\/refresh-test"/);
+  assert.match(handlers, /mode === "testen" \|\| mode === "refresh-test"/);
+  assert.match(handlers, /Auto-Bewerbung: <b>weiterhin deaktiviert<\/b>/);
+  assert.match(handlers, /Es wurde keine Bewerbung versendet/);
+});
