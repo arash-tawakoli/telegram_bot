@@ -1,0 +1,36 @@
+{
+  "migrations": [
+    {
+      "version": "20261024155200",
+      "name": "tolerate_regional_source_scheduler_jitter",
+      "file": "supabase/migrations/20261024155200_tolerate_regional_source_scheduler_jitter.sql",
+      "registry_sql_sha256": "00b7c8765ce08e1faf3db43e4a9c0003b15ef6259f27e33453bf9220e4983ad6",
+      "export_sql_sha256": "00b7c8765ce08e1faf3db43e4a9c0003b15ef6259f27e33453bf9220e4983ad6",
+      "vault_substitution": false
+    },
+    {
+      "version": "20261024231256",
+      "name": "require_all_applicant_profile_fields_and_fast_subscription",
+      "file": "supabase/migrations/20261024231256_require_all_applicant_profile_fields_and_fast_subscription.sql",
+      "registry_sql_sha256": "d193706db6b83433a5fbf59983a5d31bb059209a4da604db6ae2200e7e174f9f",
+      "export_sql_sha256": "d193706db6b83433a5fbf59983a5d31bb059209a4da604db6ae2200e7e174f9f",
+      "vault_substitution": false
+    },
+    {
+      "version": "20261024231807",
+      "name": "fix_null_required_applicant_profile_fields",
+      "file": "supabase/migrations/20261024231807_fix_null_required_applicant_profile_fields.sql",
+      "registry_sql_sha256": "789f3c89fb92cb4754d815fea62a3f84a33c0c6a2d5b71550d8dada9cc6ddcc3",
+      "export_sql_sha256": "789f3c89fb92cb4754d815fea62a3f84a33c0c6a2d5b71550d8dada9cc6ddcc3",
+      "vault_substitution": false
+    },
+    {
+      "version": "20261025190000",
+      "name": "add_indeed_oauth_connection",
+      "file": "supabase/migrations/20261025190000_add_indeed_oauth_connection.sql",
+      "registry_sql_sha256": "2d09eac29862a8ce5ffd6af6209433c8048ed5ce3813ae125b56b1094b5633de",
+      "export_sql_sha256": "2d09eac29862a8ce5ffd6af6209433c8048ed5ce3813ae125b56b1094b5633de",
+      "vault_substitution": false
+    }
+  ]
+}
