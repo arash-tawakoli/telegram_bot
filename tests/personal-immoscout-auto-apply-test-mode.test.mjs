@@ -53,6 +53,8 @@ test('test mode has a one-per-day real-send cap and preserves send windows', () 
   assert.match(migration, /test_auto_apply_daily_limit between 1 and 5/i);
   assert.match(migration, /v_effective_daily_limit/);
   assert.match(migration, /q\.provider_state->>'test_mode'='true'/);
+  assert.match(migration, /q\.quota_local_date=v_local_date[\s\S]*?q\.provider_state->>'test_mode'='true'/);
+  assert.doesNotMatch(migration, /v_test_enabled_at|q\.created_at>=coalesce\(v_test_enabled_at/);
   assert.match(migration, /wait_reason='outside_send_window'/);
 });
 
@@ -65,6 +67,7 @@ test('Telegram exposes an owner-only Test Aktivieren/Deaktivieren control and te
   assert.match(telegram, /state\.test_auto_apply_allowed===true/);
   assert.match(telegram, /Test Aktivieren/);
   assert.match(telegram, /Test Deaktivieren/);
+  assert.match(telegram, /ImmoScout24 · Testzugang/);
   assert.match(telegram, /contains\('provider_state',\{test_mode:true\}\)/);
   assert.match(telegram, /Letzte Testbewerbungen/);
   assert.match(telegram, /Tageslimit/);
