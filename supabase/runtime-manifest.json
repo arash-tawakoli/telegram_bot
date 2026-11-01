@@ -1543,7 +1543,7 @@
       "observed_live_version": 383,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "1a4b9925daa3f5d29d5e80f5930e86f246f0fe8b458c85e95dec104ee636be63",
-      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-22.json",
+      "source_archive_file": "docs/runtime-snapshot-2026-11-01/bundles/batch-01.json",
       "source_archive_file_count": 10,
       "source_archive_status": "full_source",
       "classification": "production",
