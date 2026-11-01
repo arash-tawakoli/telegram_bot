@@ -112,3 +112,11 @@ test('central OAuth finalization failures are diagnosable and pre-code failures 
   assert.match(facade, /'oauth_login_failed'/);
   assert.match(facade, /'token_exchange_failed'/);
 });
+
+
+test('central ImmoScout OAuth requests the OIDC email claim used for account verification', () => {
+  assert.match(worker, /const SCOPE = "openid profile email offline_access"/);
+  assert.match(worker, /scope: SCOPE/);
+  assert.match(worker, /validEmail\(info\.body\?\.email\)/);
+  assert.match(worker, /verifiedEmail !== ACCOUNT_EMAIL/);
+});
