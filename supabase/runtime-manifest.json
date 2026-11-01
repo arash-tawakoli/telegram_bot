@@ -1387,11 +1387,11 @@
     },
     {
       "slug": "telegram-gateway",
-      "version": 106,
+      "version": 107,
       "verify_jwt": false,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "2f3c447f8e84e8343a08ad7119348a16c292300d366fbbf3f2c7ca96b12fae22",
+      "observed_artifact_sha256": "df67eae817503629411853b127791826ad91bf4eeb932f8f7c379c662b51f986",
       "entrypoint": "supabase/functions/telegram-gateway/index.ts",
       "files": [
         {
@@ -1401,24 +1401,19 @@
         },
         {
           "path": "supabase/functions/telegram-gateway/fast-ui.ts",
-          "git_blob_sha": "34c7da375c39e7e57c3508685d639861d6adc137",
-          "deployed_git_blob_sha": "34c7da375c39e7e57c3508685d639861d6adc137"
+          "git_blob_sha": "987415364e51930269af9495b8a07d2669a5c426",
+          "deployed_git_blob_sha": "987415364e51930269af9495b8a07d2669a5c426"
         }
       ],
-      "observed_live_version": 106,
+      "observed_live_version": 107,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "2f3c447f8e84e8343a08ad7119348a16c292300d366fbbf3f2c7ca96b12fae22",
+      "observed_live_artifact_sha256": "df67eae817503629411853b127791826ad91bf4eeb932f8f7c379c662b51f986",
       "source_archive_file": "docs/runtime-snapshot-2026-11-01/bundles/batch-20.json",
       "source_archive_file_count": 2,
       "source_archive_status": "full_source",
       "classification": "production",
       "review_status": "production runtime; version/JWT/hash tracked against live inventory",
-      "known_source_drift": [
-        {
-          "path": "supabase/functions/telegram-gateway/fast-ui.ts",
-          "reason": "The personal test-mode menu routing fix is committed but not deployed yet; reconcile the live function hash and source archive immediately after the gateway rollout."
-        }
-      ]
+      "observed_at": "2026-11-01T23:31:51.540Z"
     },
     {
       "slug": "telegram-oauth-bridge",
