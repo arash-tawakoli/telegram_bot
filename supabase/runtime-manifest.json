@@ -118,7 +118,17 @@
       "source_archive_file_count": 10,
       "source_archive_status": "full_source",
       "classification": "production",
-      "review_status": "production runtime; refreshed after central ImmoScout rollout 2026-11-01"
+      "review_status": "production runtime; refreshed after central ImmoScout rollout 2026-11-01",
+      "known_source_drift": [
+        {
+          "path": "supabase/functions/application-worker/index.ts",
+          "reason": "Personal ImmoScout test-mode gate and owner-only toggle are staged in the feature branch; production runtime remains unchanged until the migration and functions are released."
+        },
+        {
+          "path": "supabase/functions/application-worker/providers/immoscout.ts",
+          "reason": "Personal test mode routes only the allowlisted owner through the central D1 credential and bypasses that user's plugin connection; deployment pending."
+        }
+      ]
     },
     {
       "slug": "auth-facade-broker",
@@ -1553,7 +1563,13 @@
       "source_archive_file_count": 10,
       "source_archive_status": "full_source",
       "classification": "production",
-      "review_status": "production runtime; reconciled after central ImmoScout refresh-test rollout 2026-11-01"
+      "review_status": "production runtime; reconciled after central ImmoScout refresh-test rollout 2026-11-01",
+      "known_source_drift": [
+        {
+          "path": "supabase/functions/telegram-ui/platform-sessions.js",
+          "reason": "Owner-only Test Aktivieren/Deaktivieren control and application status history are staged; production runtime remains unchanged until release."
+        }
+      ]
     },
     {
       "slug": "vonovia-transport",
