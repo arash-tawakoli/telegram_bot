@@ -75,7 +75,7 @@ test('central credentials are encrypted in Cloudflare D1 and protected by Worker
 });
 
 test('central auto-apply is opt-in; participant OAuth remains fallback and contact email remains participant-owned', () => {
-  assert.match(worker, /enabled INTEGER NOT NULL DEFAULT 0/);
+  assert.match(schema, /enabled INTEGER NOT NULL DEFAULT 0/);
   assert.match(worker, /\/internal\/enable/);
   assert.match(adapter, /getCentralImmoScoutConnection/);
   assert.match(adapter, /refreshCentral/);
