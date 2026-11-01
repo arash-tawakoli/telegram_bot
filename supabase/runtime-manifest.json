@@ -1087,7 +1087,13 @@
       "source_archive_file_count": 16,
       "source_archive_status": "full_source",
       "classification": "internal",
-      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked",
+      "known_source_drift": [
+        {
+          "path": "supabase/functions/source-worker/shared.ts",
+          "reason": "Live source-shadow v18 retains an older shared.ts snapshot; the active source-worker file is newer. Deployment is deferred for separate dependency-aware review."
+        }
+      ]
     },
     {
       "slug": "source-worker",
