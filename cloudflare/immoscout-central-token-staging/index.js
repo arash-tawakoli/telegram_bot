@@ -234,7 +234,6 @@ async function finishWithSession(env, flow, email, sessionToken) {
     const info = await userInfo(String(body.access_token));
     if (!info.response.ok || !info.body?.sub) throw new Error("userinfo_failed");
     const verifiedEmail = validEmail(info.body?.email);
-    if (!verifiedEmail) throw new Error("account_email_claim_missing");
     if (verifiedEmail !== ACCOUNT_EMAIL) throw new Error("central_account_mismatch");
     const expiresAt = new Date(Date.now() + Math.max(60, Number(body.expires_in || 3600)) * 1000).toISOString();
     const credentials = {
@@ -422,7 +421,7 @@ function publicError(error) {
     "mfa_challenge_failed", "mfa_expired", "auth_flow_expired", "invalid_state",
     "central_account_mismatch", "temporary_network_error", "authorization_code_missing",
     "token_exchange_failed", "refresh_token_missing", "userinfo_failed", "oauth_login_failed",
-    "invalid_callback_url", "provider_response_invalid", "account_email_claim_missing", "admin_required",
+    "invalid_callback_url", "provider_response_invalid", "admin_required",
   ]);
   const status = code === "login_failed" || code === "mfa_invalid_code" ? 401
     : code === "invalid_callback_url" ? 400
