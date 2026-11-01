@@ -1412,7 +1412,13 @@
       "source_archive_file_count": 2,
       "source_archive_status": "full_source",
       "classification": "production",
-      "review_status": "production runtime; version/JWT/hash tracked against live inventory"
+      "review_status": "production runtime; version/JWT/hash tracked against live inventory",
+      "known_source_drift": [
+        {
+          "path": "supabase/functions/telegram-gateway/fast-ui.ts",
+          "reason": "The personal test-mode menu routing fix is committed but not deployed yet; reconcile the live function hash and source archive immediately after the gateway rollout."
+        }
+      ]
     },
     {
       "slug": "telegram-oauth-bridge",
