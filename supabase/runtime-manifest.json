@@ -1,5 +1,5 @@
 {
-  "observed_at": "2026-10-31T23:20:00Z",
+  "observed_at": "2026-11-02T07:55:00Z",
   "project_id": "dpmohkrwdlicexwcrqfy",
   "snapshot_kind": "repository_with_observed_deployment_hashes",
   "functions": [
@@ -53,11 +53,11 @@
     },
     {
       "slug": "application-worker",
-      "version": 334,
+      "version": 336,
       "verify_jwt": false,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "a502cb7235b0f30ba5638f92d5fa8aab3b2a79d7d79c5ace0250af0e21102206",
+      "observed_artifact_sha256": "07a7fc8709e9db2f2621f23a656bc13ce095534958b952d5a4230d0383f45334",
       "entrypoint": "supabase/functions/application-worker/index.ts",
       "files": [
         {
@@ -72,8 +72,13 @@
         },
         {
           "path": "supabase/functions/application-worker/providers/kleinanzeigen.ts",
-          "git_blob_sha": "40a972066a343e747e71bb60631bdcb878aa41a0",
-          "deployed_git_blob_sha": "40a972066a343e747e71bb60631bdcb878aa41a0"
+          "git_blob_sha": "97b69a85b40c0c5868358ecfcdb24739fd29b257",
+          "deployed_git_blob_sha": "97b69a85b40c0c5868358ecfcdb24739fd29b257"
+        },
+        {
+          "path": "supabase/functions/_shared/platform-refresh.ts",
+          "git_blob_sha": "2cf1c5d1399d14f21185ce32797b1d6d1e9d9c0a",
+          "deployed_git_blob_sha": "2cf1c5d1399d14f21185ce32797b1d6d1e9d9c0a"
         },
         {
           "path": "supabase/functions/_shared/platform-auth-flow.ts",
@@ -92,13 +97,13 @@
         },
         {
           "path": "supabase/functions/application-worker/providers/immoscout.ts",
-          "git_blob_sha": "5557995dcf0395d1ef2a59a5a8b5e6deb83242ac",
-          "deployed_git_blob_sha": "5557995dcf0395d1ef2a59a5a8b5e6deb83242ac"
+          "git_blob_sha": "c5ff32fbc6cdbcdb3628775fc0c1a9e5b5ebe70e",
+          "deployed_git_blob_sha": "c5ff32fbc6cdbcdb3628775fc0c1a9e5b5ebe70e"
         },
         {
           "path": "supabase/functions/application-worker/providers/immowelt.ts",
-          "git_blob_sha": "b49f75495243c96fbb23f87d755533211a4cb93d",
-          "deployed_git_blob_sha": "b49f75495243c96fbb23f87d755533211a4cb93d"
+          "git_blob_sha": "0bbcb79d8aee40b2fb1d0c804dd3e3f5a3c1aded",
+          "deployed_git_blob_sha": "0bbcb79d8aee40b2fb1d0c804dd3e3f5a3c1aded"
         },
         {
           "path": "supabase/functions/application-worker/providers/immomio.ts",
@@ -111,14 +116,15 @@
           "deployed_git_blob_sha": "f9c38bfdce6466ca81bad8d41b27c1dd7e680c44"
         }
       ],
-      "observed_live_version": 334,
+      "observed_live_version": 336,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "a502cb7235b0f30ba5638f92d5fa8aab3b2a79d7d79c5ace0250af0e21102206",
-      "source_archive_file": "docs/runtime-snapshot-2026-11-01/bundles/batch-21.json",
-      "source_archive_file_count": 10,
+      "observed_live_artifact_sha256": "07a7fc8709e9db2f2621f23a656bc13ce095534958b952d5a4230d0383f45334",
+      "source_archive_file": "docs/runtime-snapshot-2026-11-02/bundles/batch-01.json",
+      "source_archive_file_count": 11,
       "source_archive_status": "full_source",
       "classification": "production",
-      "review_status": "production runtime; personal ImmoScout test mode deployed and verified 2026-11-01"
+      "review_status": "production runtime; reconciled from live Supabase v336 on 2026-11-02",
+      "observed_at": "2026-11-02T07:55:00Z"
     },
     {
       "slug": "auth-facade-broker",
@@ -335,61 +341,68 @@
     },
     {
       "slug": "immomio-account",
-      "version": 20,
+      "version": 21,
       "verify_jwt": false,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "3e93ec9cdc6f5e077b559714d22aeb89a176b5eb06cc52212f1ca8d268be2419",
+      "observed_artifact_sha256": "41a63bc4e9549ebacca67f5afeff2e1116a834100273c7eabf0030aa8bf8210d",
       "entrypoint": "supabase/functions/immomio-account/index.ts",
       "files": [
         {
           "path": "supabase/functions/immomio-account/index.ts",
-          "sha256": "0661d3bdfe130c77ddf4d4abdc16d0fa08840442e5730e61f379d98151def6ba",
-          "deployed_sha256": "0661d3bdfe130c77ddf4d4abdc16d0fa08840442e5730e61f379d98151def6ba"
+          "git_blob_sha": "9094ea9c08696a4ccf6104df952a4644310b0a0f",
+          "deployed_git_blob_sha": "9094ea9c08696a4ccf6104df952a4644310b0a0f"
         },
         {
           "path": "supabase/functions/immomio-account/providers/immomio.ts",
-          "sha256": "1e845ed15fc6bd553c16bb9e505cccabf57af2f7c70f6780a55c4dde04a87772",
-          "deployed_sha256": "1e845ed15fc6bd553c16bb9e505cccabf57af2f7c70f6780a55c4dde04a87772"
+          "git_blob_sha": "8f972c0a1f1ba935eaa7f875c9dd6e5ba0798734",
+          "deployed_git_blob_sha": "8f972c0a1f1ba935eaa7f875c9dd6e5ba0798734"
         },
         {
           "path": "supabase/functions/immomio-account/credentials.ts",
-          "sha256": "2f9ada4328121560fa9dffd639c670a507ba09d5ea3eb18f09ad070a7f705107",
-          "deployed_sha256": "2f9ada4328121560fa9dffd639c670a507ba09d5ea3eb18f09ad070a7f705107"
+          "git_blob_sha": "2078d5be29eeb79403bb75d17dbccdcaad8e921e",
+          "deployed_git_blob_sha": "2078d5be29eeb79403bb75d17dbccdcaad8e921e"
+        },
+        {
+          "path": "supabase/functions/_shared/platform-refresh.ts",
+          "git_blob_sha": "2cf1c5d1399d14f21185ce32797b1d6d1e9d9c0a",
+          "deployed_git_blob_sha": "2cf1c5d1399d14f21185ce32797b1d6d1e9d9c0a"
         }
       ],
       "observed_live_version": 21,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "41a63bc4e9549ebacca67f5afeff2e1116a834100273c7eabf0030aa8bf8210d",
-      "source_archive_file": "docs/runtime-snapshot-2026-11-01/bundles/batch-03.json",
+      "source_archive_file": "docs/runtime-snapshot-2026-11-02/bundles/batch-01.json",
       "source_archive_file_count": 4,
       "source_archive_status": "full_source",
       "classification": "support_review",
-      "review_status": "support/review; retain pending dependency-aware classification"
+      "review_status": "support/review; reconciled from live Supabase v21 on 2026-11-02",
+      "observed_at": "2026-11-02T07:55:00Z"
     },
     {
       "slug": "immomio-application-worker",
-      "version": 11,
+      "version": 12,
       "verify_jwt": false,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "a0cd3bd69a4e80cc55c88d98d70538636a6add4537ed123c6d3c0ef8fc07453e",
+      "observed_artifact_sha256": "c7fa255c6c121b558b333db0a9d4d251b1cc17b11e6440372ed04eaab86fb1a7",
       "entrypoint": "supabase/functions/immomio-application-worker/index.ts",
       "files": [
         {
           "path": "supabase/functions/immomio-application-worker/index.ts",
-          "sha256": "174a8d5533453a9a757f993d9db2b28586f3640139edacdfc4a55f547dcb813c",
-          "deployed_sha256": "174a8d5533453a9a757f993d9db2b28586f3640139edacdfc4a55f547dcb813c"
+          "git_blob_sha": "2b5d63e2ed539b7e8e402df08d55e3c93098d3b6",
+          "deployed_git_blob_sha": "2b5d63e2ed539b7e8e402df08d55e3c93098d3b6"
         }
       ],
-      "observed_live_version": 11,
+      "observed_live_version": 12,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "a0cd3bd69a4e80cc55c88d98d70538636a6add4537ed123c6d3c0ef8fc07453e",
-      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-04.json",
+      "observed_live_artifact_sha256": "c7fa255c6c121b558b333db0a9d4d251b1cc17b11e6440372ed04eaab86fb1a7",
+      "source_archive_file": "docs/runtime-snapshot-2026-11-02/bundles/batch-01.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
       "classification": "production",
-      "review_status": "production runtime; version/JWT/hash tracked against live inventory"
+      "review_status": "production runtime; reconciled from live Supabase v12 on 2026-11-02",
+      "observed_at": "2026-11-02T07:55:00Z"
     },
     {
       "slug": "immomio-auth-bridge",
@@ -566,6 +579,31 @@
       "source_archive_status": "full_source",
       "classification": "internal",
       "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
+    },
+    {
+      "slug": "indeed-mcp-bridge",
+      "version": 9,
+      "verify_jwt": false,
+      "import_map": false,
+      "retired": false,
+      "observed_artifact_sha256": "1e76ff8c41030a778ae7861835d0a563e9db95dea9a4fec3aceea1e455553668",
+      "entrypoint": "supabase/functions/indeed-mcp-bridge/index.ts",
+      "files": [
+        {
+          "path": "supabase/functions/indeed-mcp-bridge/index.ts",
+          "git_blob_sha": "7500ff493bdeb650acbcdefe449406d49cdb5b42",
+          "deployed_git_blob_sha": "7500ff493bdeb650acbcdefe449406d49cdb5b42"
+        }
+      ],
+      "observed_live_version": 9,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "1e76ff8c41030a778ae7861835d0a563e9db95dea9a4fec3aceea1e455553668",
+      "source_archive_file": "docs/runtime-snapshot-2026-11-02/bundles/batch-01.json",
+      "source_archive_file_count": 1,
+      "source_archive_status": "full_source",
+      "classification": "internal",
+      "review_status": "internal Indeed MCP bridge; reconciled from live Supabase v9 on 2026-11-02",
+      "observed_at": "2026-11-02T07:55:00Z"
     },
     {
       "slug": "kleinanzeigen-apk-direct-stage",
@@ -989,6 +1027,31 @@
       "source_archive_status": "full_source",
       "classification": "internal",
       "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
+    },
+    {
+      "slug": "platform-session-reminder",
+      "version": 4,
+      "verify_jwt": false,
+      "import_map": false,
+      "retired": false,
+      "observed_artifact_sha256": "adb7f702d49837a961759d4caf716d78cea0c347e9a190e32612c8d62c2c4497",
+      "entrypoint": "supabase/functions/platform-session-reminder/index.ts",
+      "files": [
+        {
+          "path": "supabase/functions/platform-session-reminder/index.ts",
+          "git_blob_sha": "b40d877dd0464ac154391bf0bcffdb59caa33502",
+          "deployed_git_blob_sha": "b40d877dd0464ac154391bf0bcffdb59caa33502"
+        }
+      ],
+      "observed_live_version": 4,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "adb7f702d49837a961759d4caf716d78cea0c347e9a190e32612c8d62c2c4497",
+      "source_archive_file": "docs/runtime-snapshot-2026-11-02/bundles/batch-01.json",
+      "source_archive_file_count": 1,
+      "source_archive_status": "full_source",
+      "classification": "internal",
+      "review_status": "internal platform session reminder; reconciled from live Supabase v4 on 2026-11-02",
+      "observed_at": "2026-11-02T07:55:00Z"
     },
     {
       "slug": "source-shadow",
@@ -1584,6 +1647,41 @@
       "source_archive_status": "full_source",
       "classification": "internal",
       "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
+    },
+    {
+      "slug": "wg-gesucht-auth-bridge",
+      "version": 3,
+      "verify_jwt": false,
+      "import_map": false,
+      "retired": false,
+      "observed_artifact_sha256": "1bb9ee477f22a84bf2f8fb25daac318100740582a9b38336f45f765fe6c099b6",
+      "entrypoint": "supabase/deployed-support/wg-gesucht-auth-bridge/functions/wg-gesucht-auth-bridge/index.ts",
+      "files": [
+        {
+          "path": "supabase/deployed-support/wg-gesucht-auth-bridge/functions/wg-gesucht-auth-bridge/index.ts",
+          "git_blob_sha": "a13dbb49866861ed1dd830918d4a34c88660e477",
+          "deployed_git_blob_sha": "a13dbb49866861ed1dd830918d4a34c88660e477"
+        },
+        {
+          "path": "supabase/deployed-support/wg-gesucht-auth-bridge/functions/_shared/platform-auth-flow.ts",
+          "git_blob_sha": "13315e30c931836ec6427261d3bc3a653c24e498",
+          "deployed_git_blob_sha": "13315e30c931836ec6427261d3bc3a653c24e498"
+        },
+        {
+          "path": "supabase/deployed-support/wg-gesucht-auth-bridge/functions/application-worker/credentials.ts",
+          "git_blob_sha": "2a9def0c65bbf9bbd339634a6ce2ce3c6f0e375e",
+          "deployed_git_blob_sha": "2a9def0c65bbf9bbd339634a6ce2ce3c6f0e375e"
+        }
+      ],
+      "observed_live_version": 3,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "1bb9ee477f22a84bf2f8fb25daac318100740582a9b38336f45f765fe6c099b6",
+      "source_archive_file": "docs/runtime-snapshot-2026-11-02/bundles/batch-01.json",
+      "source_archive_file_count": 3,
+      "source_archive_status": "full_source",
+      "classification": "internal",
+      "review_status": "internal WG-Gesucht auth bridge; exact deployed support bundle preserved at v3 on 2026-11-02",
+      "observed_at": "2026-11-02T07:55:00Z"
     },
     {
       "entrypoint": "supabase/deployed-support/wunder-probe/index.ts",
@@ -2480,21 +2578,6 @@
       "review_status": "retired 410/404 stub; JWT gateway verification enabled"
     },
     {
-      "slug": "platform-session-reminder",
-      "version": 3,
-      "status": "ACTIVE",
-      "verify_jwt": false,
-      "import_map": false,
-      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_c5d0fd60-0a3d-4070-967f-956880219efb_3/source/supabase/functions/platform-session-reminder/index.ts",
-      "artifact_sha256": "02a27f6234f18f7e213f4ebabfc41269c6a5989b54e80e7f4e35b89ce1252f16",
-      "source_file_count": 1,
-      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-18.json",
-      "archive_status": "full_source",
-      "security_scan_flags": [],
-      "classification": "internal",
-      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
-    },
-    {
       "slug": "telegram-db-latency-canary",
       "version": 2,
       "status": "ACTIVE",
@@ -2628,30 +2711,15 @@
       "security_scan_flags": [],
       "classification": "retired",
       "review_status": "retired 410/404 stub; JWT gateway verification enabled"
-    },
-    {
-      "slug": "wg-gesucht-auth-bridge",
-      "version": 2,
-      "status": "ACTIVE",
-      "verify_jwt": false,
-      "import_map": false,
-      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_7c272556-ffe9-4b2b-8bdd-6f4b1de4aea4_2/source/functions/wg-gesucht-auth-bridge/index.ts",
-      "artifact_sha256": "e9ccd0ea2b6a65641d5bf2401ef69086ad2c1a53ba0661c4197e4eb563a6e4d6",
-      "source_file_count": 3,
-      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-23.json",
-      "archive_status": "full_source",
-      "security_scan_flags": [],
-      "classification": "internal",
-      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
     }
   ],
   "live_inventory": {
-    "observed_at": "2026-10-21",
+    "observed_at": "2026-11-02",
     "project_id": "dpmohkrwdlicexwcrqfy",
-    "live_function_count": 114,
-    "repository_managed_count": 47,
-    "archived_only_count": 67,
-    "source_archive": "docs/runtime-snapshot-2026-10-21/bundles/",
-    "note": "This is the captured live inventory. CI validates archive integrity locally. Live API comparison runs only when SUPABASE_ACCESS_TOKEN is configured in GitHub Actions."
+    "live_function_count": 115,
+    "repository_managed_count": 50,
+    "archived_only_count": 65,
+    "source_archive": "docs/runtime-snapshot-2026-11-02/bundles/",
+    "note": "Observed 2026-11-02 production inventory. All 115 live Edge Functions are represented by repository-managed or archived source entries."
   }
 }

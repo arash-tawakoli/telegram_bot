@@ -1,3 +1,4 @@
+import {claimPlatformRefresh,releasePlatformRefresh,classifyOAuthRefreshFailure} from '../../_shared/platform-refresh.ts';
 import {saveConnection,getConnection,markConnection,deleteConnection,recordRefreshResult,getCentralImmoScoutConnection,saveCentralImmoScoutCredentials,markCentralImmoScoutConnection} from '../credentials.ts';
 import {providerSalutation,providerHousehold,providerEmployment,providerIncome,providerMoveIn,providerPets,canonicalSalutation,canonicalHousehold,canonicalEmployment,canonicalIncome,canonicalMoveIn} from '../../_shared/application-profile-adapters.ts';
 
@@ -20,27 +21,30 @@ export async function importImmoScoutSession(db:any,userId:string,session:any,ac
  return {status:'connected',authenticated:null};
 }
 async function refresh(db:any,userId:string,connection:any,force=false){
- const c=connection?.credentials||{};
- if(!force&&c.access_token&&Date.parse(c.expires_at||'')>Date.now()+60000)return c;
- if(!c.refresh_token)throw Error('needs_login');
- let response:Response,token:any=null;
+ const original=connection?.credentials||{};
+ if(!force&&original.access_token&&Date.parse(original.expires_at||'')>Date.now()+60000)return original;
+ if(!original.refresh_token)throw Error('needs_login');
+ const lease=await claimPlatformRefresh(db,userId,PROVIDER,connection?.row?.updated_at);
  try{
-  response=await fetch(TOKEN,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded',accept:'application/json','user-agent':OAUTH_UA},body:new URLSearchParams({grant_type:'refresh_token',refresh_token:String(c.refresh_token),client_id:CLIENT_ID}),signal:AbortSignal.timeout(25000)});
-  token=await response.json().catch(()=>null);
- }catch(error:any){
-  await recordRefreshResult(db,userId,PROVIDER,false,'refresh_network_error').catch(()=>{});
-  throw Error('temporary_network_error');
- }
- if(!response.ok||!token?.access_token){
-  await recordRefreshResult(db,userId,PROVIDER,false,`refresh_http_${response.status}`).catch(()=>{});
-  await markConnection(db,userId,PROVIDER,'needs_login','refresh_failed').catch(()=>{});
-  throw Error('needs_login');
- }
- const expiresAt=new Date(Date.now()+Math.max(60,Number(token.expires_in||3600))*1000).toISOString();
- const updated={...c,access_token:String(token.access_token),refresh_token:String(token.refresh_token||c.refresh_token),id_token:token.id_token?String(token.id_token):c.id_token,expires_at:expiresAt};
- await saveConnection(db,userId,PROVIDER,updated,{expires_at:expiresAt,account_hint:connection.row.account_hint,last_verified_at:new Date().toISOString()});
- await recordRefreshResult(db,userId,PROVIDER,true,null,expiresAt).catch(()=>{});
- return updated;
+  const latest=await getConnection(db,userId,PROVIDER);if(!latest)throw Error('needs_login');
+  const c=latest.credentials||{},fresh=!!c.access_token&&Date.parse(c.expires_at||'')>Date.now()+60000;
+  if(fresh&&(!force||lease.changedSinceObservation))return c;
+  if(!c.refresh_token)throw Error('needs_login');
+  let response:Response,token:any=null;
+  try{response=await fetch(TOKEN,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded',accept:'application/json','user-agent':OAUTH_UA},body:new URLSearchParams({grant_type:'refresh_token',refresh_token:String(c.refresh_token),client_id:CLIENT_ID}),signal:AbortSignal.timeout(25000)});token=await response.json().catch(()=>null);}
+  catch{await recordRefreshResult(db,userId,PROVIDER,false,'refresh_network_error').catch(()=>{});throw Error('temporary_network_error');}
+  if(!response.ok||!token?.access_token){
+   const failure=classifyOAuthRefreshFailure(response.status,token);
+   await recordRefreshResult(db,userId,PROVIDER,false,failure.diagnostic).catch(()=>{});
+   if(failure.requiresLogin){await markConnection(db,userId,PROVIDER,'needs_login','refresh_failed').catch(()=>{});throw Error('needs_login');}
+   if(failure.transient)throw Error('temporary_network_error');
+   throw Error('provider_contract_unverified');
+  }
+  const expiresAt=new Date(Date.now()+Math.max(60,Number(token.expires_in||3600))*1000).toISOString();
+  const updated={...c,access_token:String(token.access_token),refresh_token:String(token.refresh_token||c.refresh_token),id_token:token.id_token?String(token.id_token):c.id_token,expires_at:expiresAt};
+  await saveConnection(db,userId,PROVIDER,updated,{expires_at:expiresAt,account_hint:latest.row.account_hint,last_verified_at:new Date().toISOString()});
+  await recordRefreshResult(db,userId,PROVIDER,true,null,expiresAt).catch(()=>{});return updated;
+ }finally{await releasePlatformRefresh(db,userId,PROVIDER,lease).catch(()=>{});}
 }
 async function refreshCentral(db:any,connection:any,force=false){
  const c=connection?.credentials||{};
