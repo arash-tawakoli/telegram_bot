@@ -530,6 +530,9 @@ Der lokale Ponytail-Hook wurde in dieser Vorbereitungsphase nicht ausgeführt.
 
 ### Phase 0 – Source-of-Truth herstellen
 - PR #92 mit dem Live-Runtime-Abgleich abschließen.
+- Der aktuelle main-Stand enthält 114 Runtime-Manifest-Einträge; die Live-Abfrage enthält 115 Funktionen. Der Branch sync/production-runtime-2026-11-02 gleicht alle 115 Live-Slugs ab (50 Einträge im direkten functions-Bereich und 65 archivierte Source-Bundles; die archivierten Bundles sind nicht automatisch inaktiv).
+- indeed-mcp-bridge muss zunächst korrekt im Runtime-Manifest und Source-Archiv dokumentiert werden, auch wenn die Funktion anschließend als Job-Search-Modul kontrolliert entfernt wird.
+- PR #92 enthält außerdem die Wiederherstellung der produktiven SQL-Migrationen 20261101235925 und 20261102071220. Diese Baseline muss erhalten bleiben.
 - Die vier aktuell fehlgeschlagenen Architekturtests korrigieren.
 - Erst nach grünem Runtime- und Migration-Check refaktorieren.
 
