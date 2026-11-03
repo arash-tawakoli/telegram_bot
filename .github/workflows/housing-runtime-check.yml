@@ -1,0 +1,35 @@
+name: Housing runtime checks
+
+on:
+  pull_request:
+    paths:
+      - "cloudflare/housing-runtime/**"
+      - ".github/workflows/housing-runtime-check.yml"
+  push:
+    branches:
+      - migration/cloudflare-housing-core-20261103
+    paths:
+      - "cloudflare/housing-runtime/**"
+      - ".github/workflows/housing-runtime-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: cloudflare/housing-runtime
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install dependencies
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Syntax checks
+        run: npm run check
+      - name: Unit tests
+        run: npm test
