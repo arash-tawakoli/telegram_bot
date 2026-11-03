@@ -1,0 +1,12 @@
+{
+  "migrations": [
+    {
+      "version": "20261103113000",
+      "name": "immoscout_central_token_postgres",
+      "file": "supabase/migrations/20261103113000_immoscout_central_token_postgres.sql",
+      "registry_sql_sha256": "f5c67503d4eb36aaf183abbc4f2c0cd59143e5e6d9424810d807254bb4621330",
+      "export_sql_sha256": "f5c67503d4eb36aaf183abbc4f2c0cd59143e5e6d9424810d807254bb4621330",
+      "vault_substitution": false
+    }
+  ]
+}
