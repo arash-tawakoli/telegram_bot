@@ -2,6 +2,7 @@ import postgres from "postgres";
 import { deleteExpiredListings } from "./retention.js";
 import { createD1Compat } from "./d1-compat.js";
 import centralTokenWorker from "./immoscout-central-token.js";
+import { importLegacyD1Snapshot } from "./legacy-migration.js";
 
 const HEADERS = {
   "content-type": "application/json; charset=utf-8",
@@ -75,6 +76,11 @@ async function createCentralEnvironment(env, sql) {
   };
 }
 
+async function encryptionKeyFingerprint(value) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(String(value || "")));
+  return bytesToHex(new Uint8Array(digest));
+}
+
 async function sameSecret(supplied, expected) {
   if (typeof supplied !== "string" || typeof expected !== "string" || supplied.length !== expected.length) return false;
   const encoder = new TextEncoder();
@@ -90,59 +96,42 @@ async function sameSecret(supplied, expected) {
 }
 
 async function migrateLegacyCentralToken(request, env, sql, centralEnv) {
-  if (!await sameSecret(request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") || "", centralEnv.API_SECRET)) {
+  if (!await sameSecret(request.headers.get("authorization")?.replace(/^Bearer\\s+/i, "") || "", centralEnv.API_SECRET)) {
     return json({ error: "unauthorized" }, 401);
   }
 
-  const existing = await sql`
-    SELECT singleton
-    FROM app_private.immoscout_central_credentials
-    WHERE singleton = 'central'
-    LIMIT 1
-  `;
-  if (existing.length) return json({ ok: true, migrated: false, reason: "already_migrated" });
-
   let legacyResponse;
   try {
-    legacyResponse = await fetch("https://immoscout-central-token-staging.arash-ce5.workers.dev/internal/credentials", {
+    legacyResponse = await fetch("https://immoscout-central-token-staging.arash-ce5.workers.dev/internal/export", {
       headers: { authorization: `Bearer ${centralEnv.API_SECRET}`, accept: "application/json" },
       signal: AbortSignal.timeout(15000),
     });
   } catch {
     return json({ ok: false, error: "legacy_source_unavailable" }, 503);
   }
-  if (legacyResponse.status === 404) return json({ ok: true, migrated: false, reason: "legacy_credentials_missing" });
   if (!legacyResponse.ok) return json({ ok: false, error: "legacy_source_unavailable" }, 503);
 
-  const legacy = await legacyResponse.json().catch(() => null);
-  if (!legacy || typeof legacy.access_token !== "string" || typeof legacy.refresh_token !== "string") {
-    return json({ ok: false, error: "legacy_credentials_invalid" }, 502);
+  const snapshot = await legacyResponse.json().catch(() => null);
+  if (!snapshot || !Array.isArray(snapshot.oauth_flows) || !Array.isArray(snapshot.audit_events)) {
+    return json({ ok: false, error: "legacy_snapshot_invalid" }, 502);
   }
 
-  const storeRequest = new Request(new URL("/internal/store", request.url), {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${centralEnv.API_SECRET}`,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      account_hint: legacy.account_hint,
-      access_token: legacy.access_token,
-      refresh_token: legacy.refresh_token,
-      id_token: typeof legacy.id_token === "string" ? legacy.id_token : null,
-      token_type: legacy.token_type || "Bearer",
-      scope: legacy.scope || "",
-      expires_at: legacy.expires_at,
-      preserve_enabled: false,
-      admin_telegram_id: "8538226539",
-    }),
-  });
-
-  const stored = await centralTokenWorker.fetch(storeRequest, centralEnv);
-  if (!stored.ok) return json({ ok: false, error: "legacy_credentials_store_failed" }, 503);
-  return json({ ok: true, migrated: true, enabled: false });
+  try {
+    const imported = await importLegacyD1Snapshot(
+      sql,
+      snapshot,
+      await encryptionKeyFingerprint(centralEnv.TOKEN_ENCRYPTION_KEY),
+    );
+    return json({ ok: true, migrated: imported.credentials > 0, imported });
+  } catch (error) {
+    const code = String(error?.message || "");
+    if (code === "legacy_encryption_key_mismatch") {
+      return json({ ok: false, error: "legacy_encryption_key_mismatch" }, 409);
+    }
+    if (code.startsWith("legacy_")) return json({ ok: false, error: code }, 422);
+    throw error;
+  }
 }
-
 function isAuthorized(request, env) {
   const expected = env.RETENTION_TOKEN;
   if (!expected) return false;
