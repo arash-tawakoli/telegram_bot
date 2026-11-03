@@ -62,6 +62,78 @@ function validateAuditEvent(row) {
   utcTimestamp(row.created_at, "audit_created_at", true);
 }
 
+const CREDENTIAL_AAD = "nexalabs:immoscout:central:v1";
+const FLOW_AAD = "nexalabs:immoscout:oauth-flow:v1";
+
+function hexBytes(value) {
+  if (!/^[a-f0-9]{64}$/i.test(String(value || ""))) throw new Error("legacy_encryption_key_invalid");
+  return Uint8Array.from(String(value).match(/.{2}/g), (part) => parseInt(part, 16));
+}
+
+function base64Bytes(value) {
+  requiredString(value, "ciphertext");
+  try {
+    return Uint8Array.from(atob(value), (character) => character.charCodeAt(0));
+  } catch {
+    throw new Error("legacy_ciphertext_invalid");
+  }
+}
+
+export async function verifyLegacyD1SnapshotKey(snapshot, keyHex) {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    hexBytes(keyHex),
+    { name: "AES-GCM" },
+    false,
+    ["decrypt"],
+  );
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+
+  async function decryptJson(ciphertext, iv, aad, field) {
+    let plaintext;
+    try {
+      plaintext = await crypto.subtle.decrypt(
+        { name: "AES-GCM", iv: base64Bytes(iv), additionalData: encoder.encode(aad) },
+        key,
+        base64Bytes(ciphertext),
+      );
+      return JSON.parse(decoder.decode(plaintext));
+    } catch {
+      throw new Error("legacy_" + field + "_key_mismatch");
+    }
+  }
+
+  if (snapshot?.credentials) {
+    const value = await decryptJson(
+      snapshot.credentials.ciphertext,
+      snapshot.credentials.iv,
+      CREDENTIAL_AAD,
+      "credentials",
+    );
+    if (typeof value?.access_token !== "string" || typeof value?.refresh_token !== "string") {
+      throw new Error("legacy_credentials_payload_invalid");
+    }
+  }
+
+  for (const flow of snapshot?.oauth_flows || []) {
+    const value = await decryptJson(
+      flow.verifier_ciphertext,
+      flow.verifier_iv,
+      FLOW_AAD,
+      "oauth",
+    );
+    if (typeof value?.verifier !== "string" || !value.verifier) {
+      throw new Error("legacy_oauth_payload_invalid");
+    }
+  }
+
+  return {
+    credentials_verified: Boolean(snapshot?.credentials),
+    oauth_flows_verified: (snapshot?.oauth_flows || []).length,
+  };
+}
+
 export async function importLegacyD1Snapshot(sql, snapshot, expectedKeyFingerprint) {
   if (!snapshot || typeof snapshot !== "object") throw new Error("legacy_snapshot_invalid");
   if (!/^[0-9a-f]{64}$/i.test(String(expectedKeyFingerprint || "")) ||
