@@ -1,4 +1,4 @@
-import test from 'node:test';
+import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { PGlite } from '@electric-sql/pglite';
@@ -78,4 +78,4 @@ test('central token tables have row-level security enabled and are not granted t
   assert.ok(rows.every(row => row.relrowsecurity === true));
 });
 
-await db.close();
+after(async () => { await db.close(); });
