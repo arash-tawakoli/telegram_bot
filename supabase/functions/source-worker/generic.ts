@@ -517,7 +517,7 @@ async function runGwgMirrorMonitor(source: Source, connectors: Connector[]) {
         strategy: "provider_portal_monitor",
         status: "running",
         cursor: {
-          portals: ["immowelt", "immoscout", "kleinanzeigen"],
+          portals: ["immowelt", "immoscout"],
           index: "yahoo",
         },
         expected_count: null,
