@@ -24,6 +24,10 @@ REVOKE service_role FROM cf_housing_runtime_20261103;
 GRANT CONNECT ON DATABASE postgres TO cf_housing_runtime_20261103;
 GRANT USAGE ON SCHEMA app_private TO cf_housing_runtime_20261103;
 
+-- app_private is not a public execution surface. Existing backend access remains
+-- explicitly granted to service_role; the Cloudflare role gets only two functions.
+REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA app_private FROM PUBLIC;
+
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE
   app_private.immoscout_central_credentials,
   app_private.immoscout_central_oauth_flows,
