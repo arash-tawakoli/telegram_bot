@@ -43,11 +43,11 @@ test('expired listing content is deleted while application, delivery and saved-i
     "('10000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000001','sent',now()),",
     "('10000000-0000-4000-8000-000000000002','00000000-0000-4000-8000-000000000002','pending',now());",
     "UPDATE public.applications SET lease_token='20000000-0000-4000-8000-000000000001', lease_until=now()+interval '2 minutes', wait_reason='provider_busy' WHERE id='10000000-0000-4000-8000-000000000002';",
-    'INSERT INTO public.delivery_events(id,listing_id,change_id,status,next_retry_at,preview_progress)',
+    'INSERT INTO public.delivery_events(id,listing_id,change_id,status,error_message,next_retry_at,preview_progress)',
     'VALUES',
-    "('30000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000001','50000000-0000-4000-8000-000000000001','sent',NULL,'{\"message_id\":42}'),",
-    "('30000000-0000-4000-8000-000000000002','00000000-0000-4000-8000-000000000002',NULL,'pending',now()+interval '5 minutes','{\"message_id\":43}'),",
-    "('30000000-0000-4000-8000-000000000003','00000000-0000-4000-8000-000000000002',NULL,'failed',now()+interval '5 minutes','{\"message_id\":44}');",
+    "('30000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000001','50000000-0000-4000-8000-000000000001','sent',NULL,NULL,'{\"message_id\":42}'),",
+    "('30000000-0000-4000-8000-000000000002','00000000-0000-4000-8000-000000000002',NULL,'pending',NULL,now()+interval '5 minutes','{\"message_id\":43}'),",
+    "('30000000-0000-4000-8000-000000000003','00000000-0000-4000-8000-000000000002',NULL,'failed','provider_503',now()+interval '5 minutes','{\"message_id\":44}');",
     "INSERT INTO public.saved_listings(id,listing_id) VALUES ('40000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000001');"
   ].join('\n'));
 
