@@ -68,11 +68,7 @@ export function deliveryNewness(l:any,eventType:any,publishedText:any=null,nowMs
     return {ok:false,reason:'first_seen_outside_24h'};
   if(!l.sources?.baseline_completed_at)
     return {ok:false,reason:'baseline_not_initialized'};
-  if(Number(l.source_id)===2){
-    const sourceAge=sourceLabelAgeMinutes(l.raw?.sorting_date,nowMs);
-    if(l.raw?.lane!=='fast'||l.fresh_delivery_eligible!==true||sourceAge==null||sourceAge< -5||sourceAge>1440)
-      return {ok:false,reason:'kleinanzeigen_not_fast_24h'};
-  } else if(Number(l.source_id)===1){
+  if(Number(l.source_id)===1){
     const lane=String(l.raw?.delivery_lane||'');
     const proof=l.raw?._newness;
     const published=Date.parse(String(proof?.source_published_at||''));
