@@ -42,7 +42,9 @@ test('Indeed MCP is archived outside the housing-only runtime',async()=>{
  assert.ok(archived);
  assert.equal(archived.classification,'retired');
  assert.equal(archived.verify_jwt,false);
-});\n\ntest('all live function bundles have an explicit operational classification',async()=>{
+});
+
+test('all live function bundles have an explicit operational classification',async()=>{
  const manifest=JSON.parse(await read('supabase/runtime-manifest.json'));
  const all=[...manifest.functions,...manifest.archived_functions];
  assert.equal(all.length,115);
