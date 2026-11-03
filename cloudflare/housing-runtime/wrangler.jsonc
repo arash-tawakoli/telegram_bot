@@ -17,6 +17,13 @@
       "head_sampling_rate": 0.1
     }
   },
+  "d1_databases": [
+    {
+      "binding": "LEGACY_D1",
+      "database_name": "immoscout-central-token-staging",
+      "database_id": "08789b5f-f200-4985-a357-276052206852"
+    }
+  ],
   "hyperdrive": [
     {
       "binding": "HYPERDRIVE",
