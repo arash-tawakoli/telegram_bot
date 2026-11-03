@@ -15,6 +15,7 @@ test("housing runtime reads only allow-listed Vault secrets through its scoped f
 });
 
 test("runtime database role does not inherit service_role or bypass RLS", () => {
+  assert.match(migration, /REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA app_private FROM PUBLIC/);
   assert.match(migration, /ALTER ROLE cf_housing_runtime_20261103[\s\S]*?NOLOGIN[\s\S]*?NOBYPASSRLS/);
   assert.match(migration, /REVOKE service_role FROM cf_housing_runtime_20261103/);
   assert.doesNotMatch(migration, /GRANT service_role TO cf_housing_runtime_20261103/);
