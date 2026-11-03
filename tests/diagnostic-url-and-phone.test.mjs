@@ -8,7 +8,7 @@ const cleanLine=source.split('\n').find(line=>line.startsWith('const clean='));
 const phoneLine=source.split('\n').find(line=>line.startsWith('function phoneValue('));
 if(!cleanLine||!phoneLine)throw new Error('phone normalizer source is missing');
 const scope={};
-vm.runInNewContext(cleanLine+'\n'+phoneLine+'\nglobalThis.phoneValue=phoneValue',scope);
+vm.runInNewContext((cleanLine+'\n'+phoneLine).replaceAll(':any','')+'\nglobalThis.phoneValue=phoneValue',scope);
 
 test('existing production canary normalizes valid phone numbers and omits invalid optional numbers',()=>{
  for(const value of ['0171 1234567','0049 171 1234567','491711234567','+49 171 1234567'])assert.equal(scope.phoneValue(value),'+491711234567');
