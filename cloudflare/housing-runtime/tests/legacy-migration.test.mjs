@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { importLegacyD1Snapshot } from "../src/legacy-migration.js";
+import { importLegacyD1Snapshot, verifyLegacyD1SnapshotKey } from "../src/legacy-migration.js";
 
 const fingerprint = "a".repeat(64);
 const credentials = {
@@ -155,4 +155,70 @@ test("rejects oversized snapshots and malformed audit metadata before writes", a
     /legacy_audit_id_invalid/,
   );
   assert.equal(db.transactionCount, 0);
+});
+
+test("D1 credential and OAuth ciphertext must decrypt with the PostgreSQL Vault key before import", async () => {
+  const keyBytes = Uint8Array.from({ length: 32 }, (_, index) => index + 1);
+  const keyHex = [...keyBytes].map((value) => value.toString(16).padStart(2, "0")).join("");
+  const key = await crypto.subtle.importKey("raw", keyBytes, { name: "AES-GCM" }, false, ["encrypt"]);
+  const encoder = new TextEncoder();
+  const seal = async (value, aad) => {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ciphertext = await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv, additionalData: encoder.encode(aad) },
+      key,
+      encoder.encode(JSON.stringify(value)),
+    );
+    return {
+      ciphertext: Buffer.from(ciphertext).toString("base64"),
+      iv: Buffer.from(iv).toString("base64"),
+    };
+  };
+  const credentialSeal = await seal(
+    { access_token: "access-token-value", refresh_token: "refresh-token-value" },
+    "nexalabs:immoscout:central:v1",
+  );
+  const flowSeal = await seal(
+    { verifier: "oauth-pkce-verifier" },
+    "nexalabs:immoscout:oauth-flow:v1",
+  );
+  const snapshot = {
+    credentials: { ciphertext: credentialSeal.ciphertext, iv: credentialSeal.iv },
+    oauth_flows: [{
+      verifier_ciphertext: flowSeal.ciphertext,
+      verifier_iv: flowSeal.iv,
+    }],
+  };
+
+  assert.deepEqual(await verifyLegacyD1SnapshotKey(snapshot, keyHex), {
+    credentials_verified: true,
+    oauth_flows_verified: 1,
+  });
+  await assert.rejects(
+    () => verifyLegacyD1SnapshotKey(snapshot, "f".repeat(64)),
+    /legacy_credentials_key_mismatch/,
+  );
+});
+
+test("D1 ciphertext verification rejects a credential payload without both OAuth tokens", async () => {
+  const keyBytes = new Uint8Array(32).fill(9);
+  const keyHex = [...keyBytes].map((value) => value.toString(16).padStart(2, "0")).join("");
+  const key = await crypto.subtle.importKey("raw", keyBytes, { name: "AES-GCM" }, false, ["encrypt"]);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ciphertext = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv, additionalData: new TextEncoder().encode("nexalabs:immoscout:central:v1") },
+    key,
+    new TextEncoder().encode(JSON.stringify({ access_token: "only-access-token" })),
+  );
+  const snapshot = {
+    credentials: {
+      ciphertext: Buffer.from(ciphertext).toString("base64"),
+      iv: Buffer.from(iv).toString("base64"),
+    },
+    oauth_flows: [],
+  };
+  await assert.rejects(
+    () => verifyLegacyD1SnapshotKey(snapshot, keyHex),
+    /legacy_credentials_payload_invalid/,
+  );
 });
