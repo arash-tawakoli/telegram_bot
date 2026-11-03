@@ -13,6 +13,21 @@ create table listings(id uuid primary key,source_id smallint references sources(
 create table applications(id uuid primary key default gen_random_uuid(),user_id uuid references bot_users(id) on delete cascade,listing_id uuid references listings(id),source_id smallint,status text default 'pending',attempts int default 0,last_error text,submission_started_at timestamptz,created_at timestamptz default now(),sent_at timestamptz,lease_token uuid,lease_until timestamptz,next_attempt_at timestamptz default now(),unique(user_id,listing_id));
 create table delivery_events(listing_id uuid,recipient_user_id uuid,event_type text default 'new_listing',status text default 'sent');
 create table platform_connections(user_id uuid,provider text,status text);
+create table coaching_members(
+ id uuid primary key,is_active boolean default true,workspace_id uuid,role text,auth_user_id uuid
+);
+create table coaching_participants(
+ user_id uuid,workspace_id uuid,status text,coach_member_id uuid,assignment_version integer
+);
+create table coaching_workspaces(id uuid primary key,is_active boolean,operations_paused boolean);
+create table platform_auth_flows(
+ id uuid primary key default gen_random_uuid(),user_id uuid,provider text,state text,code_verifier text,
+ origin text,issued_by uuid,return_target text,context jsonb,expires_at timestamptz,consumed_at timestamptz
+);
+create function public.coach_effective_premium_status(uuid[]) returns table(is_premium boolean)
+ language sql as $ select true $;
+insert into coaching_members(id,is_active,workspace_id,role,auth_user_id)
+ values('aaaaaaaa-0000-4000-8000-000000000099',true,'bbbbbbbb-0000-4000-8000-000000000099','admin','cccccccc-0000-4000-8000-000000000099');
 create table application_preferences(
  user_id uuid primary key,enabled boolean default false,immoscout_enabled boolean default false,
  kleinanzeigen_enabled boolean default false,immomio_enabled boolean default false,immowelt_enabled boolean default false,
@@ -72,6 +87,10 @@ await test('routing uses the actual application destination, retaining native fa
  assert.equal((await result("select count(*)::int n from public.source_connectors where source_id in (2,6)"))[0].n,0);
  assert.equal((await result("select kleinanzeigen_enabled from public.application_preferences where user_id='aaaaaaaa-0000-4000-8000-000000000099'"))[0].kleinanzeigen_enabled,false);
  await assert.rejects(()=>result("select public.set_application_provider_enabled_shared(gen_random_uuid(),'kleinanzeigen',true)"),/invalid_provider/);
+ await assert.rejects(
+  ()=>result("select public.coach_issue_platform_connect_flow('aaaaaaaa-0000-4000-8000-000000000099',gen_random_uuid(),'kleinanzeigen',repeat('a',40),repeat('b',50))"),
+  /provider_unsupported/
+ );
  assert.equal((await result('select app_private.application_provider_target(37::smallint,$1,null) p',[{tenant_apply_url:url}]))[0].p,'immomio');
 });
 const u='aaaaaaaa-0000-4000-8000-000000000001',u2='aaaaaaaa-0000-4000-8000-000000000002';
