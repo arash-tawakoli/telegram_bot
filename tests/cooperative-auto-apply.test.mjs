@@ -25,7 +25,7 @@ create table platform_auth_flows(
  origin text,issued_by uuid,return_target text,context jsonb,expires_at timestamptz,consumed_at timestamptz
 );
 create function public.coach_effective_premium_status(uuid[]) returns table(is_premium boolean)
- language sql as $ select true $;
+ language sql as $$ select true $$;
 insert into coaching_members(id,is_active,workspace_id,role,auth_user_id)
  values('aaaaaaaa-0000-4000-8000-000000000099',true,'bbbbbbbb-0000-4000-8000-000000000099','admin','cccccccc-0000-4000-8000-000000000099');
 create table application_preferences(
@@ -33,7 +33,7 @@ create table application_preferences(
  kleinanzeigen_enabled boolean default false,immomio_enabled boolean default false,immowelt_enabled boolean default false,
  updated_at timestamptz default now()
 );
-create function app_private.reconcile_recent_user_applications(uuid,text,interval,uuid) returns integer language sql as $ select 0 $;
+create function app_private.reconcile_recent_user_applications(uuid,text,interval,uuid) returns integer language sql as $$ select 0 $$;
 insert into sources values (2,'Kleinanzeigen Hamburg','Marketplace',true,'live','live'),(6,'WG-Gesucht Hamburg','Marketplace',true,'live','live');
 insert into source_connectors(source_id,connector_kind) values(2,'kleinanzeigen'),(6,'wg_gesucht');
 insert into application_preferences(user_id,kleinanzeigen_enabled) values('aaaaaaaa-0000-4000-8000-000000000099',true);
