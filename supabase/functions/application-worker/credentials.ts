@@ -23,7 +23,7 @@ export async function recordRefreshResult(db:any,userId:string,provider:string,s
 
 
 
-const CENTRAL_IMMOSCOUT_WORKER='https://immoscout-central-token-staging.arash-ce5.workers.dev';
+const CENTRAL_IMMOSCOUT_WORKER='https://traumwohnung-housing-runtime.arash-ce5.workers.dev';
 async function centralImmoScoutApi(db:any,path:string,method='GET',body:any=undefined){
  const {data,error}=await db.rpc('get_bot_secret',{secret_name:'immoscout_central_cloudflare_api_secret'});
  if(error||!data)throw Error('central_credential_service_unavailable');
