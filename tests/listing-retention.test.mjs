@@ -106,7 +106,7 @@ test('expired listing content is deleted while application, delivery and saved-i
   assert.equal(snapshotColumn.rows[0].n, 0);
 });
 
-test('retention is bounded and does not delete listings before the safety cutoff', async () => {
+test('retention is bounded and enforces the full 24-hour cutoff', async () => {
   await db.exec('TRUNCATE public.applications, public.delivery_events, public.saved_listings, public.listing_changes, public.listings CASCADE');
   await db.exec([
     'INSERT INTO public.listings(id,source_id,first_seen_at,title,canonical_url,city)',
@@ -117,7 +117,9 @@ test('retention is bounded and does not delete listings before the safety cutoff
     'FROM generate_series(1,3) AS n;',
     'INSERT INTO public.listings(id,source_id,first_seen_at,title,canonical_url,city)',
     'VALUES',
-    "('70000000-0000-4000-8000-000000000001',1,now()-interval '23 hours 45 minutes','Not expired','https://example.test/fresh','Hamburg');"
+    "('70000000-0000-4000-8000-000000000001',1,now()-interval '23 hours 45 minutes','Not expired','https://example.test/fresh','Hamburg'),",
+    "('70000000-0000-4000-8000-000000000002',1,now()-interval '24 hours','At 24 hours','https://example.test/exact','Hamburg'),",
+    "('70000000-0000-4000-8000-000000000003',1,now()-interval '23 hours 59 minutes 59 seconds','Just before 24 hours','https://example.test/before','Hamburg');"
   ].join('\n'));
 
   assert.equal(await cleanup(2), 2);
