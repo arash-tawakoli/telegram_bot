@@ -1,4 +1,4 @@
-export async function deleteExpiredListings(sql, limit = 1000) {
+export async function deleteExpiredListings(sql, limit = 5000) {
   if (!Number.isInteger(limit) || limit < 1 || limit > 5000) {
     throw new RangeError("retention_limit_invalid");
   }
