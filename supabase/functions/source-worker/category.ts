@@ -1,6 +1,5 @@
 import {Candidate,Source,db,fetchText,iso,parseHtml,strip,upsertCandidates} from './shared.ts';
 import {runScoutCategory} from './scout.ts';
-import {runKleinCategory} from './klein.ts';
 import {persistCategoryListings} from './category-persist.ts';
 import {runImmoweltCategory} from './generic.ts';
 
@@ -74,7 +73,6 @@ export async function runCategoryStreams(source:Source){
     try{
       let result:any;
       if(stream.adapter==='scout')result=await runScoutCategory(source,stream);
-      else if(stream.adapter==='kleinanzeigen')result=await runKleinCategory(source,stream);
       else if(stream.adapter==='ohne-makler')result=await runHtmlCategory(source,stream);
       else if(stream.adapter==='immowelt')result=await runImmoweltCategory(source,stream);
       else throw new Error(`unsupported category adapter ${stream.adapter}`);
