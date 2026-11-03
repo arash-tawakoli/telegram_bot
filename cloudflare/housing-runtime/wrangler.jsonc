@@ -46,6 +46,9 @@
         "binding": "HYPERDRIVE",
         "id": "25a37f1631e54fc09f7f650a9557ea1c"
       }
-    ]
+    ],
+    "vars": {
+      "PREVIEW_MODE": "1"
+    }
   }
 }
