@@ -7,7 +7,7 @@ import vm from 'node:vm';
 function evaluate(path) {
  const source=stripTypeScriptTypes(readFileSync(new URL(path,import.meta.url),'utf8').replace(/^import[^;]+;\\n/gm,''));
  const scope={createClient:()=>({}),Deno:{env:{get:()=>undefined},serve:()=>{}},URL,Response,TextEncoder,TextDecoder,AbortSignal,crypto};
- vm.runInNewContext(source,scope);
+ vm.runInNewContext(source+';globalThis.phoneValue=phoneValue',scope);
  return scope;
 }
 
