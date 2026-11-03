@@ -35,7 +35,14 @@ test('retired endpoints are classified as retired and use JWT gateway verificati
  }
 });
 
-test('Indeed MCP is archived outside the housing-only runtime',async()=>{\n const manifest=JSON.parse(await read('supabase/runtime-manifest.json'));\n assert.equal(manifest.functions.some(x=>x.slug==='indeed-mcp-bridge'),false);\n const archived=manifest.archived_functions.find(x=>x.slug==='indeed-mcp-bridge');\n assert.ok(archived);\n assert.equal(archived.classification,'retired');\n assert.equal(archived.verify_jwt,false);\n});\n\ntest('all live function bundles have an explicit operational classification',async()=>{
+test('Indeed MCP is archived outside the housing-only runtime',async()=>{
+ const manifest=JSON.parse(await read('supabase/runtime-manifest.json'));
+ assert.equal(manifest.functions.some(x=>x.slug==='indeed-mcp-bridge'),false);
+ const archived=manifest.archived_functions.find(x=>x.slug==='indeed-mcp-bridge');
+ assert.ok(archived);
+ assert.equal(archived.classification,'retired');
+ assert.equal(archived.verify_jwt,false);
+});\n\ntest('all live function bundles have an explicit operational classification',async()=>{
  const manifest=JSON.parse(await read('supabase/runtime-manifest.json'));
  const all=[...manifest.functions,...manifest.archived_functions];
  assert.equal(all.length,115);
