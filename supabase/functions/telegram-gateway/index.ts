@@ -67,7 +67,7 @@ Deno.serve(async req=>{
   const legacyCallback=callback==='home:de'?'home':callback==='settings:de'?'settings':callback==='help:de'?'help':callback;
   if(legacyCallback!==callback&&update?.callback_query){update.callback_query.data=legacyCallback;callback=legacyCallback;body=JSON.stringify(update);}
 
-  if(callbackId&&['platforms:login:1','platforms:login:2','platforms:login:3','platforms:login:4'].includes(callback)){
+  if(callbackId&&['platforms:login:1','platforms:login:3','platforms:login:4'].includes(callback)){
    EdgeRuntime.waitUntil(forward(body,expected,OAUTH_BRIDGE).then(r=>{if(!r.ok)console.error('telegram_oauth_bridge',r.status)}).catch(e=>console.error('telegram_oauth_bridge',String(e))));
    return direct('answerCallbackQuery',{callback_query_id:callbackId});
   }
