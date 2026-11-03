@@ -46,14 +46,15 @@ test('expired listing content is deleted while application, delivery and saved-i
     'INSERT INTO public.delivery_events(id,listing_id,change_id,status,next_retry_at,preview_progress)',
     'VALUES',
     "('30000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000001','50000000-0000-4000-8000-000000000001','sent',NULL,'{\"message_id\":42}'),",
-    "('30000000-0000-4000-8000-000000000002','00000000-0000-4000-8000-000000000002',NULL,'pending',now()+interval '5 minutes','{\"message_id\":43}');",
+    "('30000000-0000-4000-8000-000000000002','00000000-0000-4000-8000-000000000002',NULL,'pending',now()+interval '5 minutes','{\"message_id\":43}'),",
+    "('30000000-0000-4000-8000-000000000003','00000000-0000-4000-8000-000000000002',NULL,'failed',now()+interval '5 minutes','{\"message_id\":44}');",
     "INSERT INTO public.saved_listings(id,listing_id) VALUES ('40000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000001');"
   ].join('\n'));
 
   assert.equal(await cleanup(1), 1);
   assert.equal(await count('public.listings'), 2);
   assert.equal(await count('public.applications'), 2);
-  assert.equal(await count('public.delivery_events'), 2);
+  assert.equal(await count('public.delivery_events'), 3);
   assert.equal(await count('public.saved_listings'), 1);
   assert.equal(await count('public.listing_changes'), 0);
 
@@ -92,6 +93,14 @@ test('expired listing content is deleted while application, delivery and saved-i
   assert.equal(pendingDelivery.error_message, 'listing_expired');
   assert.equal(pendingDelivery.next_retry_at, null);
   assert.equal(pendingDelivery.preview_progress, null);
+
+  const failedDelivery = (await query(
+    "SELECT listing_id,status,error_message,next_retry_at FROM public.delivery_events WHERE id='30000000-0000-4000-8000-000000000003'"
+  )).rows[0];
+  assert.equal(failedDelivery.listing_id, null);
+  assert.equal(failedDelivery.status, 'failed');
+  assert.equal(failedDelivery.error_message, 'provider_503');
+  assert.equal(failedDelivery.next_retry_at, null);
 
   const saved = (await query(
     "SELECT listing_id,listing_expired_at FROM public.saved_listings WHERE id='40000000-0000-4000-8000-000000000001'"
