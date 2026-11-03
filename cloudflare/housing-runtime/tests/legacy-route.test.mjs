@@ -18,3 +18,9 @@ test("one-time migration reads the existing D1 tables directly and imports only 
   assert.match(config, /"database_id": "08789b5f-f200-4985-a357-276052206852"/);
   assert.match(config, /"binding": "HYPERDRIVE"/);
 });
+
+test("preview runtime blocks state-changing internal routes and permits only read-only migration dry-run", () => {
+  assert.match(runtime, /env\.PREVIEW_MODE === "1" && new URL\(request\.url\)\.searchParams\.get\("dry_run"\) !== "1"/);
+  assert.match(runtime, /env\.PREVIEW_MODE === "1" && !\(request\.method === "GET" && url\.pathname === "\/internal\/status"\)/);
+  assert.match(config, /"PREVIEW_MODE": "1"/);
+});
