@@ -413,28 +413,6 @@ async function refreshCredentialsForTest(env, adminId) {
 
 async function internal(request, env, path) {
   if (!await authorize(request, env)) return json({ error: "unauthorized" }, 401);
-  if (request.method === "GET" && path === "/internal/export") {
-    if (!/^[a-f0-9]{64}$/i.test(env.TOKEN_ENCRYPTION_KEY || "")) {
-      return json({ error: "legacy_key_unavailable" }, 503);
-    }
-    const [credentials, oauthFlows, auditEvents] = await Promise.all([
-      env.DB.prepare(
-        "SELECT singleton, account_hint, ciphertext, iv, key_version, status, enabled, expires_at, last_verified_at, last_error, updated_at FROM central_credentials WHERE singleton = ?"
-      ).bind("central").first(),
-      env.DB.prepare(
-        "SELECT state_hash, verifier_ciphertext, verifier_iv, admin_telegram_id, user_id, expires_at, consumed_at, created_at FROM oauth_flows ORDER BY created_at ASC"
-      ).all(),
-      env.DB.prepare(
-        "SELECT id, event_type, account_hint, admin_telegram_id, created_at FROM audit_events ORDER BY id ASC"
-      ).all(),
-    ]);
-    return json({
-      credentials: credentials || null,
-      oauth_flows: oauthFlows?.results || [],
-      audit_events: auditEvents?.results || [],
-      key_fingerprint: await digest(String(env.TOKEN_ENCRYPTION_KEY).toLowerCase()),
-    });
-  }
   if (path === "/internal/status" && request.method === "GET") return json(await credentialStatus(env));
   const body = request.method === "POST" ? await bodyJson(request) : {};
   if (path === "/internal/start" && request.method === "POST") return json(await startFlow(env, body));
