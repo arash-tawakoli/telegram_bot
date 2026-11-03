@@ -88,7 +88,7 @@ function secureToken(bytes = 32) {
     return btoa(raw).split("+").join("-").split("/").join("_").replace(/=+$/g, "");
 }
 
-const CENTRAL_IMMOSCOUT_WORKER = "https://immoscout-central-token-staging.arash-ce5.workers.dev";
+const CENTRAL_IMMOSCOUT_WORKER = "https://traumwohnung-housing-runtime.arash-ce5.workers.dev";
 async function centralImmoScoutApi(path, method = "GET", body = undefined) {
     const apiSecret = await secret("immoscout_central_cloudflare_api_secret");
     const response = await fetch(`${CENTRAL_IMMOSCOUT_WORKER}${path}`, {
