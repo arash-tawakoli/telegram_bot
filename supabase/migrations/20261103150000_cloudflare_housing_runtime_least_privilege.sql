@@ -27,6 +27,8 @@ GRANT USAGE ON SCHEMA app_private TO cf_housing_runtime_20261103;
 -- app_private is not a public execution surface. Existing backend access remains
 -- explicitly granted to service_role; the Cloudflare role gets only two functions.
 REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA app_private FROM PUBLIC;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA app_private
+  REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE
   app_private.immoscout_central_credentials,
