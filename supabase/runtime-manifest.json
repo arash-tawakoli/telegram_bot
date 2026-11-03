@@ -581,31 +581,6 @@
       "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
     },
     {
-      "slug": "indeed-mcp-bridge",
-      "version": 9,
-      "verify_jwt": false,
-      "import_map": false,
-      "retired": false,
-      "observed_artifact_sha256": "1e76ff8c41030a778ae7861835d0a563e9db95dea9a4fec3aceea1e455553668",
-      "entrypoint": "supabase/functions/indeed-mcp-bridge/index.ts",
-      "files": [
-        {
-          "path": "supabase/functions/indeed-mcp-bridge/index.ts",
-          "git_blob_sha": "7500ff493bdeb650acbcdefe449406d49cdb5b42",
-          "deployed_git_blob_sha": "7500ff493bdeb650acbcdefe449406d49cdb5b42"
-        }
-      ],
-      "observed_live_version": 9,
-      "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "1e76ff8c41030a778ae7861835d0a563e9db95dea9a4fec3aceea1e455553668",
-      "source_archive_file": "docs/runtime-snapshot-2026-11-02/bundles/batch-01.json",
-      "source_archive_file_count": 1,
-      "source_archive_status": "full_source",
-      "classification": "internal",
-      "review_status": "internal Indeed MCP bridge; reconciled from live Supabase v9 on 2026-11-02",
-      "observed_at": "2026-11-02T07:55:00Z"
-    },
-    {
       "slug": "kleinanzeigen-apk-direct-stage",
       "version": 2,
       "verify_jwt": false,
@@ -2081,6 +2056,21 @@
       "security_scan_flags": [],
       "classification": "diagnostic",
       "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+    },
+    {
+      "slug": "indeed-mcp-bridge",
+      "version": 9,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "/tmp/user_fn_dpmohkrwdlicexwcrqfy_4fd93f37-fe72-4efc-80f2-51c9d0f9f31e_9/source/index.ts",
+      "artifact_sha256": "1e76ff8c41030a778ae7861835d0a563e9db95dea9a4fec3aceea1e455553668",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-11-02/bundles/batch-01.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "retired",
+      "review_status": "Removed from the housing-only target; preserved in the runtime snapshot until Cloudflare cutover."
     },
     {
       "slug": "ka-gateway-egress-probe",
