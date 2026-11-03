@@ -176,10 +176,53 @@ export default {
 
     if (request.method === "GET" && url.pathname === "/ready") {
       try {
-        await withDatabase(env, async (sql) => {
-          await sql`SELECT 1 AS ready`;
+        const readiness = await withDatabase(env, async (sql) => {
+          await createCentralEnvironment(env, sql);
+          const [identity, permissions, rls, counts] = await Promise.all([
+            sql`SELECT current_user AS role, r.rolbypassrls AS bypass_rls,
+                pg_has_role(current_user, 'service_role', 'member') AS service_role_member
+              FROM pg_roles AS r WHERE r.rolname = current_user`,
+            sql`SELECT
+                has_table_privilege(current_user, 'app_private.immoscout_central_credentials', 'SELECT') AS credentials_read,
+                has_table_privilege(current_user, 'app_private.immoscout_central_oauth_flows', 'SELECT') AS oauth_read,
+                has_table_privilege(current_user, 'app_private.immoscout_central_audit_events', 'SELECT') AS audit_read,
+                has_table_privilege(current_user, 'public.listings', 'SELECT') AS listings_read,
+                has_function_privilege(current_user, 'app_private.delete_expired_listings(integer)', 'EXECUTE') AS retention_execute,
+                has_function_privilege(current_user, 'app_private.get_housing_runtime_secret(text)', 'EXECUTE') AS scoped_secret_execute`,
+            sql`SELECT count(*) = 3 AND bool_and(c.relrowsecurity) AS all_enabled
+              FROM pg_class AS c
+              JOIN pg_namespace AS n ON n.oid = c.relnamespace
+              WHERE n.nspname = 'app_private'
+                AND c.relname IN (
+                  'immoscout_central_credentials',
+                  'immoscout_central_oauth_flows',
+                  'immoscout_central_audit_events'
+                )`,
+            sql`SELECT
+                (SELECT count(*)::integer FROM app_private.immoscout_central_credentials) AS credentials,
+                (SELECT count(*)::integer FROM app_private.immoscout_central_oauth_flows) AS oauth_flows,
+                (SELECT count(*)::integer FROM app_private.immoscout_central_audit_events) AS audit_events`,
+          ]);
+          const role = identity[0];
+          const access = permissions[0];
+          const rlsEnabled = Boolean(rls[0]?.all_enabled);
+          if (!role || role.bypass_rls || role.service_role_member ||
+              !access.credentials_read || !access.oauth_read || !access.audit_read ||
+              access.listings_read || !access.retention_execute || !access.scoped_secret_execute ||
+              !rlsEnabled) {
+            throw new Error("runtime_security_contract_failed");
+          }
+          return {
+            role: role.role,
+            rls: "enabled",
+            serviceRoleMember: false,
+            listingAccess: "denied",
+            retentionFunction: "available",
+            centralVault: "available",
+            centralTables: counts[0],
+          };
         });
-        return json({ ok: true, database: "reachable" });
+        return json({ ok: true, database: "reachable", ...readiness });
       } catch (error) {
         console.error("housing_runtime_readiness_failed", String(error?.message || error));
         return json({ ok: false, database: "unavailable" }, 503);
