@@ -432,7 +432,7 @@ async function internal(request, env, path) {
       credentials: credentials || null,
       oauth_flows: oauthFlows?.results || [],
       audit_events: auditEvents?.results || [],
-      key_fingerprint: await digest(env.TOKEN_ENCRYPTION_KEY),
+      key_fingerprint: await digest(String(env.TOKEN_ENCRYPTION_KEY).toLowerCase()),
     });
   }
   if (path === "/internal/status" && request.method === "GET") return json(await credentialStatus(env));
