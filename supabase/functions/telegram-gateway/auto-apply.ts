@@ -141,7 +141,7 @@ async function handlePlatforms(user:any,chatId:number,messageId:number,data:stri
  if(action==='profile-field'){
   if(!user.is_premium)return platformPage(user,chatId,messageId,'💎 Bewerberprofile benötigen Premium.');const prompt=fieldPrompt(arg);if(!prompt)return profilePage(user,chatId,messageId);await forceReply(chatId,prompt,PROFILE_FIELDS[arg].label);return;
  }
- if(action==='provider'&&[1,3,4].includes(source)return providerPage(user,chatId,messageId,source);
+ if(action==='provider'&&[1,3,4].includes(source))return providerPage(user,chatId,messageId,source);
  if((action==='pause'||action==='resume')&&[1,3,4].includes(source)){
   const provider=source===1?'immoscout':source===3?'immomio':'immowelt';
   try{
@@ -180,7 +180,7 @@ async function handlePlatforms(user:any,chatId:number,messageId:number,data:stri
    return edit(chatId,messageId,'🔐 <b>Immowelt verbinden</b>\n\nÖffne den sicheren Login und melde dich einmalig mit deinem Immowelt-Konto an. Das Passwort wird nicht gespeichert; nach erfolgreicher Anmeldung wird nur die verschlüsselte Sitzung übernommen. Zusätzliche Sicherheitsprüfungen werden nicht umgangen.',[[{text:'🌐 Immowelt-Login öffnen',url:result.url}],[button('← Automatische Bewerbung','platforms')]]);
   }catch{return platformPage(user,chatId,messageId,'⚠️ Immowelt-Login konnte nicht gestartet werden.');}
  }
- if(action==='check'&&[1,3,4].includes(source){
+ if(action==='check'&&[1,3,4].includes(source)){
   if(!user.is_premium)return platformPage(user,chatId,messageId,'💎 Plattform-Verbindungen benötigen Premium.');
   try{const result=await worker('check',user.id,source);const name=source===1?'ImmoScout24':source===3?'Immomio':'Immowelt';return platformPage(user,chatId,messageId,result.authenticated===true?`✅ ${name}-Verbindung bestätigt.`:result.authenticated===null?`${name}: Verbindung gespeichert; der Sendepfad ist noch nicht freigegeben.`:`⚠️ ${name} bitte erneut verbinden.`);}catch{return platformPage(user,chatId,messageId,'⚠️ Verbindung konnte nicht bestätigt werden.');}
  }
