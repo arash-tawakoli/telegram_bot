@@ -22,6 +22,7 @@ Security properties:
 
 - `NOLOGIN` until the final Hyperdrive credential is provisioned.
 - `NOBYPASSRLS` and no membership in `service_role`.
+- Public execution is revoked for existing and future functions in `app_private`; the runtime receives execute rights only for its two explicitly granted functions.
 - Access only to the three central ImmoScout tables in `app_private`.
 - Execute permission only for the bounded listing-retention function and the allow-listed runtime-secret function.
 - No direct access to the Vault schema, Auth schema, or general application tables.
