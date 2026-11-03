@@ -37,3 +37,10 @@ test("runtime role receives table access only to the three central ImmoScout tab
   assert.equal((migration.match(/CREATE POLICY cf_housing_runtime_access/g) || []).length, 3);
   assert.match(migration, /GRANT EXECUTE ON FUNCTION app_private\.delete_expired_listings\(integer\)[\s\S]*?TO cf_housing_runtime_20261103/);
 });
+
+test("runtime role can advance only the central audit identity sequence", () => {
+  assert.match(
+    migration,
+    /GRANT USAGE, SELECT, UPDATE ON SEQUENCE[\\s\\S]*?app_private\\.immoscout_central_audit_events_id_seq[\\s\\S]*?TO cf_housing_runtime_20261103/,
+  );
+});
