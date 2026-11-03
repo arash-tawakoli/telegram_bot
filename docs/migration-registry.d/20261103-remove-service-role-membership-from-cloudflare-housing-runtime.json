@@ -1,0 +1,12 @@
+{
+  "migrations": [
+    {
+      "version": "20261103143811",
+      "name": "remove_service_role_membership_from_cloudflare_housing_runtime",
+      "file": "supabase/migrations/20261103143811_remove_service_role_membership_from_cloudflare_housing_runtime.sql",
+      "registry_sql_sha256": "391e58fc66db29117f28c6c991e64f2fb76bd57fdb63ed08f9a8a662827a2d8d",
+      "export_sql_sha256": "391e58fc66db29117f28c6c991e64f2fb76bd57fdb63ed08f9a8a662827a2d8d",
+      "vault_substitution": false
+    }
+  ]
+}
