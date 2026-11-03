@@ -176,7 +176,7 @@ test('cooperative previews keep the offer emoji and show the actual source name'
 
 test('preview normalizer drops every legacy extra and leaves the four requested rows',()=>{
  const legacy={inline_keyboard:[
-  [{text:'Zu Kleinanzeigen',url:base}],
+  [{text:'Zu Immowelt',url:base}],
   [{text:'⭐ Speichern',callback_data:'save:l'}],
   [{text:'🗺️ Google Map',url:'https://www.google.com/maps/search/?api=1&query=Hamburg'}],
   [{text:'Schnellbewerbung',callback_data:'apply:l'}],
@@ -184,7 +184,7 @@ test('preview normalizer drops every legacy extra and leaves the four requested 
  ]};
  const rows=previewOperations([], '📍 <b>Adresse:</b> Hamburg', legacy)[0].body.reply_markup.inline_keyboard;
  assert.equal(rows.length,3);
- assert.equal(rows[0][0].text,'Zu Kleinanzeigen');
+ assert.equal(rows[0][0].text,'Zu Immowelt');
  assert.equal(rows[1][0].text,'⭐ Speichern');
  assert.equal(rows[2][0].text,'🗺️ Google Map');
  assert.equal(rows.flat().some(button=>/Auto-Bewerbung|Auto-apply|Schnellbewerbung/i.test(String(button.text||''))),false);
