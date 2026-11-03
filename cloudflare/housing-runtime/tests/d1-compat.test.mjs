@@ -12,6 +12,22 @@ test("D1 central credential statements map to private PostgreSQL tables", () => 
   assert.match(query, /THEN central_credentials\.enabled ELSE 0 END/);
 });
 
+test("D1 statements work without calling bind", async () => {
+  const calls = [];
+  const sql = {
+    async unsafe(query, values) {
+      calls.push({ query, values });
+      const rows = [{ tables_count: 3 }];
+      rows.count = 1;
+      return rows;
+    },
+  };
+  const db = createD1Compat(sql);
+  const row = await db.prepare("SELECT COUNT(*) AS tables_count FROM central_credentials").first();
+  assert.equal(row.tables_count, 3);
+  assert.deepEqual(calls[0].values, []);
+});
+
 test("D1 OAuth and audit statements map to private PostgreSQL tables", () => {
   assert.equal(
     rewriteD1Sql("SELECT * FROM oauth_flows WHERE state_hash=?"),
