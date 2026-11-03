@@ -4,8 +4,8 @@
       "version": "20261103150000",
       "name": "cloudflare_housing_runtime_least_privilege",
       "file": "supabase/migrations/20261103150000_cloudflare_housing_runtime_least_privilege.sql",
-      "registry_sql_sha256": "62413296d3bfd7ab9a0a6821a794e38239c2a34badfdc5636f2ea23b3743143c",
-      "export_sql_sha256": "62413296d3bfd7ab9a0a6821a794e38239c2a34badfdc5636f2ea23b3743143c",
+      "registry_sql_sha256": "089cba704263c43850b12c92a43c5942aac615cb71af06c868b5250ce6a1167e",
+      "export_sql_sha256": "089cba704263c43850b12c92a43c5942aac615cb71af06c868b5250ce6a1167e",
       "vault_substitution": false
     }
   ]
