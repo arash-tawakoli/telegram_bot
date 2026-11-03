@@ -105,8 +105,8 @@ BEGIN
   SET listing_id = NULL,
       change_id = NULL,
       listing_expired_at = COALESCE(d.listing_expired_at, now()),
-      status = CASE WHEN d.status IN ('pending', 'failed', 'available') THEN 'skipped' ELSE d.status END,
-      error_message = CASE WHEN d.status IN ('pending', 'failed', 'available') THEN 'listing_expired' ELSE d.error_message END,
+      status = CASE WHEN d.status IN ('pending', 'available') THEN 'skipped' ELSE d.status END,
+      error_message = CASE WHEN d.status IN ('pending', 'available') THEN 'listing_expired' ELSE d.error_message END,
       next_retry_at = NULL,
       preview_progress = NULL
   WHERE d.listing_id = ANY(expired_ids);
