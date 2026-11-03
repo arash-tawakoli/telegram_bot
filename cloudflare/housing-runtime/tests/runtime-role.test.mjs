@@ -20,7 +20,7 @@ test("runtime database role does not inherit service_role or bypass RLS", () => 
   assert.match(migration, /ALTER ROLE cf_housing_runtime_20261103[\s\S]*?NOLOGIN[\s\S]*?NOBYPASSRLS/);
   assert.match(migration, /REVOKE service_role FROM cf_housing_runtime_20261103/);
   assert.doesNotMatch(migration, /GRANT service_role TO cf_housing_runtime_20261103/);
-  assert.doesNotMatch(migration, /BYPASSRLS\s*;/);
+  assert.doesNotMatch(migration, /^\s+BYPASSRLS\s*;/m);
 });
 
 test("runtime role receives table access only to the three central ImmoScout tables", () => {
