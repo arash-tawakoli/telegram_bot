@@ -16,8 +16,8 @@ test('inventory fallback needs a fresh positive native source observation, never
   assert.equal(recentInventory({...l,raw:{provider:'immowelt',is_new:false}},now),true);
   assert.equal(recentInventory({...l,source_id:1,raw:{provider:'immoscout_mcp',delivery_lane:'fresh_borough'}},now),true);
   assert.equal(recentInventory({...l,source_id:1,raw:{provider:'immoscout_mcp',delivery_lane:'coverage_proven'}},now),true);
-  assert.equal(recentInventory({...l,source_id:6,raw:{}},now),true);
-  assert.equal(recentInventory({...l,source_id:6,last_seen_at:'2026-09-08T20:01:00Z',raw:{}},now),true);
+  assert.equal(recentInventory({...l,source_id:6,raw:{}},now),false);
+  assert.equal(recentInventory({...l,source_id:6,last_seen_at:'2026-09-08T20:01:00Z',raw:{}},now),false);
   assert.equal(recentInventory({...l,source_id:6,last_seen_at:'2026-09-08T19:59:59Z',raw:{}},now),false);
   assert.equal(recentInventory({...l,source_id:7,raw:{}},now),false);
   for(const override of [{is_active:false},{last_seen_at:'2026-09-08T20:40:00Z'},{last_seen_at:'bad'},{fresh_delivery_eligible:false},{raw:{provider:'tauschwohnung_catalog',catalog_baseline_verified:true}},{source_id:1,raw:{provider:'immoscout_mcp',delivery_lane:'coverage'}}])assert.equal(recentInventory({...l,...override},now),false);
