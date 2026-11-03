@@ -315,7 +315,6 @@ export function htmlFacts(html: string, base: string): any {
     const gallery=jsonObjectAfter(html,/\bgalleryData:\s*/);
     if(gallery?.images)out.images.push(...collectImages({images:gallery.images},base));
   }
-  }
   const extraLabels:Record<string,string>={
     'schlafzimmer':'Schlafzimmer','badezimmer':'Badezimmer','haustiere':'Haustiere','baujahr':'Baujahr',
     'objektzustand':'Objektzustand','zustand':'Objektzustand','qualität der ausstattung':'Qualität der Ausstattung',
@@ -364,7 +363,6 @@ export function htmlFacts(html: string, base: string): any {
     const location = locationSection.match(/([A-ZÄÖÜ][A-Za-zÄÖÜäöüß0-9 .,'’\/-]{1,80}?)\s*\((2\d{4})\)/);
     if (!out.address && location) out.address = `${location[1].trim()} (${location[2]})`;
   }
-  const address=clean.match(/<([a-z][a-z0-9]*)\b[^>]*id=["']viewad-locality["'][^>]*>([\s\S]*?)<\/\1>/i);
   for(const m of clean.matchAll(/<(?:img|meta|div)\b[^>]*>/gi)) {
     const tag=m[0], attr=(name:string)=>tag.match(new RegExp(`(?:^|\\s)${name}\\s*=\\s*["']([^"']+)["']`,'i'))?.[1];
     // Only listing gallery/itemprop images and the page's explicit preview image.
