@@ -70,3 +70,15 @@ npm install --ignore-scripts --no-audit --no-fund
 npm run check
 npm test
 ```
+
+## Migration status
+
+This Worker is currently a migration foundation, not the complete housing runtime.
+
+Still running on Supabase Edge Functions and not yet ported here:
+- Telegram webhook, gateway, UI handlers, and notification dispatch.
+- Source scheduling, crawling, listing reconciliation, and delivery dispatch.
+- Auto-application orchestration and provider workers for ImmoScout24, Kleinanzeigen, Immowelt, and Immomio.
+- Internal portal API, authentication/session handling, and document operations.
+
+Do not switch production Telegram webhooks, provider adapters, AutoApply schedules, portal APIs, or domains until each replacement is implemented, preview-tested, and smoke-tested. Supabase remains the production runtime/database until the complete cutover is approved.
