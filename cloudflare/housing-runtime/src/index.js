@@ -53,7 +53,7 @@ function bytesToHex(bytes) {
 }
 
 async function getDatabaseSecret(sql, name) {
-  const rows = await sql`SELECT public.get_bot_secret(${name}) AS secret`;
+  const rows = await sql`SELECT app_private.get_housing_runtime_secret(${name}) AS secret`;
   const value = rows?.[0]?.secret;
   if (!value) throw new Error("database_secret_unavailable");
   return String(value);
