@@ -60,7 +60,7 @@ The Worker must not be attached to a production route or used as the production 
 
 The SQL function deletes listings in bounded batches once `first_seen_at` reaches 23 hours 50 minutes. The ten-minute margin protects against Cron scheduling jitter and batch backlog. Application, delivery, and saved-item history keep only non-listing status metadata and have their listing references detached.
 
-No listing snapshot is retained.
+No listing snapshot is retained. A legacy export queue was found in production and disabled; its historical HTTP delivery could not be conclusively verified, so do not treat the empty current D1 database as proof that no payload was ever received by a now-absent endpoint.
 
 ## Verification
 
