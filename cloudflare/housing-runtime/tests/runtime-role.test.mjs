@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 
 const runtime = await readFile(new URL("../src/index.js", import.meta.url), "utf8");
 const migration = await readFile(new URL("../../../supabase/migrations/20261103172217_cloudflare_housing_runtime_least_privilege.sql", import.meta.url), "utf8");
+const loginMigration = await readFile(new URL("../../../supabase/migrations/20261103180000_enable_cloudflare_housing_hyperdrive_login.sql", import.meta.url), "utf8");
 
 test("housing runtime reads only allow-listed Vault secrets through its scoped function", () => {
   assert.match(runtime, /app_private\.get_housing_runtime_secret/);
@@ -42,4 +43,13 @@ test("runtime role can advance only the central audit identity sequence", () => 
   assert.ok(migration.includes("GRANT USAGE, SELECT, UPDATE ON SEQUENCE"));
   assert.ok(migration.includes("app_private.immoscout_central_audit_events_id_seq"));
   assert.ok(migration.includes("TO cf_housing_runtime_20261103;"));
+});
+
+test("Hyperdrive login uses a Vault-generated password and remains least-privileged", () => {
+  assert.match(loginMigration, /gen_random_bytes\(32\)/);
+  assert.match(loginMigration, /vault\.create_secret/);
+  assert.match(loginMigration, /ALTER ROLE cf_housing_runtime_20261103 LOGIN NOINHERIT NOBYPASSRLS CONNECTION LIMIT 5/);
+  assert.match(loginMigration, /PASSWORD %L/);
+  assert.doesNotMatch(loginMigration, /PASSWORD\s+'[^']+'/);
+  assert.match(loginMigration, /cloudflare_hyperdrive_role_password/);
 });
