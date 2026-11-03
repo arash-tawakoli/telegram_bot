@@ -273,7 +273,6 @@ function autoApplyProvider(l:any) {
   if(ids.size===1)return "immomio";
   const sourceId=Number(l?.source_id);
   if(sourceId===1)return "immoscout";
-  if(sourceId===2)return "kleinanzeigen";
   if(sourceId===3)return "immowelt";
   return null;
 }
