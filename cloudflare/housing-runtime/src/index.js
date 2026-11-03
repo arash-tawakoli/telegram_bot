@@ -122,7 +122,7 @@ async function migrateLegacyCentralToken(request, env, sql, centralEnv) {
       snapshot,
       await encryptionKeyFingerprint(centralEnv.TOKEN_ENCRYPTION_KEY),
     );
-    return json({ ok: true, migrated: imported.credentials > 0, imported });
+    return json({ ok: true, migrated: imported.credentials > 0 || imported.oauth_flows > 0 || imported.audit_events > 0, imported });
   } catch (error) {
     const code = String(error?.message || "");
     if (code === "legacy_encryption_key_mismatch") {
