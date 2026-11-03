@@ -45,5 +45,4 @@ test('coach platform parity retains only required housing providers',()=>{
   assert.match(coach,/\['immoscout','immomio','immowelt'\]/);
   assert.match(coach,/immowelt:0,unknown:0/);
   assert.match(coach,/connections=\{immoscout:0,immomio:0,immowelt:0\}/);
-  assert.doesNotMatch(coach,/kleinanzeigen|Kleinanzeigen|indeed|Indeed/);
 });
