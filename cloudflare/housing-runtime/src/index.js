@@ -203,7 +203,9 @@ export default {
     if (request.method === "GET" && url.pathname === "/ready") {
       try {
         const readiness = await withDatabase(env, async (sql) => {
-          await createCentralEnvironment(env, sql);
+          const centralEnv = await createCentralEnvironment(env, sql);
+          const legacySnapshot = await readLegacyD1Snapshot(env, centralEnv.TOKEN_ENCRYPTION_KEY);
+          await verifyLegacyD1SnapshotKey(legacySnapshot, centralEnv.TOKEN_ENCRYPTION_KEY);
           const [identity, permissions, rls, counts] = await Promise.all([
             sql`SELECT current_user AS role, r.rolbypassrls AS bypass_rls,
                 pg_has_role(current_user, 'service_role', 'member') AS service_role_member
@@ -245,6 +247,7 @@ export default {
             listingAccess: "denied",
             retentionFunction: "available",
             centralVault: "available",
+            legacyD1: "ciphertext_verified",
             centralTables: counts[0],
           };
         });
