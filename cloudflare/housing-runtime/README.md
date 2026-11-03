@@ -31,9 +31,17 @@ The migration `20261103150000_cloudflare_housing_runtime_least_privilege.sql` cr
 
 ## Hyperdrive
 
-Create a Hyperdrive configuration named `traumwohnung-postgres` using the dedicated role and the Supabase PostgreSQL endpoint. Use TLS and disable query caching. Keep the origin connection limit at five.
+Create a Hyperdrive configuration named `traumwohnung-postgres` using the dedicated role and the Supabase direct PostgreSQL endpoint:
 
-The Free Supabase project's direct database endpoint is IPv6-only. If Cloudflare cannot reach it, use Supavisor session mode (IPv4, port 5432) rather than enabling the paid IPv4 add-on. Obtain the exact session-pooler host from the Supabase project's Connect panel; do not guess the hostname.
+- Host: `db.dpmohkrwdlicexwcrqfy.supabase.co`
+- Port: `5432`
+- Database: `postgres`
+- User: `cf_housing_runtime_20261103`
+- TLS: `sslmode=require`
+- Origin connection limit: `5`
+- Query caching: disabled
+
+Use the direct connection, not the Supavisor pooler. Hyperdrive performs the connection pooling for Workers; Cloudflare's Supabase integration guide recommends the direct endpoint.
 
 After creating the configuration, add its ID to `wrangler.jsonc`:
 
