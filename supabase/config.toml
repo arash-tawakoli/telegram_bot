@@ -29,6 +29,3 @@ verify_jwt = false
 
 [functions.platform-session-reminder]
 verify_jwt = false
-
-[functions.wg-gesucht-auth-bridge]
-verify_jwt = false
