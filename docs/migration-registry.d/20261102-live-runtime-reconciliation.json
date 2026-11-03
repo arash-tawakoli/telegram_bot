@@ -12,8 +12,8 @@
       "version": "20261102071220",
       "name": "platform_reauth_wg_and_staged_reminders",
       "file": "supabase/migrations/20261102071220_platform_reauth_wg_and_staged_reminders.sql",
-      "registry_sql_sha256": "f7dddf9871ab09087091ebaf8718f118ef418651251a2e4d8f1a420c8e4df72d",
-      "export_sql_sha256": "f7dddf9871ab09087091ebaf8718f118ef418651251a2e4d8f1a420c8e4df72d",
+      "registry_sql_sha256": "9528d4e66d3082a3520e3e4be02af608545bb6dbdeea5c60966b12540e828bda",
+      "export_sql_sha256": "9528d4e66d3082a3520e3e4be02af608545bb6dbdeea5c60966b12540e828bda",
       "vault_substitution": false
     }
   ]
