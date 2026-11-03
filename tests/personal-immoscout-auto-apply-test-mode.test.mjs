@@ -86,9 +86,9 @@ test('the migration registry records the exact migration content hash', () => {
 test('runtime manifest records both deployed personal test-mode functions', () => {
   const app = manifest.functions.find(row => row.slug === 'application-worker');
   const ui = manifest.functions.find(row => row.slug === 'telegram-ui');
-  assert.equal(app.version, 334);
-  assert.equal(app.observed_live_version, 334);
-  assert.equal(app.observed_live_artifact_sha256, 'a502cb7235b0f30ba5638f92d5fa8aab3b2a79d7d79c5ace0250af0e21102206');
+  assert.equal(app.version, 336);
+  assert.equal(app.observed_live_version, 336);
+  assert.equal(app.observed_live_artifact_sha256, '07a7fc8709e9db2f2621f23a656bc13ce095534958b952d5a4230d0383f45334');
   assert.equal(ui.version, 385);
   assert.equal(ui.observed_live_version, 385);
   assert.equal(ui.observed_live_artifact_sha256, 'e25ca584f55a5b469a972b686d83ecf0564bbe71413cfa3a7fab24da335af146');
