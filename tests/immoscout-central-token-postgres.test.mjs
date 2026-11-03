@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { PGlite } from '@electric-sql/pglite';
 
 const db = new PGlite();
-const migration = await readFile(new URL('../supabase/migrations/20261103113000_immoscout_central_token_postgres.sql', import.meta.url), 'utf8');
+const migration = await readFile(new URL('../supabase/migrations/20261103172212_immoscout_central_token_postgres.sql', import.meta.url), 'utf8');
 
 await db.exec(`
   CREATE ROLE anon;
