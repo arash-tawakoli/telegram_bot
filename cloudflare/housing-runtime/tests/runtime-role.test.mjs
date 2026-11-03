@@ -39,8 +39,7 @@ test("runtime role receives table access only to the three central ImmoScout tab
 });
 
 test("runtime role can advance only the central audit identity sequence", () => {
-  assert.match(
-    migration,
-    /GRANT USAGE, SELECT, UPDATE ON SEQUENCE[\\s\\S]*?app_private\\.immoscout_central_audit_events_id_seq[\\s\\S]*?TO cf_housing_runtime_20261103/,
-  );
+  assert.ok(migration.includes(
+    "GRANT USAGE, SELECT, UPDATE ON SEQUENCE\\n  app_private.immoscout_central_audit_events_id_seq\\nTO cf_housing_runtime_20261103;",
+  ));
 });
