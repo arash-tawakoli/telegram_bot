@@ -4,8 +4,8 @@
       "version": "20261103104300",
       "name": "listing_24h_retention",
       "file": "supabase/migrations/20261103104300_listing_24h_retention.sql",
-      "registry_sql_sha256": "bf9548809ed94dc4df88788a65d16b05d44ecb38690d2021380cadc1c94d1858",
-      "export_sql_sha256": "bf9548809ed94dc4df88788a65d16b05d44ecb38690d2021380cadc1c94d1858",
+      "registry_sql_sha256": "7db4f0ff7d25fd374b4014c6a22b95af6419731218a878f80eac808b462616f5",
+      "export_sql_sha256": "7db4f0ff7d25fd374b4014c6a22b95af6419731218a878f80eac808b462616f5",
       "vault_substitution": false
     }
   ]
