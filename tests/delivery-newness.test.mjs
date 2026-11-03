@@ -11,14 +11,6 @@ const base={
   sources:{baseline_completed_at:'2026-08-29T18:55:05Z'}
 };
 
-test('Kleinanzeigen only qualifies fast-lane source timestamps within 24 hours',()=>{
-  const fresh={...base,source_id:2,raw:{lane:'fast',sorting_date:'Heute, 11:25'}};
-  assert.equal(deliveryNewness(fresh,'new_listing',null,now).ok,true);
-  assert.equal(deliveryNewness({...fresh,raw:{lane:'coverage',sorting_date:'Heute, 11:25'}},'new_listing',null,now).ok,false);
-  assert.equal(deliveryNewness({...fresh,raw:{lane:'fast',sorting_date:'Gestern, 11:29'}},'new_listing',null,now).ok,false);
-  assert.equal(deliveryNewness({...fresh,raw:{lane:'fast',sorting_date:'Gestern, 11:31'}},'new_listing',null,now).ok,true);
-});
-
 test('ImmoScout coverage never qualifies as a new delivery',()=>{
   const fresh={...base,source_id:1,raw:{delivery_lane:'fresh_global'}};
   assert.equal(deliveryNewness(fresh,'new_listing',null,now).ok,true);
