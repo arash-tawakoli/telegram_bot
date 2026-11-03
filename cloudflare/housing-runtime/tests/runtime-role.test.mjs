@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const runtime = await readFile(new URL("../src/index.js", import.meta.url), "utf8");
-const migration = await readFile(new URL("../../supabase/migrations/20261103150000_cloudflare_housing_runtime_least_privilege.sql", import.meta.url), "utf8");
+const migration = await readFile(new URL("../../../supabase/migrations/20261103150000_cloudflare_housing_runtime_least_privilege.sql", import.meta.url), "utf8");
 
 test("housing runtime reads only allow-listed Vault secrets through its scoped function", () => {
   assert.match(runtime, /app_private\.get_housing_runtime_secret/);
