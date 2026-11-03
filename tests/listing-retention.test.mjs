@@ -85,6 +85,7 @@ await test('deletes expired listings, preserves application snapshots and cancel
 });
 
 await test('retention is bounded and keeps listings younger than the safety cutoff', async () => {
+  await db.exec('TRUNCATE public.applications, public.saved_listings, public.listings');
   await db.exec(sql(
     'INSERT INTO public.listings(id,source_id,first_seen_at,title,canonical_url,city)',
     'SELECT',
