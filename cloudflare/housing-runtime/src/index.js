@@ -53,7 +53,7 @@ function bytesToHex(bytes) {
 }
 
 async function getDatabaseSecret(sql, name) {
-  const rows = await sql\`SELECT public.get_bot_secret(\${name}) AS secret\`;
+  const rows = await sql`SELECT public.get_bot_secret(${name}) AS secret`;
   const value = rows?.[0]?.secret;
   if (!value) throw new Error("database_secret_unavailable");
   return String(value);
@@ -90,22 +90,22 @@ async function sameSecret(supplied, expected) {
 }
 
 async function migrateLegacyCentralToken(request, env, sql, centralEnv) {
-  if (!await sameSecret(request.headers.get("authorization")?.replace(/^Bearer\\s+/i, "") || "", centralEnv.API_SECRET)) {
+  if (!await sameSecret(request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") || "", centralEnv.API_SECRET)) {
     return json({ error: "unauthorized" }, 401);
   }
 
-  const existing = await sql\`
+  const existing = await sql`
     SELECT singleton
     FROM app_private.immoscout_central_credentials
     WHERE singleton = 'central'
     LIMIT 1
-  \`;
+  `;
   if (existing.length) return json({ ok: true, migrated: false, reason: "already_migrated" });
 
   let legacyResponse;
   try {
     legacyResponse = await fetch("https://immoscout-central-token-staging.arash-ce5.workers.dev/internal/credentials", {
-      headers: { authorization: \`Bearer \${centralEnv.API_SECRET}\`, accept: "application/json" },
+      headers: { authorization: `Bearer ${centralEnv.API_SECRET}`, accept: "application/json" },
       signal: AbortSignal.timeout(15000),
     });
   } catch {
@@ -122,7 +122,7 @@ async function migrateLegacyCentralToken(request, env, sql, centralEnv) {
   const storeRequest = new Request(new URL("/internal/store", request.url), {
     method: "POST",
     headers: {
-      authorization: \`Bearer \${centralEnv.API_SECRET}\`,
+      authorization: `Bearer ${centralEnv.API_SECRET}`,
       "content-type": "application/json",
     },
     body: JSON.stringify({
