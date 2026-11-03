@@ -12,32 +12,34 @@ export function rewriteD1Sql(statement) {
 }
 
 export function createD1Compat(sql) {
+  function prepared(query, values = []) {
+    return {
+      bind(...boundValues) {
+        return prepared(query, boundValues);
+      },
+      async first() {
+        const rows = await sql.unsafe(query, values);
+        return rows[0] ?? null;
+      },
+      async all() {
+        const rows = await sql.unsafe(query, values);
+        return { results: rows };
+      },
+      async run() {
+        const rows = await sql.unsafe(query, values);
+        return {
+          success: true,
+          meta: {
+            changes: Number(rows.count ?? rows.length ?? 0),
+          },
+        };
+      },
+    };
+  }
+
   return {
     prepare(statement) {
-      const query = rewriteD1Sql(statement);
-      return {
-        bind(...values) {
-          return {
-            async first() {
-              const rows = await sql.unsafe(query, values);
-              return rows[0] ?? null;
-            },
-            async all() {
-              const rows = await sql.unsafe(query, values);
-              return { results: rows };
-            },
-            async run() {
-              const rows = await sql.unsafe(query, values);
-              return {
-                success: true,
-                meta: {
-                  changes: Number(rows.count ?? rows.length ?? 0),
-                },
-              };
-            },
-          };
-        },
-      };
+      return prepared(rewriteD1Sql(statement));
     },
   };
 }
