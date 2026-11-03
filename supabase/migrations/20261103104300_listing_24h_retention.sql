@@ -71,13 +71,13 @@ BEGIN
     RAISE EXCEPTION 'p_limit must be between 1 and 5000';
   END IF;
 
-  -- Cron runs every minute. The ten-minute margin protects against scheduler jitter.
+  -- Cron runs every minute; deletion starts on the first run at or after 24 hours.
   SELECT array_agg(expired.id)
     INTO expired_ids
   FROM (
     SELECT l.id
     FROM public.listings AS l
-    WHERE l.first_seen_at <= now() - interval '23 hours 50 minutes'
+    WHERE l.first_seen_at <= now() - interval '24 hours'
     ORDER BY l.first_seen_at, l.id
     LIMIT p_limit
     FOR UPDATE SKIP LOCKED
@@ -130,7 +130,7 @@ REVOKE ALL ON FUNCTION app_private.delete_expired_listings(integer) FROM PUBLIC,
 GRANT EXECUTE ON FUNCTION app_private.delete_expired_listings(integer) TO service_role;
 
 COMMENT ON FUNCTION app_private.delete_expired_listings(integer) IS
-  'Physically deletes listing records after 23h50m in bounded batches. Application, delivery and saved-item history retain no listing content. Invoke from Cloudflare Cron every minute.';
+  'Physically deletes listing records after 24 hours in bounded batches. Application, delivery and saved-item history retain no listing content. Invoke from Cloudflare Cron every minute.';
 
 RESET lock_timeout;
 RESET statement_timeout;
