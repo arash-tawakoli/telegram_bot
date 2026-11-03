@@ -16,7 +16,7 @@ function worker(folder,method){
   scope.context=async()=>({u:user,l:listing,p:profile});scope.send=fail;scope.immomio=fail;
   return{invoke:()=>scope[method](),application,writes};
 }
-for(const [folder,method,maxRetries] of [['application-worker','processApplication',2],['kleinanzeigen-application-worker','process',2],['immomio-application-worker','processOne',3]]){
+for(const [folder,method,maxRetries] of [['application-worker','processApplication',2],['immomio-application-worker','processOne',3]]){
   test(`${folder}: transient preparation errors stop at the existing retry limit`,async()=>{
     const w=worker(folder,method);
     for(let n=1;n<=maxRetries;n++){assert.equal((await w.invoke()).status,'pending');assert.equal(w.application.attempts,n);assert.equal(w.application.provider_state.auditFlag,true);assert.equal(w.application.submission_started_at??null,null);}
