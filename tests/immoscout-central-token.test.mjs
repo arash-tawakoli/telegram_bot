@@ -112,7 +112,7 @@ test('central OAuth finalization failures are diagnosable and pre-code failures 
   assert.match(worker, /authorization_code_missing/);
   assert.match(worker, /oauth_login_failed/);
   assert.match(worker, /token_exchange_failed/);
-  assert.match(facade, /'oauth_login_failed'/);
+  assert.match(facade, /'login_failed'/);
   assert.match(facade, /'token_exchange_failed'/);
 });
 
