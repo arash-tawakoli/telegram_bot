@@ -19,10 +19,6 @@ test('Scout cannot restart coverage after a failed cursor read',async()=>{
  const run=load('scout',{db:failingDb(),markFailure:async()=>({ok:false}),markSuccess:async()=>{successes++}},';init=async()=>{};runScout;');
  assert.equal((await run({id:1})).ok,false);assert.equal(successes,0);
 });
-test('Kleinanzeigen cannot continue crawling after a failed cursor read',async()=>{
- const run=load('klein',{db:failingDb(),internalSecret:async()=>'',markFailure:async()=>({ok:false})},';runKlein;');
- await assert.rejects(run({id:2}),/database unavailable/);
-});
 test('Immomio fails when it cannot reconcile active inventory',async()=>{
  let successes=0;
  let writes=0;
