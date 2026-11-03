@@ -31,7 +31,7 @@ function validateCredential(row) {
   if (!Number.isInteger(Number(row.key_version)) || Number(row.key_version) < 1) {
     throw new Error("legacy_credential_key_version_invalid");
   }
-  if (!["connected", "needs_login", "error", "disabled"].includes(String(row.status))) {
+  if (!["connected", "needs_login", "error"].includes(String(row.status))) {
     throw new Error("legacy_credential_status_invalid");
   }
   if (![0, 1].includes(Number(row.enabled))) throw new Error("legacy_credential_enabled_invalid");
