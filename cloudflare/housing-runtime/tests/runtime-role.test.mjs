@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 
 const runtime = await readFile(new URL("../src/index.js", import.meta.url), "utf8");
 const migration = await readFile(new URL("../../../supabase/migrations/20261103172217_cloudflare_housing_runtime_least_privilege.sql", import.meta.url), "utf8");
-const loginMigration = await readFile(new URL("../../../supabase/migrations/20261103180000_enable_cloudflare_housing_hyperdrive_login.sql", import.meta.url), "utf8");
+const loginMigration = await readFile(new URL("../../../supabase/migrations/20261103173035_enable_cloudflare_housing_hyperdrive_login.sql", import.meta.url), "utf8");
 
 test("housing runtime reads only allow-listed Vault secrets through its scoped function", () => {
   assert.match(runtime, /app_private\.get_housing_runtime_secret/);
