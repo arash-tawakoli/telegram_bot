@@ -36,7 +36,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE
   app_private.immoscout_central_audit_events
 TO cf_housing_runtime_20261103;
 
-GRANT USAGE, SELECT ON SEQUENCE
+GRANT USAGE, SELECT, UPDATE ON SEQUENCE
   app_private.immoscout_central_audit_events_id_seq
 TO cf_housing_runtime_20261103;
 
