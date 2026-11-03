@@ -23,7 +23,7 @@ test("legacy migration export contains ciphertext only and fingerprints the encr
   assert.match(route, /ciphertext/);
   assert.match(route, /verifier_ciphertext/);
   assert.match(route, /key_fingerprint/);
-  assert.match(route, /digest\(env\.TOKEN_ENCRYPTION_KEY\)/);
+  assert.match(route, /digest\(String\(env\.TOKEN_ENCRYPTION_KEY\)\.toLowerCase\(\)\)/);
   assert.doesNotMatch(route, /access_token|refresh_token|decrypt\(/);
   assert.match(route, /oauth_flows/);
   assert.match(route, /audit_events/);
