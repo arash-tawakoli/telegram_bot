@@ -429,7 +429,7 @@ export function parseFields(t: string) {
 export function strongUrl(u: string) {
   return /\/expose\/|\/immobilie\/|\/property\/|\/room\/|\/s-anzeige\/|\/tauschangebot\/|\/rent-listing\/|\/immodetail\/|\/wohnung-mieten\//i.test(
     u,
-  ) || /^https?:\/\/(?:www\.)?wg-gesucht\.de\/(?:\d{6,}|[^/?#]*\.\d{6,})\.html(?:[?#]|$)/i.test(u);
+  );
 }
 export async function fetchText(
   url: string,
