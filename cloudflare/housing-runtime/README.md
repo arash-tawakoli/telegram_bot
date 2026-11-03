@@ -9,7 +9,7 @@ One Cloudflare Worker is the target execution runtime for the housing product.
 - A one-minute Cron Trigger calls `app_private.delete_expired_listings(5000)`.
 - Central ImmoScout token and OAuth/MFA handling, with encrypted credentials stored in PostgreSQL.
 - No job-search, Indeed, coach analytics, D1 listing store, or duplicate backend.
-- The legacy `immoscout-central-token-staging` Worker is retained only as a one-time credential migration source; do not remove it until the new PostgreSQL-backed endpoint passes end-to-end tests.
+- A temporary `LEGACY_D1` binding reads only the three central ImmoScout tables for the one-time migration. The Worker verifies the AES-GCM ciphertext with the Vault key before importing it transactionally. Remove this binding after the import is verified.
 
 ## Database contract
 
