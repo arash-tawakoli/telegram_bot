@@ -2,7 +2,7 @@ import postgres from "postgres";
 import { deleteExpiredListings } from "./retention.js";
 import { createD1Compat } from "./d1-compat.js";
 import centralTokenWorker from "./immoscout-central-token.js";
-import { importLegacyD1Snapshot } from "./legacy-migration.js";
+import { importLegacyD1Snapshot, verifyLegacyD1SnapshotKey } from "./legacy-migration.js";
 
 const HEADERS = {
   "content-type": "application/json; charset=utf-8",
@@ -95,41 +95,67 @@ async function sameSecret(supplied, expected) {
   return difference === 0;
 }
 
+async function readLegacyD1Snapshot(env, keyHex) {
+  const db = env.LEGACY_D1;
+  if (!db) throw new Error("legacy_d1_binding_missing");
+
+  const [credentials, oauthFlows, auditEvents] = await Promise.all([
+    db.prepare(
+      "SELECT singleton, account_hint, ciphertext, iv, key_version, status, enabled, expires_at, last_verified_at, last_error, updated_at FROM central_credentials WHERE singleton = ?"
+    ).bind("central").first(),
+    db.prepare(
+      "SELECT state_hash, verifier_ciphertext, verifier_iv, admin_telegram_id, user_id, expires_at, consumed_at, created_at FROM oauth_flows ORDER BY created_at ASC LIMIT 10001"
+    ).all(),
+    db.prepare(
+      "SELECT id, event_type, account_hint, admin_telegram_id, created_at FROM audit_events ORDER BY id ASC LIMIT 10001"
+    ).all(),
+  ]);
+
+  return {
+    credentials: credentials || null,
+    oauth_flows: oauthFlows?.results || [],
+    audit_events: auditEvents?.results || [],
+    key_fingerprint: await encryptionKeyFingerprint(keyHex),
+  };
+}
+
 async function migrateLegacyCentralToken(request, env, sql, centralEnv) {
   if (!await sameSecret(request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") || "", centralEnv.API_SECRET)) {
     return json({ error: "unauthorized" }, 401);
   }
 
-  let legacyResponse;
   try {
-    legacyResponse = await fetch("https://immoscout-central-token-staging.arash-ce5.workers.dev/internal/export", {
-      headers: { authorization: `Bearer ${centralEnv.API_SECRET}`, accept: "application/json" },
-      signal: AbortSignal.timeout(15000),
-    });
-  } catch {
-    return json({ ok: false, error: "legacy_source_unavailable" }, 503);
-  }
-  if (!legacyResponse.ok) return json({ ok: false, error: "legacy_source_unavailable" }, 503);
+    const snapshot = await readLegacyD1Snapshot(env, centralEnv.TOKEN_ENCRYPTION_KEY);
+    const verified = await verifyLegacyD1SnapshotKey(snapshot, centralEnv.TOKEN_ENCRYPTION_KEY);
+    const counts = {
+      credentials: snapshot.credentials ? 1 : 0,
+      oauth_flows: snapshot.oauth_flows.length,
+      audit_events: snapshot.audit_events.length,
+    };
 
-  const snapshot = await legacyResponse.json().catch(() => null);
-  if (!snapshot || !Array.isArray(snapshot.oauth_flows) || !Array.isArray(snapshot.audit_events)) {
-    return json({ ok: false, error: "legacy_snapshot_invalid" }, 502);
-  }
+    if (new URL(request.url).searchParams.get("dry_run") === "1") {
+      return json({ ok: true, verified: true, counts, keyCheck: verified });
+    }
 
-  try {
     const imported = await importLegacyD1Snapshot(
       sql,
       snapshot,
-      await encryptionKeyFingerprint(centralEnv.TOKEN_ENCRYPTION_KEY),
+      snapshot.key_fingerprint,
     );
-    return json({ ok: true, migrated: imported.credentials > 0 || imported.oauth_flows > 0 || imported.audit_events > 0, imported });
+    return json({
+      ok: true,
+      migrated: imported.credentials > 0 || imported.oauth_flows > 0 || imported.audit_events > 0,
+      imported,
+      keyCheck: verified,
+    });
   } catch (error) {
     const code = String(error?.message || "");
-    if (code === "legacy_encryption_key_mismatch") {
+    if (code.includes("key_mismatch")) {
       return json({ ok: false, error: "legacy_encryption_key_mismatch" }, 409);
     }
     if (code.startsWith("legacy_")) return json({ ok: false, error: code }, 422);
-    throw error;
+    console.error("central_immoscout_migration_failed", code);
+    return json({ ok: false, error: "migration_failed" }, 503);
   }
 }
 function isAuthorized(request, env) {
