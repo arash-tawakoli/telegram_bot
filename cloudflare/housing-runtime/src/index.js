@@ -40,7 +40,7 @@ async function withDatabase(env, operation) {
 }
 
 async function runRetention(env) {
-  return withDatabase(env, (sql) => deleteExpiredListings(sql, 1000));
+  return withDatabase(env, (sql) => deleteExpiredListings(sql, 5000));
 }
 
 
