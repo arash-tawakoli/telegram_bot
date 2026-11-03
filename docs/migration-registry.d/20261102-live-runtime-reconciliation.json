@@ -4,8 +4,8 @@
       "version": "20261101235925",
       "name": "remove_personal_immoscout_test_daily_limit",
       "file": "supabase/migrations/20261101235925_remove_personal_immoscout_test_daily_limit.sql",
-      "registry_sql_sha256": "fc5f5e5abebd16a1f77942a50b0d0d45042deb8a38148d5ecf8d3c2b3aa4d1e7",
-      "export_sql_sha256": "fc5f5e5abebd16a1f77942a50b0d0d45042deb8a38148d5ecf8d3c2b3aa4d1e7",
+      "registry_sql_sha256": "5e83042cf6cadd698372c83be8fd56f3031b7ab18112d4a3e57f897b4aebe5b6",
+      "export_sql_sha256": "5e83042cf6cadd698372c83be8fd56f3031b7ab18112d4a3e57f897b4aebe5b6",
       "vault_substitution": false
     },
     {
