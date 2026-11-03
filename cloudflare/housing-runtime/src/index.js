@@ -123,6 +123,9 @@ async function migrateLegacyCentralToken(request, env, sql, centralEnv) {
   if (!await sameSecret(request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") || "", centralEnv.API_SECRET)) {
     return json({ error: "unauthorized" }, 401);
   }
+  if (env.PREVIEW_MODE === "1" && new URL(request.url).searchParams.get("dry_run") !== "1") {
+    return json({ error: "preview_read_only" }, 403);
+  }
 
   try {
     const snapshot = await readLegacyD1Snapshot(env, centralEnv.TOKEN_ENCRYPTION_KEY);
@@ -189,6 +192,9 @@ export default {
     }
 
     if (url.pathname.startsWith("/internal/")) {
+      if (env.PREVIEW_MODE === "1" && !(request.method === "GET" && url.pathname === "/internal/status")) {
+        return json({ error: "preview_read_only" }, 403);
+      }
       try {
         return await withDatabase(env, async (sql) => {
           const centralEnv = await createCentralEnvironment(env, sql);
