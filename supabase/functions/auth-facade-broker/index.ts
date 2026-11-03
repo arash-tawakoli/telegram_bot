@@ -34,7 +34,7 @@ const unb64=(value:string)=>Uint8Array.from(atob(value),c=>c.charCodeAt(0));
 async function challenge(v:string){return b64url(new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(v))))}
 async function eligible(userId:string){const {data,error}=await db.rpc('application_user_eligible',{p_user:userId});if(error||data!==true)throw Error('premium_required')}
 async function secret(name:string){const {data,error}=await db.rpc('get_bot_secret',{secret_name:name});if(error||!data)throw Error('configuration_unavailable');return String(data)}
-const CENTRAL_IMMOSCOUT_WORKER='https://immoscout-central-token-staging.arash-ce5.workers.dev';
+const CENTRAL_IMMOSCOUT_WORKER='https://traumwohnung-housing-runtime.arash-ce5.workers.dev';
 async function centralImmoScoutApi(path:string,body:any={},method='POST'){
  const apiSecret=await secret('immoscout_central_cloudflare_api_secret');
  let response:Response;
