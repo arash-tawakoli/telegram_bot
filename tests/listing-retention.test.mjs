@@ -123,11 +123,12 @@ test('retention is bounded and enforces the full 24-hour cutoff', async () => {
   ].join('\n'));
 
   assert.equal(await cleanup(2), 2);
+  assert.equal(await count('public.listings'), 4);
+  assert.equal(await cleanup(2), 2);
   assert.equal(await count('public.listings'), 2);
-  assert.equal(await cleanup(2), 1);
-  assert.equal(await count('public.listings'), 1);
   assert.equal(await cleanup(2), 0);
-  assert.equal((await query('SELECT title FROM public.listings')).rows[0].title, 'Not expired');
+  const remainingTitles = (await query('SELECT title FROM public.listings ORDER BY title')).rows.map((row) => row.title);
+  assert.deepEqual(remainingTitles, ['Just before 24 hours', 'Not expired']);
   await assert.rejects(() => cleanup(5001), /p_limit must be between 1 and 5000/);
 });
 
