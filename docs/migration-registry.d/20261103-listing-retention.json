@@ -1,0 +1,12 @@
+{
+  "migrations": [
+    {
+      "version": "20261103104300",
+      "name": "listing_24h_retention",
+      "file": "supabase/migrations/20261103104300_listing_24h_retention.sql",
+      "registry_sql_sha256": "272d443b7d39a1760fe82281d9ba8898e3828aaf7bc75c343ed9a30f005d7703",
+      "export_sql_sha256": "272d443b7d39a1760fe82281d9ba8898e3828aaf7bc75c343ed9a30f005d7703",
+      "vault_substitution": false
+    }
+  ]
+}
