@@ -15,7 +15,7 @@ function worker({authorized=true,failAfterAuthorization=false,premium=true,provi
   if(name==='get_bot_secret')return {error:Error('not configured')};
  },from(table){let write;
   const q={select(){return q},eq(){return q},update(value){write=value;return q},
-   single:async()=>({data:table==='bot_users'?{id:'u',chat_id:null,is_active:true,auto_apply_enabled:true}:table==='applicant_profiles'?{user_id:'u',first_name:'Test',last_name:'User',email:'test@example.com',phone:'123',city:'Hamburg',household_size:1}:{id:'l',source_id:provider==='immowelt'?4:1,is_active:true,title:'Wohnung',raw:{},external_id:'1',source_listing_key:'1'}}),
+   single:async()=>({data:table==='bot_users'?{id:'u',chat_id:null,is_active:true,auto_apply_enabled:true}:table==='applicant_profiles'?{user_id:'u',first_name:'Test',last_name:'User',email:'test@example.com',phone:'123',city:'Hamburg',household_size:1}:{id:'l',source_id:provider==='immowelt'?3:1,is_active:true,title:'Wohnung',raw:{},external_id:'1',source_listing_key:'1'}}),
    then(resolve){if(write)writes.push({table,write});return Promise.resolve({data:write?[{id:'a'}]:[],error:null}).then(resolve)}
   };return q;
  }};
