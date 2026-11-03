@@ -96,7 +96,7 @@ async function sameSecret(supplied, expected) {
 }
 
 async function migrateLegacyCentralToken(request, env, sql, centralEnv) {
-  if (!await sameSecret(request.headers.get("authorization")?.replace(/^Bearer\\s+/i, "") || "", centralEnv.API_SECRET)) {
+  if (!await sameSecret(request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") || "", centralEnv.API_SECRET)) {
     return json({ error: "unauthorized" }, 401);
   }
 
