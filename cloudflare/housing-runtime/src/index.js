@@ -3,6 +3,7 @@ import { deleteExpiredListings } from "./retention.js";
 import { createD1Compat } from "./d1-compat.js";
 import centralTokenWorker from "./immoscout-central-token.js";
 import { importLegacyD1Snapshot, verifyLegacyD1SnapshotKey } from "./legacy-migration.js";
+import { proxySupabaseFunction } from "./supabase-proxy.js";
 
 const HEADERS = {
   "content-type": "application/json; charset=utf-8",
@@ -195,6 +196,16 @@ export default {
       });
     }
 
+    const proxyMatch = url.pathname.match(/^\/edge\/(coach|telegram|source|application|immoscout-application)$/);
+    if (proxyMatch) {
+      try {
+        return await proxySupabaseFunction(request, env, proxyMatch[1]);
+      } catch (error) {
+        console.error("housing_edge_proxy_failed", String(error?.message || error));
+        return json({ error: "upstream_unavailable" }, 503);
+      }
+    }
+
     if (request.method === "POST" && url.pathname === "/internal/migrate-from-d1") {
       try {
         return await withDatabase(env, async (sql) => {
@@ -315,3 +326,4 @@ export default {
     })());
   },
 };
+
