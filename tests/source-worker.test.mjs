@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { runClaimedJob } from "../supabase/functions/source-worker/job-runner.ts";
 import { checked } from "../supabase/functions/source-worker/checked.ts";
-const job = { job_id: "job-1", source_id: 8, attempt: 2 };
+const job = { job_id: "job-1", source_id: 3, attempt: 2 };
 test("successful crawl acknowledges exactly its claimed attempt", async () => {
   const calls = [];
   const result = await runClaimedJob(

@@ -11,6 +11,7 @@ async function databaseQuery(query: PromiseLike<any>) {
     );
   }
 }
+
 async function persistCandidates(...args: Parameters<typeof upsertCandidates>) {
   try {
     return await upsertCandidates(
@@ -63,20 +64,7 @@ const IMMOWELT_ROOM_SITEMAPS = [1, 2, 3, 4, 5, 6].map(
 type LegacyCooperativeRegistryRow={provider_entity:string;needles:string[];source_id:number|null};
 let legacyCooperativeRegistry:LegacyCooperativeRegistryRow[]=[];
 let cooperativeRegistryLoadedAt=0;
-function normalizeProviderText(value:string){return strip(value).normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("de-DE").replace(/[^a-z0-9äöüß]+/g," ").replace(/\s+/g," ").trim()}
-async function loadCooperativeRegistry(){
-  if(legacyCooperativeRegistry.length && Date.now()-cooperativeRegistryLoadedAt<5*60*1000)return;
-  const {data,error}=await db.from("cooperative_provider_registry").select("provider_entity,aliases,source_id").eq("active",true);
-  if(error)return;
-  legacyCooperativeRegistry=(data||[]).map((r:any)=>({provider_entity:String(r.provider_entity),needles:Array.isArray(r.aliases)?r.aliases.map((x:any)=>normalizeProviderText(String(x))).filter((x:string)=>x.length>=5):[],source_id:r.source_id==null?null:Number(r.source_id)}));
-  cooperativeRegistryLoadedAt=Date.now();
-}
-function registryCooperativeIdentity(value:string){
-  if(!/(?:genossenschaft|bauverein|saga|gewoba|harabau|altoba|fluwog|markthof)/i.test(value))return null;
-  const hay=normalizeProviderText(value);
-  for(const row of legacyCooperativeRegistry)for(const needle of row.needles)if(hay.includes(needle))return row.provider_entity;
-  return null;
-}
+
 function pageUrl(base: string, page: number, sourceId: number) {
   const u = new URL(base);
   if (sourceId === 21)
@@ -84,12 +72,14 @@ function pageUrl(base: string, page: number, sourceId: number) {
   else u.searchParams.set("page", String(page));
   return u.href;
 }
+
 function maxPage(html: string) {
   let n = 1;
   for (const m of html.matchAll(/[?&](?:page|pagenumber)=(\d+)/gi))
     n = Math.max(n, Number(m[1]));
   return Math.min(n, 250);
 }
+
 function sourceTitle(sourceId: number, c: Candidate) {
   const t = String(c.raw?.text || "")
     .replace(/\s+/g, " ")
@@ -115,6 +105,7 @@ function sourceTitle(sourceId: number, c: Candidate) {
   }
   return c.title || null;
 }
+
 function refine(source: Source, cands: Candidate[]) {
   let out = cands;
   if (source.id === 12)
@@ -123,12 +114,14 @@ function refine(source: Source, cands: Candidate[]) {
     out = out.map((c) => ({ ...c, title: sourceTitle(source.id, c) }));
   return out;
 }
+
 function immoweltCardImage(card: string, base: string) {
   const raw = card.match(
     /data-testid=["']card-mfe-picture-box-gallery-test-id["'][\s\S]*?<img\b[^>]*\bsrc=["']([^"']+)["']/i,
   )?.[1];
   return (raw ? absolute(base, raw) : null) || imageFromHtml(card, base);
 }
+
 function immoweltCardWarm(text: string) {
   const raw = text.match(
     /\b(?:Warmmiete|Bruttowarmmiete|Gesamtmiete|warm\s*rent|gross\s*rent|total\s*rent)\b\s*(?:(?:[:=]|beträgt|ist|von|is|of)\s*)?(?:€|EUR)?\s*(\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{1,2})?|\d+(?:[.,]\d{1,2})?)\s*(?:€|EUR)?/i,
@@ -145,7 +138,9 @@ function immoweltCardWarm(text: string) {
 }
 type CooperativeRegistryRow={provider_entity:string;source_id:number|null;aliases:string[];hamburg_only:boolean;registry_mode:string};
 let cooperativeRegistryPromise:Promise<CooperativeRegistryRow[]>|null=null;
+
 function providerNorm(value:any){return String(value??"").toLocaleLowerCase("de-DE").replace(/[._–—-]+/g," ").replace(/\s+/g," ").trim()}
+
 function providerAliasMatch(normalizedHaystack:string,alias:string){
   const h=normalizedHaystack,a=providerNorm(alias);
   if(!a||a.length<3)return false;
@@ -155,6 +150,7 @@ function providerAliasMatch(normalizedHaystack:string,alias:string){
   }
   return h.includes(a);
 }
+
 async function cooperativeRegistry(){
   if(!cooperativeRegistryPromise)cooperativeRegistryPromise=(async()=>{
     const {data,error}=await db.from("cooperative_provider_registry")
@@ -165,6 +161,7 @@ async function cooperativeRegistry(){
   })();
   return cooperativeRegistryPromise;
 }
+
 async function applyCooperativeRegistry(items:Candidate[]){
   const registry=await cooperativeRegistry();
   return items.map(c=>{
@@ -185,6 +182,7 @@ async function applyCooperativeRegistry(items:Candidate[]){
     return {...c,raw};
   });
 }
+
 function portalCooperativeIdentity(value: string) {
   const plain = strip(value).replace(/\s+/g, " ").trim();
   const rules: Array<{ entity:string; provider:RegExp; ref?:RegExp }> = [
@@ -218,6 +216,7 @@ function portalCooperativeIdentity(value: string) {
   }
   return {provider_entity:null,provider_object_ref:null,applicationLink:null};
 }
+
 function immoweltCards(html: string, base: string) {
   const out: Candidate[] = [];
   for (const v of html.split('<div id="classified-card-').slice(1)) {
@@ -272,11 +271,13 @@ function immoweltCards(html: string, base: string) {
   }
   return out;
 }
+
 function immoweltTotal(html: string) {
   const t = html.match(/<title>([^<]+)<\/title>/i)?.[1] || "",
     m = t.match(/-\s*([\d.]+)\s+Angebote/i);
   return m ? Number(m[1].replace(/\./g, "")) : null;
 }
+
 async function immoweltDeepUrls() {
   const pages = await Promise.all(
     IMMOWELT_ROOM_SITEMAPS.map((u) =>
@@ -291,6 +292,7 @@ async function immoweltDeepUrls() {
     }
   return [...new Set(urls)];
 }
+
 async function parseOne(source: Source, c: Connector, url: string) {
   const isJson = ["json_endpoint", "wp_rest"].includes(c.connector_kind),
     r = await fetchText(
@@ -354,6 +356,7 @@ async function parseOne(source: Source, c: Connector, url: string) {
     total: source.id === 3 || /(^|\.)immowelt\.de$/i.test(new URL(r.url).hostname) ? immoweltTotal(r.text) : null,
   };
 }
+
 function targetFor(source: Source, c: Connector) {
   const base = String(source.homepage_url || source.search_url || "");
   if (c.config?.url) return String(c.config.url);
@@ -364,245 +367,10 @@ function targetFor(source: Source, c: Connector) {
   }
   return String(source.search_url || source.homepage_url || "");
 }
-function yahooUrl(q: string, start = 1) {
-  const u = new URL("https://de.search.yahoo.com/search");
-  u.searchParams.set("p", q);
-  u.searchParams.set("nojs", "1");
-  if (start > 1) {
-    u.searchParams.set("b", String(start));
-    u.searchParams.set("pz", "7");
-    u.searchParams.set("xargs", "0");
-  }
-  return u.href;
-}
-function indexBlocks(html: string) {
-  return html.match(/<li><div class="dd algo[\s\S]*?<\/li>/gi) || [];
-}
-function indexedSaga(html: string, query: string) {
-  const out: Candidate[] = [];
-  for (const b of indexBlocks(html)) {
-    const id =
-      b.match(/immowelt\.de%2fexpose%2f([a-f0-9-]{36})/i)?.[1] ||
-      b.match(/›\s*expose\s*›\s*([a-f0-9-]{36})/i)?.[1];
-    if (!id) continue;
-    const text = strip(b);
-    if (
-      !/\bHamburg\b/i.test(text) ||
-      !/(Wohnung|Apartment)/i.test(text) ||
-      !/zur\s+Miete/i.test(text)
-    )
-      continue;
-    if (
-      /Tauschangebot|Wohnungstausch|\btausche\b|Garage|Stellplatz|Parkplatz|Gewerbe|Büro|Praxis|Lager|zum\s+Kauf/i.test(
-        text,
-      )
-    )
-      continue;
-    const f = parseFields(text),
-      zip = f.zip || text.match(/\b(2\d{4})\b/)?.[1] || null;
-    if (zip && !HH_ZIPS.has(zip)) continue;
-    const cold =
-      f.cold ??
-      deNum(text.match(/([\d.]+(?:,\d{1,2})?)\s*€\s+zur\s+Miete/i)?.[1]);
-    const after =
-      text.match(
-        new RegExp(
-          `${id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s+(.{5,220}?)(?:www\\.immowelt\\.de|$)`,
-          "i",
-        ),
-      )?.[1] || text;
-    out.push({
-      key: id,
-      url: `https://www.immowelt.de/expose/${id}`,
-      title: after.slice(0, 220),
-      zip,
-      cold,
-      additional: f.additional,
-      operating: f.operating,
-      heating: f.heating,
-      deposit: f.deposit,
-      rooms: f.rooms,
-      area: f.area,
-      raw: {
-        provider: "saga_public_index",
-        index: "yahoo",
-        query,
-        snippet: text.slice(0, 2500),
-      },
-    });
-  }
-  return out;
-}
-async function runSagaIndex(source: Source, connectors: Connector[]) {
-  const queries = [
-    'site:immowelt.de/expose "Vermietungshotline der SAGA Unternehmensgruppe" Hamburg Wohnung',
-    'site:immowelt.de/expose "SAGA Unternehmensgruppe Gewerblicher Anbieter" Hamburg Wohnung',
-  ];
-  let cands: Candidate[] = [],
-    requests = 0;
-  for (const q of queries)
-    for (const start of [1, 8]) {
-      try {
-        const r = await fetchText(yahooUrl(q, start));
-        requests++;
-        cands.push(...indexedSaga(r.text, q));
-      } catch {
-        requests++;
-      }
-    }
-  cands = [...new Map(cands.map((x) => [x.key || x.url, x])).values()];
-  if (!cands.length)
-    throw new Error(
-      "SAGA public provider index returned no verified Hamburg rental apartments",
-    );
-  const saved = await persistCandidates(source, cands, false),
-    picked = connectors.find((c) => !c.shadow_only) || connectors[0] || null,
-    started = iso();
-  await markSuccess(source, started, picked, cands.length, saved.fresh, {
-    strategy: "provider_public_index_fallback",
-    provider: "saga",
-    requests,
-    complete: false,
-  });
-  if (!source.baseline_completed_at)
-    await databaseQuery(
-      db
-        .from("sources")
-        .update({
-          baseline_completed_at: iso(),
-          coverage_status: "partial",
-          warmed_up: true,
-          updated_at: iso(),
-        })
-        .eq("id", source.id),
-    );
-  return {
-    ok: true,
-    source_id: source.id,
-    fetched: cands.length,
-    new: saved.fresh,
-    complete: false,
-    fallback: "provider_public_index",
-  };
-}
-async function runGwgMirrorMonitor(source: Source, connectors: Connector[]) {
-  const q =
-      'site:immowelt.de/expose "GWG Gesellschaft für Wohnungs- und Gewerbebau Baden-Württemberg AG" Hamburg Wohnung "zur Miete"',
-    r = await fetchText(yahooUrl(q));
-  let candidates = 0;
-  for (const b of indexBlocks(r.text)) {
-    const text = strip(b),
-      zip = text.match(/\b(2\d{4})\b/)?.[1] || null;
-    if (
-      !/\bHamburg\b/i.test(text) ||
-      !/(Wohnung|Apartment)/i.test(text) ||
-      !/zur\s+Miete/i.test(text)
-    )
-      continue;
-    if (
-      /Garage|Stellplatz|Parkplatz|Gewerbe|Büro|Praxis|Lager|zum\s+Kauf|Tauschangebot|Wohnungstausch/i.test(
-        text,
-      )
-    )
-      continue;
-    if (zip && !HH_ZIPS.has(zip)) continue;
-    candidates++;
-  }
-  await databaseQuery(
-    db
-      .from("source_coverage_state")
-      .upsert({
-        source_id: source.id,
-        cycle_id: crypto.randomUUID(),
-        strategy: "provider_portal_monitor",
-        status: "running",
-        cursor: {
-          portals: ["immowelt", "immoscout"],
-          index: "yahoo",
-        },
-        expected_count: null,
-        seen_count: 0,
-        request_count: 1,
-        last_error:
-          "GWG direct site TLS chain is invalid from the worker. Provider listings are mirrored on public portals; attribution is monitored but not inserted until independently verified.",
-        updated_at: iso(),
-      }),
-  );
-  const picked =
-      connectors.find((c) => !c.shadow_only) || connectors[0] || null,
-    started = iso();
-  await markSuccess(source, started, picked, 0, 0, {
-    strategy: "provider_portal_monitor",
-    indexed_candidate_count: candidates,
-    complete: false,
-  });
-  return {
-    ok: true,
-    source_id: source.id,
-    fetched: 0,
-    new: 0,
-    complete: false,
-    indexed_candidate_count: candidates,
-  };
-}
-async function runMeinestadtMirrorMonitor(
-  source: Source,
-  connectors: Connector[],
-) {
-  const q = "site:meinestadt.de/hamburg/immobilien Hamburg Wohnung Kaltmiete",
-    r = await fetchText(yahooUrl(q)),
-    blocks = indexBlocks(r.text);
-  let max = 0;
-  for (const b of blocks) {
-    const text = strip(b);
-    if (!/meinestadt\.de|meinestadt/i.test(text)) continue;
-    const n = deNum(text.match(/Anzahl von Angeboten:\s*([\d.]+)/i)?.[1]);
-    if (n != null) max = Math.max(max, n);
-  }
-  if (!max)
-    throw new Error(
-      "meinestadt public index monitor returned no inventory count",
-    );
-  await databaseQuery(
-    db
-      .from("source_coverage_state")
-      .upsert({
-        source_id: source.id,
-        cycle_id: crypto.randomUUID(),
-        strategy: "partner_mirror_monitor",
-        status: "running",
-        cursor: { partner_source_id: 3, index: "yahoo" },
-        expected_count: max,
-        seen_count: 0,
-        request_count: 1,
-        last_error:
-          "Direct meinestadt transport unavailable; Immowelt-backed inventory is covered by source 3, unique private meinestadt listings remain unverified.",
-        updated_at: iso(),
-      }),
-  );
-  const picked =
-      connectors.find((c) => !c.shadow_only) || connectors[0] || null,
-    started = iso();
-  await markSuccess(source, started, picked, 0, 0, {
-    strategy: "partner_mirror_monitor",
-    partner_source_id: 3,
-    indexed_inventory_count: max,
-    complete: false,
-  });
-  return {
-    ok: true,
-    source_id: source.id,
-    fetched: 0,
-    new: 0,
-    complete: false,
-    mirror_source_id: 3,
-    indexed_inventory_count: max,
-  };
-}
+
 export async function runImmoweltCategory(source:Source,stream:any){
   const category=String(stream?.category||'');
   if(!['house','apartment','room','swap'].includes(category))throw new Error('unsupported Immowelt category stream');
-  if(source.id===3)await loadCooperativeRegistry();
   const baseUrl=String(stream.url),prior=stream.cursor&&typeof stream.cursor==='object'?stream.cursor:{};
   const reset=prior.complete===true||prior.initialized!==true;
   let nextPage=reset?1:Math.max(1,Number(prior.next_page||1));
@@ -680,11 +448,6 @@ export async function runImmoweltCategory(source:Source,stream:any){
 export async function runGeneric(source: Source, connectors: Connector[]) {
   const started = iso();
   try {
-    if(source.id===3 || connectors.some(c=>String(c.config?.portal||"").toLowerCase()==="immowelt"))await loadCooperativeRegistry();
-    if (source.id === 4) return await runSagaIndex(source, connectors);
-    if (source.id === 31) return await runGwgMirrorMonitor(source, connectors);
-    if (source.id === 14)
-      return await runMeinestadtMirrorMonitor(source, connectors);
     let picked: Connector | null = null,
       cands: Candidate[] = [],
       complete = true,
