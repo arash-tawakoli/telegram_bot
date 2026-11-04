@@ -57,6 +57,15 @@ After creating the configuration, add its ID to `wrangler.jsonc`:
 
 The Worker must not be attached to a production route or used as the production backend until the database binding, least-privilege grants, health check, and end-to-end tests pass.
 
+## Cost guardrails
+
+- One Cron Trigger runs every minute: at most 43,200 scheduled invocations in a 30-day month.
+- The Worker CPU limit is capped at 500 ms per invocation. At that cap, scheduled execution uses at most 21.6 million CPU milliseconds per 30-day month, below the Workers Paid included allowance of 30 million CPU milliseconds.
+- Scheduled invocations are well below the 10 million monthly included Worker request allowance.
+- No R2, KV, Queues, Durable Objects, Browser Rendering, or other paid add-on is used by this runtime.
+- Hyperdrive is included in the Workers Paid plan. Do not add a second Hyperdrive configuration or a second Cron Worker.
+- Cloudflare Billing Read access is not available to this connection; verify account usage in the dashboard before any additional Worker or trigger is added.
+
 ## Retention
 
 The SQL function deletes listings in bounded batches once `first_seen_at` reaches 23 hours 50 minutes. The ten-minute margin protects against Cron scheduling jitter and batch backlog. Application, delivery, and saved-item history keep only non-listing status metadata and have their listing references detached.
