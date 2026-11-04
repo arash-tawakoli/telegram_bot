@@ -44,6 +44,22 @@ async function runRetention(env) {
   return withDatabase(env, (sql) => deleteExpiredListings(sql, 5000));
 }
 
+async function runLegacyD1Migration(env) {
+  return withDatabase(env, async (sql) => {
+    const centralEnv = await createCentralEnvironment(env, sql);
+    const request = new Request("https://housing-runtime.internal/internal/migrate-from-d1", {
+      method: "POST",
+      headers: { authorization: `Bearer ${centralEnv.API_SECRET}` },
+    });
+    const response = await migrateLegacyCentralToken(request, env, sql, centralEnv);
+    const result = await response.json().catch(() => null);
+    if (!response.ok || result?.ok !== true) {
+      throw new Error(result?.error || "legacy_migration_failed");
+    }
+    return result;
+  });
+}
+
 
 function decodeBase64(value) {
   return Uint8Array.from(atob(String(value || "")), (character) => character.charCodeAt(0));
@@ -280,14 +296,22 @@ export default {
   },
 
   async scheduled(_controller, env, ctx) {
-    ctx.waitUntil(
-      runRetention(env)
-        .then((deleted) => {
-          console.log("housing_listing_retention_completed", JSON.stringify({ deleted }));
-        })
-        .catch((error) => {
-          console.error("housing_listing_retention_failed", String(error?.message || error));
-        }),
-    );
+    ctx.waitUntil((async () => {
+      if (env.MIGRATE_D1_ONCE === "1") {
+        try {
+          const migrated = await runLegacyD1Migration(env);
+          console.log("central_d1_migration_completed", JSON.stringify(migrated));
+        } catch (error) {
+          console.error("central_d1_migration_failed", String(error?.message || error));
+        }
+      }
+
+      try {
+        const deleted = await runRetention(env);
+        console.log("housing_listing_retention_completed", JSON.stringify({ deleted }));
+      } catch (error) {
+        console.error("housing_listing_retention_failed", String(error?.message || error));
+      }
+    })());
   },
 };
