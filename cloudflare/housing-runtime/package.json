@@ -8,7 +8,7 @@
   },
   "scripts": {
     "test": "node --test tests/*.test.mjs",
-    "check": "node --check src/index.js && node --check src/retention.js && node --check src/d1-compat.js && node --check src/legacy-migration.js && node --check src/immoscout-central-token.js && node --check src/source-allowlist.js"
+    "check": "node --check src/index.js && node --check src/retention.js && node --check src/d1-compat.js && node --check src/legacy-migration.js && node --check src/immoscout-central-token.js && node --check src/source-allowlist.js && node --check src/auth.js && node --check src/coach-api.js"
   },
   "dependencies": {
     "postgres": "3.4.7"

@@ -5,6 +5,8 @@ import centralTokenWorker from "./immoscout-central-token.js";
 import { importLegacyD1Snapshot, verifyLegacyD1SnapshotKey } from "./legacy-migration.js";
 import { proxySupabaseFunction } from "./supabase-proxy.js";
 import { HOUSING_SOURCES } from "./source-allowlist.js";
+import { createSession, refreshSession, revokeSession, verifyPassword } from "./auth.js";
+import { handleCoach } from "./coach-api.js";
 
 const HEADERS = {
   "content-type": "application/json; charset=utf-8",
@@ -185,6 +187,26 @@ function isAuthorized(request, env) {
   return request.headers.get("authorization") === `Bearer ${expected}`;
 }
 
+async function handleAuth(sql, request) {
+  const body = await request.json().catch(() => ({}));
+  const action = String(body.action || "");
+  if (action === "login") {
+    const email = String(body.email || "").trim().toLowerCase();
+    const rows = await sql`SELECT id, password_hash FROM housing.portal_members WHERE lower(email) = ${email} AND active = true`;
+    if (!rows[0] || !await verifyPassword(String(body.password || ""), rows[0].password_hash)) return json({ error: "invalid_credentials" }, 401);
+    return json({ ok: true, ...(await createSession(sql, rows[0].id)) });
+  }
+  if (action === "refresh") {
+    const session = await refreshSession(sql, String(body.refresh_token || ""));
+    return session ? json({ ok: true, ...session }) : json({ error: "unauthorized" }, 401);
+  }
+  if (action === "logout") {
+    await revokeSession(sql, String(body.access_token || body.refresh_token || ""));
+    return json({ ok: true });
+  }
+  return json({ error: "invalid_action" }, 400);
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -195,6 +217,26 @@ export default {
         service: "traumwohnung-housing-runtime",
         databaseConfigured: Boolean(env.HYPERDRIVE?.connectionString),
       });
+    }
+
+    if (request.method === "POST" && url.pathname === "/edge/auth") {
+      try {
+        return await withDatabase(env, (sql) => handleAuth(sql, request));
+      } catch (error) {
+        console.error("housing_auth_failed", String(error?.message || error));
+        return json({ error: "auth_unavailable" }, 503);
+      }
+    }
+
+    if (request.method === "POST" && url.pathname === "/edge/coach") {
+      try {
+        return await withDatabase(env, async (sql) => json(await handleCoach(sql, request)));
+      } catch (error) {
+        const code = String(error?.message || "");
+        const status = code === "unauthorized" ? 401 : code === "participant_forbidden" ? 403 : code === "invalid_action" ? 400 : 422;
+        console.error("housing_coach_api_failed", code.slice(0, 180));
+        return json({ error: code || "coach_api_failed" }, status);
+      }
     }
 
     const proxyMatch = url.pathname.match(/^\/edge\/(coach|telegram|source|application|immoscout-application)$/);

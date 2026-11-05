@@ -37,6 +37,35 @@ CREATE TABLE IF NOT EXISTS housing.participants (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS housing.portal_members (
+  id uuid PRIMARY KEY,
+  email text NOT NULL UNIQUE,
+  display_name text NOT NULL,
+  role text NOT NULL DEFAULT 'coach' CHECK (role IN ('coach', 'admin', 'super_admin')),
+  password_hash text NOT NULL,
+  active boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS housing.participant_assignments (
+  participant_id uuid PRIMARY KEY REFERENCES housing.participants(id) ON DELETE CASCADE,
+  member_id uuid NOT NULL REFERENCES housing.portal_members(id) ON DELETE RESTRICT,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS housing.portal_sessions (
+  id uuid PRIMARY KEY,
+  member_id uuid NOT NULL REFERENCES housing.portal_members(id) ON DELETE CASCADE,
+  access_token_hash text NOT NULL UNIQUE,
+  refresh_token_hash text NOT NULL UNIQUE,
+  access_expires_at timestamptz NOT NULL,
+  refresh_expires_at timestamptz NOT NULL,
+  revoked_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  last_seen_at timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS housing.search_profiles (
   id uuid PRIMARY KEY,
   participant_id uuid NOT NULL REFERENCES housing.participants(id) ON DELETE CASCADE,
@@ -135,6 +164,9 @@ CREATE TABLE IF NOT EXISTS housing.audit_events (
 );
 
 CREATE INDEX IF NOT EXISTS housing_search_profiles_participant_idx ON housing.search_profiles (participant_id);
+CREATE INDEX IF NOT EXISTS housing_participant_assignments_member_idx ON housing.participant_assignments (member_id);
+CREATE INDEX IF NOT EXISTS housing_portal_sessions_access_idx ON housing.portal_sessions (access_token_hash);
+CREATE INDEX IF NOT EXISTS housing_portal_sessions_refresh_idx ON housing.portal_sessions (refresh_token_hash);
 CREATE INDEX IF NOT EXISTS housing_offer_identities_source_idx ON housing.offer_identities (source_id, last_seen_at DESC);
 CREATE INDEX IF NOT EXISTS housing_deliveries_participant_idx ON housing.deliveries (participant_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS housing_applications_participant_idx ON housing.applications (participant_id, created_at DESC);
