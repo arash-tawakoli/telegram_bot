@@ -4,6 +4,7 @@ import { createD1Compat } from "./d1-compat.js";
 import centralTokenWorker from "./immoscout-central-token.js";
 import { importLegacyD1Snapshot, verifyLegacyD1SnapshotKey } from "./legacy-migration.js";
 import { proxySupabaseFunction } from "./supabase-proxy.js";
+import { HOUSING_SOURCES } from "./source-allowlist.js";
 
 const HEADERS = {
   "content-type": "application/json; charset=utf-8",
@@ -216,6 +217,11 @@ export default {
         console.error("central_immoscout_migration_failed", String(error?.message || error));
         return json({ ok: false, error: "migration_failed" }, 503);
       }
+    }
+
+    if (request.method === "GET" && url.pathname === "/internal/source-allowlist") {
+      if (!isAuthorized(request, env)) return json({ error: "unauthorized" }, 401);
+      return json({ ok: true, sources: HOUSING_SOURCES });
     }
 
     if (url.pathname.startsWith("/internal/")) {

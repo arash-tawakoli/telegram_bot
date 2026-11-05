@@ -11,6 +11,8 @@ One Cloudflare Worker is the target execution runtime for the housing product.
 - No job-search, Indeed, coach analytics, D1 listing store, or duplicate backend.
 - A temporary `LEGACY_D1` binding reads only the three central ImmoScout tables for the one-time migration. The Worker verifies the AES-GCM ciphertext with the Vault key before importing it transactionally. Remove this binding after the import is verified.
 
+The cutover allowlist is explicit in `src/source-allowlist.js` and contains only ImmoScout24, Immowelt, and verified Immomio Tenant sources. The target schema in `schema/0001_housing_core.sql` stores offer identity and idempotency keys instead of complete listing payloads. The durable `(participant, offer)` delivery key and `(participant, provider, offer)` application key prevent duplicate notifications and applications after a source re-publishes an offer.
+
 ## Database contract
 
 Supabase remains the PostgreSQL host. Cloudflare runs the housing application code and connects through Hyperdrive.
