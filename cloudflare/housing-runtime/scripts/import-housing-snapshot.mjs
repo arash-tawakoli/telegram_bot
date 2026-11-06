@@ -15,7 +15,7 @@ const conflictKeys = {
   provider_connections: ["participant_id", "provider"], documents: ["id"], participants: ["id"], offer_identities: ["id"],
   deliveries: ["id"], applications: ["id"], application_events: ["id"],
 };
-const jsonColumns = new Set(["connector_config", "profile", "criteria", "facts", "metadata"]);
+const jsonColumns = new Set(["connector_config", "profile", "criteria", "facts", "metadata", "telegram_state"]);
 
 function identifier(value) {
   if (!/^[a-z_]+$/.test(value)) throw new Error("identifier_invalid");
