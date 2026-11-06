@@ -13,7 +13,7 @@ One Cloudflare Worker is the target execution runtime for the housing product.
 
 The cutover allowlist is explicit in `src/source-allowlist.js` and contains only ImmoScout24, Immowelt, and verified Immomio Tenant sources. The target schema in `schema/0001_housing_core.sql` stores offer identity and idempotency keys instead of complete listing payloads. The durable `(participant, offer)` delivery key and `(participant, provider, offer)` application key prevent duplicate notifications and applications after a source re-publishes an offer.
 
-The Cloudflare ingress exposes `/telegram/webhook`, validates `TELEGRAM_WEBHOOK_SECRET`, and handles the housing Telegram flow directly against the target schema. Premium, referral and non-housing menus are intentionally outside this runtime.
+The Cloudflare ingress exposes `/telegram/webhook`, validates `TELEGRAM_WEBHOOK_SECRET`, and handles the housing Telegram flow directly against the target schema. Premium, referral and non-housing menus are intentionally outside this runtime. Legacy `/edge/coach` and `/edge/source` Supabase proxy routes are removed.
 
 ## Database contract
 
@@ -106,7 +106,7 @@ npm test
 
 ## Migration status
 
-This Worker currently owns the target schema, Auth/session boundary, Coach API foundation, R2 document contract, source allowlist, three source adapters, matching and the Telegram delivery boundary.
+This Worker currently owns the target schema, Auth/session boundary, Coach API foundation, R2 document contract, source allowlist, three source adapters, matching, Telegram and the application claim boundary.
 
 Still running on Supabase Edge Functions and not yet ported here:
 - Telegram Gateway/UI internals and update persistence.
