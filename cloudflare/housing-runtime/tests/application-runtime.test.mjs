@@ -29,12 +29,18 @@ test("application processor is idle when no pending application exists", async (
 
 test("application processor fails closed while a provider transport is pending", async () => {
   const db = sqlFor({
-    id: "app-1", participant_id: "user-1", offer_identity_id: "offer-1", provider: "immowelt",
-    canonical_url: "https://www.immowelt.de/expose/example", preferences_enabled: true,
+    id: "app-1", participant_id: "user-1", offer_identity_id: "offer-1", provider: "immoscout24",
+    canonical_url: "https://www.immobilienscout24.de/expose/123456789", preferences_enabled: true,
     provider_enabled: true, connection_status: "connected",
   });
   const result = await processHousingApplication(db.query, { APPLICATION_RUN_TOKEN: "secret" }, new Request("https://runtime.test/internal/application/process", { method: "POST", headers: { authorization: "Bearer secret" } }));
   assert.equal(result.body.status, "manual_required");
   assert.equal(result.body.reason, "provider_transport_pending");
   assert.ok(db.writes.some(({ text }) => /housing\.application_events/.test(text)));
+});
+
+test("scheduled application processing ignores the historical pending backlog", async () => {
+  const db = sqlFor(null);
+  await processHousingApplication(db.query, { APPLICATION_RUN_TOKEN: "secret" }, new Request("https://runtime.test/internal/application/process?fresh_only=1", { method: "POST", headers: { authorization: "Bearer secret" } }));
+  assert.match(db.writes[0].text, /created_at >= now\(\) - interval '15 minutes'/);
 });
