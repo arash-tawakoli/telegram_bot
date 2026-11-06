@@ -1,4 +1,3 @@
-import postgres from "postgres";
 import { deleteExpiredListings } from "./retention.js";
 import { createD1Compat } from "./d1-compat.js";
 import centralTokenWorker from "./immoscout-central-token.js";
@@ -29,19 +28,7 @@ function json(body, status = 200) {
 
 function databaseClient(env) {
   if (env.HOUSING_DB) return createD1Client(env.HOUSING_DB);
-  const connectionString = env.HYPERDRIVE?.connectionString;
-  if (!connectionString) throw new Error("database_binding_missing");
-
-  return postgres(connectionString, {
-    max: 5,
-    fetch_types: false,
-    prepare: true,
-    idle_timeout: 20,
-    connect_timeout: 10,
-    connection: {
-      application_name: "Cloudflare Housing Runtime",
-    },
-  });
+  throw new Error("housing_d1_binding_missing");
 }
 
 async function withDatabase(env, operation) {
