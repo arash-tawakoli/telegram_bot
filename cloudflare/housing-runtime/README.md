@@ -47,6 +47,15 @@ Create or update the Hyperdrive configuration named `traumwohnung-housing-postgr
 
 Use the direct connection, not the Supavisor pooler. Hyperdrive performs the connection pooling for Workers; Cloudflare's Supabase integration guide recommends the direct endpoint.
 
+For a new external PostgreSQL host, run the target bootstrap before changing Hyperdrive:
+
+```sh
+TARGET_DATABASE_URL='postgresql://...' npm run schema:apply
+TARGET_DATABASE_URL='postgresql://...' HOUSING_SNAPSHOT_FILE='housing-snapshot.json' node scripts/import-housing-snapshot.mjs --apply
+```
+
+The bootstrap applies only the housing schema, retention, participant Telegram state, source URL repair, source-37 removal and target RLS. It does not expect Supabase `public` or `auth` tables.
+
 After creating the configuration, add its ID to `wrangler.jsonc`:
 
 ```jsonc
