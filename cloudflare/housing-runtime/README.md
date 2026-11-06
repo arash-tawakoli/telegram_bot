@@ -59,6 +59,17 @@ After creating the configuration, add its ID to `wrangler.jsonc`:
 ]
 ```
 
+## Required secrets
+
+Configure these as Worker secrets before a production route is enabled:
+
+- `TELEGRAM_WEBHOOK_SECRET` and `TELEGRAM_BOT_TOKEN` for webhook validation and delivery.
+- `INTERNAL_WORKER_SECRET` for the temporary provider bridge calls.
+- `SOURCE_RUN_TOKEN` and `DELIVERY_RUN_TOKEN` for scheduled source/delivery invocations.
+- `RETENTION_TOKEN` for bounded cleanup.
+
+Values never belong in `wrangler.jsonc`, Git or the public portal bundle.
+
 The Worker must not be attached to a production route or used as the production backend until the database binding, least-privilege grants, health check, and end-to-end tests pass.
 
 ## Cost guardrails
@@ -86,12 +97,11 @@ npm test
 
 ## Migration status
 
-This Worker is currently a migration foundation, not the complete housing runtime.
+This Worker currently owns the target schema, Auth/session boundary, Coach API foundation, R2 document contract, source allowlist, three source adapters, matching and the Telegram delivery boundary.
 
 Still running on Supabase Edge Functions and not yet ported here:
-- Telegram webhook, gateway, UI handlers, and notification dispatch.
-- Source scheduling, crawling, listing reconciliation, and delivery dispatch.
-- Auto-application orchestration and provider workers for ImmoScout24, Kleinanzeigen, Immowelt, and Immomio.
-- Internal portal API, authentication/session handling, and document operations.
+- Telegram Gateway/UI internals and update persistence.
+- Auto-application orchestration and provider workers.
+- Full data export/import and final PostgreSQL cutover.
 
 Do not switch production Telegram webhooks, provider adapters, AutoApply schedules, portal APIs, or domains until each replacement is implemented, preview-tested, and smoke-tested. Supabase remains the production runtime/database until the complete cutover is approved.
