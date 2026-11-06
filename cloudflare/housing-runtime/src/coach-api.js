@@ -211,6 +211,78 @@ async function dashboard(sql, member) {
   return { participants: rows.length, participantRows: rows, applications: Number(applications[0]?.count || 0), sent: Number(sent[0]?.count || 0), failed: 0, pending: 0, manualRequired: 0, recentApplications: [] };
 }
 
+function applicationRow(row) {
+  return {
+    id: row.id,
+    status: row.status,
+    last_error: row.last_error,
+    wait_reason: row.wait_reason || null,
+    created_at: row.created_at,
+    sent_at: row.sent_at,
+    participant: { participantId: row.participant_id, name: [row.first_name, row.last_name].filter(Boolean).join(" "), coach: row.coach || "" },
+    listings: { title: "Wohnungsangebot", canonical_url: row.canonical_url, district: null, postal_code: null, city: null, sources: { name: row.source_name || "" } },
+    latestEvent: row.event_id ? { provider: row.provider, event_type: row.event_type, status: row.event_status, reason: row.event_reason, document_result: row.document_result, created_at: row.event_created_at } : null,
+  };
+}
+
+async function applicationPage(sql, member, body) {
+  const scope = body.scope === "mine" && !isAdmin(member) ? member.id : null;
+  const page = Math.max(1, Math.min(10_000, Number(body.page || 1)));
+  const pageSize = Math.max(1, Math.min(100, Number(body.pageSize || 50)));
+  const days = [7, 30, 90].includes(Number(body.days)) ? Number(body.days) : 30;
+  const status = text(body.status, 40);
+  const providerName = text(body.provider, 40).toLowerCase();
+  if (providerName && !PROVIDERS.has(providerName)) throw new Error("provider_not_allowlisted");
+  const rows = await sql`
+    WITH latest_events AS (
+      SELECT DISTINCT ON (ae.application_id)
+        ae.application_id, ae.id AS event_id, ae.provider, ae.event_type, ae.status AS event_status,
+        ae.reason AS event_reason, ae.document_result, ae.created_at AS event_created_at
+      FROM housing.application_events ae
+      ORDER BY ae.application_id, ae.created_at DESC
+    )
+    SELECT a.id, a.participant_id, a.status, a.last_error, a.created_at, a.updated_at,
+      p.first_name, p.last_name, a.offer_identity_id, oi.canonical_url, sr.name AS source_name,
+      pe.event_id, pe.provider, pe.event_type, pe.event_status, pe.event_reason, pe.document_result, pe.event_created_at,
+      pm.display_name AS coach
+    FROM housing.applications a
+    JOIN housing.participants p ON p.id = a.participant_id
+    JOIN housing.offer_identities oi ON oi.id = a.offer_identity_id
+    JOIN housing.source_registry sr ON sr.id = oi.source_id
+    LEFT JOIN latest_events pe ON pe.application_id = a.id
+    LEFT JOIN housing.participant_assignments pa ON pa.participant_id = a.participant_id
+    LEFT JOIN housing.portal_members pm ON pm.id = pa.member_id
+    WHERE a.created_at >= now() - (${days} || ' days')::interval
+      AND (${scope}::uuid IS NULL OR a.participant_id IN (SELECT participant_id FROM housing.participant_assignments WHERE member_id = ${scope}))
+      AND (${status} = '' OR a.status = ${status})
+      AND (${providerName} = '' OR a.provider = ${providerName})
+    ORDER BY a.created_at DESC
+    LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}
+  `;
+  const countRows = await sql`
+    SELECT count(*)::int AS total FROM housing.applications a
+    WHERE a.created_at >= now() - (${days} || ' days')::interval
+      AND (${scope}::uuid IS NULL OR a.participant_id IN (SELECT participant_id FROM housing.participant_assignments WHERE member_id = ${scope}))
+      AND (${status} = '' OR a.status = ${status})
+      AND (${providerName} = '' OR a.provider = ${providerName})
+  `;
+  const total = Number(countRows[0]?.total || 0);
+  return { applications: rows.map(applicationRow), total, page, pageSize, pages: Math.ceil(total / pageSize) };
+}
+
+async function applicationEvents(sql, member, body) {
+  const applicationId = uuid(body.applicationId, "application");
+  const rows = await sql`
+    SELECT ae.provider, ae.event_type, ae.status, ae.attempt, ae.reason, ae.document_result, ae.metadata, ae.created_at
+    FROM housing.application_events ae
+    JOIN housing.applications a ON a.id = ae.application_id
+    WHERE ae.application_id = ${applicationId}
+      AND (${isAdmin(member)} OR a.participant_id IN (SELECT participant_id FROM housing.participant_assignments WHERE member_id = ${member.id}))
+    ORDER BY ae.created_at
+  `;
+  return { events: rows };
+}
+
 async function setPreferences(sql, member, body) {
   const participantId = uuid(body.participantId, "participant");
   if (!await canAccessParticipant(sql, member, participantId)) throw new Error("participant_forbidden");
@@ -358,8 +430,8 @@ export async function handleCoach(sql, request, env = {}) {
     if (!isAdmin(member)) throw new Error("admin_required");
     return { sources: await sql`SELECT id, name, family, connector, enabled, last_success_at, consecutive_failures FROM housing.source_registry ORDER BY name` };
   }
-  if (action === "applications") return { applications: [], total: 0, page: 1, pageSize: 50, pages: 0 };
-  if (action === "application_events") return { events: [] };
+  if (action === "applications") return applicationPage(sql, member, body);
+  if (action === "application_events") return applicationEvents(sql, member, body);
   throw new Error("invalid_action");
 }
 

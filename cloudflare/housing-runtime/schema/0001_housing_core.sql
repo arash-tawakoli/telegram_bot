@@ -183,6 +183,19 @@ CREATE TABLE IF NOT EXISTS housing.applications (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS housing.application_events (
+  id uuid PRIMARY KEY,
+  application_id uuid NOT NULL REFERENCES housing.applications(id) ON DELETE CASCADE,
+  provider text NOT NULL CHECK (provider IN ('immoscout24', 'immowelt', 'immomio')),
+  event_type text NOT NULL,
+  status text,
+  attempt integer,
+  reason text,
+  document_result text,
+  metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS housing.jobs (
   id uuid PRIMARY KEY,
   kind text NOT NULL CHECK (kind IN ('source', 'delivery', 'application')),
@@ -210,4 +223,5 @@ CREATE INDEX IF NOT EXISTS housing_offer_identities_source_idx ON housing.offer_
 CREATE INDEX IF NOT EXISTS housing_upload_tokens_participant_idx ON housing.upload_tokens (participant_id, expires_at);
 CREATE INDEX IF NOT EXISTS housing_deliveries_participant_idx ON housing.deliveries (participant_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS housing_applications_participant_idx ON housing.applications (participant_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS housing_application_events_application_idx ON housing.application_events (application_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS housing_jobs_ready_idx ON housing.jobs (kind, status, lease_until, created_at);
