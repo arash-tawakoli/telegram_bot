@@ -19,6 +19,7 @@ export const chatLanguages = new Map();
 export let geoCache = null;
 
 export function configureLegacyRuntime(nextEnv, d1) { env = nextEnv; db = createD1Supabase(d1, env); }
+export function runtimeEnv() { return env; }
 export async function withPlan(user, subscription = null) { return { ...user, is_premium: true, subscription }; }
 export function finiteOrNull(value) { if (value == null || value === "") return null; const number = Number(value); return Number.isFinite(number) ? number : null; }
 export function esc(value) { return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }

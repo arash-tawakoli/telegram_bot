@@ -1,4 +1,5 @@
-import {db,secret,send,edit,button,telegram,esc} from './runtime.js';
+import {db,secret,send,edit,button,telegram,esc,runtimeEnv} from './runtime.js';
+import {encryptProviderCredentials} from '../provider-credentials.js';
 import {providerStaticMissing} from './application-profile-adapters.js';
 
 const privateOwner=(user,chat)=>chat?.type==='private'&&user.is_active
@@ -94,6 +95,15 @@ const FIELD_PROMPT_PREFIX='👤 Bewerberprofil · ';
 const IMMOMIO_CALLBACK_ORIGIN='https://tenant.immomio.com';
 const IMMOMIO_CALLBACK_PATH='/assets/manifest.webmanifest';
 
+const IMMO_GQL='https://gql-ps.immomio.com/tenant/graphql';
+const IMMO_SSO_QUERY=`query sso($email:String,$redirectUri:String!,$loginMethod:String){sso(input:{email:$email redirectUri:$redirectUri loginMethod:$loginMethod}){baseUrl clientId realm}}`;
+const IMMO_REDIRECT='https://tenant.immomio.com/de/auth/login';
+const immoRandom=()=>{let s='';for(const b of crypto.getRandomValues(new Uint8Array(32)))s+=String.fromCharCode(b);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')};
+const immoChallenge=async value=>btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value))))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+async function immoSso(email){const r=await fetch(IMMO_GQL,{method:'POST',headers:{'content-type':'application/json',accept:'application/json',origin:IMMOMIO_CALLBACK_ORIGIN},body:JSON.stringify({query:IMMO_SSO_QUERY,variables:{email,redirectUri:IMMO_REDIRECT,loginMethod:'DEFAULT'}}),signal:AbortSignal.timeout(20000)});const b=await r.json().catch(()=>null);const s=b?.data?.sso;if(!r.ok||b?.errors?.length||!s)throw Error('immomio_sso_failed');return{sso:s,baseUrl:'https://sso.immomio.com/auth',realm:'immomio',clientId:'immomio-oidc-web'};}
+async function beginImmomioLogin(userId){const p=await db.from('applicant_profiles').select('email').eq('user_id',userId).maybeSingle();const email=String(p.data?.email||'').trim().toLowerCase();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw Error('immomio_email_required');const c=await immoSso(email),verifier=immoRandom(),state=immoRandom().slice(0,40),challenge=await immoChallenge(verifier);await db.from('platform_auth_flows').delete().eq('user_id',userId).eq('provider','immomio').is('consumed_at',null);await db.from('platform_auth_flows').insert({id:crypto.randomUUID(),user_id:userId,provider:'immomio',state,code_verifier:verifier,origin:'telegram',return_target:'telegram',context:{channel:'telegram'},expires_at:new Date(Date.now()+10*60_000).toISOString()});await db.from('platform_connections').upsert({id:crypto.randomUUID(),user_id:userId,provider:'immomio',status:'pending',account_hint:email},{onConflict:'user_id,provider'});const url=new URL(`${c.baseUrl}/realms/${c.realm}/protocol/openid-connect/auth`);for(const[k,v]of Object.entries({client_id:c.clientId,redirect_uri:IMMO_REDIRECT,response_type:'code',scope:'openid profile email',state,code_challenge:challenge,code_challenge_method:'S256',login_hint:email,prompt:'login'}))url.searchParams.set(k,String(v));return{status:'login',url:url.href,expiresInSeconds:600};}
+async function completeImmomioLogin(userId,callbackUrl){let u;try{u=new URL(String(callbackUrl||''));}catch{throw Error('invalid_callback_url')}if(u.protocol!=='https:'||u.hostname!=='tenant.immomio.com'||u.pathname!=='/de/auth/login')throw Error('invalid_callback_url');const state=u.searchParams.get('state'),code=u.searchParams.get('code');if(!state||!code)throw Error('invalid_callback_url');const flow=await db.from('platform_auth_flows').select('*').eq('user_id',userId).eq('provider','immomio').eq('state',state).is('consumed_at',null).gt('expires_at',new Date().toISOString()).maybeSingle();if(flow.error||!flow.data)throw Error('auth_flow_expired');const p=await db.from('applicant_profiles').select('email').eq('user_id',userId).maybeSingle();const email=String(p.data?.email||'').trim().toLowerCase();const c=await immoSso(email);const response=await fetch(`${c.baseUrl}/realms/${c.realm}/protocol/openid-connect/token`,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded',accept:'application/json'},body:new URLSearchParams({grant_type:'authorization_code',code,redirect_uri:IMMO_REDIRECT,code_verifier:String(flow.data.code_verifier),client_id:c.clientId}),signal:AbortSignal.timeout(20000)});const token=await response.json().catch(()=>null);if(!response.ok||!token?.access_token||!token?.refresh_token)throw Error('token_exchange_failed');const expiresAt=new Date(Date.now()+Math.max(60,Number(token.expires_in||300))*1000).toISOString();const credentials={access_token:String(token.access_token),refresh_token:String(token.refresh_token),expires_at:expiresAt,base_url:c.baseUrl,realm:c.realm,client_id:c.clientId,redirect_uri:IMMO_REDIRECT};const encrypted=await encryptProviderCredentials(runtimeEnv(),credentials,userId,'immomio');await db.from('platform_connections').upsert({id:crypto.randomUUID(),user_id:userId,provider:'immomio',status:'connected',ciphertext:encrypted.ciphertext,iv:encrypted.iv,key_version:encrypted.key_version,expires_at:expiresAt,updated_at:new Date().toISOString()},{onConflict:'user_id,provider'});await db.from('platform_auth_flows').update({consumed_at:new Date().toISOString()}).eq('id',flow.data.id);return{status:'connected',authenticated:true};}
+
 export async function applicationWorker(action,userId,source,extra={}){
  const provider=source===1?'immoscout24':source===3?'immomio':source===4?'immowelt':null;
  if(!provider)throw Error('provider_not_allowlisted');
@@ -107,6 +117,8 @@ export async function applicationWorker(action,userId,source,extra={}){
   if(error)throw Error('connection_read_failed');
   return {authenticated:data?.status==='connected',status:data?.status||'disconnected'};
  }
+ if(action==='login' && source===3) return beginImmomioLogin(userId);
+ if(action==='complete_login' && source===3) return completeImmomioLogin(userId,extra.callbackUrl);
  if(action==='login') throw Error('provider_login_requires_cloudflare_native_flow');
  throw Error('provider_operation_not_supported');
 }

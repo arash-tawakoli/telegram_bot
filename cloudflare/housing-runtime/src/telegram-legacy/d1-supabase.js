@@ -14,7 +14,7 @@ const TABLES = {
   referral_codes: null,
   referrals: null,
   bot_events: null,
-  platform_auth_flows: null,
+  platform_auth_flows: "provider_auth_flows",
   telegram_announcements: null,
 };
 

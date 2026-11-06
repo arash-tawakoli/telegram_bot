@@ -118,6 +118,7 @@ CREATE TABLE IF NOT EXISTS provider_connections (
   ciphertext TEXT,
   iv TEXT,
   key_version INTEGER,
+  account_hint TEXT,
   expires_at TEXT,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE (participant_id, provider)
@@ -219,6 +220,20 @@ CREATE TABLE IF NOT EXISTS telegram_updates (
   last_error TEXT
 );
 
+CREATE TABLE IF NOT EXISTS provider_auth_flows (
+  id TEXT PRIMARY KEY,
+  participant_id TEXT NOT NULL REFERENCES participants(id) ON DELETE CASCADE,
+  provider TEXT NOT NULL,
+  state TEXT NOT NULL UNIQUE,
+  code_verifier TEXT,
+  origin TEXT,
+  return_target TEXT,
+  context TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  expires_at TEXT NOT NULL,
+  consumed_at TEXT
+);
+
 CREATE INDEX IF NOT EXISTS participants_telegram_idx ON participants(telegram_user_id);
 CREATE INDEX IF NOT EXISTS search_profiles_participant_idx ON search_profiles(participant_id);
 CREATE INDEX IF NOT EXISTS source_links_source_idx ON source_links(source_id);
@@ -228,3 +243,4 @@ CREATE INDEX IF NOT EXISTS applications_participant_idx ON applications(particip
 CREATE INDEX IF NOT EXISTS application_events_application_idx ON application_events(application_id,created_at);
 CREATE INDEX IF NOT EXISTS jobs_ready_idx ON jobs(kind,status,lease_until,created_at);
 CREATE INDEX IF NOT EXISTS telegram_updates_status_idx ON telegram_updates(status,received_at);
+CREATE INDEX IF NOT EXISTS provider_auth_flows_lookup_idx ON provider_auth_flows(participant_id,provider,state,expires_at);

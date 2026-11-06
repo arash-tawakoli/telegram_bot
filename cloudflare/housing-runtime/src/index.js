@@ -518,7 +518,7 @@ export default {
           const centralEnv = await createCentralEnvironment(env);
           if (env.HOUSING_DB) {
             const [tables, counts] = await Promise.all([
-              sql`SELECT count(*) AS count FROM sqlite_master WHERE type = 'table' AND name IN ('source_registry','participants','portal_members','participant_assignments','portal_sessions','bootstrap_tokens','search_profiles','source_links','applicant_profiles','documents','upload_tokens','provider_connections','application_preferences','offer_identities','deliveries','applications','application_events','jobs','audit_events','telegram_updates')`,
+              sql`SELECT count(*) AS count FROM sqlite_master WHERE type = 'table' AND name IN ('source_registry','participants','portal_members','participant_assignments','portal_sessions','bootstrap_tokens','search_profiles','source_links','applicant_profiles','documents','upload_tokens','provider_connections','application_preferences','offer_identities','deliveries','applications','application_events','jobs','audit_events','telegram_updates','provider_auth_flows')`,
               sql`SELECT
                 (SELECT count(*) FROM participants) AS participants,
                 (SELECT count(*) FROM search_profiles) AS search_profiles,
