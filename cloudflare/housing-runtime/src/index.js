@@ -13,6 +13,7 @@ import { telegramText } from "./matching.js";
 import { createSession, hashPassword, memberForAccess, refreshSession, revokeSession, sha256, verifyPassword } from "./auth.js";
 import { handleCoach } from "./coach-api.js";
 import { handleTelegramHousingUpdate } from "./telegram-housing.js";
+import { processHousingApplication } from "./application-runtime.js";
 
 const HEADERS = {
   "content-type": "application/json; charset=utf-8",
@@ -282,18 +283,6 @@ async function processDelivery(sql, request, env) {
   return json({ ok: true, status: "sent", delivery_id: claimed.id });
 }
 
-async function processApplicationBridge(request, env) {
-  const expected = env.APPLICATION_RUN_TOKEN;
-  if (!expected || !await sameSecret(request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") || "", expected)) return json({ error: "unauthorized" }, 401);
-  const body = await request.text();
-  const upstreamRequest = new Request(new URL("/edge/application", request.url), {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-internal-worker-secret": env.INTERNAL_WORKER_SECRET || "" },
-    body: body || JSON.stringify({ action: "process" }),
-  });
-  return proxySupabaseFunction(upstreamRequest, env, "application");
-}
-
 async function handleAuth(sql, request) {
   const body = await request.json().catch(() => ({}));
   const action = String(body.action || "");
@@ -413,8 +402,12 @@ export default {
     }
 
     if (routePath === "/internal/application/process" && request.method === "POST") {
-      try { return await processApplicationBridge(request, env); }
-      catch (error) { console.error("housing_application_bridge_failed", String(error?.message || error)); return json({ error: "application_bridge_failed" }, 503); }
+      try {
+        return await withDatabase(env, async (sql) => {
+          const result = await processHousingApplication(sql, env, request);
+          return json(result.body, result.status);
+        });
+      } catch (error) { console.error("housing_application_failed", String(error?.message || error)); return json({ error: "application_failed" }, 503); }
     }
 
     if (request.method === "POST" && url.pathname === "/edge/auth") {
@@ -447,7 +440,7 @@ export default {
       catch (error) { console.error("housing_document_open_failed", String(error?.message || error)); return json({ error: "document_open_failed" }, 503); }
     }
 
-    const proxyMatch = url.pathname.match(/^\/edge\/(coach|telegram|source|application|immoscout-application)$/);
+    const proxyMatch = url.pathname.match(/^\/edge\/(coach|source)$/);
     if (proxyMatch) {
       try {
         return await proxySupabaseFunction(request, env, proxyMatch[1]);
