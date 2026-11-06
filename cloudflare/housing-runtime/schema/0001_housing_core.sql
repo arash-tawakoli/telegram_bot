@@ -222,6 +222,17 @@ CREATE TABLE IF NOT EXISTS housing.audit_events (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS housing.telegram_updates (
+  update_id bigint PRIMARY KEY,
+  payload_hash text NOT NULL,
+  kind text NOT NULL,
+  status text NOT NULL CHECK (status IN ('processing', 'completed', 'failed')),
+  attempts integer NOT NULL DEFAULT 1 CHECK (attempts >= 1),
+  received_at timestamptz NOT NULL DEFAULT now(),
+  completed_at timestamptz,
+  last_error text
+);
+
 CREATE INDEX IF NOT EXISTS housing_search_profiles_participant_idx ON housing.search_profiles (participant_id);
 CREATE INDEX IF NOT EXISTS housing_participant_assignments_member_idx ON housing.participant_assignments (member_id);
 CREATE INDEX IF NOT EXISTS housing_portal_sessions_access_idx ON housing.portal_sessions (access_token_hash);
@@ -232,3 +243,4 @@ CREATE INDEX IF NOT EXISTS housing_deliveries_participant_idx ON housing.deliver
 CREATE INDEX IF NOT EXISTS housing_applications_participant_idx ON housing.applications (participant_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS housing_application_events_application_idx ON housing.application_events (application_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS housing_jobs_ready_idx ON housing.jobs (kind, status, lease_until, created_at);
+CREATE INDEX IF NOT EXISTS housing_telegram_updates_status_idx ON housing.telegram_updates (status, received_at);

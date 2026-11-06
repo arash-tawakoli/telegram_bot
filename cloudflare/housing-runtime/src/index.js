@@ -199,7 +199,32 @@ async function telegramWebhook(request, env) {
   }
   const length = Number(request.headers.get("content-length") || 0);
   if (length > 512 * 1024) return json({ error: "update_too_large" }, 413);
-  return proxySupabaseFunction(request, env, "telegram");
+  const body = await request.text();
+  let update;
+  try { update = JSON.parse(body); } catch { return json({ error: "invalid_update" }, 400); }
+  const updateId = Number(update?.update_id);
+  if (!Number.isSafeInteger(updateId) || updateId < 0) return json({ error: "invalid_update" }, 400);
+  const kind = update?.callback_query ? "callback_query" : update?.message ? "message" : "other";
+  const hash = await sha256(body);
+  const sql = databaseClient(env);
+  try {
+    const claimed = await sql`
+      INSERT INTO housing.telegram_updates (update_id, payload_hash, kind, status)
+      VALUES (${updateId}, ${hash}, ${kind}, 'processing')
+      ON CONFLICT (update_id) DO UPDATE SET attempts = housing.telegram_updates.attempts + 1, payload_hash = EXCLUDED.payload_hash, status = 'processing', last_error = NULL
+      WHERE housing.telegram_updates.status <> 'completed'
+      RETURNING update_id
+    `;
+    if (!claimed.length) return json({ ok: true, duplicate: true });
+    const forwarded = new Request(request.url, { method: "POST", headers: request.headers, body });
+    const response = await proxySupabaseFunction(forwarded, env, "telegram");
+    if (response.ok) await sql`UPDATE housing.telegram_updates SET status = 'completed', completed_at = now() WHERE update_id = ${updateId}`;
+    else await sql`UPDATE housing.telegram_updates SET status = 'failed', last_error = ${`gateway_http_${response.status}`} WHERE update_id = ${updateId}`;
+    return response;
+  } catch (error) {
+    await sql`UPDATE housing.telegram_updates SET status = 'failed', last_error = ${String(error?.message || error).slice(0, 500)} WHERE update_id = ${updateId}`.catch(() => {});
+    throw error;
+  } finally { await sql.end({ timeout: 5 }); }
 }
 
 async function runSource(sql, request, env) {
@@ -502,7 +527,7 @@ export default {
                 (SELECT count(*)::integer FROM app_private.immoscout_central_credentials) AS credentials,
                 (SELECT count(*)::integer FROM app_private.immoscout_central_oauth_flows) AS oauth_flows,
                 (SELECT count(*)::integer FROM app_private.immoscout_central_audit_events) AS audit_events`,
-            sql`SELECT count(*) = 19 AND bool_and(c.relrowsecurity) AS all_enabled
+            sql`SELECT count(*) = 20 AND bool_and(c.relrowsecurity) AS all_enabled
               FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
               WHERE n.nspname = 'housing' AND c.relkind = 'r'`,
           ]);
@@ -524,7 +549,7 @@ export default {
             centralVault: "available",
             legacyD1,
             centralTables: counts[0],
-            housingTarget: { tables: 19, rls: "enabled", dataImported: true },
+            housingTarget: { tables: 20, rls: "enabled", dataImported: true },
           };
         });
         return json({ ok: true, database: "reachable", ...readiness });
