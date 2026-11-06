@@ -121,7 +121,7 @@ async function getFlow(env, state, allowConsumed = false) {
   const token = String(state || "");
   if (!/^cfcentral_[A-Za-z0-9_-]{40,80}$/.test(token)) throw new Error("invalid_state");
   const row = await env.DB.prepare(
-    "SELECT state_hash,verifier_ciphertext,verifier_iv,admin_telegram_id,user_id,expires_at,consumed_at FROM oauth_flows WHERE state_hash=?"
+    "SELECT state_hash,verifier_ciphertext,verifier_iv,admin_telegram_id,user_id,expires_at,consumed_at FROM central_oauth_flows WHERE state_hash=?"
   ).bind(await digest(token)).first();
   if (!row || Date.parse(row.expires_at) <= Date.now() || (!allowConsumed && row.consumed_at)) throw new Error("auth_flow_expired");
   if (!ADMIN_IDS.has(String(row.admin_telegram_id))) throw new Error("auth_flow_expired");
@@ -137,7 +137,7 @@ async function startFlow(env, body) {
   const sealed = await encrypt({ verifier }, env, FLOW_AAD);
   const expires = new Date(Date.now() + 15 * 60_000).toISOString();
   await env.DB.prepare(
-    "INSERT INTO oauth_flows(state_hash,verifier_ciphertext,verifier_iv,admin_telegram_id,user_id,expires_at) VALUES(?,?,?,?,?,?)"
+    "INSERT INTO central_oauth_flows(state_hash,verifier_ciphertext,verifier_iv,admin_telegram_id,user_id,expires_at) VALUES(?,?,?,?,?,?)"
   ).bind(await digest(state), sealed.ciphertext, sealed.iv, adminId, userId, expires).run();
   const status = await credentialStatus(env);
   return {
@@ -150,13 +150,13 @@ async function startFlow(env, body) {
 }
 async function claimFlow(env, flow) {
   const result = await env.DB.prepare(
-    "UPDATE oauth_flows SET consumed_at=CURRENT_TIMESTAMP WHERE state_hash=? AND consumed_at IS NULL AND expires_at>CURRENT_TIMESTAMP"
+    "UPDATE central_oauth_flows SET consumed_at=CURRENT_TIMESTAMP WHERE state_hash=? AND consumed_at IS NULL AND expires_at>CURRENT_TIMESTAMP"
   ).bind(flow.state_hash).run();
   if (!result.meta.changes) throw new Error("auth_flow_expired");
 }
 async function releaseFlow(env, flow) {
   await env.DB.prepare(
-    "UPDATE oauth_flows SET consumed_at=NULL WHERE state_hash=? AND consumed_at IS NOT NULL"
+    "UPDATE central_oauth_flows SET consumed_at=NULL WHERE state_hash=? AND consumed_at IS NOT NULL"
   ).bind(flow.state_hash).run();
 }
 async function tokenRequest(payload) {
@@ -216,7 +216,7 @@ async function persistCredentials(env, credentials, preserveEnabled = false, adm
     WHERE ?=0 OR central_credentials.enabled=0
   `).bind(ACCOUNT_EMAIL, sealed.ciphertext, sealed.iv, expiresAt, preserveEnabled ? 1 : 0, requireDisabled ? 1 : 0).run();
   if (requireDisabled && !result.meta.changes) throw new Error("auto_apply_state_changed");
-  await env.DB.prepare("INSERT INTO audit_events(event_type,account_hint,admin_telegram_id) VALUES('credential_stored',?,?)")
+  await env.DB.prepare("INSERT INTO central_audit_events(event_type,account_hint,admin_telegram_id) VALUES('credential_stored',?,?)")
     .bind(ACCOUNT_EMAIL, adminId ? String(adminId) : null).run();
   return { status: "connected", accountHint: ACCOUNT_EMAIL, expiresAt };
 }
@@ -260,7 +260,7 @@ async function finishWithSession(env, flow, email, sessionToken) {
     }
     if (error && typeof error === "object") error.stage = stage;
     await env.DB.prepare(
-      "INSERT INTO audit_events(event_type,account_hint,admin_telegram_id) VALUES(?,?,?)"
+      "INSERT INTO central_audit_events(event_type,account_hint,admin_telegram_id) VALUES(?,?,?)"
     ).bind(`oauth_failed:${stage}:${code}`.slice(0,160), ACCOUNT_EMAIL, flow.admin_telegram_id).run().catch(() => {});
     throw error;
   }
@@ -392,7 +392,7 @@ async function refreshCredentialsForTest(env, adminId) {
     const status = await credentialStatus(env);
     if (status.enabled !== false) throw new Error("auto_apply_state_changed");
     await env.DB.prepare(
-      "INSERT INTO audit_events(event_type,account_hint,admin_telegram_id) VALUES('refresh_test_succeeded',?,?)"
+      "INSERT INTO central_audit_events(event_type,account_hint,admin_telegram_id) VALUES('refresh_test_succeeded',?,?)"
     ).bind(ACCOUNT_EMAIL, String(adminId)).run();
     return {
       status: "refreshed",
@@ -404,7 +404,7 @@ async function refreshCredentialsForTest(env, adminId) {
   } catch (error) {
     const code = safeDiagnosticCode(error);
     await env.DB.prepare(
-      "INSERT INTO audit_events(event_type,account_hint,admin_telegram_id) VALUES(?,?,?)"
+      "INSERT INTO central_audit_events(event_type,account_hint,admin_telegram_id) VALUES(?,?,?)"
     ).bind(`refresh_test_failed:${stage}:${code}`.slice(0, 160), ACCOUNT_EMAIL, String(adminId)).run().catch(() => {});
     if (error && typeof error === "object") error.stage = stage;
     throw error;
@@ -470,7 +470,7 @@ async function internal(request, env, path) {
     const result = await env.DB.prepare("UPDATE central_credentials SET enabled=?,updated_at=CURRENT_TIMESTAMP WHERE singleton='central' AND status='connected'")
       .bind(enabled ? 1 : 0).run();
     if (!result.meta.changes) return json({ error: "credential_not_connected" }, 409);
-    await env.DB.prepare("INSERT INTO audit_events(event_type,account_hint,admin_telegram_id) SELECT ?,account_hint,? FROM central_credentials WHERE singleton='central'")
+    await env.DB.prepare("INSERT INTO central_audit_events(event_type,account_hint,admin_telegram_id) SELECT ?,account_hint,? FROM central_credentials WHERE singleton='central'")
       .bind(enabled ? "auto_apply_enabled" : "auto_apply_disabled", String(body.admin_telegram_id)).run();
     return json({ enabled });
   }
@@ -509,7 +509,7 @@ export default {
     const url = new URL(request.url);
     if (request.method === "GET" && url.pathname === "/health") {
       const result = await env.DB.prepare("SELECT COUNT(*) AS tables_count FROM information_schema.tables WHERE table_schema='app_private' AND table_name LIKE 'immoscout_central_%'").first();
-      return json({ ok: true, service: "immoscout-central-token", database: "postgres", tables: result?.tables_count || 0 });
+      return json({ ok: true, service: "immoscout-central-token", database: "cloudflare-d1", tables: result?.tables_count || 0 });
     }
     try {
       return await internal(request, env, url.pathname);

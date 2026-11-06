@@ -5,24 +5,19 @@ import { readFile } from "node:fs/promises";
 const runtime = await readFile(new URL("../src/index.js", import.meta.url), "utf8");
 const config = await readFile(new URL("../wrangler.jsonc", import.meta.url), "utf8");
 
-test("one-time central-token migration reads legacy D1 while housing uses the Cloudflare D1 binding", () => {
-  assert.match(runtime, /env\.LEGACY_D1/);
+test("central token state lives in the primary Cloudflare D1 binding", () => {
   assert.match(runtime, /FROM central_credentials/);
-  assert.match(runtime, /FROM oauth_flows/);
-  assert.match(runtime, /FROM audit_events/);
-  assert.match(runtime, /verifyLegacyD1SnapshotKey/);
-  assert.match(runtime, /importLegacyD1Snapshot/);
-  assert.match(runtime, /dry_run/);
-  assert.doesNotMatch(runtime, /immoscout-central-token-staging\.arash-ce5\.workers\.dev/);
-  assert.match(config, /"binding": "LEGACY_D1"/);
-  assert.match(config, /"database_id": "08789b5f-f200-4985-a357-276052206852"/);
+  assert.match(runtime, /FROM central_oauth_flows/);
+  assert.match(runtime, /FROM central_audit_events/);
+  assert.doesNotMatch(runtime, /env\.LEGACY_D1/);
+  assert.doesNotMatch(runtime, /migrateLegacyCentralToken/);
+  assert.doesNotMatch(config, /"binding": "LEGACY_D1"/);
   assert.match(config, /"binding": "HOUSING_DB"/);
   assert.match(config, /"database_name": "traumwohnung-housing-core"/);
   assert.doesNotMatch(config, /"binding": "HYPERDRIVE"/);
 });
 
-test("preview runtime blocks state-changing internal routes and permits only read-only migration dry-run", () => {
-  assert.match(runtime, /env\.PREVIEW_MODE === "1" && new URL\(request\.url\)\.searchParams\.get\("dry_run"\) !== "1"/);
+test("preview runtime blocks state-changing internal routes", () => {
   assert.match(runtime, /env\.PREVIEW_MODE === "1" && !\(request\.method === "GET" && routePath === "\/internal\/status"\)/);
   assert.match(config, /"PREVIEW_MODE": "1"/);
 });

@@ -37,11 +37,11 @@ BOOTSTRAP_TOKEN_FILE=/secure/bootstrap-token.txt npm run bootstrap:d1-token
 
 Für D1 wird der Token in der D1-Tabelle angelegt; `TARGET_DATABASE_URL` ist in diesem Zielpfad nicht erforderlich.
 
-## Übergangsgrenzen
+## Aktueller Stand
 
-- Telegram Gateway/UI bleibt vorübergehend die bestehende Supabase-Funktion, damit die sichtbare Telegram-Oberfläche unverändert bleibt.
-- Provider-Login-Flows bleiben vorübergehend über den bestehenden Login-Vertrag erreichbar.
-- ImmoScout24 und Immowelt haben Cloudflare-native Bewerbungsadapter. ImmoMio bleibt bis zur verifizierten nativen Formularübertragung `manual_required`.
+- Telegram und Coach-Portal laufen über diesen Worker und D1; die bestehende Telegram-Oberfläche bleibt unverändert.
+- Provider-Login-Flows laufen über den Cloudflare-Login-Worker und verschlüsselte D1-Verbindungen.
+- ImmoScout24 und Immowelt haben Cloudflare-native Bewerbungsadapter. Immomio bleibt bei einer nicht bestätigten Formularübertragung bewusst `manual_required`; CAPTCHA- oder externe Sicherheitsprüfungen werden nicht automatisiert umgangen.
 
 ## Prüfung
 
@@ -50,4 +50,4 @@ npm run check
 npm test
 ```
 
-Der aktuelle Housing Runtime-Stand besteht 41 Runtime-Tests; die vollständige Backend-Suite besteht 371 Tests. `/edge/ready` muss `role: cloudflare-d1`, 20 Tabellen und `dataImported: true` melden.
+`/edge/ready` muss `role: cloudflare-d1`, 21 Housing-Tabellen, die drei zentralen ImmoScout-D1-Tabellen und `dataImported: true` melden.

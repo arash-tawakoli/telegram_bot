@@ -144,14 +144,9 @@ test('all central ImmoScout callers use the housing runtime, not the legacy D1 W
     assert.ok(source.includes(endpoint));
     assert.doesNotMatch(source, /immoscout-central-token-staging\.arash-ce5\.workers\.dev/);
   }
-  assert.match(housingRuntime, /createD1Compat\(sql\)/);
-  assert.match(housingRuntime, /app_private\.get_housing_runtime_secret/);
-  assert.match(d1Compat, /app_private\.immoscout_central_credentials/);
-  assert.match(housingRuntime, /migrateLegacyCentralToken/);
-  assert.match(housingRuntime, /env\.LEGACY_D1/);
-  assert.match(housingRuntime, /verifyLegacyD1SnapshotKey/);
+  assert.doesNotMatch(housingRuntime, /createD1Compat\(sql\)|app_private\.get_housing_runtime_secret|migrateLegacyCentralToken|env\.LEGACY_D1|verifyLegacyD1SnapshotKey/);
   assert.doesNotMatch(housingRuntime, /immoscout-central-token-staging\.arash-ce5\.workers\.dev/);
   assert.match(runtimeConfig, /"preview_urls": true/);
-  assert.match(runtimeConfig, /"binding": "LEGACY_D1"/);
-  assert.match(runtimeConfig, /"binding": "HYPERDRIVE"/);
+  assert.match(runtimeConfig, /"binding": "HOUSING_DB"/);
+  assert.doesNotMatch(runtimeConfig, /"binding": "LEGACY_D1"|"binding": "HYPERDRIVE"/);
 });

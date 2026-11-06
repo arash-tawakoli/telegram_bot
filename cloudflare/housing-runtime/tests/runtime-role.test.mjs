@@ -3,53 +3,23 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const runtime = await readFile(new URL("../src/index.js", import.meta.url), "utf8");
-const migration = await readFile(new URL("../../../supabase/migrations/20261103172217_cloudflare_housing_runtime_least_privilege.sql", import.meta.url), "utf8");
-const loginMigration = await readFile(new URL("../../../supabase/migrations/20261103173035_enable_cloudflare_housing_hyperdrive_login.sql", import.meta.url), "utf8");
+const schema = await readFile(new URL("../schema/d1/0001_housing_core.sql", import.meta.url), "utf8");
 
-test("housing runtime reads only allow-listed Vault secrets through its scoped function", () => {
-  assert.match(runtime, /app_private\.get_housing_runtime_secret/);
-  assert.doesNotMatch(runtime, /public\.get_bot_secret/);
-  assert.match(migration, /immoscout_central_cloudflare_api_secret/);
-  assert.match(migration, /application_credential_key_v1/);
-  assert.match(migration, /REVOKE ALL ON FUNCTION app_private\.get_housing_runtime_secret\(text\)[\s\S]*?FROM PUBLIC, anon, authenticated, service_role/);
-  assert.match(migration, /GRANT EXECUTE ON FUNCTION app_private\.get_housing_runtime_secret\(text\)[\s\S]*?TO cf_housing_runtime_20261103/);
+test("housing runtime uses only the D1 binding and server-side secrets", () => {
+  assert.match(runtime, /env\.HOUSING_DB/);
+  assert.doesNotMatch(runtime, /env\.HYPERDRIVE|env\.LEGACY_D1|SUPABASE/);
+  assert.match(schema, /CREATE TABLE IF NOT EXISTS central_credentials/);
+  assert.match(schema, /CREATE TABLE IF NOT EXISTS provider_auth_flows/);
 });
 
-test("runtime database role does not inherit service_role or bypass RLS", () => {
-  assert.match(migration, /REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA app_private FROM PUBLIC/);
-  assert.match(migration, /ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA app_private[\s\S]*?REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC/);
-  assert.match(migration, /ALTER ROLE cf_housing_runtime_20261103[\s\S]*?NOLOGIN[\s\S]*?NOBYPASSRLS/);
-  assert.match(migration, /REVOKE service_role FROM cf_housing_runtime_20261103/);
-  assert.doesNotMatch(migration, /GRANT service_role TO cf_housing_runtime_20261103/);
-  assert.doesNotMatch(migration, /^\s+BYPASSRLS\s*;/m);
+test("D1 has no public database role surface", () => {
+  assert.match(runtime, /worker_authorization/);
+  assert.match(runtime, /listingAccess: "denied"/);
 });
 
-test("runtime role receives table access only to the three central ImmoScout tables", () => {
-  const grant = migration.match(/GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE([\s\S]*?)TO cf_housing_runtime_20261103/);
-  assert.ok(grant);
-  assert.deepEqual(
-    [...grant[1].matchAll(/app_private\.([a-z_]+)/g)].map((match) => match[1]),
-    [
-      "immoscout_central_credentials",
-      "immoscout_central_oauth_flows",
-      "immoscout_central_audit_events",
-    ],
-  );
-  assert.equal((migration.match(/CREATE POLICY cf_housing_runtime_access/g) || []).length, 3);
-  assert.match(migration, /GRANT EXECUTE ON FUNCTION app_private\.delete_expired_listings\(integer\)[\s\S]*?TO cf_housing_runtime_20261103/);
+test("central D1 state is separate from offers and applications", () => {
+  assert.match(schema, /CREATE TABLE IF NOT EXISTS central_credentials/);
+  assert.match(schema, /CREATE TABLE IF NOT EXISTS central_oauth_flows/);
+  assert.match(schema, /CREATE TABLE IF NOT EXISTS central_audit_events/);
 });
 
-test("runtime role can advance only the central audit identity sequence", () => {
-  assert.ok(migration.includes("GRANT USAGE, SELECT, UPDATE ON SEQUENCE"));
-  assert.ok(migration.includes("app_private.immoscout_central_audit_events_id_seq"));
-  assert.ok(migration.includes("TO cf_housing_runtime_20261103;"));
-});
-
-test("Hyperdrive login uses a Vault-generated password and remains least-privileged", () => {
-  assert.match(loginMigration, /gen_random_bytes\(32\)/);
-  assert.match(loginMigration, /vault\.create_secret/);
-  assert.match(loginMigration, /ALTER ROLE cf_housing_runtime_20261103 LOGIN NOINHERIT NOBYPASSRLS CONNECTION LIMIT 5/);
-  assert.match(loginMigration, /PASSWORD %L/);
-  assert.doesNotMatch(loginMigration, /PASSWORD\s+'[^']+'/);
-  assert.match(loginMigration, /cloudflare_hyperdrive_role_password/);
-});

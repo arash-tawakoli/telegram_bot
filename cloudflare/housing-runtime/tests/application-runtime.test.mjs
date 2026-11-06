@@ -35,7 +35,7 @@ test("application processor fails closed while a provider transport is pending",
   });
   const result = await processHousingApplication(db.query, { APPLICATION_RUN_TOKEN: "secret" }, new Request("https://runtime.test/internal/application/process", { method: "POST", headers: { authorization: "Bearer secret" } }));
   assert.equal(result.body.status, "manual_required");
-  assert.equal(result.body.reason, "provider_transport_pending");
+  assert.equal(result.body.reason, "application_link_missing");
   assert.ok(db.writes.some(({ text }) => /housing\.application_events/.test(text)));
 });
 

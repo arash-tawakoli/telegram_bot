@@ -1,5 +1,6 @@
 import { memberForAccess, sha256 } from "./auth.js";
 import { assertAllowedSource } from "./source-allowlist.js";
+import { issueProviderAuthFlow } from "./provider-facade.js";
 
 const HEADERS = {
   "content-type": "application/json; charset=utf-8",
@@ -41,7 +42,8 @@ function isAdmin(member) {
 const PROVIDERS = new Set(["immoscout24", "immowelt", "immomio"]);
 
 function provider(value) {
-  const result = String(value || "").toLowerCase();
+  const raw = String(value || "").toLowerCase();
+  const result = raw === "immoscout" ? "immoscout24" : raw;
   if (!PROVIDERS.has(result)) throw new Error("provider_not_allowlisted");
   return result;
 }
@@ -134,7 +136,7 @@ async function participant(sql, member, id) {
     profile: applicant[0]?.profile || {},
     searchProfiles: profiles.map((row) => ({ id: row.id, ...row.criteria, active: row.active, created_at: row.created_at, updated_at: row.updated_at })),
     documents: docs,
-    connections,
+    connections: connections.map((row) => ({ ...row, provider: row.provider === "immoscout24" ? "immoscout" : row.provider })),
     preferences: preferences[0] || null,
     applications: [],
     readiness: { profileComplete: Boolean(person.first_name && person.last_name), searchProfileCount: profiles.length, providerCount: connections.filter((row) => row.status === "connected").length },
@@ -218,7 +220,7 @@ async function applicationPage(sql, member, body) {
   const pageSize = Math.max(1, Math.min(100, Number(body.pageSize || 50)));
   const days = [7, 30, 90].includes(Number(body.days)) ? Number(body.days) : 30;
   const status = text(body.status, 40);
-  const providerName = text(body.provider, 40).toLowerCase();
+  const providerName = body.provider ? provider(body.provider) : "";
   if (providerName && !PROVIDERS.has(providerName)) throw new Error("provider_not_allowlisted");
   const rows = await sql`
     WITH latest_events AS (
@@ -293,12 +295,17 @@ async function startConnect(sql, member, body) {
   const participantId = uuid(body.participantId, "participant");
   if (!await canAccessParticipant(sql, member, participantId)) throw new Error("participant_forbidden");
   const selected = provider(body.provider);
-  await sql`
-    INSERT INTO housing.provider_connections (id, participant_id, provider, status)
-    VALUES (gen_random_uuid(), ${participantId}, ${selected}, 'pending')
-    ON CONFLICT (participant_id, provider) DO UPDATE SET status = 'pending', updated_at = now()
-  `;
-  return { status: "needs_login", provider: selected, error: "provider_login_requires_cloudflare_native_flow" };
+  const flow = await issueProviderAuthFlow(sql, participantId, selected, "coach", "coach", {
+    assignment_version: Number(body.assignmentVersion || 0),
+    member_id: member.id,
+  });
+  return {
+    status: "needs_login",
+    provider: selected,
+    ticket: flow.state,
+    url: `https://login.traumwohnunghamburg.de/connect?ticket=${encodeURIComponent(flow.state)}`,
+    expiresAt: flow.expiresAt,
+  };
 }
 
 async function disconnectProvider(sql, member, body) {

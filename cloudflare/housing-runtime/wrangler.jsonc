@@ -7,7 +7,7 @@
   "compatibility_flags": [
     "nodejs_compat"
   ],
-  "workers_dev": false,
+  "workers_dev": true,
   "preview_urls": true,
   "observability": {
     "enabled": true,
@@ -20,11 +20,6 @@
     }
   },
   "d1_databases": [
-    {
-      "binding": "LEGACY_D1",
-      "database_name": "immoscout-central-token-staging",
-      "database_id": "08789b5f-f200-4985-a357-276052206852"
-    },
     {
       "binding": "HOUSING_DB",
       "database_name": "traumwohnung-housing-core",
@@ -44,11 +39,6 @@
   },
   "previews": {
     "d1_databases": [
-      {
-        "binding": "LEGACY_D1",
-        "database_name": "immoscout-central-token-staging",
-        "database_id": "08789b5f-f200-4985-a357-276052206852"
-      },
       {
         "binding": "HOUSING_DB",
         "database_name": "traumwohnung-housing-core",

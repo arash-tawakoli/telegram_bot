@@ -244,3 +244,38 @@ CREATE INDEX IF NOT EXISTS application_events_application_idx ON application_eve
 CREATE INDEX IF NOT EXISTS jobs_ready_idx ON jobs(kind,status,lease_until,created_at);
 CREATE INDEX IF NOT EXISTS telegram_updates_status_idx ON telegram_updates(status,received_at);
 CREATE INDEX IF NOT EXISTS provider_auth_flows_lookup_idx ON provider_auth_flows(participant_id,provider,state,expires_at);
+
+-- The central ImmoScout24 credential is housing automation state, so it lives in
+-- the same D1 database instead of a second legacy database.
+CREATE TABLE IF NOT EXISTS central_credentials (
+  singleton TEXT PRIMARY KEY CHECK (singleton = 'central'),
+  account_hint TEXT NOT NULL,
+  ciphertext TEXT NOT NULL,
+  iv TEXT NOT NULL,
+  key_version INTEGER NOT NULL DEFAULT 1,
+  status TEXT NOT NULL CHECK (status IN ('connected','needs_login','error')),
+  enabled INTEGER NOT NULL DEFAULT 0 CHECK (enabled IN (0,1)),
+  expires_at TEXT,
+  last_verified_at TEXT,
+  last_error TEXT,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS central_oauth_flows (
+  state_hash TEXT PRIMARY KEY,
+  verifier_ciphertext TEXT NOT NULL,
+  verifier_iv TEXT NOT NULL,
+  admin_telegram_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  consumed_at TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS central_audit_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  event_type TEXT NOT NULL,
+  account_hint TEXT,
+  admin_telegram_id TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

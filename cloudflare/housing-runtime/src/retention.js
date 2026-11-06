@@ -15,8 +15,9 @@ export async function deleteExpiredListings(sql, limit = 5000) {
     if (!expired.length) return 0;
     const ids = expired.map((row) => row.id);
     let deletedCount = 0;
-    for (let offset = 0; offset < ids.length; offset += 400) {
-      const chunk = ids.slice(offset, offset + 400);
+    // D1's SQLite variable limit is lower than PostgreSQL's; keep each mutation small.
+    for (let offset = 0; offset < ids.length; offset += 50) {
+      const chunk = ids.slice(offset, offset + 50);
       const placeholders = chunk.map((_, index) => `$${index + 1}`).join(",");
       await tx.unsafe(`
       UPDATE housing.applications

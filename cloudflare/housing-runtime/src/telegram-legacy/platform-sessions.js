@@ -104,6 +104,16 @@ async function immoSso(email){const r=await fetch(IMMO_GQL,{method:'POST',header
 async function beginImmomioLogin(userId){const p=await db.from('applicant_profiles').select('email').eq('user_id',userId).maybeSingle();const email=String(p.data?.email||'').trim().toLowerCase();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw Error('immomio_email_required');const c=await immoSso(email),verifier=immoRandom(),state=immoRandom().slice(0,40),challenge=await immoChallenge(verifier);await db.from('platform_auth_flows').delete().eq('user_id',userId).eq('provider','immomio').is('consumed_at',null);await db.from('platform_auth_flows').insert({id:crypto.randomUUID(),user_id:userId,provider:'immomio',state,code_verifier:verifier,origin:'telegram',return_target:'telegram',context:{channel:'telegram'},expires_at:new Date(Date.now()+10*60_000).toISOString()});await db.from('platform_connections').upsert({id:crypto.randomUUID(),user_id:userId,provider:'immomio',status:'pending',account_hint:email},{onConflict:'user_id,provider'});const url=new URL(`${c.baseUrl}/realms/${c.realm}/protocol/openid-connect/auth`);for(const[k,v]of Object.entries({client_id:c.clientId,redirect_uri:IMMO_REDIRECT,response_type:'code',scope:'openid profile email',state,code_challenge:challenge,code_challenge_method:'S256',login_hint:email,prompt:'login'}))url.searchParams.set(k,String(v));return{status:'login',url:url.href,expiresInSeconds:600};}
 async function completeImmomioLogin(userId,callbackUrl){let u;try{u=new URL(String(callbackUrl||''));}catch{throw Error('invalid_callback_url')}if(u.protocol!=='https:'||u.hostname!=='tenant.immomio.com'||u.pathname!=='/de/auth/login')throw Error('invalid_callback_url');const state=u.searchParams.get('state'),code=u.searchParams.get('code');if(!state||!code)throw Error('invalid_callback_url');const flow=await db.from('platform_auth_flows').select('*').eq('user_id',userId).eq('provider','immomio').eq('state',state).is('consumed_at',null).gt('expires_at',new Date().toISOString()).maybeSingle();if(flow.error||!flow.data)throw Error('auth_flow_expired');const p=await db.from('applicant_profiles').select('email').eq('user_id',userId).maybeSingle();const email=String(p.data?.email||'').trim().toLowerCase();const c=await immoSso(email);const response=await fetch(`${c.baseUrl}/realms/${c.realm}/protocol/openid-connect/token`,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded',accept:'application/json'},body:new URLSearchParams({grant_type:'authorization_code',code,redirect_uri:IMMO_REDIRECT,code_verifier:String(flow.data.code_verifier),client_id:c.clientId}),signal:AbortSignal.timeout(20000)});const token=await response.json().catch(()=>null);if(!response.ok||!token?.access_token||!token?.refresh_token)throw Error('token_exchange_failed');const expiresAt=new Date(Date.now()+Math.max(60,Number(token.expires_in||300))*1000).toISOString();const credentials={access_token:String(token.access_token),refresh_token:String(token.refresh_token),expires_at:expiresAt,base_url:c.baseUrl,realm:c.realm,client_id:c.clientId,redirect_uri:IMMO_REDIRECT};const encrypted=await encryptProviderCredentials(runtimeEnv(),credentials,userId,'immomio');await db.from('platform_connections').upsert({id:crypto.randomUUID(),user_id:userId,provider:'immomio',status:'connected',ciphertext:encrypted.ciphertext,iv:encrypted.iv,key_version:encrypted.key_version,expires_at:expiresAt,updated_at:new Date().toISOString()},{onConflict:'user_id,provider'});await db.from('platform_auth_flows').update({consumed_at:new Date().toISOString()}).eq('id',flow.data.id);return{status:'connected',authenticated:true};}
 
+async function beginCloudflareProviderLogin(userId, provider){
+ const p=await db.from('applicant_profiles').select('email').eq('user_id',userId).maybeSingle();
+ const email=String(p.data?.email||'').trim().toLowerCase();
+ const state=immoRandom().slice(0,40),verifier=immoRandom();
+ await db.from('platform_auth_flows').delete().eq('user_id',userId).eq('provider',provider).is('consumed_at',null);
+ await db.from('platform_auth_flows').insert({id:crypto.randomUUID(),participant_id:userId,provider,state,code_verifier:verifier,origin:'telegram',return_target:'telegram',context:{channel:'telegram'},expires_at:new Date(Date.now()+30*60_000).toISOString()});
+ await db.from('platform_connections').upsert({id:crypto.randomUUID(),user_id:userId,provider,status:'pending',account_hint:email||null},{onConflict:'user_id,provider'});
+ return{status:'login',url:`https://login.traumwohnunghamburg.de/connect?ticket=${encodeURIComponent(state)}`,expiresInSeconds:1800};
+}
+
 export async function applicationWorker(action,userId,source,extra={}){
  const provider=source===1?'immoscout24':source===3?'immomio':source===4?'immowelt':null;
  if(!provider)throw Error('provider_not_allowlisted');
@@ -118,8 +128,8 @@ export async function applicationWorker(action,userId,source,extra={}){
   return {authenticated:data?.status==='connected',status:data?.status||'disconnected'};
  }
  if(action==='login' && source===3) return beginImmomioLogin(userId);
+ if(action==='login' && (source===1||source===4)) return beginCloudflareProviderLogin(userId,provider);
  if(action==='complete_login' && source===3) return completeImmomioLogin(userId,extra.callbackUrl);
- if(action==='login') throw Error('provider_login_requires_cloudflare_native_flow');
  throw Error('provider_operation_not_supported');
 }
 
@@ -134,7 +144,7 @@ export async function purgePlatformSessions(userId){
  await db.from('applicant_documents').delete().eq('user_id',userId);
  const {data,error}=await db.from('platform_connections').select('provider').eq('user_id',userId);
  if(error)throw Error('Plattformverbindungen konnten nicht geladen werden.');
- const sourceFor={immoscout:1,immomio:3,immowelt:4};
+ const sourceFor={immoscout24:1,immoscout:1,immomio:3,immowelt:4};
  for(const row of data||[]){const source=sourceFor[row.provider];if(source)await applicationWorker('disconnect',userId,source).catch(()=>{});}
  await db.from('platform_connections').delete().eq('user_id',userId);
  await db.from('platform_auth_flows').delete().eq('user_id',userId);
@@ -478,7 +488,7 @@ export async function handleAutoApplyMessage(user,message){
 }
 
 const AUTO_APPLY_PROVIDERS={
-  1:{key:'immoscout',name:'ImmoScout24',field:'immoscout_enabled'},
+  1:{key:'immoscout24',name:'ImmoScout24',field:'immoscout_enabled'},
   3:{key:'immomio',name:'Immomio',field:'immomio_enabled'},
   4:{key:'immowelt',name:'Immowelt',field:'immowelt_enabled'}
 };
@@ -710,7 +720,6 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   if(![1,3,4].includes(source))return;
   if(action!=='disconnect'&&!user.is_premium)return render('Zum Verbinden ist Premium erforderlich.',back);
   const name=source===1?'ImmoScout24':source===3?'Immomio':'Immowelt';
-  if(source===1&&action==='login')return render('🔐 <b>ImmoScout24</b>\n\nDie Verbindung wird ohne offizielle ImmoScout-API über eine gespeicherte Web-Session umgesetzt. Der kontrollierte Login-/Sendetest ist noch ausstehend; deshalb wird hier aktuell noch keine produktive Session angelegt.',back);
   try{
    let workerAction=action;
     const extra=source===4&&action==='login'?{origin:'telegram',returnTarget:'telegram',context:{channel:'telegram'}}:{};

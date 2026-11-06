@@ -1,6 +1,7 @@
 const PROVIDERS = new Set(["immoscout24", "immowelt", "immomio"]);
 import { sendImmoweltApplication } from "./immowelt-application.js";
 import { sendImmoScoutApplication } from "./immoscout-application.js";
+import { sendImmomioApplication } from "./immomio-application.js";
 
 async function sameSecret(supplied, expected) {
   if (typeof supplied !== "string" || typeof expected !== "string" || supplied.length === 0 || supplied.length !== expected.length) return false;
@@ -75,7 +76,12 @@ async function claim(sql, freshOnly = false) {
     `;
     if (!rows[0]) return null;
     await tx`UPDATE housing.applications SET status = 'processing', updated_at = now() WHERE id = ${rows[0].id} AND status = 'pending'`;
-    return rows[0];
+    const row = rows[0];
+    try { row.profile = typeof row.profile === "string" ? JSON.parse(row.profile || "{}") : (row.profile || {}); } catch { row.profile = {}; }
+    try { row.facts = typeof row.facts === "string" ? JSON.parse(row.facts || "{}") : (row.facts || {}); } catch { row.facts = {}; }
+    row.preferences_enabled = row.preferences_enabled === true || row.preferences_enabled === 1;
+    row.provider_enabled = row.provider_enabled === true || row.provider_enabled === 1;
+    return row;
   });
 }
 
@@ -116,6 +122,14 @@ export async function processHousingApplication(sql, env, request) {
     return { status: 200, body: { ok: true, status: result.status, provider, reason: result.error || result.confirmation || null, application_id: application.id } };
   }
 
-  // Provider transports stay fail-closed until their Cloudflare-native adapters are verified.
+  if (provider === "immomio") {
+    let result;
+    try { result = await sendImmomioApplication(application, env, sql); }
+    catch (error) { result = { status: "manual_required", error: ["needs_login", "temporary_network_error", "credential_decrypt_failed"].includes(String(error?.message || "")) ? String(error.message) : "provider_contract_unverified" }; }
+    await sql`UPDATE housing.applications SET status = ${result.status}, last_error = ${result.error || null}, updated_at = now() WHERE id = ${application.id}`;
+    await event(sql, application.id, provider, "provider_submission", result.status, result.error || null, { confirmation: result.confirmation || null, application_id: result.applicationId || null, follow_up: result.followUpRequired || null });
+    return { status: 200, body: { ok: true, status: result.status, provider, reason: result.error || result.confirmation || null, application_id: application.id } };
+  }
+
   return fail("manual_required", "provider_transport_pending", { provider, canonical_url: application.canonical_url });
 }

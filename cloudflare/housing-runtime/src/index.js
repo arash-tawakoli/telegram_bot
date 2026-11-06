@@ -1,7 +1,5 @@
 import { deleteExpiredListings } from "./retention.js";
-import { createD1Compat } from "./d1-compat.js";
 import centralTokenWorker from "./immoscout-central-token.js";
-import { importLegacyD1Snapshot, verifyLegacyD1SnapshotKey } from "./legacy-migration.js";
 import { HOUSING_SOURCES } from "./source-allowlist.js";
 import { sourceForId } from "./source-allowlist.js";
 import { ingestImmomioSource } from "./immomio-source.js";
@@ -10,6 +8,7 @@ import { ingestImmoScoutSource } from "./immoscout-source.js";
 import { telegramText } from "./matching.js";
 import { createSession, hashPassword, memberForAccess, refreshSession, revokeSession, sha256, verifyPassword } from "./auth.js";
 import { handleCoach } from "./coach-api.js";
+import { handleProviderFacade } from "./provider-facade.js";
 import { processHousingApplication } from "./application-runtime.js";
 import { createD1Client } from "./d1-database.js";
 import { handleLegacyTelegramUpdate } from "./telegram-legacy/index.js";
@@ -44,27 +43,6 @@ async function runRetention(env) {
   return withDatabase(env, (sql) => deleteExpiredListings(sql, 5000));
 }
 
-async function runLegacyD1Migration(env) {
-  return withDatabase(env, async (sql) => {
-    const centralEnv = await createCentralEnvironment(env);
-    const request = new Request("https://housing-runtime.internal/internal/migrate-from-d1", {
-      method: "POST",
-      headers: { authorization: `Bearer ${centralEnv.API_SECRET}` },
-    });
-    const response = await migrateLegacyCentralToken(request, env, sql, centralEnv);
-    const result = await response.json().catch(() => null);
-    if (!response.ok || result?.ok !== true) {
-      throw new Error(result?.error || "legacy_migration_failed");
-    }
-    return result;
-  });
-}
-
-
-function bytesToHex(bytes) {
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
 async function createCentralEnvironment(env) {
   const apiSecret = env.CENTRAL_API_SECRET;
   const credentialKey = env.CENTRAL_TOKEN_ENCRYPTION_KEY;
@@ -75,13 +53,8 @@ async function createCentralEnvironment(env) {
     ...env,
     API_SECRET: apiSecret,
     TOKEN_ENCRYPTION_KEY: String(credentialKey).toLowerCase(),
-    DB: env.LEGACY_D1 || createD1Compat(sql),
+    DB: env.HOUSING_DB,
   };
-}
-
-async function encryptionKeyFingerprint(value) {
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(String(value || "")));
-  return bytesToHex(new Uint8Array(digest));
 }
 
 async function sameSecret(supplied, expected) {
@@ -98,72 +71,6 @@ async function sameSecret(supplied, expected) {
   return difference === 0;
 }
 
-async function readLegacyD1Snapshot(env, keyHex) {
-  const db = env.LEGACY_D1;
-  if (!db) throw new Error("legacy_d1_binding_missing");
-
-  const [credentials, oauthFlows, auditEvents] = await Promise.all([
-    db.prepare(
-      "SELECT singleton, account_hint, ciphertext, iv, key_version, status, enabled, expires_at, last_verified_at, last_error, updated_at FROM central_credentials WHERE singleton = ?"
-    ).bind("central").first(),
-    db.prepare(
-      "SELECT state_hash, verifier_ciphertext, verifier_iv, admin_telegram_id, user_id, expires_at, consumed_at, created_at FROM oauth_flows ORDER BY created_at ASC LIMIT 10001"
-    ).all(),
-    db.prepare(
-      "SELECT id, event_type, account_hint, admin_telegram_id, created_at FROM audit_events ORDER BY id ASC LIMIT 10001"
-    ).all(),
-  ]);
-
-  return {
-    credentials: credentials || null,
-    oauth_flows: oauthFlows?.results || [],
-    audit_events: auditEvents?.results || [],
-    key_fingerprint: await encryptionKeyFingerprint(keyHex),
-  };
-}
-
-async function migrateLegacyCentralToken(request, env, sql, centralEnv) {
-  if (!await sameSecret(request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") || "", centralEnv.API_SECRET)) {
-    return json({ error: "unauthorized" }, 401);
-  }
-  if (env.PREVIEW_MODE === "1" && new URL(request.url).searchParams.get("dry_run") !== "1") {
-    return json({ error: "preview_read_only" }, 403);
-  }
-
-  try {
-    const snapshot = await readLegacyD1Snapshot(env, centralEnv.TOKEN_ENCRYPTION_KEY);
-    const verified = await verifyLegacyD1SnapshotKey(snapshot, centralEnv.TOKEN_ENCRYPTION_KEY);
-    const counts = {
-      credentials: snapshot.credentials ? 1 : 0,
-      oauth_flows: snapshot.oauth_flows.length,
-      audit_events: snapshot.audit_events.length,
-    };
-
-    if (new URL(request.url).searchParams.get("dry_run") === "1") {
-      return json({ ok: true, verified: true, counts, keyCheck: verified });
-    }
-
-    const imported = await importLegacyD1Snapshot(
-      sql,
-      snapshot,
-      snapshot.key_fingerprint,
-    );
-    return json({
-      ok: true,
-      migrated: imported.credentials > 0 || imported.oauth_flows > 0 || imported.audit_events > 0,
-      imported,
-      keyCheck: verified,
-    });
-  } catch (error) {
-    const code = String(error?.message || "");
-    if (code.includes("key_mismatch")) {
-      return json({ ok: false, error: "legacy_encryption_key_mismatch" }, 409);
-    }
-    if (code.startsWith("legacy_")) return json({ ok: false, error: code }, 422);
-    console.error("central_immoscout_migration_failed", code);
-    return json({ ok: false, error: "migration_failed" }, 503);
-  }
-}
 function isAuthorized(request, env) {
   const expected = env.RETENTION_TOKEN;
   if (!expected) return false;
@@ -422,7 +329,7 @@ export default {
       return json({
         ok: true,
         service: "traumwohnung-housing-runtime",
-        databaseConfigured: Boolean(env.HOUSING_DB || env.HYPERDRIVE?.connectionString),
+        databaseConfigured: Boolean(env.HOUSING_DB),
       });
     }
 
@@ -459,6 +366,15 @@ export default {
       }
     }
 
+    if (request.method === "POST" && url.pathname === "/edge/provider/facade") {
+      try {
+        return await withDatabase(env, (sql) => handleProviderFacade(sql, request, env));
+      } catch (error) {
+        console.error("housing_provider_facade_failed", String(error?.message || error));
+        return json({ error: "auth_facade_failed" }, 503);
+      }
+    }
+
     if (request.method === "POST" && url.pathname === "/edge/coach") {
       try {
         return await withDatabase(env, async (sql) => json(await handleCoach(sql, request, env)));
@@ -478,18 +394,6 @@ export default {
     if (request.method === "GET" && url.pathname === "/edge/documents/open") {
       try { return await withDatabase(env, (sql) => openDocument(sql, request, env)); }
       catch (error) { console.error("housing_document_open_failed", String(error?.message || error)); return json({ error: "document_open_failed" }, 503); }
-    }
-
-    if (request.method === "POST" && routePath === "/internal/migrate-from-d1") {
-      try {
-        return await withDatabase(env, async (sql) => {
-          const centralEnv = await createCentralEnvironment(env);
-          return migrateLegacyCentralToken(request, env, sql, centralEnv);
-        });
-      } catch (error) {
-        console.error("central_immoscout_migration_failed", String(error?.message || error));
-        return json({ ok: false, error: "migration_failed" }, 503);
-      }
     }
 
     if (request.method === "GET" && routePath === "/internal/source-allowlist") {
@@ -515,95 +419,32 @@ export default {
     if (request.method === "GET" && (url.pathname === "/ready" || routePath === "/ready")) {
       try {
         const readiness = await withDatabase(env, async (sql) => {
-          const centralEnv = await createCentralEnvironment(env);
-          if (env.HOUSING_DB) {
-            const [tables, counts] = await Promise.all([
-              sql`SELECT count(*) AS count FROM sqlite_master WHERE type = 'table' AND name IN ('source_registry','participants','portal_members','participant_assignments','portal_sessions','bootstrap_tokens','search_profiles','source_links','applicant_profiles','documents','upload_tokens','provider_connections','application_preferences','offer_identities','deliveries','applications','application_events','jobs','audit_events','telegram_updates','provider_auth_flows')`,
-              sql`SELECT
-                (SELECT count(*) FROM participants) AS participants,
-                (SELECT count(*) FROM search_profiles) AS search_profiles,
-                (SELECT count(*) FROM applicant_profiles) AS applicant_profiles,
-                (SELECT count(*) FROM provider_connections) AS provider_connections,
-                (SELECT count(*) FROM offer_identities) AS offers,
-                (SELECT count(*) FROM deliveries) AS deliveries,
-                (SELECT count(*) FROM applications) AS applications`,
-            ]);
-            return {
-              role: "cloudflare-d1",
-              rls: "worker_authorization",
-              serviceRoleMember: false,
-              listingAccess: "denied",
-              retentionFunction: "available",
-              centralVault: "available",
-              legacyD1: "pending",
-              centralTables: { credentials: 0, oauth_flows: 0, audit_events: 0 },
-              housingTarget: { tables: Number(tables[0]?.count || 0), rls: "worker_authorization", dataImported: Number(counts[0]?.participants || 0) > 0 },
-              counts: counts[0] || {},
-            };
-          }
-          let legacyD1 = "pending";
-          try {
-            const legacySnapshot = await readLegacyD1Snapshot(env, centralEnv.TOKEN_ENCRYPTION_KEY);
-            await verifyLegacyD1SnapshotKey(legacySnapshot, centralEnv.TOKEN_ENCRYPTION_KEY);
-            legacyD1 = "verified";
-          } catch (error) {
-            console.warn("housing_legacy_d1_pending", String(error?.message || error).slice(0, 160));
-          }
-          const centralD1 = Boolean(env.LEGACY_D1);
-          const [identity, permissions, rls, counts, housingContract] = await Promise.all([
-            sql`SELECT current_user AS role, r.rolbypassrls AS bypass_rls,
-                pg_has_role(current_user, 'service_role', 'member') AS service_role_member
-              FROM pg_roles AS r WHERE r.rolname = current_user`,
-            centralD1 ? Promise.resolve([{
-              credentials_read: true,
-              oauth_read: true,
-              audit_read: true,
-              listings_read: false,
-              retention_execute: true,
-              scoped_secret_execute: true,
-            }]) : sql`SELECT
-                has_table_privilege(current_user, 'app_private.immoscout_central_credentials', 'SELECT') AS credentials_read,
-                has_table_privilege(current_user, 'app_private.immoscout_central_oauth_flows', 'SELECT') AS oauth_read,
-                has_table_privilege(current_user, 'app_private.immoscout_central_audit_events', 'SELECT') AS audit_read,
-                has_table_privilege(current_user, 'public.listings', 'SELECT') AS listings_read,
-                has_function_privilege(current_user, 'app_private.delete_expired_listings(integer)', 'EXECUTE') AS retention_execute,
-                has_function_privilege(current_user, 'app_private.get_housing_runtime_secret(text)', 'EXECUTE') AS scoped_secret_execute`,
-            centralD1 ? Promise.resolve([{ all_enabled: true }]) : sql`SELECT count(*) = 3 AND bool_and(c.relrowsecurity) AS all_enabled
-              FROM pg_class AS c
-              JOIN pg_namespace AS n ON n.oid = c.relnamespace
-              WHERE n.nspname = 'app_private'
-                AND c.relname IN (
-                  'immoscout_central_credentials',
-                  'immoscout_central_oauth_flows',
-                  'immoscout_central_audit_events'
-                )`,
-            centralD1 ? Promise.resolve([{ credentials: 0, oauth_flows: 0, audit_events: 0 }]) : sql`SELECT
-                (SELECT count(*)::integer FROM app_private.immoscout_central_credentials) AS credentials,
-                (SELECT count(*)::integer FROM app_private.immoscout_central_oauth_flows) AS oauth_flows,
-                (SELECT count(*)::integer FROM app_private.immoscout_central_audit_events) AS audit_events`,
-            sql`SELECT count(*) = 20 AND bool_and(c.relrowsecurity) AS all_enabled
-              FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-              WHERE n.nspname = 'housing' AND c.relkind = 'r'`,
+          const [tables, centralTables, counts] = await Promise.all([
+            sql`SELECT count(*) AS count FROM sqlite_master WHERE type = 'table' AND name IN ('source_registry','participants','portal_members','participant_assignments','portal_sessions','bootstrap_tokens','search_profiles','source_links','applicant_profiles','documents','upload_tokens','provider_connections','application_preferences','offer_identities','deliveries','applications','application_events','jobs','audit_events','telegram_updates','provider_auth_flows')`,
+            sql`SELECT
+              (SELECT count(*) FROM central_credentials) AS credentials,
+              (SELECT count(*) FROM central_oauth_flows) AS oauth_flows,
+              (SELECT count(*) FROM central_audit_events) AS audit_events`,
+            sql`SELECT
+              (SELECT count(*) FROM participants) AS participants,
+              (SELECT count(*) FROM search_profiles) AS search_profiles,
+              (SELECT count(*) FROM applicant_profiles) AS applicant_profiles,
+              (SELECT count(*) FROM provider_connections) AS provider_connections,
+              (SELECT count(*) FROM offer_identities) AS offers,
+              (SELECT count(*) FROM deliveries) AS deliveries,
+              (SELECT count(*) FROM applications) AS applications`,
           ]);
-          const role = identity[0];
-          const access = permissions[0];
-          const rlsEnabled = Boolean(rls[0]?.all_enabled);
-          if (!role || role.bypass_rls || role.service_role_member ||
-              !access.credentials_read || !access.oauth_read || !access.audit_read ||
-              access.listings_read || !access.retention_execute || !access.scoped_secret_execute ||
-              !rlsEnabled || !housingContract[0]?.all_enabled) {
-            throw new Error("runtime_security_contract_failed");
-          }
           return {
-            role: role.role,
-            rls: "enabled",
+            role: "cloudflare-d1",
+            rls: "worker_authorization",
             serviceRoleMember: false,
             listingAccess: "denied",
             retentionFunction: "available",
             centralVault: "available",
-            legacyD1,
-            centralTables: counts[0],
-            housingTarget: { tables: 20, rls: "enabled", dataImported: true },
+            legacyD1: "removed",
+            centralTables: centralTables[0] || {},
+            housingTarget: { tables: Number(tables[0]?.count || 0), rls: "worker_authorization", dataImported: Number(counts[0]?.participants || 0) > 0 },
+            counts: counts[0] || {},
           };
         });
         return json({ ok: true, database: "reachable", ...readiness });
@@ -630,15 +471,6 @@ export default {
 
   async scheduled(_controller, env, ctx) {
     ctx.waitUntil((async () => {
-      if (env.MIGRATE_D1_ONCE === "1") {
-        try {
-          const migrated = await runLegacyD1Migration(env);
-          console.log("central_d1_migration_completed", JSON.stringify(migrated));
-        } catch (error) {
-          console.error("central_d1_migration_failed", String(error?.message || error));
-        }
-      }
-
       try {
         const deleted = await runRetention(env);
         console.log("housing_listing_retention_completed", JSON.stringify({ deleted }));

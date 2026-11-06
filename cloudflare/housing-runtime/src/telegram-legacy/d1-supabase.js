@@ -17,6 +17,17 @@ const TABLES = {
   platform_auth_flows: "provider_auth_flows",
   telegram_announcements: null,
 };
+const ALIASES = {
+  bot_users: { user_id: "id", chat_id: "telegram_chat_id", is_active: "status", onboarding_state: "telegram_state" },
+  search_profiles: { user_id: "participant_id", is_active: "active" },
+  applicant_profiles: { user_id: "participant_id" },
+  platform_connections: { user_id: "participant_id", credential_ciphertext: "ciphertext", credential_iv: "iv" },
+  platform_auth_flows: { user_id: "participant_id" },
+  applicant_documents: { user_id: "participant_id", storage_path: "object_key", mime_type: "content_type" },
+  listings: { source_listing_key: "external_id", is_active: "expires_at", title: "facts", raw: "facts" },
+  delivery_events: { profile_id: "participant_id", listing_id: "offer_identity_id" },
+  applications: { user_id: "participant_id", listing_id: "offer_identity_id" },
+};
 
 const ALLOWLIST = [1, 3, 23, 29, 34, 35, 66, 69, 71];
 
@@ -35,17 +46,7 @@ function scalar(value) {
 }
 
 function mapColumn(table, column) {
-  const aliases = {
-    bot_users: { user_id: "id", chat_id: "telegram_chat_id", is_active: "status", onboarding_state: "telegram_state" },
-    search_profiles: { user_id: "participant_id", is_active: "active" },
-    applicant_profiles: { user_id: "participant_id" },
-    platform_connections: { user_id: "participant_id", credential_ciphertext: "ciphertext", credential_iv: "iv" },
-    applicant_documents: { user_id: "participant_id", storage_path: "object_key", mime_type: "content_type" },
-    listings: { source_listing_key: "external_id", is_active: "expires_at", title: "facts", raw: "facts" },
-    delivery_events: { profile_id: "participant_id", listing_id: "offer_identity_id" },
-    applications: { user_id: "participant_id", listing_id: "offer_identity_id" },
-  };
-  return aliases[table]?.[column] || column;
+  return ALIASES[table]?.[column] || column;
 }
 
 function outputRow(table, row) {
@@ -76,6 +77,7 @@ function outputRow(table, row) {
   if (table === "listings") return { ...facts, ...row, title: facts.title || "Wohnungsangebot", is_active: !row.expires_at || new Date(row.expires_at).getTime() > Date.now(), source_listing_key: row.external_id, raw: facts };
   if (table === "delivery_events") return { ...row, listing_id: row.offer_identity_id, profile_id: row.participant_id };
   if (table === "applications") return { ...row, user_id: row.participant_id, listing_id: row.offer_identity_id };
+  if (table === "platform_auth_flows") return { ...row, user_id: row.participant_id, context: json(row.context, {}) };
   if (table === "sources") return { ...row, enabled: bool(row.enabled) };
   return row;
 }
@@ -129,7 +131,7 @@ class Query {
   async mutate(kind) {
     if (kind === "DELETE") { const params=[]; const where=this.where(params); const result=await this.client.run(`DELETE FROM ${this.physical}${where?` WHERE ${where}`:""}`,params); return {data:[],error:null,count:result.count}; }
     if (kind === "UPDATE") { const entries=Object.entries(this.payload||{}); const params=entries.map(([,v])=>scalar(v)); const whereParams=[]; const where=this.where(whereParams); const sql=`UPDATE ${this.physical} SET ${entries.map(([k])=>`${mapColumn(this.table,k)}=?`).join(",")}${where?` WHERE ${where}`:""}`; const result=await this.client.run(sql,[...params,...whereParams]); return {data:[],error:null,count:result.count}; }
-    const rows=this.payload||[]; let data=[]; for(const row of rows){const mapped={...row}; if(this.table==='bot_users'){mapped.telegram_chat_id=mapped.chat_id; delete mapped.chat_id; mapped.status=mapped.is_active===false?'archived':'active'; delete mapped.is_active; mapped.telegram_state=JSON.stringify(mapped.onboarding_state||{}); delete mapped.onboarding_state; delete mapped.onboarding_step;} if(this.table==='search_profiles'){const criteria={...mapped}; delete criteria.id; delete criteria.user_id; delete criteria.participant_id; delete criteria.active; delete criteria.is_active; delete criteria.created_at; delete criteria.updated_at; mapped.criteria=JSON.stringify(criteria); mapped.participant_id=mapped.user_id||mapped.participant_id; mapped.active=mapped.is_active===false?0:1; delete mapped.user_id; delete mapped.is_active;} if(this.table==='applicant_profiles'){mapped.participant_id=mapped.user_id||mapped.participant_id; delete mapped.user_id; const profile={...mapped}; delete profile.participant_id; delete profile.updated_at; mapped.profile=JSON.stringify(profile);} const keys=Object.keys(mapped); const vals=keys.map(k=>scalar(mapped[k])); const placeholders=keys.map(()=>"?").join(","); const conflict=this.conflict||"id"; const sql=`INSERT OR REPLACE INTO ${this.physical} (${keys.join(",")}) VALUES (${placeholders})`; const result=await this.client.run(sql,vals); if(this.returning) data.push(outputRow(this.table,mapped)); } return {data,error:null,count:rows.length};
+    const rows=this.payload||[]; let data=[]; for(const row of rows){const mapped={...row}; if(this.table==='bot_users'){mapped.telegram_chat_id=mapped.chat_id; delete mapped.chat_id; mapped.status=mapped.is_active===false?'archived':'active'; delete mapped.is_active; mapped.telegram_state=JSON.stringify(mapped.onboarding_state||{}); delete mapped.onboarding_state; delete mapped.onboarding_step;} if(this.table==='search_profiles'){const criteria={...mapped}; delete criteria.id; delete criteria.user_id; delete criteria.participant_id; delete criteria.active; delete criteria.is_active; delete criteria.created_at; delete criteria.updated_at; mapped.criteria=JSON.stringify(criteria); mapped.participant_id=mapped.user_id||mapped.participant_id; mapped.active=mapped.is_active===false?0:1; delete mapped.user_id; delete mapped.is_active;} if(this.table==='applicant_profiles'){mapped.participant_id=mapped.user_id||mapped.participant_id; delete mapped.user_id; const profile={...mapped}; delete profile.participant_id; delete profile.updated_at; mapped.profile=JSON.stringify(profile);} for(const [logical,physical] of Object.entries(ALIASES[this.table]||{})){if(Object.prototype.hasOwnProperty.call(mapped,logical)){mapped[physical]=mapped[logical];delete mapped[logical];}} const keys=Object.keys(mapped); const vals=keys.map(k=>scalar(mapped[k])); const placeholders=keys.map(()=>"?").join(","); const conflict=this.conflict||"id"; const sql=`INSERT OR REPLACE INTO ${this.physical} (${keys.join(",")}) VALUES (${placeholders})`; const result=await this.client.run(sql,vals); if(this.returning) data.push(outputRow(this.table,mapped)); } return {data,error:null,count:rows.length};
   }
 }
 
