@@ -332,7 +332,7 @@ async function runScheduledHousingWork(env) {
     }
   }
 
-  const applicationRequest = new Request("https://housing-runtime.internal/internal/application/process", {
+  const applicationRequest = new Request("https://housing-runtime.internal/internal/application/process?fresh_only=1", {
     method: "POST",
     headers: { authorization: `Bearer ${env.APPLICATION_RUN_TOKEN || ""}` },
   });
