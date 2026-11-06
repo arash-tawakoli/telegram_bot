@@ -1,3 +1,4 @@
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 CREATE SCHEMA IF NOT EXISTS housing;
 
 CREATE TABLE IF NOT EXISTS housing.source_registry (

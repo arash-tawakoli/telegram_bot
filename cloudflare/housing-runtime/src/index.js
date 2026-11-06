@@ -21,6 +21,7 @@ const HEADERS = {
   "x-content-type-options": "nosniff",
   "referrer-policy": "no-referrer",
 };
+const SOURCE_ROTATION = [1, 3, 23, 29, 34, 35, 37, 66, 69, 71];
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: HEADERS });
@@ -247,8 +248,18 @@ async function runSource(sql, request, env) {
 async function processDelivery(sql, request, env) {
   const expected = env.DELIVERY_RUN_TOKEN || env.SOURCE_RUN_TOKEN;
   if (!expected || !await sameSecret(request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") || "", expected)) return json({ error: "unauthorized" }, 401);
+  const freshOnly = new URL(request.url).searchParams.get("fresh_only") === "1";
   const claimed = await sql.begin(async (tx) => {
-    const rows = await tx`
+    const rows = freshOnly ? await tx`
+      SELECT d.id, d.participant_id, d.offer_identity_id, p.telegram_chat_id, oi.facts, oi.canonical_url
+      FROM housing.deliveries d
+      JOIN housing.participants p ON p.id = d.participant_id
+      JOIN housing.offer_identities oi ON oi.id = d.offer_identity_id
+      WHERE d.status = 'pending' AND d.created_at >= now() - interval '15 minutes'
+      ORDER BY d.created_at
+      LIMIT 1
+      FOR UPDATE SKIP LOCKED
+    ` : await tx`
       SELECT d.id, d.participant_id, d.offer_identity_id, p.telegram_chat_id, oi.facts, oi.canonical_url
       FROM housing.deliveries d
       JOIN housing.participants p ON p.id = d.participant_id
@@ -281,6 +292,52 @@ async function processDelivery(sql, request, env) {
   }
   await sql`UPDATE housing.deliveries SET status = 'sent', telegram_message_id = ${Number(result.result?.message_id || 0)}, sent_at = now() WHERE id = ${claimed.id}`;
   return json({ ok: true, status: "sent", delivery_id: claimed.id });
+}
+
+async function runScheduledHousingWork(env) {
+  const minute = Math.floor(Date.now() / 60_000);
+  const sourceId = SOURCE_ROTATION[minute % SOURCE_ROTATION.length];
+  const sourceRequest = new Request("https://housing-runtime.internal/internal/source/run", {
+    method: "POST",
+    headers: { authorization: `Bearer ${env.SOURCE_RUN_TOKEN || ""}`, "content-type": "application/json" },
+    body: JSON.stringify({ source_id: sourceId }),
+  });
+  try {
+    await withDatabase(env, (sql) => runSource(sql, sourceRequest, env));
+  } catch (error) {
+    console.error("housing_source_scheduled_failed", JSON.stringify({ source_id: sourceId, error: String(error?.message || error) }));
+  }
+
+  for (let index = 0; index < 5; index++) {
+    const deliveryRequest = new Request("https://housing-runtime.internal/internal/delivery/process?fresh_only=1", {
+      method: "POST",
+      headers: { authorization: `Bearer ${env.DELIVERY_RUN_TOKEN || ""}` },
+    });
+    let result;
+    try {
+      result = await withDatabase(env, (sql) => processDelivery(sql, deliveryRequest, env));
+    } catch (error) {
+      console.error("housing_delivery_scheduled_failed", String(error?.message || error));
+      break;
+    }
+    if (result.status === 200) {
+      const body = await result.clone().json().catch(() => null);
+      if (body?.status === "idle") break;
+    }
+  }
+
+  const applicationRequest = new Request("https://housing-runtime.internal/internal/application/process", {
+    method: "POST",
+    headers: { authorization: `Bearer ${env.APPLICATION_RUN_TOKEN || ""}` },
+  });
+  try {
+    await withDatabase(env, async (sql) => {
+      const result = await processHousingApplication(sql, env, applicationRequest);
+      console.log("housing_application_scheduled", JSON.stringify(result.body || result));
+    });
+  } catch (error) {
+    console.error("housing_application_scheduled_failed", String(error?.message || error));
+  }
 }
 
 async function handleAuth(sql, request) {
@@ -589,6 +646,12 @@ export default {
         console.log("housing_listing_retention_completed", JSON.stringify({ deleted }));
       } catch (error) {
         console.error("housing_listing_retention_failed", String(error?.message || error));
+      }
+
+      try {
+        await runScheduledHousingWork(env);
+      } catch (error) {
+        console.error("housing_scheduled_work_failed", String(error?.message || error));
       }
     })());
   },
