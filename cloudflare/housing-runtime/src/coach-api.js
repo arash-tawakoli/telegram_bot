@@ -46,20 +46,6 @@ function provider(value) {
   return result;
 }
 
-async function providerCall(env, providerName, action, participantId, extra = {}) {
-  const base = String(env.SUPABASE_URL || "").replace(/\/$/, "");
-  const secret = String(env.INTERNAL_WORKER_SECRET || "");
-  if (!base || !secret) throw new Error("provider_runtime_unavailable");
-  const endpoint = providerName === "immomio" ? `${base}/functions/v1/immomio-account` : `${base}/functions/v1/application-worker`;
-  const body = providerName === "immomio"
-    ? { action, userId: participantId, ...extra }
-    : { action, userId: participantId, source: providerName === "immowelt" ? 4 : 1, origin: "coach", returnTarget: "coach", ...extra };
-  const response = await fetch(endpoint, { method: "POST", headers: { "content-type": "application/json", "x-internal-secret": secret }, body: JSON.stringify(body), signal: AbortSignal.timeout(45_000) });
-  const data = await response.json().catch(() => null);
-  if (!response.ok || !data) throw new Error(data?.error || "provider_operation_failed");
-  return data;
-}
-
 async function canAccessParticipant(sql, member, participantId) {
   if (isAdmin(member)) return true;
   const rows = await sql`
@@ -303,26 +289,24 @@ async function setPreferences(sql, member, body) {
   return { ok: true };
 }
 
-async function startConnect(sql, member, body, env) {
+async function startConnect(sql, member, body) {
   const participantId = uuid(body.participantId, "participant");
   if (!await canAccessParticipant(sql, member, participantId)) throw new Error("participant_forbidden");
   const selected = provider(body.provider);
-  const result = await providerCall(env, selected, "login", participantId);
   await sql`
     INSERT INTO housing.provider_connections (id, participant_id, provider, status)
     VALUES (gen_random_uuid(), ${participantId}, ${selected}, 'pending')
     ON CONFLICT (participant_id, provider) DO UPDATE SET status = 'pending', updated_at = now()
   `;
-  return result;
+  return { status: "needs_login", provider: selected, error: "provider_login_requires_cloudflare_native_flow" };
 }
 
-async function disconnectProvider(sql, member, body, env) {
+async function disconnectProvider(sql, member, body) {
   const participantId = uuid(body.participantId, "participant");
   if (!await canAccessParticipant(sql, member, participantId)) throw new Error("participant_forbidden");
   const selected = provider(body.provider);
-  const result = await providerCall(env, selected, "disconnect", participantId);
   await sql`UPDATE housing.provider_connections SET status = 'disconnected', ciphertext = NULL, iv = NULL, updated_at = now() WHERE participant_id = ${participantId} AND provider = ${selected}`;
-  return { ok: true, result };
+  return { ok: true, status: "disconnected" };
 }
 
 async function requestUpload(sql, member, request, body) {
@@ -420,8 +404,8 @@ export async function handleCoach(sql, request, env = {}) {
   }
   if (action === "dashboard") return dashboard(sql, member);
   if (action === "set_preferences") return setPreferences(sql, member, body);
-  if (action === "start_connect") return startConnect(sql, member, body, env);
-  if (action === "disconnect_provider") return disconnectProvider(sql, member, body, env);
+  if (action === "start_connect") return startConnect(sql, member, body);
+  if (action === "disconnect_provider") return disconnectProvider(sql, member, body);
   if (action === "request_upload") return requestUpload(sql, member, request, body);
   if (action === "register_upload") return registerUpload(sql, member, body);
   if (action === "open_document") return openDocument(sql, member, request, body);

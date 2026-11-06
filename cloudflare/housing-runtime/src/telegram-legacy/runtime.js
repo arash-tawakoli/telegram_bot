@@ -3,7 +3,6 @@ import { localizeText, localizeMarkup } from "./localization.js";
 
 export let db = null;
 let env = {};
-export const SUPABASE_URL = "";
 export const PREMIUM_LINK = "https://buy.stripe.com/dRm9AM7DSajfgYK2qVfYY01";
 export const PROPERTY_TYPES = ["Wohnung", "Haus", "WG", "Tauschwohnung"];
 export const RENT_PRESETS = new Set([800, 1000, 1250, 2000]);

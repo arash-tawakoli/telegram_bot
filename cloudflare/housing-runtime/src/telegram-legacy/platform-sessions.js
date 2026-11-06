@@ -1,4 +1,4 @@
-import {db,SUPABASE_URL,secret,send,edit,button,telegram,esc} from './runtime.js';
+import {db,secret,send,edit,button,telegram,esc} from './runtime.js';
 import {providerStaticMissing} from './application-profile-adapters.js';
 
 const privateOwner=(user,chat)=>chat?.type==='private'&&user.is_active
@@ -95,30 +95,20 @@ const IMMOMIO_CALLBACK_ORIGIN='https://tenant.immomio.com';
 const IMMOMIO_CALLBACK_PATH='/assets/manifest.webmanifest';
 
 export async function applicationWorker(action,userId,source,extra={}){
- let response;
- try{
-  const endpoint=source===3?`${SUPABASE_URL}/functions/v1/immomio-account`:`${SUPABASE_URL}/functions/v1/application-worker`;
-  response=await fetch(endpoint,{
-   method:'POST',headers:{'Content-Type':'application/json','x-internal-secret':await secret('internal_worker_secret')},
-   body:JSON.stringify({action,userId,source,...extra}),signal:AbortSignal.timeout(45000)});
- }catch{throw Error('Auto-Bewerbung ist gerade nicht erreichbar. Bitte erneut versuchen.');}
- const result=await response.json().catch(()=>null);
- if(!response.ok||!result){
-  const code=result?.error;
-  if(code==='premium_required')throw Error('Premium ist erforderlich.');
-  if(code==='auth_flow_expired')throw Error('Die Plattform-Anmeldung ist abgelaufen. Bitte erneut verbinden.');
-  if(code==='invalid_callback_url')throw Error('Der Plattform-Rücksprung ist unvollständig. Bitte den Login erneut starten.');
-  if(code==='token_exchange_failed')throw Error('Die Plattform konnte die Anmeldung nicht abschließen. Bitte erneut versuchen.');
-  if(code==='immomio_email_required')throw Error('Im Bewerberprofil fehlt eine gültige E-Mail-Adresse.');
-  if(code==='test_mode_forbidden')throw Error('Der persönliche Testbetrieb ist nur für das freigegebene Konto verfügbar.');
-  if(code==='test_mode_global_auto_apply_active')throw Error('Deaktiviere zuerst die reguläre Auto-Bewerbung.');
-  if(code==='test_mode_profile_incomplete')throw Error('Dein Bewerberprofil ist noch nicht vollständig.');
-  if(code==='test_mode_search_profile_missing')throw Error('Aktiviere zuerst mindestens ein Suchprofil.');
-  if(code==='test_mode_central_account_unavailable')throw Error('Der zentrale ImmoScout24-Zugang ist nicht verfügbar oder global freigegeben.');
-  if(code==='test_mode_update_failed')throw Error('Der persönliche Testmodus konnte nicht gespeichert werden.');
-  throw Error('Plattformverbindung momentan nicht verfügbar.');
+ const provider=source===1?'immoscout24':source===3?'immomio':source===4?'immowelt':null;
+ if(!provider)throw Error('provider_not_allowlisted');
+ if(action==='disconnect'){
+  const {error}=await db.from('platform_connections').update({status:'disconnected',ciphertext:null,iv:null,updated_at:new Date().toISOString()}).eq('user_id',userId).eq('provider',provider);
+  if(error)throw Error('disconnect_failed');
+  return {status:'disconnected'};
  }
- return result;
+ if(action==='check'){
+  const {data,error}=await db.from('platform_connections').select('provider,status').eq('user_id',userId).eq('provider',provider).maybeSingle();
+  if(error)throw Error('connection_read_failed');
+  return {authenticated:data?.status==='connected',status:data?.status||'disconnected'};
+ }
+ if(action==='login') throw Error('provider_login_requires_cloudflare_native_flow');
+ throw Error('provider_operation_not_supported');
 }
 
 export async function purgePlatformSessions(userId){
