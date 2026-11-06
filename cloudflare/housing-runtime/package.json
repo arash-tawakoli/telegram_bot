@@ -9,6 +9,7 @@
   "scripts": {
     "test": "node --test tests/*.test.mjs",
     "schema:apply": "node scripts/apply-target-schema.mjs",
+    "target:verify": "node scripts/verify-target-database.mjs",
     "check": "node --check src/index.js && node --check src/retention.js && node --check src/d1-compat.js && node --check src/legacy-migration.js && node --check src/immoscout-central-token.js && node --check src/source-allowlist.js && node --check src/auth.js && node --check src/coach-api.js && node --check src/matching.js && node --check src/immomio-source.js && node --check src/immowelt-source.js && node --check src/immoscout-source.js && node --check src/telegram-housing.js && node --check src/application-runtime.js && node --check src/provider-credentials.js && node --check src/immowelt-application.js && node --check src/immoscout-application.js"
   },
   "dependencies": {
