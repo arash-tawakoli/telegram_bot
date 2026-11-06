@@ -8,6 +8,7 @@ import { HOUSING_SOURCES } from "./source-allowlist.js";
 import { sourceForId } from "./source-allowlist.js";
 import { ingestImmomioSource } from "./immomio-source.js";
 import { ingestImmoweltSource } from "./immowelt-source.js";
+import { ingestImmoScoutSource } from "./immoscout-source.js";
 import { createSession, hashPassword, memberForAccess, refreshSession, revokeSession, sha256, verifyPassword } from "./auth.js";
 import { handleCoach } from "./coach-api.js";
 
@@ -206,12 +207,14 @@ async function runSource(sql, request, env) {
   const body = await request.json().catch(() => ({}));
   const source = sourceForId(body.source_id);
   if (!source) return json({ error: "source_not_allowlisted" }, 422);
-  if (!['immomio', 'immowelt'].includes(source.family)) return json({ error: "source_adapter_not_ported", source: source.family }, 409);
+  if (!['immomio', 'immowelt', 'immoscout24'].includes(source.family)) return json({ error: "source_adapter_not_ported", source: source.family }, 409);
   const rows = await sql`SELECT id, name, homepage_url, search_url, connector_config FROM housing.source_registry WHERE id = ${source.id} AND enabled = true`;
   if (!rows[0]) return json({ error: "source_not_configured" }, 404);
   const result = source.family === "immomio"
     ? await ingestImmomioSource(sql, rows[0], rows[0].connector_config || {})
-    : await ingestImmoweltSource(sql, rows[0], rows[0].connector_config || {});
+    : source.family === "immowelt"
+      ? await ingestImmoweltSource(sql, rows[0], rows[0].connector_config || {})
+      : await ingestImmoScoutSource(sql, rows[0], rows[0].connector_config || {});
   await sql`UPDATE housing.source_registry SET last_success_at = now(), consecutive_failures = 0 WHERE id = ${source.id}`;
   return json({ ok: true, source_id: source.id, ...result });
 }
