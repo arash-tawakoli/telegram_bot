@@ -12,6 +12,7 @@ import { ingestImmoScoutSource } from "./immoscout-source.js";
 import { telegramText } from "./matching.js";
 import { createSession, hashPassword, memberForAccess, refreshSession, revokeSession, sha256, verifyPassword } from "./auth.js";
 import { handleCoach } from "./coach-api.js";
+import { handleTelegramHousingUpdate } from "./telegram-housing.js";
 
 const HEADERS = {
   "content-type": "application/json; charset=utf-8",
@@ -215,11 +216,9 @@ async function telegramWebhook(request, env) {
       RETURNING update_id
     `;
     if (!claimed.length) return json({ ok: true, duplicate: true });
-    const forwarded = new Request(request.url, { method: "POST", headers: request.headers, body });
-    const response = await proxySupabaseFunction(forwarded, env, "telegram");
-    if (response.ok) await sql`UPDATE housing.telegram_updates SET status = 'completed', completed_at = now() WHERE update_id = ${updateId}`;
-    else await sql`UPDATE housing.telegram_updates SET status = 'failed', last_error = ${`gateway_http_${response.status}`} WHERE update_id = ${updateId}`;
-    return response;
+    const result = await handleTelegramHousingUpdate(sql, env, update);
+    await sql`UPDATE housing.telegram_updates SET status = 'completed', completed_at = now() WHERE update_id = ${updateId}`;
+    return json(result);
   } catch (error) {
     await sql`UPDATE housing.telegram_updates SET status = 'failed', last_error = ${String(error?.message || error).slice(0, 500)} WHERE update_id = ${updateId}`.catch(() => {});
     throw error;

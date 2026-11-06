@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS housing.participants (
   last_name text NOT NULL,
   telegram_user_id bigint,
   telegram_chat_id bigint,
+  telegram_state jsonb NOT NULL DEFAULT '{}'::jsonb,
   ui_language text NOT NULL DEFAULT 'de',
   status text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'archived', 'pending_deletion')),
   created_at timestamptz NOT NULL DEFAULT now(),
@@ -244,3 +245,5 @@ CREATE INDEX IF NOT EXISTS housing_applications_participant_idx ON housing.appli
 CREATE INDEX IF NOT EXISTS housing_application_events_application_idx ON housing.application_events (application_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS housing_jobs_ready_idx ON housing.jobs (kind, status, lease_until, created_at);
 CREATE INDEX IF NOT EXISTS housing_telegram_updates_status_idx ON housing.telegram_updates (status, received_at);
+CREATE UNIQUE INDEX IF NOT EXISTS housing_participants_telegram_user_idx
+  ON housing.participants (telegram_user_id) WHERE telegram_user_id IS NOT NULL;
