@@ -32,6 +32,12 @@
       "id": "25a37f1631e54fc09f7f650a9557ea1c"
     }
   ],
+  "r2_buckets": [
+    {
+      "binding": "DOCUMENTS",
+      "bucket_name": "traumwohnung-applicant-documents"
+    }
+  ],
   "triggers": {
     "crons": [
       "* * * * *"
@@ -49,6 +55,12 @@
       {
         "binding": "HYPERDRIVE",
         "id": "25a37f1631e54fc09f7f650a9557ea1c"
+      }
+    ],
+    "r2_buckets": [
+      {
+        "binding": "DOCUMENTS",
+        "bucket_name": "traumwohnung-applicant-documents"
       }
     ],
     "vars": {

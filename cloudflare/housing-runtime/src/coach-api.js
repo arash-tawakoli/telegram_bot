@@ -1,4 +1,4 @@
-import { memberForAccess } from "./auth.js";
+import { memberForAccess, sha256 } from "./auth.js";
 import { assertAllowedSource } from "./source-allowlist.js";
 
 const HEADERS = {
@@ -44,6 +44,24 @@ async function canAccessParticipant(sql, member, participantId) {
     WHERE participant_id = ${participantId} AND member_id = ${member.id}
   `;
   return Boolean(rows[0]);
+}
+
+function safeFilename(value) {
+  const name = text(value, 180).replace(/[^a-zA-Z0-9._-]+/g, "_");
+  if (!name || name === "." || name === "..") throw new Error("filename_invalid");
+  return name;
+}
+
+function validDocumentType(value) {
+  const type = text(value, 60).toLowerCase();
+  if (!/^[a-z0-9_-]+$/.test(type)) throw new Error("document_type_invalid");
+  return type;
+}
+
+function validMime(value) {
+  const mime = text(value, 100).toLowerCase();
+  if (!["application/pdf", "image/jpeg", "image/png"].includes(mime)) throw new Error("document_type_invalid");
+  return mime;
 }
 
 async function participantRows(sql, member) {
@@ -169,7 +187,78 @@ async function dashboard(sql, member) {
   return { participants: rows.length, participantRows: rows, applications: Number(applications[0]?.count || 0), sent: Number(sent[0]?.count || 0), failed: 0, pending: 0, manualRequired: 0, recentApplications: [] };
 }
 
-export async function handleCoach(sql, request) {
+async function requestUpload(sql, member, request, body) {
+  const participantId = uuid(body.participantId, "participant");
+  if (!await canAccessParticipant(sql, member, participantId)) throw new Error("participant_forbidden");
+  const filename = safeFilename(body.filename);
+  const documentType = validDocumentType(body.document_type);
+  const contentType = validMime(body.mime_type);
+  const token = bytesToBase64Url(crypto.getRandomValues(new Uint8Array(32)));
+  const objectKey = `participants/${participantId}/${crypto.randomUUID()}-${filename}`;
+  const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+  await sql`
+    INSERT INTO housing.upload_tokens (id, participant_id, token_hash, object_key, original_filename, document_type, content_type, expires_at)
+    VALUES (gen_random_uuid(), ${participantId}, ${await sha256(token)}, ${objectKey}, ${filename}, ${documentType}, ${contentType}, ${expiresAt}::timestamptz)
+  `;
+  return { signedUrl: `${new URL(request.url).origin}/edge/documents/upload?token=${encodeURIComponent(token)}`, path: objectKey, filename, documentType };
+}
+
+function bytesToBase64Url(bytes) {
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+async function registerUpload(sql, member, body) {
+  const participantId = uuid(body.participantId, "participant");
+  if (!await canAccessParticipant(sql, member, participantId)) throw new Error("participant_forbidden");
+  const rows = await sql`
+    SELECT id, object_key, original_filename, document_type, content_type, size_bytes
+    FROM housing.upload_tokens
+    WHERE participant_id = ${participantId} AND object_key = ${text(body.path, 500)}
+      AND expires_at > now() AND uploaded_at IS NOT NULL AND consumed_at IS NULL
+  `;
+  if (!rows[0]) throw new Error("upload_not_found");
+  const documentId = crypto.randomUUID();
+  await sql.begin(async (tx) => {
+    await tx`
+      INSERT INTO housing.documents (id, participant_id, object_key, original_filename, document_type, content_type, size_bytes, send_with_auto_apply)
+      VALUES (${documentId}, ${participantId}, ${rows[0].object_key}, ${rows[0].original_filename}, ${rows[0].document_type}, ${rows[0].content_type}, ${Number(rows[0].size_bytes || 0)}, ${Boolean(body.send_with_auto_apply)})
+    `;
+    await tx`UPDATE housing.upload_tokens SET consumed_at = now() WHERE id = ${rows[0].id}`;
+  });
+  return { ok: true, documentId };
+}
+
+async function openDocument(sql, member, request, body) {
+  const participantId = uuid(body.participantId, "participant");
+  const documentId = uuid(body.documentId, "document");
+  if (!await canAccessParticipant(sql, member, participantId)) throw new Error("participant_forbidden");
+  const rows = await sql`SELECT id FROM housing.documents WHERE id = ${documentId} AND participant_id = ${participantId}`;
+  if (!rows[0]) throw new Error("document_not_found");
+  return { url: `${new URL(request.url).origin}/edge/documents/open?document_id=${encodeURIComponent(documentId)}&participant_id=${encodeURIComponent(participantId)}` };
+}
+
+async function deleteDocument(sql, member, body, env) {
+  const participantId = uuid(body.participantId, "participant");
+  const documentId = uuid(body.documentId, "document");
+  if (!await canAccessParticipant(sql, member, participantId)) throw new Error("participant_forbidden");
+  const rows = await sql`SELECT object_key FROM housing.documents WHERE id = ${documentId} AND participant_id = ${participantId}`;
+  if (!rows[0]) throw new Error("document_not_found");
+  if (env.DOCUMENTS) await env.DOCUMENTS.delete(rows[0].object_key);
+  await sql`DELETE FROM housing.documents WHERE id = ${documentId} AND participant_id = ${participantId}`;
+  return { ok: true };
+}
+
+async function toggleDocument(sql, member, body) {
+  const participantId = uuid(body.participantId, "participant");
+  const documentId = uuid(body.documentId, "document");
+  if (!await canAccessParticipant(sql, member, participantId)) throw new Error("participant_forbidden");
+  await sql`UPDATE housing.documents SET send_with_auto_apply = ${Boolean(body.enabled)} WHERE id = ${documentId} AND participant_id = ${participantId}`;
+  return { ok: true };
+}
+
+export async function handleCoach(sql, request, env = {}) {
   const member = await actor(sql, request);
   const body = await request.json().catch(() => ({}));
   const action = String(body.action || "");
@@ -192,6 +281,11 @@ export async function handleCoach(sql, request) {
     return { ok: true };
   }
   if (action === "dashboard") return dashboard(sql, member);
+  if (action === "request_upload") return requestUpload(sql, member, request, body);
+  if (action === "register_upload") return registerUpload(sql, member, body);
+  if (action === "open_document") return openDocument(sql, member, request, body);
+  if (action === "delete_document") return deleteDocument(sql, member, body, env);
+  if (action === "toggle_document") return toggleDocument(sql, member, body);
   if (action === "source_health") {
     if (!isAdmin(member)) throw new Error("admin_required");
     return { sources: await sql`SELECT id, name, family, connector, enabled, last_success_at, consecutive_failures FROM housing.source_registry ORDER BY name` };

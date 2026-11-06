@@ -91,9 +91,26 @@ CREATE TABLE IF NOT EXISTS housing.documents (
   id uuid PRIMARY KEY,
   participant_id uuid NOT NULL REFERENCES housing.participants(id) ON DELETE CASCADE,
   object_key text NOT NULL UNIQUE,
+  original_filename text NOT NULL,
+  document_type text NOT NULL,
   content_type text NOT NULL,
   size_bytes bigint NOT NULL CHECK (size_bytes >= 0),
   send_with_auto_apply boolean NOT NULL DEFAULT false,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS housing.upload_tokens (
+  id uuid PRIMARY KEY,
+  participant_id uuid NOT NULL REFERENCES housing.participants(id) ON DELETE CASCADE,
+  token_hash text NOT NULL UNIQUE,
+  object_key text NOT NULL UNIQUE,
+  original_filename text NOT NULL,
+  document_type text NOT NULL,
+  content_type text NOT NULL,
+  size_bytes bigint NOT NULL DEFAULT 0 CHECK (size_bytes >= 0),
+  expires_at timestamptz NOT NULL,
+  uploaded_at timestamptz,
+  consumed_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
@@ -168,6 +185,7 @@ CREATE INDEX IF NOT EXISTS housing_participant_assignments_member_idx ON housing
 CREATE INDEX IF NOT EXISTS housing_portal_sessions_access_idx ON housing.portal_sessions (access_token_hash);
 CREATE INDEX IF NOT EXISTS housing_portal_sessions_refresh_idx ON housing.portal_sessions (refresh_token_hash);
 CREATE INDEX IF NOT EXISTS housing_offer_identities_source_idx ON housing.offer_identities (source_id, last_seen_at DESC);
+CREATE INDEX IF NOT EXISTS housing_upload_tokens_participant_idx ON housing.upload_tokens (participant_id, expires_at);
 CREATE INDEX IF NOT EXISTS housing_deliveries_participant_idx ON housing.deliveries (participant_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS housing_applications_participant_idx ON housing.applications (participant_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS housing_jobs_ready_idx ON housing.jobs (kind, status, lease_until, created_at);

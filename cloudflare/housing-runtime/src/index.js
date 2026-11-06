@@ -5,7 +5,7 @@ import centralTokenWorker from "./immoscout-central-token.js";
 import { importLegacyD1Snapshot, verifyLegacyD1SnapshotKey } from "./legacy-migration.js";
 import { proxySupabaseFunction } from "./supabase-proxy.js";
 import { HOUSING_SOURCES } from "./source-allowlist.js";
-import { createSession, refreshSession, revokeSession, verifyPassword } from "./auth.js";
+import { createSession, memberForAccess, refreshSession, revokeSession, sha256, verifyPassword } from "./auth.js";
 import { handleCoach } from "./coach-api.js";
 
 const HEADERS = {
@@ -207,6 +207,56 @@ async function handleAuth(sql, request) {
   return json({ error: "invalid_action" }, 400);
 }
 
+function cookie(request, name) {
+  const prefix = `${name}=`;
+  const value = String(request.headers.get("cookie") || "").split(";").map((part) => part.trim()).find((part) => part.startsWith(prefix));
+  return value ? decodeURIComponent(value.slice(prefix.length)) : "";
+}
+
+async function requestMember(sql, request) {
+  const authorization = request.headers.get("authorization") || "";
+  const bearer = authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : cookie(request, "__Host-tw_cp_access");
+  return memberForAccess(sql, bearer);
+}
+
+async function participantAllowed(sql, member, participantId) {
+  if (member?.role === "admin" || member?.role === "super_admin") return true;
+  const rows = await sql`SELECT 1 FROM housing.participant_assignments WHERE participant_id = ${participantId} AND member_id = ${member.id}`;
+  return Boolean(rows[0]);
+}
+
+async function uploadDocument(sql, request, env) {
+  if (!env.DOCUMENTS) return json({ error: "document_storage_unavailable" }, 503);
+  const member = await requestMember(sql, request);
+  if (!member) return json({ error: "unauthorized" }, 401);
+  const token = new URL(request.url).searchParams.get("token") || "";
+  const rows = await sql`SELECT id, participant_id, object_key, content_type FROM housing.upload_tokens WHERE token_hash = ${await sha256(token)} AND expires_at > now() AND uploaded_at IS NULL AND consumed_at IS NULL`;
+  if (!rows[0] || !await participantAllowed(sql, member, rows[0].participant_id)) return json({ error: "upload_not_found" }, 404);
+  const length = Number(request.headers.get("content-length") || 0);
+  if (length > 6 * 1024 * 1024) return json({ error: "document_too_large" }, 413);
+  const body = await request.arrayBuffer();
+  if (!body.byteLength || body.byteLength > 6 * 1024 * 1024) return json({ error: "document_too_large" }, 413);
+  await env.DOCUMENTS.put(rows[0].object_key, body, { httpMetadata: { contentType: rows[0].content_type } });
+  await sql`UPDATE housing.upload_tokens SET uploaded_at = now(), size_bytes = ${body.byteLength} WHERE id = ${rows[0].id}`;
+  return json({ ok: true });
+}
+
+async function openDocument(sql, request, env) {
+  if (!env.DOCUMENTS) return json({ error: "document_storage_unavailable" }, 503);
+  const member = await requestMember(sql, request);
+  if (!member) return json({ error: "unauthorized" }, 401);
+  const url = new URL(request.url);
+  const participantId = url.searchParams.get("participant_id") || "";
+  const documentId = url.searchParams.get("document_id") || "";
+  if (!await participantAllowed(sql, member, participantId)) return json({ error: "participant_forbidden" }, 403);
+  const rows = await sql`SELECT object_key, content_type, original_filename FROM housing.documents WHERE id = ${documentId} AND participant_id = ${participantId}`;
+  if (!rows[0]) return json({ error: "document_not_found" }, 404);
+  const object = await env.DOCUMENTS.get(rows[0].object_key);
+  if (!object) return json({ error: "document_not_found" }, 404);
+  const headers = new Headers({ ...HEADERS, "content-type": rows[0].content_type, "content-disposition": `inline; filename="${String(rows[0].original_filename).replace(/[^a-zA-Z0-9._-]/g, "_")}"` });
+  return new Response(object.body, { status: 200, headers });
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -230,13 +280,23 @@ export default {
 
     if (request.method === "POST" && url.pathname === "/edge/coach") {
       try {
-        return await withDatabase(env, async (sql) => json(await handleCoach(sql, request)));
+        return await withDatabase(env, async (sql) => json(await handleCoach(sql, request, env)));
       } catch (error) {
         const code = String(error?.message || "");
         const status = code === "unauthorized" ? 401 : code === "participant_forbidden" ? 403 : code === "invalid_action" ? 400 : 422;
         console.error("housing_coach_api_failed", code.slice(0, 180));
         return json({ error: code || "coach_api_failed" }, status);
       }
+    }
+
+    if (request.method === "PUT" && url.pathname === "/edge/documents/upload") {
+      try { return await withDatabase(env, (sql) => uploadDocument(sql, request, env)); }
+      catch (error) { console.error("housing_document_upload_failed", String(error?.message || error)); return json({ error: "document_upload_failed" }, 503); }
+    }
+
+    if (request.method === "GET" && url.pathname === "/edge/documents/open") {
+      try { return await withDatabase(env, (sql) => openDocument(sql, request, env)); }
+      catch (error) { console.error("housing_document_open_failed", String(error?.message || error)); return json({ error: "document_open_failed" }, 503); }
     }
 
     const proxyMatch = url.pathname.match(/^\/edge\/(coach|telegram|source|application|immoscout-application)$/);
