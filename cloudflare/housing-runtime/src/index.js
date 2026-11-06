@@ -57,7 +57,7 @@ async function runRetention(env) {
 
 async function runLegacyD1Migration(env) {
   return withDatabase(env, async (sql) => {
-    const centralEnv = await createCentralEnvironment(env, sql);
+    const centralEnv = await createCentralEnvironment(env);
     const request = new Request("https://housing-runtime.internal/internal/migrate-from-d1", {
       method: "POST",
       headers: { authorization: `Bearer ${centralEnv.API_SECRET}` },
@@ -76,22 +76,10 @@ function bytesToHex(bytes) {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-async function getDatabaseSecret(sql, name) {
-  const rows = await sql`SELECT app_private.get_housing_runtime_secret(${name}) AS secret`;
-  const value = rows?.[0]?.secret;
-  if (!value) throw new Error("database_secret_unavailable");
-  return String(value);
-}
-
-async function createCentralEnvironment(env, sql) {
-  let apiSecret = env.CENTRAL_API_SECRET;
-  let credentialKey = env.CENTRAL_TOKEN_ENCRYPTION_KEY;
-  if (!apiSecret || !credentialKey) {
-    [apiSecret, credentialKey] = await Promise.all([
-      getDatabaseSecret(sql, "immoscout_central_cloudflare_api_secret"),
-      getDatabaseSecret(sql, "application_credential_key_v1"),
-    ]);
-  }
+async function createCentralEnvironment(env) {
+  const apiSecret = env.CENTRAL_API_SECRET;
+  const credentialKey = env.CENTRAL_TOKEN_ENCRYPTION_KEY;
+  if (!apiSecret || !credentialKey) throw new Error("central_secret_unavailable");
   if (!/^[a-f0-9]{64}$/i.test(String(credentialKey || ""))) throw new Error("credential_key_invalid");
 
   return {
@@ -505,7 +493,7 @@ export default {
     if (request.method === "POST" && routePath === "/internal/migrate-from-d1") {
       try {
         return await withDatabase(env, async (sql) => {
-          const centralEnv = await createCentralEnvironment(env, sql);
+          const centralEnv = await createCentralEnvironment(env);
           return migrateLegacyCentralToken(request, env, sql, centralEnv);
         });
       } catch (error) {
@@ -525,7 +513,7 @@ export default {
       }
       try {
         return await withDatabase(env, async (sql) => {
-          const centralEnv = await createCentralEnvironment(env, sql);
+          const centralEnv = await createCentralEnvironment(env);
           return centralTokenWorker.fetch(new Request(new URL(routePath + url.search, request.url), request), centralEnv);
         });
       } catch (error) {
@@ -537,7 +525,7 @@ export default {
     if (request.method === "GET" && (url.pathname === "/ready" || routePath === "/ready")) {
       try {
         const readiness = await withDatabase(env, async (sql) => {
-          const centralEnv = await createCentralEnvironment(env, sql);
+          const centralEnv = await createCentralEnvironment(env);
           let legacyD1 = "pending";
           try {
             const legacySnapshot = await readLegacyD1Snapshot(env, centralEnv.TOKEN_ENCRYPTION_KEY);
