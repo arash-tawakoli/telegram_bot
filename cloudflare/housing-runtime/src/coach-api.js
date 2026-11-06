@@ -37,6 +37,28 @@ function isAdmin(member) {
   return member.role === "admin" || member.role === "super_admin";
 }
 
+const PROVIDERS = new Set(["immoscout24", "immowelt", "immomio"]);
+
+function provider(value) {
+  const result = String(value || "").toLowerCase();
+  if (!PROVIDERS.has(result)) throw new Error("provider_not_allowlisted");
+  return result;
+}
+
+async function providerCall(env, providerName, action, participantId, extra = {}) {
+  const base = String(env.SUPABASE_URL || "").replace(/\/$/, "");
+  const secret = String(env.INTERNAL_WORKER_SECRET || "");
+  if (!base || !secret) throw new Error("provider_runtime_unavailable");
+  const endpoint = providerName === "immomio" ? `${base}/functions/v1/immomio-account` : `${base}/functions/v1/application-worker`;
+  const body = providerName === "immomio"
+    ? { action, userId: participantId, ...extra }
+    : { action, userId: participantId, source: providerName === "immowelt" ? 4 : 1, origin: "coach", returnTarget: "coach", ...extra };
+  const response = await fetch(endpoint, { method: "POST", headers: { "content-type": "application/json", "x-internal-secret": secret }, body: JSON.stringify(body), signal: AbortSignal.timeout(45_000) });
+  const data = await response.json().catch(() => null);
+  if (!response.ok || !data) throw new Error(data?.error || "provider_operation_failed");
+  return data;
+}
+
 async function canAccessParticipant(sql, member, participantId) {
   if (isAdmin(member)) return true;
   const rows = await sql`
@@ -109,12 +131,13 @@ async function participantRows(sql, member) {
 async function participant(sql, member, id) {
   const participantId = uuid(id, "participant");
   if (!await canAccessParticipant(sql, member, participantId)) throw new Error("participant_forbidden");
-  const [people, profiles, applicant, docs, connections] = await Promise.all([
+  const [people, profiles, applicant, docs, connections, preferences] = await Promise.all([
     sql`SELECT id, first_name, last_name, email, status, created_at, updated_at FROM housing.participants WHERE id = ${participantId}`,
     sql`SELECT id, criteria, active, created_at, updated_at FROM housing.search_profiles WHERE participant_id = ${participantId} ORDER BY created_at`,
     sql`SELECT profile, updated_at FROM housing.applicant_profiles WHERE participant_id = ${participantId}`,
     sql`SELECT id, object_key, content_type, size_bytes, send_with_auto_apply, created_at FROM housing.documents WHERE participant_id = ${participantId} ORDER BY created_at DESC`,
     sql`SELECT provider, status, expires_at, updated_at FROM housing.provider_connections WHERE participant_id = ${participantId} ORDER BY provider`,
+    sql`SELECT enabled, daily_limit, timezone, allowed_weekdays, send_window_start, send_window_end, immoscout_enabled, immowelt_enabled, immomio_enabled, updated_at FROM housing.application_preferences WHERE participant_id = ${participantId}`,
   ]);
   const person = people[0];
   if (!person) throw new Error("participant_not_found");
@@ -125,6 +148,7 @@ async function participant(sql, member, id) {
     searchProfiles: profiles.map((row) => ({ id: row.id, ...row.criteria, active: row.active, created_at: row.created_at, updated_at: row.updated_at })),
     documents: docs,
     connections,
+    preferences: preferences[0] || null,
     applications: [],
     readiness: { profileComplete: Boolean(person.first_name && person.last_name), searchProfileCount: profiles.length, providerCount: connections.filter((row) => row.status === "connected").length },
   };
@@ -185,6 +209,47 @@ async function dashboard(sql, member) {
   ]);
   const rows = await participantRows(sql, member);
   return { participants: rows.length, participantRows: rows, applications: Number(applications[0]?.count || 0), sent: Number(sent[0]?.count || 0), failed: 0, pending: 0, manualRequired: 0, recentApplications: [] };
+}
+
+async function setPreferences(sql, member, body) {
+  const participantId = uuid(body.participantId, "participant");
+  if (!await canAccessParticipant(sql, member, participantId)) throw new Error("participant_forbidden");
+  const input = body.preferences && typeof body.preferences === "object" ? body.preferences : {};
+  const weekdays = Array.isArray(input.allowed_weekdays) ? input.allowed_weekdays.map(Number).filter((day) => Number.isInteger(day) && day >= 1 && day <= 7) : null;
+  await sql`
+    INSERT INTO housing.application_preferences
+      (participant_id, enabled, daily_limit, timezone, allowed_weekdays, send_window_start, send_window_end, immoscout_enabled, immowelt_enabled, immomio_enabled)
+    VALUES
+      (${participantId}, ${Boolean(input.enabled)}, ${input.daily_limit == null ? null : Number(input.daily_limit)}, ${text(input.timezone, 80) || "Europe/Berlin"}, ${weekdays}, ${input.send_window_start || null}, ${input.send_window_end || null}, ${Boolean(input.immoscout_enabled)}, ${Boolean(input.immowelt_enabled)}, ${Boolean(input.immomio_enabled)})
+    ON CONFLICT (participant_id) DO UPDATE SET
+      enabled = EXCLUDED.enabled, daily_limit = EXCLUDED.daily_limit, timezone = EXCLUDED.timezone,
+      allowed_weekdays = EXCLUDED.allowed_weekdays, send_window_start = EXCLUDED.send_window_start,
+      send_window_end = EXCLUDED.send_window_end, immoscout_enabled = EXCLUDED.immoscout_enabled,
+      immowelt_enabled = EXCLUDED.immowelt_enabled, immomio_enabled = EXCLUDED.immomio_enabled, updated_at = now()
+  `;
+  return { ok: true };
+}
+
+async function startConnect(sql, member, body, env) {
+  const participantId = uuid(body.participantId, "participant");
+  if (!await canAccessParticipant(sql, member, participantId)) throw new Error("participant_forbidden");
+  const selected = provider(body.provider);
+  const result = await providerCall(env, selected, "login", participantId);
+  await sql`
+    INSERT INTO housing.provider_connections (id, participant_id, provider, status)
+    VALUES (gen_random_uuid(), ${participantId}, ${selected}, 'pending')
+    ON CONFLICT (participant_id, provider) DO UPDATE SET status = 'pending', updated_at = now()
+  `;
+  return result;
+}
+
+async function disconnectProvider(sql, member, body, env) {
+  const participantId = uuid(body.participantId, "participant");
+  if (!await canAccessParticipant(sql, member, participantId)) throw new Error("participant_forbidden");
+  const selected = provider(body.provider);
+  const result = await providerCall(env, selected, "disconnect", participantId);
+  await sql`UPDATE housing.provider_connections SET status = 'disconnected', ciphertext = NULL, iv = NULL, updated_at = now() WHERE participant_id = ${participantId} AND provider = ${selected}`;
+  return { ok: true, result };
 }
 
 async function requestUpload(sql, member, request, body) {
@@ -281,6 +346,9 @@ export async function handleCoach(sql, request, env = {}) {
     return { ok: true };
   }
   if (action === "dashboard") return dashboard(sql, member);
+  if (action === "set_preferences") return setPreferences(sql, member, body);
+  if (action === "start_connect") return startConnect(sql, member, body, env);
+  if (action === "disconnect_provider") return disconnectProvider(sql, member, body, env);
   if (action === "request_upload") return requestUpload(sql, member, request, body);
   if (action === "register_upload") return registerUpload(sql, member, body);
   if (action === "open_document") return openDocument(sql, member, request, body);

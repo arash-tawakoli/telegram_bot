@@ -127,6 +127,20 @@ CREATE TABLE IF NOT EXISTS housing.provider_connections (
   UNIQUE (participant_id, provider)
 );
 
+CREATE TABLE IF NOT EXISTS housing.application_preferences (
+  participant_id uuid PRIMARY KEY REFERENCES housing.participants(id) ON DELETE CASCADE,
+  enabled boolean NOT NULL DEFAULT false,
+  daily_limit integer CHECK (daily_limit IS NULL OR daily_limit BETWEEN 1 AND 1000),
+  timezone text NOT NULL DEFAULT 'Europe/Berlin',
+  allowed_weekdays smallint[],
+  send_window_start time,
+  send_window_end time,
+  immoscout_enabled boolean NOT NULL DEFAULT false,
+  immowelt_enabled boolean NOT NULL DEFAULT false,
+  immomio_enabled boolean NOT NULL DEFAULT false,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS housing.offer_identities (
   id uuid PRIMARY KEY,
   source_id smallint NOT NULL REFERENCES housing.source_registry(id),
