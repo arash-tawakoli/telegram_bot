@@ -364,8 +364,9 @@ async function openDocument(sql, request, env) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    const routePath = url.pathname.startsWith("/edge/") ? url.pathname.slice("/edge".length) : url.pathname;
 
-    if (request.method === "GET" && url.pathname === "/health") {
+    if (request.method === "GET" && (url.pathname === "/health" || routePath === "/health")) {
       return json({
         ok: true,
         service: "traumwohnung-housing-runtime",
@@ -373,22 +374,22 @@ export default {
       });
     }
 
-    if (url.pathname === "/telegram/webhook" && request.method === "POST") {
+    if ((url.pathname === "/telegram/webhook" || routePath === "/telegram/webhook") && request.method === "POST") {
       try { return await telegramWebhook(request, env); }
       catch (error) { console.error("housing_telegram_webhook_failed", String(error?.message || error)); return json({ error: "telegram_unavailable" }, 503); }
     }
 
-    if (url.pathname === "/internal/source/run" && request.method === "POST") {
+    if (routePath === "/internal/source/run" && request.method === "POST") {
       try { return await withDatabase(env, (sql) => runSource(sql, request, env)); }
       catch (error) { console.error("housing_source_run_failed", String(error?.message || error)); return json({ error: "source_run_failed" }, 503); }
     }
 
-    if (url.pathname === "/internal/delivery/process" && request.method === "POST") {
+    if (routePath === "/internal/delivery/process" && request.method === "POST") {
       try { return await withDatabase(env, (sql) => processDelivery(sql, request, env)); }
       catch (error) { console.error("housing_delivery_failed", String(error?.message || error)); return json({ error: "delivery_failed" }, 503); }
     }
 
-    if (url.pathname === "/internal/application/process" && request.method === "POST") {
+    if (routePath === "/internal/application/process" && request.method === "POST") {
       try { return await processApplicationBridge(request, env); }
       catch (error) { console.error("housing_application_bridge_failed", String(error?.message || error)); return json({ error: "application_bridge_failed" }, 503); }
     }
@@ -433,7 +434,7 @@ export default {
       }
     }
 
-    if (request.method === "POST" && url.pathname === "/internal/migrate-from-d1") {
+    if (request.method === "POST" && routePath === "/internal/migrate-from-d1") {
       try {
         return await withDatabase(env, async (sql) => {
           const centralEnv = await createCentralEnvironment(env, sql);
@@ -445,19 +446,19 @@ export default {
       }
     }
 
-    if (request.method === "GET" && url.pathname === "/internal/source-allowlist") {
+    if (request.method === "GET" && routePath === "/internal/source-allowlist") {
       if (!isAuthorized(request, env)) return json({ error: "unauthorized" }, 401);
       return json({ ok: true, sources: HOUSING_SOURCES });
     }
 
-    if (url.pathname.startsWith("/internal/")) {
-      if (env.PREVIEW_MODE === "1" && !(request.method === "GET" && url.pathname === "/internal/status")) {
+    if (routePath.startsWith("/internal/")) {
+      if (env.PREVIEW_MODE === "1" && !(request.method === "GET" && routePath === "/internal/status")) {
         return json({ error: "preview_read_only" }, 403);
       }
       try {
         return await withDatabase(env, async (sql) => {
           const centralEnv = await createCentralEnvironment(env, sql);
-          return centralTokenWorker.fetch(request, centralEnv);
+          return centralTokenWorker.fetch(new Request(new URL(routePath + url.search, request.url), request), centralEnv);
         });
       } catch (error) {
         console.error("central_immoscout_request_failed", String(error?.message || error));
@@ -465,12 +466,18 @@ export default {
       }
     }
 
-    if (request.method === "GET" && url.pathname === "/ready") {
+    if (request.method === "GET" && (url.pathname === "/ready" || routePath === "/ready")) {
       try {
         const readiness = await withDatabase(env, async (sql) => {
           const centralEnv = await createCentralEnvironment(env, sql);
-          const legacySnapshot = await readLegacyD1Snapshot(env, centralEnv.TOKEN_ENCRYPTION_KEY);
-          await verifyLegacyD1SnapshotKey(legacySnapshot, centralEnv.TOKEN_ENCRYPTION_KEY);
+          let legacyD1 = "pending";
+          try {
+            const legacySnapshot = await readLegacyD1Snapshot(env, centralEnv.TOKEN_ENCRYPTION_KEY);
+            await verifyLegacyD1SnapshotKey(legacySnapshot, centralEnv.TOKEN_ENCRYPTION_KEY);
+            legacyD1 = "verified";
+          } catch (error) {
+            console.warn("housing_legacy_d1_pending", String(error?.message || error).slice(0, 160));
+          }
           const [identity, permissions, rls, counts, housingContract] = await Promise.all([
             sql`SELECT current_user AS role, r.rolbypassrls AS bypass_rls,
                 pg_has_role(current_user, 'service_role', 'member') AS service_role_member
@@ -515,7 +522,7 @@ export default {
             listingAccess: "denied",
             retentionFunction: "available",
             centralVault: "available",
-            legacyD1: "ciphertext_verified",
+            legacyD1,
             centralTables: counts[0],
             housingTarget: { tables: 19, rls: "enabled", dataImported: true },
           };
