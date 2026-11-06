@@ -5,6 +5,8 @@ import centralTokenWorker from "./immoscout-central-token.js";
 import { importLegacyD1Snapshot, verifyLegacyD1SnapshotKey } from "./legacy-migration.js";
 import { proxySupabaseFunction } from "./supabase-proxy.js";
 import { HOUSING_SOURCES } from "./source-allowlist.js";
+import { sourceForId } from "./source-allowlist.js";
+import { ingestImmomioSource } from "./immomio-source.js";
 import { createSession, hashPassword, memberForAccess, refreshSession, revokeSession, sha256, verifyPassword } from "./auth.js";
 import { handleCoach } from "./coach-api.js";
 
@@ -197,6 +199,20 @@ async function telegramWebhook(request, env) {
   return proxySupabaseFunction(request, env, "telegram");
 }
 
+async function runSource(sql, request, env) {
+  const expected = env.SOURCE_RUN_TOKEN;
+  if (!expected || !await sameSecret(request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") || "", expected)) return json({ error: "unauthorized" }, 401);
+  const body = await request.json().catch(() => ({}));
+  const source = sourceForId(body.source_id);
+  if (!source) return json({ error: "source_not_allowlisted" }, 422);
+  if (source.family !== "immomio") return json({ error: "source_adapter_not_ported", source: source.family }, 409);
+  const rows = await sql`SELECT id, name, homepage_url, search_url, connector_config FROM housing.source_registry WHERE id = ${source.id} AND enabled = true`;
+  if (!rows[0]) return json({ error: "source_not_configured" }, 404);
+  const result = await ingestImmomioSource(sql, rows[0], rows[0].connector_config || {});
+  await sql`UPDATE housing.source_registry SET last_success_at = now(), consecutive_failures = 0 WHERE id = ${source.id}`;
+  return json({ ok: true, source_id: source.id, ...result });
+}
+
 async function handleAuth(sql, request) {
   const body = await request.json().catch(() => ({}));
   const action = String(body.action || "");
@@ -302,6 +318,11 @@ export default {
     if (url.pathname === "/telegram/webhook" && request.method === "POST") {
       try { return await telegramWebhook(request, env); }
       catch (error) { console.error("housing_telegram_webhook_failed", String(error?.message || error)); return json({ error: "telegram_unavailable" }, 503); }
+    }
+
+    if (url.pathname === "/internal/source/run" && request.method === "POST") {
+      try { return await withDatabase(env, (sql) => runSource(sql, request, env)); }
+      catch (error) { console.error("housing_source_run_failed", String(error?.message || error)); return json({ error: "source_run_failed" }, 503); }
     }
 
     if (request.method === "POST" && url.pathname === "/edge/auth") {

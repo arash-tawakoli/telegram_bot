@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS housing.source_registry (
   name text NOT NULL,
   family text NOT NULL CHECK (family IN ('immoscout24', 'immowelt', 'immomio')),
   connector text NOT NULL,
+  connector_config jsonb NOT NULL DEFAULT '{}'::jsonb,
   enabled boolean NOT NULL DEFAULT true,
   last_success_at timestamptz,
   consecutive_failures integer NOT NULL DEFAULT 0 CHECK (consecutive_failures >= 0)
@@ -155,6 +156,7 @@ CREATE TABLE IF NOT EXISTS housing.offer_identities (
   identity_hash text NOT NULL UNIQUE,
   external_id text,
   canonical_url text NOT NULL,
+  facts jsonb NOT NULL DEFAULT '{}'::jsonb,
   first_seen_at timestamptz NOT NULL DEFAULT now(),
   last_seen_at timestamptz NOT NULL DEFAULT now(),
   expires_at timestamptz
