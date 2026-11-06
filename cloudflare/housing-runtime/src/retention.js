@@ -14,8 +14,11 @@ export async function deleteExpiredListings(sql, limit = 5000) {
     `;
     if (!expired.length) return 0;
     const ids = expired.map((row) => row.id);
-    const placeholders = ids.map((_, index) => `$${index + 1}`).join(",");
-    await tx.unsafe(`
+    let deletedCount = 0;
+    for (let offset = 0; offset < ids.length; offset += 400) {
+      const chunk = ids.slice(offset, offset + 400);
+      const placeholders = chunk.map((_, index) => `$${index + 1}`).join(",");
+      await tx.unsafe(`
       UPDATE housing.applications
       SET offer_identity_id = NULL,
           listing_expired_at = COALESCE(listing_expired_at, now()),
@@ -23,17 +26,19 @@ export async function deleteExpiredListings(sql, limit = 5000) {
           last_error = CASE WHEN status IN ('pending', 'processing') THEN 'listing_expired' ELSE last_error END,
           updated_at = now()
       WHERE offer_identity_id IN (${placeholders})
-    `, ids);
-    await tx.unsafe(`
+      `, chunk);
+      await tx.unsafe(`
       UPDATE housing.deliveries
       SET offer_identity_id = NULL,
           listing_expired_at = COALESCE(listing_expired_at, now()),
           status = CASE WHEN status IN ('pending', 'processing') THEN 'skipped' ELSE status END,
           error_message = CASE WHEN status IN ('pending', 'processing') THEN 'listing_expired' ELSE error_message END
       WHERE offer_identity_id IN (${placeholders})
-    `, ids);
-    const result = await tx.unsafe(`DELETE FROM housing.offer_identities WHERE id IN (${placeholders})`, ids);
-    return Number(result.count ?? result.length ?? 0);
+      `, chunk);
+      const result = await tx.unsafe(`DELETE FROM housing.offer_identities WHERE id IN (${placeholders})`, chunk);
+      deletedCount += Number(result.count ?? result.length ?? 0);
+    }
+    return deletedCount;
   });
 
   if (!Number.isSafeInteger(deleted) || deleted < 0 || deleted > limit) {

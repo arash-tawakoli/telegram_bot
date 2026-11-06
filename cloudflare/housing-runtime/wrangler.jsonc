@@ -24,12 +24,11 @@
       "binding": "LEGACY_D1",
       "database_name": "immoscout-central-token-staging",
       "database_id": "08789b5f-f200-4985-a357-276052206852"
-    }
-  ],
-  "hyperdrive": [
+    },
     {
-      "binding": "HYPERDRIVE",
-      "id": "25a37f1631e54fc09f7f650a9557ea1c"
+      "binding": "HOUSING_DB",
+      "database_name": "traumwohnung-housing-core",
+      "database_id": "d4ee4d33-00be-4420-bb40-76d70384822d"
     }
   ],
   "r2_buckets": [
@@ -49,12 +48,11 @@
         "binding": "LEGACY_D1",
         "database_name": "immoscout-central-token-staging",
         "database_id": "08789b5f-f200-4985-a357-276052206852"
-      }
-    ],
-    "hyperdrive": [
+      },
       {
-        "binding": "HYPERDRIVE",
-        "id": "25a37f1631e54fc09f7f650a9557ea1c"
+        "binding": "HOUSING_DB",
+        "database_name": "traumwohnung-housing-core",
+        "database_id": "d4ee4d33-00be-4420-bb40-76d70384822d"
       }
     ],
     "r2_buckets": [

@@ -6,7 +6,7 @@ const output = process.env.BOOTSTRAP_TOKEN_FILE || "bootstrap-token.txt";
 if (!targetUrl) throw new Error("TARGET_DATABASE_URL is required");
 
 const token = randomBytes(32).toString("base64url");
-const hash = createHash("sha256").update(token).digest("hex");
+const hash = createHash("sha256").update(token).digest("base64url");
 const sql = postgres(targetUrl, { max: 1, prepare: true });
 try {
   await sql`

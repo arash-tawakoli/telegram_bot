@@ -13,6 +13,7 @@ import { createSession, hashPassword, memberForAccess, refreshSession, revokeSes
 import { handleCoach } from "./coach-api.js";
 import { processHousingApplication } from "./application-runtime.js";
 import { proxySupabaseFunction } from "./supabase-proxy.js";
+import { createD1Client } from "./d1-database.js";
 
 const HEADERS = {
   "content-type": "application/json; charset=utf-8",
@@ -27,6 +28,7 @@ function json(body, status = 200) {
 }
 
 function databaseClient(env) {
+  if (env.HOUSING_DB) return createD1Client(env.HOUSING_DB);
   const connectionString = env.HYPERDRIVE?.connectionString;
   if (!connectionString) throw new Error("database_binding_missing");
 
@@ -225,7 +227,8 @@ async function runSource(sql, request, env) {
   if (!['immomio', 'immowelt', 'immoscout24'].includes(source.family)) return json({ error: "source_adapter_not_ported", source: source.family }, 409);
   const rows = await sql`SELECT id, name, connector_config FROM housing.source_registry WHERE id = ${source.id} AND enabled = true`;
   if (!rows[0]) return json({ error: "source_not_configured" }, 404);
-  const connectorConfig = rows[0].connector_config || {};
+  const rawConnectorConfig = rows[0].connector_config || {};
+  const connectorConfig = typeof rawConnectorConfig === "string" ? JSON.parse(rawConnectorConfig || "{}") : rawConnectorConfig;
   const sourceRow = {
     ...rows[0],
     homepage_url: connectorConfig.homepage_url || connectorConfig.url || null,
@@ -434,7 +437,7 @@ export default {
       return json({
         ok: true,
         service: "traumwohnung-housing-runtime",
-        databaseConfigured: Boolean(env.HYPERDRIVE?.connectionString),
+        databaseConfigured: Boolean(env.HOUSING_DB || env.HYPERDRIVE?.connectionString),
       });
     }
 
@@ -528,6 +531,31 @@ export default {
       try {
         const readiness = await withDatabase(env, async (sql) => {
           const centralEnv = await createCentralEnvironment(env);
+          if (env.HOUSING_DB) {
+            const [tables, counts] = await Promise.all([
+              sql`SELECT count(*) AS count FROM sqlite_master WHERE type = 'table' AND name IN ('source_registry','participants','portal_members','participant_assignments','portal_sessions','bootstrap_tokens','search_profiles','source_links','applicant_profiles','documents','upload_tokens','provider_connections','application_preferences','offer_identities','deliveries','applications','application_events','jobs','audit_events','telegram_updates')`,
+              sql`SELECT
+                (SELECT count(*) FROM participants) AS participants,
+                (SELECT count(*) FROM search_profiles) AS search_profiles,
+                (SELECT count(*) FROM applicant_profiles) AS applicant_profiles,
+                (SELECT count(*) FROM provider_connections) AS provider_connections,
+                (SELECT count(*) FROM offer_identities) AS offers,
+                (SELECT count(*) FROM deliveries) AS deliveries,
+                (SELECT count(*) FROM applications) AS applications`,
+            ]);
+            return {
+              role: "cloudflare-d1",
+              rls: "worker_authorization",
+              serviceRoleMember: false,
+              listingAccess: "denied",
+              retentionFunction: "available",
+              centralVault: "available",
+              legacyD1: "pending",
+              centralTables: { credentials: 0, oauth_flows: 0, audit_events: 0 },
+              housingTarget: { tables: Number(tables[0]?.count || 0), rls: "worker_authorization", dataImported: Number(counts[0]?.participants || 0) > 0 },
+              counts: counts[0] || {},
+            };
+          }
           let legacyD1 = "pending";
           try {
             const legacySnapshot = await readLegacyD1Snapshot(env, centralEnv.TOKEN_ENCRYPTION_KEY);
