@@ -12,11 +12,12 @@ async function postMcp(payload) {
   });
   const text = await response.text();
   if (!response.ok) throw new Error(`immoscout_mcp_http_${response.status}`);
-  if (text.trim().startsWith("{")) return JSON.parse(text);
+  const trimmed = text.trim().replace(/^\uFEFF/, "");
+  if (trimmed.startsWith("{")) return JSON.parse(trimmed);
   for (const line of text.split(/\r?\n/)) if (line.startsWith("data:")) {
     try { return JSON.parse(line.slice(5).trim()); } catch { /* continue to the next SSE frame */ }
   }
-  throw new Error("immoscout_mcp_response_invalid");
+  throw new Error(`immoscout_mcp_response_invalid:${response.headers.get("content-type") || "unknown"}:${trimmed.slice(0, 80).replace(/[\u0000-\u001f\u007f]/g, " ")}`);
 }
 
 function entryId(entry) {
@@ -74,8 +75,6 @@ export function normalizeImmoScoutEntry(entry, sourceId) {
 }
 
 export async function fetchImmoScoutSource(source, config = {}) {
-  await postMcp({ jsonrpc: "2.0", id: crypto.randomUUID(), method: "initialize", params: { protocolVersion: MCP_PROTOCOL, capabilities: {}, clientInfo: { name: "traumwohnung-housing-runtime", version: "1.0.0" } } });
-  await postMcp({ jsonrpc: "2.0", method: "notifications/initialized" });
   const query = queryFor(source, config);
   const result = await callTool("property_search_de", query);
   const nodes = [];
