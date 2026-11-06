@@ -259,6 +259,18 @@ async function processDelivery(sql, request, env) {
   return json({ ok: true, status: "sent", delivery_id: claimed.id });
 }
 
+async function processApplicationBridge(request, env) {
+  const expected = env.APPLICATION_RUN_TOKEN;
+  if (!expected || !await sameSecret(request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") || "", expected)) return json({ error: "unauthorized" }, 401);
+  const body = await request.text();
+  const upstreamRequest = new Request(new URL("/edge/application", request.url), {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-internal-worker-secret": env.INTERNAL_WORKER_SECRET || "" },
+    body: body || JSON.stringify({ action: "process" }),
+  });
+  return proxySupabaseFunction(upstreamRequest, env, "application");
+}
+
 async function handleAuth(sql, request) {
   const body = await request.json().catch(() => ({}));
   const action = String(body.action || "");
@@ -374,6 +386,11 @@ export default {
     if (url.pathname === "/internal/delivery/process" && request.method === "POST") {
       try { return await withDatabase(env, (sql) => processDelivery(sql, request, env)); }
       catch (error) { console.error("housing_delivery_failed", String(error?.message || error)); return json({ error: "delivery_failed" }, 503); }
+    }
+
+    if (url.pathname === "/internal/application/process" && request.method === "POST") {
+      try { return await processApplicationBridge(request, env); }
+      catch (error) { console.error("housing_application_bridge_failed", String(error?.message || error)); return json({ error: "application_bridge_failed" }, 503); }
     }
 
     if (request.method === "POST" && url.pathname === "/edge/auth") {
