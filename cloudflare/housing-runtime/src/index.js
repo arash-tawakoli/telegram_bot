@@ -3,7 +3,6 @@ import { deleteExpiredListings } from "./retention.js";
 import { createD1Compat } from "./d1-compat.js";
 import centralTokenWorker from "./immoscout-central-token.js";
 import { importLegacyD1Snapshot, verifyLegacyD1SnapshotKey } from "./legacy-migration.js";
-import { proxySupabaseFunction } from "./supabase-proxy.js";
 import { HOUSING_SOURCES } from "./source-allowlist.js";
 import { sourceForId } from "./source-allowlist.js";
 import { ingestImmomioSource } from "./immomio-source.js";
@@ -501,16 +500,6 @@ export default {
     if (request.method === "GET" && url.pathname === "/edge/documents/open") {
       try { return await withDatabase(env, (sql) => openDocument(sql, request, env)); }
       catch (error) { console.error("housing_document_open_failed", String(error?.message || error)); return json({ error: "document_open_failed" }, 503); }
-    }
-
-    const proxyMatch = url.pathname.match(/^\/edge\/(coach|source)$/);
-    if (proxyMatch) {
-      try {
-        return await proxySupabaseFunction(request, env, proxyMatch[1]);
-      } catch (error) {
-        console.error("housing_edge_proxy_failed", String(error?.message || error));
-        return json({ error: "upstream_unavailable" }, 503);
-      }
     }
 
     if (request.method === "POST" && routePath === "/internal/migrate-from-d1") {
