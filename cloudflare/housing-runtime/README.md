@@ -7,17 +7,17 @@ One Cloudflare Worker is the target execution runtime for the housing product.
 - PostgreSQL access through Cloudflare Hyperdrive.
 - Bounded listing retention. Listings are deleted from PostgreSQL; listing payloads are never exported to D1, KV, R2, or another store.
 - A one-minute Cron Trigger calls `app_private.delete_expired_listings(5000)`.
-- Central ImmoScout token and OAuth/MFA handling, with encrypted credentials stored in PostgreSQL.
+- Central ImmoScout token and OAuth/MFA handling, with encrypted credentials in the temporary Cloudflare D1 binding.
 - No job-search, Indeed, coach analytics, D1 listing store, or duplicate backend.
 - A temporary `LEGACY_D1` binding reads only the three central ImmoScout tables for the one-time migration. The Worker verifies the AES-GCM ciphertext with the Vault key before importing it transactionally. Remove this binding after the import is verified.
 
 The cutover allowlist is explicit in `src/source-allowlist.js` and contains only ImmoScout24, Immowelt, and verified Immomio Tenant sources. The target schema in `schema/0001_housing_core.sql` stores offer identity and idempotency keys instead of complete listing payloads. The durable `(participant, offer)` delivery key and `(participant, provider, offer)` application key prevent duplicate notifications and applications after a source re-publishes an offer.
 
-The Cloudflare ingress exposes `/telegram/webhook` and validates `TELEGRAM_WEBHOOK_SECRET` before forwarding the existing Gateway contract. This moves the public webhook boundary first; the Gateway internals remain the next porting slice.
+The Cloudflare ingress exposes `/telegram/webhook` and validates `TELEGRAM_WEBHOOK_SECRET` before forwarding the existing Gateway contract. This keeps the public webhook boundary on Cloudflare while the Gateway internals are ported.
 
 ## Database contract
 
-Supabase remains the PostgreSQL host. Cloudflare runs the housing application code and connects through Hyperdrive.
+The target is an external PostgreSQL host. Cloudflare runs the housing application code and connects through Hyperdrive; Supabase is only the legacy export source until cutover.
 
 The dedicated database role is:
 
@@ -28,17 +28,16 @@ Security properties:
 - `NOLOGIN` until the final Hyperdrive credential is provisioned.
 - `NOBYPASSRLS` and no membership in `service_role`.
 - Public execution is revoked for existing and future functions in `app_private`; the runtime receives execute rights only for its two explicitly granted functions.
-- Access only to the three central ImmoScout tables in `app_private`.
-- Execute permission only for the bounded listing-retention function and the allow-listed runtime-secret function.
-- No direct access to the Vault schema, Auth schema, or general application tables.
+- Access only to the `housing` schema on the target host.
+- Central ImmoScout secrets are Worker secrets; central OAuth state remains in the temporary D1 binding.
 
 The migration `20261103150000_cloudflare_housing_runtime_least_privilege.sql` creates these scoped grants and RLS policies. Do not grant this role `service_role`, `BYPASSRLS`, or access to `public.get_bot_secret(text)`.
 
 ## Hyperdrive
 
-Create a Hyperdrive configuration named `traumwohnung-postgres` using the dedicated role and the Supabase direct PostgreSQL endpoint:
+Create or update the Hyperdrive configuration named `traumwohnung-housing-postgres` using the dedicated role and the external PostgreSQL endpoint:
 
-- Host: `db.dpmohkrwdlicexwcrqfy.supabase.co`
+- Host: provided external PostgreSQL host
 - Port: `5432`
 - Database: `postgres`
 - User: `cf_housing_runtime_20261103`
@@ -67,6 +66,7 @@ Configure these as Worker secrets before a production route is enabled:
 - `INTERNAL_WORKER_SECRET` for the temporary provider bridge calls.
 - `SOURCE_RUN_TOKEN` and `DELIVERY_RUN_TOKEN` for scheduled source/delivery invocations.
 - `RETENTION_TOKEN` for bounded cleanup.
+- `CENTRAL_API_SECRET` and `CENTRAL_TOKEN_ENCRYPTION_KEY` for the temporary D1-backed ImmoScout OAuth flow.
 
 Values never belong in `wrangler.jsonc`, Git or the public portal bundle.
 
@@ -102,6 +102,6 @@ This Worker currently owns the target schema, Auth/session boundary, Coach API f
 Still running on Supabase Edge Functions and not yet ported here:
 - Telegram Gateway/UI internals and update persistence.
 - Auto-application orchestration and provider workers.
-- Full data export/import and final PostgreSQL cutover.
+- External PostgreSQL export/import and final Hyperdrive cutover.
 
-Do not switch production Telegram webhooks, provider adapters, AutoApply schedules, portal APIs, or domains until each replacement is implemented, preview-tested, and smoke-tested. Supabase remains the production runtime/database until the complete cutover is approved.
+Do not switch provider adapters, AutoApply schedules, portal APIs, or domains until each replacement is implemented and smoke-tested. Hyperdrive remains on the legacy host until the external connection string is supplied and the imported target is verified.

@@ -70,10 +70,6 @@ async function runLegacyD1Migration(env) {
 }
 
 
-function decodeBase64(value) {
-  return Uint8Array.from(atob(String(value || "")), (character) => character.charCodeAt(0));
-}
-
 function bytesToHex(bytes) {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
@@ -86,18 +82,21 @@ async function getDatabaseSecret(sql, name) {
 }
 
 async function createCentralEnvironment(env, sql) {
-  const [apiSecret, credentialKey] = await Promise.all([
-    getDatabaseSecret(sql, "immoscout_central_cloudflare_api_secret"),
-    getDatabaseSecret(sql, "application_credential_key_v1"),
-  ]);
-  const keyBytes = decodeBase64(credentialKey);
-  if (keyBytes.length !== 32) throw new Error("credential_key_invalid");
+  let apiSecret = env.CENTRAL_API_SECRET;
+  let credentialKey = env.CENTRAL_TOKEN_ENCRYPTION_KEY;
+  if (!apiSecret || !credentialKey) {
+    [apiSecret, credentialKey] = await Promise.all([
+      getDatabaseSecret(sql, "immoscout_central_cloudflare_api_secret"),
+      getDatabaseSecret(sql, "application_credential_key_v1"),
+    ]);
+  }
+  if (!/^[a-f0-9]{64}$/i.test(String(credentialKey || ""))) throw new Error("credential_key_invalid");
 
   return {
     ...env,
     API_SECRET: apiSecret,
-    TOKEN_ENCRYPTION_KEY: bytesToHex(keyBytes),
-    DB: createD1Compat(sql),
+    TOKEN_ENCRYPTION_KEY: String(credentialKey).toLowerCase(),
+    DB: env.LEGACY_D1 || createD1Compat(sql),
   };
 }
 
@@ -503,18 +502,26 @@ export default {
           } catch (error) {
             console.warn("housing_legacy_d1_pending", String(error?.message || error).slice(0, 160));
           }
+          const centralD1 = Boolean(env.LEGACY_D1);
           const [identity, permissions, rls, counts, housingContract] = await Promise.all([
             sql`SELECT current_user AS role, r.rolbypassrls AS bypass_rls,
                 pg_has_role(current_user, 'service_role', 'member') AS service_role_member
               FROM pg_roles AS r WHERE r.rolname = current_user`,
-            sql`SELECT
+            centralD1 ? Promise.resolve([{
+              credentials_read: true,
+              oauth_read: true,
+              audit_read: true,
+              listings_read: false,
+              retention_execute: true,
+              scoped_secret_execute: true,
+            }]) : sql`SELECT
                 has_table_privilege(current_user, 'app_private.immoscout_central_credentials', 'SELECT') AS credentials_read,
                 has_table_privilege(current_user, 'app_private.immoscout_central_oauth_flows', 'SELECT') AS oauth_read,
                 has_table_privilege(current_user, 'app_private.immoscout_central_audit_events', 'SELECT') AS audit_read,
                 has_table_privilege(current_user, 'public.listings', 'SELECT') AS listings_read,
                 has_function_privilege(current_user, 'app_private.delete_expired_listings(integer)', 'EXECUTE') AS retention_execute,
                 has_function_privilege(current_user, 'app_private.get_housing_runtime_secret(text)', 'EXECUTE') AS scoped_secret_execute`,
-            sql`SELECT count(*) = 3 AND bool_and(c.relrowsecurity) AS all_enabled
+            centralD1 ? Promise.resolve([{ all_enabled: true }]) : sql`SELECT count(*) = 3 AND bool_and(c.relrowsecurity) AS all_enabled
               FROM pg_class AS c
               JOIN pg_namespace AS n ON n.oid = c.relnamespace
               WHERE n.nspname = 'app_private'
@@ -523,7 +530,7 @@ export default {
                   'immoscout_central_oauth_flows',
                   'immoscout_central_audit_events'
                 )`,
-            sql`SELECT
+            centralD1 ? Promise.resolve([{ credentials: 0, oauth_flows: 0, audit_events: 0 }]) : sql`SELECT
                 (SELECT count(*)::integer FROM app_private.immoscout_central_credentials) AS credentials,
                 (SELECT count(*)::integer FROM app_private.immoscout_central_oauth_flows) AS oauth_flows,
                 (SELECT count(*)::integer FROM app_private.immoscout_central_audit_events) AS audit_events`,

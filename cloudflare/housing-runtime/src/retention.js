@@ -3,10 +3,37 @@ export async function deleteExpiredListings(sql, limit = 5000) {
     throw new RangeError("retention_limit_invalid");
   }
 
-  const rows = await sql`
-    SELECT app_private.delete_expired_listings(${limit})::integer AS deleted
-  `;
-  const deleted = Number(rows?.[0]?.deleted ?? 0);
+  const deleted = await sql.begin(async (tx) => {
+    const expired = await tx`
+      SELECT id
+      FROM housing.offer_identities
+      WHERE expires_at IS NOT NULL AND expires_at <= now()
+      ORDER BY expires_at, id
+      LIMIT ${limit}
+      FOR UPDATE SKIP LOCKED
+    `;
+    if (!expired.length) return 0;
+    const ids = expired.map((row) => row.id);
+    await tx`
+      UPDATE housing.applications
+      SET offer_identity_id = NULL,
+          listing_expired_at = COALESCE(listing_expired_at, now()),
+          status = CASE WHEN status IN ('pending', 'processing') THEN 'failed' ELSE status END,
+          last_error = CASE WHEN status IN ('pending', 'processing') THEN 'listing_expired' ELSE last_error END,
+          updated_at = now()
+      WHERE offer_identity_id = ANY(${ids})
+    `;
+    await tx`
+      UPDATE housing.deliveries
+      SET offer_identity_id = NULL,
+          listing_expired_at = COALESCE(listing_expired_at, now()),
+          status = CASE WHEN status IN ('pending', 'processing') THEN 'skipped' ELSE status END,
+          error_message = CASE WHEN status IN ('pending', 'processing') THEN 'listing_expired' ELSE error_message END
+      WHERE offer_identity_id = ANY(${ids})
+    `;
+    const result = await tx`DELETE FROM housing.offer_identities WHERE id = ANY(${ids})`;
+    return Number(result.count ?? result.length ?? 0);
+  });
 
   if (!Number.isSafeInteger(deleted) || deleted < 0 || deleted > limit) {
     throw new Error("retention_result_invalid");
