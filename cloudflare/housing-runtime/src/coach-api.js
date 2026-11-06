@@ -27,10 +27,21 @@ function actorToken(request) {
   return authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
 }
 
-async function actor(sql, request) {
-  const member = await memberForAccess(sql, actorToken(request));
-  if (!member) throw new Error("unauthorized");
-  return member;
+async function actor(sql, request, env) {
+  const token = actorToken(request);
+  const member = await memberForAccess(sql, token);
+  if (member) return member;
+  // Transitional bridge: the currently deployed portal still presents a Supabase JWT.
+  // Remove after the Cloudflare session portal is live everywhere.
+  if (token && env?.SUPABASE_URL && env?.SUPABASE_PUBLISHABLE_KEY) {
+    const response = await fetch(`${String(env.SUPABASE_URL).replace(/\/$/, "")}/auth/v1/user`, { headers: { apikey: env.SUPABASE_PUBLISHABLE_KEY, authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(10_000) });
+    const user = await response.json().catch(() => null);
+    if (response.ok && user?.email) {
+      const rows = await sql`SELECT id, email, display_name, role, active FROM housing.portal_members WHERE lower(email) = lower(${String(user.email)}) AND active = true`;
+      if (rows[0]) return rows[0];
+    }
+  }
+  throw new Error("unauthorized");
 }
 
 function isAdmin(member) {
@@ -396,7 +407,7 @@ async function toggleDocument(sql, member, body) {
 }
 
 export async function handleCoach(sql, request, env = {}) {
-  const member = await actor(sql, request);
+  const member = await actor(sql, request, env);
   const body = await request.json().catch(() => ({}));
   const action = String(body.action || "");
   if (action === "me") return { member: { id: member.id, displayName: member.display_name, role: member.role }, workspace: { name: "TraumWohnungHamburg" } };
