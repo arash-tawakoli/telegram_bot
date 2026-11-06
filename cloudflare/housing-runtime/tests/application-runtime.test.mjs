@@ -29,8 +29,8 @@ test("application processor is idle when no pending application exists", async (
 
 test("application processor fails closed while a provider transport is pending", async () => {
   const db = sqlFor({
-    id: "app-1", participant_id: "user-1", offer_identity_id: "offer-1", provider: "immoscout24",
-    canonical_url: "https://www.immobilienscout24.de/expose/123456789", preferences_enabled: true,
+    id: "app-1", participant_id: "user-1", offer_identity_id: "offer-1", provider: "immomio",
+    canonical_url: "https://tenant.immomio.com/de/apply/12345678-1234-4234-8234-123456789012", preferences_enabled: true,
     provider_enabled: true, connection_status: "connected",
   });
   const result = await processHousingApplication(db.query, { APPLICATION_RUN_TOKEN: "secret" }, new Request("https://runtime.test/internal/application/process", { method: "POST", headers: { authorization: "Bearer secret" } }));

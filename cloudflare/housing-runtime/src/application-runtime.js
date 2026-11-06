@@ -1,5 +1,6 @@
 const PROVIDERS = new Set(["immoscout24", "immowelt", "immomio"]);
 import { sendImmoweltApplication } from "./immowelt-application.js";
+import { sendImmoScoutApplication } from "./immoscout-application.js";
 
 async function sameSecret(supplied, expected) {
   if (typeof supplied !== "string" || typeof expected !== "string" || supplied.length === 0 || supplied.length !== expected.length) return false;
@@ -37,7 +38,7 @@ async function claim(sql, freshOnly = false) {
           WHEN 'immomio' THEN pref.immomio_enabled
           ELSE false
         END AS provider_enabled,
-        pc.status AS connection_status
+        pc.status AS connection_status, pc.ciphertext AS connection_ciphertext, pc.iv AS connection_iv, pc.key_version AS connection_key_version
       FROM housing.applications a
       JOIN housing.participants p ON p.id = a.participant_id
       LEFT JOIN housing.applicant_profiles ap ON ap.participant_id = a.participant_id
@@ -98,6 +99,18 @@ export async function processHousingApplication(sql, env, request) {
 
   if (provider === "immowelt") {
     const result = await sendImmoweltApplication(application, env);
+    await sql`UPDATE housing.applications SET status = ${result.status}, last_error = ${result.error || null}, updated_at = now() WHERE id = ${application.id}`;
+    await event(sql, application.id, provider, "provider_submission", result.status, result.error || null, { confirmation: result.confirmation || null });
+    return { status: 200, body: { ok: true, status: result.status, provider, reason: result.error || result.confirmation || null, application_id: application.id } };
+  }
+
+  if (provider === "immoscout24") {
+    let result;
+    try {
+      result = await sendImmoScoutApplication(application, env, sql);
+    } catch (error) {
+      result = { status: "manual_required", error: ["needs_login", "temporary_network_error", "credential_decrypt_failed"].includes(String(error?.message || "")) ? String(error.message) : "provider_contract_unverified" };
+    }
     await sql`UPDATE housing.applications SET status = ${result.status}, last_error = ${result.error || null}, updated_at = now() WHERE id = ${application.id}`;
     await event(sql, application.id, provider, "provider_submission", result.status, result.error || null, { confirmation: result.confirmation || null });
     return { status: 200, body: { ok: true, status: result.status, provider, reason: result.error || result.confirmation || null, application_id: application.id } };

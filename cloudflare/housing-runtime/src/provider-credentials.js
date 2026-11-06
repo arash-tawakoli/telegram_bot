@@ -26,3 +26,16 @@ export async function decryptProviderCredentials(env, row, participantId, provid
   }
   throw new Error("credential_decrypt_failed");
 }
+
+export async function encryptProviderCredentials(env, credentials, participantId, provider, version = 1) {
+  const key = await crypto.subtle.importKey("raw", bytes(env.APPLICATION_CREDENTIAL_KEY || env.CENTRAL_TOKEN_ENCRYPTION_KEY), { name: "AES-GCM" }, false, ["encrypt"]);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const plaintext = new TextEncoder().encode(JSON.stringify(credentials));
+  const ciphertext = new Uint8Array(await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv, additionalData: new TextEncoder().encode(`${participantId}:${provider}:v${version}`) },
+    key,
+    plaintext,
+  ));
+  const encode = (value) => btoa(String.fromCharCode(...value));
+  return { ciphertext: encode(ciphertext), iv: encode(iv), key_version: version };
+}
