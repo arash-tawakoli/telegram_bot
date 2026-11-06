@@ -1,3 +1,5 @@
+import { queueMatches } from "./matching.js";
+
 const GRAPHQL_URL = "https://gql-hp.immomio.com/homepage/graphql";
 const QUERY = `query propertyList($input: HomepagePropertySearchRequest!) { propertyList(input:$input){ page{page size totalElements totalPages} nodes{name totalRooms size totalRentGross externalId wbs applicationLink objectId propertyType marketingType status address{city street houseNumber zipCode district} availableFrom{dateAvailable stringAvailable} titleImage{url}}}}`;
 
@@ -110,7 +112,10 @@ export async function ingestImmomioSource(sql, source, config = {}) {
       ON CONFLICT (identity_hash) DO UPDATE SET canonical_url = EXCLUDED.canonical_url, facts = EXCLUDED.facts, last_seen_at = now(), expires_at = EXCLUDED.expires_at
       RETURNING id
     `;
-    if (rows.length) inserted++;
+    if (rows.length) {
+      inserted++;
+      await queueMatches(sql, rows[0].id, node.source_id, node.source_id + ":external:" + node.identity, { ...node.facts, canonical_url: node.canonical_url });
+    }
   }
   return { fetched: result.fetched, valid: result.nodes.length, inserted, pages: result.pages };
 }

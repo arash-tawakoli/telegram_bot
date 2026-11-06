@@ -33,6 +33,9 @@ CREATE TABLE IF NOT EXISTS housing.participants (
   email text,
   first_name text NOT NULL,
   last_name text NOT NULL,
+  telegram_user_id bigint,
+  telegram_chat_id bigint,
+  ui_language text NOT NULL DEFAULT 'de',
   status text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'archived', 'pending_deletion')),
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
@@ -167,7 +170,9 @@ CREATE TABLE IF NOT EXISTS housing.deliveries (
   participant_id uuid NOT NULL REFERENCES housing.participants(id) ON DELETE CASCADE,
   offer_identity_id uuid NOT NULL REFERENCES housing.offer_identities(id),
   idempotency_key text NOT NULL UNIQUE,
-  status text NOT NULL CHECK (status IN ('pending', 'sent', 'failed', 'skipped')),
+  status text NOT NULL CHECK (status IN ('pending', 'processing', 'sent', 'failed', 'skipped')),
+  attempts integer NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+  error_message text,
   telegram_message_id bigint,
   created_at timestamptz NOT NULL DEFAULT now(),
   sent_at timestamptz

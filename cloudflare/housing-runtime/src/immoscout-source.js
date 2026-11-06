@@ -1,3 +1,5 @@
+import { queueMatches } from "./matching.js";
+
 const MCP_URL = "https://app.chatgpt.immobilienscout24.de/v2/mcp";
 const MCP_PROTOCOL = "2025-06-18";
 
@@ -98,7 +100,10 @@ export async function ingestImmoScoutSource(sql, source, config = {}) {
       ON CONFLICT (identity_hash) DO UPDATE SET canonical_url = EXCLUDED.canonical_url, facts = EXCLUDED.facts, last_seen_at = now(), expires_at = EXCLUDED.expires_at
       RETURNING id
     `;
-    if (rows.length) inserted++;
+    if (rows.length) {
+      inserted++;
+      await queueMatches(sql, rows[0].id, node.source_id, node.source_id + ":external:" + node.identity, { ...node.facts, canonical_url: node.canonical_url });
+    }
   }
   return { fetched: result.fetched, valid: result.nodes.length, inserted, query: result.query };
 }

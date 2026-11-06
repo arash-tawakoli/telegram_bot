@@ -9,6 +9,7 @@ import { sourceForId } from "./source-allowlist.js";
 import { ingestImmomioSource } from "./immomio-source.js";
 import { ingestImmoweltSource } from "./immowelt-source.js";
 import { ingestImmoScoutSource } from "./immoscout-source.js";
+import { telegramText } from "./matching.js";
 import { createSession, hashPassword, memberForAccess, refreshSession, revokeSession, sha256, verifyPassword } from "./auth.js";
 import { handleCoach } from "./coach-api.js";
 
@@ -219,6 +220,45 @@ async function runSource(sql, request, env) {
   return json({ ok: true, source_id: source.id, ...result });
 }
 
+async function processDelivery(sql, request, env) {
+  const expected = env.DELIVERY_RUN_TOKEN || env.SOURCE_RUN_TOKEN;
+  if (!expected || !await sameSecret(request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") || "", expected)) return json({ error: "unauthorized" }, 401);
+  const claimed = await sql.begin(async (tx) => {
+    const rows = await tx`
+      SELECT d.id, d.participant_id, d.offer_identity_id, p.telegram_chat_id, oi.facts, oi.canonical_url
+      FROM housing.deliveries d
+      JOIN housing.participants p ON p.id = d.participant_id
+      JOIN housing.offer_identities oi ON oi.id = d.offer_identity_id
+      WHERE d.status = 'pending'
+      ORDER BY d.created_at
+      LIMIT 1
+      FOR UPDATE SKIP LOCKED
+    `;
+    if (!rows[0]) return null;
+    await tx`UPDATE housing.deliveries SET status = 'processing', attempts = attempts + 1 WHERE id = ${rows[0].id}`;
+    return rows[0];
+  });
+  if (!claimed) return json({ ok: true, status: "idle" });
+  if (!claimed.telegram_chat_id) {
+    await sql`UPDATE housing.deliveries SET status = 'skipped', error_message = 'telegram_not_connected' WHERE id = ${claimed.id}`.catch(() => {});
+    return json({ ok: true, status: "skipped", reason: "telegram_not_connected" });
+  }
+  const token = String(env.TELEGRAM_BOT_TOKEN || "");
+  if (!token) {
+    await sql`UPDATE housing.deliveries SET status = 'failed' WHERE id = ${claimed.id}`;
+    return json({ error: "telegram_token_missing" }, 503);
+  }
+  const facts = { ...(claimed.facts || {}), canonical_url: claimed.canonical_url };
+  const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ chat_id: claimed.telegram_chat_id, text: telegramText(facts), parse_mode: "HTML", disable_web_page_preview: false }), signal: AbortSignal.timeout(15_000) });
+  const result = await response.json().catch(() => null);
+  if (!response.ok || result?.ok !== true) {
+    await sql`UPDATE housing.deliveries SET status = 'failed' WHERE id = ${claimed.id}`;
+    return json({ error: "telegram_delivery_failed" }, 503);
+  }
+  await sql`UPDATE housing.deliveries SET status = 'sent', telegram_message_id = ${Number(result.result?.message_id || 0)}, sent_at = now() WHERE id = ${claimed.id}`;
+  return json({ ok: true, status: "sent", delivery_id: claimed.id });
+}
+
 async function handleAuth(sql, request) {
   const body = await request.json().catch(() => ({}));
   const action = String(body.action || "");
@@ -329,6 +369,11 @@ export default {
     if (url.pathname === "/internal/source/run" && request.method === "POST") {
       try { return await withDatabase(env, (sql) => runSource(sql, request, env)); }
       catch (error) { console.error("housing_source_run_failed", String(error?.message || error)); return json({ error: "source_run_failed" }, 503); }
+    }
+
+    if (url.pathname === "/internal/delivery/process" && request.method === "POST") {
+      try { return await withDatabase(env, (sql) => processDelivery(sql, request, env)); }
+      catch (error) { console.error("housing_delivery_failed", String(error?.message || error)); return json({ error: "delivery_failed" }, 503); }
     }
 
     if (request.method === "POST" && url.pathname === "/edge/auth") {

@@ -1,3 +1,5 @@
+import { queueMatches } from "./matching.js";
+
 function absolute(base, href) {
   try { return new URL(href, base).href.split("#")[0]; } catch { return null; }
 }
@@ -63,7 +65,10 @@ export async function ingestImmoweltSource(sql, source, config = {}) {
       ON CONFLICT (identity_hash) DO UPDATE SET facts = EXCLUDED.facts, last_seen_at = now(), expires_at = EXCLUDED.expires_at
       RETURNING id
     `;
-    if (rows.length) inserted++;
+    if (rows.length) {
+      inserted++;
+      await queueMatches(sql, rows[0].id, node.source_id, node.source_id + ":url:" + node.identity, { ...node.facts, canonical_url: node.canonical_url });
+    }
   }
   return { fetched: result.fetched, valid: result.nodes.length, inserted, verified_empty: result.verified_empty };
 }
