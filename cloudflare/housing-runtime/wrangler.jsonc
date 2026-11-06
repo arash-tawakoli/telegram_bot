@@ -62,14 +62,8 @@
       }
     ],
     "vars": {
-      "PREVIEW_MODE": "1",
-      "SUPABASE_URL": "https://dpmohkrwdlicexwcrqfy.supabase.co",
-      "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_vaW_Ib4H58o5uK4B-8hRfQ_KujeBwqJ"
+      "PREVIEW_MODE": "1"
     }
-  },
-  "vars": {
-    "SUPABASE_URL": "https://dpmohkrwdlicexwcrqfy.supabase.co",
-    "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_vaW_Ib4H58o5uK4B-8hRfQ_KujeBwqJ"
   },
   "limits": {
     "cpu_ms": 500

@@ -11,7 +11,6 @@ import { telegramText } from "./matching.js";
 import { createSession, hashPassword, memberForAccess, refreshSession, revokeSession, sha256, verifyPassword } from "./auth.js";
 import { handleCoach } from "./coach-api.js";
 import { processHousingApplication } from "./application-runtime.js";
-import { proxySupabaseFunction } from "./supabase-proxy.js";
 import { createD1Client } from "./d1-database.js";
 import { handleLegacyTelegramUpdate } from "./telegram-legacy/index.js";
 
