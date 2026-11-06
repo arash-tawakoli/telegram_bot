@@ -187,6 +187,16 @@ function isAuthorized(request, env) {
   return request.headers.get("authorization") === `Bearer ${expected}`;
 }
 
+async function telegramWebhook(request, env) {
+  const expected = env.TELEGRAM_WEBHOOK_SECRET;
+  if (!expected || !await sameSecret(request.headers.get("x-telegram-bot-api-secret-token") || "", expected)) {
+    return json({ error: "unauthorized" }, 401);
+  }
+  const length = Number(request.headers.get("content-length") || 0);
+  if (length > 512 * 1024) return json({ error: "update_too_large" }, 413);
+  return proxySupabaseFunction(request, env, "telegram");
+}
+
 async function handleAuth(sql, request) {
   const body = await request.json().catch(() => ({}));
   const action = String(body.action || "");
@@ -267,6 +277,11 @@ export default {
         service: "traumwohnung-housing-runtime",
         databaseConfigured: Boolean(env.HYPERDRIVE?.connectionString),
       });
+    }
+
+    if (url.pathname === "/telegram/webhook" && request.method === "POST") {
+      try { return await telegramWebhook(request, env); }
+      catch (error) { console.error("housing_telegram_webhook_failed", String(error?.message || error)); return json({ error: "telegram_unavailable" }, 503); }
     }
 
     if (request.method === "POST" && url.pathname === "/edge/auth") {

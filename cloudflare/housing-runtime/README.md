@@ -13,6 +13,8 @@ One Cloudflare Worker is the target execution runtime for the housing product.
 
 The cutover allowlist is explicit in `src/source-allowlist.js` and contains only ImmoScout24, Immowelt, and verified Immomio Tenant sources. The target schema in `schema/0001_housing_core.sql` stores offer identity and idempotency keys instead of complete listing payloads. The durable `(participant, offer)` delivery key and `(participant, provider, offer)` application key prevent duplicate notifications and applications after a source re-publishes an offer.
 
+The Cloudflare ingress exposes `/telegram/webhook` and validates `TELEGRAM_WEBHOOK_SECRET` before forwarding the existing Gateway contract. This moves the public webhook boundary first; the Gateway internals remain the next porting slice.
+
 ## Database contract
 
 Supabase remains the PostgreSQL host. Cloudflare runs the housing application code and connects through Hyperdrive.
