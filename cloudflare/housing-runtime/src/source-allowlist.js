@@ -9,7 +9,6 @@ export const HOUSING_SOURCES = Object.freeze([
   { id: 29, name: "VHW", family: "immomio", connector: "immomio_tenant" },
   { id: 34, name: "Bauverein Reiherstieg", family: "immomio", connector: "immomio_tenant" },
   { id: 35, name: "Walddörfer", family: "immomio", connector: "immomio_tenant" },
-  { id: 37, name: "Finkenwärder-Hoffnung", family: "immomio", connector: "json_endpoint" },
   { id: 66, name: "GEWOBA Nord", family: "immomio", connector: "immomio_tenant" },
   { id: 69, name: "ImmobilienScout24 Schleswig-Holstein", family: "immoscout24", connector: "mcp" },
   { id: 71, name: "Immowelt Schleswig-Holstein", family: "immowelt", connector: "html_discovery" },

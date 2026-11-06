@@ -19,7 +19,6 @@ INSERT INTO housing.source_registry (id, name, family, connector) VALUES
   (29, 'VHW', 'immomio', 'immomio_tenant'),
   (34, 'Bauverein Reiherstieg', 'immomio', 'immomio_tenant'),
   (35, 'Walddörfer', 'immomio', 'immomio_tenant'),
-  (37, 'Finkenwärder-Hoffnung', 'immomio', 'json_endpoint'),
   (66, 'GEWOBA Nord', 'immomio', 'immomio_tenant'),
   (69, 'ImmobilienScout24 Schleswig-Holstein', 'immoscout24', 'mcp'),
   (71, 'Immowelt Schleswig-Holstein', 'immowelt', 'html_discovery')

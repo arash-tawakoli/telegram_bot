@@ -21,7 +21,7 @@ SELECT
   s.consecutive_failures
 FROM public.sources s
 JOIN public.source_connectors c ON c.source_id = s.id
-WHERE s.id IN (1, 3, 23, 29, 34, 35, 37, 66, 69, 71)
+WHERE s.id IN (1, 3, 23, 29, 34, 35, 66, 69, 71)
   AND c.connector_role = 'primary'
   AND c.enabled = true
 ON CONFLICT (id) DO UPDATE SET

@@ -1,7 +1,7 @@
 const SOURCES = new Map([
   [1, "ImmoScout24 Hamburg"], [3, "Immowelt Hamburg"], [23, "Hamburger Wohnen"],
   [29, "VHW"], [34, "Bauverein Reiherstieg"], [35, "Walddörfer"],
-  [37, "Finkenwärder-Hoffnung"], [66, "GEWOBA Nord"], [69, "ImmoScout24 Schleswig-Holstein"],
+  [66, "GEWOBA Nord"], [69, "ImmoScout24 Schleswig-Holstein"],
   [71, "Immowelt Schleswig-Holstein"],
 ]);
 const PROVIDERS = new Set(["immoscout24", "immowelt", "immomio"]);
@@ -137,7 +137,7 @@ function parseSearchText(value) {
     } else if (["city", "stadt", "ort", "location"].includes(key)) criteria.city = raw;
     else criteria[key] = raw;
   }
-  return { criteria, sourceIds: sourceIds.length ? sourceIds : [1, 3, 23, 29, 34, 35, 37, 66, 69, 71] };
+  return { criteria, sourceIds: sourceIds.length ? sourceIds : [1, 3, 23, 29, 34, 35, 66, 69, 71] };
 }
 
 async function saveSearch(sql, participantRow, value) {

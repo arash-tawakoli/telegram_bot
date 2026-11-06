@@ -2,7 +2,7 @@ import { chmod, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import postgres from "postgres";
 
-const ALLOWLIST = [1, 3, 23, 29, 34, 35, 37, 66, 69, 71];
+const ALLOWLIST = [1, 3, 23, 29, 34, 35, 66, 69, 71];
 const sourceUrl = process.env.LEGACY_DATABASE_URL;
 const output = resolve(process.env.HOUSING_SNAPSHOT_FILE || `housing-snapshot-${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
 

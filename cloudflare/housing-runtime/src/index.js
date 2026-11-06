@@ -21,7 +21,7 @@ const HEADERS = {
   "x-content-type-options": "nosniff",
   "referrer-policy": "no-referrer",
 };
-const SOURCE_ROTATION = [1, 3, 23, 29, 34, 35, 37, 66, 69, 71];
+const SOURCE_ROTATION = [1, 3, 23, 29, 34, 35, 66, 69, 71];
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: HEADERS });
@@ -234,13 +234,19 @@ async function runSource(sql, request, env) {
   const source = sourceForId(body.source_id);
   if (!source) return json({ error: "source_not_allowlisted" }, 422);
   if (!['immomio', 'immowelt', 'immoscout24'].includes(source.family)) return json({ error: "source_adapter_not_ported", source: source.family }, 409);
-  const rows = await sql`SELECT id, name, homepage_url, search_url, connector_config FROM housing.source_registry WHERE id = ${source.id} AND enabled = true`;
+  const rows = await sql`SELECT id, name, connector_config FROM housing.source_registry WHERE id = ${source.id} AND enabled = true`;
   if (!rows[0]) return json({ error: "source_not_configured" }, 404);
+  const connectorConfig = rows[0].connector_config || {};
+  const sourceRow = {
+    ...rows[0],
+    homepage_url: connectorConfig.homepage_url || connectorConfig.url || null,
+    search_url: connectorConfig.search_url || connectorConfig.url || null,
+  };
   const result = source.family === "immomio"
-    ? await ingestImmomioSource(sql, rows[0], rows[0].connector_config || {})
+    ? await ingestImmomioSource(sql, sourceRow, connectorConfig)
     : source.family === "immowelt"
-      ? await ingestImmoweltSource(sql, rows[0], rows[0].connector_config || {})
-      : await ingestImmoScoutSource(sql, rows[0], rows[0].connector_config || {});
+      ? await ingestImmoweltSource(sql, sourceRow, connectorConfig)
+      : await ingestImmoScoutSource(sql, sourceRow, connectorConfig);
   await sql`UPDATE housing.source_registry SET last_success_at = now(), consecutive_failures = 0 WHERE id = ${source.id}`;
   return json({ ok: true, source_id: source.id, ...result });
 }

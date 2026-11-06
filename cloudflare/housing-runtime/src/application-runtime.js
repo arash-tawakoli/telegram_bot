@@ -25,7 +25,7 @@ async function event(sql, applicationId, provider, type, status, reason, metadat
 async function claim(sql) {
   return sql.begin(async (tx) => {
     const rows = await tx`
-      SELECT a.id, a.participant_id, a.offer_identity_id, a.provider, a.attempts,
+      SELECT a.id, a.participant_id, a.offer_identity_id, a.provider,
         p.first_name, p.last_name, p.email, p.telegram_chat_id,
         ap.profile,
         oi.canonical_url, oi.facts,

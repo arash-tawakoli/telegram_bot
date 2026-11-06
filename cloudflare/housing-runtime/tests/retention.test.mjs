@@ -15,6 +15,15 @@ function fakeSql(expired = [], deleted = 0) {
     }
     return Promise.resolve([]);
   };
+  tx.unsafe = (query, values = []) => {
+    queries.push({ query, values });
+    if (/DELETE FROM housing\.offer_identities/i.test(query)) {
+      const result = [];
+      result.count = deleted;
+      return Promise.resolve(result);
+    }
+    return Promise.resolve([]);
+  };
   return { queries, begin: async (callback) => callback(tx) };
 }
 

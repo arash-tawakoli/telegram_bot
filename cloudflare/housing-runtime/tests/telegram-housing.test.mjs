@@ -10,7 +10,7 @@ test("Telegram search input keeps only allow-listed sources and bounded numeric 
 
 test("Telegram search input defaults to all verified sources", () => {
   const result = parseSearchText("stadt=Hamburg");
-  assert.equal(result.sourceIds.length, 10);
+  assert.equal(result.sourceIds.length, 9);
   assert.equal(result.criteria.city, "Hamburg");
 });
 

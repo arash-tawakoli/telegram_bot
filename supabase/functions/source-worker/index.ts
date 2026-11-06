@@ -12,7 +12,7 @@ import { runCatalog } from "./catalog.ts";
 import { runCategoryStreams } from "./category.ts";
 
 // Housing cutover allowlist. Historical source rows remain available for export, but never crawl again.
-const HOUSING_SOURCE_IDS = new Set([1, 3, 23, 29, 34, 35, 37, 66, 69, 71]);
+const HOUSING_SOURCE_IDS = new Set([1, 3, 23, 29, 34, 35, 66, 69, 71]);
 
 async function runPortalRegistryMirror(s:Source){
   const started=new Date().toISOString();

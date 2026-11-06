@@ -116,7 +116,7 @@ BEGIN
     jsonb_build_object('title', l.title, 'address', l.address, 'district', l.district, 'postal_code', l.postal_code, 'city', l.city, 'warm_rent', l.warm_rent, 'cold_rent', l.cold_rent, 'rooms', l.rooms, 'area_sqm', l.area_sqm, 'available_from', l.available_from, 'property_type', l.property_type, 'wbs_required', l.wbs_required, 'image_url', l.image_url),
     COALESCE(l.first_seen_at, now()), COALESCE(l.last_seen_at, now()), COALESCE(l.first_seen_at, now()) + interval '24 hours'
   FROM public.listings l
-  WHERE l.source_id IN (1,3,23,29,34,35,37,66,69,71)
+  WHERE l.source_id IN (1,3,23,29,34,35,66,69,71)
   ON CONFLICT (id) DO UPDATE SET facts = EXCLUDED.facts, last_seen_at = EXCLUDED.last_seen_at, expires_at = EXCLUDED.expires_at;
   GET DIAGNOSTICS offers_count = ROW_COUNT;
 
@@ -142,7 +142,7 @@ BEGIN
   FROM public.applications a
   JOIN housing.offer_identities oi ON oi.id = a.listing_id
   JOIN housing.participants p ON p.id = a.user_id
-  WHERE a.source_id IN (1,3,23,29,34,35,37,66,69,71)
+  WHERE a.source_id IN (1,3,23,29,34,35,66,69,71)
   ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status, last_error = EXCLUDED.last_error, updated_at = EXCLUDED.updated_at;
   GET DIAGNOSTICS applications_count = ROW_COUNT;
 
