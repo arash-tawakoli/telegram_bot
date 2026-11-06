@@ -66,6 +66,14 @@ CREATE TABLE IF NOT EXISTS housing.portal_sessions (
   last_seen_at timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS housing.bootstrap_tokens (
+  id uuid PRIMARY KEY,
+  token_hash text NOT NULL UNIQUE,
+  expires_at timestamptz NOT NULL,
+  consumed_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS housing.search_profiles (
   id uuid PRIMARY KEY,
   participant_id uuid NOT NULL REFERENCES housing.participants(id) ON DELETE CASCADE,

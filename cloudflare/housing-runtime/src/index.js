@@ -5,7 +5,7 @@ import centralTokenWorker from "./immoscout-central-token.js";
 import { importLegacyD1Snapshot, verifyLegacyD1SnapshotKey } from "./legacy-migration.js";
 import { proxySupabaseFunction } from "./supabase-proxy.js";
 import { HOUSING_SOURCES } from "./source-allowlist.js";
-import { createSession, memberForAccess, refreshSession, revokeSession, sha256, verifyPassword } from "./auth.js";
+import { createSession, hashPassword, memberForAccess, refreshSession, revokeSession, sha256, verifyPassword } from "./auth.js";
 import { handleCoach } from "./coach-api.js";
 
 const HEADERS = {
@@ -213,6 +213,26 @@ async function handleAuth(sql, request) {
   if (action === "logout") {
     await revokeSession(sql, String(body.access_token || body.refresh_token || ""));
     return json({ ok: true });
+  }
+  if (action === "bootstrap_status") {
+    const tokenHash = await sha256(String(body.token || ""));
+    const rows = await sql`SELECT 1 FROM housing.bootstrap_tokens WHERE token_hash = ${tokenHash} AND consumed_at IS NULL AND expires_at > now()`;
+    return rows[0] ? json({ ok: true }) : json({ error: "bootstrap_unavailable" }, 404);
+  }
+  if (action === "bootstrap_complete") {
+    const tokenHash = await sha256(String(body.token || ""));
+    const email = String(body.email || "").trim().toLowerCase();
+    const displayName = String(body.displayName || "").trim().slice(0, 120);
+    if (!/^\S+@\S+\.\S+$/.test(email) || !displayName) return json({ error: "profile_invalid" }, 400);
+    const passwordHash = await hashPassword(String(body.password || ""));
+    const memberId = crypto.randomUUID();
+    await sql.begin(async (tx) => {
+      const tokens = await tx`SELECT id FROM housing.bootstrap_tokens WHERE token_hash = ${tokenHash} AND consumed_at IS NULL AND expires_at > now() FOR UPDATE`;
+      if (!tokens[0]) throw new Error("bootstrap_unavailable");
+      await tx`INSERT INTO housing.portal_members (id, email, display_name, role, password_hash) VALUES (${memberId}, ${email}, ${displayName}, 'super_admin', ${passwordHash})`;
+      await tx`UPDATE housing.bootstrap_tokens SET consumed_at = now() WHERE id = ${tokens[0].id}`;
+    });
+    return json({ ok: true, ...(await createSession(sql, memberId)) });
   }
   return json({ error: "invalid_action" }, 400);
 }
