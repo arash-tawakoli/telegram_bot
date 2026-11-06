@@ -23,6 +23,7 @@ export type Source = {
   search_url: string | null;
   coverage_strategy: string;
   runtime_mode: string;
+  enabled?: boolean;
   baseline_completed_at: string | null;
   consecutive_failures: number;
   last_success_at?: string | null;

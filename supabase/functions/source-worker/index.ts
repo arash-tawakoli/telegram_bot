@@ -11,6 +11,9 @@ import { runNestpick } from "./nestpick.ts";
 import { runCatalog } from "./catalog.ts";
 import { runCategoryStreams } from "./category.ts";
 
+// Housing cutover allowlist. Historical source rows remain available for export, but never crawl again.
+const HOUSING_SOURCE_IDS = new Set([1, 3, 23, 29, 34, 35, 37, 66, 69, 71]);
+
 async function runPortalRegistryMirror(s:Source){
   const started=new Date().toISOString();
   const portalSourceIds=[1,3];
@@ -87,6 +90,11 @@ async function processSource(id: number) {
     .single();
   if (error || !source) throw new Error(error?.message || "source unavailable");
   const s = source as Source;
+  if (s.enabled === true && s.runtime_mode === "live" && !HOUSING_SOURCE_IDS.has(Number(id))) {
+    const started = new Date().toISOString();
+    await markSuccess(s, started, null, 0, 0, { strategy: "housing_allowlist_excluded", complete: false });
+    return { ok: true, source_id: id, fetched: 0, new: 0, complete: false, excluded: true };
+  }
   const connectors = (source.source_connectors || [])
     .filter((c: any) => c.enabled)
     .sort((a: any, b: any) => a.priority - b.priority) as Connector[];
