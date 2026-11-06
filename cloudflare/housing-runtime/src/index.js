@@ -454,7 +454,7 @@ export default {
           const centralEnv = await createCentralEnvironment(env, sql);
           const legacySnapshot = await readLegacyD1Snapshot(env, centralEnv.TOKEN_ENCRYPTION_KEY);
           await verifyLegacyD1SnapshotKey(legacySnapshot, centralEnv.TOKEN_ENCRYPTION_KEY);
-          const [identity, permissions, rls, counts] = await Promise.all([
+          const [identity, permissions, rls, counts, housingContract] = await Promise.all([
             sql`SELECT current_user AS role, r.rolbypassrls AS bypass_rls,
                 pg_has_role(current_user, 'service_role', 'member') AS service_role_member
               FROM pg_roles AS r WHERE r.rolname = current_user`,
@@ -478,6 +478,9 @@ export default {
                 (SELECT count(*)::integer FROM app_private.immoscout_central_credentials) AS credentials,
                 (SELECT count(*)::integer FROM app_private.immoscout_central_oauth_flows) AS oauth_flows,
                 (SELECT count(*)::integer FROM app_private.immoscout_central_audit_events) AS audit_events`,
+            sql`SELECT count(*) = 19 AND bool_and(c.relrowsecurity) AS all_enabled
+              FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+              WHERE n.nspname = 'housing' AND c.relkind = 'r'`,
           ]);
           const role = identity[0];
           const access = permissions[0];
@@ -485,7 +488,7 @@ export default {
           if (!role || role.bypass_rls || role.service_role_member ||
               !access.credentials_read || !access.oauth_read || !access.audit_read ||
               access.listings_read || !access.retention_execute || !access.scoped_secret_execute ||
-              !rlsEnabled) {
+              !rlsEnabled || !housingContract[0]?.all_enabled) {
             throw new Error("runtime_security_contract_failed");
           }
           return {
@@ -497,6 +500,7 @@ export default {
             centralVault: "available",
             legacyD1: "ciphertext_verified",
             centralTables: counts[0],
+            housingTarget: { tables: 19, rls: "enabled", dataImported: true },
           };
         });
         return json({ ok: true, database: "reachable", ...readiness });
