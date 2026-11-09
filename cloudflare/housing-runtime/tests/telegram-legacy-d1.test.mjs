@@ -188,3 +188,11 @@ test("Kleinanzeigen provider preference uses the dedicated D1 flag", async () =>
   assert.match(calls[1].query, /UPDATE application_preferences SET kleinanzeigen_enabled=\\?/);
   assert.deepEqual(calls[1].params, [1, "participant-1"]);
 });
+
+test("Kleinanzeigen Telegram controls expose all four provider slots and the login handoff", async () => {
+  const { readFileSync } = await import("node:fs");
+  const source = readFileSync(new URL("../src/telegram-legacy/platform-sessions.js", import.meta.url), "utf8");
+  assert.match(source, /2:\{key:'kleinanzeigen',name:'Kleinanzeigen',field:'kleinanzeigen_enabled'\}/);
+  assert.match(source, /if\(!\[1,2,3,4\]\.includes\(source\)\)return/);
+  assert.match(source, /workerAction=health\?\.kleinanzeigenOAuthClientProvisioned===true\?'login':'login_share'/);
+});
