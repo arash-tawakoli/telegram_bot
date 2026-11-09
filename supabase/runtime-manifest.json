@@ -1092,7 +1092,13 @@
       "source_archive_status": "full_source",
       "classification": "internal",
       "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked",
-      "observed_live_at": "2026-09-29T23:06:33.916Z"
+      "observed_live_at": "2026-09-29T23:06:33.916Z",
+      "known_source_drift": [
+        {
+          "path": "supabase/functions/platform-connect-broker-v2/index.ts",
+          "reason": "The staged Cloudflare platform-connect cutover removes the legacy Kleinanzeigen OAuth flow while the Cloudflare Kleinanzeigen login adapter is not yet implemented. Not deployed; keep the live Supabase connector until provider parity is complete."
+        }
+      ]
     },
     {
       "slug": "platform-session-reminder",
