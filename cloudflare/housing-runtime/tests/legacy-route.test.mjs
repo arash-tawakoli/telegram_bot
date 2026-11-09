@@ -21,3 +21,11 @@ test("preview runtime blocks state-changing internal routes", () => {
   assert.match(runtime, /env\.PREVIEW_MODE === "1" && !\(request\.method === "GET" && routePath === "\/internal\/status"\)/);
   assert.match(config, /"PREVIEW_MODE": "1"/);
 });
+
+const telegramHandlers = await readFile(new URL("../src/telegram-legacy/handlers.js", import.meta.url), "utf8");
+const telegramSessions = await readFile(new URL("../src/telegram-legacy/platform-sessions.js", import.meta.url), "utf8");
+
+test("Telegram callbacks do not depend on the Supabase EdgeRuntime global", () => {
+  assert.equal(telegramHandlers.includes("EdgeRuntime"), false);
+  assert.equal(telegramSessions.includes("EdgeRuntime"), false);
+});
