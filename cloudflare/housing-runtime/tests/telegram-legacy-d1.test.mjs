@@ -139,7 +139,7 @@ test("applicant profile upsert stores JSON in the physical D1 schema", async () 
   }, { onConflict: "user_id" });
   assert.equal(result.error, null);
   assert.equal(result.count, 1);
-  assert.match(captured.query, /^INSERT OR REPLACE INTO applicant_profiles \(participant_id,profile,updated_at\) VALUES\(\?,\?,\?\)$/);
+  assert.equal(captured.query, "INSERT INTO applicant_profiles (participant_id,profile,updated_at) VALUES (?,?,?) ON CONFLICT(participant_id) DO UPDATE SET profile=excluded.profile,updated_at=excluded.updated_at");
   assert.equal(captured.params[0], "participant-1");
   assert.deepEqual(JSON.parse(captured.params[1]), { first_name: "", last_name: "" });
   assert.equal(captured.params[2], "2026-11-09T21:00:00.000Z");
@@ -167,7 +167,7 @@ test("applicant profile update merges JSON fields and preserves existing data", 
   assert.equal(result.error, null);
   assert.equal(result.count, 1);
   assert.equal(calls.length, 2);
-  assert.match(calls[0].query, /SELECT participant_id,profile FROM applicant_profiles WHERE participant_id=\\?/);
+  assert.equal(calls[0].query, "SELECT participant_id,profile FROM applicant_profiles WHERE participant_id = ?");
   assert.equal(calls[1].query, "UPDATE applicant_profiles SET profile=?,updated_at=? WHERE participant_id=?");
   assert.deepEqual(JSON.parse(calls[1].params[0]), { first_name: "Alaa", last_name: "Mansour", email: "new@example.test" });
   assert.equal(calls[1].params[1], "2026-11-09T21:00:00.000Z");
