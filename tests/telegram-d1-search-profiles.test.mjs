@@ -102,8 +102,8 @@ test("D1 generic search-profile inserts persist profile_slot outside criteria", 
   const insert = calls.find(call => call.query?.startsWith("INSERT INTO search_profiles"));
   assert.ok(insert);
   assert.match(insert.query, /profile_slot/);
-  assert.ok(insert.params[columns.indexOf("id")]);
   const columns = insert.query.match(/\(([^)]+)\) VALUES/)[1].split(",");
+  assert.ok(insert.params[columns.indexOf("id")]);
   const criteria = JSON.parse(insert.params[columns.indexOf("criteria")]);
   assert.equal(criteria.profile_slot, undefined);
   assert.equal(insert.params[columns.indexOf("profile_slot")], 4);
