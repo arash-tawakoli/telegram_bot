@@ -61,11 +61,15 @@ function outputRow(table, row) {
     onboarding_step: json(row.telegram_state, {})._step || null,
     telegram_user_id: row.telegram_user_id,
     user_id: row.id,
-    plan_override: null,
-    referral_bonus_until: null,
-    auto_apply_enabled: false,
-    test_auto_apply_allowed: false,
-    test_auto_apply_enabled: false,
+    plan_override: row.plan_override ?? null,
+    plan_override_expires_at: row.plan_override_expires_at ?? null,
+    referral_bonus_until: row.referral_bonus_until ?? null,
+    auto_apply_enabled: bool(row.auto_apply_enabled),
+    test_auto_apply_allowed: bool(row.test_auto_apply_allowed),
+    test_auto_apply_enabled: bool(row.test_auto_apply_enabled),
+    test_auto_apply_daily_limit: Number(row.test_auto_apply_daily_limit || 0),
+    test_auto_apply_enabled_at: row.test_auto_apply_enabled_at ?? null,
+    test_auto_apply_disabled_at: row.test_auto_apply_disabled_at ?? null,
   };
   if (table === "search_profiles") {
     const criteria = json(row.criteria, {});
@@ -171,7 +175,45 @@ export function createD1Supabase(db, env) {
 
 async function rpc(client, env, name, args) {
   if (name === "get_bot_secret") { const map={telegram_bot_token_runtime:env.TELEGRAM_BOT_TOKEN,telegram_webhook_secret:env.TELEGRAM_WEBHOOK_SECRET,stripe_portal_url:env.STRIPE_PORTAL_URL}; return { data: map[args.secret_name] || null, error: map[args.secret_name] ? null : new Error("secret_unavailable") }; }
-  if (name === "prepare_telegram_update") { const payload=args.p_payload||{}; const from=payload.callback_query?.from||payload.message?.from; const chat=payload.callback_query?.message?.chat||payload.message?.chat; if(!from?.id||!chat?.id)return{data:null,error:new Error("telegram_identity_invalid")}; const found=await client.run("SELECT * FROM participants WHERE telegram_user_id=? LIMIT 1",[from.id]); let user=found[0]; if(user) { await client.run("UPDATE participants SET telegram_chat_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",[chat.id,user.id]); } else { const id=crypto.randomUUID(); await client.run("INSERT INTO participants(id,first_name,last_name,telegram_user_id,telegram_chat_id) VALUES(?,?,?,?,?)",[id,from.first_name||"Teilnehmer",from.last_name||"Unbekannt",from.id,chat.id]); await client.run("INSERT OR IGNORE INTO application_preferences(participant_id) VALUES(?)",[id]); user=(await client.run("SELECT * FROM participants WHERE id=?",[id]))[0]; } return { data:{claim:1,is_new_user:!found[0],user:{...user,chat_id:user.telegram_chat_id,is_active:user.status==='active',onboarding_state:JSON.parse(user.telegram_state||'{}'),onboarding_step:null,telegram_user_id:user.telegram_user_id},subscription:null}, error:null}; }
+  if (name === "prepare_telegram_update") {
+    const payload = args.p_payload || {};
+    const from = payload.callback_query?.from || payload.message?.from;
+    const chat = payload.callback_query?.message?.chat || payload.message?.chat;
+    if (!from?.id || !chat?.id) return { data: null, error: new Error("telegram_identity_invalid") };
+    const found = await client.run("SELECT * FROM participants WHERE telegram_user_id=? LIMIT 1", [from.id]);
+    let user = found[0];
+    if (user) {
+      await client.run(
+        "UPDATE participants SET telegram_chat_id=?,username=?,first_name=COALESCE(?,first_name),last_name=COALESCE(?,last_name),ui_language=COALESCE(?,ui_language),updated_at=CURRENT_TIMESTAMP WHERE id=?",
+        [chat.id, from.username || null, from.first_name || null, from.last_name || null, from.language_code || null, user.id],
+      );
+      user = (await client.run("SELECT * FROM participants WHERE id=?", [user.id]))[0] || user;
+    } else {
+      const id = crypto.randomUUID();
+      await client.run(
+        "INSERT INTO participants(id,first_name,last_name,username,telegram_user_id,telegram_chat_id,ui_language,origin) VALUES(?,?,?,?,?,?,?,'telegram')",
+        [id, from.first_name || "Teilnehmer", from.last_name || "Unbekannt", from.username || null, from.id, chat.id, from.language_code || "de"],
+      );
+      await client.run("INSERT OR IGNORE INTO application_preferences(participant_id) VALUES(?)", [id]);
+      user = (await client.run("SELECT * FROM participants WHERE id=?", [id]))[0];
+    }
+    return {
+      data: {
+        claim: 1,
+        is_new_user: !found[0],
+        user: {
+          ...user,
+          chat_id: user.telegram_chat_id,
+          is_active: user.status === "active",
+          onboarding_state: JSON.parse(user.telegram_state || "{}"),
+          onboarding_step: null,
+          telegram_user_id: user.telegram_user_id,
+        },
+        subscription: null,
+      },
+      error: null,
+    };
+  }
   if (name === "finish_ui_update") return { data:true,error:null };
   if (name === "save_ui_state") { const state=args.p_state||{}; state._step=args.p_step; await client.run("UPDATE participants SET telegram_state=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",[JSON.stringify(state),args.p_user]); return {data:state,error:null}; }
   if (name === "save_search_profile_ui") {
