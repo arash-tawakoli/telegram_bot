@@ -393,12 +393,7 @@ export async function handleCoach(sql, request, env = {}) {
   const action = String(body.action || "");
   if (action === "members") {
     if (!isAdmin(member)) throw new Error("admin_required");
-    const rows = await sql`
-      SELECT m.id, m.display_name, m.role, m.active, m.created_at,
-        (SELECT count(*) FROM housing.participant_assignments pa WHERE pa.member_id = m.id) AS participant_count
-      FROM housing.portal_members m
-      ORDER BY m.display_name
-    `;
+    const rows = await sql.unsafe("SELECT m.id, m.display_name, m.role, m.active, m.created_at, (SELECT count(*) FROM housing.participant_assignments pa WHERE pa.member_id = m.id) AS participant_count FROM housing.portal_members m ORDER BY m.display_name");
     return { members: rows.map((row) => ({
       id: row.id,
       displayName: row.display_name,
@@ -413,27 +408,27 @@ export async function handleCoach(sql, request, env = {}) {
     const memberId = uuid(body.memberId, "member");
     const password = String(body.password || "");
     if (password.length < 12 || password.length > 512) throw new Error("password_too_short");
-    const targets = await sql`SELECT id, role FROM housing.portal_members WHERE id = ${memberId}`;
+    const targets = await sql.unsafe("SELECT id, role FROM housing.portal_members WHERE id = $1", [memberId]);
     const target = targets[0];
     const manageable = target && target.id !== member.id && target.role !== "super_admin"
       && (member.role === "super_admin" ? ["admin", "coach"].includes(target.role) : member.role === "admin" && target.role === "coach");
     if (!manageable) throw new Error("member_management_forbidden");
     const passwordHash = await hashPassword(password);
-    const updated = await sql`UPDATE housing.portal_members SET password_hash = ${passwordHash}, updated_at = now() WHERE id = ${memberId} RETURNING id`;
+    const updated = await sql.unsafe("UPDATE housing.portal_members SET password_hash = $1, updated_at = now() WHERE id = $2 RETURNING id", [passwordHash, memberId]);
     if (!updated[0]) throw new Error("coach_password_update_failed");
-    await sql`UPDATE housing.portal_sessions SET revoked_at = now() WHERE member_id = ${memberId} AND revoked_at IS NULL`;
+    await sql.unsafe("UPDATE housing.portal_sessions SET revoked_at = now() WHERE member_id = $1 AND revoked_at IS NULL", [memberId]);
     return { ok: true };
   }
   if (action === "set_coach_active") {
     if (!isAdmin(member)) throw new Error("admin_required");
     const memberId = uuid(body.memberId, "member");
-    const targets = await sql`SELECT id, role FROM housing.portal_members WHERE id = ${memberId}`;
+    const targets = await sql.unsafe("SELECT id, role FROM housing.portal_members WHERE id = $1", [memberId]);
     const target = targets[0];
     const manageable = target && target.id !== member.id && target.role !== "super_admin"
       && (member.role === "super_admin" ? ["admin", "coach"].includes(target.role) : member.role === "admin" && target.role === "coach");
     if (!manageable) throw new Error("member_management_forbidden");
-    await sql`UPDATE housing.portal_members SET active = ${Boolean(body.active)}, updated_at = now() WHERE id = ${memberId}`;
-    if (!body.active) await sql`UPDATE housing.portal_sessions SET revoked_at = now() WHERE member_id = ${memberId} AND revoked_at IS NULL`;
+    await sql.unsafe("UPDATE housing.portal_members SET active = $1, updated_at = now() WHERE id = $2", [Boolean(body.active), memberId]);
+    if (!body.active) await sql.unsafe("UPDATE housing.portal_sessions SET revoked_at = now() WHERE member_id = $1 AND revoked_at IS NULL", [memberId]);
     return { ok: true };
   }
   if (action === "me") return { member: { id: member.id, displayName: member.display_name, role: member.role }, workspace: { name: "TraumWohnungHamburg" } };
