@@ -230,13 +230,81 @@ async function runScheduledHousingWork(env) {
   }
 }
 
-async function handleAuth(sql, request) {
+async function verifyMigratedSupabasePassword(email, password, env) {
+  const baseUrl = String(env.SUPABASE_URL || "").replace(/\\/+$/, "");
+  const publishableKey = String(env.SUPABASE_PUBLISHABLE_KEY || "");
+  if (!baseUrl || !publishableKey) return { status: "unavailable" };
+
+  let response;
+  try {
+    response = await fetch(baseUrl + "/auth/v1/token?grant_type=password", {
+      method: "POST",
+      headers: {
+        apikey: publishableKey,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ email, password }),
+      signal: AbortSignal.timeout(12_000),
+    });
+  } catch {
+    return { status: "unavailable" };
+  }
+
+  if (response.status === 429) {
+    await response.body?.cancel().catch(() => {});
+    return { status: "rate_limited" };
+  }
+  if (response.status === 400 || response.status === 401) {
+    await response.body?.cancel().catch(() => {});
+    return { status: "invalid" };
+  }
+  if (!response.ok) {
+    await response.body?.cancel().catch(() => {});
+    return { status: "unavailable" };
+  }
+
+  // The Supabase session is deliberately discarded. Only the D1 password hash
+  // and D1 session survive this one-time compatibility check.
+  await response.body?.cancel().catch(() => {});
+  return { status: "valid" };
+}
+
+export async function handleAuth(sql, request, env = {}) {
   const body = await request.json().catch(() => ({}));
   const action = String(body.action || "");
   if (action === "login") {
     const email = String(body.email || "").trim().toLowerCase();
+    const password = String(body.password || "");
+    if (!/^\\S+@\\S+\\.\\S+$/.test(email) || !password || password.length > 512) {
+      return json({ error: "invalid_credentials" }, 401);
+    }
     const rows = await sql`SELECT id, password_hash FROM housing.portal_members WHERE lower(email) = ${email} AND active = true`;
-    if (!rows[0] || !await verifyPassword(String(body.password || ""), rows[0].password_hash)) return json({ error: "invalid_credentials" }, 401);
+    if (!rows[0]) return json({ error: "invalid_credentials" }, 401);
+
+    let verified = await verifyPassword(password, rows[0].password_hash);
+    if (!verified && String(rows[0].password_hash || "").startsWith("migration_required$")) {
+      const legacy = await verifyMigratedSupabasePassword(email, password, env);
+      if (legacy.status === "rate_limited") return json({ error: "rate_limited" }, 429);
+      if (legacy.status === "unavailable") return json({ error: "auth_unavailable" }, 503);
+      if (legacy.status !== "valid") return json({ error: "invalid_credentials" }, 401);
+      if (password.length < 12) return json({ error: "password_migration_required" }, 409);
+
+      const migratedHash = await hashPassword(password);
+      const updated = await sql`
+        UPDATE housing.portal_members
+        SET password_hash = ${migratedHash}, updated_at = now()
+        WHERE id = ${rows[0].id} AND password_hash = ${rows[0].password_hash}
+        RETURNING id
+      `;
+      if (!updated[0]) {
+        const latest = await sql`SELECT password_hash FROM housing.portal_members WHERE id = ${rows[0].id} AND active = true`;
+        if (!latest[0] || !await verifyPassword(password, latest[0].password_hash)) {
+          return json({ error: "invalid_credentials" }, 401);
+        }
+      }
+      verified = true;
+    }
+    if (!verified) return json({ error: "invalid_credentials" }, 401);
     return json({ ok: true, ...(await createSession(sql, rows[0].id)) });
   }
   if (action === "refresh") {
@@ -371,7 +439,7 @@ export default {
 
     if (request.method === "POST" && url.pathname === "/edge/auth") {
       try {
-        return await withDatabase(env, (sql) => handleAuth(sql, request));
+        return await withDatabase(env, (sql) => handleAuth(sql, request, env));
       } catch (error) {
         console.error("housing_auth_failed", String(error?.message || error));
         return json({ error: "auth_unavailable" }, 503);
