@@ -1049,7 +1049,13 @@
       "source_archive_status": "full_source",
       "classification": "production",
       "review_status": "production runtime; version/JWT/hash tracked against live inventory",
-      "observed_live_at": "2026-10-28T21:37:37.605Z"
+      "observed_live_at": "2026-10-28T21:37:37.605Z",
+      "known_source_drift": [
+        {
+          "path": "supabase/functions/notification-dispatcher/index.ts",
+          "reason": "The staged Cloudflare cutover removes Kleinanzeigen-specific notification rendering before the Cloudflare Kleinanzeigen connector is available. This source is not deployed; keep the live Supabase dispatcher at its archived artifact until provider parity is complete."
+        }
+      ]
     },
     {
       "slug": "platform-connect-broker-v2",
