@@ -5,9 +5,11 @@ import { readFile } from "node:fs/promises";
 const runtime = await readFile(new URL("../src/index.js", import.meta.url), "utf8");
 const schema = await readFile(new URL("../schema/d1/0001_housing_core.sql", import.meta.url), "utf8");
 
-test("housing runtime uses only the D1 binding and server-side secrets", () => {
+test("housing runtime uses D1 for data and Supabase only for one-time password migration", () => {
   assert.match(runtime, /env\.HOUSING_DB/);
-  assert.doesNotMatch(runtime, /env\.HYPERDRIVE|env\.LEGACY_D1|SUPABASE/);
+  assert.doesNotMatch(runtime, /env\.HYPERDRIVE|env\.LEGACY_D1/);
+  assert.match(runtime, /verifyMigratedSupabasePassword/);
+  assert.deepEqual([...new Set(runtime.match(/SUPABASE_[A-Z_]+/g) || [])].sort(), ["SUPABASE_PUBLISHABLE_KEY", "SUPABASE_URL"]);
   assert.match(schema, /CREATE TABLE IF NOT EXISTS central_credentials/);
   assert.match(schema, /CREATE TABLE IF NOT EXISTS provider_auth_flows/);
 });
