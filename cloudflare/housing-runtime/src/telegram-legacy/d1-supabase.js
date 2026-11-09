@@ -135,6 +135,7 @@ class Query {
       const criteria = { ...mapped };
       const slot = Number(mapped.profile_slot ?? 1);
       if (!Number.isInteger(slot) || slot < 1 || slot > 4) throw new Error("profile_slot_invalid");
+      mapped.id = mapped.id || crypto.randomUUID();
       for (const key of ["id", "user_id", "participant_id", "active", "is_active", "profile_slot", "created_at", "updated_at", "criteria"]) delete criteria[key];
       mapped.criteria = JSON.stringify(criteria);
       mapped.participant_id = mapped.user_id || mapped.participant_id;
