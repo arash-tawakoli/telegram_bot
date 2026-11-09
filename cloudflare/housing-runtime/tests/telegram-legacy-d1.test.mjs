@@ -144,3 +144,47 @@ test("applicant profile upsert stores JSON in the physical D1 schema", async () 
   assert.deepEqual(JSON.parse(captured.params[1]), { first_name: "", last_name: "" });
   assert.equal(captured.params[2], "2026-11-09T21:00:00.000Z");
 });
+
+test("applicant profile update merges JSON fields and preserves existing data", async () => {
+  const calls = [];
+  const db = createD1Supabase({
+    prepare(query) {
+      return {
+        bind(...params) {
+          return { all: async () => {
+            calls.push({ query, params });
+            if (query.startsWith("SELECT participant_id,profile FROM applicant_profiles")) {
+              return { results: [{ participant_id: "participant-1", profile: JSON.stringify({ first_name: "Alaa", last_name: "Mansour", email: "old@example.test" }) }], meta: { changes: 0 } };
+            }
+            return { results: [], meta: { changes: 1 } };
+          } };
+        },
+        all: async () => ({ results: [], meta: { changes: 0 } }),
+      };
+    },
+  }, {});
+  const result = await db.from("applicant_profiles").update({ email: "new@example.test", updated_at: "2026-11-09T21:00:00.000Z" }).eq("user_id", "participant-1");
+  assert.equal(result.error, null);
+  assert.equal(result.count, 1);
+  assert.equal(calls.length, 2);
+  assert.match(calls[0].query, /SELECT participant_id,profile FROM applicant_profiles WHERE participant_id=\\?/);
+  assert.equal(calls[1].query, "UPDATE applicant_profiles SET profile=?,updated_at=? WHERE participant_id=?");
+  assert.deepEqual(JSON.parse(calls[1].params[0]), { first_name: "Alaa", last_name: "Mansour", email: "new@example.test" });
+  assert.equal(calls[1].params[1], "2026-11-09T21:00:00.000Z");
+});
+
+test("Kleinanzeigen provider preference uses the dedicated D1 flag", async () => {
+  const calls = [];
+  const db = createD1Supabase({
+    prepare(query) {
+      return {
+        bind(...params) { return { all: async () => { calls.push({ query, params }); return { results: [], meta: { changes: 1 } }; } }; },
+        all: async () => ({ results: [], meta: { changes: 0 } }),
+      };
+    },
+  }, {});
+  const result = await db.rpc("set_application_provider_enabled_shared", { p_user: "participant-1", p_provider: "kleinanzeigen", p_enabled: true });
+  assert.equal(result.error, null);
+  assert.match(calls[1].query, /UPDATE application_preferences SET kleinanzeigen_enabled=\\?/);
+  assert.deepEqual(calls[1].params, [1, "participant-1"]);
+});

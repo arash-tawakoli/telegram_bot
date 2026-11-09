@@ -9,6 +9,7 @@ const TABLES = {
   delivery_events: "deliveries",
   applications: "applications",
   sources: "source_registry",
+  application_preferences: "application_preferences",
   user_subscriptions: null,
   saved_listings: null,
   referral_codes: null,
@@ -27,6 +28,7 @@ const ALIASES = {
   listings: { source_listing_key: "external_id", is_active: "expires_at", title: "facts", raw: "facts" },
   delivery_events: { profile_id: "participant_id", listing_id: "offer_identity_id" },
   applications: { user_id: "participant_id", listing_id: "offer_identity_id" },
+  application_preferences: { user_id: "participant_id" },
 };
 
 const ALLOWLIST = [1, 3, 23, 29, 34, 35, 66, 69, 71];
@@ -82,6 +84,7 @@ function outputRow(table, row) {
   if (table === "delivery_events") return { ...row, listing_id: row.offer_identity_id, profile_id: row.participant_id };
   if (table === "applications") return { ...row, user_id: row.participant_id, listing_id: row.offer_identity_id };
   if (table === "platform_auth_flows") return { ...row, user_id: row.participant_id, context: json(row.context, {}) };
+  if (table === "application_preferences") return { ...row, user_id: row.participant_id, enabled: bool(row.enabled), immoscout_enabled: bool(row.immoscout_enabled), kleinanzeigen_enabled: bool(row.kleinanzeigen_enabled), immomio_enabled: bool(row.immomio_enabled), immowelt_enabled: bool(row.immowelt_enabled) };
   if (table === "sources") return { ...row, enabled: bool(row.enabled) };
   return row;
 }
@@ -103,7 +106,7 @@ class Query {
   single() { this.singleMode = "single"; return this.exec(); }
   update(payload) { this.operation = "update"; this.payload = payload; return this; }
   insert(payload) { this.operation = "insert"; this.payload = Array.isArray(payload) ? payload : [payload]; return this; }
-  upsert(payload, options = {}) { this.operation = "upsert"; this.payload = Array.isArray(payload) ? payload : [payload]; this.conflict = options.onConflict || "id"; return this; }
+  upsert(payload, options = {}) { this.operation = "upsert"; this.payload = Array.isArray(payload) ? payload : [payload]; this.conflict = options.onConflict || "id"; this.ignoreDuplicates = options.ignoreDuplicates === true; return this; }
   delete() { this.operation = "delete"; return this; }
   then(resolve, reject) { return this.exec().then(resolve, reject); }
   async exec() {
@@ -134,6 +137,22 @@ class Query {
   }
   async mutate(kind) {
     if (kind === "DELETE") { const params=[]; const where=this.where(params); const result=await this.client.run(`DELETE FROM ${this.physical}${where?` WHERE ${where}`:""}`,params); return {data:[],error:null,count:result.count}; }
+    if (kind === "UPDATE" && this.table === "applicant_profiles") {
+      const whereParams = [];
+      const where = this.where(whereParams);
+      if (!where) return { data: null, error: new Error("applicant_profile_update_requires_filter"), count: 0 };
+      const rows = await this.client.run(`SELECT participant_id,profile FROM applicant_profiles WHERE ${where}`, whereParams);
+      const patch = { ...(this.payload || {}) };
+      delete patch.user_id;
+      delete patch.participant_id;
+      const updatedAt = patch.updated_at || new Date().toISOString();
+      delete patch.updated_at;
+      for (const row of rows) {
+        const next = { ...json(row.profile, {}), ...patch };
+        await this.client.run("UPDATE applicant_profiles SET profile=?,updated_at=? WHERE participant_id=?", [JSON.stringify(next), updatedAt, row.participant_id]);
+      }
+      return { data: [], error: null, count: rows.length };
+    }
     if (kind === "UPDATE") { const entries=Object.entries(this.payload||{}); const params=entries.map(([,v])=>scalar(v)); const whereParams=[]; const where=this.where(whereParams); const sql=`UPDATE ${this.physical} SET ${entries.map(([k])=>`${mapColumn(this.table,k)}=?`).join(",")}${where?` WHERE ${where}`:""}`; const result=await this.client.run(sql,[...params,...whereParams]); return {data:[],error:null,count:result.count}; }
     const rows=this.payload||[]; let data=[]; for(const row of rows){const mapped={...row}; if(this.table==='bot_users'){mapped.telegram_chat_id=mapped.chat_id; delete mapped.chat_id; mapped.status=mapped.is_active===false?'archived':'active'; delete mapped.is_active; mapped.telegram_state=JSON.stringify(mapped.onboarding_state||{}); delete mapped.onboarding_state; delete mapped.onboarding_step;} if (this.table === "search_profiles") {
       const criteria = { ...mapped };
@@ -158,7 +177,7 @@ class Query {
       mapped.participant_id=participantId;
       mapped.profile=JSON.stringify(profile);
       mapped.updated_at=updatedAt;
-    } for(const [logical,physical] of Object.entries(ALIASES[this.table]||{})){if(Object.prototype.hasOwnProperty.call(mapped,logical)){mapped[physical]=mapped[logical];delete mapped[logical];}} const keys=Object.keys(mapped); const vals=keys.map(k=>scalar(mapped[k])); const placeholders=keys.map(()=>"?").join(","); const sql = this.table === "search_profiles" ? `INSERT INTO ${this.physical} (${keys.join(",")}) VALUES (${placeholders}) ON CONFLICT(participant_id,profile_slot) DO UPDATE SET ${keys.filter(k => !["id","participant_id","profile_slot","created_at","updated_at"].includes(k)).map(k => `${k}=excluded.${k}`).concat("updated_at=CURRENT_TIMESTAMP").join(",")}` : `INSERT OR REPLACE INTO ${this.physical} (${keys.join(",")}) VALUES (${placeholders})`; const result=await this.client.run(sql,vals); if(this.returning) data.push(outputRow(this.table,mapped)); } return {data,error:null,count:rows.length};
+    } for(const [logical,physical] of Object.entries(ALIASES[this.table]||{})){if(Object.prototype.hasOwnProperty.call(mapped,logical)){mapped[physical]=mapped[logical];delete mapped[logical];}} const keys=Object.keys(mapped); const vals=keys.map(k=>scalar(mapped[k])); const placeholders=keys.map(()=>"?").join(","); const sql = this.table === "search_profiles" ? `INSERT INTO ${this.physical} (${keys.join(",")}) VALUES (${placeholders}) ON CONFLICT(participant_id,profile_slot) DO UPDATE SET ${keys.filter(k => !["id","participant_id","profile_slot","created_at","updated_at"].includes(k)).map(k => `${k}=excluded.${k}`).concat("updated_at=CURRENT_TIMESTAMP").join(",")}` : this.table === "applicant_profiles" ? (this.ignoreDuplicates ? `INSERT OR IGNORE INTO applicant_profiles (${keys.join(",")}) VALUES (${placeholders})` : `INSERT INTO applicant_profiles (${keys.join(",")}) VALUES (${placeholders}) ON CONFLICT(participant_id) DO UPDATE SET profile=excluded.profile,updated_at=excluded.updated_at`) : `INSERT OR REPLACE INTO ${this.physical} (${keys.join(",")}) VALUES (${placeholders})`; const result=await this.client.run(sql,vals); if(this.returning) data.push(outputRow(this.table,mapped)); } return {data,error:null,count:rows.length};
   }
 }
 
@@ -259,7 +278,7 @@ async function rpc(client, env, name, args) {
   }
   if (name === "application_profile_missing_fields") { const row=(await client.run("SELECT profile FROM applicant_profiles WHERE participant_id=?",[args.p_user]))[0]; const p=JSON.parse(row?.profile||"{}"); const missing=[]; for(const k of ["first_name","last_name","email","phone","street","house_number","postcode","city"])if(!String(p[k]||"").trim())missing.push(k); return {data:missing,error:null}; }
   if (name === "set_application_enabled_shared") { await client.run("INSERT OR REPLACE INTO application_preferences(participant_id,enabled) VALUES(?,?)",[args.p_user,args.p_enabled?1:0]); return {data:{enabled:!!args.p_enabled},error:null}; }
-  if (name === "set_application_provider_enabled_shared") { const col={immoscout:"immoscout_enabled",immoscout24:"immoscout_enabled",immowelt:"immowelt_enabled",immomio:"immomio_enabled"}[args.p_provider]; if(!col)return{data:null,error:new Error("provider_not_allowlisted")}; await client.run(`INSERT OR IGNORE INTO application_preferences(participant_id) VALUES(?)`,[args.p_user]); await client.run(`UPDATE application_preferences SET ${col}=? WHERE participant_id=?`,[args.p_enabled?1:0,args.p_user]); return {data:{enabled:!!args.p_enabled},error:null}; }
+  if (name === "set_application_provider_enabled_shared") { const col={immoscout:"immoscout_enabled",immoscout24:"immoscout_enabled",kleinanzeigen:"kleinanzeigen_enabled",immowelt:"immowelt_enabled",immomio:"immomio_enabled"}[args.p_provider]; if(!col)return{data:null,error:new Error("provider_not_allowlisted")}; await client.run(`INSERT OR IGNORE INTO application_preferences(participant_id) VALUES(?)`,[args.p_user]); await client.run(`UPDATE application_preferences SET ${col}=? WHERE participant_id=?`,[args.p_enabled?1:0,args.p_user]); return {data:{enabled:!!args.p_enabled},error:null}; }
   if (name === "get_schleswig_holstein_areas") return {data:[],error:null};
   return {data:null,error:null};
 }
