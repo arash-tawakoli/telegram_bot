@@ -12,3 +12,7 @@ test("password hashes verify without storing the plaintext", async () => {
 test("password hashing enforces the portal minimum", async () => {
   await assert.rejects(() => hashPassword("short"), /password_invalid/);
 });
+
+test("migration-required marker is never accepted as a password hash", async () => {
+  assert.equal(await verifyPassword("correct horse battery staple", "migration_required$00000000-0000-4000-8000-000000000000"), false);
+});
