@@ -489,6 +489,7 @@ export async function handleAutoApplyMessage(user,message){
 
 const AUTO_APPLY_PROVIDERS={
   1:{key:'immoscout24',name:'ImmoScout24',field:'immoscout_enabled'},
+  2:{key:'kleinanzeigen',name:'Kleinanzeigen',field:'kleinanzeigen_enabled'},
   3:{key:'immomio',name:'Immomio',field:'immomio_enabled'},
   4:{key:'immowelt',name:'Immowelt',field:'immowelt_enabled'}
 };
@@ -717,12 +718,19 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  }
 
  if(action==='login'||action==='disconnect'||action==='check'){
-  if(![1,3,4].includes(source))return;
+  if(![1,2,3,4].includes(source))return;
   if(action!=='disconnect'&&!user.is_premium)return render('Zum Verbinden ist Premium erforderlich.',back);
-  const name=source===1?'ImmoScout24':source===3?'Immomio':'Immowelt';
+  const name=source===1?'ImmoScout24':source===2?'Kleinanzeigen':source===3?'Immomio':'Immowelt';
   try{
    let workerAction=action;
-    const extra=source===4&&action==='login'?{origin:'telegram',returnTarget:'telegram',context:{channel:'telegram'}}:{};
+   if(source===2&&action==='login'){
+    let health=null;
+    try{health=await applicationWorker('health',user.id,source);}catch{}
+    workerAction=health?.kleinanzeigenOAuthClientProvisioned===true?'login':'login_share';
+   }
+   const extra=source===2&&action==='login'
+    ?{origin:'telegram',returnTarget:'telegram',context:{channel:'telegram',...(workerAction==='login_share'?{share_flow:true}:{direct_oauth:true})}}
+    :source===4&&action==='login'?{origin:'telegram',returnTarget:'telegram',context:{channel:'telegram'}}:{};
    const result=await applicationWorker(workerAction,user.id,source,extra);
    if(action==='disconnect')return render(`${name}: Verbindung gelöscht.`,back);
    if(action==='login'&&result.url){
@@ -730,7 +738,11 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
       ? '<b>1.</b> Tippe unten auf <b>Immowelt verbinden</b>.\\n<b>2.</b> Melde dich mit deinem Konto an.\\n<b>3.</b> Dein Konto wird automatisch verbunden.\\n\\nNach erfolgreicher Anmeldung wird dein Konto als <b>verbunden</b> angezeigt.'
       : source===3
        ? '<b>1.</b> Öffne Immomio und melde dich normal an.\\n<b>2.</b> Auf der Abschlussseite tippe auf <b>Teilen</b>.\\n<b>3.</b> Wähle <b>Telegram → Traumwohnung – Hamburg → Senden</b>.\\n\\nDer Bot übernimmt den Rücksprung automatisch und speichert die Sitzung verschlüsselt.'
-       : 'Melde dich einmalig an. Danach bleibt die Verbindung gespeichert.';
+       : source===2&&result.bridgeRequired
+        ? '<b>1.</b> Öffne Kleinanzeigen und melde dich normal an.\\n<b>2.</b> Auf der Abschlussseite tippe auf <b>Teilen</b>.\\n<b>3.</b> Wähle <b>Telegram → Traumwohnung Hamburg → Senden</b>.\\n\\nDer Bot erkennt den Rücksprung automatisch und löscht die geteilte Login-URL direkt wieder.'
+        : result.automaticCallback
+         ? 'Öffne Kleinanzeigen und melde dich ganz normal im Browser an. Danach wird die Verbindung automatisch abgeschlossen.'
+         : 'Melde dich einmalig an. Danach bleibt die Verbindung gespeichert.';
     const loginLabel=source===4?`🌐 ${name} verbinden`:`🌐 ${name}-Login öffnen`;
     return render(`🔐 <b>${name} verbinden</b>\n\n${note}`,[[{text:loginLabel,web_app:{url:result.url}}],...back]);
    }
