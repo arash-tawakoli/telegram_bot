@@ -78,7 +78,7 @@ test("legacy Supabase password migrates once into the Cloudflare D1 password has
     assert.equal(typeof data.access_token, "string");
     assert.equal(typeof data.refresh_token, "string");
     assert.equal(requestCount, 1);
-    assert.match(member.password_hash, /^pbkdf2_sha256\\$/);
+    assert.match(member.password_hash, /^pbkdf2_sha256\$/);
     assert.equal(await verifyPassword(password, member.password_hash), true);
     assert.ok(calls.some(call => call.query.includes("UPDATE housing.portal_members SET password_hash")));
   } finally {
