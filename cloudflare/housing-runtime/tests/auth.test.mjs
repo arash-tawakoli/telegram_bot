@@ -22,7 +22,7 @@ test("migration-required marker is never accepted as a password hash", async () 
 function fakeAuthSql(member) {
   const calls = [];
   const sql = async (parts, ...values) => {
-    const query = parts.join("?");
+    const query = parts.join("?").replace(/\s+/g, " ");
     calls.push({ query, values });
     if (query.includes("SELECT id, password_hash FROM housing.portal_members")) {
       return [{ id: member.id, password_hash: member.password_hash }];
