@@ -147,7 +147,18 @@ class Query {
       mapped.active = mapped.is_active === false || mapped.active === false || mapped.active === 0 ? 0 : 1;
       delete mapped.user_id;
       delete mapped.is_active;
-    } if(this.table==='applicant_profiles'){mapped.participant_id=mapped.user_id||mapped.participant_id; delete mapped.user_id; const profile={...mapped}; delete profile.participant_id; delete profile.updated_at; mapped.profile=JSON.stringify(profile);} for(const [logical,physical] of Object.entries(ALIASES[this.table]||{})){if(Object.prototype.hasOwnProperty.call(mapped,logical)){mapped[physical]=mapped[logical];delete mapped[logical];}} const keys=Object.keys(mapped); const vals=keys.map(k=>scalar(mapped[k])); const placeholders=keys.map(()=>"?").join(","); const sql = this.table === "search_profiles" ? `INSERT INTO ${this.physical} (${keys.join(",")}) VALUES (${placeholders}) ON CONFLICT(participant_id,profile_slot) DO UPDATE SET ${keys.filter(k => !["id","participant_id","profile_slot","created_at","updated_at"].includes(k)).map(k => `${k}=excluded.${k}`).concat("updated_at=CURRENT_TIMESTAMP").join(",")}` : `INSERT OR REPLACE INTO ${this.physical} (${keys.join(",")}) VALUES (${placeholders})`; const result=await this.client.run(sql,vals); if(this.returning) data.push(outputRow(this.table,mapped)); } return {data,error:null,count:rows.length};
+    } if(this.table==='applicant_profiles'){
+      const participantId=mapped.user_id||mapped.participant_id;
+      const profile={...mapped};
+      delete profile.participant_id;
+      delete profile.user_id;
+      delete profile.updated_at;
+      const updatedAt=mapped.updated_at||new Date().toISOString();
+      for(const key of Object.keys(mapped)) delete mapped[key];
+      mapped.participant_id=participantId;
+      mapped.profile=JSON.stringify(profile);
+      mapped.updated_at=updatedAt;
+    } for(const [logical,physical] of Object.entries(ALIASES[this.table]||{})){if(Object.prototype.hasOwnProperty.call(mapped,logical)){mapped[physical]=mapped[logical];delete mapped[logical];}} const keys=Object.keys(mapped); const vals=keys.map(k=>scalar(mapped[k])); const placeholders=keys.map(()=>"?").join(","); const sql = this.table === "search_profiles" ? `INSERT INTO ${this.physical} (${keys.join(",")}) VALUES (${placeholders}) ON CONFLICT(participant_id,profile_slot) DO UPDATE SET ${keys.filter(k => !["id","participant_id","profile_slot","created_at","updated_at"].includes(k)).map(k => `${k}=excluded.${k}`).concat("updated_at=CURRENT_TIMESTAMP").join(",")}` : `INSERT OR REPLACE INTO ${this.physical} (${keys.join(",")}) VALUES (${placeholders})`; const result=await this.client.run(sql,vals); if(this.returning) data.push(outputRow(this.table,mapped)); } return {data,error:null,count:rows.length};
   }
 }
 

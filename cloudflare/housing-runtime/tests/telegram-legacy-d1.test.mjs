@@ -118,3 +118,29 @@ test("D1 participant metadata migration is additive and preserves existing parti
   assert.match(migration, /UPDATE participants SET origin='telegram'/);
   assert.doesNotMatch(migration, /DROP TABLE|DELETE FROM participants|CREATE TABLE[^;]*participants/i);
 });
+
+test("applicant profile upsert stores JSON in the physical D1 schema", async () => {
+  let captured = null;
+  const db = createD1Supabase({
+    prepare(query) {
+      return {
+        bind(...params) {
+          return { all: async () => { captured = { query, params }; return { results: [], meta: { changes: 1 } }; } };
+        },
+        all: async () => ({ results: [], meta: { changes: 0 } }),
+      };
+    },
+  }, {});
+  const result = await db.from("applicant_profiles").upsert({
+    user_id: "participant-1",
+    first_name: "",
+    last_name: "",
+    updated_at: "2026-11-09T21:00:00.000Z",
+  }, { onConflict: "user_id" });
+  assert.equal(result.error, null);
+  assert.equal(result.count, 1);
+  assert.match(captured.query, /^INSERT OR REPLACE INTO applicant_profiles \(participant_id,profile,updated_at\) VALUES\(\?,\?,\?\)$/);
+  assert.equal(captured.params[0], "participant-1");
+  assert.deepEqual(JSON.parse(captured.params[1]), { first_name: "", last_name: "" });
+  assert.equal(captured.params[2], "2026-11-09T21:00:00.000Z");
+});
