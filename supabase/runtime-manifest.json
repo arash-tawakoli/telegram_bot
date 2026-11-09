@@ -151,7 +151,10 @@
           "reason": "The staged router removes Kleinanzeigen application dispatch before the Cloudflare Kleinanzeigen adapter is complete. Keep the live Supabase artifact until provider parity is proven."
         }
       ],
-      "observed_live_at": "2026-11-02T07:36:21.514Z"
+      "observed_live_at": "2026-11-02T07:36:21.514Z",
+      "source_archive_version": 336,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "07a7fc8709e9db2f2621f23a656bc13ce095534958b952d5a4230d0383f45334"
     },
     {
       "slug": "auth-facade-broker",
@@ -220,7 +223,10 @@
       "source_archive_status": "full_source",
       "classification": "production",
       "review_status": "production runtime; version/JWT/hash tracked against live inventory",
-      "observed_live_at": "2026-10-24T21:06:55.465Z"
+      "observed_live_at": "2026-10-24T21:06:55.465Z",
+      "source_archive_version": 258,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "e7f0a03a3f27f1bda4f455f293a3969ed9dbcdc262e8899f665eb19db637dad0"
     },
     {
       "slug": "coach-api",
@@ -260,7 +266,10 @@
           "reason": "The staged Cloudflare portal cutover removes Kleinanzeigen from the legacy coach API provider registry and changes provider connection handling. This source is not deployed; do not deploy until Cloudflare Kleinanzeigen login, profile, and application parity is complete."
         }
       ],
-      "observed_live_at": "2026-10-27T22:24:41.783Z"
+      "observed_live_at": "2026-10-27T22:24:41.783Z",
+      "source_archive_version": 57,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "9d60b18ca796680a7d72549682413f1012c325af02c4229ae4e1d0938edc67a4"
     },
     {
       "slug": "coach-bootstrap",
@@ -443,7 +452,10 @@
       "classification": "support_review",
       "review_status": "support/review; reconciled from live Supabase v21 on 2026-11-02",
       "observed_at": "2026-11-02T07:55:00Z",
-      "observed_live_at": "2026-10-22T15:19:58.255Z"
+      "observed_live_at": "2026-10-22T15:19:58.255Z",
+      "source_archive_version": 21,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "41a63bc4e9549ebacca67f5afeff2e1116a834100273c7eabf0030aa8bf8210d"
     },
     {
       "slug": "immomio-application-worker",
@@ -469,7 +481,10 @@
       "classification": "production",
       "review_status": "production runtime; reconciled from live Supabase v12 on 2026-11-02",
       "observed_at": "2026-11-02T07:55:00Z",
-      "observed_live_at": "2026-10-28T13:03:00.565Z"
+      "observed_live_at": "2026-10-28T13:03:00.565Z",
+      "source_archive_version": 12,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "c7fa255c6c121b558b333db0a9d4d251b1cc17b11e6440372ed04eaab86fb1a7"
     },
     {
       "slug": "immomio-auth-bridge",
@@ -1145,7 +1160,10 @@
           "path": "supabase/functions/notification-dispatcher/source-facts.ts",
           "reason": "The staged source-facts parser removes Kleinanzeigen image and address extraction while adding replacement provider fields. This is not deployed; retain the live parser until Cloudflare Kleinanzeigen parity is verified."
         }
-      ]
+      ],
+      "source_archive_version": 363,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "921a759ba80c40b804d686d296325966eeaeba1c26e08f790febb6d6955ceff9"
     },
     {
       "slug": "platform-connect-broker-v2",
@@ -1205,7 +1223,10 @@
       "classification": "internal",
       "review_status": "internal platform session reminder; reconciled from live Supabase v4 on 2026-11-02",
       "observed_at": "2026-11-02T07:55:00Z",
-      "observed_live_at": "2026-11-02T07:12:46.064Z"
+      "observed_live_at": "2026-11-02T07:12:46.064Z",
+      "source_archive_version": 4,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "adb7f702d49837a961759d4caf716d78cea0c347e9a190e32612c8d62c2c4497"
     },
     {
       "slug": "source-shadow",
@@ -1311,7 +1332,10 @@
           "reason": "The optional source-enabled field supports the staged housing-only Cloudflare allowlist. Not deployed to the live Supabase source worker."
         }
       ],
-      "observed_live_at": "2026-09-29T23:10:51.737Z"
+      "observed_live_at": "2026-09-29T23:10:51.737Z",
+      "source_archive_version": 18,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "0f66018117b14f94a85d361f673c80507aadf57519bb6e9705a7079b881de5d2"
     },
     {
       "slug": "source-worker",
@@ -1514,7 +1538,10 @@
           "reason": "Category crawler changes are staged with the housing-only Cloudflare cutover. Live Supabase source worker remains at the archived artifact pending connector parity tests."
         }
       ],
-      "observed_live_at": "2026-10-28T21:39:54.315Z"
+      "observed_live_at": "2026-10-28T21:39:54.315Z",
+      "source_archive_version": 148,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "8efacebb97f82e9ba61b969bfd60b8362c39067db119f8bb4c53c2877314d97f"
     },
     {
       "slug": "spacest-feed",
@@ -1549,7 +1576,10 @@
       "source_archive_status": "full_source",
       "classification": "internal",
       "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked",
-      "observed_live_at": "2026-10-21T22:21:14.803Z"
+      "observed_live_at": "2026-10-21T22:21:14.803Z",
+      "source_archive_version": 5,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "418bf0edad04f71f1fe2455c68e73313ad7321a57389fa0655e905a8df214b0a"
     },
     {
       "slug": "stripe-webhook",
@@ -1574,7 +1604,10 @@
       "source_archive_status": "full_source",
       "classification": "webhook",
       "review_status": "webhook entrypoint; signature and event idempotency contract required",
-      "observed_live_at": "2026-10-24T21:06:55.465Z"
+      "observed_live_at": "2026-10-24T21:06:55.465Z",
+      "source_archive_version": 264,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "2d1b96e31abe439d2968f8087f1d9e80f2295c3f1e3f254f8a511925103b2ebd"
     },
     {
       "slug": "telegram-fallback-logo",
@@ -1599,7 +1632,10 @@
       "source_archive_status": "full_source",
       "classification": "public_asset",
       "review_status": "intentional public read-only asset; no user data or write action",
-      "observed_live_at": "2026-08-27T19:37:13.154Z"
+      "observed_live_at": "2026-08-27T19:37:13.154Z",
+      "source_archive_version": 3,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "acac4497c956a617d8db46f6e467b0dd250bf0fbb117cf02a6bc2ed35c71d4ee"
     },
     {
       "slug": "telegram-fast",
@@ -1624,7 +1660,10 @@
       "source_archive_status": "full_source",
       "classification": "production",
       "review_status": "production runtime; version/JWT/hash tracked against live inventory",
-      "observed_live_at": "2026-10-16T16:46:20.851Z"
+      "observed_live_at": "2026-10-16T16:46:20.851Z",
+      "source_archive_version": 13,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "0551b843639177890633251af45c23d4cb6799fc72e3bff0f6f606d5f5246cf6"
     },
     {
       "slug": "telegram-gateway",
@@ -1665,7 +1704,10 @@
           "reason": "Telegram fast-UI callback changes are staged for Cloudflare runtime execution. They are not deployed to the live Supabase Telegram gateway."
         }
       ],
-      "observed_live_at": "2026-11-01T23:31:51.540Z"
+      "observed_live_at": "2026-11-01T23:31:51.540Z",
+      "source_archive_version": 107,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "df67eae817503629411853b127791826ad91bf4eeb932f8f7c379c662b51f986"
     },
     {
       "slug": "telegram-oauth-bridge",
@@ -1696,7 +1738,10 @@
           "path": "supabase/functions/telegram-oauth-bridge/index.ts",
           "reason": "The staged Cloudflare Telegram OAuth bridge removes the legacy application-worker handoff and Kleinanzeigen connection flow. This source is not deployed; keep the live Supabase OAuth bridge until Cloudflare Telegram and Kleinanzeigen application flows are fully tested."
         }
-      ]
+      ],
+      "source_archive_version": 38,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "b72c02d422076e05596d410d9815d2f23389cb9558bedac2f8a9dc9578a71bd5"
     },
     {
       "slug": "telegram-premium",
@@ -1721,7 +1766,10 @@
       "source_archive_status": "full_source",
       "classification": "production",
       "review_status": "production runtime; version/JWT/hash tracked against live inventory",
-      "observed_live_at": "2026-09-29T23:07:19.319Z"
+      "observed_live_at": "2026-09-29T23:07:19.319Z",
+      "source_archive_version": 10,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "4d2465ff1df04d2c0e7920de49acfb52d95a9e34fc35ecf783381eab0ba80748"
     },
     {
       "slug": "telegram-premium-image",
@@ -1746,7 +1794,10 @@
       "source_archive_status": "full_source",
       "classification": "public_asset",
       "review_status": "intentional public read-only asset; no user data or write action",
-      "observed_live_at": "2026-09-03T08:07:31.283Z"
+      "observed_live_at": "2026-09-03T08:07:31.283Z",
+      "source_archive_version": 7,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "0efc39b09c50767bc9a5948374ae1b856b78f8eee83f85d004f236d586fca8aa"
     },
     {
       "slug": "telegram-ui",
@@ -1830,7 +1881,10 @@
           "reason": "Telegram command and callback handler changes are staged for Cloudflare runtime cutover. Not deployed to the live Supabase Telegram UI."
         }
       ],
-      "observed_live_at": "2026-11-01T22:19:24.410Z"
+      "observed_live_at": "2026-11-01T22:19:24.410Z",
+      "source_archive_version": 385,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "e25ca584f55a5b469a972b686d83ecf0564bbe71413cfa3a7fab24da335af146"
     },
     {
       "slug": "vonovia-transport",
@@ -1860,7 +1914,10 @@
       "source_archive_status": "full_source",
       "classification": "internal",
       "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked",
-      "observed_live_at": "2026-10-21T22:21:17.870Z"
+      "observed_live_at": "2026-10-21T22:21:17.870Z",
+      "source_archive_version": 3,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "b379b7979862b704224d5043000dfef8ee628c7fc542409ca623f04c259bf43e"
     },
     {
       "slug": "wg-gesucht-auth-bridge",
@@ -1896,7 +1953,10 @@
       "classification": "internal",
       "review_status": "internal WG-Gesucht auth bridge; exact deployed support bundle preserved at v3 on 2026-11-02",
       "observed_at": "2026-11-02T07:55:00Z",
-      "observed_live_at": "2026-11-02T07:35:52.269Z"
+      "observed_live_at": "2026-11-02T07:35:52.269Z",
+      "source_archive_version": 3,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "1bb9ee477f22a84bf2f8fb25daac318100740582a9b38336f45f765fe6c099b6"
     },
     {
       "entrypoint": "supabase/deployed-support/wunder-probe/index.ts",
@@ -1920,7 +1980,10 @@
       "source_archive_status": "full_source",
       "classification": "retired",
       "review_status": "retired 410/404 stub; JWT gateway verification enabled",
-      "observed_live_at": "2026-10-21T21:32:53.159Z"
+      "observed_live_at": "2026-10-21T21:32:53.159Z",
+      "source_archive_version": 9,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "a9dc7ce9bec50bfefca851124b218b551455baf3b389320936a63928d1eb4dae"
     },
     {
       "slug": "wunderflats-transport",
@@ -1950,7 +2013,10 @@
       "source_archive_status": "full_source",
       "classification": "internal",
       "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked",
-      "observed_live_at": "2026-09-11T03:23:24.056Z"
+      "observed_live_at": "2026-09-11T03:23:24.056Z",
+      "source_archive_version": 4,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "b30cc1d37aa87d3a1d6d20839408d0fdd577d20c7803d7def7202877977e1955"
     }
   ],
   "archived_functions": [
@@ -2477,7 +2543,10 @@
       "observed_live_version": 10,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "1e76ff8c41030a778ae7861835d0a563e9db95dea9a4fec3aceea1e455553668",
-      "observed_live_at": "2026-10-26T16:55:44.512Z"
+      "observed_live_at": "2026-10-26T16:55:44.512Z",
+      "source_archive_version": 9,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "1e76ff8c41030a778ae7861835d0a563e9db95dea9a4fec3aceea1e455553668"
     },
     {
       "slug": "ka-gateway-egress-probe",
@@ -3222,7 +3291,10 @@
       "observed_live_version": 3,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "39d5fa7eb8dceb281fc090587521548b4a1846562240c1a01ba4c076af6e239d",
-      "observed_live_at": "2026-09-20T22:02:35.274Z"
+      "observed_live_at": "2026-09-20T22:02:35.274Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "39d5fa7eb8dceb281fc090587521548b4a1846562240c1a01ba4c076af6e239d"
     },
     {
       "slug": "telegram-engagement",
@@ -3241,7 +3313,10 @@
       "observed_live_version": 5,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "dd30edbe6bc61db7a009cd74501f664562fc3549b38bb3118c2a16ecfe8463bd",
-      "observed_live_at": "2026-10-02T18:30:57.974Z"
+      "observed_live_at": "2026-10-02T18:30:57.974Z",
+      "source_archive_version": 4,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "dd30edbe6bc61db7a009cd74501f664562fc3549b38bb3118c2a16ecfe8463bd"
     },
     {
       "slug": "telegram-gateway-autoapply-canary",
@@ -3260,7 +3335,10 @@
       "observed_live_version": 2,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "0c92121e429cc93e4594f549a99fd3c5584c90c7f88216fc01d45f4cd1080f34",
-      "observed_live_at": "2026-09-20T22:17:28.343Z"
+      "observed_live_at": "2026-09-20T22:17:28.343Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "0c92121e429cc93e4594f549a99fd3c5584c90c7f88216fc01d45f4cd1080f34"
     },
     {
       "slug": "telegram-gateway-preview-canary",
@@ -3279,7 +3357,10 @@
       "observed_live_version": 3,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "be1b15eda9c8be5067c51743f7da4f8e01297150d9e2ad30977f63f3126f9c87",
-      "observed_live_at": "2026-09-21T04:07:48.186Z"
+      "observed_live_at": "2026-09-21T04:07:48.186Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "be1b15eda9c8be5067c51743f7da4f8e01297150d9e2ad30977f63f3126f9c87"
     },
     {
       "slug": "telegram-gateway-v3-canary",
@@ -3298,7 +3379,10 @@
       "observed_live_version": 3,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "cfceead8c4eba606dcba379ba7fdbc784f18517b123e8bc0b78e10f8ebea5ce6",
-      "observed_live_at": "2026-09-20T21:56:30.283Z"
+      "observed_live_at": "2026-09-20T21:56:30.283Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "cfceead8c4eba606dcba379ba7fdbc784f18517b123e8bc0b78e10f8ebea5ce6"
     },
     {
       "slug": "telegram-gateway-v4-canary",
@@ -3317,7 +3401,10 @@
       "observed_live_version": 3,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "b448a6367e147239eb732ebf5eed5bd4437a6f1524e9195678643dde3f46e1dc",
-      "observed_live_at": "2026-09-20T22:03:24.948Z"
+      "observed_live_at": "2026-09-20T22:03:24.948Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "b448a6367e147239eb732ebf5eed5bd4437a6f1524e9195678643dde3f46e1dc"
     },
     {
       "slug": "telegram-ui-autoapply-canary",
@@ -3336,7 +3423,10 @@
       "observed_live_version": 2,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "f9ff8836dcdd150bce137d61a120fdb837e2ffaa90cc921b159b80c1b7b22a46",
-      "observed_live_at": "2026-09-20T22:17:16.959Z"
+      "observed_live_at": "2026-09-20T22:17:16.959Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "f9ff8836dcdd150bce137d61a120fdb837e2ffaa90cc921b159b80c1b7b22a46"
     },
     {
       "slug": "telegram-ui-preview-canary",
@@ -3355,7 +3445,10 @@
       "observed_live_version": 3,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "608f7b56591f4bf57cc9748f05abfa6939eb27e210e7f299a9f278592f85c1e1",
-      "observed_live_at": "2026-09-21T04:07:50.064Z"
+      "observed_live_at": "2026-09-21T04:07:50.064Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "608f7b56591f4bf57cc9748f05abfa6939eb27e210e7f299a9f278592f85c1e1"
     },
     {
       "slug": "telegram-webhook-region-switch",
@@ -3374,7 +3467,10 @@
       "observed_live_version": 4,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "3bd9e184933090cd1dcedbbd2be02e7cc9040d7a4d572b7d61940a5575b537db",
-      "observed_live_at": "2026-10-21T21:32:47.752Z"
+      "observed_live_at": "2026-10-21T21:32:47.752Z",
+      "source_archive_version": 3,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "3bd9e184933090cd1dcedbbd2be02e7cc9040d7a4d572b7d61940a5575b537db"
     }
   ],
   "live_inventory": {
