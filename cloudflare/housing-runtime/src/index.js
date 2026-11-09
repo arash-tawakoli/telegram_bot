@@ -292,6 +292,43 @@ async function verifyMigratedSupabasePassword(email, password, env) {
   return { status: "valid" };
 }
 
+async function verifyRecoveryAccessToken(accessToken, env) {
+  const baseUrl = String(env.SUPABASE_URL || "").replace(/\\/+$/, "");
+  const publishableKey = String(env.SUPABASE_PUBLISHABLE_KEY || "");
+  if (!baseUrl || !publishableKey) return { status: "unavailable" };
+
+  let response;
+  try {
+    response = await fetch(baseUrl + "/auth/v1/user", {
+      method: "GET",
+      headers: {
+        apikey: publishableKey,
+        Authorization: `Bearer ${accessToken}`,
+      },
+      signal: AbortSignal.timeout(12_000),
+    });
+  } catch {
+    return { status: "unavailable" };
+  }
+
+  if (response.status === 429) {
+    await response.body?.cancel().catch(() => {});
+    return { status: "rate_limited" };
+  }
+  if (response.status === 400 || response.status === 401) {
+    await response.body?.cancel().catch(() => {});
+    return { status: "invalid" };
+  }
+  if (!response.ok) {
+    await response.body?.cancel().catch(() => {});
+    return { status: "unavailable" };
+  }
+
+  const user = await response.json().catch(() => null);
+  const email = String(user?.email || "").trim().toLowerCase();
+  return email ? { status: "valid", email } : { status: "invalid" };
+}
+
 export async function handleAuth(sql, request, env = {}) {
   const body = await request.json().catch(() => ({}));
   const action = String(body.action || "");
@@ -329,6 +366,33 @@ export async function handleAuth(sql, request, env = {}) {
     }
     if (!verified) return json({ error: "invalid_credentials" }, 401);
     return json({ ok: true, ...(await createSession(sql, rows[0].id)) });
+  }
+  if (action === "password_reset_complete") {
+    const accessToken = String(body.access_token || "");
+    const password = String(body.password || "");
+    if (!accessToken || password.length < 12 || password.length > 512) {
+      return json({ error: "password_invalid" }, 400);
+    }
+
+    const recovery = await verifyRecoveryAccessToken(accessToken, env);
+    if (recovery.status === "rate_limited") return json({ error: "rate_limited" }, 429);
+    if (recovery.status === "unavailable") return json({ error: "auth_unavailable" }, 503);
+    if (recovery.status !== "valid") return json({ error: "recovery_expired" }, 401);
+
+    const members = await sql`SELECT id FROM housing.portal_members WHERE lower(email) = ${recovery.email} AND active = true`;
+    if (!members[0]) return json({ error: "recovery_expired" }, 401);
+
+    const passwordHash = await hashPassword(password);
+    const updated = await sql`
+      UPDATE housing.portal_members
+      SET password_hash = ${passwordHash}, updated_at = now()
+      WHERE id = ${members[0].id} AND active = true
+      RETURNING id
+    `;
+    if (!updated[0]) return json({ error: "password_update_failed" }, 409);
+
+    await sql`UPDATE housing.portal_sessions SET revoked_at = now() WHERE member_id = ${members[0].id} AND revoked_at IS NULL`;
+    return json({ ok: true });
   }
   if (action === "refresh") {
     const session = await refreshSession(sql, String(body.refresh_token || ""));
