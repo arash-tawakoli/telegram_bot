@@ -231,7 +231,7 @@ async function runScheduledHousingWork(env) {
 }
 
 async function verifyMigratedSupabasePassword(email, password, env) {
-  const baseUrl = String(env.SUPABASE_URL || "").replace(/\\/+$/, "");
+  const baseUrl = String(env.SUPABASE_URL || "").replace(/\/+$/, "");
   const publishableKey = String(env.SUPABASE_PUBLISHABLE_KEY || "");
   if (!baseUrl || !publishableKey) return { status: "unavailable" };
 
@@ -275,7 +275,7 @@ export async function handleAuth(sql, request, env = {}) {
   if (action === "login") {
     const email = String(body.email || "").trim().toLowerCase();
     const password = String(body.password || "");
-    if (!/^\\S+@\\S+\\.\\S+$/.test(email) || !password || password.length > 512) {
+    if (!/^\S+@\S+\.\S+$/.test(email) || !password || password.length > 512) {
       return json({ error: "invalid_credentials" }, 401);
     }
     const rows = await sql`SELECT id, password_hash FROM housing.portal_members WHERE lower(email) = ${email} AND active = true`;
