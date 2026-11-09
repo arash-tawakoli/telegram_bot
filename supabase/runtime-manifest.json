@@ -1609,7 +1609,13 @@
       "source_archive_status": "full_source",
       "classification": "internal",
       "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked",
-      "observed_live_at": "2026-10-02T21:38:52.913Z"
+      "observed_live_at": "2026-10-02T21:38:52.913Z",
+      "known_source_drift": [
+        {
+          "path": "supabase/functions/telegram-oauth-bridge/index.ts",
+          "reason": "The staged Cloudflare Telegram OAuth bridge removes the legacy application-worker handoff and Kleinanzeigen connection flow. This source is not deployed; keep the live Supabase OAuth bridge until Cloudflare Telegram and Kleinanzeigen application flows are fully tested."
+        }
+      ]
     },
     {
       "slug": "telegram-premium",
