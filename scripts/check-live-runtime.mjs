@@ -7,7 +7,7 @@ export function compareLiveRuntime(liveFunctions,manifest){
  }
  for(const fn of manifest.archived_functions||[]){
   if(expected.has(fn.slug))throw new Error('Duplicate manifest function: '+fn.slug);
-  expected.set(fn.slug,{version:Number(fn.version),verify_jwt:Boolean(fn.verify_jwt)});
+  expected.set(fn.slug,{version:Number(fn.observed_live_version??fn.version),verify_jwt:Boolean(fn.observed_live_verify_jwt??fn.verify_jwt)});
  }
  const actual=new Map((liveFunctions||[]).map(fn=>[fn.slug||fn.name,{version:Number(fn.version),verify_jwt:Boolean(fn.verify_jwt)}]));
  const missing=[...expected.keys()].filter(slug=>!actual.has(slug));
