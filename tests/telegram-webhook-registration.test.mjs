@@ -21,7 +21,7 @@ test("Telegram webhook is registered on the Cloudflare edge with message and cal
     });
     assert.equal(result.ok, true);
     assert.equal(result.url, "https://intern.traumwohnunghamburg.de/edge/telegram/webhook");
-    assert.equal(requestUrl, "https://api.telegram.org/botest-bot-token/setWebhook");
+    assert.equal(requestUrl, "https://api.telegram.org/bottest-bot-token/setWebhook");
     assert.equal(requestBody.url, result.url);
     assert.equal(requestBody.secret_token, "test-webhook-secret");
     assert.deepEqual(requestBody.allowed_updates, ["message", "callback_query"]);
