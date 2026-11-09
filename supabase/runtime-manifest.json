@@ -1054,6 +1054,10 @@
         {
           "path": "supabase/functions/notification-dispatcher/index.ts",
           "reason": "The staged Cloudflare cutover removes Kleinanzeigen-specific notification rendering before the Cloudflare Kleinanzeigen connector is available. This source is not deployed; keep the live Supabase dispatcher at its archived artifact until provider parity is complete."
+        },
+        {
+          "path": "supabase/functions/notification-dispatcher/availability.ts",
+          "reason": "The staged availability policy removes the legacy native Kleinanzeigen offer lane and an existing source-specific freshness rule while the Cloudflare provider migration is incomplete. Not deployed; preserve the live Supabase availability behavior until connector parity is verified."
         }
       ]
     },
