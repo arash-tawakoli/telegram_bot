@@ -26,7 +26,10 @@
       "source_archive_status": "full_source",
       "classification": "production",
       "review_status": "production runtime; version/JWT/hash tracked against live inventory",
-      "observed_live_at": "2026-09-22T01:39:25.841Z"
+      "observed_live_at": "2026-09-22T01:39:25.841Z",
+      "source_archive_version": 3,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "2e5a625b1aff510a717ecf3b4a34ff525337ea87845063969a6429cf2e5acba9"
     },
     {
       "slug": "application-package-selftest",
@@ -51,7 +54,10 @@
       "source_archive_status": "full_source",
       "classification": "diagnostic",
       "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
-      "observed_live_at": "2026-09-21T16:57:23.948Z"
+      "observed_live_at": "2026-09-21T16:57:23.948Z",
+      "source_archive_version": 4,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "43d662d567cca4e77f1cc87a1e4d8210eee9b9a4c4aea45f8b618758fa072d1c"
     },
     {
       "slug": "application-worker",
@@ -186,7 +192,10 @@
           "reason": "The staged auth facade removes legacy Indeed and Kleinanzeigen OAuth flows and routes housing providers through Cloudflare. Not deployed; Kleinanzeigen must remain available until its Cloudflare login flow is complete."
         }
       ],
-      "observed_live_at": "2026-11-01T13:16:27.773Z"
+      "observed_live_at": "2026-11-01T13:16:27.773Z",
+      "source_archive_version": 25,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "0dc77c725b7c48a1a4d843397af0e6fde1fcf44308c6203e6d3efdf2976fb929"
     },
     {
       "slug": "billing-maintenance",
@@ -276,7 +285,10 @@
       "source_archive_status": "full_source",
       "classification": "support_review",
       "review_status": "support/review; retain pending dependency-aware classification",
-      "observed_live_at": "2026-09-22T09:09:10.753Z"
+      "observed_live_at": "2026-09-22T09:09:10.753Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "9bc582792556f43f4f3c5635e2b2213bcbecd74dffafdc0e8223c30d06cb35b7"
     },
     {
       "slug": "covivio-feed",
@@ -311,7 +323,10 @@
       "source_archive_status": "full_source",
       "classification": "internal",
       "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked",
-      "observed_live_at": "2026-10-21T22:20:53.505Z"
+      "observed_live_at": "2026-10-21T22:20:53.505Z",
+      "source_archive_version": 4,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "3d0bcc977b3d3828431ae028885a5ce8f7c695ba1bf8c60ffc530ba6f872fd71"
     },
     {
       "slug": "immobilie1-transport",
@@ -346,7 +361,10 @@
       "source_archive_status": "full_source",
       "classification": "internal",
       "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked",
-      "observed_live_at": "2026-10-21T22:20:57.870Z"
+      "observed_live_at": "2026-10-21T22:20:57.870Z",
+      "source_archive_version": 4,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "8a9013eb41af6564a10d5804e300a7fe37ba4f7724919ca6b0ef8b1aaf622212"
     },
     {
       "slug": "immobilien-de-transport",
@@ -381,7 +399,10 @@
       "source_archive_status": "full_source",
       "classification": "internal",
       "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked",
-      "observed_live_at": "2026-10-21T22:21:01.847Z"
+      "observed_live_at": "2026-10-21T22:21:01.847Z",
+      "source_archive_version": 16,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "da8dcb0aa2925109df71d223f9dac73d05c651070ecf5d11422061c7b8ec6ece"
     },
     {
       "slug": "immomio-account",
@@ -478,7 +499,10 @@
       "source_archive_status": "full_source",
       "classification": "internal",
       "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked",
-      "observed_live_at": "2026-09-30T11:11:10.893Z"
+      "observed_live_at": "2026-09-30T11:11:10.893Z",
+      "source_archive_version": 9,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "eb5de433fa16367202421f0809f54ed96a91f8dcf6217a95f084b7a8aaee4f85"
     },
     {
       "entrypoint": "supabase/deployed-support/immomio-probe/index.ts",
@@ -502,7 +526,10 @@
       "source_archive_status": "full_source",
       "classification": "retired",
       "review_status": "retired 410/404 stub; JWT gateway verification enabled",
-      "observed_live_at": "2026-10-21T21:31:50.867Z"
+      "observed_live_at": "2026-10-21T21:31:50.867Z",
+      "source_archive_version": 5,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "0648f0219bd7a29a0560a67335db9c7d1b0163a9651bcf78b9ba9b5f0b61ca0d"
     },
     {
       "entrypoint": "supabase/deployed-support/immomio-tenant-inspect/index.ts",
@@ -526,7 +553,10 @@
       "source_archive_status": "full_source",
       "classification": "retired",
       "review_status": "retired 410/404 stub; JWT gateway verification enabled",
-      "observed_live_at": "2026-10-21T21:31:55.651Z"
+      "observed_live_at": "2026-10-21T21:31:55.651Z",
+      "source_archive_version": 7,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "c09eccd05e1e03196accbd814821c9dac94c20e09588ad64129179815efe719b"
     },
     {
       "slug": "immoscout-auth-bridge",
@@ -556,7 +586,10 @@
       "source_archive_status": "full_source",
       "classification": "internal",
       "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked",
-      "observed_live_at": "2026-09-30T11:11:13.184Z"
+      "observed_live_at": "2026-09-30T11:11:13.184Z",
+      "source_archive_version": 12,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "2f6168fd69a41d400708985837fe9a16fef79299cca926e635474c59dabfa264"
     },
     {
       "slug": "immoscout-native-handoff",
@@ -581,7 +614,10 @@
       "source_archive_status": "full_source",
       "classification": "support_review",
       "review_status": "support/review; retain pending dependency-aware classification",
-      "observed_live_at": "2026-09-21T20:00:42.891Z"
+      "observed_live_at": "2026-09-21T20:00:42.891Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "33ebf378bdbef91795b3ac1a3a43acc8412c6e19487b50d9f5ce88bc0a1953cd"
     },
     {
       "slug": "immoscout-send-canary",
@@ -606,7 +642,10 @@
       "source_archive_status": "full_source",
       "classification": "canary",
       "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
-      "observed_live_at": "2026-09-27T09:50:12.097Z"
+      "observed_live_at": "2026-09-27T09:50:12.097Z",
+      "source_archive_version": 15,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "da585ffb219e2ebf3390cb43c9be669983d995335dcf1fd40eed53842d1a64f0"
     },
     {
       "slug": "immowelt-auth-bridge",
@@ -631,7 +670,10 @@
       "source_archive_status": "full_source",
       "classification": "internal",
       "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked",
-      "observed_live_at": "2026-09-24T21:28:46.042Z"
+      "observed_live_at": "2026-09-24T21:28:46.042Z",
+      "source_archive_version": 7,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "a16634cf0b8b47a4a178b227a6ceebbebc4889a1086231d77e45ea55cef99193"
     },
     {
       "slug": "kleinanzeigen-apk-direct-stage",
@@ -656,7 +698,10 @@
       "source_archive_status": "full_source",
       "classification": "diagnostic",
       "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
-      "observed_live_at": "2026-09-29T23:14:41.951Z"
+      "observed_live_at": "2026-09-29T23:14:41.951Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "19248bb948539a2e3c221e2c3edf9548174f84d21cbca18e537ddfbf464e33b6"
     },
     {
       "slug": "kleinanzeigen-apk-stage",
@@ -681,7 +726,10 @@
       "source_archive_status": "full_source",
       "classification": "diagnostic",
       "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
-      "observed_live_at": "2026-09-29T23:08:16.368Z"
+      "observed_live_at": "2026-09-29T23:08:16.368Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "194747cf11b5c27741fe18c8a0a2292133e9aba472c70da84bbfa18441e0fc7d"
     },
     {
       "slug": "kleinanzeigen-application-worker",
@@ -722,7 +770,10 @@
           "reason": "Provider profile mapping changes are staged for the Cloudflare housing cutover. The current source removes Kleinanzeigen mapping; do not deploy until Kleinanzeigen parity is restored and tested."
         }
       ],
-      "observed_live_at": "2026-09-29T23:06:37.629Z"
+      "observed_live_at": "2026-09-29T23:06:37.629Z",
+      "source_archive_version": 19,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "968c8b67b68ba17971e7c420b45489ef86f9f8f3c5e6e52106648f9847c7dab1"
     },
     {
       "slug": "kleinanzeigen-callback-bridge",
@@ -747,7 +798,10 @@
       "source_archive_status": "full_source",
       "classification": "internal",
       "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked",
-      "observed_live_at": "2026-09-22T18:02:10.098Z"
+      "observed_live_at": "2026-09-22T18:02:10.098Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "0e896a66a895905a5fc57f7ac0642e61b4fb704f6d5675db10ba289faddb49c3"
     },
     {
       "slug": "kleinanzeigen-static-analysis",
@@ -772,7 +826,10 @@
       "source_archive_status": "full_source",
       "classification": "diagnostic",
       "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
-      "observed_live_at": "2026-09-29T23:14:38.684Z"
+      "observed_live_at": "2026-09-29T23:14:38.684Z",
+      "source_archive_version": 4,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "7b4a8e6893a81030c8f33238c1b69fab9e951c3122a0b38516704d24634150a8"
     },
     {
       "slug": "kleinanzeigen-transport",
@@ -802,7 +859,10 @@
       "source_archive_status": "full_source",
       "classification": "internal",
       "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked",
-      "observed_live_at": "2026-09-20T15:27:08.285Z"
+      "observed_live_at": "2026-09-20T15:27:08.285Z",
+      "source_archive_version": 4,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "0a8ae2c6dc63fcefff6894e66f2dcb9397c74f16df646b7f8505edb6afcbc41f"
     },
     {
       "slug": "meravis-feed",
@@ -837,7 +897,10 @@
       "source_archive_status": "full_source",
       "classification": "internal",
       "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked",
-      "observed_live_at": "2026-10-21T22:21:05.221Z"
+      "observed_live_at": "2026-10-21T22:21:05.221Z",
+      "source_archive_version": 6,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "bb4032d5e00b8cae2ef135e482c8f29a65d9aa9fe9884fa7143d8c38f1f001ef"
     },
     {
       "entrypoint": "supabase/deployed-support/mini-app/index.ts",
@@ -861,7 +924,10 @@
       "source_archive_status": "full_source",
       "classification": "retired",
       "review_status": "retired 410/404 stub; JWT gateway verification enabled",
-      "observed_live_at": "2026-10-21T21:32:26.544Z"
+      "observed_live_at": "2026-10-21T21:32:26.544Z",
+      "source_archive_version": 12,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "ef070b86cbb5334bc82e00dcc354b2aa5d2d7b5196253e97c1ff4b462a696789"
     },
     {
       "entrypoint": "supabase/deployed-support/mini-app-publisher/index.ts",
@@ -885,7 +951,10 @@
       "source_archive_status": "full_source",
       "classification": "retired",
       "review_status": "retired 410/404 stub; JWT gateway verification enabled",
-      "observed_live_at": "2026-10-21T21:32:30.822Z"
+      "observed_live_at": "2026-10-21T21:32:30.822Z",
+      "source_archive_version": 6,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "16f68e336ef719d7299d2a192b5489c36204a7cd9211cc489e94aec99238632d"
     },
     {
       "slug": "noncoop-feed",
@@ -920,7 +989,10 @@
       "source_archive_status": "full_source",
       "classification": "internal",
       "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked",
-      "observed_live_at": "2026-10-21T22:21:08.305Z"
+      "observed_live_at": "2026-10-21T22:21:08.305Z",
+      "source_archive_version": 6,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "e88720d686f4dd1ac5a50ba44956596a6e79d5bce21487ebb1e9a3042d431682"
     },
     {
       "slug": "noncoop-new-feed",
@@ -960,7 +1032,10 @@
       "source_archive_status": "full_source",
       "classification": "internal",
       "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked",
-      "observed_live_at": "2026-10-21T22:21:11.649Z"
+      "observed_live_at": "2026-10-21T22:21:11.649Z",
+      "source_archive_version": 8,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "dcf472e59b9e3353690571e009dafecc0217934414d26c312d77028b0abeaa8a"
     },
     {
       "entrypoint": "supabase/deployed-support/noop/index.ts",
@@ -984,7 +1059,10 @@
       "source_archive_status": "full_source",
       "classification": "support_review",
       "review_status": "support/review; retain pending dependency-aware classification",
-      "observed_live_at": "2026-09-10T19:59:49.121Z"
+      "observed_live_at": "2026-09-10T19:59:49.121Z",
+      "source_archive_version": 9,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "b090e06f04612dba243ff6f17736a6f0435d64dc301d6457f2d7a4be07adf997"
     },
     {
       "slug": "notification-dispatcher",
@@ -1098,7 +1176,10 @@
           "path": "supabase/functions/platform-connect-broker-v2/index.ts",
           "reason": "The staged Cloudflare platform-connect cutover removes the legacy Kleinanzeigen OAuth flow while the Cloudflare Kleinanzeigen login adapter is not yet implemented. Not deployed; keep the live Supabase connector until provider parity is complete."
         }
-      ]
+      ],
+      "source_archive_version": 3,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "e904f15dd9939c47a4c824fef8ba78f98175db03478d3749707aac4bdae19e99"
     },
     {
       "slug": "platform-session-reminder",
@@ -1890,7 +1971,10 @@
       "observed_live_version": 4,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "1e4b82d411cf4a8488998cdb4e5f985d86f24ebcb21471c891a7a5a67db8945a",
-      "observed_live_at": "2026-10-21T21:31:24.170Z"
+      "observed_live_at": "2026-10-21T21:31:24.170Z",
+      "source_archive_version": 3,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "1e4b82d411cf4a8488998cdb4e5f985d86f24ebcb21471c891a7a5a67db8945a"
     },
     {
       "slug": "auth-contract-diag",
@@ -1909,7 +1993,10 @@
       "observed_live_version": 11,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "f88d7878ded7c57fd30ab41d0a93bcccdf01c52f7e0e5e645483a3586a1dbba8",
-      "observed_live_at": "2026-09-17T19:35:35.495Z"
+      "observed_live_at": "2026-09-17T19:35:35.495Z",
+      "source_archive_version": 10,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "f88d7878ded7c57fd30ab41d0a93bcccdf01c52f7e0e5e645483a3586a1dbba8"
     },
     {
       "slug": "deploy-merge-test",
@@ -1928,7 +2015,10 @@
       "observed_live_version": 3,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "959ba6ecf679b840f210c57a60c93f4669e6c7eb80f3271d0bb037975acba339",
-      "observed_live_at": "2026-10-21T21:31:28.602Z"
+      "observed_live_at": "2026-10-21T21:31:28.602Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "959ba6ecf679b840f210c57a60c93f4669e6c7eb80f3271d0bb037975acba339"
     },
     {
       "slug": "html-render-test",
@@ -1947,7 +2037,10 @@
       "observed_live_version": 7,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "8405a45719c71ae80ab1fbf69da80ddd18f8012b6b945ce0b736106d4d1adef3",
-      "observed_live_at": "2026-10-21T21:31:34.338Z"
+      "observed_live_at": "2026-10-21T21:31:34.338Z",
+      "source_archive_version": 6,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "8405a45719c71ae80ab1fbf69da80ddd18f8012b6b945ce0b736106d4d1adef3"
     },
     {
       "slug": "immomio-auth-debug",
@@ -1966,7 +2059,10 @@
       "observed_live_version": 5,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "e2dbb63884b4da223f619c76850f7d2a95c9f27b7662b333dab754094df01efd",
-      "observed_live_at": "2026-09-16T13:42:47.265Z"
+      "observed_live_at": "2026-09-16T13:42:47.265Z",
+      "source_archive_version": 4,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "e2dbb63884b4da223f619c76850f7d2a95c9f27b7662b333dab754094df01efd"
     },
     {
       "slug": "immomio-bundle-snippet",
@@ -1985,7 +2081,10 @@
       "observed_live_version": 6,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "7b8ac28f07088afce6149e1c0db9f20330ac824d9737f5cb5811fb2e907ea39c",
-      "observed_live_at": "2026-09-21T15:51:16.937Z"
+      "observed_live_at": "2026-09-21T15:51:16.937Z",
+      "source_archive_version": 5,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "7b8ac28f07088afce6149e1c0db9f20330ac824d9737f5cb5811fb2e907ea39c"
     },
     {
       "slug": "immomio-chunk-inspect",
@@ -2004,7 +2103,10 @@
       "observed_live_version": 2,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "196c30bf6bc55583f5d9625ed6a57a5224cd080a857327f41c5f2dd9221ac66e",
-      "observed_live_at": "2026-09-17T11:54:18.917Z"
+      "observed_live_at": "2026-09-17T11:54:18.917Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "196c30bf6bc55583f5d9625ed6a57a5224cd080a857327f41c5f2dd9221ac66e"
     },
     {
       "slug": "immomio-contract-inspect",
@@ -2023,7 +2125,10 @@
       "observed_live_version": 42,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "72c8bb1d001875851a12dc53317dbfaf89c6a031b05785fc854186562e0a6c3c",
-      "observed_live_at": "2026-09-17T11:46:15.930Z"
+      "observed_live_at": "2026-09-17T11:46:15.930Z",
+      "source_archive_version": 41,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "72c8bb1d001875851a12dc53317dbfaf89c6a031b05785fc854186562e0a6c3c"
     },
     {
       "slug": "immomio-device-probe",
@@ -2042,7 +2147,10 @@
       "observed_live_version": 2,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "ea02b84d5963c51fd6d8a0795eeed544d86c2d756ce08088aa236fb7cc1feadf",
-      "observed_live_at": "2026-09-16T09:11:11.889Z"
+      "observed_live_at": "2026-09-16T09:11:11.889Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "ea02b84d5963c51fd6d8a0795eeed544d86c2d756ce08088aa236fb7cc1feadf"
     },
     {
       "slug": "immomio-introspection-probe",
@@ -2061,7 +2169,10 @@
       "observed_live_version": 16,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "dd494821ebb5b5e314d96ed818dd46849912c43ac43e26e6d6d6474da1349630",
-      "observed_live_at": "2026-10-21T21:31:40.255Z"
+      "observed_live_at": "2026-10-21T21:31:40.255Z",
+      "source_archive_version": 15,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "dd494821ebb5b5e314d96ed818dd46849912c43ac43e26e6d6d6474da1349630"
     },
     {
       "slug": "immomio-mutation-contract-probe",
@@ -2080,7 +2191,10 @@
       "observed_live_version": 2,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "b3f8ca32013fb47acb72d6a5f2118134922feb021059c041cb33f27b9dbc771e",
-      "observed_live_at": "2026-09-17T11:56:04.917Z"
+      "observed_live_at": "2026-09-17T11:56:04.917Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "b3f8ca32013fb47acb72d6a5f2118134922feb021059c041cb33f27b9dbc771e"
     },
     {
       "slug": "immomio-profile-probe",
@@ -2099,7 +2213,10 @@
       "observed_live_version": 5,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "6649a30e44df9a2f8d9b054dcf2994bbda6c9f8eea460b79c95c40f4ae6339c4",
-      "observed_live_at": "2026-09-21T16:00:18.485Z"
+      "observed_live_at": "2026-09-21T16:00:18.485Z",
+      "source_archive_version": 4,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "6649a30e44df9a2f8d9b054dcf2994bbda6c9f8eea460b79c95c40f4ae6339c4"
     },
     {
       "slug": "immomio-question-field-probe",
@@ -2118,7 +2235,10 @@
       "observed_live_version": 2,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "5805ecdc8a8a997d08be6219485912d4aecb8cf3748de78b60159599a14ed6ce",
-      "observed_live_at": "2026-09-17T11:44:41.965Z"
+      "observed_live_at": "2026-09-17T11:44:41.965Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "5805ecdc8a8a997d08be6219485912d4aecb8cf3748de78b60159599a14ed6ce"
     },
     {
       "slug": "immomio-question-inspect",
@@ -2137,7 +2257,10 @@
       "observed_live_version": 7,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "53c27795b859bda1726c89913bef6b2f9401f07ab2ac684fffd6170af826ddcb",
-      "observed_live_at": "2026-09-17T11:53:56.064Z"
+      "observed_live_at": "2026-09-17T11:53:56.064Z",
+      "source_archive_version": 6,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "53c27795b859bda1726c89913bef6b2f9401f07ab2ac684fffd6170af826ddcb"
     },
     {
       "slug": "immomio-schema-inspect",
@@ -2156,7 +2279,10 @@
       "observed_live_version": 3,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "111da85e2d41f463e30249ef2885b12a3d4275511b68a2757031c6a24bbb0163",
-      "observed_live_at": "2026-09-17T11:36:53.321Z"
+      "observed_live_at": "2026-09-17T11:36:53.321Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "111da85e2d41f463e30249ef2885b12a3d4275511b68a2757031c6a24bbb0163"
     },
     {
       "slug": "immomio-upload-probe",
@@ -2175,7 +2301,10 @@
       "observed_live_version": 2,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "5cfabfc9ae482d995af94dea13a6f3596e476898ed173817d4ffaa308b32749c",
-      "observed_live_at": "2026-09-21T15:50:07.130Z"
+      "observed_live_at": "2026-09-21T15:50:07.130Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "5cfabfc9ae482d995af94dea13a6f3596e476898ed173817d4ffaa308b32749c"
     },
     {
       "slug": "immoscout-contact-inspect",
@@ -2194,7 +2323,10 @@
       "observed_live_version": 7,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "03fc40dc400e78afc00b4d4d9eea4d846621069f708b3a22135196fd58cb8ed6",
-      "observed_live_at": "2026-09-23T22:49:49.579Z"
+      "observed_live_at": "2026-09-23T22:49:49.579Z",
+      "source_archive_version": 6,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "03fc40dc400e78afc00b4d4d9eea4d846621069f708b3a22135196fd58cb8ed6"
     },
     {
       "slug": "immoscout-contract-inspect-v2",
@@ -2213,7 +2345,10 @@
       "observed_live_version": 2,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "91a151fc34b259fd108449ab1c265627b4d330cc75ce191431d530463f26c3fe",
-      "observed_live_at": "2026-09-17T11:30:07.569Z"
+      "observed_live_at": "2026-09-17T11:30:07.569Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "91a151fc34b259fd108449ab1c265627b4d330cc75ce191431d530463f26c3fe"
     },
     {
       "slug": "immoscout-official-api-probe",
@@ -2232,7 +2367,10 @@
       "observed_live_version": 3,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "5493519bdd23fe9bba2feeb4c04522401348a33117fa7ccfde9fa2b15af79f13",
-      "observed_live_at": "2026-09-17T11:47:47.548Z"
+      "observed_live_at": "2026-09-17T11:47:47.548Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "5493519bdd23fe9bba2feeb4c04522401348a33117fa7ccfde9fa2b15af79f13"
     },
     {
       "slug": "immoscout-official-send-canary",
@@ -2251,7 +2389,10 @@
       "observed_live_version": 3,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "0472faebbb0d60b39232f6cd1f1876f05a6ceeab6800e2d4f083c810718131b6",
-      "observed_live_at": "2026-09-17T11:51:36.712Z"
+      "observed_live_at": "2026-09-17T11:51:36.712Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "0472faebbb0d60b39232f6cd1f1876f05a6ceeab6800e2d4f083c810718131b6"
     },
     {
       "slug": "immoscout-payload-probe",
@@ -2270,7 +2411,10 @@
       "observed_live_version": 7,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "9f5300970275005ccdd51bde33d1c3b77a25622c336f5b07a53907752ad3b444",
-      "observed_live_at": "2026-09-21T16:08:08.132Z"
+      "observed_live_at": "2026-09-21T16:08:08.132Z",
+      "source_archive_version": 6,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "9f5300970275005ccdd51bde33d1c3b77a25622c336f5b07a53907752ad3b444"
     },
     {
       "slug": "immoscout-plus-scan",
@@ -2289,7 +2433,10 @@
       "observed_live_version": 4,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "c75cc6a1aa5a7d5b7c8177126b402bfe924c32840f66a051850642a1169560d2",
-      "observed_live_at": "2026-09-21T16:07:22.665Z"
+      "observed_live_at": "2026-09-21T16:07:22.665Z",
+      "source_archive_version": 3,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "c75cc6a1aa5a7d5b7c8177126b402bfe924c32840f66a051850642a1169560d2"
     },
     {
       "slug": "immowelt-diagnostic-readonly",
@@ -2308,7 +2455,10 @@
       "observed_live_version": 3,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "82e4f5a7a857e27dd7d2fd35e55bb49559323a5372d2f5d3b5a24cf183b3ae3c",
-      "observed_live_at": "2026-09-29T19:19:28.024Z"
+      "observed_live_at": "2026-09-29T19:19:28.024Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "82e4f5a7a857e27dd7d2fd35e55bb49559323a5372d2f5d3b5a24cf183b3ae3c"
     },
     {
       "slug": "indeed-mcp-bridge",
@@ -2346,7 +2496,10 @@
       "observed_live_version": 4,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "ca8db7abfff581934681d2dd9145dfee55bd9f6f7b38ec8218c11bd636e2a1a8",
-      "observed_live_at": "2026-10-21T21:32:01.009Z"
+      "observed_live_at": "2026-10-21T21:32:01.009Z",
+      "source_archive_version": 3,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "ca8db7abfff581934681d2dd9145dfee55bd9f6f7b38ec8218c11bd636e2a1a8"
     },
     {
       "slug": "kleinanzeigen-ad-inspect",
@@ -2365,7 +2518,10 @@
       "observed_live_version": 2,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "272c674f9610ca60e4883f41346d5d9ea9d5677747e38613893d2000552031f2",
-      "observed_live_at": "2026-09-17T04:20:02.903Z"
+      "observed_live_at": "2026-09-17T04:20:02.903Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "272c674f9610ca60e4883f41346d5d9ea9d5677747e38613893d2000552031f2"
     },
     {
       "slug": "kleinanzeigen-apk-inspect",
@@ -2384,7 +2540,10 @@
       "observed_live_version": 2,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "249bc46232231c1db2eab629337aaba6c04cb82e0a4f77e8be053dbfbb12a215",
-      "observed_live_at": "2026-09-15T21:07:11.296Z"
+      "observed_live_at": "2026-09-15T21:07:11.296Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "249bc46232231c1db2eab629337aaba6c04cb82e0a4f77e8be053dbfbb12a215"
     },
     {
       "slug": "kleinanzeigen-apk-r2-inspect",
@@ -2403,7 +2562,10 @@
       "observed_live_version": 2,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "7d7357b5057d737c16f3b9be9e004df75267e0de79b2dee62a4f8c9b31f7b0a5",
-      "observed_live_at": "2026-09-15T21:57:25.023Z"
+      "observed_live_at": "2026-09-15T21:57:25.023Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "7d7357b5057d737c16f3b9be9e004df75267e0de79b2dee62a4f8c9b31f7b0a5"
     },
     {
       "slug": "kleinanzeigen-apkcombo-stage",
@@ -2422,7 +2584,10 @@
       "observed_live_version": 3,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "6fb2f933a92e18215e115f3eda998206af5674d7276597b91ab3a78c7e4ef2c5",
-      "observed_live_at": "2026-09-15T21:55:14.665Z"
+      "observed_live_at": "2026-09-15T21:55:14.665Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "6fb2f933a92e18215e115f3eda998206af5674d7276597b91ab3a78c7e4ef2c5"
     },
     {
       "slug": "kleinanzeigen-apkcombo-url",
@@ -2441,7 +2606,10 @@
       "observed_live_version": 2,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "a5fc3c69af15b4053f356f7d1a61af29356d77058871d276ca78f757e8afd26d",
-      "observed_live_at": "2026-09-15T21:56:09.191Z"
+      "observed_live_at": "2026-09-15T21:56:09.191Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "a5fc3c69af15b4053f356f7d1a61af29356d77058871d276ca78f757e8afd26d"
     },
     {
       "slug": "kleinanzeigen-contact-inspect",
@@ -2460,7 +2628,10 @@
       "observed_live_version": 5,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "81a08e5046df73eb2bd3d469dd5f0d3e4738a67ba157d973c8e2dc60c089bb1f",
-      "observed_live_at": "2026-09-16T07:45:02.233Z"
+      "observed_live_at": "2026-09-16T07:45:02.233Z",
+      "source_archive_version": 4,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "81a08e5046df73eb2bd3d469dd5f0d3e4738a67ba157d973c8e2dc60c089bb1f"
     },
     {
       "slug": "kleinanzeigen-contract-check",
@@ -2479,7 +2650,10 @@
       "observed_live_version": 3,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "3e4ae876e6f273ce48a64e81a275523577cafd1761ad548bfdda7bab98a6105d",
-      "observed_live_at": "2026-09-15T20:12:04.440Z"
+      "observed_live_at": "2026-09-15T20:12:04.440Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "3e4ae876e6f273ce48a64e81a275523577cafd1761ad548bfdda7bab98a6105d"
     },
     {
       "slug": "kleinanzeigen-contract-probe",
@@ -2498,7 +2672,10 @@
       "observed_live_version": 6,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "3f23f8e66b0bc847b5e5e4d24663a4678718e897cc839f8a7c57801ddfb24531",
-      "observed_live_at": "2026-09-15T20:11:59.731Z"
+      "observed_live_at": "2026-09-15T20:11:59.731Z",
+      "source_archive_version": 5,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "3f23f8e66b0bc847b5e5e4d24663a4678718e897cc839f8a7c57801ddfb24531"
     },
     {
       "slug": "kleinanzeigen-conversation-readback",
@@ -2517,7 +2694,10 @@
       "observed_live_version": 8,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "bac94c8ec6a00cd534a290b65cb4509d9763750756b21cd15f4889b1f4013a1f",
-      "observed_live_at": "2026-09-23T22:48:57.335Z"
+      "observed_live_at": "2026-09-23T22:48:57.335Z",
+      "source_archive_version": 7,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "bac94c8ec6a00cd534a290b65cb4509d9763750756b21cd15f4889b1f4013a1f"
     },
     {
       "slug": "kleinanzeigen-dex-class",
@@ -2536,7 +2716,10 @@
       "observed_live_version": 2,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "7529f971e876eef9e9b479037198f0be3e35c7ff8818babfbb9ee3b39ce8ea61",
-      "observed_live_at": "2026-09-15T22:03:07.134Z"
+      "observed_live_at": "2026-09-15T22:03:07.134Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "7529f971e876eef9e9b479037198f0be3e35c7ff8818babfbb9ee3b39ce8ea61"
     },
     {
       "slug": "kleinanzeigen-dex-contract",
@@ -2555,7 +2738,10 @@
       "observed_live_version": 2,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "0e319afe8d7d9ed593b5d1fd61afbf74b7dfc4c4ebbaa01a859dfa499671c049",
-      "observed_live_at": "2026-09-15T22:00:29.453Z"
+      "observed_live_at": "2026-09-15T22:00:29.453Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "0e319afe8d7d9ed593b5d1fd61afbf74b7dfc4c4ebbaa01a859dfa499671c049"
     },
     {
       "slug": "kleinanzeigen-dex-method",
@@ -2574,7 +2760,10 @@
       "observed_live_version": 2,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "4556c10c911481c10fd5b210a53d6d8d01790b44049a6d66dcef2ec78e1a82b1",
-      "observed_live_at": "2026-09-15T22:04:09.809Z"
+      "observed_live_at": "2026-09-15T22:04:09.809Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "4556c10c911481c10fd5b210a53d6d8d01790b44049a6d66dcef2ec78e1a82b1"
     },
     {
       "slug": "kleinanzeigen-dex-xref",
@@ -2593,7 +2782,10 @@
       "observed_live_version": 3,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "d14dfd7361865c289eb058165d807c18af484e6246e9e595f5a8b124a33153a2",
-      "observed_live_at": "2026-09-15T22:02:03.027Z"
+      "observed_live_at": "2026-09-15T22:02:03.027Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "d14dfd7361865c289eb058165d807c18af484e6246e9e595f5a8b124a33153a2"
     },
     {
       "slug": "kleinanzeigen-dex-xref-any",
@@ -2612,7 +2804,10 @@
       "observed_live_version": 2,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "62f7468d41f610205637655ac92679e778c6509a1d37162e18f28509725907b6",
-      "observed_live_at": "2026-09-15T22:10:09.570Z"
+      "observed_live_at": "2026-09-15T22:10:09.570Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "62f7468d41f610205637655ac92679e778c6509a1d37162e18f28509725907b6"
     },
     {
       "slug": "kleinanzeigen-direct-login-probe",
@@ -2631,7 +2826,10 @@
       "observed_live_version": 4,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "2030b37fe46593d898a0f59f538b8dbd98d43dc3e1096fb85f74632744b5cd0c",
-      "observed_live_at": "2026-10-21T21:32:06.171Z"
+      "observed_live_at": "2026-10-21T21:32:06.171Z",
+      "source_archive_version": 3,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "2030b37fe46593d898a0f59f538b8dbd98d43dc3e1096fb85f74632744b5cd0c"
     },
     {
       "slug": "kleinanzeigen-first-contact-canary",
@@ -2650,7 +2848,10 @@
       "observed_live_version": 2,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "5fc33e995f0eaf176a0cb5feb64328888a6af3dac8cf1c75d74aae606e094ad1",
-      "observed_live_at": "2026-09-15T20:52:45.860Z"
+      "observed_live_at": "2026-09-15T20:52:45.860Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "5fc33e995f0eaf176a0cb5feb64328888a6af3dac8cf1c75d74aae606e094ad1"
     },
     {
       "slug": "kleinanzeigen-js-inspect",
@@ -2669,7 +2870,10 @@
       "observed_live_version": 3,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "f8de0de36f240d975f863749240656c8b365c530df2686fdb0b4b635e4495c3b",
-      "observed_live_at": "2026-09-15T20:56:46.104Z"
+      "observed_live_at": "2026-09-15T20:56:46.104Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "f8de0de36f240d975f863749240656c8b365c530df2686fdb0b4b635e4495c3b"
     },
     {
       "slug": "kleinanzeigen-method-raw",
@@ -2688,7 +2892,10 @@
       "observed_live_version": 2,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "0abcaaa54a5afac1d446bf80483446c47f9e15a56b01f82dac37828d71ac593e",
-      "observed_live_at": "2026-09-15T22:08:42.407Z"
+      "observed_live_at": "2026-09-15T22:08:42.407Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "0abcaaa54a5afac1d446bf80483446c47f9e15a56b01f82dac37828d71ac593e"
     },
     {
       "slug": "kleinanzeigen-mobile-canary",
@@ -2707,7 +2914,10 @@
       "observed_live_version": 5,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "529bcc6c78cca4cee4dc4f7bdf9690f2e63f8a0f09f63edad30169f2599afa2b",
-      "observed_live_at": "2026-10-21T21:32:16.510Z"
+      "observed_live_at": "2026-10-21T21:32:16.510Z",
+      "source_archive_version": 4,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "529bcc6c78cca4cee4dc4f7bdf9690f2e63f8a0f09f63edad30169f2599afa2b"
     },
     {
       "slug": "kleinanzeigen-mobile-probe-v2",
@@ -2726,7 +2936,10 @@
       "observed_live_version": 18,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "0d386c04e2fa766db997c117bb88d6e3eae5c2012bb32c25edc2fd627465fc53",
-      "observed_live_at": "2026-09-15T22:16:47.772Z"
+      "observed_live_at": "2026-09-15T22:16:47.772Z",
+      "source_archive_version": 17,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "0d386c04e2fa766db997c117bb88d6e3eae5c2012bb32c25edc2fd627465fc53"
     },
     {
       "slug": "kleinanzeigen-re-seeker-probe",
@@ -2745,7 +2958,10 @@
       "observed_live_version": 2,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "43292853d51df36f67ce73c49ad7ba8baf9bb9fae1f1ccf15659104aa0d2a70f",
-      "observed_live_at": "2026-09-15T21:58:55.003Z"
+      "observed_live_at": "2026-09-15T21:58:55.003Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "43292853d51df36f67ce73c49ad7ba8baf9bb9fae1f1ccf15659104aa0d2a70f"
     },
     {
       "slug": "kleinanzeigen-refresh-probe",
@@ -2764,7 +2980,10 @@
       "observed_live_version": 4,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "497d2f569d81c41d3685e148d53ce8d8844d391eea6899d36bfebec1c1900dc9",
-      "observed_live_at": "2026-10-21T21:32:21.693Z"
+      "observed_live_at": "2026-10-21T21:32:21.693Z",
+      "source_archive_version": 3,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "497d2f569d81c41d3685e148d53ce8d8844d391eea6899d36bfebec1c1900dc9"
     },
     {
       "slug": "kleinanzeigen-seeker-inspect",
@@ -2783,7 +3002,10 @@
       "observed_live_version": 3,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "86585b1dc5d084246c0d79bc3a9108a4ada7049af02c7de68f5487074eeee002",
-      "observed_live_at": "2026-09-17T04:41:19.786Z"
+      "observed_live_at": "2026-09-17T04:41:19.786Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "86585b1dc5d084246c0d79bc3a9108a4ada7049af02c7de68f5487074eeee002"
     },
     {
       "slug": "kleinanzeigen-send-once-v3",
@@ -2802,7 +3024,10 @@
       "observed_live_version": 3,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "8983c47b70aa5dcaa79063615bc6308b9a5513309cf289b094441caae6338f97",
-      "observed_live_at": "2026-09-15T20:11:52.549Z"
+      "observed_live_at": "2026-09-15T20:11:52.549Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "8983c47b70aa5dcaa79063615bc6308b9a5513309cf289b094441caae6338f97"
     },
     {
       "slug": "kleinanzeigen-send-probe",
@@ -2821,7 +3046,10 @@
       "observed_live_version": 9,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "c6f6f6ede954742086c662fe80c7b78fda85a3e1222b65d2fd06f35097bc5486",
-      "observed_live_at": "2026-09-15T18:42:46.373Z"
+      "observed_live_at": "2026-09-15T18:42:46.373Z",
+      "source_archive_version": 8,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "c6f6f6ede954742086c662fe80c7b78fda85a3e1222b65d2fd06f35097bc5486"
     },
     {
       "slug": "kleinanzeigen-structure-probe",
@@ -2840,7 +3068,10 @@
       "observed_live_version": 2,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "69f70c7715da2b4e86e9fdccfc2f2d6f178bbd9bdd49f16808dd0104cebc793a",
-      "observed_live_at": "2026-09-15T20:19:08.671Z"
+      "observed_live_at": "2026-09-15T20:19:08.671Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "69f70c7715da2b4e86e9fdccfc2f2d6f178bbd9bdd49f16808dd0104cebc793a"
     },
     {
       "slug": "kleinanzeigen-two-step-canary",
@@ -2859,7 +3090,10 @@
       "observed_live_version": 2,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "c42b8d37538e25f5b0990993d7d180f38f623cea3b2141e03451313e4cdf9239",
-      "observed_live_at": "2026-09-17T04:49:47.039Z"
+      "observed_live_at": "2026-09-17T04:49:47.039Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "c42b8d37538e25f5b0990993d7d180f38f623cea3b2141e03451313e4cdf9239"
     },
     {
       "slug": "kleinanzeigen-web-contract-probe",
@@ -2878,7 +3112,10 @@
       "observed_live_version": 4,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "0902d9c47f9293bdd46929499c6bbcc5c9936e9a52570a2ef7f0a24f2eb0cb58",
-      "observed_live_at": "2026-09-15T20:19:01.202Z"
+      "observed_live_at": "2026-09-15T20:19:01.202Z",
+      "source_archive_version": 3,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "0902d9c47f9293bdd46929499c6bbcc5c9936e9a52570a2ef7f0a24f2eb0cb58"
     },
     {
       "slug": "kleinanzeigen-xcf-diagnostic-send",
@@ -2897,7 +3134,10 @@
       "observed_live_version": 2,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "9217b6e615865405716939e049880efe7c87fc67d6189cfdf449bad603271be1",
-      "observed_live_at": "2026-09-17T04:53:31.096Z"
+      "observed_live_at": "2026-09-17T04:53:31.096Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "9217b6e615865405716939e049880efe7c87fc67d6189cfdf449bad603271be1"
     },
     {
       "slug": "noop_probe",
@@ -2916,7 +3156,10 @@
       "observed_live_version": 8,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "7c2bd4d01db9f87c4fed405b13c2c060a91795e1618cdf085d10efb238374026",
-      "observed_live_at": "2026-09-15T15:00:17.743Z"
+      "observed_live_at": "2026-09-15T15:00:17.743Z",
+      "source_archive_version": 7,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "7c2bd4d01db9f87c4fed405b13c2c060a91795e1618cdf085d10efb238374026"
     },
     {
       "slug": "notification-dispatcher-preview-canary",
@@ -2935,7 +3178,10 @@
       "observed_live_version": 5,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "47f19faf32832c44851f7523ed72083f1794fc219ffcc8d5174bb3b3ef4049fc",
-      "observed_live_at": "2026-09-21T04:07:45.992Z"
+      "observed_live_at": "2026-09-21T04:07:45.992Z",
+      "source_archive_version": 4,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "47f19faf32832c44851f7523ed72083f1794fc219ffcc8d5174bb3b3ef4049fc"
     },
     {
       "slug": "platform-connect",
@@ -2954,7 +3200,10 @@
       "observed_live_version": 5,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "ab54c8e8e29f824e290917601efac9554eb581d816b5eb253891c827c140c557",
-      "observed_live_at": "2026-10-21T21:32:41.626Z"
+      "observed_live_at": "2026-10-21T21:32:41.626Z",
+      "source_archive_version": 4,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "ab54c8e8e29f824e290917601efac9554eb581d816b5eb253891c827c140c557"
     },
     {
       "slug": "telegram-db-latency-canary",
