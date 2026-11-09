@@ -1663,7 +1663,13 @@
       "observed_live_at": "2026-10-16T16:46:20.851Z",
       "source_archive_version": 13,
       "source_archive_verify_jwt": false,
-      "source_archive_artifact_sha256": "0551b843639177890633251af45c23d4cb6799fc72e3bff0f6f606d5f5246cf6"
+      "source_archive_artifact_sha256": "0551b843639177890633251af45c23d4cb6799fc72e3bff0f6f606d5f5246cf6",
+      "known_source_drift": [
+        {
+          "path": "supabase/functions/telegram-fast/index.ts",
+          "reason": "Runtime-safe background scheduling is staged pending the controlled production hotfix."
+        }
+      ]
     },
     {
       "slug": "telegram-gateway",

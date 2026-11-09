@@ -23,7 +23,8 @@
     {
       "binding": "HOUSING_DB",
       "database_name": "traumwohnung-housing-core",
-      "database_id": "d4ee4d33-00be-4420-bb40-76d70384822d"
+      "database_id": "d4ee4d33-00be-4420-bb40-76d70384822d",
+      "migrations_dir": "schema/d1"
     }
   ],
   "r2_buckets": [
@@ -42,7 +43,8 @@
       {
         "binding": "HOUSING_DB",
         "database_name": "traumwohnung-housing-core",
-        "database_id": "d4ee4d33-00be-4420-bb40-76d70384822d"
+        "database_id": "d4ee4d33-00be-4420-bb40-76d70384822d",
+      "migrations_dir": "schema/d1"
       }
     ],
     "r2_buckets": [

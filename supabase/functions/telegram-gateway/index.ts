@@ -1,4 +1,19 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+
+function scheduleBackground(task: Promise<unknown>): Promise<void> {
+  const promise = Promise.resolve(task);
+  const runtime = (globalThis as any).EdgeRuntime;
+  if (typeof runtime?.waitUntil === "function") {
+    try {
+      runtime.waitUntil(promise);
+      return Promise.resolve();
+    } catch (error) {
+      console.error("telegram_wait_until_unavailable", String(error));
+    }
+  }
+  return promise.then(() => undefined);
+}
+
 import {likelyFastAction,renderFast} from './fast-ui.ts';
 
 const URL=Deno.env.get('SUPABASE_URL')!;
@@ -68,7 +83,7 @@ Deno.serve(async req=>{
   if(legacyCallback!==callback&&update?.callback_query){update.callback_query.data=legacyCallback;callback=legacyCallback;body=JSON.stringify(update);}
 
   if(callbackId&&['platforms:login:1','platforms:login:3','platforms:login:4'].includes(callback)){
-   EdgeRuntime.waitUntil(forward(body,expected,OAUTH_BRIDGE).then(r=>{if(!r.ok)console.error('telegram_oauth_bridge',r.status)}).catch(e=>console.error('telegram_oauth_bridge',String(e))));
+   await scheduleBackground(forward(body,expected,OAUTH_BRIDGE).then(r=>{if(!r.ok)console.error('telegram_oauth_bridge',r.status)}).catch(e=>console.error('telegram_oauth_bridge',String(e))));
    return direct('answerCallbackQuery',{callback_query_id:callbackId});
   }
 
@@ -87,21 +102,21 @@ Deno.serve(async req=>{
        if(fast?.critical===true){
         const tgStarted=Date.now();
         try{await telegram(method,params);telegramMs=Date.now()-tgStarted}
-        catch(error){telegramMs=Date.now()-tgStarted;console.error('telegram_fast_critical_edit',String(error));const responseMs=Date.now()-requestStarted;EdgeRuntime.waitUntil((async()=>{const ackMs=await ackPromise;await recordMetric(Number(update.update_id),{db_ms:dbMs,render_ms:renderMs,ack_ms:Number(ackMs||0),response_ms:responseMs,telegram_ms:telegramMs,total_ms:responseMs,rpc_count:1,telegram_count:2,fast_path:1,edge_region:String(Deno.env.get('SB_REGION')||'unknown')})})());return Response.json(rendered)}
+        catch(error){telegramMs=Date.now()-tgStarted;console.error('telegram_fast_critical_edit',String(error));const responseMs=Date.now()-requestStarted;await scheduleBackground((async()=>{const ackMs=await ackPromise;await recordMetric(Number(update.update_id),{db_ms:dbMs,render_ms:renderMs,ack_ms:Number(ackMs||0),response_ms:responseMs,telegram_ms:telegramMs,total_ms:responseMs,rpc_count:1,telegram_count:2,fast_path:1,edge_region:String(Deno.env.get('SB_REGION')||'unknown')})})());return Response.json(rendered)}
        }
        const responseMs=Date.now()-requestStarted;
-       EdgeRuntime.waitUntil((async()=>{const ackMs=await ackPromise;await recordMetric(Number(update.update_id),{db_ms:dbMs,render_ms:renderMs,ack_ms:Number(ackMs||0),response_ms:responseMs,telegram_ms:telegramMs,total_ms:responseMs,rpc_count:1,telegram_count:2,fast_path:1,edge_region:String(Deno.env.get('SB_REGION')||'unknown')})})());
-       if(fast?.reward?.status==='rewarded')EdgeRuntime.waitUntil(telegram('sendMessage',{chat_id:Number(update.callback_query.message.chat.id),text:'💎 <b>30 Tage Premium kostenlos aktiviert</b>\n\nDein erstes Suchprofil ist erstellt und dir wurden 30 Tage Premium kostenlos gutgeschrieben.',parse_mode:'HTML'}).catch(e=>console.error('telegram_reward_notice',String(e))));
+       await scheduleBackground((async()=>{const ackMs=await ackPromise;await recordMetric(Number(update.update_id),{db_ms:dbMs,render_ms:renderMs,ack_ms:Number(ackMs||0),response_ms:responseMs,telegram_ms:telegramMs,total_ms:responseMs,rpc_count:1,telegram_count:2,fast_path:1,edge_region:String(Deno.env.get('SB_REGION')||'unknown')})})());
+       if(fast?.reward?.status==='rewarded')await scheduleBackground(telegram('sendMessage',{chat_id:Number(update.callback_query.message.chat.id),text:'💎 <b>30 Tage Premium kostenlos aktiviert</b>\n\nDein erstes Suchprofil ist erstellt und dir wurden 30 Tage Premium kostenlos gutgeschrieben.',parse_mode:'HTML'}).catch(e=>console.error('telegram_reward_notice',String(e))));
        return fast?.critical===true?Response.json({ok:true}):Response.json(rendered);
       }
     }
    }catch(error){console.error('telegram_fast_path',String(error))}
-   EdgeRuntime.waitUntil((async()=>{const delays=[0,40,80,140,220,320];let last:Response|null=null;for(const delay of delays){if(delay)await new Promise(resolve=>setTimeout(resolve,delay));last=await forwardToCore(body,expected,true);if(![409,503].includes(last.status))break;}if(last&&!last.ok)console.error('telegram_callback_core',last.status)})().catch(e=>console.error('telegram_callback_core',String(e))));
+   await scheduleBackground((async()=>{const delays=[0,40,80,140,220,320];let last:Response|null=null;for(const delay of delays){if(delay)await new Promise(resolve=>setTimeout(resolve,delay));last=await forwardToCore(body,expected,true);if(![409,503].includes(last.status))break;}if(last&&!last.ok)console.error('telegram_callback_core',last.status)})().catch(e=>console.error('telegram_callback_core',String(e))));
    return direct('answerCallbackQuery',{callback_query_id:callbackId});
   }
 
   if(callbackId){
-   EdgeRuntime.waitUntil((async()=>{const delays=[0,40,80,140,220,320];let last:Response|null=null;for(const delay of delays){if(delay)await new Promise(resolve=>setTimeout(resolve,delay));last=await forwardToCore(body,expected,true);if(![409,503].includes(last.status))break;}if(last&&!last.ok)console.error('telegram_callback_core',last.status)})().catch(e=>console.error('telegram_callback_core',String(e))));
+   await scheduleBackground((async()=>{const delays=[0,40,80,140,220,320];let last:Response|null=null;for(const delay of delays){if(delay)await new Promise(resolve=>setTimeout(resolve,delay));last=await forwardToCore(body,expected,true);if(![409,503].includes(last.status))break;}if(last&&!last.ok)console.error('telegram_callback_core',last.status)})().catch(e=>console.error('telegram_callback_core',String(e))));
    return direct('answerCallbackQuery',{callback_query_id:callbackId});
   }
   return forwardToCore(body,expected,false);

@@ -275,7 +275,7 @@ export async function handleCallback(query, user) {
         if (!isAdmin(user))
             return ack();
         if (data === "admin:list") {
-            EdgeRuntime.waitUntil(ack());
+            await ack();
             return adminUsers(user, chatId, messageId);
         }
         if (data.startsWith("admin:announcement-send:")) {
@@ -289,7 +289,7 @@ export async function handleCallback(query, user) {
             return cancelAnnouncement(user, chatId, messageId, announcementId);
         }
         if (data.startsWith("admin:user:")) {
-            EdgeRuntime.waitUntil(ack());
+            await ack();
             return adminUser(user, chatId, messageId, data.slice("admin:user:".length));
         }
         if (data.startsWith("admin:block:")) {
@@ -327,7 +327,7 @@ export async function handleCallback(query, user) {
         }
         if (data.startsWith("admin:delete:")) {
             const userId = data.slice("admin:delete:".length);
-            EdgeRuntime.waitUntil(ack());
+            await ack();
             return edit(chatId, messageId, "🗑 <b>Nutzer wirklich löschen?</b>\n\nSuchprofile, gespeicherte Inserate, Referral- und Abo-Zuordnungen werden dauerhaft gelöscht.", { inline_keyboard: [
                     [button("🗑 Ja, endgültig löschen", `admin:delete-confirm:${userId}`)],
                     [button("← Abbrechen", `admin:user:${userId}`)],
@@ -376,12 +376,12 @@ export async function handleCallback(query, user) {
             } catch (error) { console.error("save_button_refresh", String(error)); }
         }
         if (savedState === null) {
-            EdgeRuntime.waitUntil(ack());
+            await ack();
             return premium(user, chatId, messageId);
         }
         return ack(savedState ? "⭐ Gespeichert" : "Entfernt");
     }
-    EdgeRuntime.waitUntil(ack());
+    await ack();
     if (data === 'platforms' || data.startsWith('platforms:')) {
         if (!user.is_premium) {
             const text = "🔒 <b>Automatische Bewerbung</b>\n\n" +

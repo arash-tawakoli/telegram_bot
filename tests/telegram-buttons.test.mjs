@@ -33,12 +33,12 @@ test('supplied subscription avoids lookup while preserving free override and sub
  assert.equal((await scope.withPlan({},null)).is_premium,false);assert.equal(reads,0);
  await scope.withPlan({});assert.equal(reads,1);
 });
-test('navigation updates do not wait for empty Telegram acknowledgement; save result remains awaited',async()=>{
- const s=readFileSync(new URL('handlers.js',root),'utf8');let pendingResolve;const pending=new Promise(r=>pendingResolve=r);const tasks=[];let edited=false;
- const scope={Number,String,EdgeRuntime:{waitUntil:p=>tasks.push(p)},acknowledge:()=>pending,home:async()=>{edited=true}};
+test('navigation callbacks await acknowledgement without requiring EdgeRuntime',async()=>{
+ const s=readFileSync(new URL('handlers.js',root),'utf8');let acknowledged=false,edited=false;
+ const scope={Number,String,Promise,acknowledge:async()=>{acknowledged=true},home:async()=>{edited=true}};
  vm.runInNewContext(s.slice(s.indexOf('export async function handleCallback')).replace('export ',''),scope);
  await scope.handleCallback({id:'q',data:'home',message:{chat:{id:1},message_id:2}},{});
- assert.equal(edited,true);assert.equal(tasks.length,1);pendingResolve();await Promise.all(tasks);
+ assert.equal(acknowledged,true);assert.equal(edited,true);
 });
 
 

@@ -1,6 +1,20 @@
 import {db,SUPABASE_URL,secret,send,edit,button,telegram,esc} from './runtime.js';
 import {providerStaticMissing} from '../_shared/application-profile-adapters.ts';
 
+function scheduleBackground(task) {
+  const promise = Promise.resolve(task);
+  const runtime = globalThis.EdgeRuntime;
+  if (typeof runtime?.waitUntil === "function") {
+    try {
+      runtime.waitUntil(promise);
+      return Promise.resolve();
+    } catch (error) {
+      console.error("telegram_wait_until_unavailable", String(error));
+    }
+  }
+  return promise.then(() => undefined);
+}
+
 const privateOwner=(user,chat)=>chat?.type==='private'&&user.is_active
  && Number(chat.id)===Number(user.telegram_user_id)&&Number(chat.id)===Number(user.chat_id);
 
@@ -649,7 +663,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
    const next=!doc.send_with_auto_apply;
    const {error:updateError}=await db.from('applicant_documents').update({send_with_auto_apply:next,updated_at:new Date().toISOString()}).eq('id',doc.id).eq('user_id',user.id);
    if(updateError)throw Error('Dokumentauswahl konnte nicht gespeichert werden.');
-   if(!next)EdgeRuntime.waitUntil(applicationWorker('sync_documents',user.id,3).catch(()=>null));
+   if(!next)await scheduleBackground(applicationWorker('sync_documents',user.id,3).catch(()=>null));
   }
   return renderApplicantDocuments(user,chat,messageId);
  }
@@ -657,7 +671,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   if(!user.is_premium)return render('Bewerberdokumente für Auto-Bewerbungen benötigen Premium.',back);
   try{
    await deleteApplicantDocument(user.id,arg);
-   EdgeRuntime.waitUntil(applicationWorker('sync_documents',user.id,3).catch(()=>null));
+   await scheduleBackground(applicationWorker('sync_documents',user.id,3).catch(()=>null));
    return renderApplicantDocuments(user,chat,messageId,'Dokument gelöscht.');
   }catch(error){return renderApplicantDocuments(user,chat,messageId,`⚠️ ${esc(error.message)}`);}
  }

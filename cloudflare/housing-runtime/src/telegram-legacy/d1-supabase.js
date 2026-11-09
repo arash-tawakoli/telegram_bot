@@ -69,7 +69,7 @@ function outputRow(table, row) {
   };
   if (table === "search_profiles") {
     const criteria = json(row.criteria, {});
-    return { ...criteria, ...row, user_id: row.participant_id, is_active: bool(row.active), profile_slot: Number(criteria.profile_slot || 1), name: criteria.name || null, property_types: criteria.property_types || [] };
+    return { ...criteria, ...row, user_id: row.participant_id, is_active: bool(row.active), profile_slot: Number(row.profile_slot ?? criteria.profile_slot ?? 1), name: criteria.name || null, property_types: criteria.property_types || [] };
   }
   if (table === "applicant_profiles") return { ...profile, ...row, user_id: row.participant_id };
   if (table === "platform_connections") return { ...row, user_id: row.participant_id, credential_ciphertext: row.ciphertext, credential_iv: row.iv };
@@ -131,12 +131,40 @@ class Query {
   async mutate(kind) {
     if (kind === "DELETE") { const params=[]; const where=this.where(params); const result=await this.client.run(`DELETE FROM ${this.physical}${where?` WHERE ${where}`:""}`,params); return {data:[],error:null,count:result.count}; }
     if (kind === "UPDATE") { const entries=Object.entries(this.payload||{}); const params=entries.map(([,v])=>scalar(v)); const whereParams=[]; const where=this.where(whereParams); const sql=`UPDATE ${this.physical} SET ${entries.map(([k])=>`${mapColumn(this.table,k)}=?`).join(",")}${where?` WHERE ${where}`:""}`; const result=await this.client.run(sql,[...params,...whereParams]); return {data:[],error:null,count:result.count}; }
-    const rows=this.payload||[]; let data=[]; for(const row of rows){const mapped={...row}; if(this.table==='bot_users'){mapped.telegram_chat_id=mapped.chat_id; delete mapped.chat_id; mapped.status=mapped.is_active===false?'archived':'active'; delete mapped.is_active; mapped.telegram_state=JSON.stringify(mapped.onboarding_state||{}); delete mapped.onboarding_state; delete mapped.onboarding_step;} if(this.table==='search_profiles'){const criteria={...mapped}; delete criteria.id; delete criteria.user_id; delete criteria.participant_id; delete criteria.active; delete criteria.is_active; delete criteria.created_at; delete criteria.updated_at; mapped.criteria=JSON.stringify(criteria); mapped.participant_id=mapped.user_id||mapped.participant_id; mapped.active=mapped.is_active===false?0:1; delete mapped.user_id; delete mapped.is_active;} if(this.table==='applicant_profiles'){mapped.participant_id=mapped.user_id||mapped.participant_id; delete mapped.user_id; const profile={...mapped}; delete profile.participant_id; delete profile.updated_at; mapped.profile=JSON.stringify(profile);} for(const [logical,physical] of Object.entries(ALIASES[this.table]||{})){if(Object.prototype.hasOwnProperty.call(mapped,logical)){mapped[physical]=mapped[logical];delete mapped[logical];}} const keys=Object.keys(mapped); const vals=keys.map(k=>scalar(mapped[k])); const placeholders=keys.map(()=>"?").join(","); const conflict=this.conflict||"id"; const sql=`INSERT OR REPLACE INTO ${this.physical} (${keys.join(",")}) VALUES (${placeholders})`; const result=await this.client.run(sql,vals); if(this.returning) data.push(outputRow(this.table,mapped)); } return {data,error:null,count:rows.length};
+    const rows=this.payload||[]; let data=[]; for(const row of rows){const mapped={...row}; if(this.table==='bot_users'){mapped.telegram_chat_id=mapped.chat_id; delete mapped.chat_id; mapped.status=mapped.is_active===false?'archived':'active'; delete mapped.is_active; mapped.telegram_state=JSON.stringify(mapped.onboarding_state||{}); delete mapped.onboarding_state; delete mapped.onboarding_step;} if (this.table === "search_profiles") {
+      const criteria = { ...mapped };
+      const slot = Number(mapped.profile_slot ?? 1);
+      if (!Number.isInteger(slot) || slot < 1 || slot > 4) throw new Error("profile_slot_invalid");
+      for (const key of ["id", "user_id", "participant_id", "active", "is_active", "profile_slot", "created_at", "updated_at", "criteria"]) delete criteria[key];
+      mapped.criteria = JSON.stringify(criteria);
+      mapped.participant_id = mapped.user_id || mapped.participant_id;
+      mapped.profile_slot = slot;
+      mapped.active = mapped.is_active === false || mapped.active === false || mapped.active === 0 ? 0 : 1;
+      delete mapped.user_id;
+      delete mapped.is_active;
+    } if(this.table==='applicant_profiles'){mapped.participant_id=mapped.user_id||mapped.participant_id; delete mapped.user_id; const profile={...mapped}; delete profile.participant_id; delete profile.updated_at; mapped.profile=JSON.stringify(profile);} for(const [logical,physical] of Object.entries(ALIASES[this.table]||{})){if(Object.prototype.hasOwnProperty.call(mapped,logical)){mapped[physical]=mapped[logical];delete mapped[logical];}} const keys=Object.keys(mapped); const vals=keys.map(k=>scalar(mapped[k])); const placeholders=keys.map(()=>"?").join(","); const sql = this.table === "search_profiles" ? `INSERT INTO ${this.physical} (${keys.join(",")}) VALUES (${placeholders}) ON CONFLICT(participant_id,profile_slot) DO UPDATE SET ${keys.filter(k => !["id","participant_id","profile_slot","created_at","updated_at"].includes(k)).map(k => `${k}=excluded.${k}`).concat("updated_at=CURRENT_TIMESTAMP").join(",")}` : `INSERT OR REPLACE INTO ${this.physical} (${keys.join(",")}) VALUES (${placeholders})`; const result=await this.client.run(sql,vals); if(this.returning) data.push(outputRow(this.table,mapped)); } return {data,error:null,count:rows.length};
   }
 }
 
 export function createD1Supabase(db, env) {
-  const client = { run: async (query, params=[]) => { const result = params.length ? await db.prepare(query).bind(...params).all() : await db.prepare(query).all(); const rows=result.results||[]; rows.count=Number(result.meta?.changes||0); return rows; } };
+  const client = {
+    run: async (query, params = []) => {
+      const result = params.length ? await db.prepare(query).bind(...params).all() : await db.prepare(query).all();
+      const rows = result.results || [];
+      rows.count = Number(result.meta?.changes || 0);
+      return rows;
+    },
+    batch: async (statements = []) => {
+      const prepared = statements.map(({ query, params = [] }) => {
+        const statement = db.prepare(query);
+        return params.length ? statement.bind(...params) : statement;
+      });
+      if (typeof db.batch === "function") return db.batch(prepared);
+      const results = [];
+      for (const statement of prepared) results.push(await statement.all());
+      return results;
+    },
+  };
   return { from: table => new Query(client, table), rpc: async (name,args={}) => rpc(client, env, name, args), storage: { from: () => ({ remove: async () => ({ data: [], error: null }), upload: async () => ({ data: null, error: null }) }) } };
 }
 
@@ -145,7 +173,36 @@ async function rpc(client, env, name, args) {
   if (name === "prepare_telegram_update") { const payload=args.p_payload||{}; const from=payload.callback_query?.from||payload.message?.from; const chat=payload.callback_query?.message?.chat||payload.message?.chat; if(!from?.id||!chat?.id)return{data:null,error:new Error("telegram_identity_invalid")}; const found=await client.run("SELECT * FROM participants WHERE telegram_user_id=? LIMIT 1",[from.id]); let user=found[0]; if(user) { await client.run("UPDATE participants SET telegram_chat_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",[chat.id,user.id]); } else { const id=crypto.randomUUID(); await client.run("INSERT INTO participants(id,first_name,last_name,telegram_user_id,telegram_chat_id) VALUES(?,?,?,?,?)",[id,from.first_name||"Teilnehmer",from.last_name||"Unbekannt",from.id,chat.id]); await client.run("INSERT OR IGNORE INTO application_preferences(participant_id) VALUES(?)",[id]); user=(await client.run("SELECT * FROM participants WHERE id=?",[id]))[0]; } return { data:{claim:1,is_new_user:!found[0],user:{...user,chat_id:user.telegram_chat_id,is_active:user.status==='active',onboarding_state:JSON.parse(user.telegram_state||'{}'),onboarding_step:null,telegram_user_id:user.telegram_user_id},subscription:null}, error:null}; }
   if (name === "finish_ui_update") return { data:true,error:null };
   if (name === "save_ui_state") { const state=args.p_state||{}; state._step=args.p_step; await client.run("UPDATE participants SET telegram_state=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",[JSON.stringify(state),args.p_user]); return {data:state,error:null}; }
-  if (name === "save_search_profile_ui") { const v=args.p_values||{}; const id=crypto.randomUUID(); const criteria={...v}; delete criteria.profile_slot; await client.run("INSERT OR REPLACE INTO search_profiles(id,participant_id,criteria,active) VALUES(?,?,?,1)",[id,args.p_user,JSON.stringify(criteria)]); const ids=Array.isArray(v.source_ids)?v.source_ids:[1,3,23,29,34,35,66,69,71]; for(const source of ids) await client.run("INSERT OR IGNORE INTO source_links(search_profile_id,source_id) VALUES(?,?)",[id,source]); return {data:{id},error:null}; }
+  if (name === "save_search_profile_ui") {
+    const v = args.p_values || {};
+    const slot = Number(v.profile_slot ?? 1);
+    if (!Number.isInteger(slot) || slot < 1 || slot > 4) return { data: null, error: new Error("profile_slot_invalid") };
+    if (!args.p_user) return { data: null, error: new Error("search_profile_user_missing") };
+    const criteria = { ...v };
+    delete criteria.profile_slot;
+    const ids = Array.isArray(v.source_ids)
+      ? [...new Set(v.source_ids.map(Number).filter(source => ALLOWLIST.includes(source)))]
+      : ALLOWLIST;
+    const statements = [
+      {
+        query: "INSERT INTO search_profiles(id,participant_id,profile_slot,criteria,active) VALUES(?,?,?,?,1) ON CONFLICT(participant_id,profile_slot) DO UPDATE SET criteria=excluded.criteria,active=1,updated_at=CURRENT_TIMESTAMP",
+        params: [crypto.randomUUID(), args.p_user, slot, JSON.stringify(criteria)],
+      },
+      {
+        query: "DELETE FROM source_links WHERE search_profile_id=(SELECT id FROM search_profiles WHERE participant_id=? AND profile_slot=? LIMIT 1)",
+        params: [args.p_user, slot],
+      },
+      ...ids.map(source => ({
+        query: "INSERT OR IGNORE INTO source_links(search_profile_id,source_id) SELECT id,? FROM search_profiles WHERE participant_id=? AND profile_slot=? LIMIT 1",
+        params: [source, args.p_user, slot],
+      })),
+    ];
+    await client.batch(statements);
+    const saved = (await client.run("SELECT id FROM search_profiles WHERE participant_id=? AND profile_slot=? LIMIT 1", [args.p_user, slot]))[0];
+    return saved?.id
+      ? { data: { id: saved.id, profile_slot: slot }, error: null }
+      : { data: null, error: new Error("search_profile_save_failed") };
+  }
   if (name === "application_profile_missing_fields") { const row=(await client.run("SELECT profile FROM applicant_profiles WHERE participant_id=?",[args.p_user]))[0]; const p=JSON.parse(row?.profile||"{}"); const missing=[]; for(const k of ["first_name","last_name","email","phone","street","house_number","postcode","city"])if(!String(p[k]||"").trim())missing.push(k); return {data:missing,error:null}; }
   if (name === "set_application_enabled_shared") { await client.run("INSERT OR REPLACE INTO application_preferences(participant_id,enabled) VALUES(?,?)",[args.p_user,args.p_enabled?1:0]); return {data:{enabled:!!args.p_enabled},error:null}; }
   if (name === "set_application_provider_enabled_shared") { const col={immoscout:"immoscout_enabled",immoscout24:"immoscout_enabled",immowelt:"immowelt_enabled",immomio:"immomio_enabled"}[args.p_provider]; if(!col)return{data:null,error:new Error("provider_not_allowlisted")}; await client.run(`INSERT OR IGNORE INTO application_preferences(participant_id) VALUES(?)`,[args.p_user]); await client.run(`UPDATE application_preferences SET ${col}=? WHERE participant_id=?`,[args.p_enabled?1:0,args.p_user]); return {data:{enabled:!!args.p_enabled},error:null}; }

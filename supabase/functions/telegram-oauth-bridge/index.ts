@@ -1,5 +1,20 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
+function scheduleBackground(task: Promise<unknown>): Promise<void> {
+  const promise = Promise.resolve(task);
+  const runtime = (globalThis as any).EdgeRuntime;
+  if (typeof runtime?.waitUntil === "function") {
+    try {
+      runtime.waitUntil(promise);
+      return Promise.resolve();
+    } catch (error) {
+      console.error("telegram_wait_until_unavailable", String(error));
+    }
+  }
+  return promise.then(() => undefined);
+}
+
+
 const URL=Deno.env.get('SUPABASE_URL')!;
 const KEYS=JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')||'{}');
 const KEY=KEYS.default||Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -76,8 +91,8 @@ Deno.serve(async req=>{
   const data=String(update?.callback_query?.data||'');
   if(update?.callback_query?.id&&['platforms:login:1','platforms:login:3','platforms:login:4'].includes(data)){
    const provider:'immomio'|'immoscout'|'immowelt'=data.endsWith(':3')?'immomio':data.endsWith(':4')?'immowelt':'immoscout';
-   EdgeRuntime.waitUntil(telegram('answerCallbackQuery',{callback_query_id:String(update.callback_query.id)}).catch(()=>{}));
-   EdgeRuntime.waitUntil(handleProviderLogin(update,provider).catch(e=>console.error('provider_login_background',String(e))));
+   await scheduleBackground(telegram('answerCallbackQuery',{callback_query_id:String(update.callback_query.id)}).catch(()=>{}));
+   await scheduleBackground(handleProviderLogin(update,provider).catch(e=>console.error('provider_login_background',String(e))));
    return Response.json({ok:true});
   }
   return proxy(body,expected);
