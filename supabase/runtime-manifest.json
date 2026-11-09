@@ -1058,6 +1058,14 @@
         {
           "path": "supabase/functions/notification-dispatcher/availability.ts",
           "reason": "The staged availability policy removes the legacy native Kleinanzeigen offer lane and an existing source-specific freshness rule while the Cloudflare provider migration is incomplete. Not deployed; preserve the live Supabase availability behavior until connector parity is verified."
+        },
+        {
+          "path": "supabase/functions/notification-dispatcher/newness.ts",
+          "reason": "The staged newness policy removes the legacy Kleinanzeigen fast-lane proof path. This is not deployed; preserve the live Supabase freshness rules until the Cloudflare Kleinanzeigen connector and freshness proof are complete."
+        },
+        {
+          "path": "supabase/functions/notification-dispatcher/source-facts.ts",
+          "reason": "The staged source-facts parser removes Kleinanzeigen image and address extraction while adding replacement provider fields. This is not deployed; retain the live parser until Cloudflare Kleinanzeigen parity is verified."
         }
       ]
     },
