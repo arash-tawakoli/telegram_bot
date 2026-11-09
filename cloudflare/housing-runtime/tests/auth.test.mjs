@@ -158,3 +158,88 @@ test("legacy passwords shorter than the D1 minimum require recovery instead of a
     globalThis.fetch = originalFetch;
   }
 });
+
+
+test("recovery access token updates the Cloudflare portal password hash and revokes existing sessions", async () => {
+  const originalFetch = globalThis.fetch;
+  const member = {
+    id: "member-super-admin",
+    password_hash: "migration_required$legacy-marker",
+  };
+  const calls = [];
+  let sessionsRevoked = false;
+  const sql = async (parts, ...values) => {
+    const query = parts.join("?").replace(/\\s+/g, " ");
+    calls.push({ query, values });
+    if (query.includes("SELECT id FROM housing.portal_members WHERE lower(email)")) {
+      return [{ id: member.id }];
+    }
+    if (query.includes("UPDATE housing.portal_members SET password_hash")) {
+      member.password_hash = values[0];
+      return [{ id: member.id }];
+    }
+    if (query.includes("UPDATE housing.portal_sessions SET revoked_at")) {
+      sessionsRevoked = true;
+      return [];
+    }
+    return [];
+  };
+  const password = "new temporary password 123";
+  try {
+    globalThis.fetch = async (url, init) => {
+      assert.equal(String(url), "https://dpmohkrwdlicexwcrqfy.supabase.co/auth/v1/user");
+      assert.equal(init.method, "GET");
+      assert.equal(init.headers.apikey, "sb_publishable_test-key");
+      assert.equal(init.headers.Authorization, "Bearer recovery-access-token");
+      return new Response(JSON.stringify({ id: "auth-user", email: "arash@nexalabs.de" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    };
+
+    const response = await handleAuth(sql, new Request("https://housing-runtime.test/edge/auth", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action: "password_reset_complete", access_token: "recovery-access-token", password }),
+    }), {
+      SUPABASE_URL: "https://dpmohkrwdlicexwcrqfy.supabase.co",
+      SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test-key",
+    });
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { ok: true });
+    assert.match(member.password_hash, /^pbkdf2_sha256\\$/);
+    assert.equal(await verifyPassword(password, member.password_hash), true);
+    assert.equal(sessionsRevoked, true);
+    assert.ok(calls.some(call => call.query.includes("UPDATE housing.portal_members SET password_hash")));
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("expired recovery access tokens cannot change the portal password", async () => {
+  const originalFetch = globalThis.fetch;
+  const member = { id: "member-super-admin", password_hash: "migration_required$legacy-marker" };
+  const calls = [];
+  const sql = async (parts, ...values) => {
+    calls.push({ query: parts.join("?").replace(/\\s+/g, " "), values });
+    return [];
+  };
+  try {
+    globalThis.fetch = async () => new Response(JSON.stringify({ msg: "invalid JWT" }), { status: 401 });
+    const response = await handleAuth(sql, new Request("https://housing-runtime.test/edge/auth", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ action: "password_reset_complete", access_token: "expired-token", password: "new temporary password 123" }),
+    }), {
+      SUPABASE_URL: "https://dpmohkrwdlicexwcrqfy.supabase.co",
+      SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test-key",
+    });
+    assert.equal(response.status, 401);
+    assert.deepEqual(await response.json(), { error: "recovery_expired" });
+    assert.equal(member.password_hash, "migration_required$legacy-marker");
+    assert.equal(calls.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
