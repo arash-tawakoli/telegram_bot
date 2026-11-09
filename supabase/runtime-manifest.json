@@ -245,6 +245,10 @@
         {
           "path": "supabase/functions/_shared/application-profile-adapters.ts",
           "reason": "Provider profile mapping changes are staged for the Cloudflare housing cutover. The current source removes Kleinanzeigen mapping; do not deploy until Kleinanzeigen parity is restored and tested."
+        },
+        {
+          "path": "supabase/functions/coach-api/index.ts",
+          "reason": "The staged Cloudflare portal cutover removes Kleinanzeigen from the legacy coach API provider registry and changes provider connection handling. This source is not deployed; do not deploy until Cloudflare Kleinanzeigen login, profile, and application parity is complete."
         }
       ],
       "observed_live_at": "2026-10-27T22:24:41.783Z"
