@@ -77,6 +77,29 @@ function isAuthorized(request, env) {
   return request.headers.get("authorization") === `Bearer ${expected}`;
 }
 
+const TELEGRAM_WEBHOOK_URL = "https://intern.traumwohnunghamburg.de/edge/telegram/webhook";
+
+export async function ensureTelegramWebhook(env) {
+  const token = String(env.TELEGRAM_BOT_TOKEN || "");
+  const secret = String(env.TELEGRAM_WEBHOOK_SECRET || "");
+  if (!token || !secret) throw new Error("telegram_webhook_credentials_missing");
+  const response = await fetch(`https://api.telegram.org/bot${token}/setWebhook`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      url: TELEGRAM_WEBHOOK_URL,
+      secret_token: secret,
+      allowed_updates: ["message", "callback_query"],
+      max_connections: 40,
+    }),
+  });
+  const result = await response.json().catch(() => null);
+  if (!response.ok || result?.ok !== true) {
+    throw new Error(`telegram_set_webhook_failed_${response.status}`);
+  }
+  return { ok: true, url: TELEGRAM_WEBHOOK_URL };
+}
+
 async function telegramWebhook(request, env) {
   const expected = env.TELEGRAM_WEBHOOK_SECRET;
   if (!expected || !await sameSecret(request.headers.get("x-telegram-bot-api-secret-token") || "", expected)) {
@@ -551,6 +574,15 @@ export default {
 
   async scheduled(_controller, env, ctx) {
     ctx.waitUntil((async () => {
+      if (env.PREVIEW_MODE !== "1" && env.TELEGRAM_WEBHOOK_REGISTER === "1") {
+        try {
+          const result = await ensureTelegramWebhook(env);
+          console.log("telegram_webhook_registered", JSON.stringify(result));
+        } catch (error) {
+          console.error("telegram_webhook_registration_failed", String(error?.message || "unknown").slice(0, 120));
+        }
+      }
+
       try {
         const deleted = await runRetention(env);
         console.log("housing_listing_retention_completed", JSON.stringify({ deleted }));
