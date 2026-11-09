@@ -89,6 +89,8 @@ test('runtime manifest separates archived source versions from observed live dep
   const notifications = manifest.functions.find(row => row.slug === 'notification-dispatcher');
   assert.ok(notifications.known_source_drift.some(row => row.path === 'supabase/functions/notification-dispatcher/index.ts' && row.reason.includes('not deployed')));
   assert.ok(notifications.known_source_drift.some(row => row.path === 'supabase/functions/notification-dispatcher/availability.ts' && row.reason.includes('Not deployed')));
+  assert.ok(notifications.known_source_drift.some(row => row.path === 'supabase/functions/notification-dispatcher/newness.ts' && row.reason.includes('not deployed')));
+  assert.ok(notifications.known_source_drift.some(row => row.path === 'supabase/functions/notification-dispatcher/source-facts.ts' && row.reason.includes('not deployed')));
   assert.equal(app.version, 336);
   assert.equal(app.observed_live_version, 337);
   assert.equal(app.observed_live_artifact_sha256, '07a7fc8709e9db2f2621f23a656bc13ce095534958b952d5a4230d0383f45334');
