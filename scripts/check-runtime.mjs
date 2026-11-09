@@ -45,7 +45,7 @@ export async function verifyRuntime(runtime,read=readFile,options={}){
  return {hashWarnings};
 }
 export async function verifyArchivedRuntime(runtime,read=readFile){
- const tracked=(runtime.functions||[]).filter(fn=>fn.source_archive_file).map(fn=>({...fn,archive_file:fn.source_archive_file,version:fn.observed_live_version??fn.version,verify_jwt:fn.observed_live_verify_jwt??fn.verify_jwt,artifact_sha256:fn.observed_live_artifact_sha256,source_file_count:fn.source_archive_file_count,archive_status:fn.source_archive_status}));
+ const tracked=(runtime.functions||[]).filter(fn=>fn.source_archive_file).map(fn=>({...fn,archive_file:fn.source_archive_file,version:fn.version,verify_jwt:fn.verify_jwt,artifact_sha256:fn.observed_live_artifact_sha256??fn.observed_artifact_sha256,source_file_count:fn.source_archive_file_count,archive_status:fn.source_archive_status}));
  const entries=[...tracked,...(runtime.archived_functions||[])];
  const all=new Set((runtime.functions||[]).map(fn=>fn.slug));
  const archived=new Set();
