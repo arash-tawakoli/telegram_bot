@@ -169,7 +169,7 @@ test("recovery access token updates the Cloudflare portal password hash and revo
   const calls = [];
   let sessionsRevoked = false;
   const sql = async (parts, ...values) => {
-    const query = parts.join("?").replace(/\\s+/g, " ");
+    const query = parts.join("?").replace(/\s+/g, " ");
     calls.push({ query, values });
     if (query.includes("SELECT id FROM housing.portal_members WHERE lower(email)")) {
       return [{ id: member.id }];
@@ -208,7 +208,7 @@ test("recovery access token updates the Cloudflare portal password hash and revo
 
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), { ok: true });
-    assert.match(member.password_hash, /^pbkdf2_sha256\\$/);
+    assert.match(member.password_hash, /^pbkdf2_sha256\$/);
     assert.equal(await verifyPassword(password, member.password_hash), true);
     assert.equal(sessionsRevoked, true);
     assert.ok(calls.some(call => call.query.includes("UPDATE housing.portal_members SET password_hash")));
@@ -222,7 +222,7 @@ test("expired recovery access tokens cannot change the portal password", async (
   const member = { id: "member-super-admin", password_hash: "migration_required$legacy-marker" };
   const calls = [];
   const sql = async (parts, ...values) => {
-    calls.push({ query: parts.join("?").replace(/\\s+/g, " "), values });
+    calls.push({ query: parts.join("?").replace(/\s+/g, " "), values });
     return [];
   };
   try {
