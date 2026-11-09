@@ -293,7 +293,7 @@ async function verifyMigratedSupabasePassword(email, password, env) {
 }
 
 async function verifyRecoveryAccessToken(accessToken, env) {
-  const baseUrl = String(env.SUPABASE_URL || "").replace(/\\/+$/, "");
+  const baseUrl = String(env.SUPABASE_URL || "").replace(/\/+$/, "");
   const publishableKey = String(env.SUPABASE_PUBLISHABLE_KEY || "");
   if (!baseUrl || !publishableKey) return { status: "unavailable" };
 
