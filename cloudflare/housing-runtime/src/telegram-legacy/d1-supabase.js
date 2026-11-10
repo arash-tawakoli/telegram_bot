@@ -289,6 +289,8 @@ async function rpc(client, env, name, args) {
     }
     if (enabled) {
       if (bool(user.auto_apply_enabled)) return { data: null, error: new Error("test_mode_global_auto_apply_active") };
+      const preferences = (await client.run("SELECT enabled FROM application_preferences WHERE participant_id=? LIMIT 1", [args.p_user]))[0];
+      if (bool(preferences?.enabled)) return { data: null, error: new Error("test_mode_global_auto_apply_active") };
       const missingResult = await rpc(client, env, "application_profile_missing_fields", { p_user: args.p_user });
       if (missingResult.error || missingResult.data.length) return { data: null, error: new Error("test_mode_profile_incomplete") };
       const activeSearch = await client.run(
