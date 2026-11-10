@@ -94,9 +94,22 @@ class Query {
   select(spec = "*", options = {}) { if (this.operation === "insert" || this.operation === "upsert") this.returning = true; this.selectSpec = spec; this.countMode = options.count === "exact"; this.head = options.head === true; return this; }
   eq(column, value) { this.filters.push([mapColumn(this.table, column), "=", value]); return this; }
   neq(column, value) { this.filters.push([mapColumn(this.table, column), "<>", value]); return this; }
+  gt(column, value) { this.filters.push([mapColumn(this.table, column), ">", value]); return this; }
   gte(column, value) { this.filters.push([mapColumn(this.table, column), ">=", value]); return this; }
+  lt(column, value) { this.filters.push([mapColumn(this.table, column), "<", value]); return this; }
   lte(column, value) { this.filters.push([mapColumn(this.table, column), "<=", value]); return this; }
-  is(column, value) { this.filters.push([mapColumn(this.table, column), value === null ? "IS" : "IS NOT", null]); return this; }
+  is(column, value) { this.filters.push([mapColumn(this.table, column), value === null ? "IS" : "=", value]); return this; }
+  not(column, operator, value) {
+    const op = String(operator || "").toLowerCase();
+    if (op === "is" && value === null) this.filters.push([mapColumn(this.table, column), "IS NOT", null]);
+    else if (op === "eq") this.filters.push([mapColumn(this.table, column), "<>", value]);
+    else if (op === "gt") this.filters.push([mapColumn(this.table, column), "<=", value]);
+    else if (op === "gte") this.filters.push([mapColumn(this.table, column), "<", value]);
+    else if (op === "lt") this.filters.push([mapColumn(this.table, column), ">=", value]);
+    else if (op === "lte") this.filters.push([mapColumn(this.table, column), ">", value]);
+    else throw new Error("query_operator_not_supported");
+    return this;
+  }
   in(column, values) { this.filters.push([mapColumn(this.table, column), "IN", values]); return this; }
   or() { return this; }
   order(column, options = {}) { this.orders.push(`${mapColumn(this.table, column)} ${options.ascending === false ? "DESC" : "ASC"}`); return this; }
