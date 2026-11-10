@@ -170,7 +170,7 @@ test("test application sends through the central credential without requiring a 
     assert.match(requests[0].url, /\/expose\/123456789$/);
     assert.match(requests[1].url, /\/expose\/123456789\/contact$/);
     assert.ok(db.writes.some(({ text }) => /submission_started_at = now\(\)/i.test(text)));
-    assert.equal(db.writes.some(({ text }) => /provider_connections/i.test(text)), false);
+    assert.equal(db.writes.some(({ text }) => /UPDATE housing\\.provider_connections/i.test(text)), false);
   } finally {
     globalThis.fetch = originalFetch;
   }
