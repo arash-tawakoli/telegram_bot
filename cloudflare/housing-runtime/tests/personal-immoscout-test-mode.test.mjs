@@ -71,9 +71,9 @@ function sqlFor(row, { reserve = true } = {}) {
   const query = async (strings, ...values) => {
     const text = strings.join("?");
     writes.push({ text, values });
-    if (/SELECT a\\.id/i.test(text)) return row ? [row] : [];
-    if (/UPDATE housing\\.applications SET status = 'processing'/i.test(text)) return row ? [{ id: row.id }] : [];
-    if (/SET submission_started_at = now\\(\\)/i.test(text)) return reserve ? [{ id: row?.id || "app-test-1" }] : [];
+    if (/SELECT a\.id/i.test(text)) return row ? [row] : [];
+    if (/UPDATE housing\.applications SET status = 'processing'/i.test(text)) return row ? [{ id: row.id }] : [];
+    if (/SET submission_started_at = now\(\)/i.test(text)) return reserve ? [{ id: row?.id || "app-test-1" }] : [];
     return [];
   };
   query.begin = async (callback) => callback(query);
@@ -95,7 +95,7 @@ test("matching queues a separate ImmoScout test application only for an opted-in
   const sql = async (strings, ...values) => {
     const text = strings.join("?");
     calls.push({ text, values });
-    if (/SELECT DISTINCT sp\\.participant_id/i.test(text)) {
+    if (/SELECT DISTINCT sp\.participant_id/i.test(text)) {
       return [{
         participant_id: "owner-1",
         criteria: JSON.stringify({ max_warm_rent: 1800 }),
@@ -105,12 +105,12 @@ test("matching queues a separate ImmoScout test application only for an opted-in
         auto_apply_enabled: 0,
       }];
     }
-    if (/INSERT INTO housing\\.applications/i.test(text)) return [{ id: "app-test-1" }];
+    if (/INSERT INTO housing\.applications/i.test(text)) return [{ id: "app-test-1" }];
     return [];
   };
   const queued = await queueMatches(sql, "offer-1", 1, "1:external:123", { warm_rent: 900, rooms: 2, area_sqm: 65 });
   assert.equal(queued, 1);
-  const insert = calls.find((call) => /INSERT INTO housing\\.applications/i.test(call.text));
+  const insert = calls.find((call) => /INSERT INTO housing\.applications/i.test(call.text));
   assert.ok(insert);
   assert.match(insert.text, /test_mode/);
   assert.match(insert.text, /test_auto_apply_enabled = true/);
@@ -124,7 +124,7 @@ test("matching never queues the personal ImmoScout test path for another provide
     const sql = async (strings, ...values) => {
       const text = strings.join("?");
       calls.push({ text, values });
-      if (/SELECT DISTINCT sp\\.participant_id/i.test(text)) {
+      if (/SELECT DISTINCT sp\.participant_id/i.test(text)) {
         return [{
           participant_id: "other-user",
           criteria: "{}",
@@ -137,7 +137,7 @@ test("matching never queues the personal ImmoScout test path for another provide
       return [];
     };
     await queueMatches(sql, "offer-1", sourceId, "hash", {});
-    assert.equal(calls.some((call) => /INSERT INTO housing\\.applications/i.test(call.text)), false);
+    assert.equal(calls.some((call) => /INSERT INTO housing\.applications/i.test(call.text)), false);
   }
 });
 
@@ -164,9 +164,9 @@ test("test application sends through the central credential without requiring a 
     assert.equal(result.body.status, "sent");
     assert.equal(result.body.test_mode, true);
     assert.equal(requests.length, 2);
-    assert.match(requests[0].url, /\\/expose\\/123456789$/);
-    assert.match(requests[1].url, /\\/expose\\/123456789\\/contact$/);
-    assert.ok(db.writes.some(({ text }) => /submission_started_at = now\\(\\)/i.test(text)));
+    assert.match(requests[0].url, /\/expose\/123456789$/);
+    assert.match(requests[1].url, /\/expose\/123456789\/contact$/);
+    assert.ok(db.writes.some(({ text }) => /submission_started_at = now\(\)/i.test(text)));
     assert.equal(db.writes.some(({ text }) => /provider_connections/i.test(text)), false);
   } finally {
     globalThis.fetch = originalFetch;
