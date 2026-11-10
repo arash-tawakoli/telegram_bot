@@ -21,7 +21,7 @@ function berlinDayStartSql(now = new Date()) {
     timeZone: "Europe/Berlin", timeZoneName: "shortOffset", hour: "2-digit", hourCycle: "h23",
   }).formatToParts(utcMidnight);
   const label = offsetParts.find((entry) => entry.type === "timeZoneName")?.value || "GMT+0";
-  const match = label.match(/GMT([+-])(\\d{1,2})(?::?(\\d{2}))?/);
+  const match = label.match(/GMT([+-])(\d{1,2})(?::?(\d{2}))?/);
   const offset = match ? (match[1] === "-" ? -1 : 1) * (Number(match[2]) * 60 + Number(match[3] || 0)) : 0;
   return new Date(utcMidnight.getTime() - offset * 60_000).toISOString().replace("T", " ").replace("Z", "").slice(0, 19);
 }
