@@ -135,7 +135,7 @@ export async function processHousingApplication(sql, env, request) {
 
   if (application.test_mode) {
     if (provider !== "immoscout24" || !application.test_auto_apply_allowed || !application.test_auto_apply_enabled
-      || application.auto_apply_enabled || ![1, 69].includes(Number(application.source_id))) {
+      || application.auto_apply_enabled || application.preferences_enabled || ![1, 69].includes(Number(application.source_id))) {
       return fail("manual_required", "test_mode_not_authorized");
     }
     const missing = missingApplicantFields(application.profile);
