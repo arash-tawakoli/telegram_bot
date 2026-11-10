@@ -57,7 +57,12 @@ function fakeD1({ centralEnabled = 0, complete = true, testEnabled = false, tele
             },
           };
         },
-        all: async () => ({ results: [], meta: { changes: 0 } }),
+        all: async () => {
+          if (query.startsWith("SELECT account_hint,status,enabled,ciphertext,iv FROM central_credentials")) {
+            return { results: [{ account_hint: "arash@nexalabs.de", status: "connected", enabled: centralEnabled, ciphertext: "encrypted", iv: "iv" }], meta: { changes: 0 } };
+          }
+          return { results: [], meta: { changes: 0 } };
+        },
       };
     },
   };
