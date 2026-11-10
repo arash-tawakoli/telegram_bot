@@ -156,6 +156,19 @@ export async function processHousingApplication(sql, env, request) {
               AND q.test_mode = true
               AND q.submission_started_at >= ${berlinDayStartSql()}
           ) < ${dailyLimit}
+          AND EXISTS (
+            SELECT 1 FROM housing.participants p
+            WHERE p.id = ${application.participant_id}
+              AND p.status = 'active'
+              AND p.test_auto_apply_allowed = true
+              AND p.test_auto_apply_enabled = true
+              AND p.auto_apply_enabled = false
+          )
+          AND NOT EXISTS (
+            SELECT 1 FROM housing.application_preferences pref
+            WHERE pref.participant_id = ${application.participant_id}
+              AND pref.enabled = true
+          )
         RETURNING id
       `;
       submissionStarted = reserved.length > 0;
