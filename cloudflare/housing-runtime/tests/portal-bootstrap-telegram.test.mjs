@@ -24,7 +24,12 @@ function fakeDb({ telegramId = 8538226539, adminHash = "migration_required$seed"
             },
           };
         },
-        all: async () => ({ results: [], meta: { changes: 0 } }),
+        all: async () => {
+          if (query.startsWith("SELECT id,password_hash FROM portal_members")) {
+            return { results: [{ id: "admin-1", password_hash: adminHash }], meta: { changes: 0 } };
+          }
+          return { results: [], meta: { changes: 0 } };
+        },
       };
     },
   };
