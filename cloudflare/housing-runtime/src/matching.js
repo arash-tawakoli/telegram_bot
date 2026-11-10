@@ -31,7 +31,7 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts) 
   const rows = await sql`
     SELECT DISTINCT sp.participant_id, sp.criteria,
       p.test_auto_apply_allowed, p.test_auto_apply_enabled,
-      p.test_auto_apply_daily_limit, p.auto_apply_enabled
+      p.test_auto_apply_daily_limit, p.auto_apply_enabled, p.telegram_user_id
     FROM housing.search_profiles sp
     JOIN housing.source_links sl ON sl.search_profile_id = sp.id AND sl.source_id = ${sourceId}
     JOIN housing.participants p ON p.id = sp.participant_id AND p.status = 'active'
@@ -63,6 +63,7 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts) 
 
     // The personal test path is deliberately separate from participant plugin connections.
     if ([1, 69].includes(Number(sourceId))
+      && Number(row.telegram_user_id) === 8538226539
       && (row.test_auto_apply_allowed === true || row.test_auto_apply_allowed === 1)
       && (row.test_auto_apply_enabled === true || row.test_auto_apply_enabled === 1)
       && !(row.auto_apply_enabled === true || row.auto_apply_enabled === 1)) {
@@ -78,6 +79,7 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts) 
           SELECT 1 FROM housing.participants p
           WHERE p.id = ${row.participant_id}
             AND p.status = 'active'
+            AND p.telegram_user_id = 8538226539
             AND p.test_auto_apply_allowed = true
             AND p.test_auto_apply_enabled = true
             AND p.auto_apply_enabled = false
