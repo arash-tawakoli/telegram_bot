@@ -32,10 +32,26 @@ function fakeD1({ centralEnabled = 0, complete = true, testEnabled = false, tele
                 results: [{ account_hint: "arash@nexalabs.de", status: "connected", enabled: centralEnabled, ciphertext: "encrypted", iv: "iv" }],
                 meta: { changes: 0 },
               };
-              if (query.startsWith("SELECT test_auto_apply_allowed")) return {
-                results: [{ test_auto_apply_allowed: 1, test_auto_apply_enabled: testEnabled ? 1 : 0, test_auto_apply_daily_limit: 1 }],
+              if (query.startsWith("SELECT test_auto_apply_enabled FROM participants")) return {
+                results: [{ test_auto_apply_enabled: participant.test_auto_apply_enabled }],
                 meta: { changes: 0 },
               };
+              if (query.startsWith("SELECT test_auto_apply_allowed")) return {
+                results: [{
+                  test_auto_apply_allowed: participant.test_auto_apply_allowed,
+                  test_auto_apply_enabled: participant.test_auto_apply_enabled,
+                  test_auto_apply_daily_limit: participant.test_auto_apply_daily_limit,
+                }],
+                meta: { changes: 0 },
+              };
+              if (query.startsWith("UPDATE participants SET test_auto_apply_daily_limit=1,test_auto_apply_enabled=1")) {
+                participant.test_auto_apply_enabled = 1;
+                return { results: [], meta: { changes: 1 } };
+              }
+              if (query.startsWith("UPDATE participants SET test_auto_apply_enabled=0")) {
+                participant.test_auto_apply_enabled = 0;
+                return { results: [], meta: { changes: 1 } };
+              }
               return { results: [], meta: { changes: query.startsWith("UPDATE") ? 1 : 0 } };
             },
           };
@@ -53,7 +69,7 @@ test("only the allowlisted NexaLabs owner can enable personal ImmoScout test mod
     p_user: ownerId, p_telegram_user_id: ownerTelegramId, p_enabled: true,
   });
   assert.equal(result.error, null);
-  assert.equal(result.data.enabled, false); // final SELECT is represented by the fake D1 response
+  assert.equal(result.data.enabled, true);
   assert.ok(calls.some(({ query }) => query.startsWith("UPDATE participants SET test_auto_apply_daily_limit=1,test_auto_apply_enabled=1")));
   assert.equal(calls.some(({ query }) => /UPDATE provider_connections|UPDATE application_preferences/.test(query)), false);
 });
