@@ -317,10 +317,6 @@ async function rpc(client, env, name, args) {
         "UPDATE applications SET status='failed',last_error='test_mode_disabled',updated_at=CURRENT_TIMESTAMP WHERE participant_id=? AND test_mode=1 AND status='pending'",
         [args.p_user],
       );
-      await client.run(
-        "UPDATE jobs SET status='failed',updated_at=CURRENT_TIMESTAMP WHERE kind='application' AND status='queued' AND json_extract(payload,'$.participant_id')=?",
-        [args.p_user],
-      );
     }
     const updated = (await client.run(
       "SELECT test_auto_apply_allowed,test_auto_apply_enabled,test_auto_apply_daily_limit,test_auto_apply_enabled_at,test_auto_apply_disabled_at FROM participants WHERE id=?",
