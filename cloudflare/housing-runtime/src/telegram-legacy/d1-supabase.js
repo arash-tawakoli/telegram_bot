@@ -82,7 +82,7 @@ function outputRow(table, row) {
   if (table === "applicant_documents") return { ...row, user_id: row.participant_id, storage_path: row.object_key, mime_type: row.content_type };
   if (table === "listings") return { ...facts, ...row, title: facts.title || "Wohnungsangebot", is_active: !row.expires_at || new Date(row.expires_at).getTime() > Date.now(), source_listing_key: row.external_id, raw: facts };
   if (table === "delivery_events") return { ...row, listing_id: row.offer_identity_id, profile_id: row.participant_id };
-  if (table === "applications") return { ...row, user_id: row.participant_id, listing_id: row.offer_identity_id };
+  if (table === "applications") return { ...row, user_id: row.participant_id, listing_id: row.offer_identity_id, test_mode: bool(row.test_mode) };
   if (table === "platform_auth_flows") return { ...row, user_id: row.participant_id, context: json(row.context, {}) };
   if (table === "application_preferences") return { ...row, user_id: row.participant_id, enabled: bool(row.enabled), immoscout_enabled: bool(row.immoscout_enabled), kleinanzeigen_enabled: bool(row.kleinanzeigen_enabled), immomio_enabled: bool(row.immomio_enabled), immowelt_enabled: bool(row.immowelt_enabled) };
   if (table === "sources") return { ...row, enabled: bool(row.enabled) };
@@ -277,7 +277,70 @@ async function rpc(client, env, name, args) {
       : { data: null, error: new Error("search_profile_save_failed") };
   }
   if (name === "application_profile_missing_fields") { const row=(await client.run("SELECT profile FROM applicant_profiles WHERE participant_id=?",[args.p_user]))[0]; const p=JSON.parse(row?.profile||"{}"); const missing=[]; for(const k of ["first_name","last_name","email","phone","street","house_number","postcode","city"])if(!String(p[k]||"").trim())missing.push(k); return {data:missing,error:null}; }
-  if (name === "set_application_enabled_shared") { await client.run("INSERT OR REPLACE INTO application_preferences(participant_id,enabled) VALUES(?,?)",[args.p_user,args.p_enabled?1:0]); return {data:{enabled:!!args.p_enabled},error:null}; }
+  if (name === "set_application_test_mode") {
+    const enabled = args.p_enabled === true || args.p_enabled === 1;
+    const telegramId = Number(args.p_telegram_user_id || 0);
+    const user = (await client.run(
+      "SELECT id,telegram_user_id,status,auto_apply_enabled,test_auto_apply_allowed,test_auto_apply_enabled,test_auto_apply_daily_limit FROM participants WHERE id=? AND telegram_user_id=? LIMIT 1",
+      [args.p_user, telegramId],
+    ))[0];
+    if (!user || telegramId !== 8538226539 || user.status !== "active" || !bool(user.test_auto_apply_allowed)) {
+      return { data: null, error: new Error("test_mode_forbidden") };
+    }
+    if (enabled) {
+      if (bool(user.auto_apply_enabled)) return { data: null, error: new Error("test_mode_global_auto_apply_active") };
+      const missingResult = await rpc(client, env, "application_profile_missing_fields", { p_user: args.p_user });
+      if (missingResult.error || missingResult.data.length) return { data: null, error: new Error("test_mode_profile_incomplete") };
+      const activeSearch = await client.run(
+        "SELECT sp.id FROM search_profiles sp JOIN source_links sl ON sl.search_profile_id=sp.id WHERE sp.participant_id=? AND sp.active=1 AND sl.source_id IN (1,69) LIMIT 1",
+        [args.p_user],
+      );
+      if (!activeSearch.length) return { data: null, error: new Error("test_mode_search_profile_missing") };
+      const central = (await client.run(
+        "SELECT account_hint,status,enabled,ciphertext,iv FROM central_credentials WHERE singleton='central' LIMIT 1",
+      ))[0];
+      if (!central || central.account_hint !== "arash@nexalabs.de" || central.status !== "connected" || bool(central.enabled) || !central.ciphertext || !central.iv) {
+        return { data: null, error: new Error("test_mode_central_account_unavailable") };
+      }
+      await client.run(
+        "UPDATE participants SET test_auto_apply_daily_limit=1,test_auto_apply_enabled=1,test_auto_apply_enabled_at=CURRENT_TIMESTAMP,test_auto_apply_disabled_at=NULL,updated_at=CURRENT_TIMESTAMP WHERE id=?",
+        [args.p_user],
+      );
+    } else {
+      await client.run(
+        "UPDATE participants SET test_auto_apply_enabled=0,test_auto_apply_disabled_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=?",
+        [args.p_user],
+      );
+      await client.run(
+        "UPDATE applications SET status='failed',last_error='test_mode_disabled',updated_at=CURRENT_TIMESTAMP WHERE participant_id=? AND test_mode=1 AND status='pending'",
+        [args.p_user],
+      );
+      await client.run(
+        "UPDATE jobs SET status='failed',updated_at=CURRENT_TIMESTAMP WHERE kind='application' AND status='queued' AND json_extract(payload,'$.participant_id')=?",
+        [args.p_user],
+      );
+    }
+    const updated = (await client.run(
+      "SELECT test_auto_apply_allowed,test_auto_apply_enabled,test_auto_apply_daily_limit,test_auto_apply_enabled_at,test_auto_apply_disabled_at FROM participants WHERE id=?",
+      [args.p_user],
+    ))[0];
+    return { data: {
+      allowed: bool(updated?.test_auto_apply_allowed),
+      enabled: bool(updated?.test_auto_apply_enabled),
+      daily_limit: Number(updated?.test_auto_apply_daily_limit || 1),
+      enabled_at: updated?.test_auto_apply_enabled_at || null,
+      disabled_at: updated?.test_auto_apply_disabled_at || null,
+    }, error: null };
+  }
+  if (name === "set_application_enabled_shared") {
+    const enabled = args.p_enabled === true || args.p_enabled === 1;
+    const user = (await client.run("SELECT test_auto_apply_enabled FROM participants WHERE id=? LIMIT 1", [args.p_user]))[0];
+    if (enabled && bool(user?.test_auto_apply_enabled)) return { data: null, error: new Error("test_mode_active") };
+    await client.run("INSERT OR IGNORE INTO application_preferences(participant_id) VALUES(?)", [args.p_user]);
+    await client.run("UPDATE application_preferences SET enabled=? WHERE participant_id=?", [enabled ? 1 : 0, args.p_user]);
+    await client.run("UPDATE participants SET auto_apply_enabled=?,updated_at=CURRENT_TIMESTAMP WHERE id=?", [enabled ? 1 : 0, args.p_user]);
+    return { data: { enabled }, error: null };
+  }
   if (name === "set_application_provider_enabled_shared") { const col={immoscout:"immoscout_enabled",immoscout24:"immoscout_enabled",kleinanzeigen:"kleinanzeigen_enabled",immowelt:"immowelt_enabled",immomio:"immomio_enabled"}[args.p_provider]; if(!col)return{data:null,error:new Error("provider_not_allowlisted")}; await client.run(`INSERT OR IGNORE INTO application_preferences(participant_id) VALUES(?)`,[args.p_user]); await client.run(`UPDATE application_preferences SET ${col}=? WHERE participant_id=?`,[args.p_enabled?1:0,args.p_user]); return {data:{enabled:!!args.p_enabled},error:null}; }
   if (name === "get_schleswig_holstein_areas") return {data:[],error:null};
   return {data:null,error:null};
