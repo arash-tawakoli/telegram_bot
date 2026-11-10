@@ -41,6 +41,7 @@ function applicationRow(overrides = {}) {
   return {
     id: "app-test-1",
     participant_id: "owner-1",
+    telegram_user_id: 8538226539,
     offer_identity_id: "offer-1",
     provider: "immoscout24",
     test_mode: 1,
@@ -98,6 +99,7 @@ test("matching queues a separate ImmoScout test application only for an opted-in
     if (/SELECT DISTINCT sp\.participant_id/i.test(text)) {
       return [{
         participant_id: "owner-1",
+        telegram_user_id: 8538226539,
         criteria: JSON.stringify({ max_warm_rent: 1800 }),
         test_auto_apply_allowed: 1,
         test_auto_apply_enabled: 1,
@@ -127,6 +129,7 @@ test("matching never queues the personal ImmoScout test path for another provide
       if (/SELECT DISTINCT sp\.participant_id/i.test(text)) {
         return [{
           participant_id: "other-user",
+          telegram_user_id: 414638980,
           criteria: "{}",
           test_auto_apply_allowed: sourceId === 1 ? 0 : 1,
           test_auto_apply_enabled: 1,
