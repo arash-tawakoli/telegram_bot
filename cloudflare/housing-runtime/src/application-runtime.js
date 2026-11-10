@@ -56,7 +56,7 @@ async function claim(sql, freshOnly = false) {
         p.first_name, p.last_name, p.email, p.telegram_chat_id,
         p.telegram_user_id, p.test_auto_apply_allowed, p.test_auto_apply_enabled, p.test_auto_apply_daily_limit, p.auto_apply_enabled,
         ap.profile,
-        oi.canonical_url, oi.external_id, oi.source_id, oi.facts,
+        oi.canonical_url, oi.external_id, oi.source_id, oi.expires_at, oi.facts,
         pref.enabled AS preferences_enabled,
         CASE a.provider
           WHEN 'immoscout24' THEN pref.immoscout_enabled
@@ -71,8 +71,9 @@ async function claim(sql, freshOnly = false) {
       LEFT JOIN housing.offer_identities oi ON oi.id = a.offer_identity_id
       LEFT JOIN housing.application_preferences pref ON pref.participant_id = a.participant_id
       LEFT JOIN housing.provider_connections pc ON pc.participant_id = a.participant_id AND pc.provider = a.provider
-      WHERE a.status = 'pending' AND a.created_at >= now() - interval '15 minutes'
-      ORDER BY a.created_at
+      WHERE a.status = 'pending'
+        AND (a.test_mode = true OR a.created_at >= now() - interval '15 minutes')
+      ORDER BY CASE WHEN a.test_mode = true THEN 0 ELSE 1 END, a.created_at
       LIMIT 1
       FOR UPDATE OF a SKIP LOCKED
     ` : await tx`
@@ -81,7 +82,7 @@ async function claim(sql, freshOnly = false) {
         p.first_name, p.last_name, p.email, p.telegram_chat_id,
         p.test_auto_apply_allowed, p.test_auto_apply_enabled, p.test_auto_apply_daily_limit, p.auto_apply_enabled,
         ap.profile,
-        oi.canonical_url, oi.external_id, oi.source_id, oi.facts,
+        oi.canonical_url, oi.external_id, oi.source_id, oi.expires_at, oi.facts,
         pref.enabled AS preferences_enabled,
         CASE a.provider
           WHEN 'immoscout24' THEN pref.immoscout_enabled
@@ -97,7 +98,7 @@ async function claim(sql, freshOnly = false) {
       LEFT JOIN housing.application_preferences pref ON pref.participant_id = a.participant_id
       LEFT JOIN housing.provider_connections pc ON pc.participant_id = a.participant_id AND pc.provider = a.provider
       WHERE a.status = 'pending'
-      ORDER BY a.created_at
+      ORDER BY CASE WHEN a.test_mode = true THEN 0 ELSE 1 END, a.created_at
       LIMIT 1
       FOR UPDATE OF a SKIP LOCKED
     `;
@@ -132,6 +133,10 @@ export async function processHousingApplication(sql, env, request) {
   };
   if (!PROVIDERS.has(provider)) return fail("failed", "provider_not_allowlisted");
   if (!application.offer_identity_id || !application.canonical_url) return fail("failed", "listing_expired");
+
+  if (application.test_mode && application.expires_at && Date.parse(application.expires_at) <= Date.now()) {
+    return fail("failed", "listing_expired");
+  }
 
   if (application.test_mode) {
     if (provider !== "immoscout24" || Number(application.telegram_user_id) !== 8538226539
