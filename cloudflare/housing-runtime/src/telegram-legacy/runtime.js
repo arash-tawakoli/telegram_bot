@@ -20,7 +20,20 @@ export let geoCache = null;
 
 export function configureLegacyRuntime(nextEnv, d1) { env = nextEnv; db = createD1Supabase(d1, env); }
 export function runtimeEnv() { return env; }
-export async function withPlan(user, subscription = null) { return { ...user, is_premium: true, subscription }; }
+export async function withPlan(user, subscription = null) {
+  const now = Date.now();
+  if (user?.plan_override === "free") return { ...user, is_premium: false, subscription };
+  if (user?.plan_override === "premium" && (!user.plan_override_expires_at || Date.parse(user.plan_override_expires_at) > now)) {
+    return { ...user, is_premium: true, subscription };
+  }
+  if (user?.referral_bonus_until && Date.parse(user.referral_bonus_until) > now) {
+    return { ...user, is_premium: true, subscription };
+  }
+  const activeSubscription = subscription
+    && ["active", "trialing"].includes(String(subscription.status))
+    && (!subscription.current_period_end || Date.parse(subscription.current_period_end) > now);
+  return { ...user, is_premium: Boolean(activeSubscription), subscription };
+}
 export function finiteOrNull(value) { if (value == null || value === "") return null; const number = Number(value); return Number.isFinite(number) ? number : null; }
 export function esc(value) { return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 export function money(value) { if (value == null || value === "") return "–"; const number = Number(value); return Number.isFinite(number) ? `${new Intl.NumberFormat("de-DE", { maximumFractionDigits: 2 }).format(number)} €` : String(value); }
