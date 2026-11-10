@@ -105,6 +105,7 @@ test("matching queues a separate ImmoScout test application only for an opted-in
         auto_apply_enabled: 0,
       }];
     }
+    if (/INSERT INTO housing\.deliveries/i.test(text)) return [{ id: "delivery-test-1" }];
     if (/INSERT INTO housing\.applications/i.test(text)) return [{ id: "app-test-1" }];
     return [];
   };
