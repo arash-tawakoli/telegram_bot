@@ -11,7 +11,10 @@ export async function handleLegacyTelegramUpdate(env, payload) {
   const claim = Number(prepared.data?.claim || 0);
   if (claim === 0) return { ok: true, duplicate: true };
   if (claim < 0) return { ok: false, busy: true };
-  const user = await withPlan({ ...(prepared.data?.user || {}), __is_new_user: prepared.data?.is_new_user === true });
+  const user = await withPlan(
+    { ...(prepared.data?.user || {}), __is_new_user: prepared.data?.is_new_user === true },
+    prepared.data?.subscription || null,
+  );
   user.request_update_id = payload.update_id;
   user.request_attempt = claim;
   user.__callback_acked = false;

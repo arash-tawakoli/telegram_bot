@@ -10,13 +10,15 @@ const TABLES = {
   applications: "applications",
   sources: "source_registry",
   application_preferences: "application_preferences",
-  user_subscriptions: null,
-  saved_listings: null,
-  referral_codes: null,
-  referrals: null,
+  user_subscriptions: "user_subscriptions",
+  saved_listings: "saved_listings",
+  referral_codes: "referral_codes",
+  referrals: "referrals",
+  platform_reauth_notifications: "platform_reauth_notifications",
+  user_engagement_notifications: "user_engagement_notifications",
   bot_events: null,
   platform_auth_flows: "provider_auth_flows",
-  telegram_announcements: null,
+  telegram_announcements: "telegram_announcements",
 };
 const ALIASES = {
   bot_users: { user_id: "id", chat_id: "telegram_chat_id", is_active: "status", onboarding_state: "telegram_state" },
@@ -29,6 +31,12 @@ const ALIASES = {
   delivery_events: { profile_id: "participant_id", listing_id: "offer_identity_id" },
   applications: { user_id: "participant_id", listing_id: "offer_identity_id" },
   application_preferences: { user_id: "participant_id" },
+  user_subscriptions: { user_id: "participant_id" },
+  saved_listings: { user_id: "participant_id", listing_id: "offer_identity_id" },
+  referral_codes: { user_id: "participant_id" },
+  referrals: { referrer_user_id: "referrer_participant_id", referred_user_id: "referred_participant_id" },
+  platform_reauth_notifications: { user_id: "participant_id" },
+  user_engagement_notifications: { user_id: "participant_id" },
 };
 
 const ALLOWLIST = [1, 3, 23, 29, 34, 35, 66, 69, 71];
@@ -85,6 +93,12 @@ function outputRow(table, row) {
   if (table === "applications") return { ...row, user_id: row.participant_id, listing_id: row.offer_identity_id, test_mode: bool(row.test_mode) };
   if (table === "platform_auth_flows") return { ...row, user_id: row.participant_id, context: json(row.context, {}) };
   if (table === "application_preferences") return { ...row, user_id: row.participant_id, enabled: bool(row.enabled), immoscout_enabled: bool(row.immoscout_enabled), kleinanzeigen_enabled: bool(row.kleinanzeigen_enabled), immomio_enabled: bool(row.immomio_enabled), immowelt_enabled: bool(row.immowelt_enabled) };
+  if (table === "user_subscriptions") return { ...row, user_id: row.participant_id, cancel_at_period_end: bool(row.cancel_at_period_end) };
+  if (table === "saved_listings") return { ...row, user_id: row.participant_id, listing_id: row.offer_identity_id };
+  if (table === "referral_codes") return { ...row, user_id: row.participant_id, active: bool(row.active) };
+  if (table === "referrals") return { ...row, referrer_user_id: row.referrer_participant_id, referred_user_id: row.referred_participant_id };
+  if (table === "platform_reauth_notifications") return { ...row, user_id: row.participant_id };
+  if (table === "user_engagement_notifications") return { ...row, user_id: row.participant_id };
   if (table === "sources") return { ...row, enabled: bool(row.enabled) };
   return row;
 }
@@ -269,6 +283,10 @@ async function rpc(client, env, name, args) {
       await client.run("INSERT OR IGNORE INTO application_preferences(participant_id) VALUES(?)", [id]);
       user = (await client.run("SELECT * FROM participants WHERE id=?", [id]))[0];
     }
+    const subscription = (await client.run(
+      "SELECT id,participant_id AS user_id,provider,stripe_customer_id,stripe_subscription_id,status,current_period_end,cancel_at_period_end,last_event_created,created_at,updated_at FROM user_subscriptions WHERE participant_id=? ORDER BY updated_at DESC LIMIT 1",
+      [user.id],
+    ))[0] || null;
     return {
       data: {
         claim: 1,
@@ -281,7 +299,7 @@ async function rpc(client, env, name, args) {
           onboarding_step: null,
           telegram_user_id: user.telegram_user_id,
         },
-        subscription: null,
+        subscription,
       },
       error: null,
     };
