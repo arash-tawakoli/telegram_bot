@@ -1,3 +1,4 @@
+import { sha256 } from "../auth.js";
 const TABLES = {
   bot_users: "participants",
   search_profiles: "search_profiles",
@@ -249,8 +250,8 @@ async function rpc(client, env, name, args) {
     }
     const random = crypto.getRandomValues(new Uint8Array(32));
     const token = Array.from(random, (value) => value.toString(16).padStart(2, "0")).join("");
-    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
-    const tokenHash = Array.from(new Uint8Array(digest), (value) => value.toString(16).padStart(2, "0")).join("");
+    // Match auth.js: sha256() uses unpadded base64url, not hexadecimal.
+    const tokenHash = await sha256(token);
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
     await client.run(
       "UPDATE bootstrap_tokens SET consumed_at=CURRENT_TIMESTAMP WHERE consumed_at IS NULL AND expires_at>CURRENT_TIMESTAMP",
