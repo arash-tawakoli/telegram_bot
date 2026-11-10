@@ -8,6 +8,7 @@ function sqlFor(row) {
     const text = strings.join("?");
     writes.push({ text, values });
     if (/SELECT a\.id/i.test(text)) return Promise.resolve(row ? [row] : []);
+    if (/UPDATE housing\.applications SET status = 'processing'/i.test(text)) return Promise.resolve(row ? [{ id: row.id }] : []);
     return Promise.resolve([]);
   };
   query.begin = async (callback) => callback(query);
