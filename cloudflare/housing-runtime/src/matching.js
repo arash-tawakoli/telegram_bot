@@ -101,12 +101,7 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts) 
         ON CONFLICT (idempotency_key) DO NOTHING
         RETURNING id
       `;
-      if (testApplication.length) {
-        await sql`INSERT INTO housing.jobs (id, kind, payload, status)
-          VALUES (gen_random_uuid(), 'application',
-            ${JSON.stringify({ application_id: testApplication[0].id, participant_id: row.participant_id })}::jsonb,
-            'queued')`;
-      }
+      // applications is the processor queue; do not create an unconsumed jobs row.
     }
   }
   return queued;
