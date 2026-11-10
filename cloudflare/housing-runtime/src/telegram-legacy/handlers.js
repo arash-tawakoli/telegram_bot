@@ -22,6 +22,7 @@ const ADMIN_COMMANDS = [
     { command: "admin", description: "Adminbereich" },
     { command: "announcement", description: "Ankündigung senden" },
     { command: "token", description: "Zentralen ImmoScout24-Zugang verbinden" },
+    { command: "portalsetup", description: "Coach-Portal-Zugang einrichten" },
 ];
 
 async function syncTelegramCommands(user, chatId) {
@@ -166,6 +167,23 @@ export async function handleMessage(message, user) {
         if (!isAdmin(user))
             return;
         return adminUsers(user, chatId);
+    }
+    if (command === "/portalsetup") {
+        if (!isAdmin(user))
+            return;
+        const { data, error } = await db.rpc("issue_portal_bootstrap_token", {
+            p_telegram_user_id: Number(user.telegram_user_id),
+        });
+        if (error) {
+            const message = String(error.message || "");
+            if (message.includes("bootstrap_already_complete")) return send(chatId, "Dein Coach-Portal-Administratorzugang ist bereits eingerichtet. Melde dich mit deinem Cloudflare-Portalpasswort an.");
+            if (message.includes("bootstrap_admin_missing")) return send(chatId, "Der Super-Admin wurde im Cloudflare-Portal nicht gefunden. Bitte den Support kontaktieren.");
+            return send(chatId, "Der Einrichtungslink konnte nicht erstellt werden. Bitte versuche es erneut oder kontaktiere den Support.");
+        }
+        const url = "https://intern.traumwohnunghamburg.de/?setup=" + encodeURIComponent(String(data.token));
+        return send(chatId,
+            "🔐 <b>Coach-Portal sicher einrichten</b>\n\nDer einmalige Einrichtungslink ist 24 Stunden gültig. Öffne ihn selbst und lege ein neues Passwort mit mindestens 12 Zeichen fest. Das Passwort wird ausschließlich in Cloudflare D1 gespeichert.\n\nNach erfolgreicher Einrichtung ist die alte Supabase-Anmeldung nicht mehr erforderlich.",
+            { inline_keyboard: [[{ text: "Coach-Portal einrichten", url }]] });
     }
     if (command === "/token") {
         if (!isAdmin(user))

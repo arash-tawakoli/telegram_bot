@@ -218,6 +218,35 @@ export function createD1Supabase(db, env) {
 
 async function rpc(client, env, name, args) {
   if (name === "get_bot_secret") { const map={telegram_bot_token_runtime:env.TELEGRAM_BOT_TOKEN,telegram_webhook_secret:env.TELEGRAM_WEBHOOK_SECRET,stripe_portal_url:env.STRIPE_PORTAL_URL}; return { data: map[args.secret_name] || null, error: map[args.secret_name] ? null : new Error("secret_unavailable") }; }
+  if (name === "issue_portal_bootstrap_token") {
+    const telegramUserId = Number(args.p_telegram_user_id || 0);
+    if (telegramUserId !== 8538226539) return { data: null, error: new Error("bootstrap_forbidden") };
+    const owner = (await client.run(
+      "SELECT id,status FROM participants WHERE telegram_user_id=? LIMIT 1",
+      [telegramUserId],
+    ))[0];
+    if (!owner || owner.status !== "active") return { data: null, error: new Error("bootstrap_forbidden") };
+    const admin = (await client.run(
+      "SELECT id,password_hash FROM portal_members WHERE lower(email)='arash@nexalabs.de' AND role='super_admin' AND active=1 LIMIT 1",
+    ))[0];
+    if (!admin) return { data: null, error: new Error("bootstrap_admin_missing") };
+    if (!String(admin.password_hash || "").startsWith("migration_required$")) {
+      return { data: null, error: new Error("bootstrap_already_complete") };
+    }
+    const random = crypto.getRandomValues(new Uint8Array(32));
+    const token = Array.from(random, (value) => value.toString(16).padStart(2, "0")).join("");
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+    const tokenHash = Array.from(new Uint8Array(digest), (value) => value.toString(16).padStart(2, "0")).join("");
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    await client.run(
+      "UPDATE bootstrap_tokens SET consumed_at=CURRENT_TIMESTAMP WHERE consumed_at IS NULL AND expires_at>CURRENT_TIMESTAMP",
+    );
+    await client.run(
+      "INSERT INTO bootstrap_tokens(id,token_hash,expires_at) VALUES(?,?,?)",
+      [crypto.randomUUID(), tokenHash, expiresAt],
+    );
+    return { data: { token, expires_at: expiresAt }, error: null };
+  }
   if (name === "prepare_telegram_update") {
     const payload = args.p_payload || {};
     const from = payload.callback_query?.from || payload.message?.from;
