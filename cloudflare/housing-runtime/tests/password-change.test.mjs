@@ -11,8 +11,8 @@ function fakeSql(session) {
   const sql = async (strings, ...values) => {
     const text = strings.join("?");
     calls.push({ text, values });
-    if (/SELECT s\\.id AS session_id/i.test(text)) return session ? [session] : [];
-    if (/UPDATE housing\\.portal_members/i.test(text)) return [{ id: session?.member_id || "member-1" }];
+    if (/SELECT s\.id AS session_id/i.test(text)) return session ? [session] : [];
+    if (/UPDATE housing\.portal_members/i.test(text)) return [{ id: session?.member_id || "member-1" }];
     return [];
   };
   return { sql, calls };
@@ -35,8 +35,8 @@ test("authenticated password change verifies the current password and revokes ot
   }));
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { ok: true, changed: true });
-  assert.ok(db.calls.some(({ text, values }) => /UPDATE housing\\.portal_members/.test(text) && values.some((value) => String(value).startsWith("pbkdf2_sha256$"))));
-  assert.ok(db.calls.some(({ text, values }) => /UPDATE housing\\.portal_sessions/.test(text) && values.includes("current-session")));
+  assert.ok(db.calls.some(({ text, values }) => /UPDATE housing\.portal_members/.test(text) && values.some((value) => String(value).startsWith("pbkdf2_sha256$"))));
+  assert.ok(db.calls.some(({ text, values }) => /UPDATE housing\.portal_sessions/.test(text) && values.includes("current-session")));
   assert.equal(db.calls.some(({ text }) => /service_role|SUPABASE_SERVICE_ROLE_KEY/.test(text)), false);
 });
 
@@ -55,5 +55,5 @@ test("authenticated password change rejects an incorrect current password", asyn
   }));
   assert.equal(response.status, 401);
   assert.deepEqual(await response.json(), { error: "current_password_invalid" });
-  assert.equal(db.calls.some(({ text }) => /UPDATE housing\\.portal_members/.test(text)), false);
+  assert.equal(db.calls.some(({ text }) => /UPDATE housing\.portal_members/.test(text)), false);
 });
