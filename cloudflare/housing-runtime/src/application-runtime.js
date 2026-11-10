@@ -54,7 +54,7 @@ async function claim(sql, freshOnly = false) {
       SELECT a.id, a.participant_id, a.offer_identity_id, a.provider,
         a.test_mode, a.submission_started_at, a.sent_at,
         p.first_name, p.last_name, p.email, p.telegram_chat_id,
-        p.test_auto_apply_allowed, p.test_auto_apply_enabled, p.test_auto_apply_daily_limit, p.auto_apply_enabled,
+        p.telegram_user_id, p.test_auto_apply_allowed, p.test_auto_apply_enabled, p.test_auto_apply_daily_limit, p.auto_apply_enabled,
         ap.profile,
         oi.canonical_url, oi.external_id, oi.source_id, oi.facts,
         pref.enabled AS preferences_enabled,
@@ -134,7 +134,8 @@ export async function processHousingApplication(sql, env, request) {
   if (!application.offer_identity_id || !application.canonical_url) return fail("failed", "listing_expired");
 
   if (application.test_mode) {
-    if (provider !== "immoscout24" || !application.test_auto_apply_allowed || !application.test_auto_apply_enabled
+    if (provider !== "immoscout24" || Number(application.telegram_user_id) !== 8538226539
+      || !application.test_auto_apply_allowed || !application.test_auto_apply_enabled
       || application.auto_apply_enabled || application.preferences_enabled || ![1, 69].includes(Number(application.source_id))) {
       return fail("manual_required", "test_mode_not_authorized");
     }
@@ -160,6 +161,7 @@ export async function processHousingApplication(sql, env, request) {
             SELECT 1 FROM housing.participants p
             WHERE p.id = ${application.participant_id}
               AND p.status = 'active'
+              AND p.telegram_user_id = 8538226539
               AND p.test_auto_apply_allowed = true
               AND p.test_auto_apply_enabled = true
               AND p.auto_apply_enabled = false
