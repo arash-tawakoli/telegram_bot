@@ -452,31 +452,53 @@ export async function handleAuth(sql, request, env = {}) {
     return rows[0] ? json({ ok: true }) : json({ error: "bootstrap_unavailable" }, 404);
   }
   if (action === "bootstrap_complete") {
-    const tokenHash = await sha256(String(body.token || ""));
-    const email = String(body.email || "").trim().toLowerCase();
-    const displayName = String(body.displayName || "").trim().slice(0, 120);
-    if (!/^\S+@\S+\.\S+$/.test(email) || !displayName) return json({ error: "profile_invalid" }, 400);
-    const passwordHash = await hashPassword(String(body.password || ""));
-    const activeSuperAdmins = await sql.unsafe("SELECT id, lower(email) AS email, password_hash FROM housing.portal_members WHERE role = 'super_admin' AND active = true");
-    let memberId;
-    if (activeSuperAdmins.length) {
-      const existing = activeSuperAdmins.find((row) => row.email === email && String(row.password_hash || "").startsWith("migration_required$"));
-      if (!existing) return json({ error: "bootstrap_unavailable" }, 404);
-      const tokens = await sql.unsafe("UPDATE housing.bootstrap_tokens SET consumed_at = now() WHERE token_hash = $1 AND consumed_at IS NULL AND expires_at > now() RETURNING id", [tokenHash]);
-      if (!tokens[0]) return json({ error: "bootstrap_unavailable" }, 404);
-      const updated = await sql.unsafe("UPDATE housing.portal_members SET display_name = $1, password_hash = $2, updated_at = now() WHERE id = $3 AND password_hash = $4 RETURNING id", [displayName, passwordHash, existing.id, existing.password_hash]);
-      if (!updated[0]) return json({ error: "bootstrap_unavailable" }, 404);
-      await sql.unsafe("UPDATE housing.portal_sessions SET revoked_at = now() WHERE member_id = $1 AND revoked_at IS NULL", [existing.id]);
-      memberId = existing.id;
-    } else {
-      const activeMembers = await sql.unsafe("SELECT 1 FROM housing.portal_members WHERE active = true LIMIT 1");
-      if (activeMembers[0]) return json({ error: "bootstrap_unavailable" }, 404);
-      const tokens = await sql.unsafe("UPDATE housing.bootstrap_tokens SET consumed_at = now() WHERE token_hash = $1 AND consumed_at IS NULL AND expires_at > now() RETURNING id", [tokenHash]);
-      if (!tokens[0]) return json({ error: "bootstrap_unavailable" }, 404);
-      memberId = crypto.randomUUID();
-      await sql.unsafe("INSERT INTO housing.portal_members (id, email, display_name, role, password_hash) VALUES ($1, $2, $3, 'super_admin', $4)", [memberId, email, displayName, passwordHash]);
+    let stage = "validate";
+    try {
+      const tokenHash = await sha256(String(body.token || ""));
+      const email = String(body.email || "").trim().toLowerCase();
+      const displayName = String(body.displayName || "").trim().slice(0, 120);
+      const password = String(body.password || "");
+      if (!/^\\S+@\\S+\\.\\S+$/.test(email) || !displayName || password.length < 12 || password.length > 512) {
+        return json({ error: "profile_invalid" }, 400);
+      }
+      stage = "hash_password";
+      const passwordHash = await hashPassword(password);
+      stage = "read_super_admin";
+      const activeSuperAdmins = await sql.unsafe("SELECT id, lower(email) AS email, password_hash FROM housing.portal_members WHERE role = 'super_admin' AND active = true");
+      let memberId;
+      if (activeSuperAdmins.length) {
+        const existing = activeSuperAdmins.find((row) => row.email === email && String(row.password_hash || "").startsWith("migration_required$"));
+        if (!existing) return json({ error: "bootstrap_unavailable" }, 404);
+        stage = "consume_token";
+        const tokens = await sql.unsafe("UPDATE housing.bootstrap_tokens SET consumed_at = now() WHERE token_hash = $1 AND consumed_at IS NULL AND expires_at > now() RETURNING id", [tokenHash]);
+        if (!tokens[0]) return json({ error: "bootstrap_unavailable" }, 404);
+        stage = "update_admin_password";
+        const updated = await sql.unsafe("UPDATE housing.portal_members SET display_name = $1, password_hash = $2, updated_at = now() WHERE id = $3 AND password_hash = $4 RETURNING id", [displayName, passwordHash, existing.id, existing.password_hash]);
+        if (!updated[0]) return json({ error: "bootstrap_unavailable" }, 404);
+        stage = "revoke_old_sessions";
+        await sql.unsafe("UPDATE housing.portal_sessions SET revoked_at = now() WHERE member_id = $1 AND revoked_at IS NULL", [existing.id]);
+        memberId = existing.id;
+      } else {
+        stage = "check_existing_members";
+        const activeMembers = await sql.unsafe("SELECT 1 FROM housing.portal_members WHERE active = true LIMIT 1");
+        if (activeMembers[0]) return json({ error: "bootstrap_unavailable" }, 404);
+        stage = "consume_token";
+        const tokens = await sql.unsafe("UPDATE housing.bootstrap_tokens SET consumed_at = now() WHERE token_hash = $1 AND consumed_at IS NULL AND expires_at > now() RETURNING id", [tokenHash]);
+        if (!tokens[0]) return json({ error: "bootstrap_unavailable" }, 404);
+        memberId = crypto.randomUUID();
+        stage = "insert_super_admin";
+        await sql.unsafe("INSERT INTO housing.portal_members (id, email, display_name, role, password_hash) VALUES ($1, $2, $3, 'super_admin', $4)", [memberId, email, displayName, passwordHash]);
+      }
+      stage = "create_session";
+      return json({ ok: true, ...(await createSession(sql, memberId)) });
+    } catch (error) {
+      console.error("housing_bootstrap_complete_failed", JSON.stringify({
+        stage,
+        error: String(error?.message || error).slice(0, 240),
+        name: String(error?.name || "Error").slice(0, 80),
+      }));
+      throw error;
     }
-    return json({ ok: true, ...(await createSession(sql, memberId)) });
   }
   return json({ error: "invalid_action" }, 400);
 }
