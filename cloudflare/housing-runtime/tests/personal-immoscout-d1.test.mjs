@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { createD1Supabase } from "../src/telegram-legacy/d1-supabase.js";
 
 const ownerId = "owner-1";
@@ -107,4 +108,23 @@ test("the normal auto-apply switch cannot be enabled while personal test mode is
   const result = await adapter.rpc("set_application_enabled_shared", { p_user: ownerId, p_enabled: true });
   assert.equal(result.error?.message, "test_mode_active");
   assert.equal(calls.some(({ query }) => query.startsWith("UPDATE application_preferences SET enabled=")), false);
+});
+
+test("D1 migration adds the test queue but leaves the test switch off", () => {
+  const migration = readFileSync(new URL("../schema/d1/0005_personal_immoscout_test_mode.sql", import.meta.url), "utf8");
+  assert.match(migration, /ADD COLUMN test_mode INTEGER NOT NULL DEFAULT 0/);
+  assert.match(migration, /ADD COLUMN submission_started_at TEXT/);
+  assert.match(migration, /ADD COLUMN sent_at TEXT/);
+  assert.match(migration, /test_auto_apply_allowed = 1/);
+  assert.match(migration, /test_auto_apply_enabled = 0/);
+  assert.match(migration, /test_auto_apply_daily_limit = 1/);
+  assert.doesNotMatch(migration, /test_auto_apply_enabled = 1/);
+});
+
+test("a different Telegram account cannot enable the owner-only test mode", async () => {
+  const { adapter } = fakeD1({ telegramId: 414638980 });
+  const result = await adapter.rpc("set_application_test_mode", {
+    p_user: ownerId, p_telegram_user_id: 414638980, p_enabled: true,
+  });
+  assert.equal(result.error?.message, "test_mode_forbidden");
 });
