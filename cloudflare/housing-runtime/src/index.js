@@ -367,6 +367,50 @@ export async function handleAuth(sql, request, env = {}) {
     if (!verified) return json({ error: "invalid_credentials" }, 401);
     return json({ ok: true, ...(await createSession(sql, rows[0].id)) });
   }
+  if (action === "password_change") {
+    const accessToken = String(body.access_token || "");
+    const currentPassword = String(body.current_password || "");
+    const password = String(body.password || "");
+    if (!accessToken || !currentPassword || currentPassword.length > 512 || password.length < 12 || password.length > 512) {
+      return json({ error: "password_invalid" }, 400);
+    }
+    const accessHash = await sha256(accessToken);
+    const sessions = await sql`
+      SELECT s.id AS session_id, m.id AS member_id, m.password_hash
+      FROM housing.portal_sessions s
+      JOIN housing.portal_members m ON m.id = s.member_id
+      WHERE s.access_token_hash = ${accessHash}
+        AND s.revoked_at IS NULL
+        AND s.access_expires_at > now()
+        AND m.active = true
+      LIMIT 1
+    `;
+    if (!sessions[0]) return json({ error: "unauthorized" }, 401);
+    if (!await verifyPassword(currentPassword, sessions[0].password_hash)) {
+      return json({ error: "current_password_invalid" }, 401);
+    }
+    if (await verifyPassword(password, sessions[0].password_hash)) {
+      return json({ error: "password_unchanged" }, 400);
+    }
+    const passwordHash = await hashPassword(password);
+    const updated = await sql`
+      UPDATE housing.portal_members
+      SET password_hash = ${passwordHash}, updated_at = now()
+      WHERE id = ${sessions[0].member_id}
+        AND password_hash = ${sessions[0].password_hash}
+        AND active = true
+      RETURNING id
+    `;
+    if (!updated[0]) return json({ error: "password_update_failed" }, 409);
+    await sql`
+      UPDATE housing.portal_sessions
+      SET revoked_at = now()
+      WHERE member_id = ${sessions[0].member_id}
+        AND id <> ${sessions[0].session_id}
+        AND revoked_at IS NULL
+    `;
+    return json({ ok: true, changed: true });
+  }
   if (action === "password_reset_complete") {
     const accessToken = String(body.access_token || "");
     const password = String(body.password || "");

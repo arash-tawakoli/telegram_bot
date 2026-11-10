@@ -117,6 +117,15 @@ async function beginCloudflareProviderLogin(userId, provider){
 export async function applicationWorker(action,userId,source,extra={}){
  const provider=source===1?'immoscout24':source===3?'immomio':source===4?'immowelt':null;
  if(!provider)throw Error('provider_not_allowlisted');
+ if(action==='set_test_mode'){
+  const {data,error}=await db.rpc('set_application_test_mode',{
+   p_user:userId,
+   p_telegram_user_id:Number(extra.telegramUserId||0),
+   p_enabled:extra.enabled===true
+  });
+  if(error)throw error;
+  return data||{enabled:extra.enabled===true};
+ }
  if(action==='disconnect'){
   const {error}=await db.from('platform_connections').update({status:'disconnected',ciphertext:null,iv:null,updated_at:new Date().toISOString()}).eq('user_id',userId).eq('provider',provider);
   if(error)throw Error('disconnect_failed');
@@ -810,9 +819,8 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  let testSection='';
  if(state.test_auto_apply_allowed===true){
   const {data:testApps,error:testAppsError}=await db.from('applications')
-   .select('id,status,last_error,sent_at,created_at,listing_id')
-   .eq('user_id',user.id).eq('source_id',1)
-   .contains('provider_state',{test_mode:true})
+   .select('id,status,last_error,sent_at,created_at,listing_id,test_mode')
+   .eq('user_id',user.id).eq('test_mode',true)
    .order('created_at',{ascending:false}).limit(5);
   if(testAppsError)throw Error('Testverlauf konnte nicht geladen werden.');
   const listingIds=[...new Set((testApps||[]).map(row=>row.listing_id).filter(Boolean))];
