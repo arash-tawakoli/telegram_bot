@@ -64,7 +64,10 @@ async function claim(sql, freshOnly = false) {
           WHEN 'immomio' THEN pref.immomio_enabled
           ELSE false
         END AS provider_enabled,
-        pc.status AS connection_status, pc.ciphertext AS connection_ciphertext, pc.iv AS connection_iv, pc.key_version AS connection_key_version
+        CASE WHEN a.test_mode = true THEN NULL ELSE pc.status END AS connection_status,
+        CASE WHEN a.test_mode = true THEN NULL ELSE pc.ciphertext END AS connection_ciphertext,
+        CASE WHEN a.test_mode = true THEN NULL ELSE pc.iv END AS connection_iv,
+        CASE WHEN a.test_mode = true THEN NULL ELSE pc.key_version END AS connection_key_version
       FROM housing.applications a
       JOIN housing.participants p ON p.id = a.participant_id
       LEFT JOIN housing.applicant_profiles ap ON ap.participant_id = a.participant_id
