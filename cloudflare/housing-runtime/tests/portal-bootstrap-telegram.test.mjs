@@ -1,3 +1,4 @@
+import { sha256 } from "../src/auth.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { webcrypto } from "node:crypto";
@@ -45,7 +46,8 @@ test("portal bootstrap token is issued only for the active owner and a migrated-
   assert.ok(Date.parse(result.data.expires_at) > Date.now());
   const insert = calls.find((call) => call.query.startsWith("INSERT INTO bootstrap_tokens"));
   assert.ok(insert);
-  assert.match(insert.params[1], /^[a-f0-9]{64}$/);
+  assert.equal(insert.params[1], await sha256(result.data.token));
+  assert.match(insert.params[1], /^[A-Za-z0-9_-]{43}$/);
   assert.notEqual(insert.params[1], result.data.token);
 });
 
