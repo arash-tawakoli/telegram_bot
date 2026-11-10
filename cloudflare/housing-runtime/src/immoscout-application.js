@@ -1,4 +1,5 @@
 import { decryptProviderCredentials, encryptProviderCredentials } from "./provider-credentials.js";
+import { getCentralApplicationCredentials } from "./immoscout-central-token.js";
 
 const TOKEN_URL = "https://login.immobilienscout24.de/oauth2/aus1227au6oBG6hGH417/v1/token";
 const CLIENT_ID = "is24-android-de";
@@ -65,9 +66,16 @@ export async function sendImmoScoutApplication(application, env, sql) {
   const profile = application.profile || {};
   const id = String(application.external_id || "").match(/\d{6,20}/)?.[0] || String(application.canonical_url || "").match(/\/expose\/(\d{6,20})/)?.[1];
   if (!id) return { status: "manual_required", error: "provider_identifier_unresolved" };
-  const row = { ciphertext: application.connection_ciphertext, iv: application.connection_iv, key_version: application.connection_key_version, sql };
-  let credentials = await decryptProviderCredentials(env, row, application.participant_id, "immoscout24");
-  credentials = await refresh(env, row, application.participant_id, credentials);
+  const testMode = application.test_mode === true || application.test_mode === 1;
+  let credentials;
+  if (testMode) {
+    // Test mode must use the central encrypted credential only. Never fall back to a participant plugin.
+    credentials = await getCentralApplicationCredentials(env);
+  } else {
+    const row = { ciphertext: application.connection_ciphertext, iv: application.connection_iv, key_version: application.connection_key_version, sql };
+    credentials = await decryptProviderCredentials(env, row, application.participant_id, "immoscout24");
+    credentials = await refresh(env, row, application.participant_id, credentials);
+  }
   const detailResponse = await fetch(`https://rest.immobilienscout24.de/restapi/api/search/v1.0/expose/${encodeURIComponent(id)}`, { headers: { accept: "application/json", authorization: `Bearer ${credentials.access_token}`, "user-agent": USER_AGENT }, signal: AbortSignal.timeout(25_000) });
   if (detailResponse.status === 401 || detailResponse.status === 403) return { status: "manual_required", error: "needs_login" };
   const detail = await detailResponse.json().catch(() => null);
@@ -75,6 +83,11 @@ export async function sendImmoScoutApplication(application, env, sql) {
   const expose = detail?.["expose.expose"] || detail?.expose || detail;
   const prepared = prepare(expose?.contactFormConfiguration || {}, profile, value(profile, "message", "message_apartment", "message_house") || "Anfrage zur Immobilie");
   if (prepared.missing.length) return { status: "manual_required", error: `required_profile_data_missing:${prepared.missing.join(",")}` };
+  if (testMode) {
+    if (typeof application.authorizeTestSend !== "function") return { status: "manual_required", error: "test_send_authorization_missing" };
+    const authorized = await application.authorizeTestSend();
+    if (!authorized) return { status: "manual_required", error: "test_daily_limit_reached" };
+  }
   const response = await fetch(`https://rest.immobilienscout24.de/restapi/api/search/v1.0/expose/${encodeURIComponent(id)}/contact`, {
     method: "POST",
     headers: { accept: "application/json", "content-type": "application/json", authorization: `Bearer ${credentials.access_token}`, "user-agent": USER_AGENT },
