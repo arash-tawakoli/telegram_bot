@@ -90,6 +90,9 @@ test("prepare_telegram_update stores Telegram username and updates existing part
             if (query.startsWith("SELECT * FROM participants WHERE id")) {
               return { results: [{ id: "u-existing", telegram_user_id: 7, telegram_chat_id: 77, username: "new_handle", first_name: "New", last_name: "Name", ui_language: "de", status: "active", telegram_state: "{}" }], meta: { changes: 0 } };
             }
+            if (query.startsWith("SELECT id,participant_id AS user_id,provider,stripe_customer_id")) {
+              return { results: [{ id: "sub-1", user_id: "u-existing", provider: "stripe", status: "active", current_period_end: "2099-01-01T00:00:00.000Z", cancel_at_period_end: 0 }], meta: { changes: 0 } };
+            }
             return { results: [], meta: { changes: 1 } };
           } };
         },
@@ -107,6 +110,8 @@ test("prepare_telegram_update stores Telegram username and updates existing part
   assert.equal(update.params[1], "new_handle");
   assert.equal(result.data.user.username, "new_handle");
   assert.equal(result.data.user.chat_id, 77);
+  assert.equal(result.data.subscription?.id, "sub-1");
+  assert.equal(result.data.subscription?.status, "active");
 });
 
 test("D1 participant metadata migration is additive and preserves existing participant rows", async () => {
