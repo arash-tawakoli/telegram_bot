@@ -337,6 +337,53 @@ async function mfaVerify(env, ticketValue, factorIdValue, passCodeValue) {
   }
   throw new Error("mfa_challenge_failed");
 }
+export async function getCentralApplicationCredentials(env) {
+  const database = env.DB || env.HOUSING_DB;
+  const centralEnv = {
+    ...env,
+    DB: database,
+    TOKEN_ENCRYPTION_KEY: String(env.TOKEN_ENCRYPTION_KEY || env.CENTRAL_TOKEN_ENCRYPTION_KEY || ""),
+  };
+  if (!database || !centralEnv.TOKEN_ENCRYPTION_KEY) throw new Error("test_mode_central_account_unavailable");
+  const row = await database.prepare(
+    "SELECT account_hint,ciphertext,iv,status,enabled,expires_at FROM central_credentials WHERE singleton='central'"
+  ).first();
+  if (!row || row.status !== "connected" || Number(row.enabled) !== 0
+    || validEmail(row.account_hint) !== ACCOUNT_EMAIL || !row.ciphertext || !row.iv) {
+    throw new Error("test_mode_central_account_unavailable");
+  }
+  let credentials;
+  try { credentials = await decrypt(row.ciphertext, row.iv, centralEnv, CREDENTIAL_AAD); }
+  catch { throw new Error("credential_decrypt_failed"); }
+  if (credentials?.access_token && credentials?.expires_at && Date.parse(credentials.expires_at) > Date.now() + 60_000) {
+    return credentials;
+  }
+  if (!credentials?.refresh_token) throw new Error("needs_login");
+  const refreshed = await tokenRequest({
+    grant_type: "refresh_token",
+    refresh_token: String(credentials.refresh_token),
+  });
+  if (!refreshed.response.ok || !refreshed.body?.access_token) {
+    throw new Error(refreshed.response.status === 401 ? "needs_login" : "temporary_network_error");
+  }
+  const info = await userInfo(String(refreshed.body.access_token));
+  if (!info.response.ok || !info.body?.sub || validEmail(info.body?.email) !== ACCOUNT_EMAIL) {
+    throw new Error("central_account_mismatch");
+  }
+  const updated = {
+    ...credentials,
+    access_token: String(refreshed.body.access_token),
+    refresh_token: String(refreshed.body.refresh_token || credentials.refresh_token),
+    id_token: refreshed.body.id_token ? String(refreshed.body.id_token) : credentials.id_token,
+    expires_at: new Date(Date.now() + Math.max(60, Number(refreshed.body.expires_in || 3600)) * 1000).toISOString(),
+    token_type: String(refreshed.body.token_type || credentials.token_type || "Bearer"),
+    scope: String(refreshed.body.scope || credentials.scope || SCOPE),
+    sub: String(info.body.sub),
+  };
+  await persistCredentials(centralEnv, updated, true, null, true);
+  return updated;
+}
+
 async function credentialStatus(env) {
   const row = await env.DB.prepare("SELECT account_hint,status,enabled,expires_at,last_verified_at,last_error,updated_at FROM central_credentials WHERE singleton='central'").first();
   return {
