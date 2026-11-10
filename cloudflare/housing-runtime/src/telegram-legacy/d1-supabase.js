@@ -314,7 +314,7 @@ async function rpc(client, env, name, args) {
         [args.p_user],
       );
       await client.run(
-        "UPDATE applications SET status='failed',last_error='test_mode_disabled',updated_at=CURRENT_TIMESTAMP WHERE participant_id=? AND test_mode=1 AND status='pending'",
+        "UPDATE applications SET status='failed',last_error='test_mode_disabled',updated_at=CURRENT_TIMESTAMP WHERE participant_id=? AND test_mode=1 AND status IN ('pending','processing') AND submission_started_at IS NULL",
         [args.p_user],
       );
     }
