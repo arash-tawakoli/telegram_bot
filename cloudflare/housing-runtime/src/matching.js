@@ -24,7 +24,7 @@ function berlinDayStartISO(now = new Date()) {
   const offsetLabel = offsetParts.find((entry) => entry.type === "timeZoneName")?.value || "GMT+0";
   const match = offsetLabel.match(/GMT([+-])(\d{1,2})(?::?(\d{2}))?/);
   const offsetMinutes = match ? (match[1] === "-" ? -1 : 1) * (Number(match[2]) * 60 + Number(match[3] || 0)) : 0;
-  return new Date(utcMidnight.getTime() - offsetMinutes * 60_000).toISOString();
+  return new Date(utcMidnight.getTime() - offsetMinutes * 60_000).toISOString().replace("T", " ").replace("Z", "").slice(0, 19);
 }
 
 export async function queueMatches(sql, offerId, sourceId, identityHash, facts) {
