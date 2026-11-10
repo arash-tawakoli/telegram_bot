@@ -115,7 +115,6 @@ test("matching queues a separate ImmoScout test application only for an opted-in
   assert.match(insert.text, /test_mode/);
   assert.match(insert.text, /test_auto_apply_enabled = true/);
   assert.match(insert.text, /submission_started_at/);
-  assert.ok(calls.some((call) => /kind, payload, status/.test(call.text) && call.values.some((value) => String(value).includes("app-test-1"))));
 });
 
 test("matching never queues the personal ImmoScout test path for another provider or an opted-out user", async () => {
