@@ -83,6 +83,10 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts) 
             AND p.auto_apply_enabled = false
         )
           AND NOT EXISTS (
+            SELECT 1 FROM housing.application_preferences pref
+            WHERE pref.participant_id = ${row.participant_id} AND pref.enabled = true
+          )
+          AND NOT EXISTS (
             SELECT 1 FROM housing.applications a
             WHERE a.participant_id = ${row.participant_id}
               AND a.test_mode = true
