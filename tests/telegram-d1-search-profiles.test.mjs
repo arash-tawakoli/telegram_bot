@@ -78,8 +78,10 @@ test("D1 search-profile saves upsert by participant and slot and replace source 
     const criteria = JSON.parse(batch[0].params[3]);
     assert.equal(criteria.profile_slot, undefined);
     assert.match(batch[1].query, /DELETE FROM source_links/);
-    assert.equal(batch.length, 4, "one upsert, one link reset and two allowlisted sources");
-    assert.deepEqual(batch.slice(2).map(statement => statement.params[0]), [1, 3]);
+    assert.equal(batch.length, 6, "profile, source links and referral reward are saved together");
+    assert.deepEqual(batch.slice(2, 4).map(statement => statement.params[0]), [1, 3]);
+    assert.match(batch[4].query, /UPDATE participants SET referral_bonus_until/);
+    assert.match(batch[5].query, /UPDATE referrals SET status='rewarded'/);
   }
   assert.deepEqual(batches.map(batch => batch[0].params[2]), [1, 2, 3]);
 });
