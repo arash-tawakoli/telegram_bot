@@ -345,7 +345,7 @@ async function rpc(client, env, name, args) {
         params: [source, args.p_user, slot],
       })),
       {
-        query: "UPDATE participants SET referral_bonus_until=datetime(CASE WHEN julianday(referral_bonus_until)>julianday('now') THEN referral_bonus_until ELSE 'now' END,'+30 days'),updated_at=CURRENT_TIMESTAMP WHERE id IN (SELECT referred_participant_id FROM referrals WHERE referred_participant_id=? AND status='registered' UNION SELECT referrer_participant_id FROM referrals WHERE referred_participant_id=? AND status='registered') AND EXISTS (SELECT 1 FROM referrals r JOIN participants p ON p.id=r.referrer_participant_id JOIN participants q ON q.id=r.referred_participant_id WHERE r.referred_participant_id=? AND r.status='registered')",
+        query: "UPDATE participants SET referral_bonus_until=datetime(CASE WHEN julianday(referral_bonus_until)>julianday('now') THEN referral_bonus_until ELSE 'now' END,'+30 days'),referral_bonus_days=referral_bonus_days+30,updated_at=CURRENT_TIMESTAMP WHERE id IN (SELECT referred_participant_id FROM referrals WHERE referred_participant_id=? AND status='registered' UNION SELECT referrer_participant_id FROM referrals WHERE referred_participant_id=? AND status='registered') AND EXISTS (SELECT 1 FROM referrals r JOIN participants p ON p.id=r.referrer_participant_id JOIN participants q ON q.id=r.referred_participant_id WHERE r.referred_participant_id=? AND r.status='registered')",
         params: [args.p_user, args.p_user, args.p_user],
       },
       {

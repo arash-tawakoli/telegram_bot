@@ -34,10 +34,11 @@ test("referrals register once and award both participants only after a profile i
     assert.equal(sqlite.prepare("SELECT referral_bonus_until FROM participants WHERE id='new'").get().referral_bonus_until, null);
     const save = () => api.rpc("save_search_profile_ui", { p_user: "new", p_values: { profile_slot: 1, source_ids: [] } });
     assert.equal((await save()).data.status, "rewarded");
-    const bonuses = sqlite.prepare("SELECT id,referral_bonus_until FROM participants WHERE id IN ('owner','new') ORDER BY id").all();
+    const bonuses = sqlite.prepare("SELECT id,referral_bonus_until,referral_bonus_days FROM participants WHERE id IN ('owner','new') ORDER BY id").all();
     assert.ok(bonuses.every(row => Date.parse(row.referral_bonus_until + "Z") > Date.now() + 29 * 86400000));
+    assert.ok(bonuses.every(row => row.referral_bonus_days === 30));
     assert.equal((await save()).data.status, "none");
-    assert.deepEqual(sqlite.prepare("SELECT id,referral_bonus_until FROM participants WHERE id IN ('owner','new') ORDER BY id").all(), bonuses);
+    assert.deepEqual(sqlite.prepare("SELECT id,referral_bonus_until,referral_bonus_days FROM participants WHERE id IN ('owner','new') ORDER BY id").all(), bonuses);
     sqlite.exec("INSERT INTO search_profiles(id,participant_id,profile_slot) VALUES ('other-profile','other',1)");
     assert.equal((await redeem("other", "TESTCODE")).data.status, "not_new_user");
   } finally { sqlite.close(); }
