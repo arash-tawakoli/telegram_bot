@@ -51,3 +51,15 @@ npm test
 ```
 
 `/edge/ready` muss `role: cloudflare-d1`, 21 Housing-Tabellen, die drei zentralen ImmoScout-D1-Tabellen und `dataImported: true` melden.
+
+## Stripe Premium – Cloudflare-D1-Cutover (vorbereitet)
+
+- Neuer Worker-Endpunkt: `POST /edge/stripe/webhook` (direkt an die Housing Runtime richten).
+- Verifizierung: Stripe `Stripe-Signature` mit 5-Minuten-Zeitfenster und dem **Cloudflare Worker Secret** `STRIPE_WEBHOOK_SIGNING_SECRET`.
+- D1-Migration: `schema/d1/0007_stripe_webhook_events.sql` **einmalig** nach Sicherung anwenden.
+- Der Webhook aktualisiert `user_subscriptions` atomar mit einem D1-Ereignisprotokoll; alte Stripe-Ereignisse überschreiben keine neueren Entitlements.
+- Stripe-Endpunkt im Stripe-Dashboard **erst nach erfolgreichen Smoke-Tests** auf die Cloudflare-Adresse umstellen, und das Supabase-Webhook erst danach deaktivieren.
+- Vor der Umstellung das vorhandene Stripe-Webhook-Signing-Secret vertraulich als Worker Secret setzen; keine Secrets in Git oder Logs eintragen.
+- Benötigte Ereignisse: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`.
+- Der neue Handler aktualisiert noch **keine Telegram-Zahlungsbenachrichtigungen**; diese müssen vor vollständiger Funktionsparität ergänzt und getestet werden.
+- Dies ist **keine** Migration gespeicherter Bewerbungen oder Bewerbungsereignisse.

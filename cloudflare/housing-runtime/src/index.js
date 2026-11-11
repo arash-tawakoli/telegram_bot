@@ -9,6 +9,7 @@ import { telegramText } from "./matching.js";
 import { createSession, hashPassword, memberForAccess, refreshSession, revokeSession, sha256, verifyPassword } from "./auth.js";
 import { handleCoach } from "./coach-api.js";
 import { handleProviderFacade } from "./provider-facade.js";
+import { handleStripeWebhook } from "./stripe-webhook.js";
 import { processHousingApplication } from "./application-runtime.js";
 import { createD1Client } from "./d1-database.js";
 import { handleLegacyTelegramUpdate } from "./telegram-legacy/index.js";
@@ -565,6 +566,8 @@ export default {
         databaseConfigured: Boolean(env.HOUSING_DB),
       });
     }
+
+    if (routePath === "/stripe/webhook") return handleStripeWebhook(request, env);
 
     if ((url.pathname === "/telegram/webhook" || routePath === "/telegram/webhook") && request.method === "POST") {
       try { return await telegramWebhook(request, env); }
