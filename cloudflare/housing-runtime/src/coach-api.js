@@ -460,10 +460,6 @@ export async function handleCoach(sql, request, env = {}) {
   if (action === "open_document") return openDocument(sql, member, body);
   if (action === "delete_document") return deleteDocument(sql, member, body, env);
   if (action === "toggle_document") return toggleDocument(sql, member, body);
-  if (action === "source_health") {
-    if (!isAdmin(member)) throw new Error("admin_required");
-    return { sources: await sql`SELECT id, name, family, connector, enabled, last_success_at, consecutive_failures FROM housing.source_registry ORDER BY name` };
-  }
   if (action === "applications") return applicationPage(sql, member, body);
   if (action === "application_events") return applicationEvents(sql, member, body);
   throw new Error("invalid_action");

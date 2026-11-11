@@ -5,13 +5,13 @@ function absolute(base, href) {
 }
 
 function strip(value) {
-  return String(value || "").replace(/<script\b[\s\S]*?<\/script>/gi, " ").replace(/<style\b[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  return String(value || "").replace(/<script\b[\s\S]*?<\/script>/gi, " ").replace(/<style\b[\s\S]*?<\/style>/gi, " ").replace(/<[^>]+>/g, " ").replace(/&nbsp;|&#160;|&#x0*a0;/gi, " ").replace(/&amp;/gi, "&").replace(/\s+/g, " ").trim();
 }
 
 function number(text, pattern) {
   const value = String(text || "").match(pattern)?.[1];
   if (!value) return null;
-  const normalized = value.includes(",") ? value.replace(/\./g, "").replace(",", ".") : value.replace(/\s/g, "");
+  const normalized = value.includes(",") ? value.replace(/\./g, "").replace(",", ".") : /^\d{1,3}(?:\.\d{3})+$/.test(value) ? value.replace(/\./g, "") : value.replace(/\s/g, "");
   const result = Number(normalized);
   return Number.isFinite(result) ? result : null;
 }
@@ -19,20 +19,30 @@ function number(text, pattern) {
 function cards(html, base, sourceId) {
   const output = [];
   const seen = new Set();
-  for (const match of html.matchAll(/<a\b[^>]*href=["']([^"']*\/expose\/[^"']+)["'][^>]*>([\s\S]{0,12000})<\/a>/gi)) {
+  const parts = html.split(/<div\s+id=["']classified-card-/i);
+  const chunks = parts.length > 1 ? parts.slice(1) : [...html.matchAll(/<a\b[^>]*href=["'][^"']*\/expose\/[^"']+["'][^>]*>[\s\S]{0,12000}?<\/a>/gi)].map(match => match[0]);
+  for (const chunk of chunks) {
+    const match = chunk.match(/<a\b[^>]*href=["']([^"']*\/expose\/[^"']+)["'][^>]*>/i);
+    if (!match) continue;
     const url = absolute(base, match[1]);
     if (!url || seen.has(url)) continue;
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:" || parsed.hostname !== "www.immowelt.de" || parsed.username || parsed.password || parsed.port) continue;
     seen.add(url);
-    const text = strip(match[2]).slice(0, 8000);
-    const title = (match[0].match(/\btitle=["']([^"']+)["']/i)?.[1] || text.match(/.{8,180}/)?.[0] || "Wohnungsangebot").trim().slice(0, 240);
+    const text = strip(chunk.slice(0, 30000)).slice(0, 8000);
+    const title = strip(match[0].match(/\btitle=["']([^"']+)["']/i)?.[1] || text.match(/.{8,180}/)?.[0] || "Wohnungsangebot").slice(0, 240);
+    const titleParts = title.split(/\s+-\s+/), priceIndex = titleParts.findIndex(part => /[\d.,]+\s*(?:€|EUR)/i.test(part));
+    const city = priceIndex > 0 ? titleParts[priceIndex - 1].trim() : "";
     output.push({
       source_id: sourceId,
       identity: url,
       canonical_url: url,
       facts: {
         title,
-        warm_rent: number(text, /(?:Warmmiete|Bruttowarmmiete|Gesamtmiete)\s*(?:[:=]|beträgt|ist)?\s*(?:€|EUR)?\s*([\d.,]+)/i),
-        cold_rent: number(text, /(?:Kaltmiete|Nettokaltmiete)\s*(?:[:=]|beträgt|ist)?\s*(?:€|EUR)?\s*([\d.,]+)/i),
+        city,
+        search_text: text,
+        warm_rent: number(text, /([\d.,]+)\s*(?:€|EUR)\s*(?:Warmmiete|Bruttowarmmiete|Gesamtmiete)/i) ?? number(text, /(?:Warmmiete|Bruttowarmmiete|Gesamtmiete)\s*(?:[:=]|beträgt|ist)\s*(?:€|EUR)?\s*([\d.,]+)/i),
+        cold_rent: number(text, /([\d.,]+)\s*(?:€|EUR)\s*(?:Kaltmiete|Nettokaltmiete)/i) ?? number(text, /(?:Kaltmiete|Nettokaltmiete)\s*(?:[:=]|beträgt|ist)\s*(?:€|EUR)?\s*([\d.,]+)/i),
         rooms: number(text, /([\d]+(?:[.,][\d]+)?)\s*(?:Zimmer|Zi\.)/i),
         area_sqm: number(text, /([\d]+(?:[.,][\d]+)?)\s*m²/i),
         postal_code: text.match(/\b(20\d{3}|21\d{3}|22\d{3}|23\d{3})\b/)?.[1] || null,

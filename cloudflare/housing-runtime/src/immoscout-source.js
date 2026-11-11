@@ -33,7 +33,10 @@ export function parseMcpToolResult(payload) {
   if (payload?.error) throw new Error(payload.error.message || "immoscout_mcp_error");
   if (payload?.result?.isError) throw new Error(payload.result.content?.map((item) => item?.text).filter(Boolean).join(" | ") || "immoscout_mcp_error");
   const content = payload?.result?.structuredContent || payload?.result?.structured_content || {};
-  return { entries: Array.isArray(content.entries) ? content.entries : [], total: Number.isFinite(Number(content.total)) ? Number(content.total) : null };
+  if (!Array.isArray(content.entries)) throw new Error("immoscout_inventory_unrecognized");
+  const total = content.total == null || content.total === "" || !Number.isFinite(Number(content.total)) ? null : Number(content.total);
+  if (!content.entries.length && total !== 0) throw new Error("immoscout_inventory_unrecognized");
+  return { entries: content.entries, total };
 }
 
 async function callTool(name, query) {
