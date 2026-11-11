@@ -1,5 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync, readdirSync } from "node:fs";
+import { DatabaseSync } from "node:sqlite";
 import {handleStripeWebhook,verifyStripeSignature} from "../src/stripe-webhook.js";
 const key="whsec_test_stripe_signature";
 const participantId="6075e235-df06-4923-8000-a653dec275ea";
@@ -22,7 +24,7 @@ class FakeD1 {
   async first(){
    db.queries.push({sql,p,op:"first"});
    if(sql.includes("FROM stripe_webhook_events"))return db.events.get(p[0])||null;
-   if(sql.includes("FROM participants"))return db.participant?{id:participantId}:null;
+   if(sql.includes("FROM participants"))return db.participant?{id:participantId,telegram_chat_id:db.chatId}:null;
    if(sql.includes("FROM user_subscriptions"))return [...db.subscriptions.values()].some(s=>
     (sql.includes("stripe_subscription_id")&&s.subscription===p[0])||
     (sql.includes("stripe_customer_id")&&s.customer===p[0]))?{participant_id:participantId}:null;
@@ -107,4 +109,63 @@ test("Out-of-order unlinked subscription returns retryable error",async()=>{
   data:{object:{id:"sub_missing",customer:"cus_unknown",status:"active"}}};
  const r=await handleStripeWebhook(await signedEvent(event),{HOUSING_DB:db,STRIPE_WEBHOOK_SIGNING_SECRET:key});
  assert.equal(r.status,503);assert.equal(db.subscriptions.size,0);assert.equal(db.events.get(event.id).status,"failed");
+});
+
+test("paid checkout notifies Telegram once and skips duplicate events",async()=>{
+ const db=new FakeD1();db.chatId=123456;
+ const originalFetch=globalThis.fetch,messages=[];
+ try {
+  globalThis.fetch=async(url,init)=>{
+   assert.equal(String(url),"https://api.telegram.org/bottest-token/sendMessage");
+   messages.push(JSON.parse(init.body));
+   return Response.json({ok:true,result:{message_id:1}});
+  };
+  const env={HOUSING_DB:db,STRIPE_WEBHOOK_SIGNING_SECRET:key,TELEGRAM_BOT_TOKEN:"test-token"};
+  assert.equal((await handleStripeWebhook(await signedEvent(checkout()),env)).status,200);
+  assert.equal((await handleStripeWebhook(await signedEvent(checkout()),env)).status,200);
+  assert.equal(messages.length,1);assert.equal(messages[0].chat_id,123456);
+  assert.match(messages[0].text,/Premium-Abo ist jetzt aktiv/);
+  const failed={id:'evt_invoicefailed01',type:'invoice.payment_failed',created:1770000010,data:{object:{customer:'cus_123'}}};
+  assert.equal((await handleStripeWebhook(await signedEvent(failed),env)).status,200);
+  assert.equal((await handleStripeWebhook(await signedEvent(failed),env)).status,200);
+  assert.equal(messages.length,2);assert.match(messages[1].text,/Premium-Zahlung fehlgeschlagen/);
+  assert.equal(messages[1].reply_markup.inline_keyboard[0][0].callback_data,'portal');
+ } finally {globalThis.fetch=originalFetch;}
+});
+
+test("real D1 schema accepts paid checkouts, preserves ordering and enforces Premium slots",async()=>{
+ const sqlite=new DatabaseSync(":memory:");
+ try {
+  const schema=new URL("../schema/d1/",import.meta.url);
+  for(const file of readdirSync(schema).filter(x=>x.endsWith(".sql")).sort())sqlite.exec(readFileSync(new URL(file,schema),"utf8"));
+  const db={
+   prepare(query){return {bind(...values){const statement=sqlite.prepare(query);return {
+    async first(){return statement.get(...values)||null;},
+    async run(){return {meta:{changes:Number(statement.run(...values).changes)}};},
+   };}};},
+   async batch(statements){sqlite.exec("BEGIN");try{const out=[];for(const s of statements)out.push(await s.run());sqlite.exec("COMMIT");return out;}catch(e){sqlite.exec("ROLLBACK");throw e;}},
+  };
+  sqlite.prepare("INSERT INTO participants(id,first_name,last_name,plan_override) VALUES (?,?,?,'free')").run(participantId,"Test","Migration");
+  const env={HOUSING_DB:db,STRIPE_WEBHOOK_SIGNING_SECRET:key};
+  sqlite.prepare("INSERT INTO stripe_webhook_events(event_id,event_type,event_created,status,updated_at) VALUES (?,?,?,'processing',datetime('now','-10 minutes'))").run('evt_testcheckout01','checkout.session.completed',1770000000);
+  assert.equal((await handleStripeWebhook(await signedEvent(checkout()),env)).status,200);
+  assert.equal(sqlite.prepare("SELECT attempts FROM stripe_webhook_events WHERE event_id='evt_testcheckout01'").get().attempts,2);
+  assert.equal(sqlite.prepare("SELECT status FROM user_subscriptions").get().status,"active");
+  assert.equal(sqlite.prepare("SELECT plan_override FROM participants").get().plan_override,null);
+  sqlite.prepare("UPDATE participants SET plan_override='free'").run();
+  const old=checkout("evt_oldcheckout");old.created--;
+  assert.equal((await handleStripeWebhook(await signedEvent(old),env)).status,200);
+  assert.equal(sqlite.prepare("SELECT plan_override FROM participants").get().plan_override,"free");
+  sqlite.prepare("UPDATE participants SET plan_override=NULL").run();
+  sqlite.prepare("INSERT INTO search_profiles(id,participant_id,profile_slot) VALUES ('slot1',?,1),('slot2',?,2)").run(participantId,participantId);
+  const canceled={id:"evt_canceled01",type:"customer.subscription.deleted",created:1770000010,data:{object:{id:"sub_123",customer:"cus_123"}}};
+  assert.equal((await handleStripeWebhook(await signedEvent(canceled),env)).status,200);
+  assert.equal(sqlite.prepare("SELECT active FROM search_profiles WHERE id='slot1'").get().active,1);
+  assert.equal(sqlite.prepare("SELECT active FROM search_profiles WHERE id='slot2'").get().active,0);
+  sqlite.prepare("UPDATE participants SET plan_override='premium'").run();
+  sqlite.prepare("UPDATE search_profiles SET active=1").run();
+  canceled.id="evt_canceled02";canceled.created++;
+  assert.equal((await handleStripeWebhook(await signedEvent(canceled),env)).status,200);
+  assert.equal(sqlite.prepare("SELECT active FROM search_profiles WHERE id='slot2'").get().active,1);
+ } finally {sqlite.close();}
 });

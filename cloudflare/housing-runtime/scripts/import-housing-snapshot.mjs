@@ -13,8 +13,11 @@ const conflictKeys = {
   source_registry: ["id"], portal_members: ["id"], participant_assignments: ["participant_id"], applicant_profiles: ["participant_id"],
   search_profiles: ["id"], source_links: ["search_profile_id", "source_id"], application_preferences: ["participant_id"],
   provider_connections: ["participant_id", "provider"], documents: ["id"], participants: ["id"], offer_identities: ["id"],
-  deliveries: ["id"], applications: ["id"], application_events: ["id"],
+  deliveries: ["id"],
 };
+for (const table of Object.keys(snapshot.tables)) {
+  if (!Object.hasOwn(conflictKeys, table)) throw new Error(`snapshot_table_forbidden:${table}`);
+}
 const jsonColumns = new Set(["connector_config", "profile", "criteria", "facts", "metadata", "telegram_state"]);
 
 function identifier(value) {
