@@ -218,9 +218,7 @@ async function processDelivery(sql, request, env) {
 
 async function runScheduledHousingWork(env) {
   const minute = Math.floor(Date.now() / 60_000);
-  const sources = [SOURCE_ROTATION[minute % SOURCE_ROTATION.length]];
-  if (minute % 5 === 0) sources.push(SHADOW_SOURCES[Math.floor(minute / 5) % SHADOW_SOURCES.length]);
-  for (const sourceId of sources) {
+  const runScheduledSource = async (sourceId) => {
     const sourceRequest = new Request("https://housing-runtime.internal/internal/source/run", {
       method: "POST",
       headers: { authorization: `Bearer ${env.SOURCE_RUN_TOKEN || ""}`, "content-type": "application/json" },
@@ -231,7 +229,8 @@ async function runScheduledHousingWork(env) {
     } catch (error) {
       console.error("housing_source_scheduled_failed", JSON.stringify({ source_id: sourceId, error: String(error?.message || error) }));
     }
-  }
+  };
+  await runScheduledSource(SOURCE_ROTATION[minute % SOURCE_ROTATION.length]);
 
   for (let index = 0; index < 5; index++) {
     const deliveryRequest = new Request("https://housing-runtime.internal/internal/delivery/process?fresh_only=1", {
@@ -263,6 +262,7 @@ async function runScheduledHousingWork(env) {
   } catch (error) {
     console.error("housing_application_scheduled_failed", String(error?.message || error));
   }
+  if (minute % 5 === 0) await runScheduledSource(SHADOW_SOURCES[Math.floor(minute / 5) % SHADOW_SOURCES.length]);
 }
 
 export async function handleAuth(sql, request, env = {}) {
