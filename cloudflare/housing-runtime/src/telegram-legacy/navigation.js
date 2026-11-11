@@ -77,16 +77,21 @@ export async function saved(user, chatId, messageId, requestedPage = 0) {
     const to = from + SAVED_PAGE_SIZE - 1;
     const { data, error } = await db
         .from("saved_listings")
-        .select("listing_id,created_at,listings(title,canonical_url,is_active)")
+        .select("listing_id,created_at")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .range(from, to);
     if (error)
         throw error;
+    const ids = [...new Set((data || []).map(row => row.listing_id).filter(Boolean))];
+    const listings = ids.length ? await db.from("listings").select("*").in("id", ids) : { data: [], error: null };
+    if (listings.error)
+        throw listings.error;
+    const byId = new Map((listings.data || []).map(listing => [listing.id, listing]));
     const rows = [];
     for (const [index, row] of (data || []).entries()) {
-        const listing = row.listings || {};
-        const label = `🏠 ${from + index + 1}. ${short(listing.title, 42)}`;
+        const listing = byId.get(row.listing_id) || {};
+        const label = `🏠 ${from + index + 1}. ${short(listing.title || "Inserat nicht mehr verfügbar", 42)}`;
         try {
             const url = new URL(listing.canonical_url);
             if (["http:", "https:"].includes(url.protocol)) {

@@ -232,6 +232,19 @@ export function createD1Supabase(db, env) {
 }
 
 async function rpc(client, env, name, args) {
+  if (name === "toggle_saved_once") {
+    const update = Number(args.p_update_id);
+    const user = args.p_user_id, offer = args.p_listing_id;
+    if (!Number.isSafeInteger(update) || update < 1 || !user || !offer) return { data: null, error: new Error("saved_request_invalid") };
+    await client.batch([
+      { query: "INSERT OR IGNORE INTO telegram_saved_effects(update_id,participant_id,offer_identity_id,saved) SELECT ?,?,?,CASE WHEN EXISTS (SELECT 1 FROM saved_listings WHERE participant_id=? AND offer_identity_id=?) THEN 0 ELSE 1 END WHERE EXISTS (SELECT 1 FROM offer_identities WHERE id=?)", params: [update, user, offer, user, offer, offer] },
+      { query: "DELETE FROM saved_listings WHERE participant_id=? AND offer_identity_id=? AND EXISTS (SELECT 1 FROM telegram_saved_effects WHERE update_id=? AND participant_id=? AND offer_identity_id=? AND saved=0 AND applied=0)", params: [user, offer, update, user, offer] },
+      { query: "INSERT OR IGNORE INTO saved_listings(id,participant_id,offer_identity_id) SELECT ?,?,? WHERE EXISTS (SELECT 1 FROM telegram_saved_effects WHERE update_id=? AND participant_id=? AND offer_identity_id=? AND saved=1 AND applied=0)", params: [crypto.randomUUID(), user, offer, update, user, offer] },
+      { query: "UPDATE telegram_saved_effects SET applied=1 WHERE update_id=? AND participant_id=? AND offer_identity_id=?", params: [update, user, offer] },
+    ]);
+    const effect = (await client.run("SELECT saved FROM telegram_saved_effects WHERE update_id=? AND participant_id=? AND offer_identity_id=? AND applied=1", [update, user, offer]))[0];
+    return effect ? { data: bool(effect.saved), error: null } : { data: null, error: new Error("listing_unavailable") };
+  }
   if (name === "redeem_referral_code") {
     const code = String(args.p_code || "").trim();
     if (!args.p_referred_user_id || !code) return { data: { status: "invalid_code" }, error: null };
