@@ -1,3 +1,5 @@
+import { pbkdf2Sync } from "node:crypto";
+
 const PASSWORD_ITERATIONS = 210_000;
 const ACCESS_TTL_SECONDS = 60 * 60;
 const REFRESH_TTL_SECONDS = 30 * 24 * 60 * 60;
@@ -19,13 +21,7 @@ async function sha256(value) {
 }
 
 async function derivePassword(password, salt, iterations = PASSWORD_ITERATIONS) {
-  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
-  const bits = await crypto.subtle.deriveBits(
-    { name: "PBKDF2", salt, iterations, hash: "SHA-256" },
-    key,
-    256,
-  );
-  return new Uint8Array(bits);
+  return new Uint8Array(pbkdf2Sync(password, salt, iterations, 32, "sha256"));
 }
 
 export async function hashPassword(password) {
