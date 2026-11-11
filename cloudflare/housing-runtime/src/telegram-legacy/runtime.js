@@ -20,7 +20,26 @@ export let geoCache = null;
 
 export function configureLegacyRuntime(nextEnv, d1) { env = nextEnv; db = createD1Supabase(d1, env); }
 export function runtimeEnv() { return env; }
-export async function withPlan(user, subscription = null) { return { ...user, is_premium: true, subscription }; }
+export async function withPlan(user, subscription = undefined) {
+  if (subscription === undefined && user?.id) {
+    const result = await db.from("user_subscriptions")
+      .select("status,current_period_end,cancel_at_period_end")
+      .eq("user_id", user.id).maybeSingle();
+    if (result.error) throw result.error;
+    subscription = result.data;
+  }
+  const now = Date.now();
+  const overrideExpires = user?.plan_override_expires_at ? Date.parse(user.plan_override_expires_at) : Infinity;
+  const overrideActive = !Number.isNaN(overrideExpires) && overrideExpires > now;
+  let isPremium;
+  if (overrideActive && user?.plan_override === "free") isPremium = false;
+  else if (overrideActive && user?.plan_override === "premium") isPremium = true;
+  else if (user?.referral_bonus_until && Date.parse(user.referral_bonus_until) > now) isPremium = true;
+  else isPremium = Boolean(subscription &&
+    ["active", "trialing"].includes(String(subscription.status || "")) &&
+    (!subscription.current_period_end || Date.parse(subscription.current_period_end) > now));
+  return { ...user, is_premium: isPremium, subscription: subscription ?? null };
+}
 export function finiteOrNull(value) { if (value == null || value === "") return null; const number = Number(value); return Number.isFinite(number) ? number : null; }
 export function esc(value) { return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
 export function money(value) { if (value == null || value === "") return "–"; const number = Number(value); return Number.isFinite(number) ? `${new Intl.NumberFormat("de-DE", { maximumFractionDigits: 2 }).format(number)} €` : String(value); }
