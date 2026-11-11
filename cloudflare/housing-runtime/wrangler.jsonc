@@ -42,20 +42,6 @@
     ]
   },
   "previews": {
-    "d1_databases": [
-      {
-        "binding": "HOUSING_DB",
-        "database_name": "traumwohnung-housing-core",
-        "database_id": "d4ee4d33-00be-4420-bb40-76d70384822d",
-      "migrations_dir": "schema/d1"
-      }
-    ],
-    "r2_buckets": [
-      {
-        "binding": "DOCUMENTS",
-        "bucket_name": "traumwohnung-applicant-documents"
-      }
-    ],
     "vars": {
       "PREVIEW_MODE": "1",
       "TELEGRAM_WEBHOOK_REGISTER": "0"
