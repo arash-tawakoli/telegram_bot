@@ -142,7 +142,9 @@ test("real D1 schema accepts paid checkouts, preserves ordering and enforces Pre
   };
   sqlite.prepare("INSERT INTO participants(id,first_name,last_name,plan_override) VALUES (?,?,?,'free')").run(participantId,"Test","Migration");
   const env={HOUSING_DB:db,STRIPE_WEBHOOK_SIGNING_SECRET:key};
+  sqlite.prepare("INSERT INTO stripe_webhook_events(event_id,event_type,event_created,status,updated_at) VALUES (?,?,?,'processing',datetime('now','-10 minutes'))").run('evt_testcheckout01','checkout.session.completed',1770000000);
   assert.equal((await handleStripeWebhook(await signedEvent(checkout()),env)).status,200);
+  assert.equal(sqlite.prepare("SELECT attempts FROM stripe_webhook_events WHERE event_id='evt_testcheckout01'").get().attempts,2);
   assert.equal(sqlite.prepare("SELECT status FROM user_subscriptions").get().status,"active");
   assert.equal(sqlite.prepare("SELECT plan_override FROM participants").get().plan_override,null);
   sqlite.prepare("UPDATE participants SET plan_override='free'").run();

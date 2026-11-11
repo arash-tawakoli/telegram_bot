@@ -55,7 +55,12 @@ export async function verifyStripeSignature(payload, header, secret, epochSecond
 async function claimEvent(db, eventId, eventType, eventCreated) {
   const prior = await db.prepare("SELECT status FROM stripe_webhook_events WHERE event_id=?").bind(eventId).first();
   if (prior?.status === "processed") return "duplicate";
-  if (prior?.status === "processing") return "busy";
+  if (prior?.status === "processing") {
+    const result = await db.prepare(
+      "UPDATE stripe_webhook_events SET attempts=attempts+1,updated_at=CURRENT_TIMESTAMP WHERE event_id=? AND status='processing' AND updated_at<datetime('now','-5 minutes')",
+    ).bind(eventId).run();
+    return Number(result?.meta?.changes || 0) === 1 ? "claimed" : "busy";
+  }
   if (prior?.status === "failed") {
     const result = await db.prepare(
       "UPDATE stripe_webhook_events SET status='processing', attempts=attempts+1, last_error=NULL, updated_at=CURRENT_TIMESTAMP WHERE event_id=? AND status='failed'",
