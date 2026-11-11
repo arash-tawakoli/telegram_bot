@@ -52,6 +52,7 @@ function imageUrl(v: any, base: string): string | null {
 export function imageIdentity(url:string):string {
   const u=new URL(url);
   if(u.hostname==='pictures.immobilienscout24.de')return u.origin+(u.pathname.match(/^\/listings\/[^/]+/)?.[0]||u.pathname);
+  if(u.hostname==='img.kleinanzeigen.de')return u.origin+u.pathname;
   return url;
 }
 export function collectImages(v: any, base: string): string[] {
@@ -118,7 +119,7 @@ export function structuredFacts(raw: any, base: string): any {
   else if(typeof features==='string' && present(features))out.features=[features];
   if(typeof node.furnished==='boolean')out.furnished=node.furnished;
   if (!out.deposit_text && typeof node.deposit === 'string' && amount(node.deposit)==null) out.deposit_text=textValue(node.deposit);
-  out.address = node.showAddress === false ? null : exactAddress(h || node.address);
+  out.address = node.showAddress === false ? null : exactAddress(h || node.address || (r.provider === 'kleinanzeigen' ? r.location : null));
   if(!out.address && (node.streetAddress||node.street||node.strasse||node.postalCode||node.postcode||node.zipCode||node.plz||node.addressLocality||node.city||node.ort)){
     out.address=exactAddress(node);
   }
@@ -126,6 +127,19 @@ export function structuredFacts(raw: any, base: string): any {
     out.address=exactAddress({streetAddress:r.streetAddress,postalCode:r.postalCode,addressLocality:r.addressLocality});
   }
   if(node.heatingCostIncluded === true)out.heating_text = 'in den Nebenkosten enthalten';
+
+  if(/(^|\.)wg-gesucht\.de$/i.test(sourceHostname) && typeof r.text==='string'){
+    const text=r.text.replace(/\s+/g,' ').trim();
+    const available=text.match(/\bVerfügbar:\s*(.+?)(?=\s+Diese Anzeige|\s+<img|$)/i)?.[1]?.trim();
+    if(!out.available_text && present(available))out.available_text=available;
+    const place=text.match(/\|\s*Hamburg\s+([^|]{2,60}?)\s*\|\s*([^|]{2,100}?)\s+Verfügbar:/i);
+    if(place){
+      if(!out.district)out.district=textValue(place[1]);
+      if(!out.address)out.address=[textValue(place[2]),textValue(place[1])?'Hamburg '+textValue(place[1]):'Hamburg'].filter(Boolean).join(', ');
+    }
+    if(/\bmöbliert\b/i.test(text))(out.features??=[]).push('möbliert');
+    if(/\bunmöbliert\b/i.test(text))(out.features??=[]).push('unmöbliert');
+  }
 
   if(r.provider==='immosolve_hpm_rest' && h){
     const extra:Record<string,string>={};
@@ -315,6 +329,11 @@ export function htmlFacts(html: string, base: string): any {
     const gallery=jsonObjectAfter(html,/\bgalleryData:\s*/);
     if(gallery?.images)out.images.push(...collectImages({images:gallery.images},base));
   }
+  if(/(^|\.)kleinanzeigen\.de$/.test(hostname)){
+    for(const m of clean.matchAll(/<li\b[^>]*class=["']checktag["'][^>]*>([\s\S]*?)<\/li>/gi)){
+      const value=decode(m[1]);if(present(value))(out.features??=[]).push(value);
+    }
+  }
   const extraLabels:Record<string,string>={
     'schlafzimmer':'Schlafzimmer','badezimmer':'Badezimmer','haustiere':'Haustiere','baujahr':'Baujahr',
     'objektzustand':'Objektzustand','zustand':'Objektzustand','qualität der ausstattung':'Qualität der Ausstattung',
@@ -363,11 +382,13 @@ export function htmlFacts(html: string, base: string): any {
     const location = locationSection.match(/([A-ZÄÖÜ][A-Za-zÄÖÜäöüß0-9 .,'’\/-]{1,80}?)\s*\((2\d{4})\)/);
     if (!out.address && location) out.address = `${location[1].trim()} (${location[2]})`;
   }
+  const address=clean.match(/<([a-z][a-z0-9]*)\b[^>]*id=["']viewad-locality["'][^>]*>([\s\S]*?)<\/\1>/i);
+  if(address && /kleinanzeigen\.de/.test(hostname))out.address=decode(address[2]);
   for(const m of clean.matchAll(/<(?:img|meta|div)\b[^>]*>/gi)) {
     const tag=m[0], attr=(name:string)=>tag.match(new RegExp(`(?:^|\\s)${name}\\s*=\\s*["']([^"']+)["']`,'i'))?.[1];
     // Only listing gallery/itemprop images and the page's explicit preview image.
     if(attr('property')==='og:image') {const u=imageUrl(attr('content'),base);if(u)out.images.push(u);}
-    else if(attr('itemprop')==='image' || /(?:gallery|imagebox|expose-picture|listing-image)/i.test(attr('class')||'')) {
+    else if((/(^|\.)kleinanzeigen\.de$/.test(hostname)&&attr('data-imgsrc')) || attr('itemprop')==='image' || /(?:gallery|imagebox|expose-picture|listing-image)/i.test(attr('class')||'')) {
       const u=imageUrl(attr('data-imgsrc')||attr('data-src')||attr('data-original')||attr('src'),base);if(u)out.images.push(u);
     }
   }

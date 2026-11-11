@@ -10,11 +10,8 @@ const facade = read('../supabase/functions/auth-facade-broker/index.ts');
 const participantAuth = read('../supabase/functions/immoscout-auth-bridge/index.ts');
 const credentials = read('../supabase/functions/application-worker/credentials.ts');
 const adapter = read('../supabase/functions/application-worker/providers/immoscout.ts');
-const worker = read('../cloudflare/housing-runtime/src/immoscout-central-token.js');
-const schema = read('../supabase/migrations/20261103172212_immoscout_central_token_postgres.sql');
-const housingRuntime = read('../cloudflare/housing-runtime/src/index.js');
-const d1Compat = read('../cloudflare/housing-runtime/src/d1-compat.js');
-const runtimeConfig = read('../cloudflare/housing-runtime/wrangler.jsonc');
+const worker = read('../cloudflare/immoscout-central-token-staging/index.js');
+const schema = read('../cloudflare/immoscout-central-token-staging/schema.sql');
 
 test('the /token command is visible and executable only for Telegram admins', () => {
   const publicCommands = handlers.match(/const PUBLIC_COMMANDS = \[([\s\S]*?)\];/)?.[1] || '';
@@ -49,7 +46,7 @@ test('Cloudflare owns central OAuth flow, PKCE, MFA and admin validation', () =>
   assert.match(worker, /flowState/);
   assert.match(worker, /verifiedEmail !== ACCOUNT_EMAIL/);
   assert.match(worker, /ACCOUNT_EMAIL = "arash@nexalabs\.de"/);
-  assert.match(schema, /CREATE TABLE IF NOT EXISTS app_private.immoscout_central_oauth_flows/);
+  assert.match(schema, /CREATE TABLE IF NOT EXISTS oauth_flows/);
 });
 
 test('the facade proxies central ImmoScout flows to Cloudflare while participant OAuth stays unchanged', () => {
@@ -63,22 +60,22 @@ test('the facade proxies central ImmoScout flows to Cloudflare while participant
   assert.match(facade, /scoutPublic\(\{action:'password_login'/);
 });
 
-test('central credentials are encrypted in PostgreSQL and protected by the Cloudflare housing runtime', () => {
+test('central credentials are encrypted in Cloudflare D1 and protected by Worker Secrets', () => {
   assert.match(worker, /name: "AES-GCM"/);
   assert.match(worker, /CREDENTIAL_AAD = "nexalabs:immoscout:central:v1"/);
   assert.match(worker, /TOKEN_ENCRYPTION_KEY/);
   assert.match(worker, /API_SECRET/);
   assert.match(worker, /INSERT INTO central_credentials/);
   assert.match(worker, /\/internal\/credentials/);
-  assert.match(schema, /enabled smallint NOT NULL DEFAULT 0/);
-  assert.match(schema, /ciphertext text NOT NULL/);
+  assert.match(schema, /enabled INTEGER NOT NULL DEFAULT 0/);
+  assert.match(schema, /ciphertext TEXT NOT NULL/);
   assert.match(credentials, /immoscout_central_cloudflare_api_secret/);
   assert.match(credentials, /\/internal\/credentials/);
   assert.match(credentials, /\/internal\/store/);
 });
 
 test('central auto-apply is opt-in; participant OAuth remains fallback and contact email remains participant-owned', () => {
-  assert.match(schema, /enabled smallint NOT NULL DEFAULT 0/);
+  assert.match(schema, /enabled INTEGER NOT NULL DEFAULT 0/);
   assert.match(worker, /\/internal\/enable/);
   assert.match(adapter, /getCentralImmoScoutConnection/);
   assert.match(adapter, /refreshCentral/);
@@ -96,10 +93,10 @@ test('central refresh preserves activation and revalidates the NexaLabs account'
   assert.match(credentials, /markCentralImmoScoutConnection/);
 });
 
-test('the PostgreSQL schema contains the central vault, audit log and short-lived OAuth flows', () => {
-  assert.match(schema, /CREATE TABLE IF NOT EXISTS app_private.immoscout_central_credentials/);
-  assert.match(schema, /CREATE TABLE IF NOT EXISTS app_private.immoscout_central_audit_events/);
-  assert.match(schema, /CREATE TABLE IF NOT EXISTS app_private.immoscout_central_oauth_flows/);
+test('the Cloudflare D1 schema contains the central vault, audit log and short-lived OAuth flows', () => {
+  assert.match(schema, /CREATE TABLE IF NOT EXISTS central_credentials/);
+  assert.match(schema, /CREATE TABLE IF NOT EXISTS audit_events/);
+  assert.match(schema, /CREATE TABLE IF NOT EXISTS oauth_flows/);
   assert.match(worker, /cache-control": "no-store"/);
 });
 
@@ -112,7 +109,7 @@ test('central OAuth finalization failures are diagnosable and pre-code failures 
   assert.match(worker, /authorization_code_missing/);
   assert.match(worker, /oauth_login_failed/);
   assert.match(worker, /token_exchange_failed/);
-  assert.match(facade, /'login_failed'/);
+  assert.match(facade, /'oauth_login_failed'/);
   assert.match(facade, /'token_exchange_failed'/);
 });
 
@@ -136,17 +133,4 @@ test('central refresh test is admin-only, requires auto-apply disabled and prese
   assert.match(handlers, /mode === "testen" \|\| mode === "refresh-test"/);
   assert.match(handlers, /Auto-Bewerbung: <b>weiterhin deaktiviert<\/b>/);
   assert.match(handlers, /Es wurde keine Bewerbung versendet/);
-});
-
-test('all central ImmoScout callers use the housing runtime, not the legacy D1 Worker', () => {
-  const endpoint = 'https://traumwohnung-housing-runtime.arash-ce5.workers.dev';
-  for (const source of [handlers, credentials, facade]) {
-    assert.ok(source.includes(endpoint));
-    assert.doesNotMatch(source, /immoscout-central-token-staging\.arash-ce5\.workers\.dev/);
-  }
-  assert.doesNotMatch(housingRuntime, /createD1Compat\(sql\)|app_private\.get_housing_runtime_secret|migrateLegacyCentralToken|env\.LEGACY_D1|verifyLegacyD1SnapshotKey/);
-  assert.doesNotMatch(housingRuntime, /immoscout-central-token-staging\.arash-ce5\.workers\.dev/);
-  assert.match(runtimeConfig, /"preview_urls": true/);
-  assert.match(runtimeConfig, /"binding": "HOUSING_DB"/);
-  assert.doesNotMatch(runtimeConfig, /"binding": "LEGACY_D1"|"binding": "HYPERDRIVE"/);
 });

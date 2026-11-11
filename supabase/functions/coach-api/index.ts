@@ -8,10 +8,10 @@ const SECRET=secretKeys.default||Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const PUBLISHABLE=publishableKeys.default||Deno.env.get('SUPABASE_ANON_KEY')!;
 const admin=createClient(URL,SECRET,{auth:{persistSession:false,autoRefreshToken:false}});
 const ORIGINS=new Set(['https://intern.traumwohnunghamburg.de','http://localhost:4321','http://127.0.0.1:4321']);
-const PROVIDERS=new Set(['immoscout','immomio','immowelt']);
+const PROVIDERS=new Set(['immoscout','kleinanzeigen','immomio','immowelt','indeed']);
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PUBLIC_ID=/^cp_[a-f0-9]{24}$/;
-const DASHBOARD_PROVIDER_DEFAULTS={immoscout:0,immomio:0,immowelt:0,unknown:0};
+const DASHBOARD_PROVIDER_DEFAULTS={immoscout:0,kleinanzeigen:0,immomio:0,immowelt:0,unknown:0};
 
 function cors(req:Request){const origin=req.headers.get('origin')||'';return {'access-control-allow-origin':ORIGINS.has(origin)?origin:'https://intern.traumwohnunghamburg.de','access-control-allow-methods':'POST,OPTIONS','access-control-allow-headers':'authorization,content-type,apikey','access-control-allow-credentials':'true','vary':'Origin','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'};}
 function json(req:Request,body:any,status=200){return Response.json(body,{status,headers:cors(req)})}
@@ -34,7 +34,7 @@ const READINESS_LABELS:Record<string,string>={
  provider_not_enabled:'Plattform für AutoApply freigeben',provider_not_ready:'Plattform erneut verbinden',
  archived:'Teilnehmer archiviert',pending_deletion:'Löschung geplant'
 };
-const PROFILE_PROVIDERS=['immoscout','immomio','immowelt'] as const;
+const PROFILE_PROVIDERS=['immoscout','kleinanzeigen','immomio','immowelt'] as const;
 function providerProfileReadiness(profile:any){
  const current=profile||{};
  return Object.fromEntries(PROFILE_PROVIDERS.map(provider=>{
@@ -142,7 +142,7 @@ async function participantSummary(a:any,scope='all',providedAssignments:any[]|nu
  const data:any[]=providedAssignments||await visibleAssignments(a,scope),users=data.map(x=>x.user_id);
  const [profiles,prefs,apps,readiness,searchProfiles]=users.length?await Promise.all([
   admin.from('applicant_profiles').select('user_id,email,phone,city,household_size').in('user_id',users),
-  admin.from('application_preferences').select('user_id,enabled,daily_limit,immoscout_enabled,immomio_enabled,immowelt_enabled').in('user_id',users),
+  admin.from('application_preferences').select('user_id,enabled,daily_limit,immoscout_enabled,kleinanzeigen_enabled,immomio_enabled,immowelt_enabled').in('user_id',users),
   admin.rpc('coach_application_summary_v1',{p_user_ids:users}),
   readinessCore(users),
   admin.from('search_profiles').select('user_id').in('user_id',users)
@@ -173,7 +173,7 @@ async function participantDetail(a:any,publicId:string){
   admin.from('search_profiles').select('id,user_id,name,max_warm_rent,min_rooms,min_area_sqm,districts,property_types,furnished_preference,wbs_only,move_in_from,is_active,created_at,updated_at,location_mode,location_state_code,location_area_codes,boroughs,neighborhoods,profile_slot,max_deposit,require_known_warm_rent,min_room_area_sqm').eq('user_id',userId).order('profile_slot'),
   admin.from('applicant_documents').select('id,document_type,original_filename,mime_type,size_bytes,send_with_auto_apply,created_at,updated_at').eq('user_id',userId).order('created_at',{ascending:false}),
   admin.from('platform_connections').select('provider,status,account_hint,expires_at,last_verified_at,last_error,updated_at').eq('user_id',userId),
-  admin.from('application_preferences').select('user_id,enabled,daily_limit,timezone,allowed_weekdays,send_window_start,send_window_end,immoscout_enabled,immomio_enabled,immowelt_enabled,updated_at').eq('user_id',userId).maybeSingle(),
+  admin.from('application_preferences').select('user_id,enabled,daily_limit,timezone,allowed_weekdays,send_window_start,send_window_end,immoscout_enabled,kleinanzeigen_enabled,immomio_enabled,immowelt_enabled,updated_at').eq('user_id',userId).maybeSingle(),
   admin.from('applications').select('id,listing_id,source_id,status,attempts,last_error,wait_reason,created_at,sent_at,next_attempt_at,listings(title,canonical_url,district,postal_code,city,sources(name))').eq('user_id',userId).order('created_at',{ascending:false}).limit(50),
   readinessCore([String(userId)]),
   admin.rpc('coach_application_summary_v1',{p_user_ids:[String(userId)]})
@@ -212,20 +212,38 @@ async function participantDetail(a:any,publicId:string){
  };
 }
 async function providerDisconnect(userId:string,p:string){
-  if(p==='immomio')return internalCall(URL+'/functions/v1/immomio-account',{action:'disconnect',userId});
-  if(p==='immowelt')return internalCall(URL+'/functions/v1/application-worker',{action:'disconnect',userId,source:4});
-  return internalCall(URL+'/functions/v1/immoscout-auth-bridge',{action:'disconnect',userId});
+ if(p==='indeed'){
+  const[connection,flow]=await Promise.all([
+   admin.from('platform_connections').delete().eq('user_id',userId).eq('provider','indeed'),
+   admin.from('platform_auth_flows').delete().eq('user_id',userId).eq('provider','indeed')
+  ]);
+  if(connection.error||flow.error)throw Error('provider_disconnect_failed');
+  return{status:'disconnected'};
+ }
+ if(p==='kleinanzeigen')return internalCall(URL+'/functions/v1/application-worker',{action:'disconnect',userId,source:2});
+ if(p==='immomio')return internalCall(URL+'/functions/v1/immomio-account',{action:'disconnect',userId});
+ if(p==='immowelt')return internalCall(URL+'/functions/v1/application-worker',{action:'disconnect',userId,source:4});
+ return internalCall(URL+'/functions/v1/immoscout-auth-bridge',{action:'disconnect',userId});
 }
-async function startConnect(a:any,assignment:any,p:string){
-  const userId=assignment.user_id;
+async function startConnect(a:any,assignment:any,p:string,shareLink=false){
+ const userId=assignment.user_id;
+ if(p!=='indeed'||a.member.is_super_admin!==true){
   const premium=await effectivePremium([String(userId)]);
   if(premium.get(String(userId))!==true)throw Error('premium_required');
-  const state=random(32),verifier=random(64);
-  const{data,error}=await admin.rpc('coach_issue_platform_connect_flow',{
-   p_actor:a.member.id,p_user:userId,p_provider:p,p_state:state,p_verifier:verifier
-  });
-  if(error||!data?.expiresAt)throw Error(error?.message||'auth_flow_create_failed');
-  return{url:'https://login.traumwohnunghamburg.de/connect?ticket='+encodeURIComponent(state),expiresAt:data.expiresAt,expiresInSeconds:1800};
+ }
+ if(p==='kleinanzeigen'&&!shareLink){
+  const health=await internalCall(URL+'/functions/v1/application-worker',{action:'health'}).catch(()=>null);
+  const direct=health?.kleinanzeigenOAuthClientProvisioned===true;
+  const result=await internalCall(URL+'/functions/v1/application-worker',{action:direct?'login':'login_share',userId,source:2,origin:'coach',returnTarget:'coach',issuedBy:a.user.id,context:{assignment_version:assignment.assignment_version,...(direct?{direct_oauth:true}:{share_flow:true})}});
+  if(!result?.url)throw Error('auth_flow_create_failed');
+  return{url:String(result.url),expiresInSeconds:1800,directProvider:true,shareFlow:!direct,automaticCallback:direct,bridgeRequired:!direct};
+ }
+ const state=random(32),verifier=random(64);
+ const{data,error}=await admin.rpc('coach_issue_platform_connect_flow',{
+  p_actor:a.member.id,p_user:userId,p_provider:p,p_state:state,p_verifier:verifier
+ });
+ if(error||!data?.expiresAt)throw Error(error?.message||'auth_flow_create_failed');
+ return{url:'https://login.traumwohnunghamburg.de/connect?ticket='+encodeURIComponent(state),expiresAt:data.expiresAt,expiresInSeconds:1800};
 }
 async function updateProfile(a:any,assignment:any,input:any){
  const userId=assignment.user_id,current=await admin.from('applicant_profiles').select('*').eq('user_id',userId).maybeSingle();
@@ -334,7 +352,7 @@ async function applicationRows(a:any,scope='all',input:any={}){
  }
 
  let out=rows.map((x:any)=>({...without(x,'user_id'),participant:publicByUser.get(String(x.user_id))||null,latestEvent:without(latest.get(String(x.id)),'application_id')}));
- const providerFilter=safeFilter(input.provider,['immoscout','immomio','immowelt']);
+ const providerFilter=safeFilter(input.provider,['immoscout','kleinanzeigen','immomio','immowelt']);
  const docFilter=safeFilter(input.documentResult,['native_uploaded','link_included','not_provided','not_supported','transfer_failed']);
  if(providerFilter)out=out.filter((x:any)=>x.latestEvent?.provider===providerFilter);
  if(docFilter)out=out.filter((x:any)=>x.latestEvent?.document_result===docFilter);
@@ -353,7 +371,7 @@ async function applicationPage(a:any,scope='all',input:any={}){
  const{data,error}=await admin.rpc('coach_application_page_v1',{
   p_user_ids:assignments.map(x=>String(x.user_id)),p_days:filterDays(input.days),
   p_status:safeFilter(input.status,['pending','processing','sent','failed','manual_required'])||null,
-  p_provider:safeFilter(input.provider,['immoscout','immomio','immowelt'])||null,
+  p_provider:safeFilter(input.provider,['immoscout','kleinanzeigen','immomio','immowelt'])||null,
   p_document_result:safeFilter(input.documentResult,['native_uploaded','link_included','not_provided','not_supported','transfer_failed'])||null,
   p_page:page,p_page_size:pageSize
  });
@@ -382,7 +400,7 @@ async function dashboardData(a:any,scope='all',input:any={}){
  ]);
  if(dashboard.error)throw Error('dashboard_applications_read_failed');
  const summary=dashboard.data||{};
- const connections={immoscout:0,immomio:0,immowelt:0};
+ const connections={immoscout:0,kleinanzeigen:0,immomio:0,immowelt:0};
  for(const p of participants)for(const provider of p.readiness?.connectedProviders||[])if(provider in connections)(connections as any)[provider]++;
  return{
   periodDays:filterDays(input.days),participantRows:participants,participants:participants.length,premium:participants.filter((p:any)=>p.participant.isPremium).length,
@@ -400,6 +418,130 @@ async function sourceHealth(a:any,input:any={}){
  return{sourceHealth:data||{}};
 }
 
+async function analyticsData(a:any,input:any={}){
+ const section=['applications','participants','market'].includes(String(input.section||''))?String(input.section):'applications';
+ const days=filterDays(input.days);
+ const sourceId=optionalInteger(input.sourceId,1,32767);
+ const providerFilter=safeFilter(input.provider,['immoscout','kleinanzeigen','immomio','immowelt'])||null;
+ const propertyKind=safeFilter(input.propertyKind,['Wohnung','Haus','WG','Tauschwohnung','Sonstiges'])||null;
+
+ if(section==='market'){
+  const{data,error}=await admin.rpc('coach_market_analytics_v1',{p_days:days,p_source_id:sourceId,p_property_kind:propertyKind});
+  if(error)throw Error('market_analytics_failed');
+  return{section,days,market:data||{}};
+ }
+
+ const scope=input.scope==='mine'?'mine':'all';
+ let scoped:any[]=await visibleAssignments(a,scope);
+ if(a.member.role==='admin'&&input.coachMemberId){
+  const coachId=uuid(input.coachMemberId);
+  scoped=scoped.filter(x=>String(x.coach_member_id)===coachId);
+ }
+ const participantOptions=scoped.map(x=>({
+  participantId:x.public_id,
+  name:[x.bot_users?.first_name,x.bot_users?.last_name].filter(Boolean).join(' ')||'Teilnehmer',
+  coachMemberId:x.coach_member_id,
+  coach:x.coach?.display_name||null
+ }));
+ let selected=scoped;
+ if(input.participantId){
+  const pid=participantId(input.participantId);
+  selected=scoped.filter(x=>x.public_id===pid);
+ }
+ const users=selected.map(x=>String(x.user_id));
+
+ const [analyticsResult,readiness,sourceRows,memberRows]=await Promise.all([
+  admin.rpc('coach_analytics_v1',{p_user_ids:users,p_days:days,p_provider:providerFilter,p_source_id:sourceId}),
+  readinessCore(users),
+  admin.from('sources').select('id,name').eq('enabled',true).order('name'),
+  a.member.role==='admin'
+    ?admin.from('coaching_members').select('id,display_name,role,is_super_admin,is_active').eq('workspace_id',a.member.workspace_id).eq('is_active',true).order('display_name')
+    :Promise.resolve({data:[],error:null} as any)
+ ]);
+ if(analyticsResult.error)throw Error('analytics_failed');
+ if(sourceRows.error)throw Error('sources_read_failed');
+ if(memberRows.error)throw Error('members_read_failed');
+
+ const raw:any=analyticsResult.data||{};
+ const rawParticipantMap=new Map<string,any>((raw.participants||[]).map((x:any)=>[String(x.userId),x]));
+ const participantRows=selected.map((assignment:any)=>{
+  const metrics=rawParticipantMap.get(String(assignment.user_id))||{applications:0,sent:0,failed:0,manualRequired:0,pending:0,successRate:0,lastApplicationAt:null};
+  const ready=readinessView(readiness.get(String(assignment.user_id)),assignment.status);
+  return{
+   participantId:assignment.public_id,
+   name:[assignment.bot_users?.first_name,assignment.bot_users?.last_name].filter(Boolean).join(' ')||metrics.name||'Teilnehmer',
+   coachMemberId:assignment.coach_member_id,
+   coach:assignment.coach?.display_name||null,
+   status:assignment.status,
+   applications:Number(metrics.applications||0),
+   sent:Number(metrics.sent||0),
+   failed:Number(metrics.failed||0),
+   manualRequired:Number(metrics.manualRequired||0),
+   pending:Number(metrics.pending||0),
+   successRate:Number(metrics.successRate||0),
+   lastApplicationAt:metrics.lastApplicationAt||null,
+   activeSearchCount:Number(ready.activeSearchCount||0),
+   connectedProviders:Array.isArray(ready.connectedProviders)?ready.connectedProviders:[],
+   primaryCode:ready.primaryCode,
+   readinessLabel:ready.label
+  };
+ });
+
+ const readinessCounts=new Map<string,number>();
+ let connectedProviderCount=0,automationActive=0;
+ for(const row of participantRows){
+  readinessCounts.set(row.primaryCode,(readinessCounts.get(row.primaryCode)||0)+1);
+  connectedProviderCount+=row.connectedProviders.length;
+  if(row.primaryCode==='active')automationActive++;
+ }
+ const readinessRows=[...readinessCounts.entries()].map(([code,total])=>({code,label:READINESS_LABELS[code]||code,total})).sort((x,y)=>y.total-x.total);
+
+ const managerRows:any[]=[];
+ if(a.member.role==='admin'){
+  const metricByUser=new Map(selected.map((x:any)=>[String(x.user_id),rawParticipantMap.get(String(x.user_id))||{}]));
+  const grouped=new Map<string,any>();
+  for(const assignment of selected){
+   const key=String(assignment.coach_member_id),metrics=metricByUser.get(String(assignment.user_id))||{},ready=readinessView(readiness.get(String(assignment.user_id)),assignment.status);
+   const row=grouped.get(key)||{memberId:key,name:assignment.coach?.display_name||'–',participants:0,activeParticipants:0,activeSearchProfiles:0,applications:0,sent:0,failed:0,manualRequired:0,openSetupSteps:0};
+   row.participants++;
+   if(assignment.status==='active')row.activeParticipants++;
+   row.activeSearchProfiles+=Number(ready.activeSearchCount||0);
+   row.applications+=Number(metrics.applications||0);
+   row.sent+=Number(metrics.sent||0);
+   row.failed+=Number(metrics.failed||0);
+   row.manualRequired+=Number(metrics.manualRequired||0);
+   if(ready.primaryCode!=='active')row.openSetupSteps++;
+   grouped.set(key,row);
+  }
+  managerRows.push(...[...grouped.values()].sort((x,y)=>y.applications-x.applications||String(x.name).localeCompare(String(y.name),'de')));
+ }
+
+ return{
+  section,days,
+  summary:{
+   ...(raw.summary||{}),
+   visibleParticipants:selected.length,
+   activeParticipants:selected.filter((x:any)=>x.status==='active').length,
+   automationActive,
+   connectedProviders:connectedProviderCount
+  },
+  previous:raw.previous||{},
+  timeline:raw.timeline||[],
+  providers:raw.providers||[],
+  sources:raw.sources||[],
+  documents:raw.documents||[],
+  errors:raw.errors||[],
+  participants:participantRows,
+  readiness:readinessRows,
+  managers:managerRows,
+  searchDemand:raw.searchDemand||{summary:{},propertyTypes:[],boroughs:[],neighborhoods:[]},
+  filters:{
+   participants:participantOptions,
+   managers:(memberRows.data||[]).map((m:any)=>({id:m.id,name:m.display_name,role:publicMemberRole(m.role,m.is_super_admin)})),
+   sources:(sourceRows.data||[]).map((s:any)=>({id:s.id,name:s.name}))
+  }
+ };
+}
 async function importCandidates(a:any,includeUserId=false){
  if(a.member.role!=='admin')throw Error('admin_required');
  const bots:any[]=[];
@@ -525,13 +667,14 @@ async function handle(req:Request){
  let a=actual;
  if(body.previewMemberId){
   if(actual.member.role!=='admin')throw Error('admin_required');
-  const allowed=new Set(['me','members','locations','participants','participant','dashboard','applications','open_document','application_events','resume_list']);
+  const allowed=new Set(['me','members','locations','participants','participant','dashboard','applications','analytics','open_document','application_events','resume_list']);
   if(!allowed.has(action))throw Error('preview_read_only');
   const{data:preview,error}=await admin.from('coaching_members').select('id,auth_user_id,workspace_id,display_name,role,is_active')
    .eq('id',uuid(body.previewMemberId)).eq('workspace_id',actual.member.workspace_id).eq('role','coach').eq('is_active',true).maybeSingle();
   if(error||!preview)throw Error('coach_unavailable');
   a={...actual,member:preview};
  }
+ if(['jobseekers','jobseeker'].includes(action)&&actual.member.is_super_admin!==true)throw Error('super_admin_required');
  if(action==='resume_list')return listResumeDrafts(a);
  if(action==='resume_save')return saveResumeDraft(a,body);
  if(action==='resume_delete')return deleteResumeDraft(a,body);
@@ -599,8 +742,22 @@ async function handle(req:Request){
   }
   return{ok:results.every(x=>x.ok),results,created:results.filter(x=>x.ok&&x.mode==='adopted').length,assigned:results.filter(x=>x.ok&&x.mode==='assigned').length,failed:results.filter(x=>!x.ok).length};
  }
- const assignment=['dashboard','applications','source_health','import_candidates','adopt_participant','adopt_participants','create_coach','change_coach_role','set_coach_active','update_coach_password','delete_coach'].includes(action)?null:await assignmentFor(a,participantId(body.participantId),['set_plan','reassign','block_participant'].includes(action));
-
+ const assignment=['dashboard','applications','analytics','source_health','jobseekers','import_candidates','adopt_participant','adopt_participants','create_coach','change_coach_role','set_coach_active','update_coach_password','delete_coach'].includes(action)?null:await assignmentFor(a,participantId(body.participantId),['set_plan','reassign','block_participant'].includes(action));
+ if(action==='jobseekers')return{participants:await participantSummary(actual,'all')};
+ if(action==='jobseeker'){
+  const userId=assignment.user_id;
+  const [user,profile,jobseekerProfile,searchProfiles,preferences,applications,connections]=await Promise.all([
+   admin.from('bot_users').select('first_name,last_name').eq('id',userId).maybeSingle(),
+   admin.from('applicant_profiles').select('email').eq('user_id',userId).maybeSingle(),
+   admin.from('jobseeker_profiles').select('target_roles,skills,education,experience_level,preferred_locations,remote_preference,min_salary,salary_period,cv_text,default_cover_letter,created_at,updated_at').eq('user_id',userId).maybeSingle(),
+   admin.from('job_search_profiles').select('id,name,search,location,country_code,education,experience_level,job_type,remote_only,is_active,created_at,updated_at').eq('user_id',userId).order('is_active',{ascending:false}).order('updated_at',{ascending:false}).limit(10),
+   admin.from('job_application_preferences').select('enabled,daily_limit,timezone,allowed_weekdays,send_window_start,send_window_end,updated_at').eq('user_id',userId).maybeSingle(),
+   admin.from('job_applications').select('id,title,company,location,url,status,external_id,last_error,created_at,applied_at,updated_at').eq('user_id',userId).order('updated_at',{ascending:false}).limit(100),
+   admin.from('platform_connections').select('provider,status,account_hint,expires_at,last_verified_at,last_error,updated_at').eq('user_id',userId)
+  ]);
+  if(user.error||profile.error||jobseekerProfile.error||searchProfiles.error||preferences.error||applications.error||connections.error)throw Error('jobseeker_read_failed');
+  return{participantId:assignment.public_id,participant:{firstName:user.data?.first_name||'',lastName:user.data?.last_name||''},profile:profile.data||null,jobseekerProfile:jobseekerProfile.data||null,searchProfiles:searchProfiles.data||[],connections:connections.data||[],preferences:preferences.data||{enabled:false,daily_limit:null,timezone:'Europe/Berlin',allowed_weekdays:[1,2,3,4,5,6,7],send_window_start:null,send_window_end:null},applications:applications.data||[]};
+ }
  if(action==='delete_participant'){
   if(body.confirmDelete!==true)throw Error('deletion_confirmation_required');
   const{data:user,error:userError}=await admin.from('bot_users').select('id,telegram_user_id').eq('id',assignment.user_id).maybeSingle();
@@ -655,13 +812,13 @@ async function handle(req:Request){
   await audit(a,assignment.user_id,blocked?'participant_blocked':'participant_unblocked',{is_active:!blocked});
   return{ok:true,blocked};
  }
- if(action==='set_preferences'){const p=body.preferences||{},weekdays=Array.isArray(p.allowed_weekdays)?p.allowed_weekdays.map((x:any)=>integer(x,1,7)):null;const{error}=await admin.rpc('coach_set_application_preferences',{p_actor:a.member.id,p_user:assignment.user_id,p_enabled:Boolean(p.enabled),p_daily_limit:optionalInteger(p.daily_limit,1,1000),p_timezone:clean(p.timezone,80)||'Europe/Berlin',p_weekdays:weekdays,p_window_start:p.send_window_start||null,p_window_end:p.send_window_end||null,p_immoscout:Boolean(p.immoscout_enabled),p_kleinanzeigen:false,p_immomio:Boolean(p.immomio_enabled),p_immowelt:Boolean(p.immowelt_enabled)});if(error)throw Error(error.message);return{ok:true};}
+ if(action==='set_preferences'){const p=body.preferences||{},weekdays=Array.isArray(p.allowed_weekdays)?p.allowed_weekdays.map((x:any)=>integer(x,1,7)):null;const{error}=await admin.rpc('coach_set_application_preferences',{p_actor:a.member.id,p_user:assignment.user_id,p_enabled:Boolean(p.enabled),p_daily_limit:optionalInteger(p.daily_limit,1,1000),p_timezone:clean(p.timezone,80)||'Europe/Berlin',p_weekdays:weekdays,p_window_start:p.send_window_start||null,p_window_end:p.send_window_end||null,p_immoscout:Boolean(p.immoscout_enabled),p_kleinanzeigen:Boolean(p.kleinanzeigen_enabled),p_immomio:Boolean(p.immomio_enabled),p_immowelt:Boolean(p.immowelt_enabled)});if(error)throw Error(error.message);return{ok:true};}
  if(action==='reassign'){const{error}=await admin.rpc('coach_reassign_participant',{p_actor:a.member.id,p_user:assignment.user_id,p_coach:body.coachMemberId?uuid(body.coachMemberId):null});if(error)throw Error(error.message);return{ok:true};}
  if(action==='archive'){const next=body.archived===false?'active':'archived';const{error}=await admin.from('coaching_participants').update({status:next,archived_at:next==='archived'?new Date().toISOString():null,updated_at:new Date().toISOString()}).eq('user_id',assignment.user_id).eq('workspace_id',a.member.workspace_id);if(error)throw Error('archive_failed');await audit(a,assignment.user_id,next==='archived'?'participant_archived':'participant_restored');return{ok:true};}
  if(action==='retention'){const mode=body.mode==='delete_on_date'?'delete_on_date':'manual',date=mode==='delete_on_date'?String(body.delete_on||''):null;if(mode==='delete_on_date'&&!/^\d{4}-\d{2}-\d{2}$/.test(date||''))throw Error('invalid_retention_date');const{error}=await admin.from('coaching_participants').update({retention_mode:mode,retention_delete_on:date,status:mode==='delete_on_date'?'pending_deletion':'active',updated_at:new Date().toISOString()}).eq('user_id',assignment.user_id);if(error)throw Error('retention_save_failed');await audit(a,assignment.user_id,'retention_changed',{mode,delete_on:date});return{ok:true};}
  if(action==='telegram_link'){const{data,error}=await admin.rpc('issue_telegram_link_token',{p_user:assignment.user_id,p_created_by:a.user.id});if(error)throw Error(error.message||'telegram_link_failed');return{url:'https://t.me/traumwohnunghamburgbot?start='+encodeURIComponent(String(data)),expiresInSeconds:1200};}
- if(action==='start_connect')return startConnect(a,assignment,provider(body.provider));
- if(action==='disconnect_provider'){const p=provider(body.provider),result=await providerDisconnect(assignment.user_id,p);await admin.from('application_preferences').update({[p+'_enabled']:false}).eq('user_id',assignment.user_id);await audit(a,assignment.user_id,'provider_disconnected',{provider:p});return{ok:true,result};}
+ if(action==='start_connect')return startConnect(a,assignment,provider(body.provider),body.shareLink===true);
+ if(action==='disconnect_provider'){const p=provider(body.provider),result=await providerDisconnect(assignment.user_id,p);if(p!=='indeed')await admin.from('application_preferences').update({[p+'_enabled']:false}).eq('user_id',assignment.user_id);await audit(a,assignment.user_id,'provider_disconnected',{provider:p});return{ok:true,result};}
  if(action==='request_upload')return requestUpload(a,assignment,body);
  if(action==='register_upload')return registerUpload(a,assignment,body);
  if(action==='open_document'){
@@ -677,7 +834,7 @@ async function handle(req:Request){
  if(action==='applications')return applicationPage(a,body.scope==='mine'?'mine':'all',body);
  if(action==='source_health'){if(actual.member.is_super_admin!==true)throw Error('super_admin_required');return sourceHealth(actual,body);}
  if(action==='dashboard')return dashboardData(a,body.scope==='mine'?'mine':'all',body);
- 
+ if(action==='analytics')return analyticsData(a,body);
  if(action==='create_coach'){if(a.member.role!=='admin'||a.member.is_super_admin!==true)throw Error('member_management_forbidden');const e=email(body.email),password=String(body.password||''),requestedRole=String(body.role||'manager');if(!['manager','admin','super_admin'].includes(requestedRole))throw Error('invalid_member_role');if(['admin','super_admin'].includes(requestedRole)&&a.member.is_super_admin!==true)throw Error('member_management_forbidden');if(password.length<12)throw Error('password_too_short');const{data:created,error}=await admin.auth.admin.createUser({email:e,password,email_confirm:true});if(error||!created.user)throw Error(error?.message||'coach_auth_create_failed');const storedRole=storedMemberRole(requestedRole);const{data:member,error:me}=await admin.from('coaching_members').insert({auth_user_id:created.user.id,workspace_id:a.member.workspace_id,display_name:clean(body.display_name,120)||e,role:storedRole,is_super_admin:requestedRole==='super_admin',is_active:true}).select('id,display_name,role,is_super_admin').single();if(me){await admin.auth.admin.deleteUser(created.user.id).catch(()=>{});throw Error('coach_member_create_failed');}await audit(a,null,'coach_created',{member_id:member.id,role:requestedRole,is_super_admin:requestedRole==='super_admin'});return{ok:true,member:{id:member.id,displayName:member.display_name,role:publicMemberRole(member.role,member.is_super_admin)}};}
  if(action==='change_coach_role'){
   if(a.member.role!=='admin'||a.member.is_super_admin!==true)throw Error('member_management_forbidden');
@@ -717,7 +874,7 @@ async function handle(req:Request){
  if(action==='set_coach_active'){if(a.member.role!=='admin')throw Error('admin_required');const id=uuid(body.memberId);if(id===a.member.id)throw Error('coach_unavailable');const{data:member,error:memberError}=await admin.from('coaching_members').select('id,role,is_super_admin').eq('id',id).eq('workspace_id',a.member.workspace_id).maybeSingle();if(memberError||!member||member.is_super_admin===true||!(member.role==='coach'||(a.member.is_super_admin===true&&member.role==='admin')))throw Error('member_management_forbidden');const{data:updated,error}=await admin.from('coaching_members').update({is_active:Boolean(body.active),updated_at:new Date().toISOString()}).eq('id',id).eq('workspace_id',a.member.workspace_id).select('id').maybeSingle();if(error)throw Error('coach_update_failed');if(!updated)throw Error('coach_unavailable');await audit(a,null,'coach_status_changed',{member_id:id,active:Boolean(body.active)});return{ok:true};}
  throw Error('invalid_action');
 }
-function publicError(error:any){const code=String(error?.message||'coach_api_failed').slice(0,160);const known=new Set(['unauthorized','coach_forbidden','workspace_unavailable','participant_forbidden','admin_required','invalid_id','invalid_participant','invalid_email','invalid_number','invalid_member_role','provider_unsupported','invalid_property_type','invalid_location','invalid_search_limits','location_required','invalid_document','invalid_document_type','invalid_document_path','upload_not_found','upload_invalid','document_not_found','document_open_failed','invalid_retention_date','password_too_short','cannot_disable_self','premium_required','import_candidates_failed','import_candidate_invalid','participant_adopt_failed','participant_create_failed','participant_assignment_failed','participant_already_assigned','participant_unavailable','participant_delete_failed','participant_delete_restricted','participant_document_delete_failed','participant_block_failed','invalid_import_selection','request_id_required','request_id_conflict','request_in_progress','oauth_client_not_provisioned','configuration_unavailable','userinfo_failed','oauth_login_failed','provider_disconnect_failed','coach_unavailable','member_management_forbidden','super_admin_protected','super_admin_required','preview_read_only','invalid_password','coach_password_update_failed','coach_delete_failed','member_role_update_failed','deletion_confirmation_required','auth_flow_expired','resume_data_invalid','resume_too_large','resume_not_found','resume_read_failed','resume_save_failed','resume_delete_failed']);return known.has(code)?code:(code.includes('profile_slot_not_allowed')?'profile_slot_not_allowed':'operation_failed');}
+function publicError(error:any){const code=String(error?.message||'coach_api_failed').slice(0,160);const known=new Set(['unauthorized','coach_forbidden','workspace_unavailable','participant_forbidden','admin_required','invalid_id','invalid_participant','invalid_email','invalid_number','invalid_member_role','provider_unsupported','invalid_property_type','invalid_location','invalid_search_limits','location_required','invalid_document','invalid_document_type','invalid_document_path','upload_not_found','upload_invalid','document_not_found','document_open_failed','invalid_retention_date','password_too_short','cannot_disable_self','premium_required','import_candidates_failed','import_candidate_invalid','participant_adopt_failed','participant_create_failed','participant_assignment_failed','participant_already_assigned','participant_unavailable','participant_delete_failed','participant_delete_restricted','participant_document_delete_failed','participant_block_failed','invalid_import_selection','request_id_required','request_id_conflict','request_in_progress','oauth_client_not_provisioned','configuration_unavailable','userinfo_failed','oauth_login_failed','provider_disconnect_failed','coach_unavailable','member_management_forbidden','super_admin_protected','super_admin_required','preview_read_only','invalid_password','coach_password_update_failed','coach_delete_failed','member_role_update_failed','deletion_confirmation_required','auth_flow_expired','jobseeker_read_failed','resume_data_invalid','resume_too_large','resume_not_found','resume_read_failed','resume_save_failed','resume_delete_failed']);return known.has(code)?code:(code.includes('profile_slot_not_allowed')?'profile_slot_not_allowed':'operation_failed');}
 
 Deno.serve(async req=>{
  if(req.method==='OPTIONS')return new Response(null,{status:204,headers:cors(req)});

@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { Connector, Source, db, emsg, internalSecret, markSuccess } from "./shared.ts";
 import { runScout, runScoutSchleswigHolstein } from "./scout.ts";
+import { runKlein } from "./klein.ts";
 import { runGcp } from "./gcp.ts";
 import { runImmomio } from "./immomio.ts";
 import { runHpm } from "./hpm.ts";
@@ -10,9 +11,6 @@ import { runPublicInventory } from "./public-inventory.ts";
 import { runNestpick } from "./nestpick.ts";
 import { runCatalog } from "./catalog.ts";
 import { runCategoryStreams } from "./category.ts";
-
-// Housing cutover allowlist. Historical source rows remain available for export, but never crawl again.
-const HOUSING_SOURCE_IDS = new Set([1, 3, 23, 29, 34, 35, 66, 69, 71]);
 
 async function runPortalRegistryMirror(s:Source){
   const started=new Date().toISOString();
@@ -71,6 +69,7 @@ async function processBaseSource(s:Source,connectors:Connector[]){
   const primary = connectors.find((c) => !c.shadow_only) || connectors[0];
   if(primary?.config?.adapter==="source-worker/scout-schleswig-holstein")return runScoutSchleswigHolstein(s);
   if (id === 1) return runScout(s);
+  if (id === 2) return runKlein(s);
   if(primary && ['source-worker/city-catalog','source-worker/wunder-catalog','source-worker/swap-catalog'].includes(String(primary.config?.adapter)))return runCatalog(s,primary);
   if(primary?.config?.adapter==='source-worker/nestpick-public')return runNestpick(s,primary);
   if(primary && ['source-worker/tag-public','source-worker/urban-public','source-worker/heim-public','source-worker/kaifu-public','source-worker/finken-public','source-worker/buchdrucker-public'].includes(String(primary.config?.adapter)))
@@ -90,11 +89,6 @@ async function processSource(id: number) {
     .single();
   if (error || !source) throw new Error(error?.message || "source unavailable");
   const s = source as Source;
-  if (s.enabled === true && s.runtime_mode === "live" && !HOUSING_SOURCE_IDS.has(Number(id))) {
-    const started = new Date().toISOString();
-    await markSuccess(s, started, null, 0, 0, { strategy: "housing_allowlist_excluded", complete: false });
-    return { ok: true, source_id: id, fetched: 0, new: 0, complete: false, excluded: true };
-  }
   const connectors = (source.source_connectors || [])
     .filter((c: any) => c.enabled)
     .sort((a: any, b: any) => a.priority - b.priority) as Connector[];

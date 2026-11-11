@@ -88,7 +88,7 @@ function secureToken(bytes = 32) {
     return btoa(raw).split("+").join("-").split("/").join("_").replace(/=+$/g, "");
 }
 
-const CENTRAL_IMMOSCOUT_WORKER = "https://traumwohnung-housing-runtime.arash-ce5.workers.dev";
+const CENTRAL_IMMOSCOUT_WORKER = "https://immoscout-central-token-staging.arash-ce5.workers.dev";
 async function centralImmoScoutApi(path, method = "GET", body = undefined) {
     const apiSecret = await secret("immoscout_central_cloudflare_api_secret");
     const response = await fetch(`${CENTRAL_IMMOSCOUT_WORKER}${path}`, {
@@ -275,7 +275,7 @@ export async function handleCallback(query, user) {
         if (!isAdmin(user))
             return ack();
         if (data === "admin:list") {
-            await ack();
+            EdgeRuntime.waitUntil(ack());
             return adminUsers(user, chatId, messageId);
         }
         if (data.startsWith("admin:announcement-send:")) {
@@ -289,7 +289,7 @@ export async function handleCallback(query, user) {
             return cancelAnnouncement(user, chatId, messageId, announcementId);
         }
         if (data.startsWith("admin:user:")) {
-            await ack();
+            EdgeRuntime.waitUntil(ack());
             return adminUser(user, chatId, messageId, data.slice("admin:user:".length));
         }
         if (data.startsWith("admin:block:")) {
@@ -327,7 +327,7 @@ export async function handleCallback(query, user) {
         }
         if (data.startsWith("admin:delete:")) {
             const userId = data.slice("admin:delete:".length);
-            await ack();
+            EdgeRuntime.waitUntil(ack());
             return edit(chatId, messageId, "🗑 <b>Nutzer wirklich löschen?</b>\n\nSuchprofile, gespeicherte Inserate, Referral- und Abo-Zuordnungen werden dauerhaft gelöscht.", { inline_keyboard: [
                     [button("🗑 Ja, endgültig löschen", `admin:delete-confirm:${userId}`)],
                     [button("← Abbrechen", `admin:user:${userId}`)],
@@ -376,12 +376,12 @@ export async function handleCallback(query, user) {
             } catch (error) { console.error("save_button_refresh", String(error)); }
         }
         if (savedState === null) {
-            await ack();
+            EdgeRuntime.waitUntil(ack());
             return premium(user, chatId, messageId);
         }
         return ack(savedState ? "⭐ Gespeichert" : "Entfernt");
     }
-    await ack();
+    EdgeRuntime.waitUntil(ack());
     if (data === 'platforms' || data.startsWith('platforms:')) {
         if (!user.is_premium) {
             const text = "🔒 <b>Automatische Bewerbung</b>\n\n" +

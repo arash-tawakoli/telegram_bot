@@ -58,11 +58,3 @@ export async function recordRefreshResult(db:any,userId:string,provider:string,s
  });
  if(rpcError)console.error('connection_refresh_telemetry',provider,rpcError.message);
 }
-
-export async function saveRefreshedConnection(db:any,userId:string,provider:string,credentials:unknown,patch:any,lease:{marker:string;claimedAt:string}){
- if(!lease?.marker||!lease?.claimedAt)throw Error('refresh_lease_lost');
- const encrypted=credentials==null?{credential_ciphertext:null,credential_iv:null,key_version:1}:await encryptCredentials(db,userId,provider,credentials,1);
- const values={user_id:userId,provider,status:'connected',...encrypted,last_verified_at:new Date().toISOString(),last_error:null,...patch,updated_at:new Date().toISOString()};
- const {data,error}=await db.from('platform_connections').update(values).eq('user_id',userId).eq('provider',provider).eq('last_refresh_error',lease.marker).eq('updated_at',lease.claimedAt).select('user_id');
- if(error||!data?.length)throw Error('refresh_lease_lost');
-}

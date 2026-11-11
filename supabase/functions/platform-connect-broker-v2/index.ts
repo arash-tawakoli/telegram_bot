@@ -3,6 +3,10 @@ import {createClient} from 'npm:@supabase/supabase-js@2.112.4';
 const SUPABASE_URL=Deno.env.get('SUPABASE_URL')!;
 const keys=JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')||'{}');
 const db=createClient(SUPABASE_URL,keys.default||Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false,autoRefreshToken:false}});
+const KLEIN_AUTHORIZE='https://login.kleinanzeigen.de/authorize';
+const KLEIN_CLIENT_ID='uV5j90myVPc2XzEOFuWUD2At17OACEGQ';
+const KLEIN_REDIRECT='https://login.kleinanzeigen.de/android/com.ebay.kleinanzeigen/callback';
+const KLEIN_SCOPE='openid email profile offline_access';
 const IMMOMIO_GQL='https://gql-ps.immomio.com/tenant/graphql';
 const IMMOMIO_TENANT='https://tenant.immomio.com';
 const IMMOMIO_REDIRECT='https://tenant.immomio.com/de/auth/login';
@@ -46,6 +50,7 @@ async function profile(flow:any){
   accountMismatch:Boolean(expected&&connected&&expected!==connected)
  };
 }
+function kleinUrl(flow:any,cc:string){const u=new URL(KLEIN_AUTHORIZE);for(const[k,v]of Object.entries({client_id:KLEIN_CLIENT_ID,response_type:'code',redirect_uri:KLEIN_REDIRECT,scope:KLEIN_SCOPE,code_challenge:cc,code_challenge_method:'S256',state:String(flow.state),prompt:'login'}))u.searchParams.set(k,String(v));return u.href}
 async function immomioUrl(flow:any,cc:string){
  const{data:p,error}=await db.from('applicant_profiles').select('email').eq('user_id',flow.user_id).maybeSingle();const email=clean(p?.email,320).toLowerCase();
  if(error||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw Error('profile_email_required');
@@ -68,6 +73,7 @@ async function scoutUrl(flow:any,cc:string){
 async function resolve(raw:any){
  const flow=await flowFor(raw),provider=String(flow.provider),verifier=String(flow.code_verifier||'');if(!verifier)throw Error('auth_flow_expired');
  const cc=await challenge(verifier),p=await profile(flow);
+ if(provider==='kleinanzeigen')return{ok:true,provider,mode:'provider_web',url:kleinUrl(flow,cc),participantLabel:p.label,accountHint:p.accountHint,origin:flow.origin,returnTarget:flow.return_target,requiresManualCallback:true};
  if(provider==='immomio')return{ok:true,provider,mode:'provider_web',url:await immomioUrl(flow,cc),participantLabel:p.label,accountHint:p.accountHint,origin:flow.origin,returnTarget:flow.return_target,requiresManualCallback:true};
  if(provider==='immoscout')return{ok:true,provider,mode:'provider_web',url:await scoutUrl(flow,cc),participantLabel:p.label,accountHint:p.accountHint,origin:flow.origin,returnTarget:flow.return_target,requiresManualCallback:true};
  throw Error('provider_unsupported');
