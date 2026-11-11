@@ -1,5 +1,5 @@
 // @ts-nocheck
-export type ApplicationProvider='immowelt'|'immoscout'|'immomio';
+export type ApplicationProvider='immowelt'|'immoscout'|'kleinanzeigen'|'immomio';
 
 const clean=(v:any)=>String(v??'').trim();
 const norm=(v:any)=>clean(v).toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g,'').replace(/ß/g,'ss').replace(/[^a-z0-9]+/g,' ').trim();
@@ -97,6 +97,11 @@ const EMPLOYMENT_LABELS:Record<string,string>={
 const HOUSEHOLD_LABELS:Record<string,string>={
  SINGLE:'Einpersonenhaushalt',TWO_ADULTS:'Zwei Erwachsene',FAMILY:'Familie',SHARED_FLAT:'Wohngemeinschaft'
 };
+const KLEIN_INCOME:Record<string,string>={
+ UNDER_500:'Unter 500€','500_1000':'500€ - 1.000€','1000_1500':'1.000€ - 1.500€','1500_2000':'1.500€ - 2.000€',
+ '2000_3000':'2.000€ - 3.000€','3000_4000':'3.000€ - 4.000€','4000_5000':'4.000€ - 5.000€',OVER_5000:'Über 5.000€',
+ NOT_SPECIFIED:'Keine Angabe'
+};
 const SCOUT_INCOME:Record<string,string>={
  UNDER_500:'Unter 500€','500_1000':'500€ - 1.000€','1000_1500':'1.000€ - 1.500€','1500_2000':'1.500€ - 2.000€',
  '2000_3000':'2.000€ - 3.000€','3000_4000':'3.000€ - 4.000€','4000_5000':'4.000€ - 5.000€',
@@ -124,10 +129,66 @@ function daysUntil(value:any){
  const target=dateOrdinal(value);if(target==null)return null;
  return Math.floor((target-berlinTodayOrdinal())/86400000);
 }
-export function providerSalutation(provider:ApplicationProvider,value:any){if(provider==='immomio')return null;const v=canonicalSalutation(value);if(!v)return null;if(provider==='immoscout'){if(v==='MR')return'MALE';if(v==='MS')return'FEMALE';if(v==='COMPANY')return'COMPANY';return null;}if(v==='MR')return'Herr';if(v==='MS')return'Frau';if(v==='DIVERSE')return'Divers';if(v==='NEUTRAL')return'Neutral';return null;}
-export function providerHousehold(provider:ApplicationProvider,value:any){if(provider==='immomio')return null;const v=canonicalHousehold(value);if(!v)return null;if(v==='NOT_SPECIFIED')return provider==='immowelt'?'Ich möchte keine Angabe machen':null;return HOUSEHOLD_LABELS[v]||null;}
-export function providerEmployment(provider:ApplicationProvider,value:any){if(provider==='immomio')return null;const v=canonicalEmployment(value);if(!v)return null;if(v==='NOT_SPECIFIED')return provider==='immowelt'?'Ich möchte keine Angabe machen':null;if(provider==='immowelt'&&v==='DOCTORAL')return'Sonstiges';if(provider==='immowelt'&&v==='HOMEMAKER')return'Hausfrau/mann';return EMPLOYMENT_LABELS[v]||null;}
-export function providerIncome(provider:ApplicationProvider,value:any){if(provider==='immomio')return null;const v=canonicalIncome(value);if(!v)return null;if(v==='HOUSING_BENEFIT')return provider==='immowelt'?'Ich beziehe Wohngeld':null;if(provider==='immowelt'){if(v==='OVER_5000')return'Ich möchte keine Angabe machen';return IMMOWELT_INCOME[v]||null;}if(v==='NOT_SPECIFIED')return null;return SCOUT_INCOME[v]||null;}
+export function providerSalutation(provider:ApplicationProvider,value:any){
+ if(provider==='immomio')return null;
+ const v=canonicalSalutation(value);if(!v)return null;
+ if(provider==='immoscout'){
+  if(v==='MR')return'MALE';
+  if(v==='MS')return'FEMALE';
+  if(v==='COMPANY')return'COMPANY';
+  return null;
+ }
+ if(provider==='immowelt'){
+  if(v==='MR')return'Herr';
+  if(v==='MS')return'Frau';
+  return'Neutral';
+ }
+ if(v==='MR')return'Herr';
+ if(v==='MS')return'Frau';
+ if(v==='DIVERSE')return'Divers';
+ return'Keine Angabe';
+}
+export function providerHousehold(provider:ApplicationProvider,value:any){
+ if(provider==='immomio')return null;
+ const v=canonicalHousehold(value);if(!v)return null;
+ if(v==='NOT_SPECIFIED'){
+  if(provider==='immowelt')return'Ich möchte keine Angabe machen';
+  if(provider==='kleinanzeigen')return'Keine Angabe';
+  return null;
+ }
+ if(provider==='kleinanzeigen'&&v==='TWO_ADULTS')return'Zweipersonenhaushalt';
+ return HOUSEHOLD_LABELS[v]||null;
+}
+export function providerEmployment(provider:ApplicationProvider,value:any){
+ if(provider==='immomio')return null;
+ const v=canonicalEmployment(value);if(!v)return null;
+ if(v==='NOT_SPECIFIED'){
+  if(provider==='immowelt')return'Ich möchte keine Angabe machen';
+  if(provider==='kleinanzeigen')return'Keine Angabe';
+  return null;
+ }
+ if(provider==='kleinanzeigen'){
+  if(v==='WORKER')return'Sonstiges';
+  if(v==='STUDENT')return'Student(in)';
+  if(v==='CIVIL_SERVANT')return'Beamte(r/in)';
+  if(v==='HOMEMAKER')return'Haus(frau/mann)';
+ }
+ if(provider==='immowelt'&&v==='DOCTORAL')return'Sonstiges';
+ if(provider==='immowelt'&&v==='HOMEMAKER')return'Hausfrau/mann';
+ return EMPLOYMENT_LABELS[v]||null;
+}
+export function providerIncome(provider:ApplicationProvider,value:any){
+ if(provider==='immomio')return null;
+ const v=canonicalIncome(value);if(!v)return null;
+ if(v==='HOUSING_BENEFIT')return provider==='immowelt'?'Ich beziehe Wohngeld':null;
+ if(provider==='immowelt'){
+  if(v==='OVER_5000')return'Ich möchte keine Angabe machen';
+  return IMMOWELT_INCOME[v]||null;
+ }
+ if(v==='NOT_SPECIFIED')return provider==='kleinanzeigen'?'Keine Angabe':null;
+ if(provider==='kleinanzeigen')return KLEIN_INCOME[v]||null;
+ return SCOUT_INCOME[v]||null;
+}
 function petKind(value:any){
  const raw=clean(value),n=norm(raw);
  if(!raw||/keine angabe|keine angaben|not specified|no answer/.test(n))return{kind:'NOT_SPECIFIED',raw};
@@ -138,13 +199,62 @@ function petKind(value:any){
  if(small&&!larger)return{kind:'SMALL_ONLY',raw};
  return{kind:'SPECIFIC',raw};
 }
-export function providerPets(provider:ApplicationProvider,value:any){if(provider==='immomio')return null;const pet=petKind(value);if(pet.kind==='NOT_SPECIFIED')return'Keine Angaben';if(pet.kind==='NO_PETS'||pet.kind==='SMALL_ONLY')return'Nein';return'Ja';}
-export function providerMoveIn(provider:ApplicationProvider,profile:any){if(provider==='immomio')return null;const v=canonicalMoveIn(profile?.move_in_preference);if(!v)return null;if(provider==='immowelt'){if(v==='IMMEDIATE')return'So bald wie möglich';if(v==='WITHIN_1_MONTH')return'<1 Monat';if(v==='WITHIN_3_MONTHS')return'<3 Monate';if(v==='AFTER_3_MONTHS')return'>3 Monate';if(v==='FLEXIBLE')return'Ich bin flexibel';if(v==='NOT_SPECIFIED')return'Ich möchte keine Angabe machen';if(v==='EXACT_DATE'){const d=daysUntil(profile?.move_in_date);if(d==null)return null;if(d<=0)return'So bald wie möglich';if(d<=30)return'<1 Monat';if(d<=90)return'<3 Monate';return'>3 Monate';}}if(v==='NOT_SPECIFIED')return null;if(v==='FLEXIBLE')return'Flexibel';if(v==='IMMEDIATE')return'Sofort';if(v==='WITHIN_1_MONTH')return'Innerhalb 1 Monat';if(v==='WITHIN_3_MONTHS')return'Innerhalb 3 Monate';if(v==='AFTER_3_MONTHS')return'Später als 3 Monate';if(v==='EXACT_DATE')return clean(profile?.move_in_date)||null;return null;}
+export function providerPets(provider:ApplicationProvider,value:any){
+ if(provider==='immomio')return null;
+ const pet=petKind(value);
+ if(provider==='kleinanzeigen'){
+  if(pet.kind==='NOT_SPECIFIED'||pet.kind==='SMALL_ONLY')return null;
+  if(pet.kind==='NO_PETS')return'Nein';
+  return'Ja';
+ }
+ if(pet.kind==='NOT_SPECIFIED')return'Keine Angaben';
+ if(pet.kind==='NO_PETS'||pet.kind==='SMALL_ONLY')return'Nein';
+ return'Ja';
+}
+export function providerSchufa(provider:ApplicationProvider,value:any){
+ if(provider!=='kleinanzeigen')return null;
+ const v=canonicalSchufa(value);
+ if(v==='NOT_SPECIFIED')return'Keine Angabe';
+ if(v==='PRESENT_RECENT')return'Vorhanden (< 3 Monate)';
+ if(v==='NOT_AVAILABLE')return'Nicht vorhanden';
+ return null;
+}
+export function providerMoveIn(provider:ApplicationProvider,profile:any){
+ if(provider==='immomio')return null;
+ const v=canonicalMoveIn(profile?.move_in_preference);if(!v)return null;
+ if(provider==='immowelt'){
+  if(v==='IMMEDIATE')return'So bald wie möglich';
+  if(v==='WITHIN_1_MONTH')return'<1 Monat';
+  if(v==='WITHIN_3_MONTHS')return'<3 Monate';
+  if(v==='AFTER_3_MONTHS')return'>3 Monate';
+  if(v==='FLEXIBLE')return'Ich bin flexibel';
+  if(v==='NOT_SPECIFIED')return'Ich möchte keine Angabe machen';
+  if(v==='EXACT_DATE'){
+   const d=daysUntil(profile?.move_in_date);if(d==null)return null;
+   if(d<=0)return'So bald wie möglich';
+   if(d<=30)return'<1 Monat';
+   if(d<=90)return'<3 Monate';
+   return'>3 Monate';
+  }
+ }
+ if(v==='NOT_SPECIFIED')return provider==='kleinanzeigen'?'Keine Angabe':null;
+ if(v==='FLEXIBLE')return'Flexibel';
+ if(v==='IMMEDIATE')return'Sofort';
+ if(v==='WITHIN_1_MONTH')return'Innerhalb 1 Monat';
+ if(v==='WITHIN_3_MONTHS')return'Innerhalb 3 Monate';
+ if(v==='AFTER_3_MONTHS')return'Später als 3 Monate';
+ if(v==='EXACT_DATE'){
+  if(provider==='kleinanzeigen')return'Keine Angabe';
+  return clean(profile?.move_in_date)||null;
+ }
+ return null;
+}
 export function providerEnumCandidates(provider:ApplicationProvider,semantic:string,profile:any){
  if(provider==='immomio')return[];
  const key=String(semantic||'').toLowerCase();
  let value:any=null;
  if(/salutation|anrede/.test(key))value=providerSalutation(provider,profile?.salutation);
+ else if(/schufa/.test(key))value=providerSchufa(provider,profile?.schufa_status);
  else if(/pet|haustier/.test(key))value=providerPets(provider,profile?.pets);
  else if(/household|haushalt|numberofpersons|personen/.test(key))value=providerHousehold(provider,profile?.household_type);
  else if(/employment|beruf|job|occupation/.test(key))value=providerEmployment(provider,profile?.employment_status);
@@ -152,17 +262,93 @@ export function providerEnumCandidates(provider:ApplicationProvider,semantic:str
  else if(/move.?in|einzug/.test(key))value=providerMoveIn(provider,profile);
  return value==null?[]:[value];
 }
-export function providerStaticMissing(provider:ApplicationProvider,profile:any,message?:string){if(provider==='immomio')return[];const missing:string[]=[];const add=(label:string,value:any)=>{if(!clean(value))missing.push(label)};const selected=(label:string,value:any)=>{if(value==null)missing.push(label)};add('Vorname',profile?.first_name);add('Nachname',profile?.last_name);if(provider==='immoscout'||provider==='immowelt'){if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean(profile?.email)))missing.push('E-Mail-Adresse');}selected('Anrede',canonicalSalutation(profile?.salutation));add('Straße',profile?.street);add('Hausnummer',profile?.house_number);if(!/^\d{5}$/.test(clean(profile?.postcode)))missing.push('PLZ');add('Ort',profile?.city);if(message!==undefined&&!clean(message))missing.push('Bewerbungstext');return [...new Set(missing)];}
+export function providerStaticMissing(provider:ApplicationProvider,profile:any,message?:string){
+ if(provider==='immomio')return[];
+ const missing:string[]=[];
+ const add=(label:string,value:any)=>{if(!clean(value))missing.push(label);};
+ const selected=(label:string,value:any)=>{if(value==null)missing.push(label);};
+ add('Vorname',profile?.first_name);
+ add('Nachname',profile?.last_name);
+ if(provider==='immoscout'||provider==='immowelt'){
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean(profile?.email)))missing.push('E-Mail-Adresse');
+ }
+ if(provider==='immowelt'){
+  selected('Anrede',canonicalSalutation(profile?.salutation));
+  add('Straße',profile?.street);
+  add('Hausnummer',profile?.house_number);
+  if(!/^\d{5}$/.test(clean(profile?.postcode)))missing.push('PLZ');
+  add('Ort',profile?.city);
+ }
+ if(provider==='kleinanzeigen'){
+  selected('Anrede',canonicalSalutation(profile?.salutation));
+  add('Straße',profile?.street);
+  add('Hausnummer',profile?.house_number);
+  if(!/^\d{5}$/.test(clean(profile?.postcode)))missing.push('PLZ');
+  add('Ort',profile?.city);
+  selected('SCHUFA-Status',canonicalSchufa(profile?.schufa_status));
+  selected('Haushaltstyp',canonicalHousehold(profile?.household_type));
+  selected('Beschäftigungsstatus',canonicalEmployment(profile?.employment_status));
+  selected('Haushalts-Nettoeinkommen',canonicalIncome(profile?.income_range));
+  const moveIn=canonicalMoveIn(profile?.move_in_preference);
+  selected('Einzugstermin',moveIn);
+  if(moveIn==='EXACT_DATE'&&dateOrdinal(profile?.move_in_date)==null)missing.push('Gewünschtes Einzugsdatum');
+ }
+ if(provider==='immoscout'){
+  selected('Anrede',canonicalSalutation(profile?.salutation));
+  add('Straße',profile?.street);
+  add('Hausnummer',profile?.house_number);
+  if(!/^\d{5}$/.test(clean(profile?.postcode)))missing.push('PLZ');
+  add('Ort',profile?.city);
+ }
+ if(message!==undefined&&!clean(message))missing.push('Bewerbungstext');
+ return [...new Set(missing)];
+}
+export function profileCanonicalSnapshot(profile:any){
+ return{
+  salutation:canonicalSalutation(profile?.salutation),
+  employment_status:canonicalEmployment(profile?.employment_status),
+  household_type:canonicalHousehold(profile?.household_type),
+  income_range:canonicalIncome(profile?.income_range),
+  move_in_preference:canonicalMoveIn(profile?.move_in_preference)
+ };
+}
+
+export function applicationMessageField(listing:any){
+ const raw=listing?.raw&&typeof listing.raw==='object'?listing.raw:{};
+ const type=norm([listing?.property_type,raw?.property_type,raw?.propertyType].join(' '));
+ const kind=norm([listing?.property_kind,raw?.property_kind,raw?.propertyKind].join(' '));
+ const mode=norm([listing?.offer_mode,raw?.offer_mode,raw?.offerMode].join(' '));
+ const title=norm(listing?.title||raw?.title||'');
+ const all=[type,kind,mode,title].filter(Boolean).join(' ');
+ if(/tauschwohnung|wohnungstausch|swap/.test(all))return'message_swap';
+ if(/haus|house|einfamilienhaus|reihenhaus/.test(type+' '+kind))return'message_house';
+ if(/(^| )(wg|room|zimmer)( |$)/.test(type+' '+kind)||
+    /auf zeit|zwischenmiete|untermiete|befristet|temporary|time limited|sublet/.test(type+' '+kind+' '+mode+' '+title)||
+    /\bwg\b/.test(title)||/wg zimmer/.test(title))return'message_temporary_wg';
+ return'message_apartment';
+}
+function preserveMessage(value:any){
+ return String(value??'').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g,' ')
+  .replace(/\r\n?/g,'\n').split('\n').map(line=>line.replace(/[ \t]+/g,' ').trim()).join('\n').trim().slice(0,4000);
+}
+export function applicationMessageFor(profile:any,listing:any){
+ const field=applicationMessageField(listing);
+ return{field,message:preserveMessage(profile?.[field])||null};
+}
+
 export function profileAdapterSelfTest(){
  const checks={
   mrToImmowelt:providerSalutation('immowelt','MR')==='Herr',
   mrToImmoScout:providerSalutation('immoscout','MR')==='MALE',
   companyToImmoScout:providerSalutation('immoscout','COMPANY')==='COMPANY',
+  companyToKleinanzeigen:providerSalutation('kleinanzeigen','COMPANY')==='Keine Angabe',
   diverseToImmowelt:providerSalutation('immowelt','DIVERSE')==='Neutral',
   diverseToImmoScout:providerSalutation('immoscout','DIVERSE')===null,
   noHouseholdToImmowelt:providerHousehold('immowelt','NOT_SPECIFIED')==='Ich möchte keine Angabe machen',
+  twoAdultsToKleinanzeigen:providerHousehold('kleinanzeigen','TWO_ADULTS')==='Zweipersonenhaushalt',
   doctoralToImmowelt:providerEmployment('immowelt','DOCTORAL')==='Sonstiges',
   over5000ToImmowelt:providerIncome('immowelt','OVER_5000')==='Ich möchte keine Angabe machen',
+  noMoveInToKleinanzeigen:providerMoveIn('kleinanzeigen',{move_in_preference:'NOT_SPECIFIED'})==='Keine Angabe',
   immomioHasNoRequirements:providerStaticMissing('immomio',{},'').length===0,
    immoweltRequiresSalutation:providerStaticMissing('immowelt',{first_name:'Alex',last_name:'Example',email:'alex@example.com'},'Message').includes('Anrede'),
   noAnswerToImmoScoutIsOmitted:providerSalutation('immoscout','NEUTRAL')===null,

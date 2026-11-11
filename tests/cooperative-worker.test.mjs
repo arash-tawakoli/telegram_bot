@@ -41,5 +41,5 @@ await test('manual provider challenge or invalid identity cannot reach send auth
  for(const opts of [{probeReady:false},{probeTarget:'not-an-object'}]){const w=worker(opts);await w.processOne();assert.ok(!w.calls.some(x=>x.name==='authorize_immomio_application_send'));assert.ok(!w.calls.some(x=>x.name==='send_authorized'));}
 });
 await test('disconnected account is rejected before provider access',async()=>{
- const w=worker({connected:false});assert.equal((await w.processOne()).error,'needs_login');assert.ok(!w.calls.some(x=>x.name==='probe'));
+ const w=worker({connected:false});assert.equal((await w.processOne()).error,'provider_disabled');assert.ok(!w.calls.some(x=>x.name==='probe'));
 });

@@ -381,6 +381,10 @@ export default {
     const url = new URL(request.url);
     const routePath = url.pathname.startsWith("/edge/") ? url.pathname.slice("/edge".length) : url.pathname;
 
+    if (env.PREVIEW_MODE === "1" && !(request.method === "GET" && routePath === "/health")) {
+      return json({ error: "preview_read_only" }, 403);
+    }
+
     if (request.method === "GET" && (url.pathname === "/health" || routePath === "/health")) {
       return json({
         ok: true,
@@ -528,6 +532,7 @@ export default {
   },
 
   async scheduled(_controller, env, ctx) {
+    if (env.PREVIEW_MODE === "1") return;
     ctx.waitUntil((async () => {
       if (env.PREVIEW_MODE !== "1" && env.TELEGRAM_WEBHOOK_REGISTER === "1") {
         try {

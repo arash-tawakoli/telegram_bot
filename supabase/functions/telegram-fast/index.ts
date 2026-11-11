@@ -1,20 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
-function scheduleBackground(task: Promise<unknown>): Promise<void> {
-  const promise = Promise.resolve(task);
-  const runtime = (globalThis as any).EdgeRuntime;
-  if (typeof runtime?.waitUntil === "function") {
-    try {
-      runtime.waitUntil(promise);
-      return Promise.resolve();
-    } catch (error) {
-      console.error("telegram_wait_until_unavailable", String(error));
-    }
-  }
-  return promise.then(() => undefined);
-}
-
-
 const BASE_URL = Deno.env.get("SUPABASE_URL")!;
 const KEYS = JSON.parse(Deno.env.get("SUPABASE_SECRET_KEYS") || "{}");
 const SERVICE_KEY = KEYS.default || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -132,7 +117,7 @@ function savedContent(user: any, data: any) {
 function contentFor(action: string, user: any, data: any) { if (action === "home") return homeContent(user); if (action === "settings") return settingsContent(user); if (action === "help") return helpContent(); if (action === "profile") return profileContent(user, data); if (action === "new") return newContent(user, data); if (action === "status") return statusContent(data); if (action === "saved") return savedContent(user, data); if (action === "pause") return { text: "⏸ Dein Suchprofil ist pausiert." }; if (action === "resume") return { text: "▶️ Dein Suchprofil ist wieder aktiv." }; return null; }
 
 async function finish(updateId: number, attempt: number, success: boolean, error: string | null = null, timings: Record<string, number> = {}) { return rpc("finish_ui_update", { p_update_id: updateId, p_attempt: attempt, p_success: success, p_error: error, p_timings: timings }); }
-function finishBackground(updateId: number, attempt: number, success: boolean, error: string | null = null, timings: Record<string, number> = {}) { return scheduleBackground(finish(updateId, attempt, success, error, timings).catch((e) => console.error("telegram_fast_finish", String(e)))); }
+function finishBackground(updateId: number, attempt: number, success: boolean, error: string | null = null, timings: Record<string, number> = {}) { EdgeRuntime.waitUntil(finish(updateId, attempt, success, error, timings).catch((e) => console.error("telegram_fast_finish", String(e)))); }
 async function notifyAdminsNewUser(user: any) { const name = [user.first_name, user.last_name].filter(Boolean).join(" ").trim() || (user.username ? `@${user.username}` : String(user.telegram_user_id)); const username = user.username && name !== `@${user.username}` ? ` (@${user.username})` : ""; const text = `👤 Neuer Nutzer: ${name}${username}`; await Promise.all(ADMINS.filter((id) => id !== Number(user.telegram_user_id)).map((id) => telegram("sendMessage", { chat_id: id, text }).catch(() => {}))); }
 async function forwardCore(body: string, supplied: string, callbackAcked = false) {
   let expected = await secret("telegram_webhook_secret"); if (supplied !== expected) { cachedWebhookSecret = null; expected = await secret("telegram_webhook_secret", true); if (supplied !== expected) return new Response("unauthorized", { status: 401 }); }
@@ -153,7 +138,7 @@ Deno.serve(async (req: Request) => {
     const supplied = req.headers.get("x-telegram-bot-api-secret-token") || ""; const body = await req.text(); const update = parse(body); const command = commandOf(update); const callback = String(update?.callback_query?.data || ""); const action = COMMAND_ACTIONS[command] || CALLBACK_ACTIONS[callback] || "";
     if (update?.callback_query?.id) {
       const query = update.callback_query;
-      await scheduleBackground((async () => {
+      EdgeRuntime.waitUntil((async () => {
         const callbackStarted = Date.now();
         let callbackUpdateId: number | null = null;
         let callbackAttempt: number | null = null;
@@ -198,10 +183,10 @@ Deno.serve(async (req: Request) => {
     const claim = Number(prepared?.claim ?? 0); if (claim === 0) return Response.json({ ok: true, duplicate: true }); if (claim < 0) return Response.json({ ok: false, busy: true }, { status: 503 });
     updateId = Number(update.update_id); attempt = claim; const user = { ...(prepared?.user || {}), is_premium: prepared?.is_premium === true, __is_new_user: prepared?.is_new_user === true }; const data = prepared?.action_data || {};
     if (prepared?.fast_eligible === false) { await finish(updateId, attempt, false, "fast_path_language_fallback"); updateId = null; attempt = null; return forwardCore(body, supplied); }
-    if (!user.is_active && !ADMINS.includes(Number(user.telegram_user_id))) { await finishBackground(updateId, attempt, true); return Response.json({ ok: true, blocked: true }); }
+    if (!user.is_active && !ADMINS.includes(Number(user.telegram_user_id))) { finishBackground(updateId, attempt, true); return Response.json({ ok: true, blocked: true }); }
     const chatId = Number(update?.message?.chat?.id); if (!chatId) throw new Error("missing chat id");
-    if (action === "home") { const argument = argumentOf(update); if (argument.startsWith("ref_") && user.__is_new_user) await rpc("redeem_referral_code", { p_referred_user_id: user.id, p_code: argument.slice(4) }).catch((e) => console.error("referral_register", String(e))); await scheduleBackground(ensureTelegramCommandConfig(chatId,ADMINS.includes(Number(user.telegram_user_id))).catch(error => console.error("telegram_command_config", String(error)))); if (user.__is_new_user) await scheduleBackground(notifyAdminsNewUser(user).catch(error => console.error("telegram_new_user_notice", String(error)))); }
+    if (action === "home") { const argument = argumentOf(update); if (argument.startsWith("ref_") && user.__is_new_user) await rpc("redeem_referral_code", { p_referred_user_id: user.id, p_code: argument.slice(4) }).catch((e) => console.error("referral_register", String(e))); EdgeRuntime.waitUntil(ensureTelegramCommandConfig(chatId,ADMINS.includes(Number(user.telegram_user_id)))); if (user.__is_new_user) EdgeRuntime.waitUntil(notifyAdminsNewUser(user)); }
     let response: Response; if (action === "premium" || (action === "saved" && !user.is_premium)) { const premium = premiumContent(user); response = direct("sendPhoto", { chat_id: chatId, photo: PREMIUM_IMAGE, caption: premium.caption, parse_mode: "HTML", reply_markup: premium.reply_markup }); } else { const content = contentFor(action, user, data); if (!content) throw new Error(`unsupported fast action ${action}`); response = direct("sendMessage", textParams(chatId, content.text, content.reply_markup)); }
-    await finishBackground(updateId, attempt, true, null, { total_ms: Date.now() - requestStarted }); return response;
+    finishBackground(updateId, attempt, true, null, { total_ms: Date.now() - requestStarted }); return response;
   } catch (error) { if (updateId !== null && attempt !== null) finishBackground(updateId, attempt, false, String(error), { total_ms: Date.now() - requestStarted }); console.error("telegram_fast", String(error)); return Response.json({ ok: false, error: "telegram_fast_failure" }, { status: 502 }); }
 });

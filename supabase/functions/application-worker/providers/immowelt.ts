@@ -8,16 +8,8 @@ export async function checkImmoweltConnection(db:any,userId:string){
  if(!connection)return{authenticated:false,status:'disconnected'};
  const cookies=Array.isArray(connection.credentials?.cookies)?connection.credentials.cookies:[];
  if(!cookies.length)return{authenticated:false,status:'needs_login'};
- let session:any;
- try{session=await immoweltFallbackSession(db,userId,connection);}
- catch{return{authenticated:null,status:'error',error:'temporary_network_error',accountHint:connection.row?.account_hint||null,sessionStoredEncrypted:true};}
- if(!session?.ok){
-  const status=Number(session?.httpStatus||0);
-  const authRejected=status===401||status===403||session?.error==='session_token_missing';
-  if(!authRejected)return{authenticated:null,status:'error',error:session?.error||'session_check_failed',httpStatus:status||null,accountHint:connection.row?.account_hint||null,sessionStoredEncrypted:true};
-  await markConnection(db,userId,PROVIDER,'needs_login','session_refresh_rejected').catch(()=>{});
-  return{authenticated:false,status:'needs_login',accountHint:connection.row?.account_hint||null,sessionStoredEncrypted:true};
- }
+ const session=await immoweltFallbackSession(db,userId,connection).catch(()=>null);
+ if(!session?.ok)return{authenticated:false,status:'needs_login',accountHint:connection.row?.account_hint||null,sessionStoredEncrypted:true};
  return{authenticated:true,status:'connected',accountHint:connection.row?.account_hint||null,sessionStoredEncrypted:true,sessionRefreshed:!!session.refreshed};
 }
 
