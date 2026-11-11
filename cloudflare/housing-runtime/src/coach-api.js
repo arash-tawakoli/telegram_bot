@@ -2,6 +2,8 @@ import { hashPassword, memberForAccess, sha256 } from "./auth.js";
 import { assertAllowedSource } from "./source-allowlist.js";
 import { issueProviderAuthFlow } from "./provider-facade.js";
 
+const PORTAL_ORIGIN = "https://intern.traumwohnunghamburg.de";
+
 const HEADERS = {
   "content-type": "application/json; charset=utf-8",
   "cache-control": "no-store, max-age=0",
@@ -316,7 +318,7 @@ async function disconnectProvider(sql, member, body) {
   return { ok: true, status: "disconnected" };
 }
 
-async function requestUpload(sql, member, request, body) {
+async function requestUpload(sql, member, body) {
   const participantId = uuid(body.participantId, "participant");
   if (!await canAccessParticipant(sql, member, participantId)) throw new Error("participant_forbidden");
   const filename = safeFilename(body.filename);
@@ -329,7 +331,7 @@ async function requestUpload(sql, member, request, body) {
     INSERT INTO housing.upload_tokens (id, participant_id, token_hash, object_key, original_filename, document_type, content_type, expires_at)
     VALUES (gen_random_uuid(), ${participantId}, ${await sha256(token)}, ${objectKey}, ${filename}, ${documentType}, ${contentType}, ${expiresAt}::timestamptz)
   `;
-  return { signedUrl: `${new URL(request.url).origin}/edge/documents/upload?token=${encodeURIComponent(token)}`, path: objectKey, filename, documentType };
+  return { signedUrl: `${PORTAL_ORIGIN}/edge/documents/upload?token=${encodeURIComponent(token)}`, path: objectKey, filename, documentType };
 }
 
 function bytesToBase64Url(bytes) {
@@ -359,13 +361,13 @@ async function registerUpload(sql, member, body) {
   return { ok: true, documentId };
 }
 
-async function openDocument(sql, member, request, body) {
+async function openDocument(sql, member, body) {
   const participantId = uuid(body.participantId, "participant");
   const documentId = uuid(body.documentId, "document");
   if (!await canAccessParticipant(sql, member, participantId)) throw new Error("participant_forbidden");
   const rows = await sql`SELECT id FROM housing.documents WHERE id = ${documentId} AND participant_id = ${participantId}`;
   if (!rows[0]) throw new Error("document_not_found");
-  return { url: `${new URL(request.url).origin}/edge/documents/open?document_id=${encodeURIComponent(documentId)}&participant_id=${encodeURIComponent(participantId)}` };
+  return { url: `${PORTAL_ORIGIN}/edge/documents/open?document_id=${encodeURIComponent(documentId)}&participant_id=${encodeURIComponent(participantId)}` };
 }
 
 async function deleteDocument(sql, member, body, env) {
@@ -453,9 +455,9 @@ export async function handleCoach(sql, request, env = {}) {
   if (action === "set_preferences") return setPreferences(sql, member, body);
   if (action === "start_connect") return startConnect(sql, member, body);
   if (action === "disconnect_provider") return disconnectProvider(sql, member, body);
-  if (action === "request_upload") return requestUpload(sql, member, request, body);
+  if (action === "request_upload") return requestUpload(sql, member, body);
   if (action === "register_upload") return registerUpload(sql, member, body);
-  if (action === "open_document") return openDocument(sql, member, request, body);
+  if (action === "open_document") return openDocument(sql, member, body);
   if (action === "delete_document") return deleteDocument(sql, member, body, env);
   if (action === "toggle_document") return toggleDocument(sql, member, body);
   if (action === "source_health") {
