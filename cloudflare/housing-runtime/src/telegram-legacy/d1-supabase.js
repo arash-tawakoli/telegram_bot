@@ -401,6 +401,13 @@ async function rpc(client, env, name, args) {
     return { data: { enabled }, error: null };
   }
   if (name === "set_application_provider_enabled_shared") { const col={immoscout:"immoscout_enabled",immoscout24:"immoscout_enabled",kleinanzeigen:"kleinanzeigen_enabled",immowelt:"immowelt_enabled",immomio:"immomio_enabled"}[args.p_provider]; if(!col)return{data:null,error:new Error("provider_not_allowlisted")}; await client.run(`INSERT OR IGNORE INTO application_preferences(participant_id) VALUES(?)`,[args.p_user]); await client.run(`UPDATE application_preferences SET ${col}=? WHERE participant_id=?`,[args.p_enabled?1:0,args.p_user]); return {data:{enabled:!!args.p_enabled},error:null}; }
-  if (name === "get_schleswig_holstein_areas") return {data:[],error:null};
+  if (name === "get_schleswig_holstein_areas") {
+    const row = (await client.run("SELECT payload FROM coach_geo_snapshot WHERE id='de-hh-sh' LIMIT 1"))[0];
+    if (!row?.payload) return { data: null, error: new Error("geography_snapshot_missing") };
+    const areas = json(row.payload, {}).schleswigHolsteinAreas;
+    return Array.isArray(areas) && areas.length
+      ? { data: areas, error: null }
+      : { data: null, error: new Error("geography_snapshot_incomplete") };
+  }
   return {data:null,error:null};
 }
