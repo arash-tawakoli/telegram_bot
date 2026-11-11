@@ -1,0 +1,12 @@
+{
+  "migrations": [
+    {
+      "version": "20261103205000",
+      "name": "retire_wg_gesucht_and_kleinanzeigen",
+      "file": "supabase/migrations/20261103205000_retire_wg_gesucht_and_kleinanzeigen.sql",
+      "registry_sql_sha256": "8ddab69c276140705b8d88f0cbd8a2debd9ce7cc0553f2c7465ae6d091c25ab8",
+      "export_sql_sha256": "8ddab69c276140705b8d88f0cbd8a2debd9ce7cc0553f2c7465ae6d091c25ab8",
+      "vault_substitution": false
+    }
+  ]
+}

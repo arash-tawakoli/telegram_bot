@@ -1,0 +1,55 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "traumwohnung-housing-runtime",
+  "main": "src/index.js",
+  "upload_source_maps": true,
+  "compatibility_date": "2026-11-03",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "workers_dev": true,
+  "preview_urls": true,
+  "observability": {
+    "enabled": true,
+    "redact_query_string": true,
+    "head_sampling_rate": 0.1,
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true,
+      "persist": true,
+      "head_sampling_rate": 0.1
+    }
+  },
+  "vars": {
+    "TELEGRAM_WEBHOOK_REGISTER": "1"
+  },
+  "d1_databases": [
+    {
+      "binding": "HOUSING_DB",
+      "database_name": "traumwohnung-housing-core",
+      "database_id": "d4ee4d33-00be-4420-bb40-76d70384822d",
+      "migrations_dir": "schema/d1"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "DOCUMENTS",
+      "bucket_name": "traumwohnung-applicant-documents"
+    }
+  ],
+  "triggers": {
+    "crons": [
+      "* * * * *"
+    ]
+  },
+  "previews": {
+    "vars": {
+      "PREVIEW_MODE": "1",
+      "TELEGRAM_WEBHOOK_REGISTER": "0"
+    }
+  },
+  "limits": {
+    "cpu_ms": 500
+  }
+}
+

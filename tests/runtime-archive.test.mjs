@@ -24,3 +24,10 @@ test('runtime archive rejects duplicate slugs and incomplete secret-reviewed bun
  const redacted={...bundle,functions:[{...bundle.functions[0],archive_status:'redacted_potential_secret'}]};
  await assert.rejects(verifyArchivedRuntime(runtime,async()=>JSON.stringify(redacted)),/incomplete or redacted/);
 });
+
+test('tracked archive keeps snapshot version separate from the observed live version',async()=>{
+ const trackedBundle={functions:[{slug:'managed-probe',version:2,verify_jwt:false,artifact_sha256:'abc',archive_status:'full_source',security_scan_flags:[],files:[{path:'index.ts',content:'export default {};'}]}]};
+ const trackedRuntime={functions:[{slug:'managed-probe',version:2,verify_jwt:false,observed_live_version:3,observed_live_verify_jwt:false,observed_live_artifact_sha256:'abc',source_archive_file:bundlePath,source_archive_file_count:1,source_archive_status:'full_source'}],archived_functions:[]};
+ const result=await verifyArchivedRuntime(trackedRuntime,async path=>{assert.equal(path,bundlePath);return JSON.stringify(trackedBundle)});
+ assert.deepEqual(result,{archivedFunctions:1,totalFunctions:1});
+});

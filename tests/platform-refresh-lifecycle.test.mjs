@@ -4,7 +4,6 @@ import {readFileSync} from 'node:fs';
 
 const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
 const credentials = read('../supabase/functions/application-worker/credentials.ts');
-const klein = read('../supabase/functions/application-worker/providers/kleinanzeigen.ts');
 const scout = read('../supabase/functions/application-worker/providers/immoscout.ts');
 const welt = read('../supabase/functions/application-worker/providers/immowelt.ts');
 const mioCredentials = read('../supabase/functions/immomio-account/credentials.ts');
@@ -15,13 +14,6 @@ test('connection credentials remain encrypted and refresh telemetry is centraliz
   assert.match(credentials, /record_platform_connection_refresh/);
   assert.match(mioCredentials, /AES-GCM/);
   assert.match(mioCredentials, /record_platform_connection_refresh/);
-});
-
-test('Kleinanzeigen refreshes once after authenticated request rejection', () => {
-  assert.match(klein, /async function refresh\(db:any,userId:string,connection:any,force=false\)/);
-  assert.match(klein, /account\(db,userId,true\)/);
-  assert.match(klein, /submit=await submitOnce\(acct\)/);
-  assert.match(klein, /recordRefreshResult\(db,userId,'kleinanzeigen'/);
 });
 
 test('ImmoScout refreshes once after detail or contact auth rejection', () => {

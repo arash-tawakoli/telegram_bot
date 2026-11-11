@@ -1,0 +1,12 @@
+{
+  "migrations": [
+    {
+      "version": "20261103173035",
+      "name": "enable_cloudflare_housing_hyperdrive_login",
+      "file": "supabase/migrations/20261103173035_enable_cloudflare_housing_hyperdrive_login.sql",
+      "registry_sql_sha256": "e8f270ac0ea14c1938409c70d876ed3aeda78e96de9a075910f561f40efdff80",
+      "export_sql_sha256": "e8f270ac0ea14c1938409c70d876ed3aeda78e96de9a075910f561f40efdff80",
+      "vault_substitution": false
+    }
+  ]
+}

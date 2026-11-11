@@ -35,9 +35,18 @@ test('retired endpoints are classified as retired and use JWT gateway verificati
  }
 });
 
+test('Indeed MCP is archived outside the housing-only runtime',async()=>{
+ const manifest=JSON.parse(await read('supabase/runtime-manifest.json'));
+ assert.equal(manifest.functions.some(x=>x.slug==='indeed-mcp-bridge'),false);
+ const archived=manifest.archived_functions.find(x=>x.slug==='indeed-mcp-bridge');
+ assert.ok(archived);
+ assert.equal(archived.classification,'retired');
+ assert.equal(archived.verify_jwt,false);
+});
+
 test('all live function bundles have an explicit operational classification',async()=>{
  const manifest=JSON.parse(await read('supabase/runtime-manifest.json'));
  const all=[...manifest.functions,...manifest.archived_functions];
- assert.equal(all.length,114);
+ assert.equal(all.length,115);
  for(const f of all)assert.ok(['production','internal','diagnostic','canary','retired','webhook','public_asset','support_review'].includes(f.classification),f.slug+' classification');
 });

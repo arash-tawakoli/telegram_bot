@@ -1,0 +1,12 @@
+{
+  "migrations": [
+    {
+      "version": "20261103143143",
+      "name": "disable_cloudflare_housing_listing_export",
+      "file": "supabase/migrations/20261103143143_disable_cloudflare_housing_listing_export.sql",
+      "registry_sql_sha256": "01565d5f46b35a8cf5abd4a4f9884b970f06f4737df5ad646bfc01a9bd61f2f2",
+      "export_sql_sha256": "01565d5f46b35a8cf5abd4a4f9884b970f06f4737df5ad646bfc01a9bd61f2f2",
+      "vault_substitution": false
+    }
+  ]
+}

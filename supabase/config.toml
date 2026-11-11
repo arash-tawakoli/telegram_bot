@@ -17,3 +17,15 @@ verify_jwt = false
 [functions.application-worker]
 verify_jwt = false
 
+[functions.auth-facade-broker]
+verify_jwt = false
+
+[functions.immomio-account]
+verify_jwt = false
+
+[functions.immomio-application-worker]
+verify_jwt = false
+
+
+[functions.platform-session-reminder]
+verify_jwt = false

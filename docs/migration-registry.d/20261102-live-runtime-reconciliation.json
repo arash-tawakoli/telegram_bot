@@ -1,0 +1,20 @@
+{
+  "migrations": [
+    {
+      "version": "20261101235925",
+      "name": "remove_personal_immoscout_test_daily_limit",
+      "file": "supabase/migrations/20261101235925_remove_personal_immoscout_test_daily_limit.sql",
+      "registry_sql_sha256": "5e83042cf6cadd698372c83be8fd56f3031b7ab18112d4a3e57f897b4aebe5b6",
+      "export_sql_sha256": "5e83042cf6cadd698372c83be8fd56f3031b7ab18112d4a3e57f897b4aebe5b6",
+      "vault_substitution": false
+    },
+    {
+      "version": "20261102071220",
+      "name": "platform_reauth_wg_and_staged_reminders",
+      "file": "supabase/migrations/20261102071220_platform_reauth_wg_and_staged_reminders.sql",
+      "registry_sql_sha256": "9528d4e66d3082a3520e3e4be02af608545bb6dbdeea5c60966b12540e828bda",
+      "export_sql_sha256": "9528d4e66d3082a3520e3e4be02af608545bb6dbdeea5c60966b12540e828bda",
+      "vault_substitution": false
+    }
+  ]
+}

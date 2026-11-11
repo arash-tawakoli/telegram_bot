@@ -1,5 +1,5 @@
 {
-  "observed_at": "2026-10-31T23:20:00Z",
+  "observed_at": "2026-11-02T07:55:00Z",
   "project_id": "dpmohkrwdlicexwcrqfy",
   "snapshot_kind": "repository_with_observed_deployment_hashes",
   "functions": [
@@ -18,14 +18,18 @@
           "deployed_sha256": "83ecf137922a3dd161eee8a050561f9700bfabca6dd3459a3ca27ca5c8e6760c"
         }
       ],
-      "observed_live_version": 3,
+      "observed_live_version": 4,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "2e5a625b1aff510a717ecf3b4a34ff525337ea87845063969a6429cf2e5acba9",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-01.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
       "classification": "production",
-      "review_status": "production runtime; version/JWT/hash tracked against live inventory"
+      "review_status": "production runtime; version/JWT/hash tracked against live inventory",
+      "observed_live_at": "2026-09-22T01:39:25.841Z",
+      "source_archive_version": 3,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "2e5a625b1aff510a717ecf3b4a34ff525337ea87845063969a6429cf2e5acba9"
     },
     {
       "slug": "application-package-selftest",
@@ -42,22 +46,26 @@
           "deployed_sha256": "628d12ee44a826766a9ca0349be653b08789a60734d4cc4fa4c1870422df3b69"
         }
       ],
-      "observed_live_version": 4,
+      "observed_live_version": 5,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "43d662d567cca4e77f1cc87a1e4d8210eee9b9a4c4aea45f8b618758fa072d1c",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-01.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_at": "2026-09-21T16:57:23.948Z",
+      "source_archive_version": 4,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "43d662d567cca4e77f1cc87a1e4d8210eee9b9a4c4aea45f8b618758fa072d1c"
     },
     {
       "slug": "application-worker",
-      "version": 334,
+      "version": 336,
       "verify_jwt": false,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "a502cb7235b0f30ba5638f92d5fa8aab3b2a79d7d79c5ace0250af0e21102206",
+      "observed_artifact_sha256": "07a7fc8709e9db2f2621f23a656bc13ce095534958b952d5a4230d0383f45334",
       "entrypoint": "supabase/functions/application-worker/index.ts",
       "files": [
         {
@@ -72,8 +80,13 @@
         },
         {
           "path": "supabase/functions/application-worker/providers/kleinanzeigen.ts",
-          "git_blob_sha": "40a972066a343e747e71bb60631bdcb878aa41a0",
-          "deployed_git_blob_sha": "40a972066a343e747e71bb60631bdcb878aa41a0"
+          "git_blob_sha": "97b69a85b40c0c5868358ecfcdb24739fd29b257",
+          "deployed_git_blob_sha": "97b69a85b40c0c5868358ecfcdb24739fd29b257"
+        },
+        {
+          "path": "supabase/functions/_shared/platform-refresh.ts",
+          "git_blob_sha": "2cf1c5d1399d14f21185ce32797b1d6d1e9d9c0a",
+          "deployed_git_blob_sha": "2cf1c5d1399d14f21185ce32797b1d6d1e9d9c0a"
         },
         {
           "path": "supabase/functions/_shared/platform-auth-flow.ts",
@@ -92,13 +105,13 @@
         },
         {
           "path": "supabase/functions/application-worker/providers/immoscout.ts",
-          "git_blob_sha": "5557995dcf0395d1ef2a59a5a8b5e6deb83242ac",
-          "deployed_git_blob_sha": "5557995dcf0395d1ef2a59a5a8b5e6deb83242ac"
+          "git_blob_sha": "c5ff32fbc6cdbcdb3628775fc0c1a9e5b5ebe70e",
+          "deployed_git_blob_sha": "c5ff32fbc6cdbcdb3628775fc0c1a9e5b5ebe70e"
         },
         {
           "path": "supabase/functions/application-worker/providers/immowelt.ts",
-          "git_blob_sha": "b49f75495243c96fbb23f87d755533211a4cb93d",
-          "deployed_git_blob_sha": "b49f75495243c96fbb23f87d755533211a4cb93d"
+          "git_blob_sha": "0bbcb79d8aee40b2fb1d0c804dd3e3f5a3c1aded",
+          "deployed_git_blob_sha": "0bbcb79d8aee40b2fb1d0c804dd3e3f5a3c1aded"
         },
         {
           "path": "supabase/functions/application-worker/providers/immomio.ts",
@@ -111,14 +124,37 @@
           "deployed_git_blob_sha": "f9c38bfdce6466ca81bad8d41b27c1dd7e680c44"
         }
       ],
-      "observed_live_version": 334,
+      "observed_live_version": 337,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "a502cb7235b0f30ba5638f92d5fa8aab3b2a79d7d79c5ace0250af0e21102206",
-      "source_archive_file": "docs/runtime-snapshot-2026-11-01/bundles/batch-21.json",
-      "source_archive_file_count": 10,
+      "observed_live_artifact_sha256": "07a7fc8709e9db2f2621f23a656bc13ce095534958b952d5a4230d0383f45334",
+      "source_archive_file": "docs/runtime-snapshot-2026-11-02/bundles/batch-01.json",
+      "source_archive_file_count": 11,
       "source_archive_status": "full_source",
       "classification": "production",
-      "review_status": "production runtime; personal ImmoScout test mode deployed and verified 2026-11-01"
+      "review_status": "production runtime; reconciled from live Supabase v336 on 2026-11-02",
+      "observed_at": "2026-11-02T07:55:00Z",
+      "known_source_drift": [
+        {
+          "path": "supabase/functions/application-worker/index.ts",
+          "reason": "Personal ImmoScout test-mode logic and provider-cutover changes are staged only. The live Supabase v337 artifact is unchanged; do not deploy this source until Cloudflare provider parity, including Kleinanzeigen, is verified."
+        },
+        {
+          "path": "supabase/functions/application-worker/credentials.ts",
+          "reason": "Central ImmoScout credential routing to the production Cloudflare housing runtime is staged only. The live Supabase function remains on the archived source until the controlled cutover."
+        },
+        {
+          "path": "supabase/functions/_shared/application-profile-adapters.ts",
+          "reason": "Provider profile mapping changes are staged for the Cloudflare housing cutover. The current source removes Kleinanzeigen mapping; do not deploy until Kleinanzeigen parity is restored and tested."
+        },
+        {
+          "path": "supabase/functions/application-worker/providers/router.ts",
+          "reason": "The staged router removes Kleinanzeigen application dispatch before the Cloudflare Kleinanzeigen adapter is complete. Keep the live Supabase artifact until provider parity is proven."
+        }
+      ],
+      "observed_live_at": "2026-11-02T07:36:21.514Z",
+      "source_archive_version": 336,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "07a7fc8709e9db2f2621f23a656bc13ce095534958b952d5a4230d0383f45334"
     },
     {
       "slug": "auth-facade-broker",
@@ -145,14 +181,24 @@
           "deployed_git_blob_sha": "9868a1e114b476e39cd3c4d0248844c20593d03c"
         }
       ],
-      "observed_live_version": 25,
+      "observed_live_version": 26,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "0dc77c725b7c48a1a4d843397af0e6fde1fcf44308c6203e6d3efdf2976fb929",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-02.json",
       "source_archive_file_count": 3,
       "source_archive_status": "full_source",
       "classification": "internal",
-      "review_status": "production runtime; refreshed after central ImmoScout rollout 2026-11-01"
+      "review_status": "production runtime; refreshed after central ImmoScout rollout 2026-11-01",
+      "known_source_drift": [
+        {
+          "path": "supabase/functions/auth-facade-broker/index.ts",
+          "reason": "The staged auth facade removes legacy Indeed and Kleinanzeigen OAuth flows and routes housing providers through Cloudflare. Not deployed; Kleinanzeigen must remain available until its Cloudflare login flow is complete."
+        }
+      ],
+      "observed_live_at": "2026-11-01T13:16:27.773Z",
+      "source_archive_version": 25,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "0dc77c725b7c48a1a4d843397af0e6fde1fcf44308c6203e6d3efdf2976fb929"
     },
     {
       "slug": "billing-maintenance",
@@ -169,14 +215,18 @@
           "deployed_sha256": "f4c4820c3de7d5f19ee3af5cb1fee3dd5e4da4aed9cecb03df730120c27a853a"
         }
       ],
-      "observed_live_version": 258,
+      "observed_live_version": 259,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "e7f0a03a3f27f1bda4f455f293a3969ed9dbcdc262e8899f665eb19db637dad0",
       "source_archive_file": "docs/runtime-snapshot-2026-11-01/bundles/batch-02.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
       "classification": "production",
-      "review_status": "production runtime; version/JWT/hash tracked against live inventory"
+      "review_status": "production runtime; version/JWT/hash tracked against live inventory",
+      "observed_live_at": "2026-10-24T21:06:55.465Z",
+      "source_archive_version": 258,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "e7f0a03a3f27f1bda4f455f293a3969ed9dbcdc262e8899f665eb19db637dad0"
     },
     {
       "slug": "coach-api",
@@ -198,14 +248,28 @@
           "deployed_sha256": "561eef88785b5d442dbf95d42123cac1236ce0e55094bf59cf65aea099c00f64"
         }
       ],
-      "observed_live_version": 57,
+      "observed_live_version": 58,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "9d60b18ca796680a7d72549682413f1012c325af02c4229ae4e1d0938edc67a4",
       "source_archive_file": "docs/runtime-snapshot-2026-10-27/bundles/batch-01.json",
       "source_archive_file_count": 2,
       "source_archive_status": "full_source",
       "classification": "production",
-      "review_status": "production runtime; resume draft CRUD is scoped by workspace and owner member; RLS and service-role-only table access verified; source and live artifact captured"
+      "review_status": "production runtime; resume draft CRUD is scoped by workspace and owner member; RLS and service-role-only table access verified; source and live artifact captured",
+      "known_source_drift": [
+        {
+          "path": "supabase/functions/_shared/application-profile-adapters.ts",
+          "reason": "Provider profile mapping changes are staged for the Cloudflare housing cutover. The current source removes Kleinanzeigen mapping; do not deploy until Kleinanzeigen parity is restored and tested."
+        },
+        {
+          "path": "supabase/functions/coach-api/index.ts",
+          "reason": "The staged Cloudflare portal cutover removes Kleinanzeigen from the legacy coach API provider registry and changes provider connection handling. This source is not deployed; do not deploy until Cloudflare Kleinanzeigen login, profile, and application parity is complete."
+        }
+      ],
+      "observed_live_at": "2026-10-27T22:24:41.783Z",
+      "source_archive_version": 57,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "9d60b18ca796680a7d72549682413f1012c325af02c4229ae4e1d0938edc67a4"
     },
     {
       "slug": "coach-bootstrap",
@@ -222,14 +286,18 @@
           "deployed_sha256": "d08de004333bcac1ec0f7c75e47586ed8a910e8ba31241ed34471c5cdaeb04d9"
         }
       ],
-      "observed_live_version": 1,
+      "observed_live_version": 2,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "9bc582792556f43f4f3c5635e2b2213bcbecd74dffafdc0e8223c30d06cb35b7",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-02.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
       "classification": "support_review",
-      "review_status": "support/review; retain pending dependency-aware classification"
+      "review_status": "support/review; retain pending dependency-aware classification",
+      "observed_live_at": "2026-09-22T09:09:10.753Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "9bc582792556f43f4f3c5635e2b2213bcbecd74dffafdc0e8223c30d06cb35b7"
     },
     {
       "slug": "covivio-feed",
@@ -256,14 +324,18 @@
           "deployed_sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a"
         }
       ],
-      "observed_live_version": 4,
+      "observed_live_version": 5,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "3d0bcc977b3d3828431ae028885a5ce8f7c695ba1bf8c60ffc530ba6f872fd71",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-02.json",
       "source_archive_file_count": 3,
       "source_archive_status": "full_source",
       "classification": "internal",
-      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked",
+      "observed_live_at": "2026-10-21T22:20:53.505Z",
+      "source_archive_version": 4,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "3d0bcc977b3d3828431ae028885a5ce8f7c695ba1bf8c60ffc530ba6f872fd71"
     },
     {
       "slug": "immobilie1-transport",
@@ -290,14 +362,18 @@
           "deployed_sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a"
         }
       ],
-      "observed_live_version": 4,
+      "observed_live_version": 5,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "8a9013eb41af6564a10d5804e300a7fe37ba4f7724919ca6b0ef8b1aaf622212",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-03.json",
       "source_archive_file_count": 3,
       "source_archive_status": "full_source",
       "classification": "internal",
-      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked",
+      "observed_live_at": "2026-10-21T22:20:57.870Z",
+      "source_archive_version": 4,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "8a9013eb41af6564a10d5804e300a7fe37ba4f7724919ca6b0ef8b1aaf622212"
     },
     {
       "slug": "immobilien-de-transport",
@@ -324,72 +400,91 @@
           "deployed_sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a"
         }
       ],
-      "observed_live_version": 16,
+      "observed_live_version": 17,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "da8dcb0aa2925109df71d223f9dac73d05c651070ecf5d11422061c7b8ec6ece",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-03.json",
       "source_archive_file_count": 3,
       "source_archive_status": "full_source",
       "classification": "internal",
-      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked",
+      "observed_live_at": "2026-10-21T22:21:01.847Z",
+      "source_archive_version": 16,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "da8dcb0aa2925109df71d223f9dac73d05c651070ecf5d11422061c7b8ec6ece"
     },
     {
       "slug": "immomio-account",
-      "version": 20,
+      "version": 21,
       "verify_jwt": false,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "3e93ec9cdc6f5e077b559714d22aeb89a176b5eb06cc52212f1ca8d268be2419",
+      "observed_artifact_sha256": "41a63bc4e9549ebacca67f5afeff2e1116a834100273c7eabf0030aa8bf8210d",
       "entrypoint": "supabase/functions/immomio-account/index.ts",
       "files": [
         {
           "path": "supabase/functions/immomio-account/index.ts",
-          "sha256": "0661d3bdfe130c77ddf4d4abdc16d0fa08840442e5730e61f379d98151def6ba",
-          "deployed_sha256": "0661d3bdfe130c77ddf4d4abdc16d0fa08840442e5730e61f379d98151def6ba"
+          "git_blob_sha": "9094ea9c08696a4ccf6104df952a4644310b0a0f",
+          "deployed_git_blob_sha": "9094ea9c08696a4ccf6104df952a4644310b0a0f"
         },
         {
           "path": "supabase/functions/immomio-account/providers/immomio.ts",
-          "sha256": "1e845ed15fc6bd553c16bb9e505cccabf57af2f7c70f6780a55c4dde04a87772",
-          "deployed_sha256": "1e845ed15fc6bd553c16bb9e505cccabf57af2f7c70f6780a55c4dde04a87772"
+          "git_blob_sha": "8f972c0a1f1ba935eaa7f875c9dd6e5ba0798734",
+          "deployed_git_blob_sha": "8f972c0a1f1ba935eaa7f875c9dd6e5ba0798734"
         },
         {
           "path": "supabase/functions/immomio-account/credentials.ts",
-          "sha256": "2f9ada4328121560fa9dffd639c670a507ba09d5ea3eb18f09ad070a7f705107",
-          "deployed_sha256": "2f9ada4328121560fa9dffd639c670a507ba09d5ea3eb18f09ad070a7f705107"
+          "git_blob_sha": "2078d5be29eeb79403bb75d17dbccdcaad8e921e",
+          "deployed_git_blob_sha": "2078d5be29eeb79403bb75d17dbccdcaad8e921e"
+        },
+        {
+          "path": "supabase/functions/_shared/platform-refresh.ts",
+          "git_blob_sha": "2cf1c5d1399d14f21185ce32797b1d6d1e9d9c0a",
+          "deployed_git_blob_sha": "2cf1c5d1399d14f21185ce32797b1d6d1e9d9c0a"
         }
       ],
-      "observed_live_version": 21,
+      "observed_live_version": 22,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "41a63bc4e9549ebacca67f5afeff2e1116a834100273c7eabf0030aa8bf8210d",
-      "source_archive_file": "docs/runtime-snapshot-2026-11-01/bundles/batch-03.json",
+      "source_archive_file": "docs/runtime-snapshot-2026-11-02/bundles/batch-01.json",
       "source_archive_file_count": 4,
       "source_archive_status": "full_source",
       "classification": "support_review",
-      "review_status": "support/review; retain pending dependency-aware classification"
+      "review_status": "support/review; reconciled from live Supabase v21 on 2026-11-02",
+      "observed_at": "2026-11-02T07:55:00Z",
+      "observed_live_at": "2026-10-22T15:19:58.255Z",
+      "source_archive_version": 21,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "41a63bc4e9549ebacca67f5afeff2e1116a834100273c7eabf0030aa8bf8210d"
     },
     {
       "slug": "immomio-application-worker",
-      "version": 11,
+      "version": 12,
       "verify_jwt": false,
       "import_map": false,
       "retired": false,
-      "observed_artifact_sha256": "a0cd3bd69a4e80cc55c88d98d70538636a6add4537ed123c6d3c0ef8fc07453e",
+      "observed_artifact_sha256": "c7fa255c6c121b558b333db0a9d4d251b1cc17b11e6440372ed04eaab86fb1a7",
       "entrypoint": "supabase/functions/immomio-application-worker/index.ts",
       "files": [
         {
           "path": "supabase/functions/immomio-application-worker/index.ts",
-          "sha256": "174a8d5533453a9a757f993d9db2b28586f3640139edacdfc4a55f547dcb813c",
-          "deployed_sha256": "174a8d5533453a9a757f993d9db2b28586f3640139edacdfc4a55f547dcb813c"
+          "git_blob_sha": "2b5d63e2ed539b7e8e402df08d55e3c93098d3b6",
+          "deployed_git_blob_sha": "2b5d63e2ed539b7e8e402df08d55e3c93098d3b6"
         }
       ],
-      "observed_live_version": 11,
+      "observed_live_version": 13,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "a0cd3bd69a4e80cc55c88d98d70538636a6add4537ed123c6d3c0ef8fc07453e",
-      "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-04.json",
+      "observed_live_artifact_sha256": "c7fa255c6c121b558b333db0a9d4d251b1cc17b11e6440372ed04eaab86fb1a7",
+      "source_archive_file": "docs/runtime-snapshot-2026-11-02/bundles/batch-01.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
       "classification": "production",
-      "review_status": "production runtime; version/JWT/hash tracked against live inventory"
+      "review_status": "production runtime; reconciled from live Supabase v12 on 2026-11-02",
+      "observed_at": "2026-11-02T07:55:00Z",
+      "observed_live_at": "2026-10-28T13:03:00.565Z",
+      "source_archive_version": 12,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "c7fa255c6c121b558b333db0a9d4d251b1cc17b11e6440372ed04eaab86fb1a7"
     },
     {
       "slug": "immomio-auth-bridge",
@@ -411,14 +506,18 @@
           "deployed_sha256": "638e113afeb7895cf519d058bd1166f8ca0444a54f5eb9a573c530efc38110de"
         }
       ],
-      "observed_live_version": 9,
+      "observed_live_version": 10,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "eb5de433fa16367202421f0809f54ed96a91f8dcf6217a95f084b7a8aaee4f85",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-04.json",
       "source_archive_file_count": 2,
       "source_archive_status": "full_source",
       "classification": "internal",
-      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked",
+      "observed_live_at": "2026-09-30T11:11:10.893Z",
+      "source_archive_version": 9,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "eb5de433fa16367202421f0809f54ed96a91f8dcf6217a95f084b7a8aaee4f85"
     },
     {
       "entrypoint": "supabase/deployed-support/immomio-probe/index.ts",
@@ -434,14 +533,18 @@
       "slug": "immomio-probe",
       "verify_jwt": true,
       "version": 5,
-      "observed_live_version": 5,
+      "observed_live_version": 6,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "0648f0219bd7a29a0560a67335db9c7d1b0163a9651bcf78b9ba9b5f0b61ca0d",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-05.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
       "classification": "retired",
-      "review_status": "retired 410/404 stub; JWT gateway verification enabled"
+      "review_status": "retired 410/404 stub; JWT gateway verification enabled",
+      "observed_live_at": "2026-10-21T21:31:50.867Z",
+      "source_archive_version": 5,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "0648f0219bd7a29a0560a67335db9c7d1b0163a9651bcf78b9ba9b5f0b61ca0d"
     },
     {
       "entrypoint": "supabase/deployed-support/immomio-tenant-inspect/index.ts",
@@ -457,14 +560,18 @@
       "slug": "immomio-tenant-inspect",
       "verify_jwt": true,
       "version": 7,
-      "observed_live_version": 7,
+      "observed_live_version": 8,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "c09eccd05e1e03196accbd814821c9dac94c20e09588ad64129179815efe719b",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-06.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
       "classification": "retired",
-      "review_status": "retired 410/404 stub; JWT gateway verification enabled"
+      "review_status": "retired 410/404 stub; JWT gateway verification enabled",
+      "observed_live_at": "2026-10-21T21:31:55.651Z",
+      "source_archive_version": 7,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "c09eccd05e1e03196accbd814821c9dac94c20e09588ad64129179815efe719b"
     },
     {
       "slug": "immoscout-auth-bridge",
@@ -486,14 +593,18 @@
           "deployed_sha256": "638e113afeb7895cf519d058bd1166f8ca0444a54f5eb9a573c530efc38110de"
         }
       ],
-      "observed_live_version": 12,
+      "observed_live_version": 13,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "2f6168fd69a41d400708985837fe9a16fef79299cca926e635474c59dabfa264",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-07.json",
       "source_archive_file_count": 2,
       "source_archive_status": "full_source",
       "classification": "internal",
-      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked",
+      "observed_live_at": "2026-09-30T11:11:13.184Z",
+      "source_archive_version": 12,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "2f6168fd69a41d400708985837fe9a16fef79299cca926e635474c59dabfa264"
     },
     {
       "slug": "immoscout-native-handoff",
@@ -510,14 +621,18 @@
           "deployed_sha256": "8b6c420f3511fc013d5a82df42cb0d658418ce57a102c842c8a907f84c802e03"
         }
       ],
-      "observed_live_version": 2,
+      "observed_live_version": 3,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "33ebf378bdbef91795b3ac1a3a43acc8412c6e19487b50d9f5ce88bc0a1953cd",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-07.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
       "classification": "support_review",
-      "review_status": "support/review; retain pending dependency-aware classification"
+      "review_status": "support/review; retain pending dependency-aware classification",
+      "observed_live_at": "2026-09-21T20:00:42.891Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "33ebf378bdbef91795b3ac1a3a43acc8412c6e19487b50d9f5ce88bc0a1953cd"
     },
     {
       "slug": "immoscout-send-canary",
@@ -534,14 +649,18 @@
           "deployed_sha256": "a4efda8957a4644fa69d9d93b6550cc3e1fe3f7d5624f4d1b5572135ee8999ef"
         }
       ],
-      "observed_live_version": 15,
+      "observed_live_version": 16,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "da585ffb219e2ebf3390cb43c9be669983d995335dcf1fd40eed53842d1a64f0",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-08.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
       "classification": "canary",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_at": "2026-09-27T09:50:12.097Z",
+      "source_archive_version": 15,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "da585ffb219e2ebf3390cb43c9be669983d995335dcf1fd40eed53842d1a64f0"
     },
     {
       "slug": "immowelt-auth-bridge",
@@ -558,14 +677,18 @@
           "deployed_sha256": "1293d9c33447c3b51563c3a1a401968a7bbfc32adcdf2476a22459c31c002ab1"
         }
       ],
-      "observed_live_version": 7,
+      "observed_live_version": 8,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "a16634cf0b8b47a4a178b227a6ceebbebc4889a1086231d77e45ea55cef99193",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-09.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
       "classification": "internal",
-      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked",
+      "observed_live_at": "2026-09-24T21:28:46.042Z",
+      "source_archive_version": 7,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "a16634cf0b8b47a4a178b227a6ceebbebc4889a1086231d77e45ea55cef99193"
     },
     {
       "slug": "kleinanzeigen-apk-direct-stage",
@@ -582,14 +705,18 @@
           "deployed_sha256": "502b33ddb6ebe4394ba2cc5c17fe22649a3de03f2a3f804639f3b8951f93a228"
         }
       ],
-      "observed_live_version": 2,
+      "observed_live_version": 3,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "19248bb948539a2e3c221e2c3edf9548174f84d21cbca18e537ddfbf464e33b6",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-09.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_at": "2026-09-29T23:14:41.951Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "19248bb948539a2e3c221e2c3edf9548174f84d21cbca18e537ddfbf464e33b6"
     },
     {
       "slug": "kleinanzeigen-apk-stage",
@@ -606,14 +733,18 @@
           "deployed_sha256": "b50c39f7828d91be577c3fa6a6b073c30e8943be1f288d07c7c295f14f7c8494"
         }
       ],
-      "observed_live_version": 2,
+      "observed_live_version": 3,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "194747cf11b5c27741fe18c8a0a2292133e9aba472c70da84bbfa18441e0fc7d",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-10.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_at": "2026-09-29T23:08:16.368Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "194747cf11b5c27741fe18c8a0a2292133e9aba472c70da84bbfa18441e0fc7d"
     },
     {
       "slug": "kleinanzeigen-application-worker",
@@ -640,14 +771,24 @@
           "deployed_sha256": "561eef88785b5d442dbf95d42123cac1236ce0e55094bf59cf65aea099c00f64"
         }
       ],
-      "observed_live_version": 19,
+      "observed_live_version": 20,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "968c8b67b68ba17971e7c420b45489ef86f9f8f3c5e6e52106648f9847c7dab1",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-11.json",
       "source_archive_file_count": 3,
       "source_archive_status": "full_source",
       "classification": "production",
-      "review_status": "production runtime; version/JWT/hash tracked against live inventory"
+      "review_status": "production runtime; version/JWT/hash tracked against live inventory",
+      "known_source_drift": [
+        {
+          "path": "supabase/functions/_shared/application-profile-adapters.ts",
+          "reason": "Provider profile mapping changes are staged for the Cloudflare housing cutover. The current source removes Kleinanzeigen mapping; do not deploy until Kleinanzeigen parity is restored and tested."
+        }
+      ],
+      "observed_live_at": "2026-09-29T23:06:37.629Z",
+      "source_archive_version": 19,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "968c8b67b68ba17971e7c420b45489ef86f9f8f3c5e6e52106648f9847c7dab1"
     },
     {
       "slug": "kleinanzeigen-callback-bridge",
@@ -664,14 +805,18 @@
           "deployed_sha256": "3d0c7a4268ac2c19d34ceb84d97d0cad74a393ed16372a8fa095f19a461aee57"
         }
       ],
-      "observed_live_version": 2,
+      "observed_live_version": 3,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "0e896a66a895905a5fc57f7ac0642e61b4fb704f6d5675db10ba289faddb49c3",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-11.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
       "classification": "internal",
-      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked",
+      "observed_live_at": "2026-09-22T18:02:10.098Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "0e896a66a895905a5fc57f7ac0642e61b4fb704f6d5675db10ba289faddb49c3"
     },
     {
       "slug": "kleinanzeigen-static-analysis",
@@ -688,14 +833,18 @@
           "deployed_sha256": "f39024cffbcf2470148726c85f890bf64d7524b8073c2d0ab84cab31a66e7574"
         }
       ],
-      "observed_live_version": 4,
+      "observed_live_version": 5,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "7b4a8e6893a81030c8f33238c1b69fab9e951c3122a0b38516704d24634150a8",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-15.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_at": "2026-09-29T23:14:38.684Z",
+      "source_archive_version": 4,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "7b4a8e6893a81030c8f33238c1b69fab9e951c3122a0b38516704d24634150a8"
     },
     {
       "slug": "kleinanzeigen-transport",
@@ -717,14 +866,18 @@
           "deployed_sha256": "ff9c7723574f2fb335b7a9ca82720800d68342bd83d3068345adbe88caafb9c0"
         }
       ],
-      "observed_live_version": 4,
+      "observed_live_version": 5,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "0a8ae2c6dc63fcefff6894e66f2dcb9397c74f16df646b7f8505edb6afcbc41f",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-15.json",
       "source_archive_file_count": 2,
       "source_archive_status": "full_source",
       "classification": "internal",
-      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked",
+      "observed_live_at": "2026-09-20T15:27:08.285Z",
+      "source_archive_version": 4,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "0a8ae2c6dc63fcefff6894e66f2dcb9397c74f16df646b7f8505edb6afcbc41f"
     },
     {
       "slug": "meravis-feed",
@@ -751,14 +904,18 @@
           "deployed_sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a"
         }
       ],
-      "observed_live_version": 6,
+      "observed_live_version": 7,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "bb4032d5e00b8cae2ef135e482c8f29a65d9aa9fe9884fa7143d8c38f1f001ef",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-16.json",
       "source_archive_file_count": 3,
       "source_archive_status": "full_source",
       "classification": "internal",
-      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked",
+      "observed_live_at": "2026-10-21T22:21:05.221Z",
+      "source_archive_version": 6,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "bb4032d5e00b8cae2ef135e482c8f29a65d9aa9fe9884fa7143d8c38f1f001ef"
     },
     {
       "entrypoint": "supabase/deployed-support/mini-app/index.ts",
@@ -774,14 +931,18 @@
       "slug": "mini-app",
       "verify_jwt": true,
       "version": 12,
-      "observed_live_version": 12,
+      "observed_live_version": 13,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "ef070b86cbb5334bc82e00dcc354b2aa5d2d7b5196253e97c1ff4b462a696789",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-16.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
       "classification": "retired",
-      "review_status": "retired 410/404 stub; JWT gateway verification enabled"
+      "review_status": "retired 410/404 stub; JWT gateway verification enabled",
+      "observed_live_at": "2026-10-21T21:32:26.544Z",
+      "source_archive_version": 12,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "ef070b86cbb5334bc82e00dcc354b2aa5d2d7b5196253e97c1ff4b462a696789"
     },
     {
       "entrypoint": "supabase/deployed-support/mini-app-publisher/index.ts",
@@ -797,14 +958,18 @@
       "slug": "mini-app-publisher",
       "verify_jwt": true,
       "version": 6,
-      "observed_live_version": 6,
+      "observed_live_version": 7,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "16f68e336ef719d7299d2a192b5489c36204a7cd9211cc489e94aec99238632d",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-17.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
       "classification": "retired",
-      "review_status": "retired 410/404 stub; JWT gateway verification enabled"
+      "review_status": "retired 410/404 stub; JWT gateway verification enabled",
+      "observed_live_at": "2026-10-21T21:32:30.822Z",
+      "source_archive_version": 6,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "16f68e336ef719d7299d2a192b5489c36204a7cd9211cc489e94aec99238632d"
     },
     {
       "slug": "noncoop-feed",
@@ -831,14 +996,18 @@
           "deployed_sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a"
         }
       ],
-      "observed_live_version": 6,
+      "observed_live_version": 7,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "e88720d686f4dd1ac5a50ba44956596a6e79d5bce21487ebb1e9a3042d431682",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-17.json",
       "source_archive_file_count": 3,
       "source_archive_status": "full_source",
       "classification": "internal",
-      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked",
+      "observed_live_at": "2026-10-21T22:21:08.305Z",
+      "source_archive_version": 6,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "e88720d686f4dd1ac5a50ba44956596a6e79d5bce21487ebb1e9a3042d431682"
     },
     {
       "slug": "noncoop-new-feed",
@@ -870,14 +1039,18 @@
           "deployed_sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a"
         }
       ],
-      "observed_live_version": 8,
+      "observed_live_version": 9,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "dcf472e59b9e3353690571e009dafecc0217934414d26c312d77028b0abeaa8a",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-17.json",
       "source_archive_file_count": 4,
       "source_archive_status": "full_source",
       "classification": "internal",
-      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked",
+      "observed_live_at": "2026-10-21T22:21:11.649Z",
+      "source_archive_version": 8,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "dcf472e59b9e3353690571e009dafecc0217934414d26c312d77028b0abeaa8a"
     },
     {
       "entrypoint": "supabase/deployed-support/noop/index.ts",
@@ -893,14 +1066,18 @@
       "slug": "noop",
       "verify_jwt": true,
       "version": 9,
-      "observed_live_version": 9,
+      "observed_live_version": 10,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "b090e06f04612dba243ff6f17736a6f0435d64dc301d6457f2d7a4be07adf997",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-17.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
       "classification": "support_review",
-      "review_status": "support/review; retain pending dependency-aware classification"
+      "review_status": "support/review; retain pending dependency-aware classification",
+      "observed_live_at": "2026-09-10T19:59:49.121Z",
+      "source_archive_version": 9,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "b090e06f04612dba243ff6f17736a6f0435d64dc301d6457f2d7a4be07adf997"
     },
     {
       "slug": "notification-dispatcher",
@@ -957,14 +1134,36 @@
           "deployed_sha256": "4d9929f90c15e7e94acf5b8a24273abb7020da0d896f45109f7c31466a21ebb8"
         }
       ],
-      "observed_live_version": 363,
+      "observed_live_version": 364,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "921a759ba80c40b804d686d296325966eeaeba1c26e08f790febb6d6955ceff9",
       "source_archive_file": "docs/runtime-snapshot-2026-11-01/bundles/batch-18.json",
       "source_archive_file_count": 9,
       "source_archive_status": "full_source",
       "classification": "production",
-      "review_status": "production runtime; version/JWT/hash tracked against live inventory"
+      "review_status": "production runtime; version/JWT/hash tracked against live inventory",
+      "observed_live_at": "2026-10-28T21:37:37.605Z",
+      "known_source_drift": [
+        {
+          "path": "supabase/functions/notification-dispatcher/index.ts",
+          "reason": "The staged Cloudflare cutover removes Kleinanzeigen-specific notification rendering before the Cloudflare Kleinanzeigen connector is available. This source is not deployed; keep the live Supabase dispatcher at its archived artifact until provider parity is complete."
+        },
+        {
+          "path": "supabase/functions/notification-dispatcher/availability.ts",
+          "reason": "The staged availability policy removes the legacy native Kleinanzeigen offer lane and an existing source-specific freshness rule while the Cloudflare provider migration is incomplete. Not deployed; preserve the live Supabase availability behavior until connector parity is verified."
+        },
+        {
+          "path": "supabase/functions/notification-dispatcher/newness.ts",
+          "reason": "The staged newness policy removes the legacy Kleinanzeigen fast-lane proof path. This is not deployed; preserve the live Supabase freshness rules until the Cloudflare Kleinanzeigen connector and freshness proof are complete."
+        },
+        {
+          "path": "supabase/functions/notification-dispatcher/source-facts.ts",
+          "reason": "The staged source-facts parser removes Kleinanzeigen image and address extraction while adding replacement provider fields. This is not deployed; retain the live parser until Cloudflare Kleinanzeigen parity is verified."
+        }
+      ],
+      "source_archive_version": 363,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "921a759ba80c40b804d686d296325966eeaeba1c26e08f790febb6d6955ceff9"
     },
     {
       "slug": "platform-connect-broker-v2",
@@ -981,14 +1180,53 @@
           "deployed_sha256": "e006980d15c2db94babeab14678a94824192b011281d821a3a3943557d3fa5b2"
         }
       ],
-      "observed_live_version": 3,
+      "observed_live_version": 4,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "e904f15dd9939c47a4c824fef8ba78f98175db03478d3749707aac4bdae19e99",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-18.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
       "classification": "internal",
-      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked",
+      "observed_live_at": "2026-09-29T23:06:33.916Z",
+      "known_source_drift": [
+        {
+          "path": "supabase/functions/platform-connect-broker-v2/index.ts",
+          "reason": "The staged Cloudflare platform-connect cutover removes the legacy Kleinanzeigen OAuth flow while the Cloudflare Kleinanzeigen login adapter is not yet implemented. Not deployed; keep the live Supabase connector until provider parity is complete."
+        }
+      ],
+      "source_archive_version": 3,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "e904f15dd9939c47a4c824fef8ba78f98175db03478d3749707aac4bdae19e99"
+    },
+    {
+      "slug": "platform-session-reminder",
+      "version": 4,
+      "verify_jwt": false,
+      "import_map": false,
+      "retired": false,
+      "observed_artifact_sha256": "adb7f702d49837a961759d4caf716d78cea0c347e9a190e32612c8d62c2c4497",
+      "entrypoint": "supabase/functions/platform-session-reminder/index.ts",
+      "files": [
+        {
+          "path": "supabase/functions/platform-session-reminder/index.ts",
+          "git_blob_sha": "b40d877dd0464ac154391bf0bcffdb59caa33502",
+          "deployed_git_blob_sha": "b40d877dd0464ac154391bf0bcffdb59caa33502"
+        }
+      ],
+      "observed_live_version": 5,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "adb7f702d49837a961759d4caf716d78cea0c347e9a190e32612c8d62c2c4497",
+      "source_archive_file": "docs/runtime-snapshot-2026-11-02/bundles/batch-01.json",
+      "source_archive_file_count": 1,
+      "source_archive_status": "full_source",
+      "classification": "internal",
+      "review_status": "internal platform session reminder; reconciled from live Supabase v4 on 2026-11-02",
+      "observed_at": "2026-11-02T07:55:00Z",
+      "observed_live_at": "2026-11-02T07:12:46.064Z",
+      "source_archive_version": 4,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "adb7f702d49837a961759d4caf716d78cea0c347e9a190e32612c8d62c2c4497"
     },
     {
       "slug": "source-shadow",
@@ -1080,7 +1318,7 @@
           "deployed_sha256": "e498a6b452fbd172fc01cc13d65a723d64552c1b72501212311417f23e559b31"
         }
       ],
-      "observed_live_version": 18,
+      "observed_live_version": 19,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "0f66018117b14f94a85d361f673c80507aadf57519bb6e9705a7079b881de5d2",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-19.json",
@@ -1091,9 +1329,13 @@
       "known_source_drift": [
         {
           "path": "supabase/functions/source-worker/shared.ts",
-          "reason": "Live source-shadow v18 retains an older shared.ts snapshot; the active source-worker file is newer. Deployment is deferred for separate dependency-aware review."
+          "reason": "The optional source-enabled field supports the staged housing-only Cloudflare allowlist. Not deployed to the live Supabase source worker."
         }
-      ]
+      ],
+      "observed_live_at": "2026-09-29T23:10:51.737Z",
+      "source_archive_version": 18,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "0f66018117b14f94a85d361f673c80507aadf57519bb6e9705a7079b881de5d2"
     },
     {
       "slug": "source-worker",
@@ -1270,14 +1512,36 @@
           "deployed_git_blob_sha": "4d1c8b364256e43b5c3145c7cc6398b111a55b2c"
         }
       ],
-      "observed_live_version": 148,
+      "observed_live_version": 149,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "8efacebb97f82e9ba61b969bfd60b8362c39067db119f8bb4c53c2877314d97f",
       "source_archive_file": "docs/runtime-snapshot-2026-11-01/bundles/batch-19.json",
       "source_archive_file_count": 33,
       "source_archive_status": "full_source",
       "classification": "production",
-      "review_status": "production runtime; version/JWT/hash tracked against live inventory"
+      "review_status": "production runtime; version/JWT/hash tracked against live inventory",
+      "known_source_drift": [
+        {
+          "path": "supabase/functions/source-worker/index.ts",
+          "reason": "The staged housing-only allowlist changes source scheduling and excludes providers not yet migrated to Cloudflare, including Kleinanzeigen. Not deployed until all required housing sources are available on Cloudflare."
+        },
+        {
+          "path": "supabase/functions/source-worker/shared.ts",
+          "reason": "The optional source-enabled field supports the staged housing-only Cloudflare allowlist. Not deployed to the live Supabase source worker."
+        },
+        {
+          "path": "supabase/functions/source-worker/generic.ts",
+          "reason": "Generic source crawler changes are staged with the housing-only Cloudflare cutover. Live Supabase source worker remains at the archived artifact pending connector parity tests."
+        },
+        {
+          "path": "supabase/functions/source-worker/category.ts",
+          "reason": "Category crawler changes are staged with the housing-only Cloudflare cutover. Live Supabase source worker remains at the archived artifact pending connector parity tests."
+        }
+      ],
+      "observed_live_at": "2026-10-28T21:39:54.315Z",
+      "source_archive_version": 148,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "8efacebb97f82e9ba61b969bfd60b8362c39067db119f8bb4c53c2877314d97f"
     },
     {
       "slug": "spacest-feed",
@@ -1304,14 +1568,18 @@
           "deployed_sha256": "b1992ff6b4adc8cfba32481c8f7bbf17f427de8fcac939b21fc7a1452954613a"
         }
       ],
-      "observed_live_version": 5,
+      "observed_live_version": 6,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "418bf0edad04f71f1fe2455c68e73313ad7321a57389fa0655e905a8df214b0a",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-19.json",
       "source_archive_file_count": 3,
       "source_archive_status": "full_source",
       "classification": "internal",
-      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked",
+      "observed_live_at": "2026-10-21T22:21:14.803Z",
+      "source_archive_version": 5,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "418bf0edad04f71f1fe2455c68e73313ad7321a57389fa0655e905a8df214b0a"
     },
     {
       "slug": "stripe-webhook",
@@ -1328,14 +1596,18 @@
           "deployed_sha256": "099441b9ada33258f02d4e5a286d130c99de9574e142ec27e2a21f32b5980327"
         }
       ],
-      "observed_live_version": 264,
+      "observed_live_version": 265,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "2d1b96e31abe439d2968f8087f1d9e80f2295c3f1e3f254f8a511925103b2ebd",
       "source_archive_file": "docs/runtime-snapshot-2026-11-01/bundles/batch-19.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
       "classification": "webhook",
-      "review_status": "webhook entrypoint; signature and event idempotency contract required"
+      "review_status": "webhook entrypoint; signature and event idempotency contract required",
+      "observed_live_at": "2026-10-24T21:06:55.465Z",
+      "source_archive_version": 264,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "2d1b96e31abe439d2968f8087f1d9e80f2295c3f1e3f254f8a511925103b2ebd"
     },
     {
       "slug": "telegram-fallback-logo",
@@ -1352,14 +1624,18 @@
           "deployed_sha256": "c7f33fd4119dd62d860076f838708ce1d53ab7e7645f9ac92a90f9b3c4a04d42"
         }
       ],
-      "observed_live_version": 3,
+      "observed_live_version": 4,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "acac4497c956a617d8db46f6e467b0dd250bf0fbb117cf02a6bc2ed35c71d4ee",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-20.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
       "classification": "public_asset",
-      "review_status": "intentional public read-only asset; no user data or write action"
+      "review_status": "intentional public read-only asset; no user data or write action",
+      "observed_live_at": "2026-08-27T19:37:13.154Z",
+      "source_archive_version": 3,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "acac4497c956a617d8db46f6e467b0dd250bf0fbb117cf02a6bc2ed35c71d4ee"
     },
     {
       "slug": "telegram-fast",
@@ -1376,14 +1652,24 @@
           "deployed_sha256": "150dfff8ffcee8c73b3013e4a8d277a1cb2c0ca07fc464f3abf66f18780f51a8"
         }
       ],
-      "observed_live_version": 13,
+      "observed_live_version": 14,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "0551b843639177890633251af45c23d4cb6799fc72e3bff0f6f606d5f5246cf6",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-20.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
       "classification": "production",
-      "review_status": "production runtime; version/JWT/hash tracked against live inventory"
+      "review_status": "production runtime; version/JWT/hash tracked against live inventory",
+      "observed_live_at": "2026-10-16T16:46:20.851Z",
+      "source_archive_version": 13,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "0551b843639177890633251af45c23d4cb6799fc72e3bff0f6f606d5f5246cf6",
+      "known_source_drift": [
+        {
+          "path": "supabase/functions/telegram-fast/index.ts",
+          "reason": "Runtime-safe background scheduling is staged pending the controlled production hotfix."
+        }
+      ]
     },
     {
       "slug": "telegram-gateway",
@@ -1405,7 +1691,7 @@
           "deployed_git_blob_sha": "987415364e51930269af9495b8a07d2669a5c426"
         }
       ],
-      "observed_live_version": 107,
+      "observed_live_version": 108,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "df67eae817503629411853b127791826ad91bf4eeb932f8f7c379c662b51f986",
       "source_archive_file": "docs/runtime-snapshot-2026-11-01/bundles/batch-20.json",
@@ -1413,7 +1699,21 @@
       "source_archive_status": "full_source",
       "classification": "production",
       "review_status": "production runtime; version/JWT/hash tracked against live inventory",
-      "observed_at": "2026-11-01T23:31:51.540Z"
+      "observed_at": "2026-11-01T23:31:51.540Z",
+      "known_source_drift": [
+        {
+          "path": "supabase/functions/telegram-gateway/index.ts",
+          "reason": "Telegram gateway handler changes are staged for the Cloudflare webhook cutover. The live Supabase gateway remains on the archived artifact until cutover verification."
+        },
+        {
+          "path": "supabase/functions/telegram-gateway/fast-ui.ts",
+          "reason": "Telegram fast-UI callback changes are staged for Cloudflare runtime execution. They are not deployed to the live Supabase Telegram gateway."
+        }
+      ],
+      "observed_live_at": "2026-11-01T23:31:51.540Z",
+      "source_archive_version": 107,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "df67eae817503629411853b127791826ad91bf4eeb932f8f7c379c662b51f986"
     },
     {
       "slug": "telegram-oauth-bridge",
@@ -1430,14 +1730,24 @@
           "deployed_sha256": "1267138bf55871a497961fc21d2be5920a34d36ea7fa6cce5cf9899e9aee8cfe"
         }
       ],
-      "observed_live_version": 38,
+      "observed_live_version": 39,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "b72c02d422076e05596d410d9815d2f23389cb9558bedac2f8a9dc9578a71bd5",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-21.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
       "classification": "internal",
-      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked",
+      "observed_live_at": "2026-10-02T21:38:52.913Z",
+      "known_source_drift": [
+        {
+          "path": "supabase/functions/telegram-oauth-bridge/index.ts",
+          "reason": "The staged Cloudflare Telegram OAuth bridge removes the legacy application-worker handoff and Kleinanzeigen connection flow. This source is not deployed; keep the live Supabase OAuth bridge until Cloudflare Telegram and Kleinanzeigen application flows are fully tested."
+        }
+      ],
+      "source_archive_version": 38,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "b72c02d422076e05596d410d9815d2f23389cb9558bedac2f8a9dc9578a71bd5"
     },
     {
       "slug": "telegram-premium",
@@ -1454,14 +1764,18 @@
           "deployed_sha256": "386802a1f5d1f3eb0f50572e1779163e3895cb9612402363bcb679256dd4ce1d"
         }
       ],
-      "observed_live_version": 10,
+      "observed_live_version": 11,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "4d2465ff1df04d2c0e7920de49acfb52d95a9e34fc35ecf783381eab0ba80748",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-21.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
       "classification": "production",
-      "review_status": "production runtime; version/JWT/hash tracked against live inventory"
+      "review_status": "production runtime; version/JWT/hash tracked against live inventory",
+      "observed_live_at": "2026-09-29T23:07:19.319Z",
+      "source_archive_version": 10,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "4d2465ff1df04d2c0e7920de49acfb52d95a9e34fc35ecf783381eab0ba80748"
     },
     {
       "slug": "telegram-premium-image",
@@ -1478,14 +1792,18 @@
           "deployed_sha256": "7b82fe7351d748c1741f97eb325abca16e09739729ba5807da660871d7aacd49"
         }
       ],
-      "observed_live_version": 7,
+      "observed_live_version": 8,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "0efc39b09c50767bc9a5948374ae1b856b78f8eee83f85d004f236d586fca8aa",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-22.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
       "classification": "public_asset",
-      "review_status": "intentional public read-only asset; no user data or write action"
+      "review_status": "intentional public read-only asset; no user data or write action",
+      "observed_live_at": "2026-09-03T08:07:31.283Z",
+      "source_archive_version": 7,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "0efc39b09c50767bc9a5948374ae1b856b78f8eee83f85d004f236d586fca8aa"
     },
     {
       "slug": "telegram-ui",
@@ -1547,14 +1865,32 @@
           "deployed_git_blob_sha": "9868a1e114b476e39cd3c4d0248844c20593d03c"
         }
       ],
-      "observed_live_version": 385,
+      "observed_live_version": 386,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "e25ca584f55a5b469a972b686d83ecf0564bbe71413cfa3a7fab24da335af146",
       "source_archive_file": "docs/runtime-snapshot-2026-11-01/bundles/batch-22.json",
       "source_archive_file_count": 10,
       "source_archive_status": "full_source",
       "classification": "production",
-      "review_status": "production runtime; personal auto-apply test toggle and history deployed 2026-11-01"
+      "review_status": "production runtime; personal auto-apply test toggle and history deployed 2026-11-01",
+      "known_source_drift": [
+        {
+          "path": "supabase/functions/_shared/application-profile-adapters.ts",
+          "reason": "Provider profile mapping changes are staged for the Cloudflare housing cutover. The current source removes Kleinanzeigen mapping; do not deploy until Kleinanzeigen parity is restored and tested."
+        },
+        {
+          "path": "supabase/functions/telegram-ui/platform-sessions.js",
+          "reason": "Platform session and personal test-mode changes are staged for Cloudflare. The live Supabase Telegram UI remains on the archived artifact until feature parity is confirmed."
+        },
+        {
+          "path": "supabase/functions/telegram-ui/handlers.js",
+          "reason": "Telegram command and callback handler changes are staged for Cloudflare runtime cutover. Not deployed to the live Supabase Telegram UI."
+        }
+      ],
+      "observed_live_at": "2026-11-01T22:19:24.410Z",
+      "source_archive_version": 385,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "e25ca584f55a5b469a972b686d83ecf0564bbe71413cfa3a7fab24da335af146"
     },
     {
       "slug": "vonovia-transport",
@@ -1576,14 +1912,57 @@
           "deployed_sha256": "82963634551e8127e59554b31abe8b86cb09fcd6cf0905159fc1eca9ade431f9"
         }
       ],
-      "observed_live_version": 3,
+      "observed_live_version": 4,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "b379b7979862b704224d5043000dfef8ee628c7fc542409ca623f04c259bf43e",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-23.json",
       "source_archive_file_count": 2,
       "source_archive_status": "full_source",
       "classification": "internal",
-      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked",
+      "observed_live_at": "2026-10-21T22:21:17.870Z",
+      "source_archive_version": 3,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "b379b7979862b704224d5043000dfef8ee628c7fc542409ca623f04c259bf43e"
+    },
+    {
+      "slug": "wg-gesucht-auth-bridge",
+      "version": 3,
+      "verify_jwt": false,
+      "import_map": false,
+      "retired": false,
+      "observed_artifact_sha256": "1bb9ee477f22a84bf2f8fb25daac318100740582a9b38336f45f765fe6c099b6",
+      "entrypoint": "supabase/deployed-support/wg-gesucht-auth-bridge/functions/wg-gesucht-auth-bridge/index.ts",
+      "files": [
+        {
+          "path": "supabase/deployed-support/wg-gesucht-auth-bridge/functions/wg-gesucht-auth-bridge/index.ts",
+          "git_blob_sha": "a13dbb49866861ed1dd830918d4a34c88660e477",
+          "deployed_git_blob_sha": "a13dbb49866861ed1dd830918d4a34c88660e477"
+        },
+        {
+          "path": "supabase/deployed-support/wg-gesucht-auth-bridge/functions/_shared/platform-auth-flow.ts",
+          "git_blob_sha": "13315e30c931836ec6427261d3bc3a653c24e498",
+          "deployed_git_blob_sha": "13315e30c931836ec6427261d3bc3a653c24e498"
+        },
+        {
+          "path": "supabase/deployed-support/wg-gesucht-auth-bridge/functions/application-worker/credentials.ts",
+          "git_blob_sha": "2a9def0c65bbf9bbd339634a6ce2ce3c6f0e375e",
+          "deployed_git_blob_sha": "2a9def0c65bbf9bbd339634a6ce2ce3c6f0e375e"
+        }
+      ],
+      "observed_live_version": 4,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "1bb9ee477f22a84bf2f8fb25daac318100740582a9b38336f45f765fe6c099b6",
+      "source_archive_file": "docs/runtime-snapshot-2026-11-02/bundles/batch-01.json",
+      "source_archive_file_count": 3,
+      "source_archive_status": "full_source",
+      "classification": "internal",
+      "review_status": "internal WG-Gesucht auth bridge; exact deployed support bundle preserved at v3 on 2026-11-02",
+      "observed_at": "2026-11-02T07:55:00Z",
+      "observed_live_at": "2026-11-02T07:35:52.269Z",
+      "source_archive_version": 3,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "1bb9ee477f22a84bf2f8fb25daac318100740582a9b38336f45f765fe6c099b6"
     },
     {
       "entrypoint": "supabase/deployed-support/wunder-probe/index.ts",
@@ -1599,14 +1978,18 @@
       "slug": "wunder-probe",
       "verify_jwt": true,
       "version": 9,
-      "observed_live_version": 9,
+      "observed_live_version": 10,
       "observed_live_verify_jwt": true,
       "observed_live_artifact_sha256": "a9dc7ce9bec50bfefca851124b218b551455baf3b389320936a63928d1eb4dae",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-23.json",
       "source_archive_file_count": 1,
       "source_archive_status": "full_source",
       "classification": "retired",
-      "review_status": "retired 410/404 stub; JWT gateway verification enabled"
+      "review_status": "retired 410/404 stub; JWT gateway verification enabled",
+      "observed_live_at": "2026-10-21T21:32:53.159Z",
+      "source_archive_version": 9,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "a9dc7ce9bec50bfefca851124b218b551455baf3b389320936a63928d1eb4dae"
     },
     {
       "slug": "wunderflats-transport",
@@ -1628,14 +2011,18 @@
           "deployed_sha256": "e498a6b452fbd172fc01cc13d65a723d64552c1b72501212311417f23e559b31"
         }
       ],
-      "observed_live_version": 4,
+      "observed_live_version": 5,
       "observed_live_verify_jwt": false,
       "observed_live_artifact_sha256": "b30cc1d37aa87d3a1d6d20839408d0fdd577d20c7803d7def7202877977e1955",
       "source_archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-23.json",
       "source_archive_file_count": 2,
       "source_archive_status": "full_source",
       "classification": "internal",
-      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked",
+      "observed_live_at": "2026-09-11T03:23:24.056Z",
+      "source_archive_version": 4,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "b30cc1d37aa87d3a1d6d20839408d0fdd577d20c7803d7def7202877977e1955"
     }
   ],
   "archived_functions": [
@@ -1652,7 +2039,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "retired",
-      "review_status": "retired 410/404 stub; JWT gateway verification enabled"
+      "review_status": "retired 410/404 stub; JWT gateway verification enabled",
+      "observed_live_version": 4,
+      "observed_live_verify_jwt": true,
+      "observed_live_artifact_sha256": "1e4b82d411cf4a8488998cdb4e5f985d86f24ebcb21471c891a7a5a67db8945a",
+      "observed_live_at": "2026-10-21T21:31:24.170Z",
+      "source_archive_version": 3,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "1e4b82d411cf4a8488998cdb4e5f985d86f24ebcb21471c891a7a5a67db8945a"
     },
     {
       "slug": "auth-contract-diag",
@@ -1667,7 +2061,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 11,
+      "observed_live_verify_jwt": true,
+      "observed_live_artifact_sha256": "f88d7878ded7c57fd30ab41d0a93bcccdf01c52f7e0e5e645483a3586a1dbba8",
+      "observed_live_at": "2026-09-17T19:35:35.495Z",
+      "source_archive_version": 10,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "f88d7878ded7c57fd30ab41d0a93bcccdf01c52f7e0e5e645483a3586a1dbba8"
     },
     {
       "slug": "deploy-merge-test",
@@ -1682,7 +2083,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "retired",
-      "review_status": "retired 410/404 stub; JWT gateway verification enabled"
+      "review_status": "retired 410/404 stub; JWT gateway verification enabled",
+      "observed_live_version": 3,
+      "observed_live_verify_jwt": true,
+      "observed_live_artifact_sha256": "959ba6ecf679b840f210c57a60c93f4669e6c7eb80f3271d0bb037975acba339",
+      "observed_live_at": "2026-10-21T21:31:28.602Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "959ba6ecf679b840f210c57a60c93f4669e6c7eb80f3271d0bb037975acba339"
     },
     {
       "slug": "html-render-test",
@@ -1697,7 +2105,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "retired",
-      "review_status": "retired 410/404 stub; JWT gateway verification enabled"
+      "review_status": "retired 410/404 stub; JWT gateway verification enabled",
+      "observed_live_version": 7,
+      "observed_live_verify_jwt": true,
+      "observed_live_artifact_sha256": "8405a45719c71ae80ab1fbf69da80ddd18f8012b6b945ce0b736106d4d1adef3",
+      "observed_live_at": "2026-10-21T21:31:34.338Z",
+      "source_archive_version": 6,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "8405a45719c71ae80ab1fbf69da80ddd18f8012b6b945ce0b736106d4d1adef3"
     },
     {
       "slug": "immomio-auth-debug",
@@ -1712,7 +2127,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 5,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "e2dbb63884b4da223f619c76850f7d2a95c9f27b7662b333dab754094df01efd",
+      "observed_live_at": "2026-09-16T13:42:47.265Z",
+      "source_archive_version": 4,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "e2dbb63884b4da223f619c76850f7d2a95c9f27b7662b333dab754094df01efd"
     },
     {
       "slug": "immomio-bundle-snippet",
@@ -1727,7 +2149,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 6,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "7b8ac28f07088afce6149e1c0db9f20330ac824d9737f5cb5811fb2e907ea39c",
+      "observed_live_at": "2026-09-21T15:51:16.937Z",
+      "source_archive_version": 5,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "7b8ac28f07088afce6149e1c0db9f20330ac824d9737f5cb5811fb2e907ea39c"
     },
     {
       "slug": "immomio-chunk-inspect",
@@ -1742,7 +2171,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 2,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "196c30bf6bc55583f5d9625ed6a57a5224cd080a857327f41c5f2dd9221ac66e",
+      "observed_live_at": "2026-09-17T11:54:18.917Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "196c30bf6bc55583f5d9625ed6a57a5224cd080a857327f41c5f2dd9221ac66e"
     },
     {
       "slug": "immomio-contract-inspect",
@@ -1757,7 +2193,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 42,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "72c8bb1d001875851a12dc53317dbfaf89c6a031b05785fc854186562e0a6c3c",
+      "observed_live_at": "2026-09-17T11:46:15.930Z",
+      "source_archive_version": 41,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "72c8bb1d001875851a12dc53317dbfaf89c6a031b05785fc854186562e0a6c3c"
     },
     {
       "slug": "immomio-device-probe",
@@ -1772,7 +2215,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 2,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "ea02b84d5963c51fd6d8a0795eeed544d86c2d756ce08088aa236fb7cc1feadf",
+      "observed_live_at": "2026-09-16T09:11:11.889Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "ea02b84d5963c51fd6d8a0795eeed544d86c2d756ce08088aa236fb7cc1feadf"
     },
     {
       "slug": "immomio-introspection-probe",
@@ -1787,7 +2237,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "retired",
-      "review_status": "retired 410/404 stub; JWT gateway verification enabled"
+      "review_status": "retired 410/404 stub; JWT gateway verification enabled",
+      "observed_live_version": 16,
+      "observed_live_verify_jwt": true,
+      "observed_live_artifact_sha256": "dd494821ebb5b5e314d96ed818dd46849912c43ac43e26e6d6d6474da1349630",
+      "observed_live_at": "2026-10-21T21:31:40.255Z",
+      "source_archive_version": 15,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "dd494821ebb5b5e314d96ed818dd46849912c43ac43e26e6d6d6474da1349630"
     },
     {
       "slug": "immomio-mutation-contract-probe",
@@ -1802,7 +2259,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 2,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "b3f8ca32013fb47acb72d6a5f2118134922feb021059c041cb33f27b9dbc771e",
+      "observed_live_at": "2026-09-17T11:56:04.917Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "b3f8ca32013fb47acb72d6a5f2118134922feb021059c041cb33f27b9dbc771e"
     },
     {
       "slug": "immomio-profile-probe",
@@ -1817,7 +2281,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 5,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "6649a30e44df9a2f8d9b054dcf2994bbda6c9f8eea460b79c95c40f4ae6339c4",
+      "observed_live_at": "2026-09-21T16:00:18.485Z",
+      "source_archive_version": 4,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "6649a30e44df9a2f8d9b054dcf2994bbda6c9f8eea460b79c95c40f4ae6339c4"
     },
     {
       "slug": "immomio-question-field-probe",
@@ -1832,7 +2303,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 2,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "5805ecdc8a8a997d08be6219485912d4aecb8cf3748de78b60159599a14ed6ce",
+      "observed_live_at": "2026-09-17T11:44:41.965Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "5805ecdc8a8a997d08be6219485912d4aecb8cf3748de78b60159599a14ed6ce"
     },
     {
       "slug": "immomio-question-inspect",
@@ -1847,7 +2325,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 7,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "53c27795b859bda1726c89913bef6b2f9401f07ab2ac684fffd6170af826ddcb",
+      "observed_live_at": "2026-09-17T11:53:56.064Z",
+      "source_archive_version": 6,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "53c27795b859bda1726c89913bef6b2f9401f07ab2ac684fffd6170af826ddcb"
     },
     {
       "slug": "immomio-schema-inspect",
@@ -1862,7 +2347,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 3,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "111da85e2d41f463e30249ef2885b12a3d4275511b68a2757031c6a24bbb0163",
+      "observed_live_at": "2026-09-17T11:36:53.321Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "111da85e2d41f463e30249ef2885b12a3d4275511b68a2757031c6a24bbb0163"
     },
     {
       "slug": "immomio-upload-probe",
@@ -1877,7 +2369,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 2,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "5cfabfc9ae482d995af94dea13a6f3596e476898ed173817d4ffaa308b32749c",
+      "observed_live_at": "2026-09-21T15:50:07.130Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "5cfabfc9ae482d995af94dea13a6f3596e476898ed173817d4ffaa308b32749c"
     },
     {
       "slug": "immoscout-contact-inspect",
@@ -1892,7 +2391,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 7,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "03fc40dc400e78afc00b4d4d9eea4d846621069f708b3a22135196fd58cb8ed6",
+      "observed_live_at": "2026-09-23T22:49:49.579Z",
+      "source_archive_version": 6,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "03fc40dc400e78afc00b4d4d9eea4d846621069f708b3a22135196fd58cb8ed6"
     },
     {
       "slug": "immoscout-contract-inspect-v2",
@@ -1907,7 +2413,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 2,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "91a151fc34b259fd108449ab1c265627b4d330cc75ce191431d530463f26c3fe",
+      "observed_live_at": "2026-09-17T11:30:07.569Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "91a151fc34b259fd108449ab1c265627b4d330cc75ce191431d530463f26c3fe"
     },
     {
       "slug": "immoscout-official-api-probe",
@@ -1922,7 +2435,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 3,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "5493519bdd23fe9bba2feeb4c04522401348a33117fa7ccfde9fa2b15af79f13",
+      "observed_live_at": "2026-09-17T11:47:47.548Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "5493519bdd23fe9bba2feeb4c04522401348a33117fa7ccfde9fa2b15af79f13"
     },
     {
       "slug": "immoscout-official-send-canary",
@@ -1937,7 +2457,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "canary",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 3,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "0472faebbb0d60b39232f6cd1f1876f05a6ceeab6800e2d4f083c810718131b6",
+      "observed_live_at": "2026-09-17T11:51:36.712Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "0472faebbb0d60b39232f6cd1f1876f05a6ceeab6800e2d4f083c810718131b6"
     },
     {
       "slug": "immoscout-payload-probe",
@@ -1952,7 +2479,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 7,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "9f5300970275005ccdd51bde33d1c3b77a25622c336f5b07a53907752ad3b444",
+      "observed_live_at": "2026-09-21T16:08:08.132Z",
+      "source_archive_version": 6,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "9f5300970275005ccdd51bde33d1c3b77a25622c336f5b07a53907752ad3b444"
     },
     {
       "slug": "immoscout-plus-scan",
@@ -1967,7 +2501,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 4,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "c75cc6a1aa5a7d5b7c8177126b402bfe924c32840f66a051850642a1169560d2",
+      "observed_live_at": "2026-09-21T16:07:22.665Z",
+      "source_archive_version": 3,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "c75cc6a1aa5a7d5b7c8177126b402bfe924c32840f66a051850642a1169560d2"
     },
     {
       "slug": "immowelt-diagnostic-readonly",
@@ -1982,7 +2523,36 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 3,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "82e4f5a7a857e27dd7d2fd35e55bb49559323a5372d2f5d3b5a24cf183b3ae3c",
+      "observed_live_at": "2026-09-29T19:19:28.024Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "82e4f5a7a857e27dd7d2fd35e55bb49559323a5372d2f5d3b5a24cf183b3ae3c"
+    },
+    {
+      "slug": "indeed-mcp-bridge",
+      "version": 9,
+      "status": "ACTIVE",
+      "verify_jwt": false,
+      "import_map": false,
+      "entrypoint_path": "/tmp/user_fn_dpmohkrwdlicexwcrqfy_4fd93f37-fe72-4efc-80f2-51c9d0f9f31e_9/source/index.ts",
+      "artifact_sha256": "1e76ff8c41030a778ae7861835d0a563e9db95dea9a4fec3aceea1e455553668",
+      "source_file_count": 1,
+      "archive_file": "docs/runtime-snapshot-2026-11-02/bundles/batch-01.json",
+      "archive_status": "full_source",
+      "security_scan_flags": [],
+      "classification": "retired",
+      "review_status": "Removed from the housing-only target; preserved in the runtime snapshot until Cloudflare cutover.",
+      "observed_live_version": 10,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "1e76ff8c41030a778ae7861835d0a563e9db95dea9a4fec3aceea1e455553668",
+      "observed_live_at": "2026-10-26T16:55:44.512Z",
+      "source_archive_version": 9,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "1e76ff8c41030a778ae7861835d0a563e9db95dea9a4fec3aceea1e455553668"
     },
     {
       "slug": "ka-gateway-egress-probe",
@@ -1997,7 +2567,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "retired",
-      "review_status": "retired 410/404 stub; JWT gateway verification enabled"
+      "review_status": "retired 410/404 stub; JWT gateway verification enabled",
+      "observed_live_version": 4,
+      "observed_live_verify_jwt": true,
+      "observed_live_artifact_sha256": "ca8db7abfff581934681d2dd9145dfee55bd9f6f7b38ec8218c11bd636e2a1a8",
+      "observed_live_at": "2026-10-21T21:32:01.009Z",
+      "source_archive_version": 3,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "ca8db7abfff581934681d2dd9145dfee55bd9f6f7b38ec8218c11bd636e2a1a8"
     },
     {
       "slug": "kleinanzeigen-ad-inspect",
@@ -2012,7 +2589,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 2,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "272c674f9610ca60e4883f41346d5d9ea9d5677747e38613893d2000552031f2",
+      "observed_live_at": "2026-09-17T04:20:02.903Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "272c674f9610ca60e4883f41346d5d9ea9d5677747e38613893d2000552031f2"
     },
     {
       "slug": "kleinanzeigen-apk-inspect",
@@ -2027,7 +2611,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 2,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "249bc46232231c1db2eab629337aaba6c04cb82e0a4f77e8be053dbfbb12a215",
+      "observed_live_at": "2026-09-15T21:07:11.296Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "249bc46232231c1db2eab629337aaba6c04cb82e0a4f77e8be053dbfbb12a215"
     },
     {
       "slug": "kleinanzeigen-apk-r2-inspect",
@@ -2042,7 +2633,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 2,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "7d7357b5057d737c16f3b9be9e004df75267e0de79b2dee62a4f8c9b31f7b0a5",
+      "observed_live_at": "2026-09-15T21:57:25.023Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "7d7357b5057d737c16f3b9be9e004df75267e0de79b2dee62a4f8c9b31f7b0a5"
     },
     {
       "slug": "kleinanzeigen-apkcombo-stage",
@@ -2057,7 +2655,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 3,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "6fb2f933a92e18215e115f3eda998206af5674d7276597b91ab3a78c7e4ef2c5",
+      "observed_live_at": "2026-09-15T21:55:14.665Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "6fb2f933a92e18215e115f3eda998206af5674d7276597b91ab3a78c7e4ef2c5"
     },
     {
       "slug": "kleinanzeigen-apkcombo-url",
@@ -2072,7 +2677,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 2,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "a5fc3c69af15b4053f356f7d1a61af29356d77058871d276ca78f757e8afd26d",
+      "observed_live_at": "2026-09-15T21:56:09.191Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "a5fc3c69af15b4053f356f7d1a61af29356d77058871d276ca78f757e8afd26d"
     },
     {
       "slug": "kleinanzeigen-contact-inspect",
@@ -2087,7 +2699,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 5,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "81a08e5046df73eb2bd3d469dd5f0d3e4738a67ba157d973c8e2dc60c089bb1f",
+      "observed_live_at": "2026-09-16T07:45:02.233Z",
+      "source_archive_version": 4,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "81a08e5046df73eb2bd3d469dd5f0d3e4738a67ba157d973c8e2dc60c089bb1f"
     },
     {
       "slug": "kleinanzeigen-contract-check",
@@ -2102,7 +2721,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 3,
+      "observed_live_verify_jwt": true,
+      "observed_live_artifact_sha256": "3e4ae876e6f273ce48a64e81a275523577cafd1761ad548bfdda7bab98a6105d",
+      "observed_live_at": "2026-09-15T20:12:04.440Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "3e4ae876e6f273ce48a64e81a275523577cafd1761ad548bfdda7bab98a6105d"
     },
     {
       "slug": "kleinanzeigen-contract-probe",
@@ -2117,7 +2743,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 6,
+      "observed_live_verify_jwt": true,
+      "observed_live_artifact_sha256": "3f23f8e66b0bc847b5e5e4d24663a4678718e897cc839f8a7c57801ddfb24531",
+      "observed_live_at": "2026-09-15T20:11:59.731Z",
+      "source_archive_version": 5,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "3f23f8e66b0bc847b5e5e4d24663a4678718e897cc839f8a7c57801ddfb24531"
     },
     {
       "slug": "kleinanzeigen-conversation-readback",
@@ -2132,7 +2765,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 8,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "bac94c8ec6a00cd534a290b65cb4509d9763750756b21cd15f4889b1f4013a1f",
+      "observed_live_at": "2026-09-23T22:48:57.335Z",
+      "source_archive_version": 7,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "bac94c8ec6a00cd534a290b65cb4509d9763750756b21cd15f4889b1f4013a1f"
     },
     {
       "slug": "kleinanzeigen-dex-class",
@@ -2147,7 +2787,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 2,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "7529f971e876eef9e9b479037198f0be3e35c7ff8818babfbb9ee3b39ce8ea61",
+      "observed_live_at": "2026-09-15T22:03:07.134Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "7529f971e876eef9e9b479037198f0be3e35c7ff8818babfbb9ee3b39ce8ea61"
     },
     {
       "slug": "kleinanzeigen-dex-contract",
@@ -2162,7 +2809,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 2,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "0e319afe8d7d9ed593b5d1fd61afbf74b7dfc4c4ebbaa01a859dfa499671c049",
+      "observed_live_at": "2026-09-15T22:00:29.453Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "0e319afe8d7d9ed593b5d1fd61afbf74b7dfc4c4ebbaa01a859dfa499671c049"
     },
     {
       "slug": "kleinanzeigen-dex-method",
@@ -2177,7 +2831,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 2,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "4556c10c911481c10fd5b210a53d6d8d01790b44049a6d66dcef2ec78e1a82b1",
+      "observed_live_at": "2026-09-15T22:04:09.809Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "4556c10c911481c10fd5b210a53d6d8d01790b44049a6d66dcef2ec78e1a82b1"
     },
     {
       "slug": "kleinanzeigen-dex-xref",
@@ -2192,7 +2853,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 3,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "d14dfd7361865c289eb058165d807c18af484e6246e9e595f5a8b124a33153a2",
+      "observed_live_at": "2026-09-15T22:02:03.027Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "d14dfd7361865c289eb058165d807c18af484e6246e9e595f5a8b124a33153a2"
     },
     {
       "slug": "kleinanzeigen-dex-xref-any",
@@ -2207,7 +2875,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 2,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "62f7468d41f610205637655ac92679e778c6509a1d37162e18f28509725907b6",
+      "observed_live_at": "2026-09-15T22:10:09.570Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "62f7468d41f610205637655ac92679e778c6509a1d37162e18f28509725907b6"
     },
     {
       "slug": "kleinanzeigen-direct-login-probe",
@@ -2222,7 +2897,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "retired",
-      "review_status": "retired 410/404 stub; JWT gateway verification enabled"
+      "review_status": "retired 410/404 stub; JWT gateway verification enabled",
+      "observed_live_version": 4,
+      "observed_live_verify_jwt": true,
+      "observed_live_artifact_sha256": "2030b37fe46593d898a0f59f538b8dbd98d43dc3e1096fb85f74632744b5cd0c",
+      "observed_live_at": "2026-10-21T21:32:06.171Z",
+      "source_archive_version": 3,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "2030b37fe46593d898a0f59f538b8dbd98d43dc3e1096fb85f74632744b5cd0c"
     },
     {
       "slug": "kleinanzeigen-first-contact-canary",
@@ -2237,7 +2919,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "canary",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 2,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "5fc33e995f0eaf176a0cb5feb64328888a6af3dac8cf1c75d74aae606e094ad1",
+      "observed_live_at": "2026-09-15T20:52:45.860Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "5fc33e995f0eaf176a0cb5feb64328888a6af3dac8cf1c75d74aae606e094ad1"
     },
     {
       "slug": "kleinanzeigen-js-inspect",
@@ -2252,7 +2941,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 3,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "f8de0de36f240d975f863749240656c8b365c530df2686fdb0b4b635e4495c3b",
+      "observed_live_at": "2026-09-15T20:56:46.104Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "f8de0de36f240d975f863749240656c8b365c530df2686fdb0b4b635e4495c3b"
     },
     {
       "slug": "kleinanzeigen-method-raw",
@@ -2267,7 +2963,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "support_review",
-      "review_status": "support/review; retain pending dependency-aware classification"
+      "review_status": "support/review; retain pending dependency-aware classification",
+      "observed_live_version": 2,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "0abcaaa54a5afac1d446bf80483446c47f9e15a56b01f82dac37828d71ac593e",
+      "observed_live_at": "2026-09-15T22:08:42.407Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "0abcaaa54a5afac1d446bf80483446c47f9e15a56b01f82dac37828d71ac593e"
     },
     {
       "slug": "kleinanzeigen-mobile-canary",
@@ -2282,7 +2985,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "retired",
-      "review_status": "retired 410/404 stub; JWT gateway verification enabled"
+      "review_status": "retired 410/404 stub; JWT gateway verification enabled",
+      "observed_live_version": 5,
+      "observed_live_verify_jwt": true,
+      "observed_live_artifact_sha256": "529bcc6c78cca4cee4dc4f7bdf9690f2e63f8a0f09f63edad30169f2599afa2b",
+      "observed_live_at": "2026-10-21T21:32:16.510Z",
+      "source_archive_version": 4,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "529bcc6c78cca4cee4dc4f7bdf9690f2e63f8a0f09f63edad30169f2599afa2b"
     },
     {
       "slug": "kleinanzeigen-mobile-probe-v2",
@@ -2297,7 +3007,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 18,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "0d386c04e2fa766db997c117bb88d6e3eae5c2012bb32c25edc2fd627465fc53",
+      "observed_live_at": "2026-09-15T22:16:47.772Z",
+      "source_archive_version": 17,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "0d386c04e2fa766db997c117bb88d6e3eae5c2012bb32c25edc2fd627465fc53"
     },
     {
       "slug": "kleinanzeigen-re-seeker-probe",
@@ -2312,7 +3029,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 2,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "43292853d51df36f67ce73c49ad7ba8baf9bb9fae1f1ccf15659104aa0d2a70f",
+      "observed_live_at": "2026-09-15T21:58:55.003Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "43292853d51df36f67ce73c49ad7ba8baf9bb9fae1f1ccf15659104aa0d2a70f"
     },
     {
       "slug": "kleinanzeigen-refresh-probe",
@@ -2327,7 +3051,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "retired",
-      "review_status": "retired 410/404 stub; JWT gateway verification enabled"
+      "review_status": "retired 410/404 stub; JWT gateway verification enabled",
+      "observed_live_version": 4,
+      "observed_live_verify_jwt": true,
+      "observed_live_artifact_sha256": "497d2f569d81c41d3685e148d53ce8d8844d391eea6899d36bfebec1c1900dc9",
+      "observed_live_at": "2026-10-21T21:32:21.693Z",
+      "source_archive_version": 3,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "497d2f569d81c41d3685e148d53ce8d8844d391eea6899d36bfebec1c1900dc9"
     },
     {
       "slug": "kleinanzeigen-seeker-inspect",
@@ -2342,7 +3073,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 3,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "86585b1dc5d084246c0d79bc3a9108a4ada7049af02c7de68f5487074eeee002",
+      "observed_live_at": "2026-09-17T04:41:19.786Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "86585b1dc5d084246c0d79bc3a9108a4ada7049af02c7de68f5487074eeee002"
     },
     {
       "slug": "kleinanzeigen-send-once-v3",
@@ -2357,7 +3095,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "support_review",
-      "review_status": "support/review; retain pending dependency-aware classification"
+      "review_status": "support/review; retain pending dependency-aware classification",
+      "observed_live_version": 3,
+      "observed_live_verify_jwt": true,
+      "observed_live_artifact_sha256": "8983c47b70aa5dcaa79063615bc6308b9a5513309cf289b094441caae6338f97",
+      "observed_live_at": "2026-09-15T20:11:52.549Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "8983c47b70aa5dcaa79063615bc6308b9a5513309cf289b094441caae6338f97"
     },
     {
       "slug": "kleinanzeigen-send-probe",
@@ -2372,7 +3117,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 9,
+      "observed_live_verify_jwt": true,
+      "observed_live_artifact_sha256": "c6f6f6ede954742086c662fe80c7b78fda85a3e1222b65d2fd06f35097bc5486",
+      "observed_live_at": "2026-09-15T18:42:46.373Z",
+      "source_archive_version": 8,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "c6f6f6ede954742086c662fe80c7b78fda85a3e1222b65d2fd06f35097bc5486"
     },
     {
       "slug": "kleinanzeigen-structure-probe",
@@ -2387,7 +3139,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 2,
+      "observed_live_verify_jwt": true,
+      "observed_live_artifact_sha256": "69f70c7715da2b4e86e9fdccfc2f2d6f178bbd9bdd49f16808dd0104cebc793a",
+      "observed_live_at": "2026-09-15T20:19:08.671Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "69f70c7715da2b4e86e9fdccfc2f2d6f178bbd9bdd49f16808dd0104cebc793a"
     },
     {
       "slug": "kleinanzeigen-two-step-canary",
@@ -2402,7 +3161,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "canary",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 2,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "c42b8d37538e25f5b0990993d7d180f38f623cea3b2141e03451313e4cdf9239",
+      "observed_live_at": "2026-09-17T04:49:47.039Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "c42b8d37538e25f5b0990993d7d180f38f623cea3b2141e03451313e4cdf9239"
     },
     {
       "slug": "kleinanzeigen-web-contract-probe",
@@ -2417,7 +3183,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 4,
+      "observed_live_verify_jwt": true,
+      "observed_live_artifact_sha256": "0902d9c47f9293bdd46929499c6bbcc5c9936e9a52570a2ef7f0a24f2eb0cb58",
+      "observed_live_at": "2026-09-15T20:19:01.202Z",
+      "source_archive_version": 3,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "0902d9c47f9293bdd46929499c6bbcc5c9936e9a52570a2ef7f0a24f2eb0cb58"
     },
     {
       "slug": "kleinanzeigen-xcf-diagnostic-send",
@@ -2432,7 +3205,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 2,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "9217b6e615865405716939e049880efe7c87fc67d6189cfdf449bad603271be1",
+      "observed_live_at": "2026-09-17T04:53:31.096Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "9217b6e615865405716939e049880efe7c87fc67d6189cfdf449bad603271be1"
     },
     {
       "slug": "noop_probe",
@@ -2447,7 +3227,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "diagnostic",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 8,
+      "observed_live_verify_jwt": true,
+      "observed_live_artifact_sha256": "7c2bd4d01db9f87c4fed405b13c2c060a91795e1618cdf085d10efb238374026",
+      "observed_live_at": "2026-09-15T15:00:17.743Z",
+      "source_archive_version": 7,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "7c2bd4d01db9f87c4fed405b13c2c060a91795e1618cdf085d10efb238374026"
     },
     {
       "slug": "notification-dispatcher-preview-canary",
@@ -2462,7 +3249,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "canary",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 5,
+      "observed_live_verify_jwt": true,
+      "observed_live_artifact_sha256": "47f19faf32832c44851f7523ed72083f1794fc219ffcc8d5174bb3b3ef4049fc",
+      "observed_live_at": "2026-09-21T04:07:45.992Z",
+      "source_archive_version": 4,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "47f19faf32832c44851f7523ed72083f1794fc219ffcc8d5174bb3b3ef4049fc"
     },
     {
       "slug": "platform-connect",
@@ -2477,22 +3271,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "retired",
-      "review_status": "retired 410/404 stub; JWT gateway verification enabled"
-    },
-    {
-      "slug": "platform-session-reminder",
-      "version": 3,
-      "status": "ACTIVE",
-      "verify_jwt": false,
-      "import_map": false,
-      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_c5d0fd60-0a3d-4070-967f-956880219efb_3/source/supabase/functions/platform-session-reminder/index.ts",
-      "artifact_sha256": "02a27f6234f18f7e213f4ebabfc41269c6a5989b54e80e7f4e35b89ce1252f16",
-      "source_file_count": 1,
-      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-18.json",
-      "archive_status": "full_source",
-      "security_scan_flags": [],
-      "classification": "internal",
-      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
+      "review_status": "retired 410/404 stub; JWT gateway verification enabled",
+      "observed_live_version": 5,
+      "observed_live_verify_jwt": true,
+      "observed_live_artifact_sha256": "ab54c8e8e29f824e290917601efac9554eb581d816b5eb253891c827c140c557",
+      "observed_live_at": "2026-10-21T21:32:41.626Z",
+      "source_archive_version": 4,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "ab54c8e8e29f824e290917601efac9554eb581d816b5eb253891c827c140c557"
     },
     {
       "slug": "telegram-db-latency-canary",
@@ -2507,7 +3293,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "canary",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 3,
+      "observed_live_verify_jwt": true,
+      "observed_live_artifact_sha256": "39d5fa7eb8dceb281fc090587521548b4a1846562240c1a01ba4c076af6e239d",
+      "observed_live_at": "2026-09-20T22:02:35.274Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "39d5fa7eb8dceb281fc090587521548b4a1846562240c1a01ba4c076af6e239d"
     },
     {
       "slug": "telegram-engagement",
@@ -2522,7 +3315,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "internal",
-      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
+      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked",
+      "observed_live_version": 5,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "dd30edbe6bc61db7a009cd74501f664562fc3549b38bb3118c2a16ecfe8463bd",
+      "observed_live_at": "2026-10-02T18:30:57.974Z",
+      "source_archive_version": 4,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "dd30edbe6bc61db7a009cd74501f664562fc3549b38bb3118c2a16ecfe8463bd"
     },
     {
       "slug": "telegram-gateway-autoapply-canary",
@@ -2537,7 +3337,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "canary",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 2,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "0c92121e429cc93e4594f549a99fd3c5584c90c7f88216fc01d45f4cd1080f34",
+      "observed_live_at": "2026-09-20T22:17:28.343Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "0c92121e429cc93e4594f549a99fd3c5584c90c7f88216fc01d45f4cd1080f34"
     },
     {
       "slug": "telegram-gateway-preview-canary",
@@ -2552,7 +3359,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "canary",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 3,
+      "observed_live_verify_jwt": true,
+      "observed_live_artifact_sha256": "be1b15eda9c8be5067c51743f7da4f8e01297150d9e2ad30977f63f3126f9c87",
+      "observed_live_at": "2026-09-21T04:07:48.186Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "be1b15eda9c8be5067c51743f7da4f8e01297150d9e2ad30977f63f3126f9c87"
     },
     {
       "slug": "telegram-gateway-v3-canary",
@@ -2567,7 +3381,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "canary",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 3,
+      "observed_live_verify_jwt": true,
+      "observed_live_artifact_sha256": "cfceead8c4eba606dcba379ba7fdbc784f18517b123e8bc0b78e10f8ebea5ce6",
+      "observed_live_at": "2026-09-20T21:56:30.283Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "cfceead8c4eba606dcba379ba7fdbc784f18517b123e8bc0b78e10f8ebea5ce6"
     },
     {
       "slug": "telegram-gateway-v4-canary",
@@ -2582,7 +3403,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "canary",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 3,
+      "observed_live_verify_jwt": true,
+      "observed_live_artifact_sha256": "b448a6367e147239eb732ebf5eed5bd4437a6f1524e9195678643dde3f46e1dc",
+      "observed_live_at": "2026-09-20T22:03:24.948Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "b448a6367e147239eb732ebf5eed5bd4437a6f1524e9195678643dde3f46e1dc"
     },
     {
       "slug": "telegram-ui-autoapply-canary",
@@ -2597,7 +3425,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "canary",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 2,
+      "observed_live_verify_jwt": false,
+      "observed_live_artifact_sha256": "f9ff8836dcdd150bce137d61a120fdb837e2ffaa90cc921b159b80c1b7b22a46",
+      "observed_live_at": "2026-09-20T22:17:16.959Z",
+      "source_archive_version": 1,
+      "source_archive_verify_jwt": false,
+      "source_archive_artifact_sha256": "f9ff8836dcdd150bce137d61a120fdb837e2ffaa90cc921b159b80c1b7b22a46"
     },
     {
       "slug": "telegram-ui-preview-canary",
@@ -2612,7 +3447,14 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "canary",
-      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review"
+      "review_status": "restricted diagnostic/canary; retain only with explicit internal auth and dependency review",
+      "observed_live_version": 3,
+      "observed_live_verify_jwt": true,
+      "observed_live_artifact_sha256": "608f7b56591f4bf57cc9748f05abfa6939eb27e210e7f299a9f278592f85c1e1",
+      "observed_live_at": "2026-09-21T04:07:50.064Z",
+      "source_archive_version": 2,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "608f7b56591f4bf57cc9748f05abfa6939eb27e210e7f299a9f278592f85c1e1"
     },
     {
       "slug": "telegram-webhook-region-switch",
@@ -2627,31 +3469,24 @@
       "archive_status": "full_source",
       "security_scan_flags": [],
       "classification": "retired",
-      "review_status": "retired 410/404 stub; JWT gateway verification enabled"
-    },
-    {
-      "slug": "wg-gesucht-auth-bridge",
-      "version": 2,
-      "status": "ACTIVE",
-      "verify_jwt": false,
-      "import_map": false,
-      "entrypoint_path": "file:///tmp/user_fn_dpmohkrwdlicexwcrqfy_7c272556-ffe9-4b2b-8bdd-6f4b1de4aea4_2/source/functions/wg-gesucht-auth-bridge/index.ts",
-      "artifact_sha256": "e9ccd0ea2b6a65641d5bf2401ef69086ad2c1a53ba0661c4197e4eb563a6e4d6",
-      "source_file_count": 3,
-      "archive_file": "docs/runtime-snapshot-2026-10-21/bundles/batch-23.json",
-      "archive_status": "full_source",
-      "security_scan_flags": [],
-      "classification": "internal",
-      "review_status": "internal worker/auth/transport; auth signal and runtime dependency tracked"
+      "review_status": "retired 410/404 stub; JWT gateway verification enabled",
+      "observed_live_version": 4,
+      "observed_live_verify_jwt": true,
+      "observed_live_artifact_sha256": "3bd9e184933090cd1dcedbbd2be02e7cc9040d7a4d572b7d61940a5575b537db",
+      "observed_live_at": "2026-10-21T21:32:47.752Z",
+      "source_archive_version": 3,
+      "source_archive_verify_jwt": true,
+      "source_archive_artifact_sha256": "3bd9e184933090cd1dcedbbd2be02e7cc9040d7a4d572b7d61940a5575b537db"
     }
   ],
   "live_inventory": {
-    "observed_at": "2026-10-21",
+    "observed_at": "2026-11-09T12:56:23.459Z",
     "project_id": "dpmohkrwdlicexwcrqfy",
-    "live_function_count": 114,
-    "repository_managed_count": 47,
-    "archived_only_count": 67,
-    "source_archive": "docs/runtime-snapshot-2026-10-21/bundles/",
-    "note": "This is the captured live inventory. CI validates archive integrity locally. Live API comparison runs only when SUPABASE_ACCESS_TOKEN is configured in GitHub Actions."
-  }
+    "live_function_count": 115,
+    "repository_managed_count": 49,
+    "archived_only_count": 66,
+    "source_archive": "docs/runtime-snapshot-2026-11-02/bundles/",
+    "note": "Live Supabase inventory refreshed 2026-11-09. All 115 live Edge Functions match the recorded artifact SHA-256; version increments are tracked separately from historical source-archive versions."
+  },
+  "observed_live_at": "2026-11-09T12:56:23.459Z"
 }

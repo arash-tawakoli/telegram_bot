@@ -1,0 +1,12 @@
+{
+  "migrations": [
+    {
+      "version": "20261103143656",
+      "name": "lock_cloudflare_housing_runtime_role",
+      "file": "supabase/migrations/20261103143656_lock_cloudflare_housing_runtime_role.sql",
+      "registry_sql_sha256": "0bf43bf3e1074354b6da3fcb5d10a2f7d9f8f5f3b2f500a66af364f650ecfcc5",
+      "export_sql_sha256": "0bf43bf3e1074354b6da3fcb5d10a2f7d9f8f5f3b2f500a66af364f650ecfcc5",
+      "vault_substitution": false
+    }
+  ]
+}

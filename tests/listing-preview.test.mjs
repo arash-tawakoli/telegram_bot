@@ -145,20 +145,14 @@ test('Scout gallery, exact address, deposit, publication and extra fields surviv
  assert.equal(f.address,'Str. 17 a, 20095 Hamburg');assert.equal(f.published_text,'27-08-2026');
  assert.equal(facts.collectImages({images:[...f.images,'https://pictures.immobilienscout24.de/listings/a.jpg/ORIG/thumb']},url).length,2);
 });
-test('Kleinanzeigen thumbnails without image classes and explicit equipment are retained',()=>{
- const f=facts.htmlFacts('<img data-imgsrc="https://img.kleinanzeigen.de/api/v1/prod-ads/images/a?rule=large"><img data-imgsrc="https://img.kleinanzeigen.de/api/v1/prod-ads/images/b?rule=large"><li class="checktag">Balkon</li>','https://www.kleinanzeigen.de/s-anzeige/42');
- assert.equal(f.images.length,2);assert.deepEqual(f.features,['Balkon']);
- assert.match(scope.cap(listing({features:['Balkon'],address:{city:'Hamburg',quarter:'Schnelsen'}}),'de'),/Balkon/);
-});
-
 test('unstarted legacy galleries adopt the single-photo policy on retry',async()=>{const ops=previewOperations(['a.jpg','b.jpg'],'facts',{});let saved,calls=[];await deliverPreview(ops,{version:1,operations:[{method:'sendMediaGroup',body:{media:[]}}],next:0,in_flight:false},async s=>saved=structuredClone(s),async op=>{calls.push(op.method);return{message_id:1}},async()=>{});assert.deepEqual(calls,['sendPhoto']);assert.equal(saved.next,1);});
 
 test('preview actions are stacked source-aware and keep requested emojis',()=>{
- const l=listing({address:'Musterstraße 1, 20095 Hamburg'}, {sources:{name:'Kleinanzeigen Hamburg',button_label:'Kleinanzeigen.de',source_type:'Portal',source_connectors:[]}});
+ const l=listing({address:'Musterstraße 1, 20095 Hamburg'}, {sources:{name:'Immowelt Hamburg',button_label:'Immowelt.de',source_type:'Portal',source_connectors:[]}});
  const rows=scope.kb(l,'de',true).inline_keyboard;
  assert.equal(rows.length,3);
  assert.deepEqual(Array.from(rows, row=>row.length),[1,1,1]);
- assert.equal(rows[0][0].text,'Zu Kleinanzeigen');
+ assert.equal(rows[0][0].text,'Zu Immowelt');
  assert.equal(rows[1][0].text,'⭐ Speichern');
  assert.equal(rows[2][0].text,'🗺️ Google Map');
  assert.equal(rows.flat().some(button=>/Auto-Bewerbung|Auto-apply|Schnellbewerbung/i.test(button.text||'')),false);
@@ -182,7 +176,7 @@ test('cooperative previews keep the offer emoji and show the actual source name'
 
 test('preview normalizer drops every legacy extra and leaves the four requested rows',()=>{
  const legacy={inline_keyboard:[
-  [{text:'Zu Kleinanzeigen',url:base}],
+  [{text:'Zu Immowelt',url:base}],
   [{text:'⭐ Speichern',callback_data:'save:l'}],
   [{text:'🗺️ Google Map',url:'https://www.google.com/maps/search/?api=1&query=Hamburg'}],
   [{text:'Schnellbewerbung',callback_data:'apply:l'}],
@@ -190,7 +184,7 @@ test('preview normalizer drops every legacy extra and leaves the four requested 
  ]};
  const rows=previewOperations([], '📍 <b>Adresse:</b> Hamburg', legacy)[0].body.reply_markup.inline_keyboard;
  assert.equal(rows.length,3);
- assert.equal(rows[0][0].text,'Zu Kleinanzeigen');
+ assert.equal(rows[0][0].text,'Zu Immowelt');
  assert.equal(rows[1][0].text,'⭐ Speichern');
  assert.equal(rows[2][0].text,'🗺️ Google Map');
  assert.equal(rows.flat().some(button=>/Auto-Bewerbung|Auto-apply|Schnellbewerbung/i.test(String(button.text||''))),false);

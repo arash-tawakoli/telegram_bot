@@ -15,11 +15,11 @@ function worker({authorized=true,failAfterAuthorization=false,premium=true,provi
   if(name==='get_bot_secret')return {error:Error('not configured')};
  },from(table){let write;
   const q={select(){return q},eq(){return q},update(value){write=value;return q},
-   single:async()=>({data:table==='bot_users'?{id:'u',chat_id:null,is_active:true,auto_apply_enabled:true}:table==='applicant_profiles'?{user_id:'u',first_name:'Test',last_name:'User',email:'test@example.com',phone:'123',city:'Hamburg',household_size:1}:{id:'l',source_id:provider==='kleinanzeigen'?2:1,is_active:true,title:'Wohnung',raw:{},external_id:'1',source_listing_key:'1'}}),
+   single:async()=>({data:table==='bot_users'?{id:'u',chat_id:null,is_active:true,auto_apply_enabled:true}:table==='applicant_profiles'?{user_id:'u',first_name:'Test',last_name:'User',email:'test@example.com',phone:'123',city:'Hamburg',household_size:1}:{id:'l',source_id:provider==='immowelt'?3:1,is_active:true,title:'Wohnung',raw:{},external_id:'1',source_listing_key:'1'}}),
    then(resolve){if(write)writes.push({table,write});return Promise.resolve({data:write?[{id:'a'}]:[],error:null}).then(resolve)}
   };return q;
  }};
- const scope={createClient:()=>db,Deno:{env:{get:()=>undefined},serve:()=>{}},createProfileToken:async()=>'',handleProfilePage:async()=>{},beginKleinanzeigenLogin:async()=>{},completeKleinanzeigenLogin:async()=>{},completeKleinanzeigenCallback:async()=>{},checkKleinanzeigenConnection:async()=>{},disconnectKleinanzeigen:async()=>{},inspectKleinanzeigenInquiry:async()=>{},checkImmoScoutConnection:async()=>{},disconnectImmoScout:async()=>{},beginImmomioLogin:async()=>{},completeImmomioLogin:async()=>{},checkImmomioConnection:async()=>{},disconnectImmomio:async()=>{},inspectImmomioAccountApplication:async()=>{},markConnection:async()=>{},
+ const scope={createClient:()=>db,Deno:{env:{get:()=>undefined},serve:()=>{}},createProfileToken:async()=>'',handleProfilePage:async()=>{},checkImmoScoutConnection:async()=>{},disconnectImmoScout:async()=>{},beginImmomioLogin:async()=>{},completeImmomioLogin:async()=>{},checkImmomioConnection:async()=>{},disconnectImmomio:async()=>{},inspectImmomioAccountApplication:async()=>{},markConnection:async()=>{},
   applicationMessageFor:()=>({field:'message_apartment',message:'Hallo'}),providerAttachmentCapability:()=>({supported:false}),profileAdapterSelfTest:()=>({ok:true}),probeImmomioApplication:async()=>({}),checkImmoweltConnection:async()=>{},disconnectImmowelt:async()=>{},
   providerForListing:()=>provider,sendApplication:async(_provider,{authorize})=>{events.push('provider_prepare');const permitted=await authorize();if(!permitted)return {success:false,status:'failed',error:'not_eligible'};events.push('send');if(failAfterAuthorization)throw Object.assign(Error('timeout'),{name:'TimeoutError'});return providerResult??{success:true,status:'sent'};},fetch:async()=>({}),AbortSignal,URL,Response,JSON,crypto,Date,setTimeout,clearTimeout,console};
  vm.runInNewContext(source,scope);return {...scope,writes,events};
@@ -37,18 +37,8 @@ test('successful send follows durable authorization; uncertain sends are never q
   if(w.events.includes('send'))assert.ok(w.events.indexOf('authorize_application_send')<w.events.indexOf('send'));
  }
 });
-test('Kleinanzeigen unconfirmed submission remains fail-closed',async()=>{
- const w=worker({provider:'kleinanzeigen',providerResult:{success:false,status:'manual_required',error:'xcf_submit_unconfirmed'}});
- const result=await w.processApplication();
- assert.equal(result.status,'manual_required');
- assert.equal(result.error,'xcf_submit_unconfirmed');
- const final=w.writes.filter(x=>x.table==='applications').at(-1).write;
- assert.equal(final.status,'manual_required');
- assert.equal(final.last_error,'xcf_submit_unconfirmed');
- assert.equal(final.sent_at,undefined);
-});
 test('listing_unavailable is terminal and deactivates the listing',async()=>{
- const w=worker({provider:'kleinanzeigen',providerResult:{success:false,status:'failed',error:'listing_unavailable'}});
+ const w=worker({provider:'immowelt',providerResult:{success:false,status:'failed',error:'listing_unavailable'}});
  const result=await w.processApplication();
  assert.equal(result.status,'failed');
  const listingWrite=w.writes.find(x=>x.table==='listings')?.write;

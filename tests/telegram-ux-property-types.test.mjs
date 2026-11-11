@@ -90,11 +90,10 @@ test('category runner uses isolated leases and never marks a first baseline as f
   .replace(/^import .*;\n/gm,'').replaceAll('export ','');
  code=stripTypeScriptTypes(code);
  const calls=[];
- const stream={source_id:2,category:'house',adapter:'kleinanzeigen',lease_token:'lease',baseline_at:null,cursor:{}};
+ const stream={source_id:1,category:'house',adapter:'scout',lease_token:'lease',baseline_at:null,cursor:{}};
  const db={rpc:async(name,args)=>{calls.push([name,args]);if(name==='claim_source_category_streams')return{data:[stream],error:null};if(name==='finish_source_category_stream')return{data:true,error:null};throw Error(name)}};
  const scope={db,Date,Intl,Error,console,
-  runKleinCategory:async(_source,s)=>({requests:1,candidates:4,fresh:s.baseline_at?1:0,cursor:{ok:true}}),
-  runScoutCategory:async()=>{throw Error('wrong adapter')},
+  runScoutCategory:async(_source,s)=>({requests:1,candidates:4,fresh:s.baseline_at?1:0,cursor:{ok:true}}),
   fetchText:async()=>{throw Error('wrong adapter')},parseHtml:()=>[],strip:x=>x,iso:()=>new Date().toISOString(),upsertCandidates:async()=>({seen:0,fresh:0,keys:[]})};
  const api=vm.runInNewContext(code+';({runCategoryStreams})',scope);
  const result=await api.runCategoryStreams({id:2});

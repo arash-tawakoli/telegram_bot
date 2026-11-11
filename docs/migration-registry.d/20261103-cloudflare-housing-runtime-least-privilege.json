@@ -1,0 +1,12 @@
+{
+  "migrations": [
+    {
+      "version": "20261103172217",
+      "name": "cloudflare_housing_runtime_least_privilege",
+      "file": "supabase/migrations/20261103172217_cloudflare_housing_runtime_least_privilege.sql",
+      "registry_sql_sha256": "089cba704263c43850b12c92a43c5942aac615cb71af06c868b5250ce6a1167e",
+      "export_sql_sha256": "089cba704263c43850b12c92a43c5942aac615cb71af06c868b5250ce6a1167e",
+      "vault_substitution": false
+    }
+  ]
+}

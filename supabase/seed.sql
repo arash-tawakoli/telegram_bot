@@ -14,11 +14,9 @@ $bootstrap$;
 
 insert into public.sources (id,source_type,name,tier,homepage_url,search_url,poll_interval_minutes,enabled,notes) values
 (1,'Immobilienportal','ImmobilienScout24 Hamburg','K1','https://www.immobilienscout24.de','https://www.immobilienscout24.de/Suche/de/hamburg/hamburg/wohnung-mieten',5,true,null),
-(2,'Marketplace','Kleinanzeigen Hamburg','K1','https://www.kleinanzeigen.de','https://www.kleinanzeigen.de/s-wohnung-mieten/hamburg/c203l9409',5,true,null),
 (3,'Immobilienportal','Immowelt Hamburg','K1','https://www.immowelt.de','https://www.immowelt.de/suche/mieten/wohnung/hamburg/hamburg-20095/ad08de1113',5,true,null),
 (4,'Wohnungsunternehmen','SAGA','K3','https://www.saga.hamburg','https://www.saga.hamburg/immobiliensuche',30,true,null),
 (5,'Wohnungsunternehmen','Vonovia Hamburg','K1','https://www.vonovia.de','https://www.vonovia.de/de-de/immobiliensuche',5,true,null),
-(6,'Marketplace','WG-Gesucht Hamburg','K1','https://www.wg-gesucht.de','https://www.wg-gesucht.de/wohnungen-in-Hamburg.55.2.1.0.html',5,true,null),
 (7,'Wohnungsunternehmen','TAG Wohnen Hamburg','K2','https://tag-wohnen.de','https://tag-wohnen.de/immosuche?filters%5Bproperty_city%5D%5B%5D=Hamburg&size=50&view=LIST',10,true,null),
 (8,'Wohnungsunternehmen','Grand City Property Hamburg','K2','https://www.grandcityproperty.de','https://www.grandcityproperty.de/wohnungssuche',10,true,null),
 (9,'Marketplace','HousingAnywhere Hamburg','K1','https://housinganywhere.com','https://housinganywhere.com/s/Hamburg--Germany',5,true,null),
