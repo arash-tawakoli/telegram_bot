@@ -298,15 +298,15 @@ async function rpc(client, env, name, args) {
     let user = found[0];
     if (user) {
       await client.run(
-        "UPDATE participants SET telegram_chat_id=?,username=?,first_name=COALESCE(?,first_name),last_name=COALESCE(?,last_name),ui_language=COALESCE(?,ui_language),updated_at=CURRENT_TIMESTAMP WHERE id=?",
+        "UPDATE participants SET telegram_chat_id=?,username=?,first_name=COALESCE(?,first_name),last_name=COALESCE(?,last_name),language_code=COALESCE(?,language_code),updated_at=CURRENT_TIMESTAMP WHERE id=?",
         [chat.id, from.username || null, from.first_name || null, from.last_name || null, from.language_code || null, user.id],
       );
       user = (await client.run("SELECT * FROM participants WHERE id=?", [user.id]))[0] || user;
     } else {
       const id = crypto.randomUUID();
       await client.run(
-        "INSERT INTO participants(id,first_name,last_name,username,telegram_user_id,telegram_chat_id,ui_language,origin) VALUES(?,?,?,?,?,?,?,'telegram')",
-        [id, from.first_name || "Teilnehmer", from.last_name || "Unbekannt", from.username || null, from.id, chat.id, from.language_code || "de"],
+        "INSERT INTO participants(id,first_name,last_name,username,telegram_user_id,telegram_chat_id,ui_language,language_code,last_start_at,origin) VALUES(?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,'telegram')",
+        [id, from.first_name || "Teilnehmer", from.last_name || "Unbekannt", from.username || null, from.id, chat.id, from.language_code || "de", from.language_code || null],
       );
       await client.run("INSERT OR IGNORE INTO application_preferences(participant_id) VALUES(?)", [id]);
       user = (await client.run("SELECT * FROM participants WHERE id=?", [id]))[0];
@@ -401,13 +401,13 @@ async function rpc(client, env, name, args) {
         return { data: null, error: new Error("test_mode_central_account_unavailable") };
       }
       await client.run(
-        "UPDATE participants SET test_auto_apply_daily_limit=1,test_auto_apply_enabled=1,test_auto_apply_enabled_at=CURRENT_TIMESTAMP,test_auto_apply_disabled_at=NULL,updated_at=CURRENT_TIMESTAMP WHERE id=?",
-        [args.p_user],
+        "UPDATE participants SET test_auto_apply_daily_limit=1,test_auto_apply_enabled=1,test_auto_apply_enabled_at=CURRENT_TIMESTAMP,test_auto_apply_disabled_at=NULL,test_auto_apply_updated_by_telegram_id=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
+        [telegramId, args.p_user],
       );
     } else {
       await client.run(
-        "UPDATE participants SET test_auto_apply_enabled=0,test_auto_apply_disabled_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=?",
-        [args.p_user],
+        "UPDATE participants SET test_auto_apply_enabled=0,test_auto_apply_disabled_at=CURRENT_TIMESTAMP,test_auto_apply_updated_by_telegram_id=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
+        [telegramId, args.p_user],
       );
       await client.run(
         "UPDATE applications SET status='failed',last_error='test_mode_disabled',updated_at=CURRENT_TIMESTAMP WHERE participant_id=? AND test_mode=1 AND status IN ('pending','processing') AND submission_started_at IS NULL",
