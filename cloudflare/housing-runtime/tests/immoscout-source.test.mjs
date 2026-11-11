@@ -24,3 +24,10 @@ test("ImmoScout MCP errors fail closed", () => {
   assert.throws(() => parseMcpToolResult({ result: { structuredContent: { entries: [], total: 10 } } }), /immoscout_inventory_unrecognized/);
   assert.deepEqual(parseMcpToolResult({ result: { structuredContent: { entries: [], total: 0 } } }), { entries: [], total: 0 });
 });
+
+test("missing ImmoScout facts remain unknown rather than becoming zero", () => {
+  const result = normalizeImmoScoutEntry({ exposedId: "123", exposeUrl: "https://www.immobilienscout24.de/expose/123", totalRent: null, rooms: "", size: null }, 1);
+  assert.equal(result.facts.warm_rent, null);
+  assert.equal(result.facts.rooms, null);
+  assert.equal(result.facts.area_sqm, null);
+});
