@@ -192,8 +192,8 @@ async function processDelivery(sql, request, env) {
       FOR UPDATE SKIP LOCKED
     `;
     if (!rows[0]) return null;
-    await tx`UPDATE housing.deliveries SET status = 'processing', attempts = attempts + 1 WHERE id = ${rows[0].id}`;
-    return rows[0];
+    const won = await tx`UPDATE housing.deliveries SET status = 'processing', attempts = attempts + 1 WHERE id = ${rows[0].id} AND status = 'pending' RETURNING id`;
+    return won.length ? rows[0] : null;
   });
   if (!claimed) return json({ ok: true, status: "idle" });
   if (!claimed.telegram_chat_id) {
@@ -205,7 +205,11 @@ async function processDelivery(sql, request, env) {
     await sql`UPDATE housing.deliveries SET status = 'failed' WHERE id = ${claimed.id}`;
     return json({ error: "telegram_token_missing" }, 503);
   }
-  const facts = { ...(claimed.facts || {}), canonical_url: claimed.canonical_url };
+  let details = claimed.facts;
+  if (typeof details === "string") {
+    try { details = JSON.parse(details); } catch { details = {}; }
+  }
+  const facts = { ...(details && typeof details === "object" ? details : {}), canonical_url: claimed.canonical_url };
   const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ chat_id: claimed.telegram_chat_id, text: telegramText(facts), parse_mode: "HTML", disable_web_page_preview: false }), signal: AbortSignal.timeout(15_000) });
   const result = await response.json().catch(() => null);
   if (!response.ok || result?.ok !== true) {
