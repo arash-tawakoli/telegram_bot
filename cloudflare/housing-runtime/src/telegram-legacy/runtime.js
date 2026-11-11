@@ -17,12 +17,13 @@ export const ADMIN_TELEGRAM_USER_IDS = new Set([8538226539, 414638980]);
 export const secretCache = new Map();
 export const chatLanguages = new Map();
 export let geoCache = null;
+let geographyDatabase = null;
 
-export function configureLegacyRuntime(nextEnv, d1) { env = nextEnv; db = createD1Supabase(d1, env); }
+export function configureLegacyRuntime(nextEnv, d1) { env = nextEnv; geographyDatabase = d1; geoCache = null; db = createD1Supabase(d1, env); }
 export function runtimeEnv() { return env; }
 export async function withPlan(user, subscription = null) {
   const now = Date.now();
-  if (user?.plan_override === "free") return { ...user, is_premium: false, subscription };
+  if (user?.plan_override === "free" && (!user.plan_override_expires_at || Date.parse(user.plan_override_expires_at) > now)) return { ...user, is_premium: false, subscription };
   if (user?.plan_override === "premium" && (!user.plan_override_expires_at || Date.parse(user.plan_override_expires_at) > now)) {
     return { ...user, is_premium: true, subscription };
   }
@@ -70,5 +71,19 @@ export async function editPremiumPreview(chatId, messageId, caption, replyMarkup
 export async function acknowledge(id, text) { await telegram("answerCallbackQuery", { callback_query_id: id, ...(text ? { text } : {}) }).catch(() => {}); }
 export function hasCanceledPremium() { return false; }
 export async function saveState(userId, step, draft, updateId = null, attempt = null) { const state = draft && typeof draft === "object" ? draft : {}; state._step = step; await db.rpc("save_ui_state", { p_user: userId, p_step: step, p_state: state, p_update_id: updateId, p_attempt: attempt, p_revision: Number(state._revision || 0) }); return state; }
-export async function geography() { if (geoCache && geoCache.expiresAt > Date.now()) return geoCache.value; const value = { boroughs: [], neighborhoods: [], schleswigHolsteinAreas: [] }; geoCache = { value, expiresAt: Date.now() + GEO_TTL_MS }; return value; }
+export async function geography() {
+  if (geoCache && geoCache.expiresAt > Date.now()) return geoCache.value;
+  if (!geographyDatabase || typeof geographyDatabase.prepare !== "function") throw new Error("geography_database_unavailable");
+  const row = await geographyDatabase.prepare("SELECT payload FROM coach_geo_snapshot WHERE id='de-hh-sh' LIMIT 1").first();
+  if (!row?.payload) throw new Error("geography_snapshot_missing");
+  let value;
+  try { value = JSON.parse(row.payload); } catch { throw new Error("geography_snapshot_invalid"); }
+  if (!Array.isArray(value?.boroughs) || !value.boroughs.length ||
+      !Array.isArray(value?.neighborhoods) || !value.neighborhoods.length ||
+      !Array.isArray(value?.schleswigHolsteinAreas) || !value.schleswigHolsteinAreas.length) {
+    throw new Error("geography_snapshot_incomplete");
+  }
+  geoCache = { value, expiresAt: Date.now() + GEO_TTL_MS };
+  return value;
+}
 export const HELP_TEXT = "❓ <b>Hilfe & Befehle</b>\n\n🏠 /start – Startmenü\n🔎 /suche – Suchprofil erstellen\n👤 /profile – Suchprofile anzeigen\n⚙️ /einstellungen – Einstellungen\n⏸ /pause – Suche pausieren\n▶️ /resume – Suche fortsetzen\n❓ /hilfe – Hilfe";
