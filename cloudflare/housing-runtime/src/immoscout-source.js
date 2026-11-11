@@ -25,6 +25,7 @@ function entryId(entry) {
 }
 
 function numeric(value) {
+  if (value == null || value === "") return null;
   const result = Number(value);
   return Number.isFinite(result) ? result : null;
 }
