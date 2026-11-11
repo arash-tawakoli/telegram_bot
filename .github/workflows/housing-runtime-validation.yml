@@ -3,10 +3,12 @@ name: Housing runtime validation
 on:
   push:
     branches:
+      - main
       - fix/restore-standalone-immoscout-test-mode-20261110
       - migration/cloudflare-housing-core-20261103
   pull_request:
     branches:
+      - main
       - migration/cloudflare-housing-core-20261103
     paths:
       - "cloudflare/housing-runtime/**"
