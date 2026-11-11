@@ -1,4 +1,5 @@
 import { pbkdf2Sync } from "node:crypto";
+import bcrypt from "./bcrypt.js";
 
 const PASSWORD_ITERATIONS = 210_000;
 const ACCESS_TTL_SECONDS = 60 * 60;
@@ -26,12 +27,14 @@ async function derivePassword(password, salt, iterations = PASSWORD_ITERATIONS) 
 
 export async function hashPassword(password) {
   if (typeof password !== "string" || password.length < 12 || password.length > 512) throw new Error("password_invalid");
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const derived = await derivePassword(password, salt);
-  return `pbkdf2_sha256$${PASSWORD_ITERATIONS}$${bytesToBase64Url(salt)}$${bytesToBase64Url(derived)}`;
+  return `bcrypt_sha256$${await bcrypt.hash(await sha256(password), 12)}`;
 }
 
 export async function verifyPassword(password, encoded) {
+  if (String(encoded || "").startsWith("bcrypt_sha256$")) {
+    try { return await bcrypt.compare(await sha256(password), String(encoded).slice("bcrypt_sha256$".length)); }
+    catch { return false; }
+  }
   const [algorithm, iterationText, saltText, digestText] = String(encoded || "").split("$");
   const iterations = Number(iterationText);
   if (algorithm !== "pbkdf2_sha256" || !Number.isInteger(iterations) || iterations < 100_000 || iterations > 1_000_000) return false;

@@ -5,13 +5,20 @@ import { handleAuth } from "../src/index.js";
 
 test("password hashes verify without storing the plaintext", async () => {
   const encoded = await hashPassword("correct horse battery staple");
-  assert.match(encoded, /^pbkdf2_sha256\$/);
+  assert.match(encoded, /^bcrypt_sha256\$\$2[ab]\$12\$/);
   assert.equal(await verifyPassword("correct horse battery staple", encoded), true);
   assert.equal(await verifyPassword("wrong password", encoded), false);
 });
 
 test("password hashing enforces the portal minimum", async () => {
   await assert.rejects(() => hashPassword("short"), /password_invalid/);
+});
+
+test("password hashing distinguishes characters after bcrypt's 72-byte boundary", async () => {
+  const prefix = "x".repeat(80);
+  const encoded = await hashPassword(prefix + "a");
+  assert.equal(await verifyPassword(prefix + "a", encoded), true);
+  assert.equal(await verifyPassword(prefix + "b", encoded), false);
 });
 
 test("migration-required marker is never accepted as a password hash", async () => {
