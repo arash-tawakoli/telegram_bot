@@ -1,4 +1,5 @@
 function number(value) {
+  if (value == null || value === "") return null;
   const result = Number(value);
   return Number.isFinite(result) ? result : null;
 }
@@ -9,6 +10,72 @@ function object(value) {
     try { return JSON.parse(value || "{}") || {}; } catch { return {}; }
   }
   return {};
+}
+
+const normalize = value => String(value ?? "").normalize("NFKC").toLocaleLowerCase("de-DE").trim();
+const list = value => Array.isArray(value) ? value : [];
+
+function listingCategory(facts) {
+  const label = normalize([facts?.property_type, facts?.property_kind, facts?.offer_mode, facts?.title].filter(Boolean).join(" "));
+  if (/\b(verkauf|kaufpreis|zum kauf|mietkauf|erbpacht)\b/.test(label) || /\b(wohnung|apartment|wg[ -]*zimmer|zimmer|haus)\s+gesucht\b/.test(label) || /\b(ich|wir)\s+suche(?:n)?\s+.{0,50}(wohnung|apartment|wg[ -]*zimmer|zimmer|haus)/.test(label)) return null;
+  if (/tauschwohnung|wohnungstausch|tauschangebot|\bswap\b/.test(label) && !/(kein(?:e|en)?|ohne)\s+(tauschwohnung|wohnungstausch|tausch)/.test(label)) return "Tauschwohnung";
+  if (/wohnen[ -]+auf[ -]+zeit|zeitwohnen|temporary[ -]+rent|\bwg\b|wohngemeinschaft|wg-zimmer|\broom\b/.test(label)) return "WG";
+  const explicit = normalize(facts?.property_type || facts?.property_kind);
+  if (["haus", "house"].includes(explicit)) return "Haus";
+  if (["wohnung", "apartment", "flat"].includes(explicit)) return "Wohnung";
+  if (/einfamilienhaus|reihenhaus|doppelhaus|stadthaus|haus\s+(?:zur miete|mieten)|\bhouse\b|\bhaus\b(?=\s*$)|villa|bungalow/.test(label)) return "Haus";
+  if (/wohnung|apartment|appartment|\bflat\b|penthouse|maisonette|\bloft\b|\bstudio\b/.test(label)) return "Wohnung";
+  return null;
+}
+
+export function matchesProfile(criteria, facts, sourceId, areas = []) {
+  const types = Array.isArray(criteria.property_types) ? criteria.property_types : criteria.property_type ? [criteria.property_type] : [];
+  if (types.length !== 1 || listingCategory(facts) !== types[0]) return false;
+  const warm = number(facts?.warm_rent), cold = number(facts?.cold_rent), maxRent = number(criteria.max_warm_rent ?? criteria.maxWarmRent);
+  if (criteria.require_known_warm_rent && !(warm > 0)) return false;
+  if (maxRent != null && ((warm > 0 && warm > maxRent) || (!(warm > 0) && !criteria.require_known_warm_rent && cold > maxRent))) return false;
+  const deposit = number(facts?.deposit), maxDeposit = number(criteria.max_deposit);
+  if (maxDeposit != null && (deposit == null || deposit > maxDeposit)) return false;
+  if (criteria.wbs_only && facts?.wbs_required !== true && facts?.wbs_required !== 1) return false;
+  if (criteria.furnished_preference === "yes" && facts?.furnished !== true && facts?.furnished !== 1) return false;
+  if (criteria.furnished_preference === "no" && facts?.furnished !== false && facts?.furnished !== 0) return false;
+  const rooms = number(facts?.rooms), minRooms = number(criteria.min_rooms ?? criteria.minRooms);
+  const area = number(facts?.area_sqm), minArea = number(criteria.min_area_sqm ?? criteria.minAreaSqm ?? (types[0] === "WG" ? criteria.min_room_area_sqm : null));
+  if (minRooms > 0 && rooms > 0 && rooms < minRooms) return false;
+  if (minArea > 0 && area > 0 && area < minArea) return false;
+
+  const city = normalize(facts?.city), state = String(facts?.state_code || "").toUpperCase();
+  const matchingAreas = city ? areas.filter(x => ["municipality", "independent_city"].includes(x.area_type) && normalize(x.name) === city) : [];
+  const isHamburg = state === "HH" || (!state && (city === "hamburg" || city.startsWith("hamburg-") || city.startsWith("hamburg,") || city.startsWith("hamburg ") || (!city && [1, 3, 23, 29, 34, 35].includes(Number(sourceId)))));
+  const isSchleswigHolstein = state === "SH" || (!state && !isHamburg && (matchingAreas.length > 0 || (!city && [69, 71].includes(Number(sourceId)))));
+  const mode = criteria.location_mode;
+  if (mode === "all_hamburg") return isHamburg;
+  if (mode === "all_schleswig_holstein") return isSchleswigHolstein;
+  if (mode === "schleswig_holstein_areas") {
+    if (!isSchleswigHolstein) return false;
+    const wanted = new Set(list(criteria.location_area_codes).map(String));
+    const codes = [facts?.municipality_code, facts?.admin_region_code].filter(Boolean).map(String);
+    if (matchingAreas.length === 1) codes.push(String(matchingAreas[0].area_code), String(matchingAreas[0].parent_code));
+    return codes.some(code => wanted.has(code));
+  }
+  if (mode === "boroughs" || mode === "neighborhoods") {
+    if (!isHamburg) return false;
+    if (mode === "boroughs" && list(criteria.boroughs).length >= 7) return true;
+    const haystack = normalize([facts?.district, facts?.address, facts?.title, facts?.search_text].filter(Boolean).join(" "));
+    const names = [...list(criteria.neighborhoods), ...list(criteria.districts), ...(mode === "boroughs" ? list(criteria.boroughs) : [])];
+    return names.some(name => normalize(name) && haystack.includes(normalize(name)));
+  }
+  return false;
+}
+
+let geoCache = null;
+async function geographicAreas(sql) {
+  if (geoCache && geoCache.expires > Date.now()) return geoCache.areas;
+  const rows = await sql`SELECT payload FROM housing.coach_geo_snapshot WHERE id = ${"de-hh-sh"}`;
+  const areas = object(rows[0]?.payload).schleswigHolsteinAreas;
+  if (!Array.isArray(areas)) throw new Error("geography_unavailable");
+  geoCache = { areas, expires: Date.now() + 5 * 60_000 };
+  return areas;
 }
 
 function berlinDayStartISO(now = new Date()) {
@@ -38,17 +105,11 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts) 
     WHERE sp.active = true
   `;
   let queued = 0;
+  const needsAreas = rows.some(row => String(object(row.criteria).location_mode || "").includes("schleswig_holstein"));
+  const areas = needsAreas ? await geographicAreas(sql) : [];
   for (const row of rows) {
     const criteria = object(row.criteria);
-    const warm = number(facts?.warm_rent);
-    const maxRent = number(criteria.max_warm_rent ?? criteria.maxWarmRent);
-    const rooms = number(facts?.rooms);
-    const minRooms = number(criteria.min_rooms ?? criteria.minRooms);
-    const area = number(facts?.area_sqm);
-    const minArea = number(criteria.min_area_sqm ?? criteria.minAreaSqm);
-    if (maxRent != null && warm != null && warm > maxRent) continue;
-    if (minRooms != null && rooms != null && rooms < minRooms) continue;
-    if (minArea != null && area != null && area < minArea) continue;
+    if (!matchesProfile(criteria, facts, sourceId, areas)) continue;
     const key = `${row.participant_id}:${identityHash}`;
     const inserted = await sql`
       INSERT INTO housing.deliveries (id, participant_id, offer_identity_id, idempotency_key, status)

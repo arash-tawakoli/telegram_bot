@@ -19,4 +19,8 @@ test("ImmoScout MCP entries become minimal offer facts", () => {
 
 test("ImmoScout MCP errors fail closed", () => {
   assert.throws(() => parseMcpToolResult({ result: { isError: true, content: [{ text: "bad" }] } }), /bad/);
+  assert.throws(() => parseMcpToolResult({ result: {} }), /immoscout_inventory_unrecognized/);
+  assert.throws(() => parseMcpToolResult({ result: { structuredContent: { entries: [], total: null } } }), /immoscout_inventory_unrecognized/);
+  assert.throws(() => parseMcpToolResult({ result: { structuredContent: { entries: [], total: 10 } } }), /immoscout_inventory_unrecognized/);
+  assert.deepEqual(parseMcpToolResult({ result: { structuredContent: { entries: [], total: 0 } } }), { entries: [], total: 0 });
 });

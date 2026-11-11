@@ -150,11 +150,18 @@ async function runSource(sql, request, env) {
     homepage_url: connectorConfig.homepage_url || connectorConfig.url || null,
     search_url: connectorConfig.search_url || connectorConfig.url || null,
   };
-  const result = source.family === "immomio"
-    ? await ingestImmomioSource(sql, sourceRow, connectorConfig)
-    : source.family === "immowelt"
-      ? await ingestImmoweltSource(sql, sourceRow, connectorConfig)
-      : await ingestImmoScoutSource(sql, sourceRow, connectorConfig);
+  let result;
+  try {
+    result = source.family === "immomio"
+      ? await ingestImmomioSource(sql, sourceRow, connectorConfig)
+      : source.family === "immowelt"
+        ? await ingestImmoweltSource(sql, sourceRow, connectorConfig)
+        : await ingestImmoScoutSource(sql, sourceRow, connectorConfig);
+  } catch (error) {
+    await sql`UPDATE housing.source_registry SET consecutive_failures = COALESCE(consecutive_failures, 0) + 1 WHERE id = ${source.id}`
+      .catch(updateError => console.error("housing_source_failure_record_failed", String(updateError?.message || updateError)));
+    throw error;
+  }
   await sql`UPDATE housing.source_registry SET last_success_at = now(), consecutive_failures = 0 WHERE id = ${source.id}`;
   return json({ ok: true, source_id: source.id, ...result });
 }

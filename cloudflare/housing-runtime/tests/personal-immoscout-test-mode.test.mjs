@@ -100,7 +100,7 @@ test("matching queues a separate ImmoScout test application only for an opted-in
       return [{
         participant_id: "owner-1",
         telegram_user_id: 8538226539,
-        criteria: JSON.stringify({ max_warm_rent: 1800 }),
+        criteria: JSON.stringify({ max_warm_rent: 1800, property_types: ["Wohnung"], location_mode: "all_hamburg" }),
         test_auto_apply_allowed: 1,
         test_auto_apply_enabled: 1,
         test_auto_apply_daily_limit: 1,
@@ -111,7 +111,7 @@ test("matching queues a separate ImmoScout test application only for an opted-in
     if (/INSERT INTO housing\.applications/i.test(text)) return [{ id: "app-test-1" }];
     return [];
   };
-  const queued = await queueMatches(sql, "offer-1", 1, "1:external:123", { warm_rent: 900, rooms: 2, area_sqm: 65 });
+  const queued = await queueMatches(sql, "offer-1", 1, "1:external:123", { title: "Wohnung in Hamburg", city: "Hamburg", warm_rent: 900, rooms: 2, area_sqm: 65 });
   assert.equal(queued, 1);
   const insert = calls.find((call) => /INSERT INTO housing\.applications/i.test(call.text));
   assert.ok(insert);
