@@ -232,6 +232,20 @@ export function createD1Supabase(db, env) {
 }
 
 async function rpc(client, env, name, args) {
+  if (name === "redeem_referral_code") {
+    const code = String(args.p_code || "").trim();
+    if (!args.p_referred_user_id || !code) return { data: { status: "invalid_code" }, error: null };
+    const owner = (await client.run("SELECT participant_id FROM referral_codes WHERE lower(code)=lower(?) AND active=1 LIMIT 1", [code]))[0];
+    if (!owner) return { data: { status: "invalid_code" }, error: null };
+    if (owner.participant_id === args.p_referred_user_id) return { data: { status: "self_referral" }, error: null };
+    const existing = await client.run("SELECT id FROM referrals WHERE referred_participant_id=? LIMIT 1", [args.p_referred_user_id]);
+    if (existing.length) return { data: { status: "already_registered" }, error: null };
+    const added = await client.run(
+      "INSERT INTO referrals(id,referrer_participant_id,referred_participant_id,status) SELECT ?,?,?,'registered' WHERE EXISTS (SELECT 1 FROM participants WHERE id=?) AND NOT EXISTS (SELECT 1 FROM search_profiles WHERE participant_id=?) ON CONFLICT(referred_participant_id) DO NOTHING",
+      [crypto.randomUUID(), owner.participant_id, args.p_referred_user_id, args.p_referred_user_id, args.p_referred_user_id],
+    );
+    return { data: { status: added.count ? "registered" : "not_new_user", referrer_user_id: owner.participant_id }, error: null };
+  }
   if (name === "get_bot_secret") { const map={telegram_bot_token_runtime:env.TELEGRAM_BOT_TOKEN,telegram_webhook_secret:env.TELEGRAM_WEBHOOK_SECRET,stripe_portal_url:env.STRIPE_PORTAL_URL}; return { data: map[args.secret_name] || null, error: map[args.secret_name] ? null : new Error("secret_unavailable") }; }
   if (name === "issue_portal_bootstrap_token") {
     const telegramUserId = Number(args.p_telegram_user_id || 0);
@@ -330,11 +344,19 @@ async function rpc(client, env, name, args) {
         query: "INSERT OR IGNORE INTO source_links(search_profile_id,source_id) SELECT id,? FROM search_profiles WHERE participant_id=? AND profile_slot=? LIMIT 1",
         params: [source, args.p_user, slot],
       })),
+      {
+        query: "UPDATE participants SET referral_bonus_until=datetime(CASE WHEN julianday(referral_bonus_until)>julianday('now') THEN referral_bonus_until ELSE 'now' END,'+30 days'),referral_bonus_days=referral_bonus_days+30,updated_at=CURRENT_TIMESTAMP WHERE id IN (SELECT referred_participant_id FROM referrals WHERE referred_participant_id=? AND status='registered' UNION SELECT referrer_participant_id FROM referrals WHERE referred_participant_id=? AND status='registered') AND EXISTS (SELECT 1 FROM referrals r JOIN participants p ON p.id=r.referrer_participant_id JOIN participants q ON q.id=r.referred_participant_id WHERE r.referred_participant_id=? AND r.status='registered')",
+        params: [args.p_user, args.p_user, args.p_user],
+      },
+      {
+        query: "UPDATE referrals SET status='rewarded',qualified_at=CURRENT_TIMESTAMP,rewarded_at=CURRENT_TIMESTAMP,premium_granted_until=(SELECT referral_bonus_until FROM participants WHERE id=?) WHERE referred_participant_id=? AND status='registered' AND EXISTS (SELECT 1 FROM participants WHERE id=referrals.referrer_participant_id) AND EXISTS (SELECT 1 FROM participants WHERE id=referrals.referred_participant_id)",
+        params: [args.p_user, args.p_user],
+      },
     ];
-    await client.batch(statements);
+    const results = await client.batch(statements);
     const saved = (await client.run("SELECT id FROM search_profiles WHERE participant_id=? AND profile_slot=? LIMIT 1", [args.p_user, slot]))[0];
     return saved?.id
-      ? { data: { id: saved.id, profile_slot: slot }, error: null }
+      ? { data: { id: saved.id, profile_slot: slot, status: Number(results.at(-1)?.meta?.changes || 0) ? "rewarded" : "none" }, error: null }
       : { data: null, error: new Error("search_profile_save_failed") };
   }
   if (name === "application_profile_missing_fields") { const row=(await client.run("SELECT profile FROM applicant_profiles WHERE participant_id=?",[args.p_user]))[0]; const p=JSON.parse(row?.profile||"{}"); const missing=[]; for(const k of ["first_name","last_name","email","phone","street","house_number","postcode","city"])if(!String(p[k]||"").trim())missing.push(k); return {data:missing,error:null}; }
