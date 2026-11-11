@@ -9,7 +9,7 @@ const TABLES = {
   delivery_events: "deliveries",
   applications: "applications",
   sources: "source_registry",
-  user_subscriptions: null,
+  user_subscriptions: "user_subscriptions",
   saved_listings: null,
   referral_codes: null,
   referrals: null,
@@ -20,6 +20,7 @@ const TABLES = {
 const ALIASES = {
   bot_users: { user_id: "id", chat_id: "telegram_chat_id", is_active: "status", onboarding_state: "telegram_state" },
   search_profiles: { user_id: "participant_id", is_active: "active" },
+  user_subscriptions: { user_id: "participant_id" },
   applicant_profiles: { user_id: "participant_id" },
   platform_connections: { user_id: "participant_id", credential_ciphertext: "ciphertext", credential_iv: "iv" },
   platform_auth_flows: { user_id: "participant_id" },
@@ -61,11 +62,13 @@ function outputRow(table, row) {
     onboarding_step: json(row.telegram_state, {})._step || null,
     telegram_user_id: row.telegram_user_id,
     user_id: row.id,
-    plan_override: null,
-    referral_bonus_until: null,
-    auto_apply_enabled: false,
-    test_auto_apply_allowed: false,
-    test_auto_apply_enabled: false,
+    plan_override: row.plan_override ?? null,
+    plan_override_expires_at: row.plan_override_expires_at ?? null,
+    referral_bonus_until: row.referral_bonus_until ?? null,
+    auto_apply_enabled: bool(row.auto_apply_enabled),
+    test_auto_apply_allowed: bool(row.test_auto_apply_allowed),
+    test_auto_apply_enabled: bool(row.test_auto_apply_enabled),
+    test_auto_apply_daily_limit: Number(row.test_auto_apply_daily_limit ?? 1),
   };
   if (table === "search_profiles") {
     const criteria = json(row.criteria, {});
@@ -171,7 +174,7 @@ export function createD1Supabase(db, env) {
 
 async function rpc(client, env, name, args) {
   if (name === "get_bot_secret") { const map={telegram_bot_token_runtime:env.TELEGRAM_BOT_TOKEN,telegram_webhook_secret:env.TELEGRAM_WEBHOOK_SECRET,stripe_portal_url:env.STRIPE_PORTAL_URL}; return { data: map[args.secret_name] || null, error: map[args.secret_name] ? null : new Error("secret_unavailable") }; }
-  if (name === "prepare_telegram_update") { const payload=args.p_payload||{}; const from=payload.callback_query?.from||payload.message?.from; const chat=payload.callback_query?.message?.chat||payload.message?.chat; if(!from?.id||!chat?.id)return{data:null,error:new Error("telegram_identity_invalid")}; const found=await client.run("SELECT * FROM participants WHERE telegram_user_id=? LIMIT 1",[from.id]); let user=found[0]; if(user) { await client.run("UPDATE participants SET telegram_chat_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",[chat.id,user.id]); } else { const id=crypto.randomUUID(); await client.run("INSERT INTO participants(id,first_name,last_name,telegram_user_id,telegram_chat_id) VALUES(?,?,?,?,?)",[id,from.first_name||"Teilnehmer",from.last_name||"Unbekannt",from.id,chat.id]); await client.run("INSERT OR IGNORE INTO application_preferences(participant_id) VALUES(?)",[id]); user=(await client.run("SELECT * FROM participants WHERE id=?",[id]))[0]; } return { data:{claim:1,is_new_user:!found[0],user:{...user,chat_id:user.telegram_chat_id,is_active:user.status==='active',onboarding_state:JSON.parse(user.telegram_state||'{}'),onboarding_step:null,telegram_user_id:user.telegram_user_id},subscription:null}, error:null}; }
+  if (name === "prepare_telegram_update") { const payload=args.p_payload||{}; const from=payload.callback_query?.from||payload.message?.from; const chat=payload.callback_query?.message?.chat||payload.message?.chat; if(!from?.id||!chat?.id)return{data:null,error:new Error("telegram_identity_invalid")}; const found=await client.run("SELECT * FROM participants WHERE telegram_user_id=? LIMIT 1",[from.id]); let user=found[0]; if(user) { await client.run("UPDATE participants SET telegram_chat_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",[chat.id,user.id]); } else { const id=crypto.randomUUID(); await client.run("INSERT INTO participants(id,first_name,last_name,telegram_user_id,telegram_chat_id) VALUES(?,?,?,?,?)",[id,from.first_name||"Teilnehmer",from.last_name||"Unbekannt",from.id,chat.id]); await client.run("INSERT OR IGNORE INTO application_preferences(participant_id) VALUES(?)",[id]); user=(await client.run("SELECT * FROM participants WHERE id=?",[id]))[0]; } return { data:{claim:1,is_new_user:!found[0],user:{...user,chat_id:user.telegram_chat_id,is_active:user.status==='active',onboarding_state:JSON.parse(user.telegram_state||'{}'),onboarding_step:null,telegram_user_id:user.telegram_user_id},subscription:(await client.run("SELECT status,current_period_end,cancel_at_period_end FROM user_subscriptions WHERE participant_id=? LIMIT 1",[user.id]))[0] || null}, error:null}; }
   if (name === "finish_ui_update") return { data:true,error:null };
   if (name === "save_ui_state") { const state=args.p_state||{}; state._step=args.p_step; await client.run("UPDATE participants SET telegram_state=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",[JSON.stringify(state),args.p_user]); return {data:state,error:null}; }
   if (name === "save_search_profile_ui") {
@@ -205,7 +208,7 @@ async function rpc(client, env, name, args) {
       : { data: null, error: new Error("search_profile_save_failed") };
   }
   if (name === "application_profile_missing_fields") { const row=(await client.run("SELECT profile FROM applicant_profiles WHERE participant_id=?",[args.p_user]))[0]; const p=JSON.parse(row?.profile||"{}"); const missing=[]; for(const k of ["first_name","last_name","email","phone","street","house_number","postcode","city"])if(!String(p[k]||"").trim())missing.push(k); return {data:missing,error:null}; }
-  if (name === "set_application_enabled_shared") { await client.run("INSERT OR REPLACE INTO application_preferences(participant_id,enabled) VALUES(?,?)",[args.p_user,args.p_enabled?1:0]); return {data:{enabled:!!args.p_enabled},error:null}; }
+  if (name === "set_application_enabled_shared") { await client.run("INSERT OR IGNORE INTO application_preferences(participant_id) VALUES(?)",[args.p_user]); await client.run("UPDATE application_preferences SET enabled=?, updated_at=CURRENT_TIMESTAMP WHERE participant_id=?",[args.p_enabled?1:0,args.p_user]); return {data:{enabled:!!args.p_enabled},error:null}; }
   if (name === "set_application_provider_enabled_shared") { const col={immoscout:"immoscout_enabled",immoscout24:"immoscout_enabled",immowelt:"immowelt_enabled",immomio:"immomio_enabled"}[args.p_provider]; if(!col)return{data:null,error:new Error("provider_not_allowlisted")}; await client.run(`INSERT OR IGNORE INTO application_preferences(participant_id) VALUES(?)`,[args.p_user]); await client.run(`UPDATE application_preferences SET ${col}=? WHERE participant_id=?`,[args.p_enabled?1:0,args.p_user]); return {data:{enabled:!!args.p_enabled},error:null}; }
   if (name === "get_schleswig_holstein_areas") return {data:[],error:null};
   return {data:null,error:null};
