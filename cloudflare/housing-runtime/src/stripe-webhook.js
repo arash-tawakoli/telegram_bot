@@ -91,7 +91,7 @@ function upsertSubscription(db, {participantId,customerId,subscriptionId,status,
   return db.prepare(
     "INSERT INTO user_subscriptions(id,participant_id,provider,stripe_customer_id,stripe_subscription_id,status,current_period_end,cancel_at_period_end,last_event_created,updated_at) " +
     "VALUES(?,?,'stripe',?,?,?,?,?,?,CURRENT_TIMESTAMP) " +
-    "ON CONFLICT(participant_id) DO UPDATE SET " +
+    "ON CONFLICT(participant_id,provider) DO UPDATE SET " +
     "stripe_customer_id=COALESCE(excluded.stripe_customer_id,user_subscriptions.stripe_customer_id), " +
     "stripe_subscription_id=COALESCE(excluded.stripe_subscription_id,user_subscriptions.stripe_subscription_id), " +
     "status=excluded.status, " +
@@ -107,6 +107,7 @@ async function processStripeEvent(db, event) {
   const eventCreated = Number(event.created);
   const eventId = event.id;
   const statements = [];
+  let paidParticipantId = null;
   if (event.type === "checkout.session.completed" ||
       event.type === "checkout.session.async_payment_succeeded") {
     const valid = String(object.payment_link || "") === PAYMENT_LINK_ID &&
@@ -116,14 +117,16 @@ async function processStripeEvent(db, event) {
       const participantId=String(object.client_reference_id);
       const participant=await db.prepare("SELECT 1 FROM participants WHERE id=? LIMIT 1").bind(participantId).first();
       if (!participant) throw new Error("stripe_participant_missing");
+      paidParticipantId = participantId;
       statements.push(upsertSubscription(db, {
         participantId,customerId:stripeId(object.customer),subscriptionId:stripeId(object.subscription),
         status:"active",periodEnd:null,cancelAtPeriodEnd:false,eventCreated,
       }));
       statements.push(db.prepare(
         "UPDATE participants SET plan_override=NULL,plan_override_expires_at=NULL,updated_at=CURRENT_TIMESTAMP " +
-        "WHERE id=? AND plan_override='free'",
-      ).bind(participantId));
+        "WHERE id=? AND plan_override='free' AND EXISTS " +
+        "(SELECT 1 FROM user_subscriptions WHERE participant_id=? AND provider='stripe' AND last_event_created=?)",
+      ).bind(participantId,participantId,eventCreated));
     }
   } else if (event.type.startsWith("customer.subscription.")) {
     const subscriptionId=String(object.id||""),customerId=stripeId(object.customer);
@@ -135,6 +138,14 @@ async function processStripeEvent(db, event) {
       status:event.type==="customer.subscription.deleted"?"canceled":String(object.status||"inactive"),
       periodEnd:stripePeriodEnd(object),cancelAtPeriodEnd:Boolean(object.cancel_at_period_end),eventCreated,
     }));
+    statements.push(db.prepare(
+      "UPDATE search_profiles SET active=0,updated_at=CURRENT_TIMESTAMP WHERE participant_id=? AND profile_slot>1 AND EXISTS (" +
+      "SELECT 1 FROM user_subscriptions s JOIN participants p ON p.id=s.participant_id " +
+      "WHERE s.participant_id=? AND s.provider='stripe' AND s.last_event_created=? AND CASE " +
+      "WHEN p.plan_override IN ('free','premium') AND (p.plan_override_expires_at IS NULL OR julianday(p.plan_override_expires_at)>julianday('now')) THEN p.plan_override='free' " +
+      "WHEN julianday(p.referral_bonus_until)>julianday('now') THEN 0 " +
+      "ELSE NOT (s.status IN ('active','trialing') AND (s.current_period_end IS NULL OR julianday(s.current_period_end)>julianday('now'))) END)",
+    ).bind(participantId,participantId,eventCreated));
   }
   // Event acknowledgement and the entitlement update are in a single D1 batch.
   statements.push(db.prepare(
@@ -142,6 +153,23 @@ async function processStripeEvent(db, event) {
   ).bind(eventId));
   const result=await db.batch(statements);
   if (Number(result.at(-1)?.meta?.changes||0)!==1) throw new Error("stripe_event_ack_failed");
+  return paidParticipantId && Number(result[0]?.meta?.changes||0) === 1 ? paidParticipantId : null;
+}
+
+async function notifyPaidCheckout(db, env, participantId) {
+  const participant = await db.prepare("SELECT telegram_chat_id FROM participants WHERE id=?").bind(participantId).first();
+  if (!participant?.telegram_chat_id) return;
+  if (!env.TELEGRAM_BOT_TOKEN) throw new Error("telegram_token_missing");
+  const result = await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      chat_id: participant.telegram_chat_id, parse_mode: "HTML",
+      text: "🎉 <b>Danke für dein Abo!</b>\n\n💎 Dein Traumwohnung Premium-Abo ist jetzt aktiv.\n\n⚡ Sofortige Zustellung neuer passender Inserate\n🔎 Bis zu 4 Suchprofile\n🤖 Auto-Bewerbung\n\nViel Erfolg bei der Wohnungssuche! 🏠",
+      reply_markup: { inline_keyboard: [[{ text: "🏠 Zum Menü", callback_data: "home" }]] },
+    }), signal: AbortSignal.timeout(15_000),
+  });
+  const data = await result.json().catch(() => null);
+  if (!result.ok || data?.ok !== true) throw new Error("telegram_payment_notification_failed");
 }
 
 export async function handleStripeWebhook(request, env) {
@@ -167,7 +195,12 @@ export async function handleStripeWebhook(request, env) {
   if (claim==="busy") return response({error:"processing"},503);
   try {
     // Ignore unrelated Stripe event types, but persist their acknowledgement.
-    await processStripeEvent(db,event);
+    const paidParticipantId = await processStripeEvent(db,event);
+    if (paidParticipantId) {
+      // shortcut: payment messages are best effort, add an outbox if Telegram retries are required.
+      try { await notifyPaidCheckout(db,env,paidParticipantId); }
+      catch { console.error("telegram_payment_notification_failed",event.id); }
+    }
     return response({received:true});
   } catch (error) {
     await claimFailure(db,event.id);

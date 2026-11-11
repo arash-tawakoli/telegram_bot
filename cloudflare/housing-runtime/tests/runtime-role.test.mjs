@@ -5,11 +5,10 @@ import { readFile } from "node:fs/promises";
 const runtime = await readFile(new URL("../src/index.js", import.meta.url), "utf8");
 const schema = await readFile(new URL("../schema/d1/0001_housing_core.sql", import.meta.url), "utf8");
 
-test("housing runtime uses D1 for data and Supabase only for one-time password migration", () => {
+test("housing runtime uses D1 without an upstream authentication dependency", () => {
   assert.match(runtime, /env\.HOUSING_DB/);
   assert.doesNotMatch(runtime, /env\.HYPERDRIVE|env\.LEGACY_D1/);
-  assert.match(runtime, /verifyMigratedSupabasePassword/);
-  assert.deepEqual([...new Set(runtime.match(/SUPABASE_[A-Z_]+/g) || [])].sort(), ["SUPABASE_PUBLISHABLE_KEY", "SUPABASE_URL"]);
+  assert.doesNotMatch(runtime, /SUPABASE_|supabase\.co|verifyMigratedSupabasePassword|verifyRecoveryAccessToken/);
   assert.match(schema, /CREATE TABLE IF NOT EXISTS central_credentials/);
   assert.match(schema, /CREATE TABLE IF NOT EXISTS provider_auth_flows/);
 });
