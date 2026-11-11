@@ -125,6 +125,11 @@ test("paid checkout notifies Telegram once and skips duplicate events",async()=>
   assert.equal((await handleStripeWebhook(await signedEvent(checkout()),env)).status,200);
   assert.equal(messages.length,1);assert.equal(messages[0].chat_id,123456);
   assert.match(messages[0].text,/Premium-Abo ist jetzt aktiv/);
+  const failed={id:'evt_invoicefailed01',type:'invoice.payment_failed',created:1770000010,data:{object:{customer:'cus_123'}}};
+  assert.equal((await handleStripeWebhook(await signedEvent(failed),env)).status,200);
+  assert.equal((await handleStripeWebhook(await signedEvent(failed),env)).status,200);
+  assert.equal(messages.length,2);assert.match(messages[1].text,/Premium-Zahlung fehlgeschlagen/);
+  assert.equal(messages[1].reply_markup.inline_keyboard[0][0].callback_data,'portal');
  } finally {globalThis.fetch=originalFetch;}
 });
 

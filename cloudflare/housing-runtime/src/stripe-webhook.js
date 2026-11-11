@@ -3,13 +3,6 @@
 const PAYMENT_LINK_ID = "plink_1UAy8Z2NorDNIWqI9h5j73q0";
 const MAX_BODY_BYTES = 128 * 1024;
 const SIGNATURE_TOLERANCE_SECONDS = 300;
-const ACTIVE_EVENTS = new Set([
-  "checkout.session.completed",
-  "checkout.session.async_payment_succeeded",
-  "customer.subscription.created",
-  "customer.subscription.updated",
-  "customer.subscription.deleted",
-]);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function response(body, status = 200) {
@@ -113,6 +106,7 @@ async function processStripeEvent(db, event) {
   const eventId = event.id;
   const statements = [];
   let paidParticipantId = null;
+  let failedParticipantId = null;
   if (event.type === "checkout.session.completed" ||
       event.type === "checkout.session.async_payment_succeeded") {
     const valid = String(object.payment_link || "") === PAYMENT_LINK_ID &&
@@ -151,6 +145,8 @@ async function processStripeEvent(db, event) {
       "WHEN julianday(p.referral_bonus_until)>julianday('now') THEN 0 " +
       "ELSE NOT (s.status IN ('active','trialing') AND (s.current_period_end IS NULL OR julianday(s.current_period_end)>julianday('now'))) END)",
     ).bind(participantId,participantId,eventCreated));
+  } else if (event.type === "invoice.payment_failed") {
+    failedParticipantId = await subscriberFor(db,"",stripeId(object.customer));
   }
   // Event acknowledgement and the entitlement update are in a single D1 batch.
   statements.push(db.prepare(
@@ -158,10 +154,11 @@ async function processStripeEvent(db, event) {
   ).bind(eventId));
   const result=await db.batch(statements);
   if (Number(result.at(-1)?.meta?.changes||0)!==1) throw new Error("stripe_event_ack_failed");
-  return paidParticipantId && Number(result[0]?.meta?.changes||0) === 1 ? paidParticipantId : null;
+  if (paidParticipantId && Number(result[0]?.meta?.changes||0) === 1) return {participantId:paidParticipantId,failed:false};
+  return failedParticipantId ? {participantId:failedParticipantId,failed:true} : null;
 }
 
-async function notifyPaidCheckout(db, env, participantId) {
+async function notifyPayment(db, env, {participantId,failed}) {
   const participant = await db.prepare("SELECT telegram_chat_id FROM participants WHERE id=?").bind(participantId).first();
   if (!participant?.telegram_chat_id) return;
   if (!env.TELEGRAM_BOT_TOKEN) throw new Error("telegram_token_missing");
@@ -169,8 +166,8 @@ async function notifyPaidCheckout(db, env, participantId) {
     method: "POST", headers: { "content-type": "application/json" },
     body: JSON.stringify({
       chat_id: participant.telegram_chat_id, parse_mode: "HTML",
-      text: "🎉 <b>Danke für dein Abo!</b>\n\n💎 Dein Traumwohnung Premium-Abo ist jetzt aktiv.\n\n⚡ Sofortige Zustellung neuer passender Inserate\n🔎 Bis zu 4 Suchprofile\n🤖 Auto-Bewerbung\n\nViel Erfolg bei der Wohnungssuche! 🏠",
-      reply_markup: { inline_keyboard: [[{ text: "🏠 Zum Menü", callback_data: "home" }]] },
+      text: failed ? "⚠️ <b>Premium-Zahlung fehlgeschlagen</b>\n\nBitte aktualisiere deine Zahlungsmethode über „Abo verwalten“." : "🎉 <b>Danke für dein Abo!</b>\n\n💎 Dein Traumwohnung Premium-Abo ist jetzt aktiv.\n\n⚡ Sofortige Zustellung neuer passender Inserate\n🔎 Bis zu 4 Suchprofile\n🤖 Auto-Bewerbung\n\nViel Erfolg bei der Wohnungssuche! 🏠",
+      reply_markup: { inline_keyboard: [[failed ? { text: "💳 Abo verwalten", callback_data: "portal" } : { text: "🏠 Zum Menü", callback_data: "home" }]] },
     }), signal: AbortSignal.timeout(15_000),
   });
   const data = await result.json().catch(() => null);
@@ -200,10 +197,10 @@ export async function handleStripeWebhook(request, env) {
   if (claim==="busy") return response({error:"processing"},503);
   try {
     // Ignore unrelated Stripe event types, but persist their acknowledgement.
-    const paidParticipantId = await processStripeEvent(db,event);
-    if (paidParticipantId) {
+    const notice = await processStripeEvent(db,event);
+    if (notice) {
       // shortcut: payment messages are best effort, add an outbox if Telegram retries are required.
-      try { await notifyPaidCheckout(db,env,paidParticipantId); }
+      try { await notifyPayment(db,env,notice); }
       catch { console.error("telegram_payment_notification_failed",event.id); }
     }
     return response({received:true});
