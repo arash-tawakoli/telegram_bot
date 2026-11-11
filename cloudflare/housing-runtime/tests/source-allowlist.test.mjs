@@ -9,7 +9,7 @@ import {
 } from "../src/source-allowlist.js";
 
 test("allowlist contains only the verified housing source families", () => {
-  assert.equal(HOUSING_SOURCES.length, 9);
+  assert.equal(HOUSING_SOURCES.length, 13);
   assert.deepEqual(
     [...new Set(HOUSING_SOURCES.map((source) => source.family))].sort(),
     ["immomio", "immoscout24", "immowelt"],

@@ -21,6 +21,7 @@ const HEADERS = {
   "referrer-policy": "no-referrer",
 };
 const SOURCE_ROTATION = [1, 3, 23, 29, 34, 35, 66, 69, 71];
+const SHADOW_SOURCES = [30, 32, 36, 39];
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: HEADERS });
@@ -191,8 +192,8 @@ async function processDelivery(sql, request, env) {
       FOR UPDATE SKIP LOCKED
     `;
     if (!rows[0]) return null;
-    await tx`UPDATE housing.deliveries SET status = 'processing', attempts = attempts + 1 WHERE id = ${rows[0].id}`;
-    return rows[0];
+    const won = await tx`UPDATE housing.deliveries SET status = 'processing', attempts = attempts + 1 WHERE id = ${rows[0].id} AND status = 'pending' RETURNING id`;
+    return won.length ? rows[0] : null;
   });
   if (!claimed) return json({ ok: true, status: "idle" });
   if (!claimed.telegram_chat_id) {
@@ -204,8 +205,12 @@ async function processDelivery(sql, request, env) {
     await sql`UPDATE housing.deliveries SET status = 'failed' WHERE id = ${claimed.id}`;
     return json({ error: "telegram_token_missing" }, 503);
   }
-  const facts = { ...(claimed.facts || {}), canonical_url: claimed.canonical_url };
-  const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ chat_id: claimed.telegram_chat_id, text: telegramText(facts), parse_mode: "HTML", disable_web_page_preview: false }), signal: AbortSignal.timeout(15_000) });
+  let details = claimed.facts;
+  if (typeof details === "string") {
+    try { details = JSON.parse(details); } catch { details = {}; }
+  }
+  const facts = { ...(details && typeof details === "object" ? details : {}), canonical_url: claimed.canonical_url };
+  const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ chat_id: claimed.telegram_chat_id, text: telegramText(facts), parse_mode: "HTML", disable_web_page_preview: false, reply_markup: { inline_keyboard: [[{ text: "⭐ Speichern", callback_data: `save:${claimed.offer_identity_id}` }]] } }), signal: AbortSignal.timeout(15_000) });
   const result = await response.json().catch(() => null);
   if (!response.ok || result?.ok !== true) {
     await sql`UPDATE housing.deliveries SET status = 'failed' WHERE id = ${claimed.id}`;
@@ -217,17 +222,19 @@ async function processDelivery(sql, request, env) {
 
 async function runScheduledHousingWork(env) {
   const minute = Math.floor(Date.now() / 60_000);
-  const sourceId = SOURCE_ROTATION[minute % SOURCE_ROTATION.length];
-  const sourceRequest = new Request("https://housing-runtime.internal/internal/source/run", {
-    method: "POST",
-    headers: { authorization: `Bearer ${env.SOURCE_RUN_TOKEN || ""}`, "content-type": "application/json" },
-    body: JSON.stringify({ source_id: sourceId }),
-  });
-  try {
-    await withDatabase(env, (sql) => runSource(sql, sourceRequest, env));
-  } catch (error) {
-    console.error("housing_source_scheduled_failed", JSON.stringify({ source_id: sourceId, error: String(error?.message || error) }));
-  }
+  const runScheduledSource = async (sourceId) => {
+    const sourceRequest = new Request("https://housing-runtime.internal/internal/source/run", {
+      method: "POST",
+      headers: { authorization: `Bearer ${env.SOURCE_RUN_TOKEN || ""}`, "content-type": "application/json" },
+      body: JSON.stringify({ source_id: sourceId }),
+    });
+    try {
+      await withDatabase(env, (sql) => runSource(sql, sourceRequest, env));
+    } catch (error) {
+      console.error("housing_source_scheduled_failed", JSON.stringify({ source_id: sourceId, error: String(error?.message || error) }));
+    }
+  };
+  await runScheduledSource(SOURCE_ROTATION[minute % SOURCE_ROTATION.length]);
 
   for (let index = 0; index < 5; index++) {
     const deliveryRequest = new Request("https://housing-runtime.internal/internal/delivery/process?fresh_only=1", {
@@ -259,6 +266,7 @@ async function runScheduledHousingWork(env) {
   } catch (error) {
     console.error("housing_application_scheduled_failed", String(error?.message || error));
   }
+  if (minute % 5 === 0) await runScheduledSource(SHADOW_SOURCES[Math.floor(minute / 5) % SHADOW_SOURCES.length]);
 }
 
 export async function handleAuth(sql, request, env = {}) {
