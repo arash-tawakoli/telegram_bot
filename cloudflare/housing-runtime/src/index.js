@@ -21,6 +21,7 @@ const HEADERS = {
   "referrer-policy": "no-referrer",
 };
 const SOURCE_ROTATION = [1, 3, 23, 29, 34, 35, 66, 69, 71];
+const SHADOW_SOURCES = [30, 32, 36, 39];
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: HEADERS });
@@ -217,16 +218,19 @@ async function processDelivery(sql, request, env) {
 
 async function runScheduledHousingWork(env) {
   const minute = Math.floor(Date.now() / 60_000);
-  const sourceId = SOURCE_ROTATION[minute % SOURCE_ROTATION.length];
-  const sourceRequest = new Request("https://housing-runtime.internal/internal/source/run", {
-    method: "POST",
-    headers: { authorization: `Bearer ${env.SOURCE_RUN_TOKEN || ""}`, "content-type": "application/json" },
-    body: JSON.stringify({ source_id: sourceId }),
-  });
-  try {
-    await withDatabase(env, (sql) => runSource(sql, sourceRequest, env));
-  } catch (error) {
-    console.error("housing_source_scheduled_failed", JSON.stringify({ source_id: sourceId, error: String(error?.message || error) }));
+  const sources = [SOURCE_ROTATION[minute % SOURCE_ROTATION.length]];
+  if (minute % 5 === 0) sources.push(SHADOW_SOURCES[Math.floor(minute / 5) % SHADOW_SOURCES.length]);
+  for (const sourceId of sources) {
+    const sourceRequest = new Request("https://housing-runtime.internal/internal/source/run", {
+      method: "POST",
+      headers: { authorization: `Bearer ${env.SOURCE_RUN_TOKEN || ""}`, "content-type": "application/json" },
+      body: JSON.stringify({ source_id: sourceId }),
+    });
+    try {
+      await withDatabase(env, (sql) => runSource(sql, sourceRequest, env));
+    } catch (error) {
+      console.error("housing_source_scheduled_failed", JSON.stringify({ source_id: sourceId, error: String(error?.message || error) }));
+    }
   }
 
   for (let index = 0; index < 5; index++) {

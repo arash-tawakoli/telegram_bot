@@ -35,8 +35,8 @@ async function resolveHomepage(url) {
   const response = await fetch(String(url), { headers: { accept: "text/html", "user-agent": "TraumWohnungHamburg/1.0" }, signal: AbortSignal.timeout(12_000) });
   if (!response.ok) throw new Error(`immomio_homepage_${response.status}`);
   const html = await response.text();
-  const match = html.match(/(?:src|href)=["']([^"']*homepage\.immomio\.com[^"']+)["']/i);
-  const resolved = match ? new URL(match[1], response.url).href : "";
+  const match = html.match(/\b(?:src|href)\s*=\s*(?:["']([^"']*homepage\.immomio\.com[^"']+)["']|([^\s>]*homepage\.immomio\.com[^\s>]*))/i);
+  const resolved = match ? new URL((match[1] || match[2]).replace(/&amp;/gi, "&"), response.url).href : "";
   const token = tokenFrom(resolved);
   if (!token) throw new Error("immomio_token_missing");
   return { url: resolved, token };
@@ -75,6 +75,12 @@ export async function fetchImmomioSource(source, config = {}) {
   const expectedTenant = tenantFrom(tokenFrom(config.url || source.homepage_url || source.search_url));
   const actualTenant = tenantFrom(resolved.token);
   if (expectedTenant && actualTenant && expectedTenant !== actualTenant) throw new Error("immomio_tenant_mismatch");
+  if (config.tenant_hash) {
+    if (!actualTenant) throw new Error("immomio_tenant_missing");
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(actualTenant));
+    const hash = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, "0")).join("");
+    if (hash !== config.tenant_hash) throw new Error("immomio_tenant_mismatch");
+  }
   const nodes = [];
   const seen = new Set();
   let total = 0;
@@ -114,7 +120,7 @@ export async function ingestImmomioSource(sql, source, config = {}) {
     `;
     if (rows.length) {
       inserted++;
-      await queueMatches(sql, rows[0].id, node.source_id, node.source_id + ":external:" + node.identity, { ...node.facts, canonical_url: node.canonical_url });
+      if (config.queue_matches !== false) await queueMatches(sql, rows[0].id, node.source_id, node.source_id + ":external:" + node.identity, { ...node.facts, canonical_url: node.canonical_url });
     }
   }
   return { fetched: result.fetched, valid: result.nodes.length, inserted, pages: result.pages };
