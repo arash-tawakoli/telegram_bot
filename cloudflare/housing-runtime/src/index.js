@@ -210,7 +210,7 @@ async function processDelivery(sql, request, env) {
     try { details = JSON.parse(details); } catch { details = {}; }
   }
   const facts = { ...(details && typeof details === "object" ? details : {}), canonical_url: claimed.canonical_url };
-  const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ chat_id: claimed.telegram_chat_id, text: telegramText(facts), parse_mode: "HTML", disable_web_page_preview: false }), signal: AbortSignal.timeout(15_000) });
+  const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ chat_id: claimed.telegram_chat_id, text: telegramText(facts), parse_mode: "HTML", disable_web_page_preview: false, reply_markup: { inline_keyboard: [[{ text: "⭐ Speichern", callback_data: `save:${claimed.offer_identity_id}` }]] } }), signal: AbortSignal.timeout(15_000) });
   const result = await response.json().catch(() => null);
   if (!response.ok || result?.ok !== true) {
     await sql`UPDATE housing.deliveries SET status = 'failed' WHERE id = ${claimed.id}`;
