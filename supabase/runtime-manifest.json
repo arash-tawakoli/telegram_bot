@@ -1146,7 +1146,11 @@
       "known_source_drift": [
         {
           "path": "supabase/functions/notification-dispatcher/index.ts",
-          "reason": "The staged Cloudflare cutover removes Kleinanzeigen-specific notification rendering before the Cloudflare Kleinanzeigen connector is available. This source is not deployed; keep the live Supabase dispatcher at its archived artifact until provider parity is complete."
+          "reason": "The shared cutover delivery guard is staged and not deployed; live notification-dispatcher version 364 remains in use until both sides and their handoff are verified."
+        },
+        {
+          "path": "supabase/functions/notification-dispatcher/delivery-lease.ts",
+          "reason": "The cutover bridge helpers are staged and not deployed; live notification-dispatcher version 364 remains unchanged."
         },
         {
           "path": "supabase/functions/notification-dispatcher/availability.ts",

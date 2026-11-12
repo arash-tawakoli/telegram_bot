@@ -6,6 +6,7 @@ import { ingestImmomioSource } from "./immomio-source.js";
 import { ingestImmoweltSource } from "./immowelt-source.js";
 import { ingestImmoScoutSource } from "./immoscout-source.js";
 import { runScoutShadow } from "./scout-shadow.js";
+import { deliveryCutoverLedger, reconcileCloudflareDeliveries } from "./delivery-cutover-ledger.js";
 import { telegramText } from "./matching.js";
 import { createSession, hashPassword, memberForAccess, refreshSession, revokeSession, sha256, verifyPassword } from "./auth.js";
 import { handleCoach } from "./coach-api.js";
@@ -178,8 +179,8 @@ async function processDelivery(sql, request, env) {
       FROM housing.deliveries d
       JOIN housing.participants p ON p.id = d.participant_id
       JOIN housing.offer_identities oi ON oi.id = d.offer_identity_id
-      WHERE d.status = 'pending' AND d.created_at >= now() - interval '15 minutes'
-      ORDER BY d.created_at
+      WHERE d.status = 'pending' AND (d.created_at >= now() - interval '15 minutes' OR d.error_message = 'cutover_waiting')
+      ORDER BY CASE WHEN d.error_message = 'cutover_waiting' THEN 1 ELSE 0 END, d.created_at
       LIMIT 1
       FOR UPDATE SKIP LOCKED
     ` : await tx`
@@ -206,23 +207,69 @@ async function processDelivery(sql, request, env) {
     await sql`UPDATE housing.deliveries SET status = 'failed' WHERE id = ${claimed.id}`;
     return json({ error: "telegram_token_missing" }, 503);
   }
+  const cutover = env.DELIVERY_CUTOVER_ENABLED === "1";
+  const ledgerInput = { participant_id: claimed.participant_id, url: claimed.canonical_url, owner: `cloudflare:${claimed.id}` };
+  const ledger = action => deliveryCutoverLedger(env.HOUSING_DB, { ...ledgerInput, action });
+  const defer = async () => {
+    await sql`UPDATE housing.deliveries SET status = 'pending', error_message = 'cutover_waiting' WHERE id = ${claimed.id} AND status = 'processing'`;
+    return json({ ok: true, status: "deferred" });
+  };
+  if (cutover) {
+    if (!env.DELIVERY_CUTOVER_SECRET) return defer();
+    try {
+      const reservation = await ledger("claim");
+      if (reservation.status === "already_sent") {
+        await sql`UPDATE housing.deliveries SET status = 'skipped', error_message = 'cutover_duplicate' WHERE id = ${claimed.id}`;
+        return json({ ok: true, status: "skipped", reason: "cutover_duplicate" });
+      }
+      if (reservation.status === "unknown") {
+        await sql`UPDATE housing.deliveries SET status = 'failed', error_message = 'cutover_outcome_unknown' WHERE id = ${claimed.id}`;
+        return json({ ok: true, status: "failed", reason: "cutover_outcome_unknown" });
+      }
+      if (reservation.status !== "claimed" || (await ledger("begin")).status !== "sending") return defer();
+    } catch {
+      await ledger("release").catch(() => {});
+      console.error("delivery_cutover_claim_failed");
+      return defer();
+    }
+  }
   let details = claimed.facts;
   if (typeof details === "string") {
     try { details = JSON.parse(details); } catch { details = {}; }
   }
   const facts = { ...(details && typeof details === "object" ? details : {}), canonical_url: claimed.canonical_url };
-  const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ chat_id: claimed.telegram_chat_id, text: telegramText(facts), parse_mode: "HTML", disable_web_page_preview: false, reply_markup: { inline_keyboard: [[{ text: "⭐ Speichern", callback_data: `save:${claimed.offer_identity_id}` }]] } }), signal: AbortSignal.timeout(15_000) });
+  let response;
+  try {
+    response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ chat_id: claimed.telegram_chat_id, text: telegramText(facts), parse_mode: "HTML", disable_web_page_preview: false, reply_markup: { inline_keyboard: [[{ text: "⭐ Speichern", callback_data: `save:${claimed.offer_identity_id}` }]] } }), signal: AbortSignal.timeout(15_000) });
+  } catch (error) {
+    if (cutover) await ledger("unknown").catch(() => {});
+    throw error;
+  }
   const result = await response.json().catch(() => null);
   if (!response.ok || result?.ok !== true) {
+    if (cutover) await ledger([400, 401, 403, 404, 409, 429].includes(response.status) ? "release" : "unknown");
     await sql`UPDATE housing.deliveries SET status = 'failed' WHERE id = ${claimed.id}`;
     return json({ error: "telegram_delivery_failed" }, 503);
   }
-  await sql`UPDATE housing.deliveries SET status = 'sent', telegram_message_id = ${Number(result.result?.message_id || 0)}, sent_at = now() WHERE id = ${claimed.id}`;
+  if (cutover && (!Number.isSafeInteger(result.result?.message_id) || result.result.message_id < 1)) {
+    await ledger("unknown");
+    await sql`UPDATE housing.deliveries SET status = 'failed', error_message = 'cutover_outcome_unknown' WHERE id = ${claimed.id}`;
+    return json({ error: "telegram_delivery_unknown" }, 503);
+  }
+  await sql`UPDATE housing.deliveries SET status = 'sent', telegram_message_id = ${Number(result.result?.message_id || 0)}, sent_at = now(), error_message = NULL WHERE id = ${claimed.id}`;
+  if (cutover && (await ledger("sent").catch(() => ({ status: "unavailable" }))).status !== "sent") {
+    console.error("delivery_cutover_confirmation_failed");
+    return json({ ok: true, status: "sent", ledger_status: "pending" });
+  }
   return json({ ok: true, status: "sent", delivery_id: claimed.id });
 }
 
 async function runScheduledHousingWork(env) {
   const minute = Math.floor(Date.now() / 60_000);
+  if (env.DELIVERY_CUTOVER_ENABLED === "1" && env.DELIVERY_CUTOVER_SECRET) {
+    try { await reconcileCloudflareDeliveries(env.HOUSING_DB); }
+    catch { console.error("delivery_cutover_reconciliation_failed"); }
+  }
   const runScheduledSource = async (sourceId) => {
     const sourceRequest = new Request("https://housing-runtime.internal/internal/source/run", {
       method: "POST",
@@ -415,6 +462,18 @@ export default {
     }
 
     if (routePath === "/stripe/webhook") return handleStripeWebhook(request, env);
+
+    if (routePath === "/internal/delivery-cutover-ledger" && request.method === "POST") {
+      const secret = String(env.DELIVERY_CUTOVER_SECRET || "");
+      if (!secret || !env.HOUSING_DB) return json({ error: "cutover_ledger_unavailable" }, 503);
+      if (!await sameSecret(request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") || "", secret)) return json({ error: "unauthorized" }, 401);
+      try { return json(await deliveryCutoverLedger(env.HOUSING_DB, await request.json().catch(() => null))); }
+      catch (error) {
+        if (["invalid_ledger_request", "invalid_listing_url", "unsupported_listing_url"].includes(String(error?.message))) return json({ error: String(error.message) }, 400);
+        console.error("delivery_cutover_ledger_failed");
+        return json({ error: "cutover_ledger_unavailable" }, 503);
+      }
+    }
 
     if ((url.pathname === "/telegram/webhook" || routePath === "/telegram/webhook") && request.method === "POST") {
       try { return await telegramWebhook(request, env); }

@@ -4,8 +4,8 @@
       "version": "20261103173035",
       "name": "enable_cloudflare_housing_hyperdrive_login",
       "file": "supabase/migrations/20261103173035_enable_cloudflare_housing_hyperdrive_login.sql",
-      "registry_sql_sha256": "e8f270ac0ea14c1938409c70d876ed3aeda78e96de9a075910f561f40efdff80",
-      "export_sql_sha256": "e8f270ac0ea14c1938409c70d876ed3aeda78e96de9a075910f561f40efdff80",
+      "registry_sql_sha256": "c9a67de12be7065820bbc1a369718f833e6f759cd5b8505cb1080bc1ee54babb",
+      "export_sql_sha256": "c9a67de12be7065820bbc1a369718f833e6f759cd5b8505cb1080bc1ee54babb",
       "vault_substitution": false
     }
   ]
