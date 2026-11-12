@@ -93,7 +93,7 @@ function outputRow(table, row) {
   if (table === "delivery_events") return { ...row, listing_id: row.offer_identity_id, profile_id: row.participant_id };
   if (table === "applications") return { ...row, user_id: row.participant_id, listing_id: row.offer_identity_id, test_mode: bool(row.test_mode) };
   if (table === "platform_auth_flows") return { ...row, user_id: row.participant_id, context: json(row.context, {}) };
-  if (table === "application_preferences") return { ...row, user_id: row.participant_id, enabled: bool(row.enabled), immoscout_enabled: bool(row.immoscout_enabled), kleinanzeigen_enabled: bool(row.kleinanzeigen_enabled), immomio_enabled: bool(row.immomio_enabled), immowelt_enabled: bool(row.immowelt_enabled) };
+  if (table === "application_preferences") return { ...row, user_id: row.participant_id, enabled: bool(row.enabled), immoscout_enabled: bool(row.immoscout_enabled), immomio_enabled: bool(row.immomio_enabled), immowelt_enabled: bool(row.immowelt_enabled) };
   if (table === "user_subscriptions") return { ...row, user_id: row.participant_id, cancel_at_period_end: bool(row.cancel_at_period_end) };
   if (table === "saved_listings") return { ...row, user_id: row.participant_id, listing_id: row.offer_identity_id };
   if (table === "referral_codes") return { ...row, user_id: row.participant_id, active: bool(row.active) };
@@ -435,7 +435,7 @@ async function rpc(client, env, name, args) {
     await client.run("UPDATE participants SET auto_apply_enabled=?,updated_at=CURRENT_TIMESTAMP WHERE id=?", [enabled ? 1 : 0, args.p_user]);
     return { data: { enabled }, error: null };
   }
-  if (name === "set_application_provider_enabled_shared") { const col={immoscout:"immoscout_enabled",immoscout24:"immoscout_enabled",kleinanzeigen:"kleinanzeigen_enabled",immowelt:"immowelt_enabled",immomio:"immomio_enabled"}[args.p_provider]; if(!col)return{data:null,error:new Error("provider_not_allowlisted")}; await client.run(`INSERT OR IGNORE INTO application_preferences(participant_id) VALUES(?)`,[args.p_user]); await client.run(`UPDATE application_preferences SET ${col}=? WHERE participant_id=?`,[args.p_enabled?1:0,args.p_user]); return {data:{enabled:!!args.p_enabled},error:null}; }
+  if (name === "set_application_provider_enabled_shared") { const col={immoscout:"immoscout_enabled",immoscout24:"immoscout_enabled",immowelt:"immowelt_enabled",immomio:"immomio_enabled"}[args.p_provider]; if(!col)return{data:null,error:new Error("provider_not_allowlisted")}; await client.run(`INSERT OR IGNORE INTO application_preferences(participant_id) VALUES(?)`,[args.p_user]); await client.run(`UPDATE application_preferences SET ${col}=? WHERE participant_id=?`,[args.p_enabled?1:0,args.p_user]); return {data:{enabled:!!args.p_enabled},error:null}; }
   if (name === "get_schleswig_holstein_areas") {
     const row = (await client.run("SELECT payload FROM coach_geo_snapshot WHERE id='de-hh-sh' LIMIT 1"))[0];
     if (!row?.payload) return { data: null, error: new Error("geography_snapshot_missing") };
