@@ -5,6 +5,7 @@ import { sourceForId } from "./source-allowlist.js";
 import { ingestImmomioSource } from "./immomio-source.js";
 import { ingestImmoweltSource } from "./immowelt-source.js";
 import { ingestImmoScoutSource } from "./immoscout-source.js";
+import { runScoutShadow } from "./scout-shadow.js";
 import { telegramText } from "./matching.js";
 import { createSession, hashPassword, memberForAccess, refreshSession, revokeSession, sha256, verifyPassword } from "./auth.js";
 import { handleCoach } from "./coach-api.js";
@@ -267,6 +268,11 @@ async function runScheduledHousingWork(env) {
     console.error("housing_application_scheduled_failed", String(error?.message || error));
   }
   if (minute % 5 === 0) await runScheduledSource(SHADOW_SOURCES[Math.floor(minute / 5) % SHADOW_SOURCES.length]);
+  try {
+    await runScoutShadow(env.HOUSING_DB);
+  } catch (error) {
+    console.error("scout_shadow_scan_failed", String(error?.message || error));
+  }
 }
 
 export async function handleAuth(sql, request, env = {}) {
