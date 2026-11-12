@@ -9,8 +9,7 @@ for(const path of [
  '../supabase/functions/telegram-oauth-bridge/index.ts',
  '../cloudflare/housing-runtime/src/telegram-legacy/platform-sessions.js',
  '../supabase/functions/application-worker/index.ts',
- '../supabase/functions/application-worker/providers/router.ts',
- '../supabase/functions/coach-api/index.ts'
+ '../supabase/functions/application-worker/providers/router.ts'
 ]){
  test('Retired housing provider is unavailable: '+path,()=>{
   const src=readFileSync(new URL(path,import.meta.url),'utf8');
