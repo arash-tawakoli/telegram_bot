@@ -63,7 +63,8 @@ test("cutover ledger is disabled without a secret and reserves a delivery only o
     assert.equal((await (await worker.fetch(req(input("claim", legacy, gallery)), env)).json()).status, "claimed");
     assert.equal((await (await worker.fetch(req(input("begin", legacy, gallery)), env)).json()).status, "sending");
     assert.equal((await (await worker.fetch(req(input("sent", legacy, gallery)), env)).json()).status, "sent");
-    assert.equal((await (await worker.fetch(req(input("resume", legacy, gallery)), env)).json()).status, "sending");
+    assert.equal((await (await worker.fetch(req(input("resume", legacy, gallery)), env)).json()).status, "not_owner");
+    assert.equal((await (await worker.fetch(req(input("resume_partial", legacy, gallery)), env)).json()).status, "sending");
     assert.equal((await (await worker.fetch(req(input("claim", cloudflare, gallery)), env)).json()).status, "already_sent");
     assert.equal(sqlite.prepare("SELECT count(*) AS n FROM deliveries").get().n, 0);
     assert.equal(sqlite.prepare("SELECT count(*) AS n FROM applications").get().n, 0);

@@ -21,7 +21,7 @@ function fixture({ replies = {}, send = async () => ({ message_id: 7 }), progres
     Deno: { serve(fn) { handler = fn; } }, crypto: { randomUUID: () => "lease" }, Response, Date, Map, Set, Number, String, console,
     db, sec: async name => name === "internal_worker_secret" ? "internal" : "telegram",
     shouldProtectDelivery: () => true,
-    callCutoverBridge: async (_secret, action) => { calls.push(action); return replies[action] || ({ claim: "claimed", begin: "sending", resume: "sending", sent: "sent", unknown: "unknown", release: "released" })[action]; },
+    callCutoverBridge: async (_secret, action) => { calls.push(action); return replies[action] || ({ claim: "claimed", begin: "sending", resume: "not_owner", resume_partial: "sending", sent: "sent", unknown: "unknown", release: "released" })[action]; },
     probeSagaRecoveryCandidate: async () => ({ checked: 0 }), hydrateSagaListing: async listing => ({ listing, meta: { isSaga: false, ref: null, application: null }, status: "not_saga", record: null }), sagaAlreadyReceived: async () => false, syncApplicationStatus: async () => ({ ok: true }),
     recoverDeliveries: async () => {}, waitForDispatchSlot: async () => true, claimDelivery: async () => ({ id: "event", attempt: 1 }), finishDelivery: async (_db, _lease, result) => finishes.push(result),
     premium: () => false, deliveryNewnessCheck: () => ({ ok: true }), knownFacts: () => ({ published_text: null }), enrich: async listing => ({ ...listing, _availability: "online" }), send, TelegramFailure,
@@ -33,13 +33,13 @@ function fixture({ replies = {}, send = async () => ({ message_id: 7 }), progres
 test("legacy dispatcher skips a listing already sent by Cloudflare", async () => {
   let sends = 0; const f = fixture({ replies: { claim: "already_sent" }, send: async () => { sends++; } });
   assert.equal((await f.run()).status, 200);
-  assert.equal(sends, 0); assert.deepEqual(f.calls, ["claim"]); assert.equal(f.finishes[0].status, "skipped");
+  assert.equal(sends, 0); assert.deepEqual(f.calls, ["resume", "claim"]); assert.equal(f.finishes[0].status, "skipped");
 });
 
 test("legacy dispatcher reserves, begins and confirms one successful send", async () => {
   let sends = 0; const f = fixture({ send: async () => { sends++; return { message_id: 7 }; } });
   assert.equal((await f.run()).status, 200);
-  assert.equal(sends, 1); assert.deepEqual(f.calls, ["claim", "begin", "sent"]); assert.equal(f.finishes[0].status, "sent");
+  assert.equal(sends, 1); assert.deepEqual(f.calls, ["resume", "claim", "begin", "sent"]); assert.equal(f.finishes[0].status, "sent");
 });
 
 test("busy and unknown deliveries are not sent", async () => {
@@ -53,10 +53,10 @@ test("busy and unknown deliveries are not sent", async () => {
 
 test("uncertain sends remain blocked; a checkpointed gallery resumes under the same owner", async () => {
   const uncertain = fixture({ send: async () => { throw new TelegramFailure("timeout", true); } });
-  await uncertain.run(); assert.deepEqual(uncertain.calls, ["claim", "begin", "unknown"]); assert.equal(uncertain.finishes[0].delivery_outcome_unknown, true);
+  await uncertain.run(); assert.deepEqual(uncertain.calls, ["resume", "claim", "begin", "unknown"]); assert.equal(uncertain.finishes[0].delivery_outcome_unknown, true);
   let attempts = 0; const progress = { version: 1, next: 1, in_flight: false };
   const resumed = fixture({ progress, send: async () => { if (++attempts === 1) throw new TelegramFailure("continue", false, false, 1); return { message_id: 7 }; } });
-  await resumed.run(); assert.deepEqual(resumed.calls, ["claim", "begin", "sent"]); assert.equal(resumed.finishes[0].status, "failed");
+  await resumed.run(); assert.deepEqual(resumed.calls, ["resume", "claim", "begin", "sent"]); assert.equal(resumed.finishes[0].status, "failed");
   resumed.event.preview_progress = progress;
-  await resumed.run(); assert.deepEqual(resumed.calls, ["claim", "begin", "sent", "resume", "sent"]); assert.equal(resumed.finishes[1].status, "sent");
+  await resumed.run(); assert.deepEqual(resumed.calls, ["resume", "claim", "begin", "sent", "resume_partial", "sent"]); assert.equal(resumed.finishes[1].status, "sent");
 });

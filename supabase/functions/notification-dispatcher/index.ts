@@ -787,7 +787,9 @@ Deno.serve(async (req) => {
         if (cutoverSecret && shouldProtectDelivery(event.event_type, raw.source_id, raw.canonical_url)) {
           cutover = (action: string) => callCutoverBridge(cutoverSecret, action, String(recipient.id), String(raw.canonical_url || ""), String(event.id));
           const previous = event.preview_progress && typeof event.preview_progress === "object" ? event.preview_progress : null;
-          let reservation = previous?.version === 1 && Number(previous.next || 0) > 0 && !previous.in_flight ? await cutover("resume") : "not_owner";
+          let reservation = !previous || (previous.version === 1 && !previous.in_flight)
+            ? await cutover(previous?.version === 1 && Number(previous.next || 0) > 0 ? "resume_partial" : "resume")
+            : "not_owner";
           if (reservation === "sending") cutoverOwned = true;
           else {
             reservation = await cutover("claim");

@@ -30,7 +30,7 @@ export function listingIdentity(value) {
 
 export async function deliveryCutoverLedger(db, input) {
   const participant = String(input?.participant_id || ""), owner = String(input?.owner || ""), action = String(input?.action || "");
-  if (!UUID.test(participant) || !OWNER.test(owner) || !["claim", "begin", "resume", "sent", "unknown", "release"].includes(action)) throw new Error("invalid_ledger_request");
+  if (!UUID.test(participant) || !OWNER.test(owner) || !["claim", "begin", "resume", "resume_partial", "sent", "unknown", "release"].includes(action)) throw new Error("invalid_ledger_request");
   const key = await sha256(`${participant.toLowerCase()}:${listingIdentity(input.url)}`);
   if (action === "claim") {
     const inserted = await db.prepare("INSERT INTO delivery_cutover_ledger(delivery_key,owner,status,lease_until) VALUES(?,?,'reserved',datetime('now','+2 minutes')) ON CONFLICT(delivery_key) DO UPDATE SET owner=excluded.owner,lease_until=excluded.lease_until,updated_at=CURRENT_TIMESTAMP WHERE delivery_cutover_ledger.status='reserved' AND delivery_cutover_ledger.lease_until<CURRENT_TIMESTAMP").bind(key, owner).run();
@@ -47,9 +47,9 @@ export async function deliveryCutoverLedger(db, input) {
     const result = await db.prepare("UPDATE delivery_cutover_ledger SET status='sending',lease_until=NULL,updated_at=CURRENT_TIMESTAMP WHERE delivery_key=? AND owner=? AND status='reserved' AND lease_until>=CURRENT_TIMESTAMP").bind(key, owner).run();
     return { status: Number(result?.meta?.changes || 0) === 1 ? "sending" : "not_owner" };
   }
-  if (action === "resume") {
+  if (action === "resume" || action === "resume_partial") {
     const existing = await db.prepare("SELECT owner,status FROM delivery_cutover_ledger WHERE delivery_key=?").bind(key).first();
-    return { status: owner.startsWith("legacy:") && existing?.owner === owner && ["sending", "sent"].includes(existing?.status) ? "sending" : "not_owner" };
+    return { status: owner.startsWith("legacy:") && existing?.owner === owner && (existing?.status === "sending" || (action === "resume_partial" && existing?.status === "sent")) ? "sending" : "not_owner" };
   }
   const result = await db.prepare("UPDATE delivery_cutover_ledger SET status=?,updated_at=CURRENT_TIMESTAMP WHERE delivery_key=? AND owner=? AND status='sending'").bind(action, key, owner).run();
   if (Number(result?.meta?.changes || 0) === 1) return { status: action };
