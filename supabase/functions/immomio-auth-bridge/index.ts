@@ -71,7 +71,7 @@ async function latestCallback(userId:string){
 Deno.serve(async req=>{try{
  if(req.method!=='POST')return new Response('method not allowed',{status:405});
  if(req.headers.get('x-internal-secret')!==await secret('internal_worker_secret'))return new Response('unauthorized',{status:401});
- const body=await req.json();if(body.action==='health')return Response.json({ok:true,mode:'immomio-pkce-share-robots-kleinanzeigen-style',redirectUri:REDIRECT,reuseExistingSession:false,completionMode:'token-exchange-then-save'});
+ const body=await req.json();if(body.action==='health')return Response.json({ok:true,mode:'immomio-pkce-share-robots-provider-style',redirectUri:REDIRECT,reuseExistingSession:false,completionMode:'token-exchange-then-save'});
  const userId=uuid(body.userId);await eligible(userId);
  if(body.action==='login')return Response.json(await begin(userId));
  if(body.action==='complete_login')return Response.json(await complete(userId,String(body.callbackUrl||'')));
