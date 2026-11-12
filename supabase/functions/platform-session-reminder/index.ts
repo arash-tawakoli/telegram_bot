@@ -12,14 +12,13 @@ const applicationWorker = `${supabaseUrl}/functions/v1/application-worker`;
 const immomioWorker = `${supabaseUrl}/functions/v1/immomio-account`;
 const wgAuth = `${supabaseUrl}/functions/v1/wg-gesucht-auth-bridge`;
 const loginSurface = "https://login.traumwohnunghamburg.de/connect?ticket=";
-const providers = ["immoscout", "immowelt", "immomio", "kleinanzeigen", "wg_gesucht"] as const;
+const providers = ["immoscout", "immowelt", "immomio", "wg_gesucht"] as const;
 type Provider = (typeof providers)[number];
 
 const providerLabels: Record<Provider, string> = {
   immoscout: "ImmoScout24",
   immowelt: "Immowelt",
   immomio: "Immomio",
-  kleinanzeigen: "Kleinanzeigen",
   wg_gesucht: "WG-Gesucht",
 };
 
@@ -28,7 +27,7 @@ function clean(value: unknown, max = 240) {
 }
 
 function providerSource(provider: Provider) {
-  return provider === "immoscout" ? 1 : provider === "kleinanzeigen" ? 2 : provider === "immomio" ? 3 : provider === "immowelt" ? 4 : 6;
+  return provider === "immoscout" ? 1 : provider === "immomio" ? 3 : provider === "immowelt" ? 4 : 6;
 }
 
 async function secret(name: string) {
@@ -66,7 +65,7 @@ function randomHex(bytes = 24) {
   return Array.from(values, (value) => value.toString(16).padStart(2, "0")).join("");
 }
 
-async function createConnectTicket(userId: string, provider: Exclude<Provider, "kleinanzeigen">) {
+async function createConnectTicket(userId: string, provider: Provider) {
   await db.from("platform_auth_flows").update({ consumed_at: new Date().toISOString() })
     .eq("user_id", userId).eq("provider", provider).is("consumed_at", null);
   const state = randomHex(24);
@@ -85,20 +84,6 @@ async function createConnectTicket(userId: string, provider: Exclude<Provider, "
 }
 
 async function freshLoginUrl(userId: string, provider: Provider, internalSecret: string) {
-  if (provider === "kleinanzeigen") {
-    const result = await internal(applicationWorker, {
-      action: "login_share",
-      userId,
-      source: providerSource(provider),
-      origin: "telegram",
-      returnTarget: "telegram",
-      context: { channel: "telegram", reconnect_reminder: true },
-    }, internalSecret);
-    const value = String(result?.url || "");
-    const url = new URL(value);
-    if (url.protocol !== "https:" || url.hostname !== "login.kleinanzeigen.de") throw Error("provider_url_invalid");
-    return url.href;
-  }
   return createConnectTicket(userId, provider);
 }
 
@@ -135,7 +120,7 @@ async function scanSessions(internalSecret: string) {
       checked += 1;
       const expiresAt = connection.expires_at ? Date.parse(String(connection.expires_at)) : NaN;
       const recordedAuthError = /auth|login|401|403|unauthor/i.test(`${connection.last_error || ""} ${connection.last_refresh_error || ""}`);
-      if (result?.status === "needs_login" || (result?.authenticated === false && provider === "kleinanzeigen" && result?.status !== "error" && (Number.isFinite(expiresAt) && expiresAt <= Date.now() || recordedAuthError))) {
+      if (result?.status === "needs_login") {
         await markNeedsLogin(String(connection.user_id), provider, String(result?.status || "session_invalid"));
         marked += 1;
       }

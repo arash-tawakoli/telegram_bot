@@ -18,12 +18,11 @@ async function editOrSend(chatId:number,messageId:number,text:string,inline_keyb
 async function finish(updateId:number,claim:number,ok:boolean,error:string|null=null){await rpc('finish_telegram_update',{p_update_id:updateId,p_attempt:claim,p_success:ok,p_error:error})}
 async function prepared(update:any){const p=await rpc('prepare_telegram_update',{p_payload:update}),claim=Number(p?.claim||0);if(claim<=0)return null;return{claim,user:p.user,updateId:Number(update.update_id)}}
 async function internal(endpoint:string,payload:Record<string,unknown>){const internalSecret=await secret('internal_worker_secret');const r=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json','x-internal-secret':internalSecret},body:JSON.stringify(payload),signal:AbortSignal.timeout(45000)}),data=await r.json().catch(()=>null);if(!r.ok||!data)throw Error(data?.error||`provider:${r.status}`);return data}
-function providerName(provider:string){return provider==='kleinanzeigen'?'Kleinanzeigen':provider==='immomio'?'Immomio':provider==='immowelt'?'Immowelt':'ImmoScout24'}
-function providerUrl(provider:string,value:any){let u:any;try{u=new globalThis.URL(String(value||''))}catch{throw Error('provider_url_invalid')}if(u.protocol!=='https:'||u.username||u.password)throw Error('provider_url_invalid');const allowed=provider==='kleinanzeigen'?u.hostname==='login.kleinanzeigen.de':provider==='immomio'?u.hostname==='sso.immomio.com':u.hostname==='login.immobilienscout24.de';if(!allowed)throw Error('provider_url_invalid');return u.href}
+function providerName(provider:string){return provider==='immomio'?'Immomio':provider==='immowelt'?'Immowelt':'ImmoScout24'}
 async function validateUser(update:any){const ctx=await prepared(update);if(!ctx)return null;const q=update?.callback_query,chatId=Number(q?.message?.chat?.id),fromId=Number(q?.from?.id),messageId=Number(q?.message?.message_id),user=ctx.user;if(!user||!user.is_active||Number(user.telegram_user_id)!==fromId||Number(user.chat_id)!==chatId)throw Error('user_mismatch');const eligible=await rpc('application_user_eligible',{p_user:user.id});if(eligible!==true)throw Error('premium_required');return{ctx,chatId,messageId,user}}
 
 function randomHex(bytes=32){const a=crypto.getRandomValues(new Uint8Array(bytes));return Array.from(a,b=>b.toString(16).padStart(2,'0')).join('')}
-async function createConnectTicket(userId:string,provider:'kleinanzeigen'|'immomio'|'immoscout'|'immowelt'){
+async function createConnectTicket(userId:string,provider:'immomio'|'immoscout'|'immowelt'){
  const deleteUrl=new globalThis.URL(`${URL}/rest/v1/platform_auth_flows`);
  deleteUrl.searchParams.set('user_id',`eq.${userId}`);
  deleteUrl.searchParams.set('provider',`eq.${provider}`);
@@ -40,36 +39,30 @@ async function createConnectTicket(userId:string,provider:'kleinanzeigen'|'immom
  return{state,verifier};
 }
 
-async function handleProviderLogin(update:any,provider:'kleinanzeigen'|'immomio'|'immoscout'|'immowelt'){
+async function handleProviderLogin(update:any,provider:'immomio'|'immoscout'|'immowelt'){
  let x:any=null;
  try{
   x=await validateUser(update);if(!x)return;
   const {ctx,chatId,messageId,user}=x,name=providerName(provider);
   let url:string;
-  if(provider==='kleinanzeigen'){
-   const result=await internal(APPLICATION_WORKER,{action:'login_share',userId:String(user.id),source:2,origin:'telegram',returnTarget:'telegram',context:{channel:'telegram',share_flow:true}});
-   if(!result?.url)throw Error('auth_flow_create_failed');
-   url=providerUrl(provider,result.url);
-  }else if(provider==='immomio'){
+  if(provider==='immomio'){
    const connect=await createConnectTicket(String(user.id),provider),ticket=connect.state;
    url=`https://login.traumwohnunghamburg.de/connect?ticket=${encodeURIComponent(ticket)}`;
   }else{
    const connect=await createConnectTicket(String(user.id),provider),ticket=connect.state;
    url=`https://login.traumwohnunghamburg.de/connect?ticket=${encodeURIComponent(ticket)}`;
   }
-  const copy=provider==='kleinanzeigen'
-   ? `🔐 <b>Kleinanzeigen verbinden</b>\n\n1. Tippe unten auf <b>Kleinanzeigen verbinden</b>.\n2. Melde dich an.\n3. Tippe auf <b>Teilen</b> und sende den Link an <b>TraumWohnung Hamburg</b>.`
-   : provider==='immomio'
-    ? `🔐 <b>Immomio verbinden</b>\n\n1. Tippe unten auf <b>Immomio verbinden</b>.\n2. Melde dich bei Immomio an.\n3. Nach erfolgreichem Login wird die Verbindung automatisch erkannt und gespeichert.\n\nKein Teilen, kein Kopieren einer URL.`
-    : provider==='immowelt'
-     ? `🔐 <b>Immowelt verbinden</b>\n\n1. Tippe unten auf <b>Immowelt verbinden</b>.\n2. Melde dich an.\n3. Dein Konto wird automatisch verbunden.`
-     : `🔐 <b>ImmoScout24 verbinden</b>\n\n1. Tippe unten auf <b>ImmoScout24 verbinden</b>.\n2. Melde dich an.\n3. Dein Konto wird automatisch verbunden.`;
+  const copy=provider==='immomio'
+     ? `🔐 <b>Immomio verbinden</b>\n\n1. Tippe unten auf <b>Immomio verbinden</b>.\n2. Melde dich bei Immomio an.\n3. Nach erfolgreichem Login wird die Verbindung automatisch erkannt und gespeichert.`
+     : provider==='immowelt'
+      ? `🔐 <b>Immowelt verbinden</b>\n\n1. Tippe unten auf <b>Immowelt verbinden</b>.\n2. Melde dich an.\n3. Dein Konto wird automatisch verbunden.`
+      : `🔐 <b>ImmoScout24 verbinden</b>\n\n1. Tippe unten auf <b>ImmoScout24 verbinden</b>.\n2. Melde dich an.\n3. Dein Konto wird automatisch verbunden.`;
   await editOrSend(chatId,messageId,copy,[[{text:`🌐 ${name} verbinden`,url}],[{text:'← Automatische Bewerbung',callback_data:'platforms'}]]);
   await finish(ctx.updateId,ctx.claim,true);x=null;
  }catch(e){
   console.error(`${provider}_login_bridge`,String(e));
   const setupMissing=String(e).includes('oauth_client_not_provisioned');
-  const detail=setupMissing?'Der direkte Kleinanzeigen-Login ist noch nicht vom Anbieter für unseren Web-Callback freigeschaltet.':'Bitte erneut versuchen.';
+  const detail=setupMissing?'Die Plattform-Anmeldung ist noch nicht eingerichtet.':'Bitte erneut versuchen.';
   if(x?.chatId&&x?.messageId)await editOrSend(x.chatId,x.messageId,`⚠️ <b>${providerName(provider)}-Login konnte nicht gestartet werden.</b>\n\n${detail}`,[[{text:'← Automatische Bewerbung',callback_data:'platforms'}]]).catch(()=>{});
   if(x?.ctx)await finish(x.ctx.updateId,x.ctx.claim,false,String(e)).catch(()=>{});
  }
@@ -84,8 +77,8 @@ Deno.serve(async req=>{
   if(supplied!==expected){cached=null;expected=await webhookSecret(true);if(supplied!==expected)return new Response('unauthorized',{status:401})}
   const body=await req.text();let update:any=null;try{update=JSON.parse(body)}catch{}
   const data=String(update?.callback_query?.data||'');
-  if(update?.callback_query?.id&&['platforms:login:1','platforms:login:2','platforms:login:3','platforms:login:4'].includes(data)){
-   const provider:'kleinanzeigen'|'immomio'|'immoscout'|'immowelt'=data.endsWith(':2')?'kleinanzeigen':data.endsWith(':3')?'immomio':data.endsWith(':4')?'immowelt':'immoscout';
+  if(update?.callback_query?.id&&['platforms:login:1','platforms:login:3','platforms:login:4'].includes(data)){
+   const provider:'immomio'|'immoscout'|'immowelt'=data.endsWith(':3')?'immomio':data.endsWith(':4')?'immowelt':'immoscout';
    EdgeRuntime.waitUntil(telegram('answerCallbackQuery',{callback_query_id:String(update.callback_query.id)}).catch(()=>{}));
    EdgeRuntime.waitUntil(handleProviderLogin(update,provider).catch(e=>console.error('provider_login_background',String(e))));
    return Response.json({ok:true});

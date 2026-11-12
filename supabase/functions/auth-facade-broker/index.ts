@@ -15,10 +15,6 @@ const INDEED_USERINFO='https://secure.indeed.com/v2/api/userinfo';
 const INDEED_REDIRECT='https://login.traumwohnunghamburg.de/connect/indeed/callback';
 const INDEED_SCOPE='email offline_access';
 const SUPABASE_ORIGIN=new URL(SUPABASE_URL).origin;
-const KLEIN_AUTHORIZE='https://login.kleinanzeigen.de/authorize';
-const KLEIN_CLIENT_ID='uV5j90myVPc2XzEOFuWUD2At17OACEGQ';
-const KLEIN_REDIRECT='https://login.kleinanzeigen.de/android/com.ebay.kleinanzeigen/callback';
-const KLEIN_SCOPE='openid email profile offline_access';
 const IMMOMIO_GQL='https://gql-ps.immomio.com/tenant/graphql';
 const IMMOMIO_TENANT='https://tenant.immomio.com';
 const IMMOMIO_REDIRECT='https://tenant.immomio.com/de/auth/login';
@@ -45,7 +41,7 @@ async function centralImmoScoutApi(path:string,body:any={},method='POST'){
  return data;
 }
 
-function providerLabel(provider:any){return provider==='indeed'?'Indeed':provider==='kleinanzeigen'?'Kleinanzeigen':provider==='immomio'?'Immomio':provider==='immowelt'?'Immowelt':'ImmoScout24'}
+function providerLabel(provider:any){return provider==='indeed'?'Indeed':provider==='immomio'?'Immomio':provider==='immowelt'?'Immowelt':'ImmoScout24'}
 async function notifyConnected(flow:any,result:any){
  if(flow?.return_target!=='telegram'||(result?.authenticated!==true&&result?.status!=='connected'))return;
  try{
@@ -99,7 +95,7 @@ async function flowFor(value:any,allowConsumed=false){
   if(issuerError||issuer?.is_super_admin!==true)throw Error('premium_required');
  }else await eligible(String(flow.user_id));
  await validateFlowContext(flow);
- if(!['kleinanzeigen','immoscout','immomio','immowelt','indeed'].includes(String(flow.provider)))throw Error('provider_unsupported');
+ if(!['immoscout','immomio','immowelt','indeed'].includes(String(flow.provider)))throw Error('provider_unsupported');
  return flow
 }
 async function profileEmail(userId:string){const {data,error}=await db.from('applicant_profiles').select('email').eq('user_id',userId).maybeSingle();const email=clean(data?.email,320).toLowerCase();if(error||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw Error('profile_email_required');return email}
@@ -113,7 +109,6 @@ async function participantInfo(flow:any){
  return{participantLabel:participantLabel(p?.first_name,p?.last_name),profileEmail:clean(p?.email,320)||null,connection:connection||null};
 }
 async function accountHint(flow:any){if(flow.context?.central_account===true)return clean(flow.context?.account_hint,320)||'arash@nexalabs.de';const {data}=await db.from('platform_connections').select('account_hint').eq('user_id',flow.user_id).eq('provider',flow.provider).maybeSingle();return clean(data?.account_hint,320)||null}
-function kleinUrl(flow:any,codeChallenge:string){const u=new URL(KLEIN_AUTHORIZE);for(const[k,v]of Object.entries({client_id:KLEIN_CLIENT_ID,response_type:'code',redirect_uri:KLEIN_REDIRECT,scope:KLEIN_SCOPE,code_challenge:codeChallenge,code_challenge_method:'S256',state:String(flow.state),prompt:'login'}))u.searchParams.set(k,String(v));return u.href}
 async function resolveSso(email:string){const query='query sso($email: String, $redirectUri: String!, $loginMethod: String) { sso(input: { email: $email redirectUri: $redirectUri loginMethod: $loginMethod }) { baseUrl clientId realm } }';let response:Response;try{response=await fetch(IMMOMIO_GQL,{method:'POST',headers:{'content-type':'application/json','accept':'application/json','origin':IMMOMIO_TENANT,'referer':IMMOMIO_TENANT+'/'},body:JSON.stringify({query,variables:{email,redirectUri:IMMOMIO_REDIRECT,loginMethod:'DEFAULT'}}),signal:AbortSignal.timeout(20000)})}catch{throw Error('temporary_network_error')}const body=await response.json().catch(()=>null),sso=body?.data?.sso;if(!response.ok||body?.errors?.length||!sso||String(sso.clientId)!==IMMOMIO_CLIENT||String(sso.realm)!==IMMOMIO_REALM)throw Error('provider_contract_unverified');return{baseUrl:IMMOMIO_BASE,realm:IMMOMIO_REALM,clientId:IMMOMIO_CLIENT}}
 async function immomioUrl(flow:any,codeChallenge:string,emailValue:any){const email=clean(emailValue,320).toLowerCase();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw Error('provider_email_required');const cfg=await resolveSso(email);const u=new URL(`${cfg.baseUrl}/realms/${IMMOMIO_REALM}/protocol/openid-connect/auth`);for(const[k,v]of Object.entries({client_id:IMMOMIO_CLIENT,redirect_uri:IMMOMIO_REDIRECT,response_type:'code',response_mode:'query',scope:'openid profile email',state:String(flow.state),code_challenge:codeChallenge,code_challenge_method:'S256',login_hint:email,prompt:'login'}))u.searchParams.set(k,String(v));return u.href}
 async function resolve(value:any){
@@ -127,7 +122,6 @@ async function resolve(value:any){
  }
  if(provider==='immoscout'||provider==='immomio'||provider==='immowelt')return{...base,mode:'credentials'};
  const verifier=String(flow.code_verifier||'');if(!verifier)throw Error('auth_flow_expired');const codeChallenge=await challenge(verifier);
- if(provider==='kleinanzeigen')return{...base,mode:'provider_web',url:kleinUrl(flow,codeChallenge),requiresManualCallback:false,callbackTransport:'remote-browser-handoff'};
  if(provider==='immomio'){
   const email=clean(info.profileEmail,320);
   return{...base,mode:'provider_web',url:await immomioUrl(flow,codeChallenge,email),requiresManualCallback:true,callbackTransport:'provider-pkce'};
@@ -137,7 +131,6 @@ async function resolve(value:any){
 async function providerWeb(value:any,emailValue:any){
  const flow=await flowFor(value),verifier=String(flow.code_verifier||'');if(!verifier)throw Error('auth_flow_expired');
  const codeChallenge=await challenge(verifier),provider=String(flow.provider);
- if(provider==='kleinanzeigen')return{provider,url:kleinUrl(flow,codeChallenge)};
  if(provider==='immomio'){
   const hint=clean(emailValue,320)||await accountHint(flow);
   return{provider,url:await immomioUrl(flow,codeChallenge,hint)}
@@ -152,7 +145,7 @@ async function completeSession(value:any,sessionValue:any,accountHintValue:any){
 
 async function verifyImmomio(accessToken:string){const query='query currentUser { user { id email } }';let response:Response;try{response=await fetch(IMMOMIO_GQL,{method:'POST',headers:{'content-type':'application/json','accept':'application/json','origin':IMMOMIO_TENANT,'referer':IMMOMIO_TENANT+'/',authorization:accessToken},body:JSON.stringify({query,variables:{}}),signal:AbortSignal.timeout(20000)})}catch{throw Error('temporary_network_error')}const body=await response.json().catch(()=>null),user=body?.data?.user;if(!response.ok||body?.errors?.length||!user?.id)throw Error('token_exchange_failed');return user}
 async function immomioPasswordLogin(value:any,emailValue:any,passwordValue:any){const flow=await flowFor(value);if(String(flow.provider)!=='immomio')throw Error('provider_unsupported');const email=clean(emailValue,320).toLowerCase(),password=String(passwordValue||'').slice(0,1024);if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||!password)throw Error('login_failed');const cfg=await resolveSso(email);let response:Response;try{response=await fetch(`${cfg.baseUrl}/realms/${cfg.realm}/protocol/openid-connect/token`,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded','accept':'application/json'},body:new URLSearchParams({grant_type:'password',client_id:cfg.clientId,username:email,password,scope:'openid profile email'}),signal:AbortSignal.timeout(25000)})}catch{throw Error('temporary_network_error')}const token=await response.json().catch(()=>null);if(!response.ok||!token?.access_token||!token?.refresh_token){const desc=clean(token?.error_description,500).toLowerCase(),code=clean(token?.error,120).toLowerCase();if(/otp|totp|one.?time|authenticator|two.?factor/.test(desc))throw Error('provider_interactive_challenge');if(/temporar.*(disabled|locked)|account.*(disabled|locked)|too many.*(attempt|login)|brute.?force|locked out/.test(desc))throw Error('account_temporarily_locked');if(response.status===400||response.status===401||code==='invalid_grant')throw Error('login_failed');throw Error('provider_contract_unverified')}const user=await verifyImmomio(String(token.access_token)),verifiedEmail=clean(user?.email,320).toLowerCase()||decodeEmail(token.id_token)||email,expiresAt=new Date(Date.now()+Math.max(60,Number(token.expires_in||300))*1000).toISOString(),credentials={access_token:String(token.access_token),refresh_token:String(token.refresh_token),id_token:token.id_token?String(token.id_token):undefined,expires_at:expiresAt,base_url:cfg.baseUrl,realm:cfg.realm,client_id:cfg.clientId,redirect_uri:IMMOMIO_REDIRECT},encrypted=await encryptConnection(String(flow.user_id),credentials),now=new Date().toISOString();await completePlatformConnectFlow(db,flow,{...encrypted,account_hint:verifiedEmail,expires_at:expiresAt});return{status:'connected',authenticated:true,accountHint:verifiedEmail,passwordStored:false}}
-function callbackFor(flow:any,value:any){const raw=String(value||'').trim();if(!raw||raw.length>8000)throw Error('invalid_callback_url');let u:URL;try{u=new URL(raw)}catch{throw Error('invalid_callback_url')}if(u.searchParams.get('state')!==String(flow.state))throw Error('invalid_callback_url');if(flow.provider==='kleinanzeigen'){if(u.protocol!=='https:'||u.hostname!=='login.kleinanzeigen.de'||u.pathname!=='/android/com.ebay.kleinanzeigen/callback'||(!u.searchParams.get('code')&&!u.searchParams.get('error')))throw Error('invalid_callback_url')}else if(flow.provider==='immomio'){if(u.protocol!=='https:'||u.hostname!=='tenant.immomio.com'||u.pathname!=='/de/auth/login'||!u.searchParams.get('code'))throw Error('invalid_callback_url')}else throw Error('provider_unsupported');return u.href}
+function callbackFor(flow:any,value:any){const raw=String(value||'').trim();if(!raw||raw.length>8000)throw Error('invalid_callback_url');let u:URL;try{u=new URL(raw)}catch{throw Error('invalid_callback_url')}if(u.searchParams.get('state')!==String(flow.state))throw Error('invalid_callback_url');if(flow.provider==='immomio'){if(u.protocol!=='https:'||u.hostname!=='tenant.immomio.com'||u.pathname!=='/de/auth/login'||!u.searchParams.get('code'))throw Error('invalid_callback_url')}else throw Error('provider_unsupported');return u.href}
 async function internalCall(endpoint:string,body:any){const internal=await secret('internal_worker_secret'),r=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json','x-internal-secret':internal},body:JSON.stringify(body),signal:AbortSignal.timeout(45000)}),data=await r.json().catch(()=>null);if(!r.ok||!data)throw Error(data?.error||'provider_completion_failed');return data}
 async function scoutPublic(body:any){
  const r=await fetch(SCOUT_AUTH,{method:'POST',headers:{'content-type':'application/json','origin':SUPABASE_ORIGIN},body:JSON.stringify(body),signal:AbortSignal.timeout(45000)});
@@ -238,7 +231,6 @@ async function completeWeb(value:any,callbackUrl:any){
  if(flow.provider==='immoscout')result=await internalCall(SCOUT_AUTH,{action:'complete_login',userId,callbackUrl:String(callbackUrl||'')});
  else{
   const url=callbackFor(flow,callbackUrl);
-  if(flow.provider==='kleinanzeigen')throw Error('provider_route_required');
   if(flow.provider==='immomio')result=await internalCall(IMMOMIO_AUTH,{action:'complete_login',userId,callbackUrl:url});
   else throw Error('provider_unsupported');
  }

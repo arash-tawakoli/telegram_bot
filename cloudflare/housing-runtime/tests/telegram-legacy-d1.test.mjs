@@ -178,26 +178,18 @@ test("applicant profile update merges JSON fields and preserves existing data", 
   assert.equal(calls[1].params[1], "2026-11-09T21:00:00.000Z");
 });
 
-test("Kleinanzeigen provider preference uses the dedicated D1 flag", async () => {
-  const calls = [];
-  const db = createD1Supabase({
-    prepare(query) {
-      return {
-        bind(...params) { return { all: async () => { calls.push({ query, params }); return { results: [], meta: { changes: 1 } }; } }; },
-        all: async () => ({ results: [], meta: { changes: 0 } }),
-      };
-    },
-  }, {});
-  const result = await db.rpc("set_application_provider_enabled_shared", { p_user: "participant-1", p_provider: "kleinanzeigen", p_enabled: true });
-  assert.equal(result.error, null);
-  assert.match(calls[1].query, /UPDATE application_preferences SET kleinanzeigen_enabled=\\?/);
-  assert.deepEqual(calls[1].params, [1, "participant-1"]);
+test("Retired provider cannot be enabled through D1 preferences", async () => {
+  const db = createD1Supabase({prepare(){throw Error("Unexpected database write");}}, {});
+  const result = await db.rpc("set_application_provider_enabled_shared", {p_user:"participant-1",p_provider:"kleinanzeigen",p_enabled:true});
+  assert.match(String(result.error),/provider_not_allowlisted/);
 });
 
-test("Kleinanzeigen Telegram controls expose all four provider slots and the login handoff", async () => {
-  const { readFileSync } = await import("node:fs");
-  const source = readFileSync(new URL("../src/telegram-legacy/platform-sessions.js", import.meta.url), "utf8");
-  assert.match(source, /2:\{key:'kleinanzeigen',name:'Kleinanzeigen',field:'kleinanzeigen_enabled'\}/);
-  assert.match(source, /if\(!\[1,2,3,4\]\.includes\(source\)\)return/);
-  assert.match(source, /workerAction=health\?\.kleinanzeigenOAuthClientProvisioned===true\?'login':'login_share'/);
+test("Telegram controls only expose retained housing providers", async () => {
+  const {readFileSync}=await import("node:fs");
+  const source=readFileSync(new URL("../src/telegram-legacy/platform-sessions.js",import.meta.url),"utf8");
+  assert.doesNotMatch(source,/kleinanzeigen/i);
+  assert.match(source,/1:\{key:'immoscout24'/);
+  assert.match(source,/3:\{key:'immomio'/);
+  assert.match(source,/4:\{key:'immowelt'/);
 });
+
