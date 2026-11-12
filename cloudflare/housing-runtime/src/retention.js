@@ -48,3 +48,18 @@ export async function deleteExpiredListings(sql, limit = 5000) {
 
   return deleted;
 }
+
+export async function expireAdminPremiumOverrides(sql) {
+  const expired = await sql`
+    UPDATE housing.participants
+    SET plan_override = NULL,
+        plan_override_expires_at = NULL,
+        updated_at = CURRENT_TIMESTAMP
+    WHERE plan_override = 'premium'
+      AND plan_override_expires_at IS NOT NULL
+      AND julianday(plan_override_expires_at) <= julianday('now')
+    RETURNING id
+  `;
+  if (!Array.isArray(expired)) throw new Error("premium_override_expiry_result_invalid");
+  return expired.length;
+}
