@@ -8,18 +8,18 @@ class TelegramFailure extends Error {
   constructor(message, outcomeUnknown = false, _fallback = false, retryAfter = 0) { super(message); this.outcomeUnknown = outcomeUnknown; this.retryAfter = retryAfter; }
 }
 
-function fixture({ replies = {}, send = async () => ({ message_id: 7 }), progress = null } = {}) {
+function fixture({ replies = {}, send = async () => ({ message_id: 7 }), progress = null, enabled = true } = {}) {
   const source = readFileSync(new URL("../supabase/functions/notification-dispatcher/index.ts", import.meta.url), "utf8");
   const handlerSource = stripTypeScriptTypes(source.slice(source.indexOf("Deno.serve(")));
   const profileOwner = { id: "owner", is_active: true };
   const event = { id: "event", event_type: "new_listing", preview_progress: null, search_profiles: { is_active: true, profile_slot: 1, owner: profileOwner }, recipient: { id: "recipient", chat_id: 123, is_active: true }, listings: { id: "listing", source_id: 1, canonical_url: "https://www.immobilienscout24.de/expose/123" } };
   const calls = [], finishes = [];
   const query = { select() { return this; }, in() { return this; }, eq() { return this; }, lt() { return this; }, or() { return this; }, order() { return this; }, limit() { return Promise.resolve({ data: [event], error: null }); }, maybeSingle() { return Promise.resolve({ data: { preview_progress: progress }, error: null }); } };
-  const db = { from(name) { return name === "user_subscriptions" ? { select() { return this; }, async in() { return { data: [], error: null }; } } : query; }, async rpc(name) { return { data: name === "get_bot_secret" ? "bridge-secret" : true, error: null }; } };
+  const db = { from(name) { return name === "user_subscriptions" ? { select() { return this; }, async in() { return { data: [], error: null }; } } : query; }, async rpc(name) { return { data: name === "get_bot_secret" ? (enabled ? "1" : null) : true, error: null }; } };
   let handler;
   vm.runInNewContext(handlerSource, {
     Deno: { serve(fn) { handler = fn; } }, crypto: { randomUUID: () => "lease" }, Response, Date, Map, Set, Number, String, console,
-    db, sec: async name => name === "internal_worker_secret" ? "internal" : "telegram",
+    db, sec: async name => name === "internal_worker_secret" ? "internal" : name === "delivery_cutover_bridge_secret" ? "bridge-secret" : "telegram",
     shouldProtectDelivery: () => true,
     callCutoverBridge: async (_secret, action) => { calls.push(action); return replies[action] || ({ claim: "claimed", begin: "sending", resume: "not_owner", resume_partial: "sending", sent: "sent", unknown: "unknown", release: "released" })[action]; },
     probeSagaRecoveryCandidate: async () => ({ checked: 0 }), hydrateSagaListing: async listing => ({ listing, meta: { isSaga: false, ref: null, application: null }, status: "not_saga", record: null }), sagaAlreadyReceived: async () => false, syncApplicationStatus: async () => ({ ok: true }),
@@ -29,6 +29,12 @@ function fixture({ replies = {}, send = async () => ({ message_id: 7 }), progres
   const run = () => handler(new Request("https://test", { method: "POST", headers: { "x-internal-secret": "internal" }, body: "{}" }));
   return { run, event, calls, finishes };
 }
+
+test("a provisioned secret does not enable the bridge without its activation flag", async () => {
+  let sends = 0; const f = fixture({ enabled: false, send: async () => { sends++; return { message_id: 7 }; } });
+  assert.equal((await f.run()).status, 200);
+  assert.equal(sends, 1); assert.deepEqual(f.calls, []); assert.equal(f.finishes[0].status, "sent");
+});
 
 test("legacy dispatcher skips a listing already sent by Cloudflare", async () => {
   let sends = 0; const f = fixture({ replies: { claim: "already_sent" }, send: async () => { sends++; } });
