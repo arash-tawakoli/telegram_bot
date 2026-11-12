@@ -90,7 +90,7 @@ export async function fetchImmoScoutSource(source, config = {}) {
     seen.add(normalized.identity);
     nodes.push(normalized);
   }
-  return { nodes, fetched: result.total ?? nodes.length, query };
+  return { nodes, fetched: result.total ?? nodes.length, reported_total: result.total, query };
 }
 
 export async function ingestImmoScoutSource(sql, source, config = {}) {
