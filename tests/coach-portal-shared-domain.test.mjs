@@ -42,13 +42,9 @@ test('coach AutoApply writes use the same shared global and provider writers as 
 });
 
 test('coach platform parity includes Immowelt across analytics and filtering',()=>{
-  assert.match(coach,/\['immoscout','kleinanzeigen','immomio','immowelt'\]/);
+  assert.match(coach,/\['immoscout','immomio','immowelt'\]/);
   assert.match(coach,/immowelt:0,unknown:0/);
-  assert.match(coach,/connections=\{immoscout:0,kleinanzeigen:0,immomio:0,immowelt:0\}/);
+  assert.match(coach,/connections=\{immoscout:0,immomio:0,immowelt:0\}/);
 });
 
-test('coach Kleinanzeigen login follows the same capability based direct-or-share decision',()=>{
-  assert.match(coach,/kleinanzeigenOAuthClientProvisioned/);
-  assert.match(coach,/direct\?'login':'login_share'/);
-  assert.match(coach,/shareFlow:!direct/);
-});
+test('coach does not offer retired source',()=>{assert.doesNotMatch(coach,/login_share|kleinanzeigenOAuthClientProvisioned/);});
