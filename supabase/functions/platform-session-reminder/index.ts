@@ -10,16 +10,14 @@ const db = createClient(supabaseUrl, serviceKey, {
 
 const applicationWorker = `${supabaseUrl}/functions/v1/application-worker`;
 const immomioWorker = `${supabaseUrl}/functions/v1/immomio-account`;
-const wgAuth = `${supabaseUrl}/functions/v1/wg-gesucht-auth-bridge`;
 const loginSurface = "https://login.traumwohnunghamburg.de/connect?ticket=";
-const providers = ["immoscout", "immowelt", "immomio", "wg_gesucht"] as const;
+const providers = ["immoscout", "immowelt", "immomio"] as const;
 type Provider = (typeof providers)[number];
 
 const providerLabels: Record<Provider, string> = {
   immoscout: "ImmoScout24",
   immowelt: "Immowelt",
   immomio: "Immomio",
-  wg_gesucht: "WG-Gesucht",
 };
 
 function clean(value: unknown, max = 240) {
@@ -27,7 +25,7 @@ function clean(value: unknown, max = 240) {
 }
 
 function providerSource(provider: Provider) {
-  return provider === "immoscout" ? 1 : provider === "immomio" ? 3 : provider === "immowelt" ? 4 : 6;
+  return provider === "immoscout" ? 1 : provider === "immomio" ? 3 : provider === "immowelt" ? 4 : -1;
 }
 
 async function secret(name: string) {
@@ -91,8 +89,6 @@ async function checkSession(userId: string, provider: Provider, internalSecret: 
   const body = { action: "check", userId, source: providerSource(provider) };
   return provider === "immomio"
     ? internal(immomioWorker, { action: "check", userId }, internalSecret)
-    : provider === "wg_gesucht"
-    ? internal(wgAuth, { action: "check", userId }, internalSecret)
     : internal(applicationWorker, body, internalSecret);
 }
 
