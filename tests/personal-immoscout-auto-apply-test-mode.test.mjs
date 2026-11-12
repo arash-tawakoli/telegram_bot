@@ -87,8 +87,8 @@ test('runtime manifest separates archived source versions from observed live dep
   const app = manifest.functions.find(row => row.slug === 'application-worker');
   const ui = manifest.functions.find(row => row.slug === 'telegram-ui');
   const notifications = manifest.functions.find(row => row.slug === 'notification-dispatcher');
-  assert.equal(notifications.observed_live_version, 365);
-  assert.equal(notifications.observed_live_artifact_sha256, '5d5a1bc801c37e9c856766609d6a28cf145b0eabdaa40a1dbdbb71c8e4f24179');
+  assert.equal(notifications.observed_live_version, 366);
+  assert.equal(notifications.observed_live_artifact_sha256, 'a0360c5cfb1affa17c1578806fa714a072ad3010dd4a1a4c2a8b8885b8466207');
   assert.ok(notifications.known_source_drift.some(row => row.path === 'supabase/functions/notification-dispatcher/index.ts' && row.reason.includes('archived')));
   assert.ok(notifications.known_source_drift.some(row => row.path === 'supabase/functions/notification-dispatcher/delivery-lease.ts' && row.reason.includes('archived')));
   const platformConnect = manifest.functions.find(row => row.slug === 'platform-connect-broker-v2');
