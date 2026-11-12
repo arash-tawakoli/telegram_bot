@@ -2,7 +2,7 @@ import { fetchImmoScoutSource } from "./immoscout-source.js";
 
 const SOURCE_ID = 1;
 const BOROUGHS = ["Hamburg-Mitte", "Altona", "Eimsbüttel", "Hamburg-Nord", "Wandsbek", "Bergedorf", "Harburg"];
-const BATCH_SIZE = 3;
+const BATCH_SIZE = 6;
 
 function query(task) {
   const parts = [`Wohnungen zur Miete in ${task.region}, Hamburg`, "neueste Inserate"];
@@ -35,12 +35,17 @@ export async function runScoutShadow(db) {
   if (!state) return { status: "idle" };
   try {
     const queue = JSON.parse(state.queue_json);
-    if (!Array.isArray(queue) || queue.length > 2000) throw new Error("shadow_queue_invalid");
+    if (!Array.isArray(queue) || !queue.length || queue.length > 2000) throw new Error("shadow_queue_invalid");
     let total = Number(state.root_total), requests = Number(state.requests), unresolved = Number(state.unresolved);
-    for (let i = 0; i < BATCH_SIZE && queue.length; i++) {
-      const task = queue[0];
+    const tasks = queue.slice(0, BATCH_SIZE);
+    for (const task of tasks) {
       if (!BOROUGHS.includes(task.region) || !Number.isInteger(task.depth) || task.depth < 0 || task.depth > 8 || [task.min, task.max].some(value => value != null && (!Number.isSafeInteger(value) || value < 0 || value > 10000000)) || (task.min != null && task.max != null && task.min >= task.max)) throw new Error("shadow_partition_invalid");
-      const result = await fetchImmoScoutSource({ id: SOURCE_ID, name: "ImmobilienScout24 Hamburg" }, { query: query(task) });
+    }
+    const fetched = await Promise.allSettled(tasks.map(task => fetchImmoScoutSource({ id: SOURCE_ID, name: "ImmobilienScout24 Hamburg" }, { query: query(task) })));
+    for (let i = 0; i < tasks.length; i++) {
+      const task = tasks[i];
+      if (fetched[i].status === "rejected") throw fetched[i].reason;
+      const result = fetched[i].value;
       if (!Number.isInteger(result.reported_total) || result.reported_total < 0) throw new Error("shadow_total_unavailable");
       const next = queue.slice(1);
       if (task.depth === 0) total += result.reported_total;

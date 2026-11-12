@@ -30,9 +30,9 @@ test("shadow partitions store offers separately and never create deliveries", as
   globalThis.fetch = async () => Response.json({ result: { structuredContent: { total: 21, entries: [{ exposedId: "123", exposeUrl: "https://www.immobilienscout24.de/expose/123", title: "Wohnung" }] } } });
   try {
     const result = await runScoutShadow(db);
-    assert.equal(result.requests, 3);
+    assert.equal(result.requests, 6);
     const state = sqlite.prepare("SELECT * FROM scout_shadow_scans WHERE source_id=1").get();
-    assert.equal(JSON.parse(state.queue_json).length, 28);
+    assert.equal(JSON.parse(state.queue_json).length, 49);
     assert.equal(sqlite.prepare("SELECT count(*) AS n FROM scout_shadow_offers").get().n, 1);
     assert.equal(sqlite.prepare("SELECT count(*) AS n FROM offer_identities").get().n, 0);
     assert.equal(sqlite.prepare("SELECT count(*) AS n FROM deliveries").get().n, 0);
@@ -65,9 +65,25 @@ test("a second worker cannot run the same scan concurrently", async () => {
     await entered;
     assert.deepEqual(await runScoutShadow(db), { status: "idle" });
     release();
-    assert.equal((await first).requests, 3);
-    await runScoutShadow(db);
+    assert.equal((await first).requests, 6);
     assert.equal((await runScoutShadow(db)).status, "finished");
     assert.deepEqual(await runScoutShadow(db), { status: "idle" });
   } finally { release(); globalThis.fetch = originalFetch; sqlite.close(); }
+});
+
+test("a failed parallel partition leaves it and later partitions queued", async () => {
+  const { sqlite, db } = database(), originalFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls++;
+    if (calls === 3) return new Response("unavailable", { status: 503 });
+    return Response.json({ result: { structuredContent: { total: 0, entries: [] } } });
+  };
+  try {
+    await assert.rejects(() => runScoutShadow(db), /immoscout_mcp_http_503/);
+    const state = sqlite.prepare("SELECT * FROM scout_shadow_scans WHERE source_id=1").get();
+    assert.equal(state.requests, 2);
+    assert.equal(JSON.parse(state.queue_json).length, 5);
+    assert.equal(state.lease_token, null);
+  } finally { globalThis.fetch = originalFetch; sqlite.close(); }
 });
