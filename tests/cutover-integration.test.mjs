@@ -30,12 +30,12 @@ function setup(legacySend) {
   const cfRun = () => worker.fetch(new Request("https://runtime.example/internal/delivery/process?fresh_only=1", { method: "POST", headers: { authorization: "Bearer run" } }), env);
   const owner = { id: user, is_active: true }, event = { id: eventId, event_type: "new_listing", preview_progress: null, search_profiles: { is_active: true, profile_slot: 1, owner }, recipient: { id: user, chat_id: 12, is_active: true }, listings: { id: "listing", source_id: 1, canonical_url: url } };
   const finishes = [], query = { select() { return this; }, in() { return this; }, eq() { return this; }, lt() { return this; }, or() { return this; }, order() { return this; }, limit() { return Promise.resolve({ data: [event], error: null }); }, maybeSingle() { return Promise.resolve({ data: { preview_progress: null }, error: null }); } };
-  const db = { from(name) { return name === "user_subscriptions" ? { select() { return this; }, async in() { return { data: [], error: null }; } } : query; }, async rpc(name) { return { data: name === "get_bot_secret" ? "bridge" : true, error: null }; } };
+  const db = { from(name) { return name === "user_subscriptions" ? { select() { return this; }, async in() { return { data: [], error: null }; } } : query; }, async rpc(name) { return { data: name === "get_bot_secret" ? "1" : true, error: null }; } };
   const source = readFileSync(new URL("../supabase/functions/notification-dispatcher/index.ts", import.meta.url), "utf8");
   let handler;
   vm.runInNewContext(stripTypeScriptTypes(source.slice(source.indexOf("Deno.serve("))), {
     Deno: { serve(fn) { handler = fn; } }, crypto: { randomUUID: () => "lease" }, Response, Date, Map, Set, Number, String, console, db,
-    sec: async name => name === "internal_worker_secret" ? "internal" : "telegram",
+    sec: async name => name === "internal_worker_secret" ? "internal" : name === "delivery_cutover_bridge_secret" ? "bridge" : "telegram",
     shouldProtectDelivery,
     callCutoverBridge: (secret, action, participant, canonical, eventId) => callCutoverBridge(secret, action, participant, canonical, eventId, (url, options) => worker.fetch(new Request(url, options), env)),
     probeSagaRecoveryCandidate: async () => ({ checked: 0 }), hydrateSagaListing: async listing => ({ listing, meta: { isSaga: false, ref: null, application: null }, status: "not_saga", record: null }), sagaAlreadyReceived: async () => false, syncApplicationStatus: async () => ({ ok: true }),

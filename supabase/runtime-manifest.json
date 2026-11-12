@@ -1146,7 +1146,7 @@
       "known_source_drift": [
         {
           "path": "supabase/functions/notification-dispatcher/index.ts",
-          "reason": "Live version 365 matches the repository and adds a dormant shared delivery guard; the archived source remains at version 363."
+          "reason": "Live version 365 has the dormant shared delivery guard; the additional activation gate is staged and not deployed. The archived source remains at version 363."
         },
         {
           "path": "supabase/functions/notification-dispatcher/delivery-lease.ts",

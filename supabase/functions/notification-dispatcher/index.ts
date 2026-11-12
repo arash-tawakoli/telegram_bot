@@ -688,9 +688,9 @@ Deno.serve(async (req) => {
     if (error) throw error;
     if (!events?.length) return Response.json({ok:true,totals:{sent:0,failed:0,skipped:0}});
     const token = await sec("telegram_bot_token_runtime");
-    const { data: cutoverSecretValue, error: cutoverSecretError } = await db.rpc("get_bot_secret", { secret_name: "delivery_cutover_bridge_secret" });
-    if (cutoverSecretError) throw cutoverSecretError;
-    const cutoverSecret = cutoverSecretValue ? String(cutoverSecretValue) : null;
+    const { data: cutoverEnabled, error: cutoverEnabledError } = await db.rpc("get_bot_secret", { secret_name: "delivery_cutover_bridge_enabled" });
+    if (cutoverEnabledError) throw cutoverEnabledError;
+    const cutoverSecret = String(cutoverEnabled || "") === "1" ? await sec("delivery_cutover_bridge_secret") : null;
     const ownerIds = [...new Set(events.map((event: any) => event.search_profiles?.owner?.id).filter(Boolean))];
     const { data: subs, error: subscriptionError } = ownerIds.length
       ? await db.from("user_subscriptions")
