@@ -8,10 +8,10 @@ const SECRET=secretKeys.default||Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const PUBLISHABLE=publishableKeys.default||Deno.env.get('SUPABASE_ANON_KEY')!;
 const admin=createClient(URL,SECRET,{auth:{persistSession:false,autoRefreshToken:false}});
 const ORIGINS=new Set(['https://intern.traumwohnunghamburg.de','http://localhost:4321','http://127.0.0.1:4321']);
-const PROVIDERS=new Set(['immoscout','kleinanzeigen','immomio','immowelt','indeed']);
+const PROVIDERS=new Set(['immoscout','immomio','immowelt','indeed']);
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PUBLIC_ID=/^cp_[a-f0-9]{24}$/;
-const DASHBOARD_PROVIDER_DEFAULTS={immoscout:0,kleinanzeigen:0,immomio:0,immowelt:0,unknown:0};
+const DASHBOARD_PROVIDER_DEFAULTS={immoscout:0,immomio:0,immowelt:0,unknown:0};
 
 function cors(req:Request){const origin=req.headers.get('origin')||'';return {'access-control-allow-origin':ORIGINS.has(origin)?origin:'https://intern.traumwohnunghamburg.de','access-control-allow-methods':'POST,OPTIONS','access-control-allow-headers':'authorization,content-type,apikey','access-control-allow-credentials':'true','vary':'Origin','cache-control':'no-store','x-content-type-options':'nosniff','referrer-policy':'no-referrer'};}
 function json(req:Request,body:any,status=200){return Response.json(body,{status,headers:cors(req)})}
@@ -34,7 +34,7 @@ const READINESS_LABELS:Record<string,string>={
  provider_not_enabled:'Plattform für AutoApply freigeben',provider_not_ready:'Plattform erneut verbinden',
  archived:'Teilnehmer archiviert',pending_deletion:'Löschung geplant'
 };
-const PROFILE_PROVIDERS=['immoscout','kleinanzeigen','immomio','immowelt'] as const;
+const PROFILE_PROVIDERS=['immoscout','immomio','immowelt'] as const;
 function providerProfileReadiness(profile:any){
  const current=profile||{};
  return Object.fromEntries(PROFILE_PROVIDERS.map(provider=>{
@@ -142,7 +142,7 @@ async function participantSummary(a:any,scope='all',providedAssignments:any[]|nu
  const data:any[]=providedAssignments||await visibleAssignments(a,scope),users=data.map(x=>x.user_id);
  const [profiles,prefs,apps,readiness,searchProfiles]=users.length?await Promise.all([
   admin.from('applicant_profiles').select('user_id,email,phone,city,household_size').in('user_id',users),
-  admin.from('application_preferences').select('user_id,enabled,daily_limit,immoscout_enabled,kleinanzeigen_enabled,immomio_enabled,immowelt_enabled').in('user_id',users),
+  admin.from('application_preferences').select('user_id,enabled,daily_limit,immoscout_enabled,immomio_enabled,immowelt_enabled').in('user_id',users),
   admin.rpc('coach_application_summary_v1',{p_user_ids:users}),
   readinessCore(users),
   admin.from('search_profiles').select('user_id').in('user_id',users)
@@ -173,7 +173,7 @@ async function participantDetail(a:any,publicId:string){
   admin.from('search_profiles').select('id,user_id,name,max_warm_rent,min_rooms,min_area_sqm,districts,property_types,furnished_preference,wbs_only,move_in_from,is_active,created_at,updated_at,location_mode,location_state_code,location_area_codes,boroughs,neighborhoods,profile_slot,max_deposit,require_known_warm_rent,min_room_area_sqm').eq('user_id',userId).order('profile_slot'),
   admin.from('applicant_documents').select('id,document_type,original_filename,mime_type,size_bytes,send_with_auto_apply,created_at,updated_at').eq('user_id',userId).order('created_at',{ascending:false}),
   admin.from('platform_connections').select('provider,status,account_hint,expires_at,last_verified_at,last_error,updated_at').eq('user_id',userId),
-  admin.from('application_preferences').select('user_id,enabled,daily_limit,timezone,allowed_weekdays,send_window_start,send_window_end,immoscout_enabled,kleinanzeigen_enabled,immomio_enabled,immowelt_enabled,updated_at').eq('user_id',userId).maybeSingle(),
+  admin.from('application_preferences').select('user_id,enabled,daily_limit,timezone,allowed_weekdays,send_window_start,send_window_end,immoscout_enabled,immomio_enabled,immowelt_enabled,updated_at').eq('user_id',userId).maybeSingle(),
   admin.from('applications').select('id,listing_id,source_id,status,attempts,last_error,wait_reason,created_at,sent_at,next_attempt_at,listings(title,canonical_url,district,postal_code,city,sources(name))').eq('user_id',userId).order('created_at',{ascending:false}).limit(50),
   readinessCore([String(userId)]),
   admin.rpc('coach_application_summary_v1',{p_user_ids:[String(userId)]})
@@ -220,7 +220,6 @@ async function providerDisconnect(userId:string,p:string){
   if(connection.error||flow.error)throw Error('provider_disconnect_failed');
   return{status:'disconnected'};
  }
- if(p==='kleinanzeigen')return internalCall(URL+'/functions/v1/application-worker',{action:'disconnect',userId,source:2});
  if(p==='immomio')return internalCall(URL+'/functions/v1/immomio-account',{action:'disconnect',userId});
  if(p==='immowelt')return internalCall(URL+'/functions/v1/application-worker',{action:'disconnect',userId,source:4});
  return internalCall(URL+'/functions/v1/immoscout-auth-bridge',{action:'disconnect',userId});
@@ -230,13 +229,6 @@ async function startConnect(a:any,assignment:any,p:string,shareLink=false){
  if(p!=='indeed'||a.member.is_super_admin!==true){
   const premium=await effectivePremium([String(userId)]);
   if(premium.get(String(userId))!==true)throw Error('premium_required');
- }
- if(p==='kleinanzeigen'&&!shareLink){
-  const health=await internalCall(URL+'/functions/v1/application-worker',{action:'health'}).catch(()=>null);
-  const direct=health?.kleinanzeigenOAuthClientProvisioned===true;
-  const result=await internalCall(URL+'/functions/v1/application-worker',{action:direct?'login':'login_share',userId,source:2,origin:'coach',returnTarget:'coach',issuedBy:a.user.id,context:{assignment_version:assignment.assignment_version,...(direct?{direct_oauth:true}:{share_flow:true})}});
-  if(!result?.url)throw Error('auth_flow_create_failed');
-  return{url:String(result.url),expiresInSeconds:1800,directProvider:true,shareFlow:!direct,automaticCallback:direct,bridgeRequired:!direct};
  }
  const state=random(32),verifier=random(64);
  const{data,error}=await admin.rpc('coach_issue_platform_connect_flow',{
@@ -352,7 +344,7 @@ async function applicationRows(a:any,scope='all',input:any={}){
  }
 
  let out=rows.map((x:any)=>({...without(x,'user_id'),participant:publicByUser.get(String(x.user_id))||null,latestEvent:without(latest.get(String(x.id)),'application_id')}));
- const providerFilter=safeFilter(input.provider,['immoscout','kleinanzeigen','immomio','immowelt']);
+ const providerFilter=safeFilter(input.provider,['immoscout','immomio','immowelt']);
  const docFilter=safeFilter(input.documentResult,['native_uploaded','link_included','not_provided','not_supported','transfer_failed']);
  if(providerFilter)out=out.filter((x:any)=>x.latestEvent?.provider===providerFilter);
  if(docFilter)out=out.filter((x:any)=>x.latestEvent?.document_result===docFilter);
@@ -371,7 +363,7 @@ async function applicationPage(a:any,scope='all',input:any={}){
  const{data,error}=await admin.rpc('coach_application_page_v1',{
   p_user_ids:assignments.map(x=>String(x.user_id)),p_days:filterDays(input.days),
   p_status:safeFilter(input.status,['pending','processing','sent','failed','manual_required'])||null,
-  p_provider:safeFilter(input.provider,['immoscout','kleinanzeigen','immomio','immowelt'])||null,
+  p_provider:safeFilter(input.provider,['immoscout','immomio','immowelt'])||null,
   p_document_result:safeFilter(input.documentResult,['native_uploaded','link_included','not_provided','not_supported','transfer_failed'])||null,
   p_page:page,p_page_size:pageSize
  });
@@ -400,7 +392,7 @@ async function dashboardData(a:any,scope='all',input:any={}){
  ]);
  if(dashboard.error)throw Error('dashboard_applications_read_failed');
  const summary=dashboard.data||{};
- const connections={immoscout:0,kleinanzeigen:0,immomio:0,immowelt:0};
+ const connections={immoscout:0,immomio:0,immowelt:0};
  for(const p of participants)for(const provider of p.readiness?.connectedProviders||[])if(provider in connections)(connections as any)[provider]++;
  return{
   periodDays:filterDays(input.days),participantRows:participants,participants:participants.length,premium:participants.filter((p:any)=>p.participant.isPremium).length,
@@ -422,7 +414,7 @@ async function analyticsData(a:any,input:any={}){
  const section=['applications','participants','market'].includes(String(input.section||''))?String(input.section):'applications';
  const days=filterDays(input.days);
  const sourceId=optionalInteger(input.sourceId,1,32767);
- const providerFilter=safeFilter(input.provider,['immoscout','kleinanzeigen','immomio','immowelt'])||null;
+ const providerFilter=safeFilter(input.provider,['immoscout','immomio','immowelt'])||null;
  const propertyKind=safeFilter(input.propertyKind,['Wohnung','Haus','WG','Tauschwohnung','Sonstiges'])||null;
 
  if(section==='market'){
@@ -812,7 +804,7 @@ async function handle(req:Request){
   await audit(a,assignment.user_id,blocked?'participant_blocked':'participant_unblocked',{is_active:!blocked});
   return{ok:true,blocked};
  }
- if(action==='set_preferences'){const p=body.preferences||{},weekdays=Array.isArray(p.allowed_weekdays)?p.allowed_weekdays.map((x:any)=>integer(x,1,7)):null;const{error}=await admin.rpc('coach_set_application_preferences',{p_actor:a.member.id,p_user:assignment.user_id,p_enabled:Boolean(p.enabled),p_daily_limit:optionalInteger(p.daily_limit,1,1000),p_timezone:clean(p.timezone,80)||'Europe/Berlin',p_weekdays:weekdays,p_window_start:p.send_window_start||null,p_window_end:p.send_window_end||null,p_immoscout:Boolean(p.immoscout_enabled),p_kleinanzeigen:Boolean(p.kleinanzeigen_enabled),p_immomio:Boolean(p.immomio_enabled),p_immowelt:Boolean(p.immowelt_enabled)});if(error)throw Error(error.message);return{ok:true};}
+ if(action==='set_preferences'){const p=body.preferences||{},weekdays=Array.isArray(p.allowed_weekdays)?p.allowed_weekdays.map((x:any)=>integer(x,1,7)):null;const{error}=await admin.rpc('coach_set_application_preferences',{p_actor:a.member.id,p_user:assignment.user_id,p_enabled:Boolean(p.enabled),p_daily_limit:optionalInteger(p.daily_limit,1,1000),p_timezone:clean(p.timezone,80)||'Europe/Berlin',p_weekdays:weekdays,p_window_start:p.send_window_start||null,p_window_end:p.send_window_end||null,p_immoscout:Boolean(p.immoscout_enabled),p_kleinanzeigen:false,p_immomio:Boolean(p.immomio_enabled),p_immowelt:Boolean(p.immowelt_enabled)});if(error)throw Error(error.message);return{ok:true};}
  if(action==='reassign'){const{error}=await admin.rpc('coach_reassign_participant',{p_actor:a.member.id,p_user:assignment.user_id,p_coach:body.coachMemberId?uuid(body.coachMemberId):null});if(error)throw Error(error.message);return{ok:true};}
  if(action==='archive'){const next=body.archived===false?'active':'archived';const{error}=await admin.from('coaching_participants').update({status:next,archived_at:next==='archived'?new Date().toISOString():null,updated_at:new Date().toISOString()}).eq('user_id',assignment.user_id).eq('workspace_id',a.member.workspace_id);if(error)throw Error('archive_failed');await audit(a,assignment.user_id,next==='archived'?'participant_archived':'participant_restored');return{ok:true};}
  if(action==='retention'){const mode=body.mode==='delete_on_date'?'delete_on_date':'manual',date=mode==='delete_on_date'?String(body.delete_on||''):null;if(mode==='delete_on_date'&&!/^\d{4}-\d{2}-\d{2}$/.test(date||''))throw Error('invalid_retention_date');const{error}=await admin.from('coaching_participants').update({retention_mode:mode,retention_delete_on:date,status:mode==='delete_on_date'?'pending_deletion':'active',updated_at:new Date().toISOString()}).eq('user_id',assignment.user_id);if(error)throw Error('retention_save_failed');await audit(a,assignment.user_id,'retention_changed',{mode,delete_on:date});return{ok:true};}
