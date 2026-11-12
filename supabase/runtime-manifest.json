@@ -1134,23 +1134,23 @@
           "deployed_sha256": "4d9929f90c15e7e94acf5b8a24273abb7020da0d896f45109f7c31466a21ebb8"
         }
       ],
-      "observed_live_version": 365,
+      "observed_live_version": 366,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "5d5a1bc801c37e9c856766609d6a28cf145b0eabdaa40a1dbdbb71c8e4f24179",
+      "observed_live_artifact_sha256": "a0360c5cfb1affa17c1578806fa714a072ad3010dd4a1a4c2a8b8885b8466207",
       "source_archive_file": "docs/runtime-snapshot-2026-11-01/bundles/batch-18.json",
       "source_archive_file_count": 9,
       "source_archive_status": "full_source",
       "classification": "production",
       "review_status": "production runtime; version/JWT/hash tracked against live inventory",
-      "observed_live_at": "2026-11-12T11:32:17.000Z",
+      "observed_live_at": "2026-11-12T11:45:20.000Z",
       "known_source_drift": [
         {
           "path": "supabase/functions/notification-dispatcher/index.ts",
-          "reason": "Live version 365 has the dormant shared delivery guard; the additional activation gate is staged and not deployed. The archived source remains at version 363."
+          "reason": "Live version 366 matches the repository and has a dormant delivery guard behind an explicit activation gate; the archived source remains at version 363."
         },
         {
           "path": "supabase/functions/notification-dispatcher/delivery-lease.ts",
-          "reason": "Live version 365 matches the repository and adds dormant cutover bridge helpers; the archived source remains at version 363."
+          "reason": "Live version 366 matches the repository and includes dormant cutover bridge helpers; the archived source remains at version 363."
         }
       ],
       "source_archive_version": 363,
