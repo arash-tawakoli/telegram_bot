@@ -12,7 +12,7 @@ test('dispatcher processes a queued event using its lease UUID, not the profile 
   const event = { id: 'event', search_profiles: { is_active: true, profile_slot: 1, owner: profileOwner }, recipient: { chat_id: 123, is_active: true }, listings: { id: 'listing' } };
   const calls = [], finishes = [];
   const query = { select() { return this; }, in() { return this; }, eq() { return this; }, lt() { return this; }, or() { return this; }, order() { return this; }, limit() { return Promise.resolve({ data: [event], error: null }); } };
-  const db = { from(name) { return name === 'user_subscriptions' ? { select() { return this; }, async in(column, ids) { assert.equal(column, 'user_id'); assert.deepEqual(Array.from(ids), [profileOwner.id]); return { data: [], error: null }; } } : query; }, async rpc(name, args) { calls.push({ name, args }); assert.equal(args.p_owner, leaseOwner); return { data: true, error: null }; } };
+  const db = { from(name) { return name === 'user_subscriptions' ? { select() { return this; }, async in(column, ids) { assert.equal(column, 'user_id'); assert.deepEqual(Array.from(ids), [profileOwner.id]); return { data: [], error: null }; } } : query; }, async rpc(name, args) { calls.push({ name, args }); if(name==='get_bot_secret')return {data:null,error:null}; assert.equal(args.p_owner, leaseOwner); return { data: true, error: null }; } };
   let handler, sends = 0;
   vm.runInNewContext(handlerSource, {
     Deno: { serve(fn) { handler = fn; } }, crypto: { randomUUID: () => leaseOwner }, Response, Date, Map, Set, Number, String, console,
@@ -55,7 +55,7 @@ test('unknown availability is retried without sending a message', async () => {
   const event = { id: 'event', search_profiles: { is_active: true, profile_slot: 1, owner: profileOwner }, recipient: { chat_id: 123, is_active: true }, listings: { id: 'listing' } };
   const calls = [], finishes = [];
   const query = { select() { return this; }, in() { return this; }, eq() { return this; }, lt() { return this; }, or() { return this; }, order() { return this; }, limit() { return Promise.resolve({ data: [event], error: null }); } };
-  const db = { from(name) { return name === 'user_subscriptions' ? { select() { return this; }, async in(column, ids) { assert.equal(column, 'user_id'); assert.deepEqual(Array.from(ids), [profileOwner.id]); return { data: [], error: null }; } } : query; }, async rpc(name, args) { calls.push({ name, args }); assert.equal(args.p_owner, leaseOwner); return { data: true, error: null }; } };
+  const db = { from(name) { return name === 'user_subscriptions' ? { select() { return this; }, async in(column, ids) { assert.equal(column, 'user_id'); assert.deepEqual(Array.from(ids), [profileOwner.id]); return { data: [], error: null }; } } : query; }, async rpc(name, args) { calls.push({ name, args }); if(name==='get_bot_secret')return {data:null,error:null}; assert.equal(args.p_owner, leaseOwner); return { data: true, error: null }; } };
   let handler, sends = 0;
   vm.runInNewContext(handlerSource, {
     Deno: { serve(fn) { handler = fn; } }, crypto: { randomUUID: () => leaseOwner }, Response, Date, Map, Set, Number, String, console,

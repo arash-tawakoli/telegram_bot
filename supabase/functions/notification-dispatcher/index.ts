@@ -5,9 +5,11 @@ import {present, textValue, exactAddress, structuredFacts, collectImages, htmlFa
 import { telegramRequest, TelegramFailure } from "./telegram-request.ts";
 import { waitForDispatchSlot } from "./pacing.ts";
 import {
+  callCutoverBridge,
   claimDelivery,
   finishDelivery,
   recoverDeliveries,
+  shouldProtectDelivery,
 } from "./delivery-lease.ts";
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.112.4";
@@ -686,6 +688,9 @@ Deno.serve(async (req) => {
     if (error) throw error;
     if (!events?.length) return Response.json({ok:true,totals:{sent:0,failed:0,skipped:0}});
     const token = await sec("telegram_bot_token_runtime");
+    const { data: cutoverSecretValue, error: cutoverSecretError } = await db.rpc("get_bot_secret", { secret_name: "delivery_cutover_bridge_secret" });
+    if (cutoverSecretError) throw cutoverSecretError;
+    const cutoverSecret = cutoverSecretValue ? String(cutoverSecretValue) : null;
     const ownerIds = [...new Set(events.map((event: any) => event.search_profiles?.owner?.id).filter(Boolean))];
     const { data: subs, error: subscriptionError } = ownerIds.length
       ? await db.from("user_subscriptions")
@@ -733,6 +738,8 @@ Deno.serve(async (req) => {
         continue;
       }
       let message: any;
+      let cutover: ((action: string) => Promise<string>) | null = null;
+      let cutoverOwned = false, sendAttempted = false;
       try {
         let task = cache.get(String(raw.id));
         if (!task) {
@@ -777,6 +784,24 @@ Deno.serve(async (req) => {
           p_complete: true,
         });
         if (slotError) throw slotError;
+        if (cutoverSecret && shouldProtectDelivery(event.event_type, raw.source_id, raw.canonical_url)) {
+          cutover = (action: string) => callCutoverBridge(cutoverSecret, action, String(recipient.id), String(raw.canonical_url || ""), String(event.id));
+          const previous = event.preview_progress && typeof event.preview_progress === "object" ? event.preview_progress : null;
+          let reservation = previous?.version === 1 && Number(previous.next || 0) > 0 && !previous.in_flight ? await cutover("resume") : "not_owner";
+          if (reservation === "sending") cutoverOwned = true;
+          else {
+            reservation = await cutover("claim");
+            if (reservation === "already_sent") {
+              await finishDelivery(db, lease, { status: "skipped", next_retry_at: null, error_message: "Already delivered during Cloudflare cutover" });
+              skipped++; continue;
+            }
+            if (reservation === "unknown") throw new TelegramFailure("Cutover delivery outcome is unknown", true);
+            if (reservation !== "claimed") throw new TelegramFailure("Cutover delivery is in progress", false, false, 120);
+            cutoverOwned = true;
+            if (await cutover("begin") !== "sending") throw new TelegramFailure("Cutover reservation expired", false, false, 120);
+          }
+        }
+        sendAttempted = true;
         message = await send(
           token,
           Number(recipient.chat_id),
@@ -788,6 +813,18 @@ Deno.serve(async (req) => {
           event.preview_progress,
         );
       } catch (error) {
+        if (cutover && cutoverOwned) {
+          if (!sendAttempted) await cutover("release").catch(() => {});
+          else {
+            const { data: current, error: progressError } = await db.from("delivery_events").select("preview_progress").eq("id", lease.id).maybeSingle().catch(() => ({ data: null, error: true }));
+            const progress = current?.preview_progress;
+            if (progressError || !(error instanceof TelegramFailure) || error.outcomeUnknown || progress?.in_flight) await cutover("unknown").catch(() => {});
+            else if (progress?.version === 1 && Number(progress.next || 0) > 0) {
+              if (await cutover("sent").catch(() => "unavailable") !== "sent") console.error("cutover_delivery_confirmation_failed");
+            }
+            else await cutover("release").catch(() => {});
+          }
+        }
         await finishDelivery(db, lease, {
           status: "failed",
           delivery_outcome_unknown:
@@ -809,6 +846,7 @@ Deno.serve(async (req) => {
         failed++;
         continue;
       }
+      if (cutover && cutoverOwned && await cutover("sent").catch(() => "unavailable") !== "sent") console.error("cutover_delivery_confirmation_failed");
       const { error: gapError } = await db.rpc("dispatcher_slot", {
         p_owner: owner,
         p_complete: true,
