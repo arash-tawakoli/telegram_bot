@@ -128,19 +128,6 @@ export function structuredFacts(raw: any, base: string): any {
   }
   if(node.heatingCostIncluded === true)out.heating_text = 'in den Nebenkosten enthalten';
 
-  if(/(^|\.)wg-gesucht\.de$/i.test(sourceHostname) && typeof r.text==='string'){
-    const text=r.text.replace(/\s+/g,' ').trim();
-    const available=text.match(/\bVerfügbar:\s*(.+?)(?=\s+Diese Anzeige|\s+<img|$)/i)?.[1]?.trim();
-    if(!out.available_text && present(available))out.available_text=available;
-    const place=text.match(/\|\s*Hamburg\s+([^|]{2,60}?)\s*\|\s*([^|]{2,100}?)\s+Verfügbar:/i);
-    if(place){
-      if(!out.district)out.district=textValue(place[1]);
-      if(!out.address)out.address=[textValue(place[2]),textValue(place[1])?'Hamburg '+textValue(place[1]):'Hamburg'].filter(Boolean).join(', ');
-    }
-    if(/\bmöbliert\b/i.test(text))(out.features??=[]).push('möbliert');
-    if(/\bunmöbliert\b/i.test(text))(out.features??=[]).push('unmöbliert');
-  }
-
   if(r.provider==='immosolve_hpm_rest' && h){
     const extra:Record<string,string>={};
     const put=(label:string,value:any)=>{const v=textValue(value);if(v)extra[label]=v;};

@@ -36,16 +36,7 @@ test('Immowelt contract retains Hamburg area URLs, room sitemaps and expose GUID
  assert.match(source,/source\.id === 3/);
 });
 
-test('WG-Gesucht live connector is enabled and routed through generic HTML discovery',async()=>{
- const snapshot=JSON.parse(await read('docs/runtime-snapshot-2026-10-21/provider-contract-snapshot.json'));
- const wg=snapshot.providers.find(p=>p.source_id===6);
- assert.ok(wg,'WG-Gesucht source missing from live snapshot');
- assert.equal(wg.name,'WG-Gesucht Hamburg');
- assert.equal(wg.enabled,true);
- assert.equal(wg.runtime_mode,'live');
- assert.equal(wg.delivery_mode,'live');
- assert.equal(wg.connectors[0].kind,'html_discovery');
- assert.equal(wg.connectors[0].shadow_only,false);
- const entry=await read('supabase/functions/source-worker/index.ts');
- assert.match(entry,/return runGeneric\(s, connectors\)/);
+test('WG-Gesucht cannot be selected as an active category adapter',async()=>{
+ const src=await read('supabase/functions/source-worker/category.ts');
+ assert.doesNotMatch(src,/wg-gesucht|wgGesucht|WgGesucht/i);
 });
