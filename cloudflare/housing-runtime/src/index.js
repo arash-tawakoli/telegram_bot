@@ -1,4 +1,4 @@
-import { deleteExpiredListings } from "./retention.js";
+import { deleteExpiredListings, expireAdminPremiumOverrides } from "./retention.js";
 import centralTokenWorker from "./immoscout-central-token.js";
 import { HOUSING_SOURCES } from "./source-allowlist.js";
 import { sourceForId } from "./source-allowlist.js";
@@ -266,6 +266,12 @@ async function processDelivery(sql, request, env) {
 
 async function runScheduledHousingWork(env) {
   const minute = Math.floor(Date.now() / 60_000);
+  try {
+    const expired = await withDatabase(env, expireAdminPremiumOverrides);
+    if (expired) console.log("housing_admin_premium_overrides_expired", JSON.stringify({ expired }));
+  } catch (error) {
+    console.error("housing_admin_premium_override_expiry_failed", String(error?.message || error));
+  }
   if (env.DELIVERY_CUTOVER_ENABLED === "1" && env.DELIVERY_CUTOVER_SECRET) {
     try { await reconcileCloudflareDeliveries(env.HOUSING_DB); }
     catch { console.error("delivery_cutover_reconciliation_failed"); }
