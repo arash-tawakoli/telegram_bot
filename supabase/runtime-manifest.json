@@ -1134,35 +1134,23 @@
           "deployed_sha256": "4d9929f90c15e7e94acf5b8a24273abb7020da0d896f45109f7c31466a21ebb8"
         }
       ],
-      "observed_live_version": 364,
+      "observed_live_version": 365,
       "observed_live_verify_jwt": false,
-      "observed_live_artifact_sha256": "921a759ba80c40b804d686d296325966eeaeba1c26e08f790febb6d6955ceff9",
+      "observed_live_artifact_sha256": "5d5a1bc801c37e9c856766609d6a28cf145b0eabdaa40a1dbdbb71c8e4f24179",
       "source_archive_file": "docs/runtime-snapshot-2026-11-01/bundles/batch-18.json",
       "source_archive_file_count": 9,
       "source_archive_status": "full_source",
       "classification": "production",
       "review_status": "production runtime; version/JWT/hash tracked against live inventory",
-      "observed_live_at": "2026-10-28T21:37:37.605Z",
+      "observed_live_at": "2026-11-12T11:32:17.000Z",
       "known_source_drift": [
         {
           "path": "supabase/functions/notification-dispatcher/index.ts",
-          "reason": "The shared cutover delivery guard is staged and not deployed; live notification-dispatcher version 364 remains in use until both sides and their handoff are verified."
+          "reason": "Live version 365 matches the repository and adds a dormant shared delivery guard; the archived source remains at version 363."
         },
         {
           "path": "supabase/functions/notification-dispatcher/delivery-lease.ts",
-          "reason": "The cutover bridge helpers are staged and not deployed; live notification-dispatcher version 364 remains unchanged."
-        },
-        {
-          "path": "supabase/functions/notification-dispatcher/availability.ts",
-          "reason": "The staged availability policy removes the legacy native Kleinanzeigen offer lane and an existing source-specific freshness rule while the Cloudflare provider migration is incomplete. Not deployed; preserve the live Supabase availability behavior until connector parity is verified."
-        },
-        {
-          "path": "supabase/functions/notification-dispatcher/newness.ts",
-          "reason": "The staged newness policy removes the legacy Kleinanzeigen fast-lane proof path. This is not deployed; preserve the live Supabase freshness rules until the Cloudflare Kleinanzeigen connector and freshness proof are complete."
-        },
-        {
-          "path": "supabase/functions/notification-dispatcher/source-facts.ts",
-          "reason": "The staged source-facts parser removes Kleinanzeigen image and address extraction while adding replacement provider fields. This is not deployed; retain the live parser until Cloudflare Kleinanzeigen parity is verified."
+          "reason": "Live version 365 matches the repository and adds dormant cutover bridge helpers; the archived source remains at version 363."
         }
       ],
       "source_archive_version": 363,
