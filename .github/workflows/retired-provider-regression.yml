@@ -1,0 +1,29 @@
+name: Housing provider regression
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "supabase/functions/**"
+      - "cloudflare/housing-runtime/**"
+      - "tests/**"
+      - "package.json"
+      - ".github/workflows/retired-provider-regression.yml"
+  push:
+    branches: [main]
+    paths:
+      - "supabase/functions/**"
+      - "cloudflare/housing-runtime/**"
+      - "tests/**"
+      - "package.json"
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm install --no-audit --no-fund
+      - run: npm test
