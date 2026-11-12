@@ -12,7 +12,8 @@ const migration=readFileSync(new URL('../supabase/migrations/20260920170532_enab
 test('category discovery uses all verified production adapters',()=>{
   assert.match(category,/stream\.adapter==='scout'/);
   assert.match(category,/stream\.adapter==='kleinanzeigen'/);
-  assert.match(category,/\['wg-gesucht','ohne-makler'\]\.includes\(stream\.adapter\)/);
+  assert.match(category,/\['ohne-makler'\]\.includes\(stream\.adapter\)/);
+  assert.doesNotMatch(category,/wg-gesucht|wgGesucht|WgGesucht/i);
   assert.match(category,/stream\.adapter==='immowelt'/);
   assert.match(category,/method:'source_timestamp'/);
   assert.match(categoryPersist,/category_stream:category/);
