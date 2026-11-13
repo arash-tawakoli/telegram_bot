@@ -18,7 +18,7 @@ final class CallbackModel: ObservableObject {
 
     @Published var phase: Phase = .idle
 
-    private let endpoint = URL(string: "https://dpmohkrwdlicexwcrqfy.supabase.co/functions/v1/immoscout-native-handoff")!
+    private let endpoint = URL(string: "https://traumwohnung-housing-runtime.arash-ce5.workers.dev/edge/provider/facade")!
 
     func handle(url: URL) async {
         guard url.scheme?.lowercased() == "immobilienscout24.de",
@@ -45,7 +45,8 @@ final class CallbackModel: ObservableObject {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.cachePolicy = .reloadIgnoringLocalCacheData
             request.httpBody = try JSONSerialization.data(withJSONObject: [
-                "action": "complete",
+                "action": "complete_web",
+                "ticket": values["state"] ?? "",
                 "callbackUrl": url.absoluteString,
             ])
 

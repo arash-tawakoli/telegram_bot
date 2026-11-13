@@ -240,7 +240,7 @@ async function openScoutMfa(env, value) {
 function scoutCallback(value) {
   let url;
   try { url = new URL(String(value || "").trim()); } catch { throw new Error("invalid_callback_url"); }
-  if (url.protocol !== "immobilienscout24:" || url.hostname || url.port || url.username || url.password || url.pathname !== "/loginCallback") throw new Error("invalid_callback_url");
+  if (url.protocol !== "immobilienscout24.de:" || url.hostname || url.port || url.username || url.password || url.pathname !== "/loginCallback") throw new Error("invalid_callback_url");
   const fragment = new URLSearchParams(url.hash.replace(/^#/, "").replace(/^\?/, ""));
   return { state: fragment.get("state") || url.searchParams.get("state"), code: fragment.get("code") || url.searchParams.get("code"), error: fragment.get("error") || url.searchParams.get("error") };
 }

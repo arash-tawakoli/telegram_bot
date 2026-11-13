@@ -7,8 +7,8 @@ Flow:
 1. Telegram starts an ImmoScout24 authorization request using the public PKCE client.
 2. ImmoScout24 hosts the complete sign-in and MFA experience.
 3. ImmoScout24 redirects to its registered custom callback `immobilienscout24.de:/loginCallback`.
-4. This helper receives only that OAuth callback and forwards the one-time authorization code/state to `immoscout-native-handoff`.
-5. Supabase exchanges the code with the server-held PKCE verifier and stores only encrypted OAuth tokens.
+4. This helper receives only that OAuth callback and forwards the one-time authorization code/state to the Cloudflare D1 provider facade.
+5. Cloudflare verifies the D1 auth-flow state, exchanges the code with the server-held PKCE verifier and stores only encrypted OAuth tokens in D1.
 
 The app contains no ImmoScout24 password form, no OTP/TOTP/SMS-code form and no provider credentials or backend secrets.
 
