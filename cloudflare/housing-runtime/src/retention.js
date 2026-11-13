@@ -61,25 +61,12 @@ export async function deleteExpiredApplicationRecords(sql, limit = 5000, now = n
   const eventTime = timestamp("e.created_at");
   const expiredTime = timestamp("created_at");
   const result = await sql.begin(async (tx) => {
-    const expiredEvents = await tx.unsafe(`
-      SELECT id FROM housing.application_events
-      WHERE julianday(${expiredTime}) IS NOT NULL
-        AND julianday(${expiredTime}) <= julianday($1, '-24 hours')
-      ORDER BY created_at, id
-      LIMIT $2
-      FOR UPDATE SKIP LOCKED
-    `, [nowIso, limit]);
-    for (let offset = 0; offset < expiredEvents.length; offset += 50) {
-      const ids = expiredEvents.slice(offset, offset + 50).map((row) => row.id);
-      const placeholders = ids.map((_, index) => `$${index + 1}`).join(",");
-      await tx.unsafe(`DELETE FROM housing.application_events WHERE id IN (${placeholders})`, ids);
-    }
-
     const expiredApplications = await tx.unsafe(`
       SELECT a.id, a.idempotency_key
       FROM housing.applications a
       WHERE julianday(${appTime}) IS NOT NULL
         AND julianday(${appTime}) <= julianday($1, '-24 hours')
+        AND a.status <> 'processing'
         AND NOT EXISTS (
           SELECT 1 FROM housing.application_events e
           WHERE e.application_id = a.id
@@ -95,8 +82,8 @@ export async function deleteExpiredApplicationRecords(sql, limit = 5000, now = n
     for (const row of expiredApplications) {
       metadataRows.push([await applicationIdempotencyHash(row.idempotency_key), nowIso]);
     }
-    for (let offset = 0; offset < metadataRows.length; offset += 100) {
-      const chunk = metadataRows.slice(offset, offset + 100);
+    for (let offset = 0; offset < metadataRows.length; offset += 40) {
+      const chunk = metadataRows.slice(offset, offset + 40);
       const values = [];
       const tuples = chunk.map((row, index) => {
         values.push(...row);
@@ -106,6 +93,20 @@ export async function deleteExpiredApplicationRecords(sql, limit = 5000, now = n
         INSERT OR IGNORE INTO housing.application_dedupe_keys (key_hash, created_at)
         VALUES ${tuples}
       `, values);
+    }
+
+    const expiredEvents = await tx.unsafe(`
+      SELECT id FROM housing.application_events
+      WHERE julianday(${expiredTime}) IS NOT NULL
+        AND julianday(${expiredTime}) <= julianday($1, '-24 hours')
+      ORDER BY created_at, id
+      LIMIT $2
+      FOR UPDATE SKIP LOCKED
+    `, [nowIso, limit]);
+    for (let offset = 0; offset < expiredEvents.length; offset += 50) {
+      const ids = expiredEvents.slice(offset, offset + 50).map((row) => row.id);
+      const placeholders = ids.map((_, index) => `$${index + 1}`).join(",");
+      await tx.unsafe(`DELETE FROM housing.application_events WHERE id IN (${placeholders})`, ids);
     }
 
     let deletedApplications = 0;
