@@ -225,9 +225,41 @@ export function createD1Supabase(db, env) {
       return results;
     },
   };
-  return { from: table => new Query(client, table), rpc: async (name,args={}) => rpc(client, env, name, args), storage: { from: () => ({ remove: async () => ({ data: [], error: null }), upload: async () => ({ data: null, error: null }) }) } };
+  const storage = { from: bucket => ({
+    async upload(path, body, options = {}) {
+      try {
+        if (bucket !== "applicant-documents" || !env.DOCUMENTS) throw new Error("document_storage_unavailable");
+        const key = storageKey(path);
+        if (options.upsert !== true && await env.DOCUMENTS.head(key)) throw new Error("object_already_exists");
+        const httpMetadata = {};
+        if (options.contentType) httpMetadata.contentType = String(options.contentType);
+        if (options.cacheControl) {
+          const value = String(options.cacheControl);
+          httpMetadata.cacheControl = /^\d+$/.test(value) ? `max-age=${value}` : value;
+        }
+        await env.DOCUMENTS.put(key, body, { httpMetadata });
+        return { data: { path: key }, error: null };
+      } catch (error) { return { data: null, error }; }
+    },
+    async remove(paths) {
+      try {
+        if (bucket !== "applicant-documents" || !env.DOCUMENTS) throw new Error("document_storage_unavailable");
+        const keys = [...new Set((Array.isArray(paths) ? paths : [paths]).map(storageKey))];
+        if (keys.length) await env.DOCUMENTS.delete(keys);
+        return { data: keys.map(name => ({ name })), error: null };
+      } catch (error) { return { data: null, error }; }
+    },
+  }) };
+  return { from: table => new Query(client, table), rpc: async (name,args={}) => rpc(client, env, name, args), storage };
 }
 
+function storageKey(path) {
+  const key = String(path || "");
+  if (!key || key.length > 1024 || key.startsWith("/") || key.includes("\\") || key.split("/").some(part => !part || part === "." || part === "..")) {
+    throw new Error("invalid_storage_path");
+  }
+  return key;
+}
 async function rpc(client, env, name, args) {
   if (name === "redeem_referral_code") {
     const code = String(args.p_code || "").trim();
