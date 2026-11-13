@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { applicationIdempotencyHash } from "../src/application-dedupe.js";
 import { matchesProfile, queueMatches } from "../src/matching.js";
 
 const apartment = { title: "Wohnung in Hamburg", city: "Hamburg", district: "Altona", warm_rent: 900, rooms: 2, area_sqm: 60 };
@@ -53,6 +54,29 @@ test("shadow sources can be observed but cannot queue deliveries or applications
   assert.equal(queries, 0);
 });
 
+test("retained Immomio source identifiers prevent reapplying after application payload expiry", async () => {
+  const participantId = "u";
+  const immomioId = "12345678-1234-4234-8234-123456789012";
+  const legacyHash = await applicationIdempotencyHash(`legacy:immomio:${participantId}:${immomioId}`);
+  const calls = [];
+  const sql = async (parts, ...values) => {
+    const query = parts.join("?"); calls.push({ query, values });
+    if (query.includes("SELECT DISTINCT sp.participant_id")) return [{
+      participant_id: participantId, criteria: JSON.stringify(hamburg), auto_apply_enabled: 1,
+      plan_override: "premium", preferences_enabled: 1, immomio_enabled: 1,
+      provider_connection_status: "connected",
+      applicant_profile: JSON.stringify({ first_name: "A", last_name: "B", email: "a@example.com", phone: "+49123456789", street: "Test", house_number: "1", postcode: "20095", city: "Hamburg", salutation: "MS", household_type: "SINGLE", employment_status: "EMPLOYEE", income_range: "NOT_SPECIFIED", pets: "Keine", move_in_preference: "NOT_SPECIFIED", schufa_status: "NOT_SPECIFIED", wbs_status: "NOT_SPECIFIED", message_apartment: "Interesse", message_house: "Interesse", message_temporary_wg: "Interesse", message_swap: "Interesse" }),
+    }];
+    if (query.includes("SELECT i.first_seen_at")) return [{ first_seen_at: new Date(Date.now()-5_000).toISOString(), enabled_at: new Date(Date.now()-10_000).toISOString(), expires_at: new Date(Date.now()+86_400_000).toISOString() }];
+    if (query.includes("SELECT 1 FROM housing.application_dedupe_keys")) return values[0] === legacyHash ? [{ found: 1 }] : [];
+    if (query.includes("INSERT INTO housing.deliveries")) return [{ id: "delivery-1" }];
+    return [];
+  };
+  const facts = { ...apartment, canonical_url: `https://tenant.immomio.com/de/apply/${immomioId}` };
+  assert.equal(await queueMatches(sql, "offer", 23, "23:external:object-1", facts), 1);
+  assert.equal(calls.some(call => call.query.includes("INSERT INTO housing.deliveries")), true);
+  assert.equal(calls.some(call => call.query.includes("INSERT INTO housing.applications")), false);
+});
 test("new fresh matches queue AutoApply only for complete premium connected profiles", async () => {
   const calls = [];
   const sql = async (parts, ...values) => {
