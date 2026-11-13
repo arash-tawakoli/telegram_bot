@@ -10,7 +10,6 @@ export const ROOM_PRESETS = new Set([1, 2, 3, 4]);
 export const AREA_PRESETS = new Set([20, 50, 70, 90]);
 export const ROOM_AREA_PRESETS = new Set([0, 8, 10, 12, 15, 20]);
 export const NEIGHBORHOODS_PER_PAGE = 10;
-export const SAVED_PAGE_SIZE = 8;
 export const SECRET_TTL_MS = 5 * 60_000;
 export const GEO_TTL_MS = 30 * 60_000;
 export const ADMIN_TELEGRAM_USER_IDS = new Set([8538226539, 414638980]);
