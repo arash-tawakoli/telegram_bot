@@ -1,3 +1,5 @@
+import { missingApplicantFields } from "../application-policy.js";
+
 import { sha256 } from "../auth.js";
 const TABLES = {
   bot_users: "participants",
@@ -388,7 +390,10 @@ async function rpc(client, env, name, args) {
       ? { data: { id: saved.id, profile_slot: slot, status: Number(results.at(-1)?.meta?.changes || 0) ? "rewarded" : "none" }, error: null }
       : { data: null, error: new Error("search_profile_save_failed") };
   }
-  if (name === "application_profile_missing_fields") { const row=(await client.run("SELECT profile FROM applicant_profiles WHERE participant_id=?",[args.p_user]))[0]; const p=JSON.parse(row?.profile||"{}"); const missing=[]; for(const k of ["first_name","last_name","email","phone","street","house_number","postcode","city"])if(!String(p[k]||"").trim())missing.push(k); return {data:missing,error:null}; }
+  if (name === "application_profile_missing_fields") {
+    const row = (await client.run("SELECT profile FROM applicant_profiles WHERE participant_id=?", [args.p_user]))[0];
+    return { data: missingApplicantFields(row?.profile), error: null };
+  }
   if (name === "set_application_test_mode") {
     const enabled = args.p_enabled === true || args.p_enabled === 1;
     const telegramId = Number(args.p_telegram_user_id || 0);

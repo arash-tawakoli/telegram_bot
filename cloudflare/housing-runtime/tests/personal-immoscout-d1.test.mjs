@@ -6,9 +6,13 @@ import { createD1Supabase } from "../src/telegram-legacy/d1-supabase.js";
 const ownerId = "owner-1";
 const ownerTelegramId = 8538226539;
 const completeProfile = {
-  first_name: "Arash", last_name: "Tawakoli", email: "arash@nexalabs.de",
-  phone: "+491700000000", street: "Kreuzweg", house_number: "7",
-  postcode: "20099", city: "Hamburg",
+  first_name: "Arash", last_name: "Tawakoli", salutation: "MR",
+  email: "arash@nexalabs.de", phone: "+491700000000",
+  street: "Kreuzweg", house_number: "7", postcode: "20099", city: "Hamburg",
+  household_type: "SINGLE", employment_status: "EMPLOYEE", income_range: "1000_1500",
+  pets: "NO", wbs_status: "NOT_SPECIFIED", move_in_preference: "FLEXIBLE",
+  schufa_status: "NOT_SPECIFIED", message_apartment: "Interesse",
+  message_house: "Interesse", message_temporary_wg: "Interesse", message_swap: "Interesse",
 };
 
 function fakeD1({ centralEnabled = 0, complete = true, testEnabled = false, telegramId = ownerTelegramId } = {}) {
