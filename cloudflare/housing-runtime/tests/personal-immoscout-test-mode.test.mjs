@@ -53,7 +53,11 @@ function applicationRow(overrides = {}) {
     profile: {
       first_name: "Arash", last_name: "Tawakoli", email: "arash@nexalabs.de",
       phone: "+491700000000", street: "Kreuzweg", house_number: "7",
-      postcode: "20099", city: "Hamburg", message_apartment: "Anfrage zur Immobilie",
+      postcode: "20099", city: "Hamburg", salutation: "MR", household_type: "SINGLE",
+      employment_status: "EMPLOYEE", income_range: "NOT_SPECIFIED", pets: "Keine",
+      move_in_preference: "NOT_SPECIFIED", schufa_status: "NOT_SPECIFIED", wbs_status: "NOT_SPECIFIED",
+      message_apartment: "Anfrage zur Immobilie", message_house: "Anfrage zur Immobilie",
+      message_temporary_wg: "Anfrage zur Immobilie", message_swap: "Anfrage zur Immobilie",
     },
     facts: {},
     test_auto_apply_allowed: 1,
@@ -73,7 +77,7 @@ function sqlFor(row, { reserve = true } = {}) {
     const text = strings.join("?");
     writes.push({ text, values });
     if (/SELECT a\.id/i.test(text)) return row ? [row] : [];
-    if (/UPDATE housing\.applications SET status = 'processing'/i.test(text)) return row ? [{ id: row.id }] : [];
+    if (/SET status = 'processing'/i.test(text)) return row ? [{ id: row.id }] : [];
     if (/SET submission_started_at = now\(\)/i.test(text)) return reserve ? [{ id: row?.id || "app-test-1" }] : [];
     return [];
   };
@@ -107,6 +111,11 @@ test("matching queues a separate ImmoScout test application only for an opted-in
         auto_apply_enabled: 0,
       }];
     }
+    if (/SELECT i\.first_seen_at/i.test(text)) return [{
+      first_seen_at: new Date(Date.now() - 5_000).toISOString(),
+      enabled_at: new Date(Date.now() - 10_000).toISOString(),
+      expires_at: new Date(Date.now() + 86_400_000).toISOString(),
+    }];
     if (/INSERT INTO housing\.deliveries/i.test(text)) return [{ id: "delivery-test-1" }];
     if (/INSERT INTO housing\.applications/i.test(text)) return [{ id: "app-test-1" }];
     return [];
