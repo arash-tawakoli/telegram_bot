@@ -8,7 +8,10 @@ function sqlFor(row) {
     const text = strings.join("?");
     writes.push({ text, values });
     if (/SELECT a\.id/i.test(text)) return Promise.resolve(row ? [row] : []);
-    if (/UPDATE housing\.applications SET status = 'processing'/i.test(text)) return Promise.resolve(row ? [{ id: row.id }] : []);
+    if (/SET status = 'processing'/i.test(text)) return Promise.resolve(row ? [{ id: row.id }] : []);
+    if (/SELECT DISTINCT sp\.criteria/i.test(text)) return Promise.resolve([{ criteria: JSON.stringify({ property_types: ["Wohnung"], location_mode: "all_hamburg" }) }]);
+    if (/FROM housing\.deliveries/i.test(text)) return Promise.resolve([{ id: "delivery-1" }]);
+    if (/SET submission_started_at = now\(\)/i.test(text)) return Promise.resolve(row ? [{ id: row.id }] : []);
     return Promise.resolve([]);
   };
   query.begin = async (callback) => callback(query);
@@ -30,18 +33,23 @@ test("application processor is idle when no pending application exists", async (
 
 test("application processor fails closed while a provider transport is pending", async () => {
   const db = sqlFor({
-    id: "app-1", participant_id: "user-1", offer_identity_id: "offer-1", provider: "immomio",
-    canonical_url: "https://tenant.immomio.com/de/apply/12345678-1234-4234-8234-123456789012", preferences_enabled: true,
-    provider_enabled: true, connection_status: "connected",
+    id: "app-1", participant_id: "user-1", offer_identity_id: "offer-1", provider: "immomio", status: "pending",
+    participant_status: "active", auto_apply_enabled: true, plan_override: "premium",
+    source_id: 23, first_seen_at: "2026-11-13T08:00:00Z", cutover_enabled_at: "2026-11-13T07:59:00Z",
+    expires_at: "2026-11-14T08:00:00Z", canonical_url: "https://tenant.immomio.com/de/apply/12345678-1234-4234-8234-123456789012",
+    facts: { applicationLink: "https://tenant.immomio.com/de/apply/12345678-1234-4234-8234-123456789012", title: "Wohnung in Hamburg", city: "Hamburg" },
+    profile: { first_name: "Anna", last_name: "Beispiel", email: "anna@example.com", phone: "+49123456789", street: "Testweg", house_number: "1", postcode: "20095", city: "Hamburg", salutation: "MS", household_type: "SINGLE", employment_status: "EMPLOYEE", income_range: "NOT_SPECIFIED", pets: "Keine", move_in_preference: "NOT_SPECIFIED", schufa_status: "NOT_SPECIFIED", wbs_status: "NOT_SPECIFIED", message_apartment: "Interesse", message_house: "Interesse", message_temporary_wg: "Interesse", message_swap: "Interesse" },
+    preferences_enabled: true, provider_enabled: true, daily_limit: null, timezone: "Europe/Berlin",
+    allowed_weekdays: null, send_window_start: null, send_window_end: null, connection_status: "connected",
   });
   const result = await processHousingApplication(db.query, { APPLICATION_RUN_TOKEN: "secret" }, new Request("https://runtime.test/internal/application/process", { method: "POST", headers: { authorization: "Bearer secret" } }));
   assert.equal(result.body.status, "manual_required");
-  assert.equal(result.body.reason, "application_link_missing");
+  assert.equal(result.body.reason, "needs_login");
   assert.ok(db.writes.some(({ text }) => /housing\.application_events/.test(text)));
 });
 
 test("scheduled application processing ignores the historical pending backlog", async () => {
   const db = sqlFor(null);
   await processHousingApplication(db.query, { APPLICATION_RUN_TOKEN: "secret" }, new Request("https://runtime.test/internal/application/process?fresh_only=1", { method: "POST", headers: { authorization: "Bearer secret" } }));
-  assert.match(db.writes[0].text, /created_at >= now\(\) - interval '15 minutes'/);
+  assert.match(db.writes[2].text, /oi\.first_seen_at >= cutover\.enabled_at/);
 });
