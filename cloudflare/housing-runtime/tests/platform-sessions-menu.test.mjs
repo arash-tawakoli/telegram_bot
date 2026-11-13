@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { configureLegacyRuntime, secretCache } from "../src/telegram-legacy/runtime.js";
-import { platformSessions } from "../src/telegram-legacy/platform-sessions.js";
+import { immomioCallbackFromMessage, platformSessions } from "../src/telegram-legacy/platform-sessions.js";
 
 function fakeD1() {
   return {
@@ -52,4 +52,13 @@ test("auto-apply menu only iterates provider adapters that still exist", async (
   assert.equal(labels.some(text => text.includes("Immomio")), true);
   assert.equal(labels.some(text => text.includes("Immowelt")), true);
   assert.equal(labels.some(text => text.includes("Kleinanzeigen")), false);
+});
+
+test("Telegram Immomio callback parser accepts the configured redirect URI", () => {
+  const callback = "https://tenant.immomio.com/de/auth/login?state=state123&code=code123";
+  assert.equal(immomioCallbackFromMessage({ text: callback }), callback);
+  assert.equal(immomioCallbackFromMessage({ text: `${callback}.` }), callback);
+  assert.equal(immomioCallbackFromMessage({
+    text: "https://tenant.immomio.com/assets/manifest.webmanifest?state=state123&code=code123",
+  }), null);
 });
