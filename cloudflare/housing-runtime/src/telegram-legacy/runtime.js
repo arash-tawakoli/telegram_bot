@@ -45,7 +45,7 @@ export function backRow(callbackData, nextCallbackData) { const row = [button("â
 export async function secret(name, force = false) {
   const cached = secretCache.get(name);
   if (!force && cached && cached.expiresAt > Date.now()) return cached.value;
-  const values = { telegram_bot_token_runtime: env.TELEGRAM_BOT_TOKEN, telegram_webhook_secret: env.TELEGRAM_WEBHOOK_SECRET, stripe_portal_url: env.STRIPE_PORTAL_URL };
+  const values = { telegram_bot_token_runtime: env.TELEGRAM_BOT_TOKEN, telegram_webhook_secret: env.TELEGRAM_WEBHOOK_SECRET, stripe_portal_url: env.STRIPE_PORTAL_URL, immoscout_central_cloudflare_api_secret: env.CENTRAL_API_SECRET };
   const value = values[name];
   if (!value) throw new Error(`secret ${name} unavailable`);
   secretCache.set(name, { value: String(value), expiresAt: Date.now() + SECRET_TTL_MS });
