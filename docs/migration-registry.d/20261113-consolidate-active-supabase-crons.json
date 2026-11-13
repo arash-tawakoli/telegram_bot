@@ -1,0 +1,12 @@
+{
+  "migrations": [
+    {
+      "version": "20261113061317",
+      "name": "consolidate_active_supabase_crons",
+      "file": "supabase/migrations/20261113061317_consolidate_active_supabase_crons.sql",
+      "registry_sql_sha256": "dce1eea5515a5cd96045a4daadde3882c7843fd6db129b525ec8e17adc847a09",
+      "export_sql_sha256": "dce1eea5515a5cd96045a4daadde3882c7843fd6db129b525ec8e17adc847a09",
+      "vault_substitution": false
+    }
+  ]
+}
