@@ -621,32 +621,30 @@ export default {
     if (request.method === "GET" && (url.pathname === "/ready" || routePath === "/ready")) {
       try {
         const readiness = await withDatabase(env, async (sql) => {
-          const [tables, centralTables, counts] = await Promise.all([
+          const [tables, centralTables, imported] = await Promise.all([
             sql`SELECT count(*) AS count FROM sqlite_master WHERE type = 'table' AND name IN ('source_registry','participants','portal_members','participant_assignments','portal_sessions','bootstrap_tokens','search_profiles','source_links','applicant_profiles','documents','upload_tokens','provider_connections','application_preferences','offer_identities','deliveries','applications','application_events','application_dedupe_keys','jobs','audit_events','telegram_updates','provider_auth_flows')`,
             sql`SELECT
-              (SELECT count(*) FROM central_credentials) AS credentials,
-              (SELECT count(*) FROM central_oauth_flows) AS oauth_flows,
-              (SELECT count(*) FROM central_audit_events) AS audit_events`,
-            sql`SELECT
-              (SELECT count(*) FROM participants) AS participants,
-              (SELECT count(*) FROM search_profiles) AS search_profiles,
-              (SELECT count(*) FROM applicant_profiles) AS applicant_profiles,
-              (SELECT count(*) FROM provider_connections) AS provider_connections,
-              (SELECT count(*) FROM offer_identities) AS offers,
-              (SELECT count(*) FROM deliveries) AS deliveries,
-              (SELECT count(*) FROM applications) AS applications`,
+              (SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'central_credentials') AS credentials,
+              (SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'central_oauth_flows') AS oauth_flows,
+              (SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'central_audit_events') AS audit_events`,
+            sql`SELECT 1 AS imported FROM participants LIMIT 1`,
           ]);
+          const central = centralTables[0] || {};
+          const hasCentralTables = ["credentials", "oauth_flows", "audit_events"].every((key) => Number(central[key]) === 1);
           return {
             role: "cloudflare-d1",
             rls: "worker_authorization",
             serviceRoleMember: false,
             listingAccess: "denied",
             retentionFunction: "available",
-            centralVault: "available",
+            centralVault: hasCentralTables ? "available" : "unavailable",
             legacyD1: "removed",
-            centralTables: centralTables[0] || {},
-            housingTarget: { tables: Number(tables[0]?.count || 0), rls: "worker_authorization", dataImported: Number(counts[0]?.participants || 0) > 0 },
-            counts: counts[0] || {},
+            centralTables: {
+              credentials: Number(central.credentials) === 1,
+              oauth_flows: Number(central.oauth_flows) === 1,
+              audit_events: Number(central.audit_events) === 1,
+            },
+            housingTarget: { tables: Number(tables[0]?.count || 0), rls: "worker_authorization", dataImported: Boolean(imported[0]) },
           };
         });
         return json({ ok: true, database: "reachable", ...readiness });

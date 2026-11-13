@@ -50,7 +50,7 @@ npm run check
 npm test
 ```
 
-`/edge/ready` muss `role: cloudflare-d1`, 21 Housing-Tabellen, die drei zentralen ImmoScout-D1-Tabellen und `dataImported: true` melden.
+`/edge/ready` muss `role: cloudflare-d1`, 22 Housing-Tabellen, die drei zentralen ImmoScout-D1-Tabellen und `dataImported: true` melden. Die öffentliche Antwort bestätigt nur Schema und Importstatus und enthält keine Teilnehmer-, Angebots-, Zustell- oder Bewerbungszeilenzahlen.
 
 ## Stripe Premium – Cloudflare-D1-Cutover (vorbereitet)
 
