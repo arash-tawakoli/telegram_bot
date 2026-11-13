@@ -45,7 +45,7 @@ test('unauthorized Immowelt sends are deferred only with an explicit wait reason
  assert.equal(stopped.status,'manual_required');
  const stoppedWrite=terminal.writes.filter(x=>x.table==='applications').at(-1).write;
  assert.equal(stoppedWrite.last_error,'send_not_authorized');
- assert.equal(stoppedWrite.next_attempt_at,null);
+ assert.equal(stoppedWrite.next_attempt_at,undefined);
  const deferred=worker({authorized:false,provider:'immowelt',waitReason:'provider_backoff',providerResult:result});
  assert.equal((await deferred.processApplication()).status,'deferred');
  assert.ok(!deferred.writes.some(x=>x.table==='applications'&&x.write.status==='manual_required'));
