@@ -1,3 +1,5 @@
+import { hasRetainedApplicationKey, rememberApplicationKey } from "./application-dedupe.js";
+
 function number(value) {
   if (value == null || value === "") return null;
   const result = Number(value);
@@ -181,5 +183,4 @@ export function telegramText(facts) {
   const rows = [facts?.title, facts?.city, facts?.district, facts?.postal_code, facts?.warm_rent != null ? `${facts.warm_rent} € warm` : null, facts?.rooms != null ? `${facts.rooms} Zimmer` : null, facts?.area_sqm != null ? `${facts.area_sqm} m²` : null].filter(Boolean);
   return `<b>${html(rows.shift() || "Wohnungsangebot")}</b>\n${rows.map(html).join(" · ")}\n<a href="${html(facts?.canonical_url || facts?.url || "")}">Originalangebot öffnen</a>`;
 }
-import { hasRetainedApplicationKey, rememberApplicationKey } from "./application-dedupe.js";
 
