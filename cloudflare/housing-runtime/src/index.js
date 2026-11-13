@@ -16,6 +16,7 @@ import { processHousingApplication } from "./application-runtime.js";
 import { createD1Client } from "./d1-database.js";
 import { handleLegacyTelegramUpdate } from "./telegram-legacy/index.js";
 import { runEngagementNotifications } from "./engagement-cron.js";
+import { recordTelegramActivity, recoverTelegramUpdates } from "./telegram-recovery.js";
 
 const HEADERS = {
   "content-type": "application/json; charset=utf-8",
@@ -119,26 +120,23 @@ async function telegramWebhook(request, env) {
   if (!Number.isSafeInteger(updateId) || updateId < 0) return json({ error: "invalid_update" }, 400);
   const kind = update?.callback_query ? "callback_query" : update?.message ? "message" : "other";
   const hash = await sha256(body);
+  const processingAt = new Date().toISOString();
   const sql = databaseClient(env);
   try {
     const claimed = await sql`
-      INSERT INTO housing.telegram_updates (update_id, payload_hash, kind, status)
-      VALUES (${updateId}, ${hash}, ${kind}, 'processing')
-      ON CONFLICT (update_id) DO UPDATE SET attempts = housing.telegram_updates.attempts + 1, payload_hash = EXCLUDED.payload_hash, status = 'processing', last_error = NULL
-      WHERE housing.telegram_updates.status <> 'completed'
+      INSERT INTO housing.telegram_updates (update_id, payload_hash, kind, status, payload_json, processing_at)
+      VALUES (${updateId}, ${hash}, ${kind}, 'processing', ${body}, ${processingAt})
+      ON CONFLICT (update_id) DO UPDATE SET attempts = housing.telegram_updates.attempts + 1, payload_hash = EXCLUDED.payload_hash, payload_json = EXCLUDED.payload_json, status = 'processing', processing_at = EXCLUDED.processing_at, last_error = NULL
+      WHERE housing.telegram_updates.status = 'failed' AND housing.telegram_updates.attempts < 5
       RETURNING update_id
     `;
     if (!claimed.length) return json({ ok: true, duplicate: true });
-    const telegramUserId = Number(update?.callback_query?.from?.id || update?.message?.from?.id);
-    if (Number.isSafeInteger(telegramUserId) && telegramUserId > 0) {
-      const activityAt = new Date().toISOString();
-      await sql`UPDATE participants SET last_activity_at=${activityAt} WHERE telegram_user_id=${telegramUserId} AND (last_activity_at IS NULL OR julianday(last_activity_at)<julianday(${activityAt}))`;
-    }
+    await recordTelegramActivity(sql, update, processingAt);
     const result = await handleLegacyTelegramUpdate(env, update);
-    await sql`UPDATE housing.telegram_updates SET status = 'completed', completed_at = CURRENT_TIMESTAMP WHERE update_id = ${updateId}`;
+    await sql`UPDATE housing.telegram_updates SET status = 'completed', completed_at = ${processingAt}, processing_at = NULL, payload_json = NULL, last_error = NULL WHERE update_id = ${updateId}`;
     return json(result);
   } catch (error) {
-    await sql`UPDATE housing.telegram_updates SET status = 'failed', last_error = ${String(error?.message || error).slice(0, 500)} WHERE update_id = ${updateId}`.catch(() => {});
+    await sql`UPDATE housing.telegram_updates SET status = 'failed', processing_at = ${processingAt}, last_error = ${String(error?.message || error).slice(0, 500)} WHERE update_id = ${updateId}`.catch(() => {});
     throw error;
   } finally { await sql.end({ timeout: 5 }); }
 }
@@ -278,6 +276,14 @@ async function runScheduledHousingWork(env) {
       console.log("housing_engagement_scheduled", JSON.stringify(result));
     } catch (error) {
       console.error("housing_engagement_scheduled_failed", String(error?.message || error));
+    }
+  }
+  if (minute % 5 === 0) {
+    try {
+      const result = await withDatabase(env, (sql) => recoverTelegramUpdates(sql, env, handleLegacyTelegramUpdate));
+      if (result.scanned) console.log("housing_telegram_recovery", JSON.stringify(result));
+    } catch (error) {
+      console.error("housing_telegram_recovery_failed", String(error?.message || error));
     }
   }
   try {
