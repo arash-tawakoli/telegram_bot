@@ -95,7 +95,8 @@ test("application retention deletes expired rows and keeps only a one-way idempo
     sqlite.exec(`
       PRAGMA foreign_keys = ON;
       CREATE TABLE applications (
-        id TEXT PRIMARY KEY, idempotency_key TEXT NOT NULL, created_at TEXT NOT NULL
+        id TEXT PRIMARY KEY, idempotency_key TEXT NOT NULL, created_at TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'sent'
       );
       CREATE TABLE application_events (
         id TEXT PRIMARY KEY, application_id TEXT NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
@@ -104,7 +105,7 @@ test("application retention deletes expired rows and keeps only a one-way idempo
     `);
     sqlite.exec(readFileSync(new URL("../schema/d1/0016_application_dedupe_keys.sql", import.meta.url), "utf8"));
     sqlite.exec(`
-      INSERT INTO applications VALUES
+      INSERT INTO applications(id,idempotency_key,created_at) VALUES
         ('old', 'old-application-key', '2026-11-11 06:00:00.123456+00'),
         ('old-with-recent-event', 'recent-event-key', '2026-11-11 06:00:00.123456+00'),
         ('recent', 'recent-application-key', '2026-11-13T06:30:00.000Z');
@@ -113,6 +114,10 @@ test("application retention deletes expired rows and keeps only a one-way idempo
         ('old-event-on-retained-app', 'old-with-recent-event', '2026-11-11 07:00:00.123456+00'),
         ('recent-event', 'old-with-recent-event', '2026-11-13T06:30:00.000Z');
     `);
+    const addOldApplication = sqlite.prepare("INSERT INTO applications(id,idempotency_key,created_at) VALUES(?,?,?)");
+    for (let i = 0; i < 60; i++) {
+      addOldApplication.run(`old-${i}`, `old-application-key-${i}`, "2026-11-11 06:00:00.123456+00");
+    }
     const run = (query, params = []) => {
       const statement = sqlite.prepare(query.replaceAll("housing.", "").replace(/\bFOR UPDATE SKIP LOCKED\b/gi, "").replace(/\$(\d+)/g, "?$1"));
       if (/^\s*(SELECT|WITH)\b/i.test(query) || /\bRETURNING\b/i.test(query)) return statement.all(...params);
@@ -129,14 +134,14 @@ test("application retention deletes expired rows and keeps only a one-way idempo
     sql.begin = async (callback) => callback(sql);
 
     const result = await deleteExpiredApplicationRecords(sql, 100, new Date("2026-11-13T07:00:00.000Z"));
-    assert.deepEqual(result, { applications: 1, events: 2, metadata: 1 });
+    assert.deepEqual(result, { applications: 61, events: 2, metadata: 61 });
     assert.equal(sqlite.prepare("SELECT count(*) AS count FROM applications").get().count, 2);
     assert.equal(sqlite.prepare("SELECT count(*) AS count FROM application_events").get().count, 1);
     assert.equal(sqlite.prepare("SELECT id FROM applications WHERE id='old'").get(), undefined);
     assert.equal(sqlite.prepare("SELECT id FROM application_events WHERE id='recent-event'").get().id, "recent-event");
-    const retained = sqlite.prepare("SELECT key_hash FROM application_dedupe_keys").get();
-    assert.equal(retained.key_hash, await applicationIdempotencyHash("old-application-key"));
-    assert.equal(Object.hasOwn(retained, "idempotency_key"), false);
+    assert.equal(sqlite.prepare("SELECT count(*) AS count FROM application_dedupe_keys").get().count, 61);
+    const retained = sqlite.prepare("SELECT key_hash FROM application_dedupe_keys WHERE key_hash=?").get(await applicationIdempotencyHash("old-application-key"));
+    assert.ok(retained);
     assert.equal(await hasRetainedApplicationKey(sql, "old-application-key"), true);
     assert.equal(await hasRetainedApplicationKey(sql, "unknown-application-key"), false);
     await rememberApplicationKey(sql, "new-application-key", "2026-11-13T07:00:00.000Z");
