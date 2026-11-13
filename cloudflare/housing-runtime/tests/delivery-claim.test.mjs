@@ -37,7 +37,7 @@ test("simultaneous D1 delivery workers claim once and render stored listing deta
     assert.equal(messages.length, 1);
     assert.match(messages[0].text, /Testwohnung/);
     assert.match(messages[0].text, /950 € warm/);
-    assert.equal(messages[0].reply_markup.inline_keyboard[0][0].callback_data, "save:offer");
+    assert.equal(messages[0].reply_markup, undefined);
     assert.equal(sqlite.prepare("SELECT status FROM deliveries WHERE id='delivery'").get().status, "sent");
   } finally { globalThis.fetch = originalFetch; sqlite.close(); }
 });
