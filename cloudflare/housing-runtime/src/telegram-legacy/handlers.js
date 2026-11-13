@@ -1,6 +1,6 @@
 import { platformSessions, handleAutoApplyMessage } from './platform-sessions.js';
 import { isAdmin, adminGrantLabel, adminPremiumNotice, adminUsers, adminUser, setUserBlocked, deleteUser, setPlanOverride, ANNOUNCEMENT_PROMPT, createAnnouncementDraft, cancelAnnouncement, sendAnnouncement } from "./admin.js";
-import { homeKeyboard, home, premium, saved, setPaused, toggleSave, referralPage, languagePage, settings } from "./navigation.js";
+import { homeKeyboard, home, premium, setPaused, referralPage, languagePage, settings } from "./navigation.js";
 import { draftFor, validateDraft, renderTypes, renderLocation, renderBoroughs, renderNeighborhoods, renderSchleswigHolsteinAreas, renderRent, renderCustomRent, renderRooms, renderArea, renderReview, renderStep, afterSelection, persistProfile, profileLimit, draftFromProfile, startNewProfile, profileEditMenu, profile, renderStatus, nextSizeStep } from "./profiles.js";
 import { db, PREMIUM_LINK, PROPERTY_TYPES, RENT_PRESETS, ROOM_PRESETS, AREA_PRESETS, NEIGHBORHOODS_PER_PAGE, chatLanguages, button, cancelRow, backRow, secret, telegram, send, sendCelebration, edit, acknowledge, saveState, geography, HELP_TEXT } from "./runtime.js";
 
@@ -8,7 +8,6 @@ const PUBLIC_COMMANDS = [
     { command: "start", description: "Startmenü" },
     { command: "suche", description: "Suchprofil erstellen" },
     { command: "profile", description: "Suchprofile anzeigen" },
-    { command: "gespeichert", description: "Gespeicherte Inserate" },
     { command: "einstellungen", description: "Einstellungen" },
     { command: "pause", description: "Suche pausieren" },
     { command: "resume", description: "Suche fortsetzen" },
@@ -224,9 +223,6 @@ export async function handleMessage(message, user) {
         return startNewProfile(user, chatId);
     if (command === "/profile")
         return profile(user, chatId);
-    if (command === "/gespeichert" || command === "/saved") {
-        return saved(user, chatId);
-    }
     if (command === "/einstellungen" || command === "/settings") {
         return settings(user, chatId);
     }
@@ -346,7 +342,7 @@ export async function handleCallback(query, user) {
         if (data.startsWith("admin:delete:")) {
             const userId = data.slice("admin:delete:".length);
             await ack();
-            return edit(chatId, messageId, "🗑 <b>Nutzer wirklich löschen?</b>\n\nSuchprofile, gespeicherte Inserate, Referral- und Abo-Zuordnungen werden dauerhaft gelöscht.", { inline_keyboard: [
+            return edit(chatId, messageId, "🗑 <b>Nutzer wirklich löschen?</b>\n\nSuchprofile, Referral- und Abo-Zuordnungen werden dauerhaft gelöscht.", { inline_keyboard: [
                     [button("🗑 Ja, endgültig löschen", `admin:delete-confirm:${userId}`)],
                     [button("← Abbrechen", `admin:user:${userId}`)],
                 ] });
@@ -377,27 +373,6 @@ export async function handleCallback(query, user) {
             return adminUser(user, chatId, messageId, userId);
         }
         return ack();
-    }
-    if (data.startsWith("save:")) {
-        const savedState = await toggleSave(user, data.slice(5));
-        if (savedState !== null && user.__callback_acked) {
-            try {
-                const markup = structuredClone(query.message?.reply_markup || {});
-                let changed = false;
-                for (const row of markup.inline_keyboard || []) for (const item of row || []) {
-                    if (item?.callback_data === data) {
-                        item.text = savedState ? "⭐ Gespeichert" : "⭐ Speichern";
-                        changed = true;
-                    }
-                }
-                if (changed) await telegram("editMessageReplyMarkup", { chat_id: chatId, message_id: messageId, reply_markup: markup });
-            } catch (error) { console.error("save_button_refresh", String(error)); }
-        }
-        if (savedState === null) {
-            await ack();
-            return premium(user, chatId, messageId);
-        }
-        return ack(savedState ? "⭐ Gespeichert" : "Entfernt");
     }
     await ack();
     if (data === 'platforms' || data.startsWith('platforms:')) {
@@ -518,11 +493,6 @@ export async function handleCallback(query, user) {
         const slot = Number(data.split(":")[2]);
         await setPaused(user.id, data.startsWith("profile:pause:"), slot);
         return profile(user, chatId, messageId, slot);
-    }
-    if (data === "saved")
-        return saved(user, chatId, messageId, 0);
-    if (data.startsWith("saved:")) {
-        return saved(user, chatId, messageId, Number(data.slice(6)) || 0);
     }
     if (data === "settings")
         return settings(user, chatId, messageId);
