@@ -3,12 +3,14 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const runtime = await readFile(new URL("../src/index.js", import.meta.url), "utf8");
+const centralToken = await readFile(new URL("../src/immoscout-central-token.js", import.meta.url), "utf8");
 const config = await readFile(new URL("../wrangler.jsonc", import.meta.url), "utf8");
 
-test("central token state lives in the primary Cloudflare D1 binding", () => {
-  assert.match(runtime, /FROM central_credentials/);
-  assert.match(runtime, /FROM central_oauth_flows/);
-  assert.match(runtime, /FROM central_audit_events/);
+test("central token state lives in the primary Cloudflare D1 module", () => {
+  assert.match(runtime, /centralTokenWorker/);
+  assert.match(centralToken, /central_credentials/);
+  assert.match(centralToken, /central_oauth_flows/);
+  assert.match(centralToken, /central_audit_events/);
   assert.doesNotMatch(runtime, /env\.LEGACY_D1/);
   assert.doesNotMatch(runtime, /migrateLegacyCentralToken/);
   assert.doesNotMatch(config, /"binding": "LEGACY_D1"/);
