@@ -93,7 +93,7 @@ const DOC_PROMPT_PREFIX='📎 Bewerberdokument · ';
 const SETUP_PROMPT='👤 Bewerberprofil · Grundeinrichtung';
 const FIELD_PROMPT_PREFIX='👤 Bewerberprofil · ';
 const IMMOMIO_CALLBACK_ORIGIN='https://tenant.immomio.com';
-const IMMOMIO_CALLBACK_PATH='/assets/manifest.webmanifest';
+const IMMOMIO_CALLBACK_PATH='/de/auth/login';
 
 const IMMO_GQL='https://gql-ps.immomio.com/tenant/graphql';
 const IMMO_SSO_QUERY=`query sso($email:String,$redirectUri:String!,$loginMethod:String){sso(input:{email:$email redirectUri:$redirectUri loginMethod:$loginMethod}){baseUrl clientId realm}}`;
@@ -199,7 +199,7 @@ function callbackCandidates(message,regex){
  return candidates;
 }
 export function immomioCallbackFromMessage(message){
- for(const candidate of callbackCandidates(message,/https:\/\/tenant\.immomio\.com\/assets\/manifest\.webmanifest[^\s<>"']*/gi)){const parsed=normalizeImmomioCallback(candidate);if(parsed)return parsed;}
+ for(const candidate of callbackCandidates(message,/https:\/\/tenant\.immomio\.com\/de\/auth\/login[^\s<>"']*/gi)){const parsed=normalizeImmomioCallback(candidate);if(parsed)return parsed;}
  return null;
 }
 
