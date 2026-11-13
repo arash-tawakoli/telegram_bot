@@ -47,6 +47,29 @@ test("unmatched profiles never create a delivery or an application", async () =>
   assert.equal(calls.some(query => query.includes("INSERT INTO housing.deliveries") || query.includes("INSERT INTO housing.applications")), false);
 });
 
+test("expired premium entitlements cannot receive matches from premium-only profile slots", async () => {
+  const calls = [];
+  const sql = async (parts) => {
+    const query = parts.join("?");
+    calls.push(query);
+    if (query.includes("SELECT DISTINCT sp.participant_id")) return [{
+      participant_id: "u",
+      profile_slot: 2,
+      criteria: JSON.stringify(hamburg),
+      plan_override: null,
+      plan_override_expires_at: null,
+      referral_bonus_until: "2026-11-01T00:00:00.000Z",
+      subscription_status: "canceled",
+      subscription_period_end: "2026-11-01T00:00:00.000Z",
+    }];
+    if (query.includes("SELECT i.first_seen_at")) return [];
+    if (query.includes("INSERT INTO housing.deliveries")) return [{ id: "delivery-1" }];
+    return [];
+  };
+  assert.equal(await queueMatches(sql, "offer", 1, "hash", apartment), 0);
+  assert.equal(calls.some(query => query.includes("INSERT INTO housing.deliveries")), false);
+});
+
 test("shadow sources can be observed but cannot queue deliveries or applications", async () => {
   let queries = 0;
   const sql = async () => { queries++; return []; };
