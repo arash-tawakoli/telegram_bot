@@ -201,7 +201,9 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts) 
       const dailyLimit = Math.min(5, Math.max(1, Number(row.test_auto_apply_daily_limit || 1)));
       const dayStart = berlinDayStartISO();
       const testKey = `test:${row.participant_id}:${identityHash}`;
-      if (!await hasRetainedApplicationKey(sql, testKey)) {
+      const legacyProviderBlockKey = `legacy:blocked:immoscout24:${row.participant_id}`;
+      if (!await hasRetainedApplicationKey(sql, testKey)
+        && !await hasRetainedApplicationKey(sql, legacyProviderBlockKey)) {
         const testApplication = await sql`
           INSERT INTO housing.applications
             (id, participant_id, offer_identity_id, provider, idempotency_key, status, test_mode)

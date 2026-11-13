@@ -97,6 +97,28 @@ test("incomplete historical ImmoScout application identity blocks auto-apply for
   assert.equal(calls.some(call => call.query.includes("INSERT INTO housing.deliveries")), true);
   assert.equal(calls.some(call => call.query.includes("INSERT INTO housing.applications")), false);
 });
+test("incomplete historical ImmoScout identity also blocks personal test AutoApply", async () => {
+  const participantId = "u-test";
+  const blockedHash = await applicationIdempotencyHash(`legacy:blocked:immoscout24:${participantId}`);
+  const calls = [];
+  const sql = async (parts, ...values) => {
+    const query = parts.join("?"); calls.push({ query, values });
+    if (query.includes("SELECT DISTINCT sp.participant_id")) return [{
+      participant_id: participantId, criteria: JSON.stringify(hamburg), auto_apply_enabled: 0,
+      test_auto_apply_allowed: 1, test_auto_apply_enabled: 1, test_auto_apply_daily_limit: 1,
+      telegram_user_id: 8538226539, plan_override: "free", preferences_enabled: 0,
+      immoscout_enabled: 1, provider_connection_status: "connected",
+      applicant_profile: JSON.stringify({ first_name: "A", last_name: "B", email: "a@example.com", phone: "+49123456789", street: "Test", house_number: "1", postcode: "20095", city: "Hamburg", salutation: "MS", household_type: "SINGLE", employment_status: "EMPLOYEE", income_range: "NOT_SPECIFIED", pets: "Keine", move_in_preference: "NOT_SPECIFIED", schufa_status: "NOT_SPECIFIED", wbs_status: "NOT_SPECIFIED", message_apartment: "Interesse" }),
+    }];
+    if (query.includes("SELECT i.first_seen_at")) return [{ first_seen_at: new Date(Date.now()-5_000).toISOString(), enabled_at: new Date(Date.now()-10_000).toISOString(), expires_at: new Date(Date.now()+86_400_000).toISOString() }];
+    if (query.includes("SELECT 1 FROM housing.application_dedupe_keys")) return values[0] === blockedHash ? [{ found: 1 }] : [];
+    if (query.includes("INSERT INTO housing.deliveries")) return [{ id: "delivery-1" }];
+    return [];
+  };
+  assert.equal(await queueMatches(sql, "offer", 1, "1:external:123456789", { ...apartment, canonical_url: "https://www.immobilienscout24.de/expose/123456789" }), 1);
+  assert.equal(calls.some(call => call.query.includes("INSERT INTO housing.deliveries")), true);
+  assert.equal(calls.some(call => call.query.includes("INSERT INTO housing.applications")), false);
+});
 test("new fresh matches queue AutoApply only for complete premium connected profiles", async () => {
   const calls = [];
   const sql = async (parts, ...values) => {
