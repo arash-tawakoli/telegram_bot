@@ -33,16 +33,21 @@ export function adminGrantLabel(grant) {
                 : "lebenslang";
 }
 
-export function adminGrantExpiry(grant) {
+export function adminGrantExpiry(grant, now = new Date()) {
     if (grant === "free" || grant === "life")
         return null;
-    const date = new Date();
-    if (grant === "7d")
+    const date = new Date(now);
+    if (grant === "7d") {
         date.setUTCDate(date.getUTCDate() + 7);
-    else if (grant === "30d")
+    } else if (grant === "30d") {
         date.setUTCDate(date.getUTCDate() + 30);
-    else
+    } else {
+        const day = date.getUTCDate();
+        date.setUTCDate(1);
         date.setUTCMonth(date.getUTCMonth() + 3);
+        const lastDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
+        date.setUTCDate(Math.min(day, lastDay));
+    }
     return date.toISOString();
 }
 
