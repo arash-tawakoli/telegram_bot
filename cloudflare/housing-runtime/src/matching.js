@@ -131,39 +131,42 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts) 
       const dailyLimit = Math.min(5, Math.max(1, Number(row.test_auto_apply_daily_limit || 1)));
       const dayStart = berlinDayStartISO();
       const testKey = `test:${row.participant_id}:${identityHash}`;
-      const testApplication = await sql`
-        INSERT INTO housing.applications
-          (id, participant_id, offer_identity_id, provider, idempotency_key, status, test_mode)
-        SELECT
-          gen_random_uuid(), ${row.participant_id}, ${offerId}, 'immoscout24', ${testKey}, 'pending', true
-        WHERE EXISTS (
-          SELECT 1 FROM housing.participants p
-          WHERE p.id = ${row.participant_id}
-            AND p.status = 'active'
-            AND p.telegram_user_id = 8538226539
-            AND p.test_auto_apply_allowed = true
-            AND p.test_auto_apply_enabled = true
-            AND p.auto_apply_enabled = false
-        )
-          AND NOT EXISTS (
-            SELECT 1 FROM housing.application_preferences pref
-            WHERE pref.participant_id = ${row.participant_id} AND pref.enabled = true
+      if (!await hasRetainedApplicationKey(sql, testKey)) {
+        const testApplication = await sql`
+          INSERT INTO housing.applications
+            (id, participant_id, offer_identity_id, provider, idempotency_key, status, test_mode)
+          SELECT
+            gen_random_uuid(), ${row.participant_id}, ${offerId}, 'immoscout24', ${testKey}, 'pending', true
+          WHERE EXISTS (
+            SELECT 1 FROM housing.participants p
+            WHERE p.id = ${row.participant_id}
+              AND p.status = 'active'
+              AND p.telegram_user_id = 8538226539
+              AND p.test_auto_apply_allowed = true
+              AND p.test_auto_apply_enabled = true
+              AND p.auto_apply_enabled = false
           )
-          AND NOT EXISTS (
-            SELECT 1 FROM housing.applications a
-            WHERE a.participant_id = ${row.participant_id}
-              AND a.test_mode = true
-              AND a.status IN ('pending','processing')
-          )
-          AND (
-            SELECT COUNT(*) FROM housing.applications a
-            WHERE a.participant_id = ${row.participant_id}
-              AND a.test_mode = true
-              AND a.submission_started_at >= ${dayStart}
-          ) < ${dailyLimit}
-        ON CONFLICT (idempotency_key) DO NOTHING
-        RETURNING id
-      `;
+            AND NOT EXISTS (
+              SELECT 1 FROM housing.application_preferences pref
+              WHERE pref.participant_id = ${row.participant_id} AND pref.enabled = true
+            )
+            AND NOT EXISTS (
+              SELECT 1 FROM housing.applications a
+              WHERE a.participant_id = ${row.participant_id}
+                AND a.test_mode = true
+                AND a.status IN ('pending','processing')
+            )
+            AND (
+              SELECT COUNT(*) FROM housing.applications a
+              WHERE a.participant_id = ${row.participant_id}
+                AND a.test_mode = true
+                AND a.submission_started_at >= ${dayStart}
+            ) < ${dailyLimit}
+          ON CONFLICT (idempotency_key) DO NOTHING
+          RETURNING id
+        `;
+        if (testApplication.length) await rememberApplicationKey(sql, testKey);
+      }
       // applications is the processor queue; do not create an unconsumed jobs row.
     }
   }
@@ -178,3 +181,5 @@ export function telegramText(facts) {
   const rows = [facts?.title, facts?.city, facts?.district, facts?.postal_code, facts?.warm_rent != null ? `${facts.warm_rent} € warm` : null, facts?.rooms != null ? `${facts.rooms} Zimmer` : null, facts?.area_sqm != null ? `${facts.area_sqm} m²` : null].filter(Boolean);
   return `<b>${html(rows.shift() || "Wohnungsangebot")}</b>\n${rows.map(html).join(" · ")}\n<a href="${html(facts?.canonical_url || facts?.url || "")}">Originalangebot öffnen</a>`;
 }
+import { hasRetainedApplicationKey, rememberApplicationKey } from "./application-dedupe.js";
+
