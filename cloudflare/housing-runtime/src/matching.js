@@ -118,7 +118,7 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts) 
   if (source?.delivery_mode !== "live") return 0;
   const targetProvider = applicationProvider(source, facts);
   const rows = await sql`
-    SELECT DISTINCT sp.participant_id, sp.criteria,
+    SELECT DISTINCT sp.participant_id, sp.profile_slot, sp.criteria,
       p.test_auto_apply_allowed, p.test_auto_apply_enabled,
       p.test_auto_apply_daily_limit, p.auto_apply_enabled, p.telegram_user_id,
       p.plan_override, p.plan_override_expires_at, p.referral_bonus_until,
@@ -150,6 +150,8 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts) 
   const areas = needsAreas ? await geographicAreas(sql) : [];
   for (const row of rows) {
     const criteria = object(row.criteria);
+    const profileLimit = premiumParticipant(row) ? 4 : 1;
+    if (Number(row.profile_slot ?? 1) > profileLimit) continue;
     if (!matchesProfile(criteria, facts, sourceId, areas)) continue;
     const key = `${row.participant_id}:${identityHash}`;
     const inserted = await sql`
