@@ -172,7 +172,12 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts) 
       && enabled(row.preferences_enabled) && enabled(providerEnabled)
       && row.provider_connection_status === "connected" && missingApplicantFields(profile).length === 0) {
       const applicationKey = applicationIdempotencyKey(row.participant_id, provider, identityHash);
-      if (!await hasRetainedApplicationKey(sql, applicationKey)) {
+      const immomioId = provider === "immomio"
+        ? String(facts.canonical_url || "").match(/^https:\/\/tenant\.immomio\.com\/(?:de\/)?apply\/([0-9a-f-]{36})(?:[/?#]|$)/i)?.[1]?.toLowerCase()
+        : null;
+      const legacyImmomioKey = immomioId ? `legacy:immomio:${row.participant_id}:${immomioId}` : null;
+      if (!await hasRetainedApplicationKey(sql, applicationKey)
+        && (!legacyImmomioKey || !await hasRetainedApplicationKey(sql, legacyImmomioKey))) {
         const application = await sql`
           INSERT INTO housing.applications
             (id, participant_id, offer_identity_id, provider, idempotency_key, status)
