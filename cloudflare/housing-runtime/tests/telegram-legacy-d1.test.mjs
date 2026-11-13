@@ -218,3 +218,18 @@ test("Telegram controls only expose retained housing providers", async () => {
   assert.match(source,/4:\{key:'immowelt'/);
 });
 
+test("applicant profile readiness uses the same full rules as application submission", async () => {
+  const profile = {
+    first_name: "Aria", last_name: "S", email: "aria@example.test", phone: "+49123456789",
+    street: "Teststrasse", house_number: "1", postcode: "20095", city: "Hamburg",
+  };
+  const api = createD1Supabase(fakeD1(() => [{ profile: JSON.stringify(profile) }]), {});
+  const result = await api.rpc("application_profile_missing_fields", { p_user: "participant-1" });
+  assert.equal(result.error, null);
+  for (const field of [
+    "Haustiere", "WBS-Status", "Bewerbungstext Wohnung", "Bewerbungstext Haus",
+    "Bewerbungstext Auf Zeit & WG", "Bewerbungstext Tauschwohnung",
+    "salutation", "household_type", "employment_status", "income_range",
+    "move_in_preference", "schufa_status",
+  ]) assert.ok(result.data.includes(field), field);
+});
