@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import { readdirSync, readFileSync } from "node:fs";
-import { applicationIdempotencyHash } from "../src/application-dedupe.js";
+import { applicationIdempotencyHash, hasRetainedApplicationKey, rememberApplicationKey } from "../src/application-dedupe.js";
 import { deleteExpiredApplicationRecords, deleteExpiredListings, expireAdminPremiumOverrides } from "../src/retention.js";
 
 function fakeSql(expired = [], deleted = 0) {
@@ -137,6 +137,10 @@ test("application retention deletes expired rows and keeps only a one-way idempo
     const retained = sqlite.prepare("SELECT key_hash FROM application_dedupe_keys").get();
     assert.equal(retained.key_hash, await applicationIdempotencyHash("old-application-key"));
     assert.equal(Object.hasOwn(retained, "idempotency_key"), false);
+    assert.equal(await hasRetainedApplicationKey(sql, "old-application-key"), true);
+    assert.equal(await hasRetainedApplicationKey(sql, "unknown-application-key"), false);
+    await rememberApplicationKey(sql, "new-application-key", "2026-11-13T07:00:00.000Z");
+    assert.equal(await hasRetainedApplicationKey(sql, "new-application-key"), true);
   } finally {
     sqlite.close();
   }
