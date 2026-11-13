@@ -17,6 +17,7 @@ import { createD1Client } from "./d1-database.js";
 import { handleLegacyTelegramUpdate } from "./telegram-legacy/index.js";
 import { runEngagementNotifications } from "./engagement-cron.js";
 import { recordTelegramActivity, recoverTelegramUpdates } from "./telegram-recovery.js";
+import { sourcesForMinute } from "./source-schedule.js";
 
 const HEADERS = {
   "content-type": "application/json; charset=utf-8",
@@ -24,8 +25,6 @@ const HEADERS = {
   "x-content-type-options": "nosniff",
   "referrer-policy": "no-referrer",
 };
-const SOURCE_ROTATION = [1, 3, 23, 29, 34, 35, 66, 69, 71];
-const SHADOW_SOURCES = [30, 32, 36, 39];
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: HEADERS });
@@ -270,6 +269,7 @@ async function processDelivery(sql, request, env) {
 
 async function runScheduledHousingWork(env) {
   const minute = Math.floor(Date.now() / 60_000);
+  const scheduledSources = sourcesForMinute(minute);
   if (minute % 60 === 15) {
     try {
       const result = await withDatabase(env, (sql) => runEngagementNotifications(sql, env));
@@ -308,7 +308,7 @@ async function runScheduledHousingWork(env) {
       console.error("housing_source_scheduled_failed", JSON.stringify({ source_id: sourceId, error: String(error?.message || error) }));
     }
   };
-  await runScheduledSource(SOURCE_ROTATION[minute % SOURCE_ROTATION.length]);
+  await runScheduledSource(scheduledSources[0]);
 
   for (let index = 0; index < 5; index++) {
     const deliveryRequest = new Request("https://housing-runtime.internal/internal/delivery/process?fresh_only=1", {
@@ -340,7 +340,7 @@ async function runScheduledHousingWork(env) {
   } catch (error) {
     console.error("housing_application_scheduled_failed", String(error?.message || error));
   }
-  if (minute % 5 === 0) await runScheduledSource(SHADOW_SOURCES[Math.floor(minute / 5) % SHADOW_SOURCES.length]);
+  if (scheduledSources[1] !== undefined) await runScheduledSource(scheduledSources[1]);
   try {
     await runScoutShadow(env.HOUSING_DB);
   } catch (error) {
