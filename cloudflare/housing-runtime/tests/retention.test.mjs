@@ -2,7 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import { readdirSync, readFileSync } from "node:fs";
-import { deleteExpiredListings, expireAdminPremiumOverrides } from "../src/retention.js";
+import { applicationIdempotencyHash, hasRetainedApplicationKey, rememberApplicationKey } from "../src/application-dedupe.js";
+import { deleteExpiredApplicationRecords, deleteExpiredListings, expireAdminPremiumOverrides } from "../src/retention.js";
 
 function fakeSql(expired = [], deleted = 0) {
   const queries = [];
@@ -83,6 +84,63 @@ test("premium override expiry clears only expired premium overrides", async () =
     assert.equal(row("permanent").plan_override_expires_at, null);
     assert.equal(row("free").plan_override, "free");
     assert.ok(Date.parse(row("free").plan_override_expires_at) < Date.now());
+  } finally {
+    sqlite.close();
+  }
+});
+
+test("application retention deletes expired rows and keeps only a one-way idempotency hash", async () => {
+  const sqlite = new DatabaseSync(":memory:");
+  try {
+    sqlite.exec(`
+      PRAGMA foreign_keys = ON;
+      CREATE TABLE applications (
+        id TEXT PRIMARY KEY, idempotency_key TEXT NOT NULL, created_at TEXT NOT NULL
+      );
+      CREATE TABLE application_events (
+        id TEXT PRIMARY KEY, application_id TEXT NOT NULL REFERENCES applications(id) ON DELETE CASCADE,
+        created_at TEXT NOT NULL
+      );
+    `);
+    sqlite.exec(readFileSync(new URL("../schema/d1/0016_application_dedupe_keys.sql", import.meta.url), "utf8"));
+    sqlite.exec(`
+      INSERT INTO applications VALUES
+        ('old', 'old-application-key', '2026-11-11 06:00:00.123456+00'),
+        ('old-with-recent-event', 'recent-event-key', '2026-11-11 06:00:00.123456+00'),
+        ('recent', 'recent-application-key', '2026-11-13T06:30:00.000Z');
+      INSERT INTO application_events VALUES
+        ('old-event', 'old', '2026-11-11 07:00:00.123456+00'),
+        ('old-event-on-retained-app', 'old-with-recent-event', '2026-11-11 07:00:00.123456+00'),
+        ('recent-event', 'old-with-recent-event', '2026-11-13T06:30:00.000Z');
+    `);
+    const run = (query, params = []) => {
+      const statement = sqlite.prepare(query.replaceAll("housing.", "").replace(/\bFOR UPDATE SKIP LOCKED\b/gi, "").replace(/\$(\d+)/g, "?$1"));
+      if (/^\s*(SELECT|WITH)\b/i.test(query) || /\bRETURNING\b/i.test(query)) return statement.all(...params);
+      const result = statement.run(...params);
+      const rows = [];
+      rows.count = Number(result.changes);
+      return rows;
+    };
+    const sql = (strings, ...params) => run(
+      strings.reduce((text, part, index) => text + part + (index < params.length ? `$${index + 1}` : ""), ""),
+      params,
+    );
+    sql.unsafe = run;
+    sql.begin = async (callback) => callback(sql);
+
+    const result = await deleteExpiredApplicationRecords(sql, 100, new Date("2026-11-13T07:00:00.000Z"));
+    assert.deepEqual(result, { applications: 1, events: 2, metadata: 1 });
+    assert.equal(sqlite.prepare("SELECT count(*) AS count FROM applications").get().count, 2);
+    assert.equal(sqlite.prepare("SELECT count(*) AS count FROM application_events").get().count, 1);
+    assert.equal(sqlite.prepare("SELECT id FROM applications WHERE id='old'").get(), undefined);
+    assert.equal(sqlite.prepare("SELECT id FROM application_events WHERE id='recent-event'").get().id, "recent-event");
+    const retained = sqlite.prepare("SELECT key_hash FROM application_dedupe_keys").get();
+    assert.equal(retained.key_hash, await applicationIdempotencyHash("old-application-key"));
+    assert.equal(Object.hasOwn(retained, "idempotency_key"), false);
+    assert.equal(await hasRetainedApplicationKey(sql, "old-application-key"), true);
+    assert.equal(await hasRetainedApplicationKey(sql, "unknown-application-key"), false);
+    await rememberApplicationKey(sql, "new-application-key", "2026-11-13T07:00:00.000Z");
+    assert.equal(await hasRetainedApplicationKey(sql, "new-application-key"), true);
   } finally {
     sqlite.close();
   }

@@ -1,4 +1,4 @@
-import { deleteExpiredListings, expireAdminPremiumOverrides } from "./retention.js";
+import { deleteExpiredApplicationRecords, deleteExpiredListings, expireAdminPremiumOverrides } from "./retention.js";
 import centralTokenWorker from "./immoscout-central-token.js";
 import { HOUSING_SOURCES } from "./source-allowlist.js";
 import { sourceForId } from "./source-allowlist.js";
@@ -45,7 +45,11 @@ async function withDatabase(env, operation) {
 }
 
 async function runRetention(env) {
-  return withDatabase(env, (sql) => deleteExpiredListings(sql, 5000));
+  return withDatabase(env, async (sql) => {
+    const deleted = await deleteExpiredListings(sql, 5000);
+    const applications = await deleteExpiredApplicationRecords(sql, 5000);
+    return { deleted, ...applications };
+  });
 }
 
 async function createCentralEnvironment(env) {
@@ -588,7 +592,7 @@ export default {
       try {
         const readiness = await withDatabase(env, async (sql) => {
           const [tables, centralTables, counts] = await Promise.all([
-            sql`SELECT count(*) AS count FROM sqlite_master WHERE type = 'table' AND name IN ('source_registry','participants','portal_members','participant_assignments','portal_sessions','bootstrap_tokens','search_profiles','source_links','applicant_profiles','documents','upload_tokens','provider_connections','application_preferences','offer_identities','deliveries','applications','application_events','jobs','audit_events','telegram_updates','provider_auth_flows')`,
+            sql`SELECT count(*) AS count FROM sqlite_master WHERE type = 'table' AND name IN ('source_registry','participants','portal_members','participant_assignments','portal_sessions','bootstrap_tokens','search_profiles','source_links','applicant_profiles','documents','upload_tokens','provider_connections','application_preferences','offer_identities','deliveries','applications','application_events','application_dedupe_keys','jobs','audit_events','telegram_updates','provider_auth_flows')`,
             sql`SELECT
               (SELECT count(*) FROM central_credentials) AS credentials,
               (SELECT count(*) FROM central_oauth_flows) AS oauth_flows,
@@ -627,7 +631,7 @@ export default {
 
       try {
         const deleted = await runRetention(env);
-        return json({ ok: true, deleted });
+        return json({ ok: true, ...deleted });
       } catch (error) {
         console.error("housing_listing_retention_failed", String(error?.message || error));
         return json({ ok: false, error: "retention_failed" }, 503);
