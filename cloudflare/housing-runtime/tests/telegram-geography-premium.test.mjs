@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {configureLegacyRuntime, geography, withPlan} from "../src/telegram-legacy/runtime.js";
+import {profileLocation} from "../src/telegram-legacy/profiles.js";
 import {createD1Supabase} from "../src/telegram-legacy/d1-supabase.js";
 
 const fixture = {
@@ -31,6 +32,15 @@ test("Telegram geography resolves the live D1 snapshot and caches it", async () 
   assert.deepEqual(await geography(),fixture);
   assert.equal(d1.reads,1);
 });
+test("saved Schleswig-Holstein profiles rebuild area labels from compact codes", async () => {
+  configureLegacyRuntime({},fakeD1());
+  assert.equal(await profileLocation({
+    location_mode: "schleswig_holstein_areas",
+    location_area_codes: ["01002"],
+    districts: [],
+  }), "Kiel");
+});
+
 test("Telegram geography fails explicitly for missing data instead of showing empty menus", async () => {
   configureLegacyRuntime({},fakeD1(null));
   await assert.rejects(geography(),/geography_snapshot_missing/);
