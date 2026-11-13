@@ -235,7 +235,7 @@ export function createD1Supabase(db, env) {
         if (options.contentType) httpMetadata.contentType = String(options.contentType);
         if (options.cacheControl) {
           const value = String(options.cacheControl);
-          httpMetadata.cacheControl = /^\\d+$/.test(value) ? `max-age=${value}` : value;
+          httpMetadata.cacheControl = /^\d+$/.test(value) ? `max-age=${value}` : value;
         }
         await env.DOCUMENTS.put(key, body, { httpMetadata });
         return { data: { path: key }, error: null };
