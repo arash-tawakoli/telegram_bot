@@ -29,6 +29,31 @@ test("legacy Telegram adapter returns empty optional legacy tables without Supab
   assert.equal(result.error, null);
 });
 
+test("legacy applicant document storage uses the bound R2 bucket and fails closed", async () => {
+  const objects = new Map();
+  const writes = [];
+  const r2 = {
+    head: async key => objects.has(key) ? { key } : null,
+    put: async (key, body, options) => { objects.set(key, { body: [...body], options }); writes.push(key); },
+    delete: async keys => { for (const key of keys) objects.delete(key); },
+  };
+  const storage = createD1Supabase(fakeD1(() => []), { DOCUMENTS: r2 }).storage.from("applicant-documents");
+  const bytes = new Uint8Array([1, 2, 3]);
+  const saved = await storage.upload("participant-1/document.pdf", bytes, { contentType: "application/pdf", cacheControl: "3600" });
+  assert.deepEqual(saved, { data: { path: "participant-1/document.pdf" }, error: null });
+  assert.deepEqual(objects.get("participant-1/document.pdf"), {
+    body: [1, 2, 3], options: { httpMetadata: { contentType: "application/pdf", cacheControl: "max-age=3600" } },
+  });
+  assert.match((await storage.upload("participant-1/document.pdf", bytes)).error.message, /object_already_exists/);
+  assert.match((await storage.remove(["../other.pdf"])).error.message, /invalid_storage_path/);
+  assert.deepEqual((await storage.remove(["participant-1/document.pdf"])).data, [{ name: "participant-1/document.pdf" }]);
+  assert.equal(objects.size, 0);
+  assert.equal(writes.length, 1);
+
+  const unavailable = createD1Supabase(fakeD1(() => []), {}).storage.from("applicant-documents");
+  assert.match((await unavailable.upload("participant-1/document.pdf", bytes)).error.message, /document_storage_unavailable/);
+  assert.match((await createD1Supabase(fakeD1(() => []), { DOCUMENTS: r2 }).storage.from("other").remove([])).error.message, /document_storage_unavailable/);
+});
 test("legacy Telegram admin queries can read persisted username and profile flags", async () => {
   const row = {
     id: "u-admin",
