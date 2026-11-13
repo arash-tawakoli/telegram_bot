@@ -1,4 +1,8 @@
 import { hasRetainedApplicationKey, rememberApplicationKey } from "./application-dedupe.js";
+import { applicationProvider, missingApplicantFields, premiumParticipant, timestampMillis } from "./application-policy.js";
+import { applicationIdempotencyKey, sourceForId } from "./source-allowlist.js";
+
+const enabled = value => value === true || value === 1;
 
 function number(value) {
   if (value == null || value === "") return null;
@@ -70,6 +74,19 @@ export function matchesProfile(criteria, facts, sourceId, areas = []) {
   return false;
 }
 
+export async function matchesActiveSearch(sql, participantId, sourceId, facts) {
+  const rows = await sql`
+    SELECT DISTINCT sp.criteria
+    FROM housing.search_profiles sp
+    JOIN housing.source_links sl ON sl.search_profile_id = sp.id AND sl.source_id = ${sourceId}
+    WHERE sp.participant_id = ${participantId} AND sp.active = true
+  `;
+  const criteriaRows = rows.map(row => object(row.criteria));
+  const areas = criteriaRows.some(row => String(row.location_mode || "").includes("schleswig_holstein"))
+    ? await geographicAreas(sql) : [];
+  return criteriaRows.some(criteria => matchesProfile(criteria, facts, sourceId, areas));
+}
+
 let geoCache = null;
 async function geographicAreas(sql) {
   if (geoCache && geoCache.expires > Date.now()) return geoCache.areas;
@@ -97,15 +114,37 @@ function berlinDayStartISO(now = new Date()) {
 }
 
 export async function queueMatches(sql, offerId, sourceId, identityHash, facts) {
+  const source = sourceForId(sourceId);
+  if (source?.delivery_mode !== "live") return 0;
+  const targetProvider = applicationProvider(source, facts);
   const rows = await sql`
     SELECT DISTINCT sp.participant_id, sp.criteria,
       p.test_auto_apply_allowed, p.test_auto_apply_enabled,
-      p.test_auto_apply_daily_limit, p.auto_apply_enabled, p.telegram_user_id
+      p.test_auto_apply_daily_limit, p.auto_apply_enabled, p.telegram_user_id,
+      p.plan_override, p.plan_override_expires_at, p.referral_bonus_until,
+      s.status AS subscription_status, s.current_period_end AS subscription_period_end,
+      ap.profile AS applicant_profile, pref.enabled AS preferences_enabled,
+      pref.immoscout_enabled, pref.immowelt_enabled, pref.immomio_enabled,
+      pc.status AS provider_connection_status
     FROM housing.search_profiles sp
     JOIN housing.source_links sl ON sl.search_profile_id = sp.id AND sl.source_id = ${sourceId}
     JOIN housing.participants p ON p.id = sp.participant_id AND p.status = 'active'
+    LEFT JOIN housing.applicant_profiles ap ON ap.participant_id = p.id
+    LEFT JOIN housing.application_preferences pref ON pref.participant_id = p.id
+    LEFT JOIN housing.provider_connections pc ON pc.participant_id = p.id AND pc.provider = ${targetProvider || ""}
+    LEFT JOIN housing.user_subscriptions s ON s.participant_id = p.id AND s.provider = 'stripe'
     WHERE sp.active = true
   `;
+  const cutover = (await sql`
+    SELECT i.first_seen_at, i.expires_at, c.enabled_at
+    FROM housing.offer_identities i
+    JOIN housing.application_queue_cutover c ON c.id = 1
+    WHERE i.id = ${offerId}
+  `)[0];
+  const now = Date.now();
+  const autoApplyFresh = cutover
+    && timestampMillis(cutover.first_seen_at) >= timestampMillis(cutover.enabled_at)
+    && (!cutover.expires_at || timestampMillis(cutover.expires_at) > now);
   let queued = 0;
   const needsAreas = rows.some(row => String(object(row.criteria).location_mode || "").includes("schleswig_holstein"));
   const areas = needsAreas ? await geographicAreas(sql) : [];
@@ -124,8 +163,30 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts) 
       await sql`INSERT INTO housing.jobs (id, kind, payload, status) VALUES (gen_random_uuid(), 'delivery', ${JSON.stringify({ delivery_id: inserted[0].id })}::jsonb, 'queued')`;
     }
 
+    const provider = targetProvider;
+    const providerEnabled = provider === "immoscout24" ? row.immoscout_enabled
+      : provider === "immowelt" ? row.immowelt_enabled
+        : provider === "immomio" ? row.immomio_enabled : false;
+    const profile = object(row.applicant_profile);
+    if (autoApplyFresh && provider && enabled(row.auto_apply_enabled) && premiumParticipant(row)
+      && enabled(row.preferences_enabled) && enabled(providerEnabled)
+      && row.provider_connection_status === "connected" && missingApplicantFields(profile).length === 0) {
+      const applicationKey = applicationIdempotencyKey(row.participant_id, provider, identityHash);
+      if (!await hasRetainedApplicationKey(sql, applicationKey)) {
+        const application = await sql`
+          INSERT INTO housing.applications
+            (id, participant_id, offer_identity_id, provider, idempotency_key, status)
+          VALUES
+            (gen_random_uuid(), ${row.participant_id}, ${offerId}, ${provider}, ${applicationKey}, 'pending')
+          ON CONFLICT (idempotency_key) DO NOTHING
+          RETURNING id
+        `;
+        if (application.length) await rememberApplicationKey(sql, applicationKey);
+      }
+    }
+
     // The personal test path is deliberately separate from participant plugin connections.
-    if ([1, 69].includes(Number(sourceId))
+    if (autoApplyFresh && [1, 69].includes(Number(sourceId))
       && Number(row.telegram_user_id) === 8538226539
       && (row.test_auto_apply_allowed === true || row.test_auto_apply_allowed === 1)
       && (row.test_auto_apply_enabled === true || row.test_auto_apply_enabled === 1)
