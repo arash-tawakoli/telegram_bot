@@ -481,11 +481,19 @@ export async function persistProfile(user, draft) {
 
 export function profileLimit(user) { return user.is_premium ? 4 : 1; }
 
-export function profileLocation(current) {
+export async function profileLocation(current) {
     if (current.location_mode === "all_schleswig_holstein")
         return "Ganz Schleswig-Holstein";
     if (current.location_mode === "schleswig_holstein_areas") {
-        const districts = current.districts || [];
+        const stored = Array.isArray(current.districts) ? current.districts.map(String).filter(Boolean) : [];
+        const codes = new Set((Array.isArray(current.location_area_codes) ? current.location_area_codes : []).map(String));
+        const districts = stored.length
+            ? stored
+            : codes.size
+                ? (await geography()).schleswigHolsteinAreas
+                    .filter((area) => area.area_type !== "state" && codes.has(String(area.area_code)))
+                    .map((area) => area.name)
+                : [];
         const location = districts.length > 5
             ? `${districts.slice(0, 5).join(", ")} … (+${districts.length - 5})`
             : districts.join(", ");
@@ -574,10 +582,11 @@ export async function profileEditMenu(user, chatId, messageId, selectedSlot) {
     if (!current)
         return profile(user, chatId, messageId);
     await saveState(user.id, null, user.onboarding_state || {}, user.request_update_id, user.request_attempt);
+    const location = await profileLocation(current);
     const text = "✏️ <b>Suchprofil ändern</b>\n\n" +
         "Wähle, was du ändern möchtest. Deine aktuell gespeicherten Werte bleiben vorausgewählt.\n\n" +
         `🏠 <b>Typ:</b> ${esc((current.property_types || []).join(", "))}\n` +
-        `📍 <b>Gebiet:</b> ${esc(profileLocation(current))}\n` +
+        `📍 <b>Gebiet:</b> ${esc(location)}\n` +
         `💶 <b>Warmmiete:</b> bis ${esc(money(current.max_warm_rent))}\n` +
         `🚪 <b>Zimmer:</b> ${esc(current.min_rooms ?? "–")}+\n` +
         `📐 <b>Fläche:</b> ${Number(current.min_area_sqm || 0) > 0 ? `${esc(current.min_area_sqm)} m²+` : "egal"}`;
@@ -601,7 +610,7 @@ export async function profile(user, chatId, messageId, selectedSlot) {
         const current = profiles.find((row) => Number(row.profile_slot) === selectedSlot);
         if (!current)
             return profile(user, chatId, messageId);
-        const location = profileLocation(current);
+        const location = await profileLocation(current);
         const text = `🔎 <b>${esc(current.name || `Meine Suche ${selectedSlot}`)}</b>\n\n` +
             `Status: ${current.is_active ? "aktiv" : "pausiert"}\n` +
             `Typ: ${esc((current.property_types || []).join(", "))}\n` +
