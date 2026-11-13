@@ -793,7 +793,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  const connection=(key)=>connections?.find(r=>r.provider===key);
  const testModeEnabled=state.test_auto_apply_allowed===true&&state.test_auto_apply_enabled===true&&state.auto_apply_enabled!==true;
  const rows=[];
- for(const sourceId of [1,2,3,4]){
+ for(const sourceId of Object.keys(AUTO_APPLY_PROVIDERS).map(Number)){
   const meta=AUTO_APPLY_PROVIDERS[sourceId],connected=connection(meta.key)?.status==='connected';
   if(testModeEnabled&&sourceId===1){
    rows.push([button('🧪 ImmoScout24 · Testzugang','noop')]);
