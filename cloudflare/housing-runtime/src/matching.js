@@ -176,8 +176,10 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts) 
         ? String(facts.canonical_url || "").match(/^https:\/\/tenant\.immomio\.com\/(?:de\/)?apply\/([0-9a-f-]{36})(?:[/?#]|$)/i)?.[1]?.toLowerCase()
         : null;
       const legacyImmomioKey = immomioId ? `legacy:immomio:${row.participant_id}:${immomioId}` : null;
+      const legacyProviderBlockKey = provider === "immoscout24" ? `legacy:blocked:${provider}:${row.participant_id}` : null;
       if (!await hasRetainedApplicationKey(sql, applicationKey)
-        && (!legacyImmomioKey || !await hasRetainedApplicationKey(sql, legacyImmomioKey))) {
+        && (!legacyImmomioKey || !await hasRetainedApplicationKey(sql, legacyImmomioKey))
+        && (!legacyProviderBlockKey || !await hasRetainedApplicationKey(sql, legacyProviderBlockKey))) {
         const application = await sql`
           INSERT INTO housing.applications
             (id, participant_id, offer_identity_id, provider, idempotency_key, status)
