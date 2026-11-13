@@ -3,6 +3,8 @@ function bytes(value) {
   return Uint8Array.from(String(value).match(/.{2}/g), (part) => parseInt(part, 16));
 }
 
+export const credentialKeyBytes = bytes;
+
 function decode(value) {
   return Uint8Array.from(atob(String(value || "")), (character) => character.charCodeAt(0));
 }

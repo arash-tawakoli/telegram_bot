@@ -3,19 +3,19 @@
  * Keep the list explicit so a newly inserted source cannot become live by default.
  */
 export const HOUSING_SOURCES = Object.freeze([
-  { id: 1, name: "ImmobilienScout24 Hamburg", family: "immoscout24", connector: "mcp" },
-  { id: 3, name: "Immowelt Hamburg", family: "immowelt", connector: "html_discovery" },
-  { id: 23, name: "Hamburger Wohnen", family: "immomio", connector: "immomio_tenant" },
-  { id: 29, name: "VHW", family: "immomio", connector: "immomio_tenant" },
-  { id: 30, name: "HARABAU", family: "immomio", connector: "immomio_tenant" },
-  { id: 32, name: "EBV Harburg", family: "immomio", connector: "immomio_tenant" },
-  { id: 34, name: "Bauverein Reiherstieg", family: "immomio", connector: "immomio_tenant" },
-  { id: 35, name: "Walddörfer", family: "immomio", connector: "immomio_tenant" },
-  { id: 36, name: "Fuhlsbüttel", family: "immomio", connector: "immomio_tenant" },
-  { id: 39, name: "mgf Gartenstadt Farmsen", family: "immomio", connector: "immomio_tenant" },
-  { id: 66, name: "GEWOBA Nord", family: "immomio", connector: "immomio_tenant" },
-  { id: 69, name: "ImmobilienScout24 Schleswig-Holstein", family: "immoscout24", connector: "mcp" },
-  { id: 71, name: "Immowelt Schleswig-Holstein", family: "immowelt", connector: "html_discovery" },
+  { id: 1, name: "ImmobilienScout24 Hamburg", family: "immoscout24", connector: "mcp", delivery_mode: "live" },
+  { id: 3, name: "Immowelt Hamburg", family: "immowelt", connector: "html_discovery", delivery_mode: "live" },
+  { id: 23, name: "Hamburger Wohnen", family: "immomio", connector: "immomio_tenant", delivery_mode: "live" },
+  { id: 29, name: "VHW", family: "immomio", connector: "immomio_tenant", delivery_mode: "live" },
+  { id: 30, name: "HARABAU", family: "immomio", connector: "immomio_tenant", delivery_mode: "shadow" },
+  { id: 32, name: "EBV Harburg", family: "immomio", connector: "immomio_tenant", delivery_mode: "shadow" },
+  { id: 34, name: "Bauverein Reiherstieg", family: "immomio", connector: "immomio_tenant", delivery_mode: "live" },
+  { id: 35, name: "Walddörfer", family: "immomio", connector: "immomio_tenant", delivery_mode: "live" },
+  { id: 36, name: "Fuhlsbüttel", family: "immomio", connector: "immomio_tenant", delivery_mode: "shadow" },
+  { id: 39, name: "mgf Gartenstadt Farmsen", family: "immomio", connector: "immomio_tenant", delivery_mode: "shadow" },
+  { id: 66, name: "GEWOBA Nord", family: "immomio", connector: "immomio_tenant", delivery_mode: "live" },
+  { id: 69, name: "ImmobilienScout24 Schleswig-Holstein", family: "immoscout24", connector: "mcp", delivery_mode: "live" },
+  { id: 71, name: "Immowelt Schleswig-Holstein", family: "immowelt", connector: "html_discovery", delivery_mode: "shadow" },
 ]);
 
 const BY_ID = new Map(HOUSING_SOURCES.map((source) => [source.id, source]));

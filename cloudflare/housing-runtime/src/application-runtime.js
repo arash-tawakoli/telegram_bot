@@ -2,13 +2,12 @@ const PROVIDERS = new Set(["immoscout24", "immowelt", "immomio"]);
 import { sendImmoweltApplication } from "./immowelt-application.js";
 import { sendImmoScoutApplication } from "./immoscout-application.js";
 import { sendImmomioApplication } from "./immomio-application.js";
+import { matchesActiveSearch } from "./matching.js";
+import { applicationProvider, applicationSchedule, missingApplicantFields, premiumParticipant, timestampMillis } from "./application-policy.js";
+import { createApplicationDocumentPackage } from "./application-documents.js";
+import { sourceForId } from "./source-allowlist.js";
 
 function enabled(value) { return value === true || value === 1; }
-
-function missingApplicantFields(profile) {
-  return ["first_name", "last_name", "email", "phone", "street", "house_number", "postcode", "city"]
-    .filter((key) => !String(profile?.[key] ?? "").trim());
-}
 
 function berlinDayStartSql(now = new Date()) {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -48,16 +47,36 @@ async function event(sql, applicationId, provider, type, status, reason, metadat
   `;
 }
 
+async function markConnectionNeedsLogin(sql, application, result) {
+  if (result?.error !== "needs_login") return;
+  await sql`
+    UPDATE housing.provider_connections
+    SET status = 'needs_login', updated_at = now()
+    WHERE participant_id = ${application.participant_id} AND provider = ${application.provider}
+  `;
+}
+
 async function claim(sql, freshOnly = false) {
   return sql.begin(async (tx) => {
-    const rows = freshOnly ? await tx`
-      SELECT a.id, a.participant_id, a.offer_identity_id, a.provider,
-        a.test_mode, a.submission_started_at, a.sent_at,
-        p.first_name, p.last_name, p.email, p.telegram_chat_id,
-        p.telegram_user_id, p.test_auto_apply_allowed, p.test_auto_apply_enabled, p.test_auto_apply_daily_limit, p.auto_apply_enabled,
-        ap.profile,
-        oi.canonical_url, oi.external_id, oi.source_id, oi.expires_at, oi.facts,
-        pref.enabled AS preferences_enabled,
+    await tx`
+      UPDATE housing.applications
+      SET status = 'manual_required', last_error = 'submission_unconfirmed', lease_until = NULL, updated_at = now()
+      WHERE status = 'processing' AND lease_until < now() AND submission_started_at IS NOT NULL
+    `;
+    await tx`
+      UPDATE housing.applications
+      SET status = 'pending', next_attempt_at = now(), lease_until = NULL, updated_at = now()
+      WHERE status = 'processing' AND lease_until < now() AND submission_started_at IS NULL
+    `;
+    const rows = await tx`
+      SELECT a.id, a.participant_id, a.offer_identity_id, a.provider, a.status, a.created_at,
+        a.test_mode, a.submission_started_at, a.sent_at, a.attempts,
+        p.status AS participant_status, p.first_name, p.last_name, p.email, p.telegram_chat_id,
+        p.telegram_user_id, p.test_auto_apply_allowed, p.test_auto_apply_enabled, p.test_auto_apply_daily_limit,
+        p.auto_apply_enabled, p.plan_override, p.plan_override_expires_at, p.referral_bonus_until,
+        ap.profile, oi.canonical_url, oi.external_id, oi.source_id, oi.first_seen_at, oi.expires_at, oi.facts,
+        pref.enabled AS preferences_enabled, pref.daily_limit, pref.timezone,
+        pref.allowed_weekdays, pref.send_window_start, pref.send_window_end,
         CASE a.provider
           WHEN 'immoscout24' THEN pref.immoscout_enabled
           WHEN 'immowelt' THEN pref.immowelt_enabled
@@ -67,46 +86,33 @@ async function claim(sql, freshOnly = false) {
         CASE WHEN a.test_mode = true THEN NULL ELSE pc.status END AS connection_status,
         CASE WHEN a.test_mode = true THEN NULL ELSE pc.ciphertext END AS connection_ciphertext,
         CASE WHEN a.test_mode = true THEN NULL ELSE pc.iv END AS connection_iv,
-        CASE WHEN a.test_mode = true THEN NULL ELSE pc.key_version END AS connection_key_version
+        CASE WHEN a.test_mode = true THEN NULL ELSE pc.key_version END AS connection_key_version,
+        sub.status AS subscription_status, sub.current_period_end AS subscription_period_end,
+        cutover.enabled_at AS cutover_enabled_at
       FROM housing.applications a
       JOIN housing.participants p ON p.id = a.participant_id
       LEFT JOIN housing.applicant_profiles ap ON ap.participant_id = a.participant_id
       LEFT JOIN housing.offer_identities oi ON oi.id = a.offer_identity_id
       LEFT JOIN housing.application_preferences pref ON pref.participant_id = a.participant_id
       LEFT JOIN housing.provider_connections pc ON pc.participant_id = a.participant_id AND pc.provider = a.provider
-      WHERE a.status = 'pending'
-        AND (a.test_mode = true OR a.created_at >= now() - interval '15 minutes')
-      ORDER BY CASE WHEN a.test_mode = true THEN 0 ELSE 1 END, a.created_at
-      LIMIT 1
-      FOR UPDATE OF a SKIP LOCKED
-    ` : await tx`
-      SELECT a.id, a.participant_id, a.offer_identity_id, a.provider,
-        a.test_mode, a.submission_started_at, a.sent_at,
-        p.first_name, p.last_name, p.email, p.telegram_chat_id,
-        p.test_auto_apply_allowed, p.test_auto_apply_enabled, p.test_auto_apply_daily_limit, p.auto_apply_enabled,
-        ap.profile,
-        oi.canonical_url, oi.external_id, oi.source_id, oi.expires_at, oi.facts,
-        pref.enabled AS preferences_enabled,
-        CASE a.provider
-          WHEN 'immoscout24' THEN pref.immoscout_enabled
-          WHEN 'immowelt' THEN pref.immowelt_enabled
-          WHEN 'immomio' THEN pref.immomio_enabled
-          ELSE false
-        END AS provider_enabled,
-        pc.status AS connection_status
-      FROM housing.applications a
-      JOIN housing.participants p ON p.id = a.participant_id
-      LEFT JOIN housing.applicant_profiles ap ON ap.participant_id = a.participant_id
-      LEFT JOIN housing.offer_identities oi ON oi.id = a.offer_identity_id
-      LEFT JOIN housing.application_preferences pref ON pref.participant_id = a.participant_id
-      LEFT JOIN housing.provider_connections pc ON pc.participant_id = a.participant_id AND pc.provider = a.provider
-      WHERE a.status = 'pending'
+      LEFT JOIN housing.user_subscriptions sub ON sub.participant_id = a.participant_id AND sub.provider = 'stripe'
+      LEFT JOIN housing.application_queue_cutover cutover ON cutover.id = 1
+      WHERE a.status = 'pending' AND a.next_attempt_at <= now()
+        AND (a.lease_until IS NULL OR a.lease_until < now())
+        AND (${!freshOnly} = true OR a.test_mode = true OR (
+          a.created_at >= now() - interval '24 hours'
+          AND oi.expires_at > now() AND oi.first_seen_at >= cutover.enabled_at
+        ))
       ORDER BY CASE WHEN a.test_mode = true THEN 0 ELSE 1 END, a.created_at
       LIMIT 1
       FOR UPDATE OF a SKIP LOCKED
     `;
     if (!rows[0]) return null;
-    const claimed = await tx`UPDATE housing.applications SET status = 'processing', updated_at = now() WHERE id = ${rows[0].id} AND status = 'pending' RETURNING id`;
+    const claimed = await tx`
+      UPDATE housing.applications
+      SET status = 'processing', attempts = attempts + 1, lease_until = now() + interval '3 minutes', updated_at = now()
+      WHERE id = ${rows[0].id} AND status = 'pending' RETURNING id
+    `;
     if (!claimed.length) return null;
     const row = rows[0];
     try { row.profile = typeof row.profile === "string" ? JSON.parse(row.profile || "{}") : (row.profile || {}); } catch { row.profile = {}; }
@@ -117,6 +123,7 @@ async function claim(sql, freshOnly = false) {
     row.test_auto_apply_allowed = enabled(row.test_auto_apply_allowed);
     row.test_auto_apply_enabled = enabled(row.test_auto_apply_enabled);
     row.auto_apply_enabled = enabled(row.auto_apply_enabled);
+    row.subscription_status = String(row.subscription_status || "");
     return row;
   });
 }
@@ -130,7 +137,7 @@ export async function processHousingApplication(sql, env, request) {
   if (!application) return { status: 200, body: { ok: true, status: "idle" } };
   const provider = String(application.provider || "");
   const fail = async (status, reason, metadata = {}) => {
-    await sql`UPDATE housing.applications SET status = ${status}, last_error = ${reason}, updated_at = now() WHERE id = ${application.id}`;
+    await sql`UPDATE housing.applications SET status = ${status}, last_error = ${reason}, lease_until = NULL, wait_reason = NULL, updated_at = now() WHERE id = ${application.id}`;
     await event(sql, application.id, provider, "processor", status, reason, metadata);
     return { status: 200, body: { ok: true, status, provider, reason, application_id: application.id } };
   };
@@ -154,7 +161,7 @@ export async function processHousingApplication(sql, env, request) {
       const dailyLimit = Math.min(5, Math.max(1, Number(application.test_auto_apply_daily_limit || 1)));
       const reserved = await sql`
         UPDATE housing.applications
-        SET submission_started_at = now(), updated_at = now()
+        SET submission_started_at = now(), quota_local_date = ${new Date().toISOString().slice(0, 10)}, lease_until = NULL, updated_at = now()
         WHERE id = ${application.id}
           AND status = 'processing'
           AND test_mode = true
@@ -200,6 +207,7 @@ export async function processHousingApplication(sql, env, request) {
       UPDATE housing.applications
       SET status = ${result.status}, last_error = ${result.error || null},
         sent_at = CASE WHEN ${result.status} = 'sent' THEN now() ELSE sent_at END,
+        lease_until = NULL, wait_reason = NULL,
         updated_at = now()
       WHERE id = ${application.id}
     `;
@@ -215,9 +223,66 @@ export async function processHousingApplication(sql, env, request) {
   if (application.preferences_enabled !== true || application.provider_enabled !== true) return fail("manual_required", "auto_apply_disabled");
   if (application.connection_status !== "connected") return fail("manual_required", "provider_not_connected");
 
+  const now = new Date();
+  const providerSource = sourceForId(application.source_id);
+  const facts = { ...application.facts, canonical_url: application.canonical_url };
+  if (!providerSource || applicationProvider(providerSource, facts) !== provider) return fail("failed", "not_eligible");
+  if (application.participant_status !== "active" || !application.auto_apply_enabled
+    || !premiumParticipant(application, now.getTime())) return fail("failed", "not_eligible");
+  if (!application.expires_at || timestampMillis(application.expires_at) <= now.getTime()
+    || !application.first_seen_at || timestampMillis(application.first_seen_at) < timestampMillis(application.cutover_enabled_at)) {
+    return fail("failed", "listing_expired");
+  }
+  const missing = missingApplicantFields(application.profile);
+  if (missing.length) return fail("manual_required", "profile_incomplete", { missing });
+  if (!await matchesActiveSearch(sql, application.participant_id, application.source_id, facts)) return fail("failed", "not_eligible");
+  const delivery = await sql`
+    SELECT 1 FROM housing.deliveries
+    WHERE participant_id = ${application.participant_id}
+      AND offer_identity_id = ${application.offer_identity_id}
+      AND status IN ('pending','processing','sent')
+    LIMIT 1
+  `;
+  if (!delivery.length) return fail("failed", "not_eligible");
+
+  const schedule = applicationSchedule(application, now);
+  if (!schedule.allowed) {
+    await sql`
+      UPDATE housing.applications
+      SET status = 'pending', wait_reason = ${schedule.reason}, next_attempt_at = ${schedule.nextAttemptAt}, lease_until = NULL, updated_at = now()
+      WHERE id = ${application.id} AND status = 'processing'
+    `;
+    return { status: 200, body: { ok: true, status: "deferred", provider, reason: schedule.reason, application_id: application.id } };
+  }
+  let documentPackage = null;
+  if (provider === "immoscout24") {
+    try { documentPackage = await createApplicationDocumentPackage(sql, env, application, now); }
+    catch { return fail("manual_required", "document_package_unavailable"); }
+  }
+  const configuredLimit = Number(application.daily_limit);
+  const dailyLimit = application.daily_limit == null || !Number.isFinite(configuredLimit)
+    ? 2_147_483_647 : Math.max(0, Math.floor(configuredLimit));
+  const reserved = await sql`
+    UPDATE housing.applications
+    SET submission_started_at = now(), quota_local_date = ${schedule.localDate}, wait_reason = NULL, updated_at = now()
+    WHERE id = ${application.id} AND status = 'processing' AND submission_started_at IS NULL
+      AND (SELECT COUNT(*) FROM housing.applications q WHERE q.participant_id = ${application.participant_id}
+        AND q.quota_local_date = ${schedule.localDate} AND q.id <> ${application.id}) < ${dailyLimit}
+    RETURNING id
+  `;
+  if (!reserved.length) {
+    const nextAttemptAt = new Date(now.getTime() + 6 * 60 * 60_000).toISOString();
+    await sql`
+      UPDATE housing.applications
+      SET status = 'pending', wait_reason = 'daily_limit', next_attempt_at = ${nextAttemptAt}, lease_until = NULL, updated_at = now()
+      WHERE id = ${application.id} AND status = 'processing'
+    `;
+    return { status: 200, body: { ok: true, status: "deferred", provider, reason: "daily_limit", application_id: application.id } };
+  }
+
   if (provider === "immowelt") {
     const result = await sendImmoweltApplication(application, env);
-    await sql`UPDATE housing.applications SET status = ${result.status}, last_error = ${result.error || null}, updated_at = now() WHERE id = ${application.id}`;
+    await sql`UPDATE housing.applications SET status = ${result.status}, last_error = ${result.error || null}, sent_at = CASE WHEN ${result.status} = 'sent' THEN now() ELSE sent_at END, lease_until = NULL, wait_reason = NULL, updated_at = now() WHERE id = ${application.id}`;
     await event(sql, application.id, provider, "provider_submission", result.status, result.error || null, { confirmation: result.confirmation || null });
     return { status: 200, body: { ok: true, status: result.status, provider, reason: result.error || result.confirmation || null, application_id: application.id } };
   }
@@ -225,11 +290,12 @@ export async function processHousingApplication(sql, env, request) {
   if (provider === "immoscout24") {
     let result;
     try {
-      result = await sendImmoScoutApplication(application, env, sql);
+      result = await sendImmoScoutApplication({ ...application, document_package_url: documentPackage?.url || null }, env, sql);
     } catch (error) {
       result = { status: "manual_required", error: ["needs_login", "temporary_network_error", "credential_decrypt_failed"].includes(String(error?.message || "")) ? String(error.message) : "provider_contract_unverified" };
     }
-    await sql`UPDATE housing.applications SET status = ${result.status}, last_error = ${result.error || null}, updated_at = now() WHERE id = ${application.id}`;
+    await markConnectionNeedsLogin(sql, application, result);
+    await sql`UPDATE housing.applications SET status = ${result.status}, last_error = ${result.error || null}, sent_at = CASE WHEN ${result.status} = 'sent' THEN now() ELSE sent_at END, lease_until = NULL, wait_reason = NULL, updated_at = now() WHERE id = ${application.id}`;
     await event(sql, application.id, provider, "provider_submission", result.status, result.error || null, { confirmation: result.confirmation || null });
     return { status: 200, body: { ok: true, status: result.status, provider, reason: result.error || result.confirmation || null, application_id: application.id } };
   }
@@ -238,7 +304,8 @@ export async function processHousingApplication(sql, env, request) {
     let result;
     try { result = await sendImmomioApplication(application, env, sql); }
     catch (error) { result = { status: "manual_required", error: ["needs_login", "temporary_network_error", "credential_decrypt_failed"].includes(String(error?.message || "")) ? String(error.message) : "provider_contract_unverified" }; }
-    await sql`UPDATE housing.applications SET status = ${result.status}, last_error = ${result.error || null}, updated_at = now() WHERE id = ${application.id}`;
+    await markConnectionNeedsLogin(sql, application, result);
+    await sql`UPDATE housing.applications SET status = ${result.status}, last_error = ${result.error || null}, sent_at = CASE WHEN ${result.status} = 'sent' THEN now() ELSE sent_at END, lease_until = NULL, wait_reason = NULL, updated_at = now() WHERE id = ${application.id}`;
     await event(sql, application.id, provider, "provider_submission", result.status, result.error || null, { confirmation: result.confirmation || null, application_id: result.applicationId || null, follow_up: result.followUpRequired || null });
     return { status: 200, body: { ok: true, status: result.status, provider, reason: result.error || result.confirmation || null, application_id: application.id } };
   }

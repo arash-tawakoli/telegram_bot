@@ -14,7 +14,7 @@ function fieldKey(key) {
   return String(key).replace(/Field$/i, "").replace(/[^a-z0-9]/gi, "").toLowerCase();
 }
 
-function fieldValue(key, profile, message) {
+function fieldValue(key, profile, message, packageUrl) {
   const k = fieldKey(key);
   if (/first(name|givenname|vorname)/.test(k)) return value(profile, "first_name", "firstname");
   if (/last(name|surname|familyname|nachname)/.test(k)) return value(profile, "last_name", "lastname");
@@ -24,20 +24,22 @@ function fieldValue(key, profile, message) {
   if (/house(number|nr)|hausnummer/.test(k)) return value(profile, "house_number");
   if (/post(code|al)|zip|plz/.test(k)) return value(profile, "postcode");
   if (/city|stadt|ort/.test(k)) return value(profile, "city");
+  if (/applicationpackagecompleted/.test(k)) return Boolean(packageUrl);
+  if (/applicationpackagelink/.test(k)) return packageUrl || undefined;
   if (/message|nachricht|bewerbung|contact/.test(k)) return String(message || "").trim();
   if (/privacy|datenschutz/.test(k)) return true;
   if (Object.prototype.hasOwnProperty.call(profile || {}, key)) return profile[key];
   return undefined;
 }
 
-function prepare(config, profile, message) {
+function prepare(config, profile, message, packageUrl) {
   const form = { "@xmlns": { common: "http://rest.immobilienscout24.de/schema/common/1.0" } };
   const missing = [];
   for (const [key, raw] of Object.entries(config || {})) {
     if (!String(key).endsWith("Field")) continue;
     const required = String(raw?.required || raw?.state || raw).toUpperCase() === "MANDATORY";
     const name = String(key).replace(/Field$/, "");
-    const candidate = fieldValue(name, profile, message);
+    const candidate = fieldValue(name, profile, message, packageUrl);
     if (required && (candidate == null || candidate === "")) missing.push(name);
     if (candidate != null && candidate !== "") form[name] = candidate;
   }
@@ -62,6 +64,12 @@ async function refresh(env, row, participantId, credentials) {
   return updated;
 }
 
+export async function refreshImmoScoutSession(sql, env, connection) {
+  const row = { ciphertext: connection.ciphertext, iv: connection.iv, key_version: connection.key_version, sql };
+  const credentials = await decryptProviderCredentials(env, row, connection.participant_id, "immoscout24");
+  return refresh(env, row, connection.participant_id, credentials);
+}
+
 export async function sendImmoScoutApplication(application, env, sql) {
   const profile = application.profile || {};
   const id = String(application.external_id || "").match(/\d{6,20}/)?.[0] || String(application.canonical_url || "").match(/\/expose\/(\d{6,20})/)?.[1];
@@ -81,7 +89,11 @@ export async function sendImmoScoutApplication(application, env, sql) {
   const detail = await detailResponse.json().catch(() => null);
   if (!detailResponse.ok || !detail) return { status: detailResponse.status >= 500 ? "manual_required" : "failed", error: detailResponse.status === 404 ? "listing_unavailable" : "provider_contract_unverified" };
   const expose = detail?.["expose.expose"] || detail?.expose || detail;
-  const prepared = prepare(expose?.contactFormConfiguration || {}, profile, value(profile, "message", "message_apartment", "message_house") || "Anfrage zur Immobilie");
+  const baseMessage = value(profile, "message", "message_apartment", "message_house") || "Anfrage zur Immobilie";
+  const packageUrl = String(application.document_package_url || "");
+  const suffix = packageUrl ? `\n\nBewerbungsunterlagen (geschützter Link): ${packageUrl}` : "";
+  const message = suffix && baseMessage.length + suffix.length <= 4000 ? baseMessage + suffix : baseMessage;
+  const prepared = prepare(expose?.contactFormConfiguration || {}, profile, message, packageUrl);
   if (prepared.missing.length) return { status: "manual_required", error: `required_profile_data_missing:${prepared.missing.join(",")}` };
   if (testMode) {
     if (typeof application.authorizeTestSend !== "function") return { status: "manual_required", error: "test_send_authorization_missing" };

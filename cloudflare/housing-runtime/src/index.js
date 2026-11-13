@@ -18,6 +18,8 @@ import { handleLegacyTelegramUpdate } from "./telegram-legacy/index.js";
 import { runEngagementNotifications } from "./engagement-cron.js";
 import { recordTelegramActivity, recoverTelegramUpdates } from "./telegram-recovery.js";
 import { sourcesForMinute } from "./source-schedule.js";
+import { runPlatformSessionReminders } from "./platform-session-cron.js";
+import { applicationDocumentFileResponse, applicationDocumentPackageResponse } from "./application-documents.js";
 
 const HEADERS = {
   "content-type": "application/json; charset=utf-8",
@@ -290,6 +292,14 @@ async function runScheduledHousingWork(env) {
       console.error("housing_telegram_recovery_failed", String(error?.message || error));
     }
   }
+  if (minute % 10 === 0) {
+    try {
+      const result = await withDatabase(env, (sql) => runPlatformSessionReminders(sql, env));
+      if (result.queued || result.sent) console.log("housing_platform_session_reminders", JSON.stringify(result));
+    } catch (error) {
+      console.error("housing_platform_session_reminders_failed", String(error?.message || error));
+    }
+  }
   try {
     const expired = await withDatabase(env, expireAdminPremiumOverrides);
     if (expired) console.log("housing_admin_premium_overrides_expired", JSON.stringify({ expired }));
@@ -492,6 +502,26 @@ export default {
     }
 
     if (routePath === "/stripe/webhook") return handleStripeWebhook(request, env);
+
+    if (request.method === "GET" && routePath === "/documents/package") {
+      try { return await withDatabase(env, (sql) => applicationDocumentPackageResponse(sql, env, request)); }
+      catch (error) { console.error("housing_document_package_failed", String(error?.message || error)); return json({ error: "document_package_unavailable" }, 503); }
+    }
+
+    if (request.method === "GET" && routePath === "/documents/package-file") {
+      try { return await withDatabase(env, (sql) => applicationDocumentFileResponse(sql, env, request)); }
+      catch (error) { console.error("housing_document_package_file_failed", String(error?.message || error)); return json({ error: "document_download_unavailable" }, 503); }
+    }
+
+    if (request.method === "GET" && routePath === "/documents/package") {
+      try { return await withDatabase(env, (sql) => applicationDocumentPackageResponse(sql, env, request)); }
+      catch (error) { console.error("housing_document_package_failed", String(error?.message || error)); return json({ error: "document_package_unavailable" }, 503); }
+    }
+
+    if (request.method === "GET" && routePath === "/documents/package-file") {
+      try { return await withDatabase(env, (sql) => applicationDocumentFileResponse(sql, env, request)); }
+      catch (error) { console.error("housing_document_package_file_failed", String(error?.message || error)); return json({ error: "document_download_unavailable" }, 503); }
+    }
 
     if (routePath === "/internal/delivery-cutover-ledger" && request.method === "POST") {
       const secret = String(env.DELIVERY_CUTOVER_SECRET || "");

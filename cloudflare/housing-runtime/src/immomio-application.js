@@ -42,6 +42,25 @@ async function refresh(sql, env, application, credentials) {
   return updated;
 }
 
+export async function refreshImmomioSession(sql, env, connection) {
+  const application = {
+    participant_id: connection.participant_id,
+    connection_ciphertext: connection.ciphertext,
+    connection_iv: connection.iv,
+    connection_key_version: connection.key_version,
+  };
+  const credentials = await decryptProviderCredentials(env, {
+    ciphertext: connection.ciphertext, iv: connection.iv, key_version: connection.key_version,
+  }, connection.participant_id, "immomio");
+  const refreshed = await refresh(sql, env, application, credentials);
+  const user = await gql(PROFILE_QUERY, {}, refreshed.access_token);
+  if (!user.response.ok || user.body?.errors?.length || !user.body?.data?.user?.id) {
+    if ([401, 403].includes(user.response.status)) throw new Error("needs_login");
+    throw new Error("temporary_network_error");
+  }
+  return refreshed;
+}
+
 export async function sendImmomioApplication(application, env, sql) {
   const profile = parse(application.profile);
   const facts = parse(application.facts);

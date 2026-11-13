@@ -45,3 +45,30 @@ test("unmatched profiles never create a delivery or an application", async () =>
   assert.equal(await queueMatches(sql, "offer", 69, "hash", { ...apartment, city: "Lübeck" }), 0);
   assert.equal(calls.some(query => query.includes("INSERT INTO housing.deliveries") || query.includes("INSERT INTO housing.applications")), false);
 });
+
+test("shadow sources can be observed but cannot queue deliveries or applications", async () => {
+  let queries = 0;
+  const sql = async () => { queries++; return []; };
+  assert.equal(await queueMatches(sql, "offer", 71, "hash", { ...apartment, canonical_url: "https://www.immowelt.de/expose/123" }), 0);
+  assert.equal(queries, 0);
+});
+
+test("new fresh matches queue AutoApply only for complete premium connected profiles", async () => {
+  const calls = [];
+  const sql = async (parts, ...values) => {
+    const query = parts.join("?"); calls.push({ query, values });
+    if (query.includes("SELECT DISTINCT sp.participant_id")) return [{
+      participant_id: "u", criteria: JSON.stringify(hamburg), auto_apply_enabled: 1,
+      plan_override: "premium", preferences_enabled: 1, immomio_enabled: 1,
+      provider_connection_status: "connected",
+      applicant_profile: JSON.stringify({ first_name: "A", last_name: "B", email: "a@example.com", phone: "+49123456789", street: "Test", house_number: "1", postcode: "20095", city: "Hamburg", salutation: "MS", household_type: "SINGLE", employment_status: "EMPLOYEE", income_range: "NOT_SPECIFIED", pets: "Keine", move_in_preference: "NOT_SPECIFIED", schufa_status: "NOT_SPECIFIED", wbs_status: "NOT_SPECIFIED", message_apartment: "Interesse", message_house: "Interesse", message_temporary_wg: "Interesse", message_swap: "Interesse" }),
+    }];
+    if (query.includes("SELECT i.first_seen_at")) return [{ first_seen_at: new Date(Date.now()-5_000).toISOString(), enabled_at: new Date(Date.now()-10_000).toISOString(), expires_at: new Date(Date.now()+86_400_000).toISOString() }];
+    if (query.includes("INSERT INTO housing.deliveries")) return [{ id: "delivery-1" }];
+    if (query.includes("INSERT INTO housing.applications")) return [{ id: "application-1" }];
+    return [];
+  };
+  assert.equal(await queueMatches(sql, "offer", 23, "23:external:abc", { ...apartment, canonical_url: "https://tenant.immomio.com/de/apply/12345678-1234-4234-8234-123456789012" }), 1);
+  assert.equal(calls.some(call => call.query.includes("INSERT INTO housing.applications")), true);
+  assert.equal(calls.some(call => call.query.includes("INSERT INTO housing.application_dedupe_keys")), true);
+});
