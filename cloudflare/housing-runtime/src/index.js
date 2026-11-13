@@ -15,6 +15,7 @@ import { handleStripeWebhook } from "./stripe-webhook.js";
 import { processHousingApplication } from "./application-runtime.js";
 import { createD1Client } from "./d1-database.js";
 import { handleLegacyTelegramUpdate } from "./telegram-legacy/index.js";
+import { runEngagementNotifications } from "./engagement-cron.js";
 
 const HEADERS = {
   "content-type": "application/json; charset=utf-8",
@@ -128,6 +129,11 @@ async function telegramWebhook(request, env) {
       RETURNING update_id
     `;
     if (!claimed.length) return json({ ok: true, duplicate: true });
+    const telegramUserId = Number(update?.callback_query?.from?.id || update?.message?.from?.id);
+    if (Number.isSafeInteger(telegramUserId) && telegramUserId > 0) {
+      const activityAt = new Date().toISOString();
+      await sql`UPDATE participants SET last_activity_at=${activityAt} WHERE telegram_user_id=${telegramUserId} AND (last_activity_at IS NULL OR julianday(last_activity_at)<julianday(${activityAt}))`;
+    }
     const result = await handleLegacyTelegramUpdate(env, update);
     await sql`UPDATE housing.telegram_updates SET status = 'completed', completed_at = CURRENT_TIMESTAMP WHERE update_id = ${updateId}`;
     return json(result);
@@ -266,6 +272,14 @@ async function processDelivery(sql, request, env) {
 
 async function runScheduledHousingWork(env) {
   const minute = Math.floor(Date.now() / 60_000);
+  if (minute % 60 === 15) {
+    try {
+      const result = await withDatabase(env, (sql) => runEngagementNotifications(sql, env));
+      console.log("housing_engagement_scheduled", JSON.stringify(result));
+    } catch (error) {
+      console.error("housing_engagement_scheduled_failed", String(error?.message || error));
+    }
+  }
   try {
     const expired = await withDatabase(env, expireAdminPremiumOverrides);
     if (expired) console.log("housing_admin_premium_overrides_expired", JSON.stringify({ expired }));
