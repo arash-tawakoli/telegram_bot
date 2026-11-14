@@ -170,3 +170,74 @@ test("document selection updates physical D1 columns and keeps a real document I
     assert.match(lastMessage(x).text, /1 für Auto-Bewerbungen ausgewählt/);
   } finally { x.done(); }
 });
+
+test("search-profile menu and new-profile flow expose working callbacks in German", async () => {
+  const x = setup();
+  try {
+    const callback = data => handleCallback({
+      id: "cb-" + data, data, from: { id: 777 },
+      message: { chat: x.chat, message_id: 21 },
+    }, x.user);
+    await callback("profile");
+    assert.match(lastMessage(x).text, /Meine Suchprofile/);
+    assert.ok(lastMessage(x).reply_markup.inline_keyboard.some(row => row[0].callback_data === "new"));
+    await callback("new");
+    assert.match(lastMessage(x).text, /Was möchtest du mieten/);
+    const types = lastMessage(x).reply_markup.inline_keyboard.flat().map(b => b.callback_data);
+    assert.ok(types.includes("type:Wohnung") && types.includes("type:Haus"));
+    await callback("type:Wohnung");
+    assert.match(lastMessage(x).text, /Wo möchtest du suchen/);
+    assert.ok(lastMessage(x).reply_markup.inline_keyboard.flat().some(b => b.callback_data === "loc:all"));
+    assert.equal(x.sqlite.prepare("SELECT json_extract(telegram_state,'$._step') AS step FROM participants WHERE id='owner'").get().step, "location");
+  } finally { x.done(); }
+});
+
+test("applicant profile, fields, texts, documents and back buttons render without hidden redirects", async () => {
+  const x = setup();
+  try {
+    const callback = data => handleCallback({
+      id: "cb-" + data, data, from: { id: 777 },
+      message: { chat: x.chat, message_id: 21 },
+    }, x.user);
+    await callback("platforms:profile-new");
+    assert.match(lastMessage(x).text, /Bewerberprofil/);
+    const keys = lastMessage(x).reply_markup.inline_keyboard.flat().map(b => b.callback_data);
+    for (const name of ["salutation","first_name","last_name","email","phone","street","house_number","postcode","city","household_type","employment_status","income_range","pets","move_in_preference","wbs_status","schufa_status"]) {
+      assert.ok(keys.includes("platforms:profile-field:" + name), "missing field " + name);
+    }
+    assert.ok(keys.includes("platforms:profile-texts"));
+    assert.ok(keys.includes("platforms:docs"));
+    await callback("platforms:profile-field:salutation");
+    assert.match(lastMessage(x).text, /Anrede/);
+    await callback("platforms:profile-set:salutation:MR");
+    const raw = x.sqlite.prepare("SELECT profile FROM applicant_profiles WHERE participant_id='owner'").get()?.profile;
+    assert.equal(JSON.parse(raw).salutation, "MR");
+    await callback("platforms:profile-texts");
+    assert.match(lastMessage(x).text, /Bewerbungstext/);
+    assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][0].callback_data, "platforms:profile-text:message_house");
+    await callback("platforms:profile-text:message_apartment");
+    assert.match(lastMessage(x).text, /Wohnung/);
+    assert.equal(lastMessage(x).reply_markup.inline_keyboard.at(-1)[0].callback_data, "platforms:profile-texts");
+    await callback("platforms:docs");
+    assert.match(lastMessage(x).text, /Bewerberdokumente/);
+    const docCallbacks = lastMessage(x).reply_markup.inline_keyboard.flat().map(b => b.callback_data);
+    for (const t of ["wbs","schufa","income_proof","rent_clearance","other"]) assert.ok(docCallbacks.includes("platforms:doc-upload:" + t));
+    assert.ok(docCallbacks.includes("platforms:profile"));
+  } finally { x.done(); }
+});
+
+test("auto-apply menu exposes only supported provider actions and non-mutating status", async () => {
+  const x = setup();
+  try {
+    x.sqlite.exec("UPDATE participants SET test_auto_apply_enabled=1,test_auto_apply_daily_limit=1 WHERE id='owner'");
+    await platformSessions(x.user, x.chat, 21, "platforms");
+    const controls = lastMessage(x).reply_markup.inline_keyboard.flat().map(b => b.callback_data);
+    assert.ok(controls.includes("platforms:test-status"), "test access was a no-op");
+    assert.ok(controls.includes("platforms:login:3"), "Immomio login missing");
+    assert.ok(controls.includes("platforms:login:4"), "Immowelt login missing");
+    assert.ok(controls.includes("platforms:test:off"), "deactivation missing");
+    assert.ok(controls.includes("home"), "back to start missing");
+    assert.ok(!controls.includes("platforms:on"), "normal auto-apply must remain disabled in test mode");
+    assert.ok(!controls.includes("noop"), "a visible provider control must not be a no-op");
+  } finally { x.done(); }
+});
