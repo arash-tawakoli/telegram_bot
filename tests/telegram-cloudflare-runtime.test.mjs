@@ -9,5 +9,7 @@ test("Cloudflare Telegram handlers do not depend on the Supabase EdgeRuntime glo
   assert.equal(handlers.includes("EdgeRuntime"), false);
   assert.equal(sessions.includes("EdgeRuntime"), false);
   assert.equal(handlers.split("await ack();").length - 1, 4);
-  assert.equal(sessions.split("await applicationWorker('sync_documents'").length - 1, 2);
+  // Cloudflare reads selected documents from D1 on each application; no stale Supabase sync RPC remains.
+  assert.equal(sessions.includes("applicationWorker('sync_documents'"), false);
+  assert.match(sessions, /send_with_auto_apply:next/);
 });
