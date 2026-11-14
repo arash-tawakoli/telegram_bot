@@ -810,12 +810,26 @@ export async function handleCallback(query, user) {
         const issue = validateDraft(draft);
         if (issue)
             return renderStep(user, chatId, messageId, draft, issue);
+        const { data: existing, error: existingError } = await db.from("search_profiles")
+            .select("id").eq("user_id", user.id).limit(1);
+        if (existingError) throw existingError;
+        const firstSearch = !existing?.length;
         const referralReward = await persistProfile(user, draft);
         const result = await edit(chatId, messageId, "✅ Deine Suche ist aktiv. Neue passende Inserate werden automatisch zugestellt.", homeKeyboard({ ...user, onboarding_step: null }));
+        let celebrate = false;
+        if (firstSearch) {
+            try {
+                const { data: milestone, error } = await db.rpc("claim_profile_milestone", { p_user: user.id, p_profile_type: "search" });
+                if (error) throw error;
+                celebrate = milestone?.first_time === true;
+            } catch (error) { console.error("telegram_search_milestone", String(error?.message || error)); }
+        }
         if (referralReward?.status === "rewarded") {
             await sendCelebration(chatId, "💎 <b>30 Tage Premium kostenlos aktiviert</b>\n\n" +
                 "Dein erstes Suchprofil ist erstellt und dir wurden 30 Tage Premium kostenlos gutgeschrieben.\n\n" +
                 "Viel Erfolg und viel Spaß bei deiner Wohnungssuche! 🏠");
+        } else if (celebrate) {
+            await sendCelebration(chatId, "🎉 <b>Suchprofil erstellt!</b>\n\nDu erhältst ab jetzt passende Wohnungsangebote.");
         }
         return result;
     }
