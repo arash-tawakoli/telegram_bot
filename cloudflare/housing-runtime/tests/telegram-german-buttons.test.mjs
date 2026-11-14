@@ -218,9 +218,10 @@ test("applicant profile, field transition, text choices and separate preview wor
     await callback("platforms:profile-new");
     assert.match(lastMessage(x).text, /Bewerberprofil/);
     const keys = lastMessage(x).reply_markup.inline_keyboard.flat().map(b => b.callback_data);
-    for (const name of ["salutation","first_name","last_name","email","phone","street","house_number","postcode","city","household_type","employment_status","income_range","pets","move_in_preference","wbs_status","schufa_status"]) {
+    for (const name of ["salutation","first_name","last_name","email","phone","street","house_number","postcode","city","household_type","employment_status","income_range","pets","move_in_preference","schufa_status"]) {
       assert.ok(keys.includes("platforms:profile-field:" + name), "missing field " + name);
     }
+    assert.ok(!keys.includes("platforms:profile-field:wbs_status"));
     assert.ok(keys.includes("platforms:profile-texts"));
     assert.ok(keys.includes("platforms:profile-preview"));
     assert.ok(!keys.includes("platforms:docs"));
@@ -238,7 +239,8 @@ test("applicant profile, field transition, text choices and separate preview wor
     assert.equal(lastMessage(x).reply_markup.inline_keyboard.at(-1)[0].callback_data, "platforms:profile-texts");
     await callback("platforms:profile-preview");
     assert.match(lastMessage(x).text, /Profilvorschau/);
-    assert.match(lastMessage(x).text, /Anrede:/);
+    assert.match(lastMessage(x).text, /Pflichtangabe/);
+    assert.doesNotMatch(lastMessage(x).text,/WBS-Status/);
     assert.equal(lastMessage(x).reply_markup.inline_keyboard.at(-1)[0].callback_data, "platforms:profile");
   } finally { x.done(); }
 });
@@ -337,4 +339,79 @@ test("Immomio connect action presents an external OAuth link without changing ap
     assert.equal(x.sqlite.prepare("SELECT status FROM provider_connections WHERE participant_id='owner' AND provider='immomio'").get().status, "pending");
     assert.equal(x.sqlite.prepare("SELECT count(*) AS n FROM applications").get().n, 0);
   } finally { globalThis.fetch = savedFetch; x.done(); }
+});
+
+test("application text reply flow saves edits and expands first name in the preview", async () => {
+  const x = setup();
+  try {
+    x.sqlite.prepare("INSERT INTO applicant_profiles(participant_id,profile) VALUES('owner',?)")
+      .run(JSON.stringify({first_name:"Nora",last_name:"Mustermann",message_apartment:"Hallo [[Vorname]]"}));
+    await platformSessions(x.user,x.chat,42,"platforms:profile-text:message_apartment");
+    assert.match(lastMessage(x).text,/Hallo Nora/);
+    assert.doesNotMatch(lastMessage(x).text,/\\[\\[Vorname\\]\\]/);
+
+    await handleCallback({
+      id:"cb-edit-text", data:"platforms:profile-field:message_apartment",
+      from:{id:777},message:{chat:x.chat,message_id:42},
+    },x.user);
+    const prompt = lastMessage(x);
+    assert.equal(prompt.reply_markup.force_reply,true);
+    assert.match(prompt.text,/Schreibe oder passe deinen Bewerbungstext/);
+
+    const state=JSON.parse(x.sqlite.prepare("SELECT telegram_state FROM participants WHERE id='owner'").get().telegram_state);
+    assert.equal(state._applicant_field,"message_apartment");
+    await handleAutoApplyMessage({...x.user,onboarding_state:state},{
+      chat:x.chat,message_id:505,text:"Sehr geehrte Damen und Herren, ich bin [[Vorname]].",
+      reply_to_message:{text:prompt.text,message_id:504},
+    });
+    const saved=JSON.parse(x.sqlite.prepare("SELECT profile FROM applicant_profiles WHERE participant_id='owner'").get().profile);
+    assert.equal(saved.message_apartment,"Sehr geehrte Damen und Herren, ich bin [[Vorname]].");
+    assert.match(lastMessage(x).text,/Sehr geehrte Damen und Herren, ich bin Nora/);
+    await platformSessions(x.user,x.chat,42,"platforms:profile-text:message_apartment");
+    assert.match(lastMessage(x).text,/ich bin Nora/);
+  }finally{x.done();}
+});
+
+test("applicant confetti occurs once after both identity fields are first saved",async()=>{
+ const x=setup();
+ try{
+  const callback=async data=>{
+   const state=JSON.parse(x.sqlite.prepare("SELECT telegram_state FROM participants WHERE id='owner'").get().telegram_state);
+   return handleCallback({id:"cb-"+data,data,from:{id:777},message:{chat:x.chat,message_id:31}},
+     {...x.user,onboarding_state:state,onboarding_step:state._step||null});
+  };
+  const fill=async (field,value)=>{
+   await callback("platforms:profile-field:"+field);
+   const state=JSON.parse(x.sqlite.prepare("SELECT telegram_state FROM participants WHERE id='owner'").get().telegram_state);
+   await handleAutoApplyMessage({...x.user,onboarding_state:state},{
+    chat:x.chat,message_id:90,text:value,
+   });
+  };
+  await callback("platforms:profile-new");
+  assert.equal(x.sent.filter(req=>req.body?.message_effect_id).length,0);
+  await fill("first_name","Nora");
+  assert.equal(x.sent.filter(req=>req.body?.message_effect_id).length,0);
+  await fill("last_name","Mustermann");
+  assert.equal(x.sent.filter(req=>req.body?.message_effect_id==="5046509860389126442").length,1);
+  assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM telegram_profile_milestones WHERE participant_id='owner' AND profile_type='applicant'").get().n,1);
+  await fill("first_name","Norah");
+  assert.equal(x.sent.filter(req=>req.body?.message_effect_id==="5046509860389126442").length,1);
+ }finally{x.done();}
+});
+
+test("first search profile save sends one Telegram native celebration, not repeated",async()=>{
+ const x=setup();
+ try{
+   const callback=async data=>{
+     const state=JSON.parse(x.sqlite.prepare("SELECT telegram_state FROM participants WHERE id='owner'").get().telegram_state);
+     return handleCallback({id:"cb-"+data,data,from:{id:777},message:{chat:x.chat,message_id:71}},
+       {...x.user,onboarding_state:state,onboarding_step:state._step||null});
+   };
+   for(const action of ["new","type:Wohnung","loc:all","rent:800","rooms:2","area:40","profile:save"])
+     await callback(action);
+   assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM search_profiles WHERE participant_id='owner'").get().n,1);
+   assert.equal(x.sent.filter(req=>req.body?.message_effect_id==="5046509860389126442").length,1);
+   await callback("profile:save");
+   assert.equal(x.sent.filter(req=>req.body?.message_effect_id==="5046509860389126442").length,1);
+ }finally{x.done();}
 });
