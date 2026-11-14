@@ -3,15 +3,15 @@ import { createD1Supabase } from "./d1-supabase.js";
 export let db = null;
 let env = {};
 export const PREMIUM_LINK = "https://buy.stripe.com/dRm9AM7DSajfgYK2qVfYY01";
-export const PROPERTY_TYPES = ["Wohnung", "Haus", "WG", "Tauschwohnung"];
+export const PROPERTY_TYPES = ["Wohnung", "Haus"];
 export const RENT_PRESETS = new Set([800, 1000, 1250, 2000]);
 export const ROOM_PRESETS = new Set([1, 2, 3, 4]);
-export const AREA_PRESETS = new Set([20, 50, 70, 90]);
+export const AREA_PRESETS = new Set([20, 40, 50, 70, 90]); // 50 m² remains valid for saved legacy profiles.
 export const ROOM_AREA_PRESETS = new Set([0, 8, 10, 12, 15, 20]);
 export const NEIGHBORHOODS_PER_PAGE = 10;
 export const SECRET_TTL_MS = 5 * 60_000;
 export const GEO_TTL_MS = 30 * 60_000;
-export const ADMIN_TELEGRAM_USER_IDS = new Set([8538226539, 414638980]);
+export const ADMIN_TELEGRAM_USER_IDS = new Set([8538226539]);
 export const secretCache = new Map();
 export let geoCache = null;
 let geographyDatabase = null;
@@ -83,4 +83,4 @@ export async function geography() {
   geoCache = { value, expiresAt: Date.now() + GEO_TTL_MS };
   return value;
 }
-export const HELP_TEXT = "❓ <b>Hilfe & Befehle</b>\n\n🏠 /start – Startmenü\n🔎 /suche – Suchprofil erstellen\n👤 /suchprofile – Suchprofile anzeigen\n⚙️ /einstellungen – Einstellungen\n⏸ /pause – Suche pausieren\n▶️ /fortsetzen – Suche fortsetzen\n❓ /hilfe – Hilfe";
+export const HELP_TEXT = "❓ <b>Hilfe & Befehle</b>\n\n🏠 /start – Startmenü\n🔎 /suche – Suchprofil erstellen\n👤 /suchprofile – Suchprofile anzeigen\n⚙️ /einstellungen – Einstellungen\n⏸ /pause – Suche pausieren\n▶️ /fortsetzen – Suche fortsetzen\n📊 /status – Systemstatus\n💎 /premium – Premium anzeigen\n❓ /hilfe – Hilfe";

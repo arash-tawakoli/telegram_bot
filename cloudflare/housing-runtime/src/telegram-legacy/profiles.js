@@ -88,7 +88,7 @@ export function includesWG(draft) {
 }
 
 export function includesWholeHome(draft) {
-    return draft.property_types.some((type) => ["Wohnung", "Haus", "Tauschwohnung"].includes(type));
+    return draft.property_types.some((type) => ["Wohnung", "Haus"].includes(type));
 }
 
 export function nextSizeStep(draft) {
@@ -136,7 +136,6 @@ export async function renderTypes(user, chatId, messageId, draft) {
     const mark = (value, label) => `${selected === value ? "✅ " : ""}${label}`;
     const rows = [
         [button(mark("Wohnung", "🏢 Wohnung"), "type:Wohnung"), button(mark("Haus", "🏡 Haus"), "type:Haus")],
-        [button(mark("WG", "🛏 WG-Zimmer"), "type:WG"), button(mark("Tauschwohnung", "🔁 Tauschwohnung"), "type:Tauschwohnung")],
         [button("← Start", draft.profile_edit ? `profile:edit:${draft.profile_slot}` : "home")],
         cancelRow(),
     ];
@@ -305,12 +304,12 @@ export async function renderRooms(user, chatId, messageId, draft) {
 
 export async function renderArea(user, chatId, messageId, draft) {
     await saveDraft(user, "area", draft);
-    const question = "📐 <b>Wie groß soll die Fläche mindestens sein?</b>";
+    const question = "📐 <b>Wie groß soll die Fläche sein?</b>\n\nWähle die Mindestfläche.";
     return edit(chatId, messageId, question, {
         inline_keyboard: [
             [
                 button(`${draft.min_area_sqm === 20 ? "✅ " : ""}20 m²`, "area:20"),
-                button(`${draft.min_area_sqm === 50 ? "✅ " : ""}50 m²`, "area:50"),
+                button(`${draft.min_area_sqm === 40 ? "✅ " : ""}40 m²`, "area:40"),
             ],
             [
                 button(`${draft.min_area_sqm === 70 ? "✅ " : ""}70 m²`, "area:70"),
@@ -402,13 +401,20 @@ export async function renderReview(user, chatId, messageId, draft) {
     return edit(chatId, messageId, text, {
         inline_keyboard: [
             [button("✅ Suche aktivieren", "profile:save")],
-            [button("🏠 Typ", "edit:types"), button("📍 Gebiet", "edit:location")],
-            [button("💶 Miete", "edit:rent")],
-            [button("🚪 Zimmer", "edit:rooms"), button("📐 Fläche", "edit:area")],
-            backRow("area"),
-            cancelRow(),
+            [button("✏️ Ändern", "review:edit")],
         ],
     });
+}
+
+export async function renderReviewEdit(user, chatId, messageId, draft) {
+    await saveDraft(user, "review", draft);
+    const markup = { inline_keyboard: [
+        [button("🏠 Typ", "edit:types"), button("📍 Gebiet", "edit:location")],
+        [button("💶 Miete", "edit:rent"), button("🚪 Zimmer", "edit:rooms")],
+        [button("📐 Fläche", "edit:area")],
+        [button("← Vorschau", "review")],
+    ] };
+    return edit(chatId, messageId, "✏️ <b>Suchprofil ändern</b>\n\nWas möchtest du anpassen?", markup);
 }
 
 export function renderStep(user, chatId, messageId, draft, step) {
@@ -591,7 +597,7 @@ export async function profileEditMenu(user, chatId, messageId, selectedSlot) {
         `🚪 <b>Zimmer:</b> ${esc(current.min_rooms ?? "–")}+\n` +
         `📐 <b>Fläche:</b> ${Number(current.min_area_sqm || 0) > 0 ? `${esc(current.min_area_sqm)} m²+` : "egal"}`;
     const markup = { inline_keyboard: [
-            [button("🏠 Wohnform", `profile:edit-field:${selectedSlot}:types`)],
+            [button("🏠 Typ", `profile:edit-field:${selectedSlot}:types`)],
             [button("📍 Gebiet", `profile:edit-field:${selectedSlot}:location`)],
             [button("💶 Warmmiete", `profile:edit-field:${selectedSlot}:rent`)],
             [button("🚪 Zimmer", `profile:edit-field:${selectedSlot}:rooms`), button("📐 Fläche", `profile:edit-field:${selectedSlot}:area`)],

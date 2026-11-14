@@ -1,5 +1,5 @@
 const ACCOUNT_EMAIL = "arash@nexalabs.de";
-const ADMIN_IDS = new Set(["8538226539", "414638980"]);
+const ADMIN_IDS = new Set(["8538226539"]);
 const ISSUER = "https://login.immobilienscout24.de/oauth2/aus1227au6oBG6hGH417";
 const AUTHORIZE = `${ISSUER}/v1/authorize`;
 const TOKEN = `${ISSUER}/v1/token`;

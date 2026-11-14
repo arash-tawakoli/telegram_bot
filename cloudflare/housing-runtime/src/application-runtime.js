@@ -3,8 +3,8 @@ import { sendImmoweltApplication } from "./immowelt-application.js";
 import { sendImmoScoutApplication } from "./immoscout-application.js";
 import { sendImmomioApplication } from "./immomio-application.js";
 import { matchesActiveSearch } from "./matching.js";
-import { applicationProvider, applicationSchedule, missingApplicantFields, premiumParticipant, timestampMillis } from "./application-policy.js";
-import { createApplicationDocumentPackage } from "./application-documents.js";
+import { applicationProvider, applicationSchedule, missingApplicantFields, listingRequiresWbs, hasValidWbs, premiumParticipant, timestampMillis } from "./application-policy.js";
+import { effectiveApplicationMessages } from "./application-text.js";
 import { sourceForId } from "./source-allowlist.js";
 
 function enabled(value) { return value === true || value === 1; }
@@ -117,6 +117,10 @@ async function claim(sql, freshOnly = false) {
     const row = rows[0];
     try { row.profile = typeof row.profile === "string" ? JSON.parse(row.profile || "{}") : (row.profile || {}); } catch { row.profile = {}; }
     try { row.facts = typeof row.facts === "string" ? JSON.parse(row.facts || "{}") : (row.facts || {}); } catch { row.facts = {}; }
+    row.profile = effectiveApplicationMessages(row.profile);
+    const propertyType = String(row.facts.property_type || row.facts.property_kind || row.facts.title || "");
+    const isHouse = /(?:^|\\b)(?:Haus|Einfamilienhaus|Reihenhaus|Doppelhaushälfte)(?:\\b|$)/i.test(propertyType);
+    row.profile.message = isHouse ? row.profile.message_house : row.profile.message_apartment;
     row.preferences_enabled = enabled(row.preferences_enabled);
     row.provider_enabled = enabled(row.provider_enabled);
     row.test_mode = enabled(row.test_mode);
@@ -246,6 +250,9 @@ export async function processHousingApplication(sql, env, request) {
   `;
   if (!delivery.length) return fail("failed", "not_eligible");
 
+  if (listingRequiresWbs(application.facts) && !hasValidWbs(application.profile)) {
+    return fail("manual_required", "wbs_required");
+  }
   const schedule = applicationSchedule(application, now);
   if (!schedule.allowed) {
     await sql`
@@ -255,11 +262,7 @@ export async function processHousingApplication(sql, env, request) {
     `;
     return { status: 200, body: { ok: true, status: "deferred", provider, reason: schedule.reason, application_id: application.id } };
   }
-  let documentPackage = null;
-  if (provider === "immoscout24") {
-    try { documentPackage = await createApplicationDocumentPackage(sql, env, application, now); }
-    catch { return fail("manual_required", "document_package_unavailable"); }
-  }
+  // Uploaded applicant documents are not part of the simplified application flow.
   const configuredLimit = Number(application.daily_limit);
   const dailyLimit = application.daily_limit == null || !Number.isFinite(configuredLimit)
     ? 2_147_483_647 : Math.max(0, Math.floor(configuredLimit));
@@ -291,7 +294,7 @@ export async function processHousingApplication(sql, env, request) {
   if (provider === "immoscout24") {
     let result;
     try {
-      result = await sendImmoScoutApplication({ ...application, document_package_url: documentPackage?.url || null }, env, sql);
+      result = await sendImmoScoutApplication({ ...application, document_package_url: null }, env, sql);
     } catch (error) {
       result = { status: "manual_required", error: ["needs_login", "temporary_network_error", "credential_decrypt_failed"].includes(String(error?.message || "")) ? String(error.message) : "provider_contract_unverified" };
     }

@@ -14,6 +14,12 @@ function setup() {
     sqlite.exec(readFileSync(new URL(file, dir), "utf8"));
   }
   sqlite.exec("INSERT INTO participants(id,first_name,last_name,telegram_user_id,telegram_chat_id,plan_override,ui_language,test_auto_apply_allowed) VALUES ('owner','A','B',777,777,'premium','en',1)");
+  sqlite.exec("CREATE TABLE IF NOT EXISTS coach_geo_snapshot(id TEXT PRIMARY KEY,payload TEXT NOT NULL)");
+  sqlite.prepare("INSERT INTO coach_geo_snapshot(id,payload) VALUES('de-hh-sh',?)").run(JSON.stringify({
+    boroughs:[{id:1,name:"Hamburg-Mitte"}],
+    neighborhoods:[{id:1,name:"Altstadt",borough_id:1}],
+    schleswigHolsteinAreas:[{code:"01002",name:"Kiel"}],
+  }));
   const storage = new Map();
   const d1 = { prepare(query) {
     const build = args => ({
@@ -119,7 +125,8 @@ test("Premium only shows a real Stripe management button for paid subscriptions"
     assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][0].url,
       "https://billing.stripe.com/p/login/test");
     await premium({ ...x.user, is_premium: false }, 777);
-    assert.match(lastMessage(x).reply_markup.inline_keyboard[0][0].text, /Premium abonnieren/);
+    assert.match(lastMessage(x).text,/nicht direkt buchbar/);
+    assert.equal(lastMessage(x).reply_markup.inline_keyboard.some(row=>/Premium abonnieren/.test(row[0].text)),false);
   } finally { x.done(); }
 });
 
@@ -131,7 +138,7 @@ test("referral page edits in place, shares a stable link, and never overwrites a
     const first = lastMessage(x);
     assert.match(first.text, /30 Tage Premium kostenlos/);
     assert.deepEqual(first.reply_markup.inline_keyboard.map(row => row[0].text),
-      ["📤 Link teilen", "← Einstellungen"]);
+      ["📤 Link teilen", "📋 Link kopieren", "← Einstellungen"]);
     const code = x.sqlite.prepare("SELECT code FROM referral_codes WHERE participant_id='owner'").get().code;
     await referralPage(x.user, 777, 20);
     assert.equal(x.sqlite.prepare("SELECT count(*) AS n FROM referral_codes WHERE participant_id='owner'").get().n, 1);
@@ -152,32 +159,28 @@ test("personal Scout test-access button is read-only and displays actual state",
   } finally { x.done(); }
 });
 
-test("document selection updates physical D1 columns and keeps a real document ID", async () => {
-  const x = setup();
-  try {
-    x.sqlite.exec("INSERT INTO applicant_profiles(participant_id,profile) VALUES('owner','{\"first_name\":\"A\",\"last_name\":\"B\"}')");
-    const message = {
-      chat: x.chat, message_id: 30, document: { file_id: "file-123", file_name: "nachweis.pdf", file_size: 9 },
-      reply_to_message: { text: "📎 Bewerberdokument · WBS", message_id: 29 },
-    };
-    await handleAutoApplyMessage(x.user, message);
-    const row = x.sqlite.prepare("SELECT id,document_type,send_with_auto_apply FROM documents WHERE participant_id='owner'").get();
-    assert.ok(/^[0-9a-f-]{36}$/i.test(row.id), "missing document ID");
-    assert.equal(row.document_type, "wbs");
-    assert.equal(row.send_with_auto_apply, 0);
-    await platformSessions(x.user, x.chat, 31, "platforms:doc-toggle:" + row.id);
-    assert.equal(x.sqlite.prepare("SELECT send_with_auto_apply FROM documents WHERE id=?").get(row.id).send_with_auto_apply, 1);
-    assert.match(lastMessage(x).text, /1 für Auto-Bewerbungen ausgewählt/);
-  } finally { x.done(); }
+test("document management is retired without deleting existing records", async () => {
+ const x=setup();
+ try {
+   x.sqlite.exec("INSERT INTO applicant_profiles(participant_id,profile) VALUES('owner','{\"first_name\":\"A\",\"last_name\":\"B\"}')");
+   await platformSessions(x.user,x.chat,31,"platforms:docs");
+   assert.match(lastMessage(x).text,/Bewerberprofil/);
+   assert.equal(lastMessage(x).reply_markup.inline_keyboard.flat().some(b=>/docs|doc-upload|doc-delete/.test(b.callback_data||"")),false);
+   assert.equal(x.sqlite.prepare("SELECT COUNT(*) n FROM documents").get().n,0);
+ }finally{x.done();}
 });
 
 test("search-profile menu and new-profile flow expose working callbacks in German", async () => {
   const x = setup();
   try {
-    const callback = data => handleCallback({
-      id: "cb-" + data, data, from: { id: 777 },
-      message: { chat: x.chat, message_id: 21 },
-    }, x.user);
+    const callback = data => {
+      const current = x.sqlite.prepare("SELECT telegram_state FROM participants WHERE id='owner'").get();
+      const onboarding_state = JSON.parse(current?.telegram_state || "{}");
+      return handleCallback({
+        id: "cb-" + data, data, from: { id: 777 },
+        message: { chat: x.chat, message_id: 21 },
+      }, { ...x.user, onboarding_state, onboarding_step: onboarding_state._step || null });
+    };
     await callback("profile");
     assert.match(lastMessage(x).text, /Meine Suchprofile/);
     assert.ok(lastMessage(x).reply_markup.inline_keyboard.some(row => row[0].callback_data === "new"));
@@ -189,10 +192,23 @@ test("search-profile menu and new-profile flow expose working callbacks in Germa
     assert.match(lastMessage(x).text, /Wo möchtest du suchen/);
     assert.ok(lastMessage(x).reply_markup.inline_keyboard.flat().some(b => b.callback_data === "loc:all"));
     assert.equal(x.sqlite.prepare("SELECT json_extract(telegram_state,'$._step') AS step FROM participants WHERE id='owner'").get().step, "location");
+    await callback("loc:all");
+    await callback("rent:800");
+    await callback("rooms:2");
+    await callback("area:40");
+    const previewButtons=lastMessage(x).reply_markup.inline_keyboard.flat().map(b=>b.callback_data);
+    assert.deepEqual(previewButtons,["profile:save","review:edit"]);
+    await callback("review:edit");
+    const editButtons=lastMessage(x).reply_markup.inline_keyboard.flat().map(b=>b.callback_data);
+    for(const key of ["types","location","rent","rooms","area"])
+      assert.ok(editButtons.includes("edit:"+key),key);
+    assert.ok(editButtons.includes("review"));
+    await callback("review");
+    assert.deepEqual(lastMessage(x).reply_markup.inline_keyboard.flat().map(b=>b.callback_data),["profile:save","review:edit"]);
   } finally { x.done(); }
 });
 
-test("applicant profile, fields, texts, documents and back buttons render without hidden redirects", async () => {
+test("applicant profile, field transition, text choices and separate preview work", async () => {
   const x = setup();
   try {
     const callback = data => handleCallback({
@@ -206,7 +222,9 @@ test("applicant profile, fields, texts, documents and back buttons render withou
       assert.ok(keys.includes("platforms:profile-field:" + name), "missing field " + name);
     }
     assert.ok(keys.includes("platforms:profile-texts"));
-    assert.ok(keys.includes("platforms:docs"));
+    assert.ok(keys.includes("platforms:profile-preview"));
+    assert.ok(!keys.includes("platforms:docs"));
+    assert.doesNotMatch(lastMessage(x).text, /Profilstatus|Dokumente:/);
     await callback("platforms:profile-field:salutation");
     assert.match(lastMessage(x).text, /Anrede/);
     await callback("platforms:profile-set:salutation:MR");
@@ -214,16 +232,42 @@ test("applicant profile, fields, texts, documents and back buttons render withou
     assert.equal(JSON.parse(raw).salutation, "MR");
     await callback("platforms:profile-texts");
     assert.match(lastMessage(x).text, /Bewerbungstext/);
-    assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][0].callback_data, "platforms:profile-text:message_house");
+    assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][0].callback_data, "platforms:profile-text:message_apartment");
     await callback("platforms:profile-text:message_apartment");
     assert.match(lastMessage(x).text, /Wohnung/);
     assert.equal(lastMessage(x).reply_markup.inline_keyboard.at(-1)[0].callback_data, "platforms:profile-texts");
-    await callback("platforms:docs");
-    assert.match(lastMessage(x).text, /Bewerberdokumente/);
-    const docCallbacks = lastMessage(x).reply_markup.inline_keyboard.flat().map(b => b.callback_data);
-    for (const t of ["wbs","schufa","income_proof","rent_clearance","other"]) assert.ok(docCallbacks.includes("platforms:doc-upload:" + t));
-    assert.ok(docCallbacks.includes("platforms:profile"));
+    await callback("platforms:profile-preview");
+    assert.match(lastMessage(x).text, /Profilvorschau/);
+    assert.match(lastMessage(x).text, /Anrede:/);
+    assert.equal(lastMessage(x).reply_markup.inline_keyboard.at(-1)[0].callback_data, "platforms:profile");
   } finally { x.done(); }
+});
+
+test("free-text profile fields replace the current Telegram card and accept the next message",async()=>{
+ const x=setup();
+ try{
+   await handleCallback({
+     id:"callback-firstname",data:"platforms:profile-field:first_name",
+     from:{id:777},message:{chat:x.chat,message_id:21}
+   },x.user);
+   const prompt=lastMessage(x);
+   assert.match(prompt.text,/Vorname/);
+   assert.equal(prompt.message_id,21);
+   assert.equal(prompt.reply_markup.inline_keyboard[0][0].callback_data,"platforms:profile");
+   const row=x.sqlite.prepare("SELECT telegram_state FROM participants WHERE id='owner'").get();
+   const onboarding_state=JSON.parse(row?.telegram_state||"{}");
+   assert.equal(onboarding_state._applicant_field,"first_name");
+   const beforeSends=x.sent.filter(a=>a.method==="sendMessage").length;
+   await handleAutoApplyMessage({...x.user,onboarding_state,onboarding_step:onboarding_state._step||null},{
+     chat:x.chat,message_id:22,text:"Ariana"
+   });
+   const profile=x.sqlite.prepare("SELECT profile FROM applicant_profiles WHERE participant_id='owner'").get();
+   assert.equal(JSON.parse(profile.profile).first_name,"Ariana");
+   const latest=lastMessage(x);
+   assert.match(latest.text,/Bewerberprofil/);
+   assert.equal(latest.message_id,21);
+   assert.equal(x.sent.filter(a=>a.method==="sendMessage").length,beforeSends);
+ }finally{x.done();}
 });
 
 test("auto-apply menu exposes only supported provider actions and non-mutating status", async () => {
