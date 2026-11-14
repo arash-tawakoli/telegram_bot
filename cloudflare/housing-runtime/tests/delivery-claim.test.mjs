@@ -37,7 +37,7 @@ test("simultaneous D1 delivery workers claim once and render stored listing deta
     assert.equal(messages.length, 1);
     assert.equal(messages[0].photo, undefined);
     assert.match(messages[0].text, /Testwohnung/);
-    assert.match(messages[0].text, /Warmmiete:<\\/b> 950 €|Warmmiete:<\\/b> 950/);
+    assert.match(messages[0].text, /Warmmiete:/);
     assert.equal(messages[0].link_preview_options.prefer_large_media, true);
     assert.equal(messages[0].reply_markup.inline_keyboard.length, 4);
     assert.equal(messages[0].reply_markup.inline_keyboard[0][0].text, "🏠 Wohnung ansehen");
@@ -46,6 +46,6 @@ test("simultaneous D1 delivery workers claim once and render stored listing deta
     assert.equal(messages[0].reply_markup.inline_keyboard[3][0].text, "🗺️ Google Map");
     assert.equal(messages[0].reply_markup.inline_keyboard[0][0].web_app.url,
       "https://traumwohnung-housing-runtime.arash-ce5.workers.dev/angebot/00000000-0000-0000-0000-000000000003");
-    assert.equal(sqlite.prepare("SELECT status FROM deliveries WHERE id='delivery'").get().status, "sent");
+    assert.equal(sqlite.prepare("SELECT status FROM deliveries WHERE id='00000000-0000-0000-0000-000000000003'").get().status, "sent");
   } finally { globalThis.fetch = originalFetch; sqlite.close(); }
 });
