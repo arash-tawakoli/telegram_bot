@@ -181,29 +181,34 @@ async function processDelivery(sql, request, env) {
   const expected = env.DELIVERY_RUN_TOKEN || env.SOURCE_RUN_TOKEN;
   if (!expected || !await sameSecret(request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") || "", expected)) return json({ error: "unauthorized" }, 401);
   const claimed = await sql.begin(async (tx) => {
-    let rows = await tx`
+    const rows = await tx`
+      WITH fresh AS (
+        SELECT id, created_at, 0 AS priority
+        FROM housing.deliveries
+        WHERE status = 'pending' AND error_message IS NOT 'cutover_waiting'
+          AND created_at >= now() - interval '15 minutes'
+        ORDER BY created_at, id
+        LIMIT 1
+      ), cutover AS (
+        SELECT id, created_at, 1 AS priority
+        FROM housing.deliveries
+        WHERE status = 'pending' AND error_message = 'cutover_waiting'
+        ORDER BY created_at, id
+        LIMIT 1
+      ), candidates AS (
+        SELECT id, created_at, priority FROM fresh
+        UNION ALL
+        SELECT id, created_at, priority FROM cutover
+      )
       SELECT d.id, d.participant_id, d.offer_identity_id, p.telegram_chat_id, oi.facts, oi.canonical_url
-      FROM housing.deliveries d
+      FROM candidates c
+      JOIN housing.deliveries d ON d.id = c.id
       JOIN housing.participants p ON p.id = d.participant_id
       JOIN housing.offer_identities oi ON oi.id = d.offer_identity_id
-      WHERE d.status = 'pending' AND d.error_message = 'cutover_waiting'
-      ORDER BY d.created_at, d.id
+      ORDER BY c.priority, c.created_at, c.id
       LIMIT 1
       FOR UPDATE SKIP LOCKED
     `;
-    if (!rows.length) {
-      rows = await tx`
-        SELECT d.id, d.participant_id, d.offer_identity_id, p.telegram_chat_id, oi.facts, oi.canonical_url
-        FROM housing.deliveries d
-        JOIN housing.participants p ON p.id = d.participant_id
-        JOIN housing.offer_identities oi ON oi.id = d.offer_identity_id
-        WHERE d.status = 'pending' AND d.error_message IS NOT 'cutover_waiting'
-          AND d.created_at >= now() - interval '15 minutes'
-        ORDER BY d.created_at, d.id
-        LIMIT 1
-        FOR UPDATE SKIP LOCKED
-      `;
-    }
     if (!rows[0]) return null;
     const won = await tx`UPDATE housing.deliveries SET status = 'processing', attempts = attempts + 1 WHERE id = ${rows[0].id} AND status = 'pending' RETURNING id`;
     return won.length ? rows[0] : null;

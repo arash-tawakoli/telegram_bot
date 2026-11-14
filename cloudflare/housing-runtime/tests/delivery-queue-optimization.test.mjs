@@ -57,10 +57,15 @@ test("shadow retirement preserves idempotency and scheduled lookups use narrow i
     assert.equal(db.prepare("SELECT count(*) AS count FROM application_dedupe_keys WHERE key_hash=?").get("a".repeat(64)).count, 1);
     assert.equal(db.prepare("SELECT count(*) AS count FROM sqlite_master WHERE type='table' AND name IN ('scout_shadow_scans','scout_shadow_offers')").get().count, 0);
 
+    db.prepare("INSERT INTO deliveries(id,participant_id,offer_identity_id,idempotency_key,status,error_message,created_at) VALUES(?,?,?,?,?,?,datetime('now'))").run("fresh-live","audit-user","live-offer","audit-user:fresh-live","pending",null);
     const fresh = plan(db, "SELECT id FROM deliveries WHERE status='pending' AND error_message IS NOT 'cutover_waiting' AND created_at >= datetime('now','-15 minutes') ORDER BY created_at,id LIMIT 1");
     const cutover = plan(db, "SELECT id FROM deliveries WHERE status='pending' AND error_message='cutover_waiting' ORDER BY created_at,id LIMIT 1");
+    const combined = plan(db, "WITH fresh AS (SELECT id,created_at,0 AS priority FROM deliveries WHERE status='pending' AND error_message IS NOT 'cutover_waiting' AND created_at>=datetime('now','-15 minutes') ORDER BY created_at,id LIMIT 1), cutover AS (SELECT id,created_at,1 AS priority FROM deliveries WHERE status='pending' AND error_message='cutover_waiting' ORDER BY created_at,id LIMIT 1), candidates AS (SELECT id,created_at,priority FROM fresh UNION ALL SELECT id,created_at,priority FROM cutover) SELECT d.id FROM candidates c JOIN deliveries d ON d.id=c.id ORDER BY c.priority,c.created_at,c.id LIMIT 1");
+    assert.equal(db.prepare("WITH fresh AS (SELECT id,created_at,0 AS priority FROM deliveries WHERE status='pending' AND error_message IS NOT 'cutover_waiting' AND created_at>=datetime('now','-15 minutes') ORDER BY created_at,id LIMIT 1), cutover AS (SELECT id,created_at,1 AS priority FROM deliveries WHERE status='pending' AND error_message='cutover_waiting' ORDER BY created_at,id LIMIT 1), candidates AS (SELECT id,created_at,priority FROM fresh UNION ALL SELECT id,created_at,priority FROM cutover) SELECT id FROM candidates ORDER BY priority,created_at,id LIMIT 1").get().id, "fresh-live");
     const offers = plan(db, "SELECT id FROM offer_identities WHERE expires_at IS NOT NULL AND expires_at <= datetime('now') ORDER BY expires_at,id LIMIT 5000");
     assert.match(fresh, /deliveries_pending_fresh_idx/);
+    assert.match(combined, /deliveries_pending_fresh_idx/);
+    assert.match(combined, /deliveries_pending_cutover_idx/);
     assert.match(cutover, /deliveries_pending_cutover_idx/);
     assert.match(offers, /offer_identities_expiry_idx/);
     const normalized = "julianday(CASE WHEN substr(created_at,-3)='+00' THEN substr(created_at,1,length(created_at)-3)||'Z' ELSE created_at END)";
