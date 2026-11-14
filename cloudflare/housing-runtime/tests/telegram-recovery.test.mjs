@@ -57,3 +57,25 @@ test("payload-less and exhausted updates remain untouched",async()=>{
   assert.equal(calls,0);
   db.close();
 });
+
+test("terminal Telegram updates keep metadata but clear raw payloads",async()=>{
+  const {db,sql}=database();
+  const insert=db.prepare("INSERT INTO telegram_updates(update_id,payload_hash,kind,status,attempts,received_at,payload_json,processing_at) VALUES(?,?,?,?,?,?,?,?)");
+  const payload=JSON.stringify({update_id:30,message:{from:{id:777},text:"private message"}});
+  insert.run(30,"hash-30","message","failed",5,"2026-11-13T01:00:00.000Z",payload,"2026-11-13T01:00:00.000Z");
+  insert.run(31,"hash-31","callback_query","processing",5,"2026-11-13T02:00:00.000Z",JSON.stringify({update_id:31,callback_query:{from:{id:777},data:"private"} }),"2026-11-13T02:00:00.000Z");
+  insert.run(32,"hash-32","message","processing",5,"2026-11-13T02:17:00.000Z",payload,"2026-11-13T02:17:00.000Z");
+  let calls=0;
+  const result=await recoverTelegramUpdates(sql,{},async()=>{calls++;},new Date("2026-11-13T02:22:00.000Z"));
+  assert.deepEqual(result,{scanned:0,completed:0,failed:0});
+  assert.equal(calls,0);
+  assert.equal(db.prepare("SELECT status FROM telegram_updates WHERE update_id=30").get().status,"failed");
+  assert.equal(db.prepare("SELECT payload_json FROM telegram_updates WHERE update_id=30").get().payload_json,null);
+  assert.equal(db.prepare("SELECT last_error FROM telegram_updates WHERE update_id=30").get().last_error,"telegram_retry_limit");
+  assert.equal(db.prepare("SELECT status FROM telegram_updates WHERE update_id=31").get().status,"failed");
+  assert.equal(db.prepare("SELECT processing_at FROM telegram_updates WHERE update_id=31").get().processing_at,null);
+  assert.equal(db.prepare("SELECT payload_json FROM telegram_updates WHERE update_id=31").get().payload_json,null);
+  assert.equal(db.prepare("SELECT status FROM telegram_updates WHERE update_id=32").get().status,"processing");
+  assert.equal(db.prepare("SELECT payload_json FROM telegram_updates WHERE update_id=32").get().payload_json,payload);
+  db.close();
+});
