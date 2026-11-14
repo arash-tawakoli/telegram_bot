@@ -487,6 +487,7 @@ test("completion celebration repeats on later profile changes, and every success
  const x=setup();
  try{
   const incomplete={...completeApplicant};delete incomplete.schufa_status;
+  x.sqlite.exec("INSERT INTO applicant_completion_prompts(participant_id) VALUES('owner')");
   x.sqlite.prepare("INSERT INTO applicant_profiles(participant_id,profile) VALUES('owner',?)").run(JSON.stringify(incomplete));
   await platformSessions(x.user,x.chat,31,"platforms:profile-set:schufa_status:NOT_SPECIFIED");
   const celebration=x.sent.filter(req=>req.method==="sendMessage"&&req.body.message_effect_id==="5046509860389126442");
@@ -498,7 +499,7 @@ test("completion celebration repeats on later profile changes, and every success
   assert.equal(x.sent.filter(req=>req.method==="sendMessage"&&req.body.message_effect_id==="5046509860389126442").length,2,"a second complete profile change celebrates again");
   await platformSessions(x.user,x.chat,31,"platforms:profile-set:schufa_status:AVAILABLE");
   assert.equal(x.sent.filter(req=>req.method==="sendMessage"&&req.body.message_effect_id==="5046509860389126442").length,2,"saving an unchanged field is not a new completion");
-  assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM applicant_completion_prompts WHERE participant_id='owner'").get().n,0,"no one-time claim is used");
+  assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM applicant_completion_prompts WHERE participant_id='owner'").get().n,1,"the historical claim is ignored");
 
   const callback=async data=>handleCallback({id:"choice-"+data,data,from:{id:777},message:{chat:x.chat,message_id:31}},x.user);
   await callback("platforms:completion:yes");
@@ -510,12 +511,12 @@ test("completion celebration repeats on later profile changes, and every success
   const read=()=>x.sqlite.prepare("SELECT enabled,immoscout_enabled,immowelt_enabled,immomio_enabled FROM application_preferences WHERE participant_id='owner'").get();
   assert.deepEqual([read().enabled,read().immoscout_enabled,read().immowelt_enabled,read().immomio_enabled],[1,1,1,1]);
   assert.equal(x.sqlite.prepare("SELECT auto_apply_enabled FROM participants WHERE id='owner'").get().auto_apply_enabled,1);
-  const controls=lastMessage(x).reply_markup.inline_keyboard.flat().map(b=>b.callback_data);
+  const controls=x.sent.filter(req=>req.method==="editMessageText").at(-1).body.reply_markup.inline_keyboard.flat().map(b=>b.callback_data);
   for (const id of [1,4,3])assert.ok(controls.includes("platforms:pause:"+id));
 
   await callback("platforms:completion:no");
   assert.equal(effects().length,4,"No never celebrates");
-  assert.deepEqual([read().enabled,read().immoscout_enabled,read().immomio_enabled],[0,0,0,0]);
+  assert.deepEqual([read().enabled,read().immoscout_enabled,read().immowelt_enabled,read().immomio_enabled],[0,0,0,0]);
   const paused=lastMessage(x).reply_markup.inline_keyboard.flat().map(b=>b.callback_data);
   for (const id of [1,4,3])assert.ok(paused.includes("platforms:resume:"+id));
  }finally{x.done();}
@@ -564,5 +565,30 @@ test("all three sources stay visible for free users, but starting one requires P
   await platformSessions({...x.user,is_premium:false},x.chat,59,"platforms:resume:1");
   assert.match(lastMessage(x).text,/aktives Premium/);
   assert.equal(x.sqlite.prepare("SELECT auto_apply_enabled FROM participants WHERE id='owner'").get().auto_apply_enabled,0);
+ }finally{x.done();}
+});
+
+test("every newly created search-profile slot celebrates, even for a user with a historical celebration claim",async()=>{
+ const x=setup();
+ try{
+  x.sqlite.exec("INSERT INTO profile_celebrations(participant_id,kind) VALUES('owner','search')");
+  const callback=data=>{
+   const current=x.sqlite.prepare("SELECT telegram_state FROM participants WHERE id='owner'").get();
+   const onboarding_state=JSON.parse(current?.telegram_state||"{}");
+   return handleCallback({
+     id:"repeated-profile-"+data,data,from:{id:777},
+     message:{chat:x.chat,message_id:63}
+   },{...x.user,onboarding_state,onboarding_step:onboarding_state._step||null});
+  };
+  const create=async()=>{
+   await callback("new");
+   for(const key of ["type:Wohnung","loc:all","rent:800","rooms:2","area:40","profile:save"])await callback(key);
+  };
+  await create();
+  await create();
+  assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM search_profiles WHERE participant_id='owner'").get().n,2);
+  const effects=x.sent.filter(m=>m.method==="sendMessage"&&m.body.message_effect_id==="5046509860389126442");
+  assert.equal(effects.length,2);
+  assert.ok(effects.every(m=>/Suchprofil ist aktiv/.test(m.body.text)));
  }finally{x.done();}
 });
