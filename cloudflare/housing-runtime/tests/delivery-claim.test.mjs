@@ -39,12 +39,12 @@ test("simultaneous D1 delivery workers claim once and render stored listing deta
     assert.match(messages[0].text, /Testwohnung/);
     assert.match(messages[0].text, /Warmmiete:/);
     assert.equal(messages[0].link_preview_options.prefer_large_media, true);
-    assert.equal(messages[0].reply_markup.inline_keyboard.length, 4);
-    assert.equal(messages[0].reply_markup.inline_keyboard[0][0].text, "🏠 Wohnung ansehen");
-    assert.equal(messages[0].reply_markup.inline_keyboard[1][0].text, "Zu ImmoScout24");
-    assert.equal(messages[0].reply_markup.inline_keyboard[2][0].text, "⭐ Speichern");
-    assert.equal(messages[0].reply_markup.inline_keyboard[3][0].text, "🗺️ Google Map");
-    assert.equal(messages[0].reply_markup.inline_keyboard[0][0].web_app.url,
+    assert.equal(messages[0].reply_markup.inline_keyboard.length, 3);
+    assert.equal(messages[0].reply_markup.inline_keyboard[0][0].text, "Zu ImmoScout24");
+    assert.equal(messages[0].reply_markup.inline_keyboard[1][0].text, "⭐ Speichern");
+    assert.equal(messages[0].reply_markup.inline_keyboard[2][0].text, "🗺️ Google Map");
+    assert.doesNotMatch(messages[0].text,/Wohnung einzeln ansehen/);
+    assert.equal(messages[0].link_preview_options.url,
       "https://traumwohnung-housing-runtime.arash-ce5.workers.dev/angebot/00000000-0000-0000-0000-000000000003");
     assert.equal(sqlite.prepare("SELECT status FROM deliveries WHERE id='00000000-0000-0000-0000-000000000003'").get().status, "sent");
     const pageResponse = await worker.fetch(new Request(
