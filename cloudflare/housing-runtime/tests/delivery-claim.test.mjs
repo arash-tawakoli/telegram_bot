@@ -31,7 +31,7 @@ test("simultaneous D1 delivery workers claim once and render stored listing deta
   globalThis.fetch = async (_url, options) => { messages.push(JSON.parse(options.body)); return Response.json({ ok: true, result: { message_id: 9 } }); };
   try {
     const env = { HOUSING_DB: db, DELIVERY_RUN_TOKEN: "secret", TELEGRAM_BOT_TOKEN: "fake" };
-    const request = () => new Request("https://runtime.example/internal/delivery/process", { method: "POST", headers: { authorization: "Bearer secret" } });
+    const request = () => new Request("https://runtime.example/internal/delivery/process?fresh_only=1", { method: "POST", headers: { authorization: "Bearer secret" } });
     const responses = await Promise.all([worker.fetch(request(), env), worker.fetch(request(), env)]);
     assert.deepEqual((await Promise.all(responses.map(response => response.json()))).map(result => result.status).sort(), ["idle", "sent"]);
     assert.equal(messages.length, 1);

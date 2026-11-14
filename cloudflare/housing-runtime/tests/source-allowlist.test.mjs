@@ -9,12 +9,13 @@ import {
 } from "../src/source-allowlist.js";
 
 test("allowlist contains only the verified housing source families", () => {
-  assert.equal(HOUSING_SOURCES.length, 13);
+  assert.equal(HOUSING_SOURCES.length, 8);
   assert.deepEqual(
     [...new Set(HOUSING_SOURCES.map((source) => source.family))].sort(),
     ["immomio", "immoscout24", "immowelt"],
   );
   assert.equal(sourceForId(2), null);
+  for (const id of [30, 32, 36, 39, 71]) assert.equal(sourceForId(id), null);
 });
 
 test("URL identity ignores tracking parameters and preserves source scope", async () => {

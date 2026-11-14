@@ -5,7 +5,6 @@ import { sourceForId } from "./source-allowlist.js";
 import { ingestImmomioSource } from "./immomio-source.js";
 import { ingestImmoweltSource } from "./immowelt-source.js";
 import { ingestImmoScoutSource } from "./immoscout-source.js";
-import { runScoutShadow } from "./scout-shadow.js";
 import { deliveryCutoverLedger, reconcileCloudflareDeliveries } from "./delivery-cutover-ledger.js";
 import { telegramText } from "./matching.js";
 import { createSession, hashPassword, memberForAccess, refreshSession, revokeSession, sha256, verifyPassword } from "./auth.js";
@@ -17,7 +16,7 @@ import { createD1Client } from "./d1-database.js";
 import { handleLegacyTelegramUpdate } from "./telegram-legacy/index.js";
 import { runEngagementNotifications } from "./engagement-cron.js";
 import { recordTelegramActivity, recoverTelegramUpdates } from "./telegram-recovery.js";
-import { sourcesForMinute } from "./source-schedule.js";
+import { scheduledTasksForMinute, sourcesForMinute } from "./source-schedule.js";
 import { runPlatformSessionReminders } from "./platform-session-cron.js";
 import { applicationDocumentFileResponse, applicationDocumentPackageResponse } from "./application-documents.js";
 
@@ -181,27 +180,30 @@ async function runSource(sql, request, env) {
 async function processDelivery(sql, request, env) {
   const expected = env.DELIVERY_RUN_TOKEN || env.SOURCE_RUN_TOKEN;
   if (!expected || !await sameSecret(request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") || "", expected)) return json({ error: "unauthorized" }, 401);
-  const freshOnly = new URL(request.url).searchParams.get("fresh_only") === "1";
   const claimed = await sql.begin(async (tx) => {
-    const rows = freshOnly ? await tx`
+    let rows = await tx`
       SELECT d.id, d.participant_id, d.offer_identity_id, p.telegram_chat_id, oi.facts, oi.canonical_url
       FROM housing.deliveries d
       JOIN housing.participants p ON p.id = d.participant_id
       JOIN housing.offer_identities oi ON oi.id = d.offer_identity_id
-      WHERE d.status = 'pending' AND (d.created_at >= now() - interval '15 minutes' OR d.error_message = 'cutover_waiting')
-      ORDER BY CASE WHEN d.error_message = 'cutover_waiting' THEN 1 ELSE 0 END, d.created_at
-      LIMIT 1
-      FOR UPDATE SKIP LOCKED
-    ` : await tx`
-      SELECT d.id, d.participant_id, d.offer_identity_id, p.telegram_chat_id, oi.facts, oi.canonical_url
-      FROM housing.deliveries d
-      JOIN housing.participants p ON p.id = d.participant_id
-      JOIN housing.offer_identities oi ON oi.id = d.offer_identity_id
-      WHERE d.status = 'pending'
-      ORDER BY d.created_at
+      WHERE d.status = 'pending' AND d.error_message = 'cutover_waiting'
+      ORDER BY d.created_at, d.id
       LIMIT 1
       FOR UPDATE SKIP LOCKED
     `;
+    if (!rows.length) {
+      rows = await tx`
+        SELECT d.id, d.participant_id, d.offer_identity_id, p.telegram_chat_id, oi.facts, oi.canonical_url
+        FROM housing.deliveries d
+        JOIN housing.participants p ON p.id = d.participant_id
+        JOIN housing.offer_identities oi ON oi.id = d.offer_identity_id
+        WHERE d.status = 'pending' AND d.error_message IS NOT 'cutover_waiting'
+          AND d.created_at >= now() - interval '15 minutes'
+        ORDER BY d.created_at, d.id
+        LIMIT 1
+        FOR UPDATE SKIP LOCKED
+      `;
+    }
     if (!rows[0]) return null;
     const won = await tx`UPDATE housing.deliveries SET status = 'processing', attempts = attempts + 1 WHERE id = ${rows[0].id} AND status = 'pending' RETURNING id`;
     return won.length ? rows[0] : null;
@@ -273,10 +275,10 @@ async function processDelivery(sql, request, env) {
   return json({ ok: true, status: "sent", delivery_id: claimed.id });
 }
 
-async function runScheduledHousingWork(env) {
-  const minute = Math.floor(Date.now() / 60_000);
+async function runScheduledHousingWork(env, minute = Math.floor(Date.now() / 60_000)) {
   const scheduledSources = sourcesForMinute(minute);
-  if (minute % 60 === 15) {
+  const tasks = scheduledTasksForMinute(minute);
+  if (tasks.engagement) {
     try {
       const result = await withDatabase(env, (sql) => runEngagementNotifications(sql, env));
       console.log("housing_engagement_scheduled", JSON.stringify(result));
@@ -284,7 +286,7 @@ async function runScheduledHousingWork(env) {
       console.error("housing_engagement_scheduled_failed", String(error?.message || error));
     }
   }
-  if (minute % 5 === 0) {
+  if (tasks.telegramRecovery) {
     try {
       const result = await withDatabase(env, (sql) => recoverTelegramUpdates(sql, env, handleLegacyTelegramUpdate));
       if (result.scanned) console.log("housing_telegram_recovery", JSON.stringify(result));
@@ -292,7 +294,7 @@ async function runScheduledHousingWork(env) {
       console.error("housing_telegram_recovery_failed", String(error?.message || error));
     }
   }
-  if (minute % 10 === 0) {
+  if (tasks.platformSessionReminders) {
     try {
       const result = await withDatabase(env, (sql) => runPlatformSessionReminders(sql, env));
       if (result.queued || result.sent) console.log("housing_platform_session_reminders", JSON.stringify(result));
@@ -300,11 +302,13 @@ async function runScheduledHousingWork(env) {
       console.error("housing_platform_session_reminders_failed", String(error?.message || error));
     }
   }
-  try {
-    const expired = await withDatabase(env, expireAdminPremiumOverrides);
-    if (expired) console.log("housing_admin_premium_overrides_expired", JSON.stringify({ expired }));
-  } catch (error) {
-    console.error("housing_admin_premium_override_expiry_failed", String(error?.message || error));
+  if (tasks.premiumOverrideExpiry) {
+    try {
+      const expired = await withDatabase(env, expireAdminPremiumOverrides);
+      if (expired) console.log("housing_admin_premium_overrides_expired", JSON.stringify({ expired }));
+    } catch (error) {
+      console.error("housing_admin_premium_override_expiry_failed", String(error?.message || error));
+    }
   }
   if (env.DELIVERY_CUTOVER_ENABLED === "1" && env.DELIVERY_CUTOVER_SECRET) {
     try { await reconcileCloudflareDeliveries(env.HOUSING_DB); }
@@ -322,10 +326,10 @@ async function runScheduledHousingWork(env) {
       console.error("housing_source_scheduled_failed", JSON.stringify({ source_id: sourceId, error: String(error?.message || error) }));
     }
   };
-  await runScheduledSource(scheduledSources[0]);
+  if (scheduledSources[0] !== undefined) await runScheduledSource(scheduledSources[0]);
 
   for (let index = 0; index < 5; index++) {
-    const deliveryRequest = new Request("https://housing-runtime.internal/internal/delivery/process?fresh_only=1", {
+    const deliveryRequest = new Request("https://housing-runtime.internal/internal/delivery/process", {
       method: "POST",
       headers: { authorization: `Bearer ${env.DELIVERY_RUN_TOKEN || ""}` },
     });
@@ -353,12 +357,6 @@ async function runScheduledHousingWork(env) {
     });
   } catch (error) {
     console.error("housing_application_scheduled_failed", String(error?.message || error));
-  }
-  if (scheduledSources[1] !== undefined) await runScheduledSource(scheduledSources[1]);
-  try {
-    await runScoutShadow(env.HOUSING_DB);
-  } catch (error) {
-    console.error("scout_shadow_scan_failed", String(error?.message || error));
   }
 }
 
@@ -669,10 +667,13 @@ export default {
     return json({ error: "not_found" }, 404);
   },
 
-  async scheduled(_controller, env, ctx) {
+  async scheduled(controller, env, ctx) {
     if (env.PREVIEW_MODE === "1") return;
+    const scheduledTime = Number(controller?.scheduledTime);
+    const minute = Number.isSafeInteger(scheduledTime) && scheduledTime > 0 ? Math.floor(scheduledTime / 60_000) : Math.floor(Date.now() / 60_000);
+    const tasks = scheduledTasksForMinute(minute);
     ctx.waitUntil((async () => {
-      if (env.PREVIEW_MODE !== "1" && env.TELEGRAM_WEBHOOK_REGISTER === "1") {
+      if (tasks.verifyTelegramWebhook && env.TELEGRAM_WEBHOOK_REGISTER === "1") {
         try {
           const result = await ensureTelegramWebhook(env);
           console.log("telegram_webhook_registered", JSON.stringify(result));
@@ -689,7 +690,7 @@ export default {
       }
 
       try {
-        await runScheduledHousingWork(env);
+        await runScheduledHousingWork(env, minute);
       } catch (error) {
         console.error("housing_scheduled_work_failed", String(error?.message || error));
       }
