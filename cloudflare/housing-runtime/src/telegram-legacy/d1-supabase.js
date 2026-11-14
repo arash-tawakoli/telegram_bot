@@ -332,7 +332,7 @@ async function rpc(client, env, name, args) {
     let user = found[0];
     if (user) {
       await client.run(
-        "UPDATE participants SET telegram_chat_id=?,username=?,first_name=COALESCE(?,first_name),last_name=COALESCE(?,last_name),language_code=COALESCE(?,language_code),updated_at=CURRENT_TIMESTAMP WHERE id=?",
+        "UPDATE participants SET telegram_chat_id=?,username=?,first_name=COALESCE(?,first_name),last_name=COALESCE(?,last_name),ui_language='de',language_code=COALESCE(?,language_code),updated_at=CURRENT_TIMESTAMP WHERE id=?",
         [chat.id, from.username || null, from.first_name || null, from.last_name || null, from.language_code || null, user.id],
       );
       user = (await client.run("SELECT * FROM participants WHERE id=?", [user.id]))[0] || user;
@@ -340,7 +340,7 @@ async function rpc(client, env, name, args) {
       const id = crypto.randomUUID();
       await client.run(
         "INSERT INTO participants(id,first_name,last_name,username,telegram_user_id,telegram_chat_id,ui_language,language_code,last_start_at,origin) VALUES(?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,'telegram')",
-        [id, from.first_name || "Teilnehmer", from.last_name || "Unbekannt", from.username || null, from.id, chat.id, from.language_code || "de", from.language_code || null],
+        [id, from.first_name || "Teilnehmer", from.last_name || "Unbekannt", from.username || null, from.id, chat.id, "de", from.language_code || null],
       );
       await client.run("INSERT OR IGNORE INTO application_preferences(participant_id) VALUES(?)", [id]);
       user = (await client.run("SELECT * FROM participants WHERE id=?", [id]))[0];
