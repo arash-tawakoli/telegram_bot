@@ -1,4 +1,4 @@
-import { listingCaption, listingKeyboard, listingImageUrl, resolveListingImage } from "./telegram-listing-preview.js";
+import { listingCaption, listingHeadline, listingKeyboard, listingImageUrl, resolveListingImage } from "./telegram-listing-preview.js";
 const PUBLIC_ORIGIN = "https://traumwohnung-housing-runtime.arash-ce5.workers.dev";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CSS = "\n:root{color-scheme:light dark;font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",Roboto,Arial,sans-serif}\n*{box-sizing:border-box}body{margin:0;background:var(--tg-theme-bg-color,#f3f4f6);color:var(--tg-theme-text-color,#1b2330)}\nmain{max-width:640px;margin:0 auto;padding:16px 16px 28px}\narticle{overflow:hidden;border-radius:18px;background:var(--tg-theme-secondary-bg-color,#fff);box-shadow:0 2px 18px #00000016}\nfigure{margin:0;background:#222}figure img{display:block;width:100%;height:auto;max-height:52vh;object-fit:contain}\nsection{padding:22px 18px}h1{font-size:1.25rem;line-height:1.35;margin:0 0 16px}\n.details{white-space:pre-line;line-height:1.65;font-size:1rem;overflow-wrap:anywhere}\na.action{display:flex;align-items:center;justify-content:center;min-height:48px;border-radius:12px;margin:9px 0;padding:12px 16px;text-decoration:none;background:var(--tg-theme-button-color,#2389dd);color:var(--tg-theme-button-text-color,#fff);font-weight:600;text-align:center}\na.action.secondary{color:var(--tg-theme-text-color,#1b2330);background:var(--tg-theme-bg-color,#e7ecf3)}\nsmall{display:block;text-align:center;opacity:.72;margin-top:16px}\n@media(prefers-color-scheme:dark){body{background:var(--tg-theme-bg-color,#17202a);color:var(--tg-theme-text-color,#f6f7f9)}article{background:var(--tg-theme-secondary-bg-color,#242f3a)}a.action.secondary{background:var(--tg-theme-bg-color,#17202a);color:var(--tg-theme-text-color,#f6f7f9)}}\n";
@@ -11,26 +11,18 @@ export function listingMessageRequest(chatId, photo, facts, listingUrl, sourceId
   const buttons = listingKeyboard(facts, listingUrl, sourceId, sourceName).inline_keyboard;
   return {
     chat_id: Number(chatId),
-    text: listingCaption(facts) + '\n\n🔍 <a href="' + escapeHtml(page) + '">Wohnung einzeln ansehen</a>',
+    text: listingCaption(facts),
     parse_mode: "HTML",
     link_preview_options: { url: page, prefer_large_media: true, show_above_text: true },
-    reply_markup: { inline_keyboard: [[{ text: "🏠 Wohnung ansehen", web_app: { url: page } }], ...buttons] },
+    reply_markup: { inline_keyboard: buttons },
   };
 }
 /** One sendMessage; no native Telegram photo/media and no gallery. Network ambiguity is never retried. */
 export async function sendListingMessage(token, payload, request = fetch) {
   const endpoint = "https://api.telegram.org/bot" + token + "/sendMessage";
   const post = body => request(endpoint, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(15000) });
-  let response = await post(payload);
-  let data = await response.json().catch(() => null);
-  const description = String(data?.description || "");
-  // A definitive Telegram 400 means no message was sent. Some chats disallow web_app buttons.
-  if (response.status === 400 && /WEB_APP|BUTTON_TYPE_INVALID|BUTTON_URL_INVALID/i.test(description)) {
-    const fallback = { ...payload, reply_markup: { inline_keyboard: payload.reply_markup.inline_keyboard.map((row, i) =>
-      i === 0 ? [{ text: "🏠 Wohnung ansehen", url: payload.link_preview_options.url }] : row) } };
-    response = await post(fallback);
-    data = await response.json().catch(() => null);
-  }
+  const response = await post(payload);
+  const data = await response.json().catch(() => null);
   return { response, data };
 }
 /** Public listing details only. UUIDs are unguessable; no participant or application fields are rendered. */
@@ -50,7 +42,7 @@ export async function listingMiniAppResponse(sql, id) {
   if (!photo) return new Response("Angebot nicht verfügbar", { status: 404, headers: { "cache-control": "no-store" } });
   const actions = listingKeyboard(facts, row.canonical_url, row.source_id, row.source_name).inline_keyboard.map((r, i) =>
     '<a class="action' + (i ? ' secondary' : '') + '" href="' + escapeHtml(r[0].url) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(r[0].text) + '</a>').join("");
-  const title = String(facts.title || "Wohnung zur Miete").slice(0, 170);
+  const title = listingHeadline(facts);
   const description = [facts.city, facts.district, facts.rooms != null ? String(facts.rooms) + " Zimmer" : "",
     facts.area_sqm != null ? String(facts.area_sqm) + " m²" : ""].filter(Boolean).join(" · ").slice(0, 220);
   const nonce = crypto.randomUUID();
