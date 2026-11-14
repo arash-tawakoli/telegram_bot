@@ -239,7 +239,7 @@ test("applicant profile, field transition, text choices and separate preview wor
     assert.equal(lastMessage(x).reply_markup.inline_keyboard.at(-1)[0].callback_data, "platforms:profile-texts");
     await callback("platforms:profile-preview");
     assert.match(lastMessage(x).text, /Profilvorschau/);
-    assert.match(lastMessage(x).text, /Pflichtangabe/);
+    assert.match(lastMessage(x).text, /Anrede:/);
     assert.doesNotMatch(lastMessage(x).text,/WBS-Status/);
     assert.equal(lastMessage(x).reply_markup.inline_keyboard.at(-1)[0].callback_data, "platforms:profile");
   } finally { x.done(); }
@@ -348,7 +348,7 @@ test("application text reply flow saves edits and expands first name in the prev
       .run(JSON.stringify({first_name:"Nora",last_name:"Mustermann",message_apartment:"Hallo [[Vorname]]"}));
     await platformSessions(x.user,x.chat,42,"platforms:profile-text:message_apartment");
     assert.match(lastMessage(x).text,/Hallo Nora/);
-    assert.doesNotMatch(lastMessage(x).text,/\\[\\[Vorname\\]\\]/);
+    assert.doesNotMatch(lastMessage(x).text,/\[\[Vorname\]\]/);
 
     await handleCallback({
       id:"cb-edit-text", data:"platforms:profile-field:message_apartment",
