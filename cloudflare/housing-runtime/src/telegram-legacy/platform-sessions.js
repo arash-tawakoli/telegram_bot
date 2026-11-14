@@ -271,15 +271,23 @@ async function renderApplicantProfilePreview(user,chat,messageId){
  const p=await ensureApplicantProfile(user.id);
  const {data:missing,error}=await db.rpc('application_profile_missing_fields',{p_user:user.id});
  if(error)throw Error('Profilstatus konnte nicht geladen werden.');
- const count=Array.isArray(missing)?missing.length:0;
- const name=[p.first_name,p.last_name].map(v=>String(v||'').trim()).filter(Boolean).join(' ')||'Name noch nicht eingetragen';
- const text='👁 <b>Profilvorschau</b>\n\n'+esc(name)+'.\n'
-  +(count?count+' Pflichtangabe'+(count===1?' fehlt':'n fehlen')+' noch.':'Dein Bewerberprofil ist vollständig.');
+ const pending=Array.isArray(missing)?missing:[];
+ const values=[
+  ['Anrede',salutationLabel(p.salutation)],['Vorname',shown(p.first_name)],['Nachname',shown(p.last_name)],
+  ['E-Mail',shown(p.email)],['Telefon',shown(p.phone)],['Straße',shown(p.street)],
+  ['Hausnummer',shown(p.house_number)],['PLZ',shown(p.postcode)],['Ort',shown(p.city)],
+  ['Haushalt',householdLabel(p)],['Beschäftigung',employmentLabel(p.employment_status)],
+  ['Nettoeinkommen',incomeLabel(p)],['Haustiere',shown(p.pets)],
+  ['Einzug',moveInLabel(p)],['SCHUFA',schufaLabel(p.schufa_status)],
+ ];
+ const title='👁 <b>Profilvorschau</b>\n\n'
+  +(pending.length?'⚠️ '+pending.length+' Angaben fehlen noch.':'✅ Pflichtangaben vollständig.')+'\n\n';
+ const body=values.map(([label,value])=>'<b>'+esc(label)+':</b> '+esc(value)).join('\n');
  const markup={inline_keyboard:[
   [button('✍️ Bewerbungstext','platforms:profile-texts')],
   [button('← Bewerberprofil','platforms:profile')]
  ]};
- return messageId?edit(chat.id,messageId,text,markup):send(chat.id,text,markup);
+ return messageId?edit(chat.id,messageId,title+body,markup):send(chat.id,title+body,markup);
 }
 
 async function renderApplicationTexts(user,chat,messageId){
