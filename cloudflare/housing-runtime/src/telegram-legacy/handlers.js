@@ -1,6 +1,6 @@
 import { platformSessions, handleAutoApplyMessage } from './platform-sessions.js';
 import { isAdmin, adminGrantLabel, adminPremiumNotice, adminUsers, adminUser, setUserBlocked, deleteUser, setPlanOverride, ANNOUNCEMENT_PROMPT, createAnnouncementDraft, cancelAnnouncement, sendAnnouncement } from "./admin.js";
-import { homeKeyboard, home, premium, setPaused, referralPage, settings } from "./navigation.js";
+import { homeKeyboard, home, premium, setPaused, referralPage, settings, languageMenu } from "./navigation.js";
 import { draftFor, validateDraft, renderTypes, renderLocation, renderBoroughs, renderNeighborhoods, renderSchleswigHolsteinAreas, renderRent, renderCustomRent, renderRooms, renderArea, renderReview, renderReviewEdit, renderStep, afterSelection, persistProfile, profileLimit, draftFromProfile, startNewProfile, profileEditMenu, profile, renderStatus, nextSizeStep } from "./profiles.js";
 import { db, PREMIUM_LINK, PROPERTY_TYPES, RENT_PRESETS, ROOM_PRESETS, AREA_PRESETS, NEIGHBORHOODS_PER_PAGE, button, cancelRow, backRow, secret, telegram, send, sendCelebration, edit, acknowledge, saveState, geography, HELP_TEXT } from "./runtime.js";
 
@@ -169,6 +169,8 @@ export async function handleMessage(message, user) {
     const command = rawCommand
         .toLowerCase()
         .replace(/@traumwohnunghamburgbot$/i, "");
+    if (!user.language_selected_at && command !== "/start" && command !== "/commands")
+        return languageMenu(user, chatId);
     if (command === "/admin") {
         if (!isAdmin(user))
             return;
@@ -224,7 +226,7 @@ export async function handleMessage(message, user) {
                 console.error("referral_register", error.message);
         }
         await syncTelegramCommands(user, chatId);
-        return home(user, chatId);
+        return user.language_selected_at ? home(user, chatId) : languageMenu(user, chatId);
     }
     if (command === "/suche")
         return startNewProfile(user, chatId);
@@ -291,8 +293,21 @@ export async function handleCallback(query, user) {
     const messageId = Number(query.message?.message_id);
     const data = String(query.data || "");
     const ack = (text) => user.__callback_acked ? Promise.resolve() : acknowledge(query.id, text);
-    if (!chatId || !messageId)
-        return ack();
+    if (!chatId || !messageId) return ack();
+    if (data.startsWith("language:set:")) {
+        await ack();
+        if (query.message?.chat?.type !== "private" || chatId !== Number(user.telegram_user_id)) return;
+        const chosen = data.slice("language:set:".length);
+        const { data: selected, error } = await db.rpc("set_home_language", {
+            p_user: user.id, p_telegram_user_id: user.telegram_user_id, p_language: chosen,
+        });
+        if (error || !selected?.language) return languageMenu(user, chatId, messageId);
+        return home({ ...user, ui_language: selected.language, language_selected_at: new Date().toISOString() }, chatId, messageId);
+    }
+    if (!user.language_selected_at) {
+        await ack();
+        return query.message?.chat?.type === "private" ? languageMenu(user, chatId, messageId) : undefined;
+    }
     if (data.startsWith("admin:")) {
         if (!isAdmin(user))
             return ack();
@@ -506,10 +521,9 @@ export async function handleCallback(query, user) {
         return settings(user, chatId, messageId);
     if (data === "referral")
         return referralPage(user, chatId, messageId);
-    // Old Telegram messages may still contain a language button.
-    // Route those callbacks to German settings without changing user data.
-    if (data === "language" || data.startsWith("lang:"))
-        return settings(user, chatId, messageId);
+    if (data === "language") return languageMenu(user, chatId, messageId);
+    // Old buttons retain their historical no-op behavior.
+    if (data.startsWith("lang:")) return settings(user, chatId, messageId);
     if (data === "help") {
         return edit(chatId, messageId, helpFor(user), {
             inline_keyboard: [[button("← Einstellungen", "settings")]],
