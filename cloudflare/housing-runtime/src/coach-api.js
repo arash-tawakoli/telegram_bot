@@ -100,7 +100,7 @@ async function participantRows(sql, member) {
 async function participant(sql, member, id) {
   const participantId = uuid(id, "participant");
   if (!await canAccessParticipant(sql, member, participantId)) throw new Error("participant_forbidden");
-  const [people, profiles, applicant, docs, connections, preferences] = await Promise.all([
+  const [people, profiles, applicant, connections, preferences] = await Promise.all([
     sql`SELECT id, first_name, last_name, email, status, created_at, updated_at FROM housing.participants WHERE id = ${participantId}`,
     sql`SELECT id, criteria, active, created_at, updated_at FROM housing.search_profiles WHERE participant_id = ${participantId} ORDER BY created_at`,
     sql`SELECT profile, updated_at FROM housing.applicant_profiles WHERE participant_id = ${participantId}`,
