@@ -208,7 +208,7 @@ test("applicant profile, field transition, text choices and separate preview wor
     assert.equal(JSON.parse(raw).salutation, "MR");
     await callback("platforms:profile-texts");
     assert.match(lastMessage(x).text, /Bewerbungstext/);
-    assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][0].callback_data, "platforms:profile-text:message_house");
+    assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][0].callback_data, "platforms:profile-text:message_apartment");
     await callback("platforms:profile-text:message_apartment");
     assert.match(lastMessage(x).text, /Wohnung/);
     assert.equal(lastMessage(x).reply_markup.inline_keyboard.at(-1)[0].callback_data, "platforms:profile-texts");
