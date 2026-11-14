@@ -1,7 +1,7 @@
 import { hashPassword, memberForAccess } from "./auth.js";
 import { assertAllowedSource } from "./source-allowlist.js";
 import { fetchImmoScoutSource, fetchImmoScoutMap, germanImmoScoutQuery } from "./immoscout-source.js";
-import { issueProviderAuthFlow } from "./provider-facade.js";
+import { issueProviderAuthFlow, centralCall } from "./provider-facade.js";
 
 const HEADERS = {
   "content-type": "application/json; charset=utf-8",
@@ -295,10 +295,64 @@ async function disconnectProvider(sql, member, body) {
   return { ok: true, status: "disconnected" };
 }
 
+// Same credentials and login paths as Telegram; no separate token vault is created.
+const OWNER_TELEGRAM_ID = 8538226539;
+async function ownerParticipant(sql) {
+  const rows = await sql`SELECT id FROM housing.participants WHERE telegram_user_id = ${OWNER_TELEGRAM_ID} AND status = 'active' LIMIT 1`;
+  return rows[0]?.id || null;
+}
+
+async function adminTokenStatus(sql, env) {
+  const [scout, ownerId] = await Promise.all([
+    centralCall(env, "/internal/status", {}, "GET"),
+    ownerParticipant(sql),
+  ]);
+  const rows = ownerId ? await sql`
+    SELECT provider, status, account_hint, expires_at, updated_at
+    FROM housing.provider_connections
+    WHERE participant_id = ${ownerId} AND provider IN ('immowelt', 'immomio')
+  ` : [];
+  const connection = name => rows.find(row => row.provider === name) || {};
+  return {
+    immoscout24: { scope: "central", configured: scout.configured === true, status: scout.status || "disconnected", account_hint: scout.account_hint || null, enabled: scout.enabled === true, expires_at: scout.expires_at || null, last_verified_at: scout.last_verified_at || null },
+    ...Object.fromEntries(["immowelt", "immomio"].map(name => {
+      const row = connection(name);
+      return [name, { scope: "owner_participant", configured: row.status === "connected", status: row.status || "disconnected", account_hint: row.account_hint || null, expires_at: row.expires_at || null }];
+    })),
+  };
+}
+
+async function adminTokenStart(sql, env, member, providerName) {
+  if (!PROVIDERS.has(providerName)) throw new Error("provider_not_allowlisted");
+  const ownerId = await ownerParticipant(sql);
+  if (!ownerId) throw new Error("owner_telegram_account_unavailable");
+  if (providerName === "immoscout24") {
+    const flow = await centralCall(env, "/internal/start", { admin_telegram_id: String(OWNER_TELEGRAM_ID), user_id: ownerId });
+    return { url: flow.url, expiresAt: flow.expires_at, provider: providerName, scope: "central" };
+  }
+  const flow = await issueProviderAuthFlow(sql, ownerId, providerName, "coach", "coach", { member_id: member.id });
+  return {
+    url: `https://login.traumwohnunghamburg.de/connect?ticket=${encodeURIComponent(flow.state)}`,
+    expiresAt: flow.expiresAt, provider: providerName, scope: "owner_participant",
+  };
+}
+
 export async function handleCoach(sql, request, env = {}) {
   const member = await actor(sql, request, env);
   const body = await request.json().catch(() => ({}));
   const action = String(body.action || "");
+  if (action.startsWith("admin_token_")) {
+    if (member.role !== "super_admin") throw new Error("super_admin_required");
+    if (body.previewMemberId) throw new Error("preview_read_only");
+    if (action === "admin_token_status") return adminTokenStatus(sql, env);
+    if (action === "admin_token_start") return adminTokenStart(sql, env, member, String(body.provider || ""));
+    if (action === "admin_token_refresh") {
+      const result = await centralCall(env, "/internal/refresh-test", { admin_telegram_id: String(OWNER_TELEGRAM_ID) });
+      if (result.status !== "refreshed" || result.verified !== true || result.enabled !== false) throw new Error("central_token_refresh_test_failed");
+      return { status: result.status, verified: true, enabled: false, expires_at: result.expires_at || null };
+    }
+    throw new Error("invalid_action");
+  }
   if (action === "members") {
     if (!isAdmin(member)) throw new Error("admin_required");
     const rows = await sql.unsafe("SELECT m.id, m.display_name, m.role, m.active, m.created_at, (SELECT count(*) FROM housing.participant_assignments pa WHERE pa.member_id = m.id) AS participant_count FROM housing.portal_members m ORDER BY m.display_name");
