@@ -349,3 +349,61 @@ test("Immomio connect action presents an external OAuth link without changing ap
     assert.equal(x.sqlite.prepare("SELECT count(*) AS n FROM applications").get().n, 0);
   } finally { globalThis.fetch = savedFetch; x.done(); }
 });
+
+test("Bewerbungstext bearbeiten uses Telegram ForceReply, saves changes, and shows the first name immediately", async () => {
+  const x = setup();
+  try {
+    x.sqlite.exec("INSERT INTO applicant_profiles(participant_id,profile) VALUES('owner','{\"first_name\":\"Mara\",\"last_name\":\"Beispiel\"}')");
+    await platformSessions(x.user, x.chat, 21, "platforms:profile-text:message_apartment");
+    assert.match(lastMessage(x).text, /Mara/);
+    assert.doesNotMatch(lastMessage(x).text, /\[\[Vorname\]\]/);
+
+    await platformSessions(x.user, x.chat, 21, "platforms:profile-field:message_apartment");
+    const forced = x.sent.map((v, i) => ({ ...v, telegramMessageId: i + 1 }))
+      .findLast(v => v.method === "sendMessage" && v.body.reply_markup?.force_reply === true);
+    assert.ok(forced, "editing must open native Telegram reply input");
+    assert.match(forced.body.text, /Bewerbungstext Wohnung bearbeiten/);
+    assert.match(forced.body.text, /\[\[Vorname\]\]/);
+    const state = JSON.parse(x.sqlite.prepare("SELECT telegram_state FROM participants WHERE id='owner'").get().telegram_state);
+    assert.equal(state._applicant_field, "message_apartment");
+    assert.equal(state._applicant_prompt_message_id, forced.telegramMessageId);
+
+    await handleMessage({
+      chat: x.chat, message_id: 90, text: "Guten Tag, mein Name ist [[Vorname]]. Ich freue mich über eine Besichtigung.",
+      reply_to_message: { message_id: forced.telegramMessageId, text: forced.body.text },
+    }, { ...x.user, onboarding_state: state, onboarding_step: state._step || null });
+
+    const saved = JSON.parse(x.sqlite.prepare("SELECT profile FROM applicant_profiles WHERE participant_id='owner'").get().profile);
+    assert.match(saved.message_apartment, /\[\[Vorname\]\]/, "the saved template must keep the placeholder");
+    const rendered = x.sent.filter(v => v.method === "editMessageText").at(-1).body;
+    assert.equal(rendered.message_id, 21);
+    assert.match(rendered.text, /mein Name ist Mara/);
+    assert.doesNotMatch(rendered.text, /\[\[Vorname\]\]/);
+    assert.ok(x.sent.some(v => v.method === "deleteMessage" && v.body.message_id === forced.telegramMessageId));
+    const finalState = JSON.parse(x.sqlite.prepare("SELECT telegram_state FROM participants WHERE id='owner'").get().telegram_state);
+    assert.equal(finalState._applicant_field, undefined);
+  } finally { x.done(); }
+});
+
+test("first completed Bewerberprofil triggers exactly one native confetti effect, not on later edits", async () => {
+  const x = setup();
+  try {
+    await platformSessions(x.user, x.chat, 21, "platforms:profile-new");
+    const field = async (name, value) => {
+      const initial = JSON.parse(x.sqlite.prepare("SELECT telegram_state FROM participants WHERE id='owner'").get().telegram_state);
+      await platformSessions({ ...x.user, onboarding_state: initial }, x.chat, 21, "platforms:profile-field:" + name);
+      const state = JSON.parse(x.sqlite.prepare("SELECT telegram_state FROM participants WHERE id='owner'").get().telegram_state);
+      await handleAutoApplyMessage({ ...x.user, onboarding_state: state, onboarding_step: state._step || null },
+        { chat: x.chat, text: value, message_id: x.sent.length + 60 });
+    };
+    const effects = () => x.sent.filter(v => v.method === "sendMessage" && v.body.message_effect_id === "5046509860389126442");
+    assert.equal(effects().length, 0, "opening an empty profile must not celebrate");
+    await field("first_name", "Mara");
+    assert.equal(effects().length, 0, "one name field is not a completed identity");
+    await field("last_name", "Beispiel");
+    assert.equal(effects().length, 1);
+    await field("first_name", "Maria");
+    assert.equal(effects().length, 1);
+    assert.equal(x.sqlite.prepare("SELECT COUNT(*) n FROM profile_celebrations WHERE participant_id='owner' AND kind='applicant'").get().n, 1);
+  } finally { x.done(); }
+});
