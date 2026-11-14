@@ -19,7 +19,7 @@ const PUBLIC_COMMANDS = [
 function helpFor(user) {
     const admin = isAdmin(user);
     return HELP_TEXT + (admin
-        ? "\\n\\n<b>Nur für Admins:</b>\\n🔐 /portalsetup – Portal-Zugang einrichten\\n🔑 /token – Zentralen ImmoScout24-Zugang verwalten\\n📢 /announcement – Ankündigungen versenden\\n🛡 /admin – Adminbereich"
+        ? "\n\n<b>Nur für Admins:</b>\n🔐 /portalsetup – Portal-Zugang einrichten\n🔑 /token – Zentralen ImmoScout24-Zugang verwalten\n📢 /announcement – Ankündigungen versenden\n🛡 /admin – Adminbereich"
         : "");
 }
 
