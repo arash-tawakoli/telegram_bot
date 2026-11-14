@@ -48,3 +48,23 @@ test("ImmoScout attaches the 24-hour D1 document-package link when the provider 
     globalThis.fetch = originalFetch;
   }
 });
+
+
+test("ImmoScout refresh-token revocation is reported as a login requirement", async () => {
+  const originalFetch = globalThis.fetch;
+  const env = { APPLICATION_CREDENTIAL_KEY: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" };
+  const participantId = "00000000-0000-4000-8000-000000000009";
+  const credentials = await encryptProviderCredentials(env, {
+    access_token: "expired-access", refresh_token: "revoked-refresh",
+    expires_at: new Date(Date.now() - 60_000).toISOString(),
+  }, participantId, "immoscout24");
+  globalThis.fetch = async () => Response.json({ error: "invalid_grant" }, { status: 400 });
+  try {
+    await assert.rejects(() => sendImmoScoutApplication({
+      participant_id: participantId, external_id: "123456789",
+      canonical_url: "https://www.immobilienscout24.de/expose/123456789",
+      profile: {}, connection_ciphertext: credentials.ciphertext, connection_iv: credentials.iv,
+      connection_key_version: credentials.key_version,
+    }, env, async () => []), /needs_login/);
+  } finally { globalThis.fetch = originalFetch; }
+});

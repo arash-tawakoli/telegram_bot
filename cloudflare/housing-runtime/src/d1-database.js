@@ -54,6 +54,14 @@ export function createD1Client(db) {
     const rewritten = dollarParams(query, params);
     return execute(rewritten.query, rewritten.values);
   };
+  sql.batch = async (statements) => {
+    if (typeof db.batch !== "function") throw new Error("d1_batch_unavailable");
+    return db.batch(statements.map(({ query, params = [] }) => {
+      const prepared = db.prepare(sqliteQuery(query));
+      const values = params.map(scalar);
+      return values.length ? prepared.bind(...values) : prepared;
+    }));
+  };
   sql.begin = async (callback) => callback(sql);
   sql.end = async () => {};
   sql.array = (values) => values;

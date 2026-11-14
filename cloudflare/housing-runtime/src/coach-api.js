@@ -153,11 +153,11 @@ async function createParticipant(sql, member, body) {
   if (!firstName || !lastName) throw new Error("profile_required");
   const assignedMemberId = body.coachMemberId ? uuid(body.coachMemberId, "coach_member") : member.id;
   if (!isAdmin(member) && assignedMemberId !== member.id) throw new Error("member_management_forbidden");
-  await sql.begin(async (tx) => {
-    await tx`INSERT INTO housing.participants (id, email, first_name, last_name) VALUES (${participantId}, ${email}, ${firstName}, ${lastName})`;
-    await tx`INSERT INTO housing.applicant_profiles (participant_id, profile) VALUES (${participantId}, ${JSON.stringify({ phone: text(body.phone, 80), city: text(body.city, 120) })}::jsonb)`;
-    await tx`INSERT INTO housing.participant_assignments (participant_id, member_id) VALUES (${participantId}, ${assignedMemberId})`;
-  });
+  await sql.batch([
+    { query: "INSERT INTO participants (id, email, first_name, last_name) VALUES (?, ?, ?, ?)", params: [participantId, email, firstName, lastName] },
+    { query: "INSERT INTO applicant_profiles (participant_id, profile) VALUES (?, ?)", params: [participantId, JSON.stringify({ phone: text(body.phone, 80), city: text(body.city, 120) })] },
+    { query: "INSERT INTO participant_assignments (participant_id, member_id) VALUES (?, ?)", params: [participantId, assignedMemberId] },
+  ]);
   return { ok: true, participantId };
 }
 
@@ -177,18 +177,25 @@ async function saveSearch(sql, member, body) {
   if (!await canAccessParticipant(sql, member, participantId)) throw new Error("participant_forbidden");
   const searchId = body.profileId ? uuid(body.profileId, "profile") : crypto.randomUUID();
   const profile = body.profile && typeof body.profile === "object" ? { ...body.profile } : {};
-  const sourceIds = Array.isArray(profile.source_ids) ? profile.source_ids.map((id) => Number(id)) : [];
+  const sourceIds = Array.isArray(profile.source_ids) ? [...new Set(profile.source_ids.map(Number))] : [];
   for (const sourceId of sourceIds) assertAllowedSource(sourceId);
   delete profile.source_ids;
-  await sql.begin(async (tx) => {
-    await tx`
-      INSERT INTO housing.search_profiles (id, participant_id, criteria, active)
-      VALUES (${searchId}, ${participantId}, ${JSON.stringify(profile)}::jsonb, true)
-      ON CONFLICT (id) DO UPDATE SET criteria = EXCLUDED.criteria, updated_at = now()
-    `;
-    await tx`DELETE FROM housing.source_links WHERE search_profile_id = ${searchId}`;
-    for (const sourceId of sourceIds) await tx`INSERT INTO housing.source_links (search_profile_id, source_id) VALUES (${searchId}, ${sourceId})`;
-  });
+  const statements = [
+    {
+      query: "INSERT INTO search_profiles (id, participant_id, criteria, active) VALUES (?, ?, ?, 1) ON CONFLICT (id) DO UPDATE SET criteria = excluded.criteria, updated_at = CURRENT_TIMESTAMP WHERE search_profiles.participant_id = excluded.participant_id RETURNING id",
+      params: [searchId, participantId, JSON.stringify(profile)],
+    },
+    {
+      query: "DELETE FROM source_links WHERE search_profile_id = ? AND EXISTS (SELECT 1 FROM search_profiles WHERE id = ? AND participant_id = ?)",
+      params: [searchId, searchId, participantId],
+    },
+    ...sourceIds.map((sourceId) => ({
+      query: "INSERT OR IGNORE INTO source_links (search_profile_id, source_id) SELECT ?, ? WHERE EXISTS (SELECT 1 FROM search_profiles WHERE id = ? AND participant_id = ?)",
+      params: [searchId, sourceId, searchId, participantId],
+    })),
+  ];
+  const results = await sql.batch(statements);
+  if (!results[0]?.results?.length) throw new Error("participant_forbidden");
   return { ok: true, profileId: searchId };
 }
 
@@ -211,7 +218,7 @@ function applicationRow(row) {
     created_at: row.created_at,
     sent_at: row.sent_at,
     participant: { participantId: row.participant_id, name: [row.first_name, row.last_name].filter(Boolean).join(" "), coach: row.coach || "" },
-    listings: { title: "Wohnungsangebot", canonical_url: row.canonical_url, district: null, postal_code: null, city: null, sources: { name: row.source_name || "" } },
+    listings: { title: row.listing_title || "Wohnungsangebot", canonical_url: row.canonical_url, district: row.district || null, postal_code: row.postal_code || null, city: row.city || null, sources: { name: row.source_name || "" } },
     latestEvent: row.event_id ? { provider: row.provider, event_type: row.event_type, status: row.event_status, reason: row.event_reason, document_result: row.document_result, created_at: row.event_created_at } : null,
   };
 }
@@ -224,39 +231,44 @@ async function applicationPage(sql, member, body) {
   const status = text(body.status, 40);
   const providerName = body.provider ? provider(body.provider) : "";
   if (providerName && !PROVIDERS.has(providerName)) throw new Error("provider_not_allowlisted");
-  const rows = await sql`
+  const rows = await sql.unsafe(`
     WITH latest_events AS (
-      SELECT DISTINCT ON (ae.application_id)
-        ae.application_id, ae.id AS event_id, ae.provider, ae.event_type, ae.status AS event_status,
-        ae.reason AS event_reason, ae.document_result, ae.created_at AS event_created_at
-      FROM housing.application_events ae
-      ORDER BY ae.application_id, ae.created_at DESC
+      SELECT application_id, event_id, provider, event_type, event_status, event_reason, document_result, event_created_at
+      FROM (
+        SELECT ae.application_id, ae.id AS event_id, ae.provider, ae.event_type, ae.status AS event_status,
+          ae.reason AS event_reason, ae.document_result, ae.created_at AS event_created_at,
+          ROW_NUMBER() OVER (PARTITION BY ae.application_id ORDER BY ae.created_at DESC, ae.id DESC) AS rn
+        FROM application_events ae
+      ) ranked_events
+      WHERE rn = 1
     )
-    SELECT a.id, a.participant_id, a.status, a.last_error, a.created_at, a.updated_at,
-      p.first_name, p.last_name, a.offer_identity_id, oi.canonical_url, sr.name AS source_name,
-      pe.event_id, pe.provider, pe.event_type, pe.event_status, pe.event_reason, pe.document_result, pe.event_created_at,
-      pm.display_name AS coach
-    FROM housing.applications a
-    JOIN housing.participants p ON p.id = a.participant_id
-    JOIN housing.offer_identities oi ON oi.id = a.offer_identity_id
-    JOIN housing.source_registry sr ON sr.id = oi.source_id
+    SELECT a.id, a.participant_id, a.status, a.last_error, a.wait_reason, a.created_at, a.updated_at, a.sent_at,
+      p.first_name, p.last_name, a.offer_identity_id, oi.canonical_url,
+      json_extract(oi.facts, '$.title') AS listing_title, json_extract(oi.facts, '$.district') AS district,
+      json_extract(oi.facts, '$.postal_code') AS postal_code, json_extract(oi.facts, '$.city') AS city,
+      sr.name AS source_name, pe.event_id, pe.provider, pe.event_type, pe.event_status, pe.event_reason,
+      pe.document_result, pe.event_created_at, pm.display_name AS coach
+    FROM applications a
+    JOIN participants p ON p.id = a.participant_id
+    JOIN offer_identities oi ON oi.id = a.offer_identity_id
+    JOIN source_registry sr ON sr.id = oi.source_id
     LEFT JOIN latest_events pe ON pe.application_id = a.id
-    LEFT JOIN housing.participant_assignments pa ON pa.participant_id = a.participant_id
-    LEFT JOIN housing.portal_members pm ON pm.id = pa.member_id
-    WHERE a.created_at >= now() - (${days} || ' days')::interval
-      AND (${scope}::uuid IS NULL OR a.participant_id IN (SELECT participant_id FROM housing.participant_assignments WHERE member_id = ${scope}))
-      AND (${status} = '' OR a.status = ${status})
-      AND (${providerName} = '' OR a.provider = ${providerName})
+    LEFT JOIN participant_assignments pa ON pa.participant_id = a.participant_id
+    LEFT JOIN portal_members pm ON pm.id = pa.member_id
+    WHERE julianday(a.created_at) >= julianday('now', '-' || $1 || ' days')
+      AND ($2 IS NULL OR a.participant_id IN (SELECT participant_id FROM participant_assignments WHERE member_id = $2))
+      AND ($3 = '' OR a.status = $3)
+      AND ($4 = '' OR a.provider = $4)
     ORDER BY a.created_at DESC
-    LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}
-  `;
-  const countRows = await sql`
-    SELECT count(*)::int AS total FROM housing.applications a
-    WHERE a.created_at >= now() - (${days} || ' days')::interval
-      AND (${scope}::uuid IS NULL OR a.participant_id IN (SELECT participant_id FROM housing.participant_assignments WHERE member_id = ${scope}))
-      AND (${status} = '' OR a.status = ${status})
-      AND (${providerName} = '' OR a.provider = ${providerName})
-  `;
+    LIMIT $5 OFFSET $6
+  `, [days, scope, status, providerName, pageSize, (page - 1) * pageSize]);
+  const countRows = await sql.unsafe(`
+    SELECT count(*) AS total FROM applications a
+    WHERE julianday(a.created_at) >= julianday('now', '-' || $1 || ' days')
+      AND ($2 IS NULL OR a.participant_id IN (SELECT participant_id FROM participant_assignments WHERE member_id = $2))
+      AND ($3 = '' OR a.status = $3)
+      AND ($4 = '' OR a.provider = $4)
+  `, [days, scope, status, providerName]);
   const total = Number(countRows[0]?.total || 0);
   return { applications: rows.map(applicationRow), total, page, pageSize, pages: Math.ceil(total / pageSize) };
 }
@@ -283,7 +295,7 @@ async function setPreferences(sql, member, body) {
     INSERT INTO housing.application_preferences
       (participant_id, enabled, daily_limit, timezone, allowed_weekdays, send_window_start, send_window_end, immoscout_enabled, immowelt_enabled, immomio_enabled)
     VALUES
-      (${participantId}, ${Boolean(input.enabled)}, ${input.daily_limit == null ? null : Number(input.daily_limit)}, ${text(input.timezone, 80) || "Europe/Berlin"}, ${weekdays}, ${input.send_window_start || null}, ${input.send_window_end || null}, ${Boolean(input.immoscout_enabled)}, ${Boolean(input.immowelt_enabled)}, ${Boolean(input.immomio_enabled)})
+      (${participantId}, ${input.enabled === true}, ${input.daily_limit == null ? null : Number(input.daily_limit)}, ${text(input.timezone, 80) || "Europe/Berlin"}, ${weekdays}, ${input.send_window_start || null}, ${input.send_window_end || null}, ${input.immoscout_enabled === true}, ${input.immowelt_enabled === true}, ${input.immomio_enabled === true})
     ON CONFLICT (participant_id) DO UPDATE SET
       enabled = EXCLUDED.enabled, daily_limit = EXCLUDED.daily_limit, timezone = EXCLUDED.timezone,
       allowed_weekdays = EXCLUDED.allowed_weekdays, send_window_start = EXCLUDED.send_window_start,
@@ -351,13 +363,20 @@ async function registerUpload(sql, member, body) {
   `;
   if (!rows[0]) throw new Error("upload_not_found");
   const documentId = crypto.randomUUID();
-  await sql.begin(async (tx) => {
-    await tx`
-      INSERT INTO housing.documents (id, participant_id, object_key, original_filename, document_type, content_type, size_bytes, send_with_auto_apply)
-      VALUES (${documentId}, ${participantId}, ${rows[0].object_key}, ${rows[0].original_filename}, ${rows[0].document_type}, ${rows[0].content_type}, ${Number(rows[0].size_bytes || 0)}, ${Boolean(body.send_with_auto_apply)})
-    `;
-    await tx`UPDATE housing.upload_tokens SET consumed_at = now() WHERE id = ${rows[0].id}`;
-  });
+  const statements = [
+    {
+      query: "INSERT INTO documents (id, participant_id, object_key, original_filename, document_type, content_type, size_bytes, send_with_auto_apply) SELECT ?, participant_id, object_key, original_filename, document_type, content_type, size_bytes, ? FROM upload_tokens WHERE id = ? AND participant_id = ? AND expires_at > CURRENT_TIMESTAMP AND uploaded_at IS NOT NULL AND consumed_at IS NULL",
+      params: [documentId, body.send_with_auto_apply === true ? 1 : 0, rows[0].id, participantId],
+    },
+    {
+      query: "UPDATE upload_tokens SET consumed_at = CURRENT_TIMESTAMP WHERE id = ? AND participant_id = ? AND expires_at > CURRENT_TIMESTAMP AND uploaded_at IS NOT NULL AND consumed_at IS NULL",
+      params: [rows[0].id, participantId],
+    },
+  ];
+  const results = await sql.batch(statements);
+  if (Number(results[0]?.meta?.changes || 0) !== 1 || Number(results[1]?.meta?.changes || 0) !== 1) {
+    throw new Error("upload_not_found");
+  }
   return { ok: true, documentId };
 }
 
@@ -385,7 +404,7 @@ async function toggleDocument(sql, member, body) {
   const participantId = uuid(body.participantId, "participant");
   const documentId = uuid(body.documentId, "document");
   if (!await canAccessParticipant(sql, member, participantId)) throw new Error("participant_forbidden");
-  await sql`UPDATE housing.documents SET send_with_auto_apply = ${Boolean(body.enabled)} WHERE id = ${documentId} AND participant_id = ${participantId}`;
+  await sql`UPDATE housing.documents SET send_with_auto_apply = ${body.enabled === true} WHERE id = ${documentId} AND participant_id = ${participantId}`;
   return { ok: true };
 }
 
@@ -416,9 +435,11 @@ export async function handleCoach(sql, request, env = {}) {
       && (member.role === "super_admin" ? ["admin", "coach"].includes(target.role) : member.role === "admin" && target.role === "coach");
     if (!manageable) throw new Error("member_management_forbidden");
     const passwordHash = await hashPassword(password);
-    const updated = await sql.unsafe("UPDATE housing.portal_members SET password_hash = $1, updated_at = now() WHERE id = $2 RETURNING id", [passwordHash, memberId]);
-    if (!updated[0]) throw new Error("coach_password_update_failed");
-    await sql.unsafe("UPDATE housing.portal_sessions SET revoked_at = now() WHERE member_id = $1 AND revoked_at IS NULL", [memberId]);
+    const results = await sql.batch([
+      { query: "UPDATE portal_members SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", params: [passwordHash, memberId] },
+      { query: "UPDATE portal_sessions SET revoked_at = CURRENT_TIMESTAMP WHERE member_id = ? AND revoked_at IS NULL AND EXISTS (SELECT 1 FROM portal_members WHERE id = ? AND password_hash = ?)", params: [memberId, memberId, passwordHash] },
+    ]);
+    if (Number(results[0]?.meta?.changes || 0) !== 1) throw new Error("coach_password_update_failed");
     return { ok: true };
   }
   if (action === "set_coach_active") {
@@ -429,8 +450,14 @@ export async function handleCoach(sql, request, env = {}) {
     const manageable = target && target.id !== member.id && target.role !== "super_admin"
       && (member.role === "super_admin" ? ["admin", "coach"].includes(target.role) : member.role === "admin" && target.role === "coach");
     if (!manageable) throw new Error("member_management_forbidden");
-    await sql.unsafe("UPDATE housing.portal_members SET active = $1, updated_at = now() WHERE id = $2", [Boolean(body.active), memberId]);
-    if (!body.active) await sql.unsafe("UPDATE housing.portal_sessions SET revoked_at = now() WHERE member_id = $1 AND revoked_at IS NULL", [memberId]);
+    const active = body.active === true;
+    const results = await sql.batch(active
+      ? [{ query: "UPDATE portal_members SET active = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?", params: [memberId] }]
+      : [
+          { query: "UPDATE portal_members SET active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?", params: [memberId] },
+          { query: "UPDATE portal_sessions SET revoked_at = CURRENT_TIMESTAMP WHERE member_id = ? AND revoked_at IS NULL AND EXISTS (SELECT 1 FROM portal_members WHERE id = ? AND active = 0)", params: [memberId, memberId] },
+        ]);
+    if (Number(results[0]?.meta?.changes || 0) !== 1) throw new Error("member_management_forbidden");
     return { ok: true };
   }
   if (action === "me") return { member: { id: member.id, displayName: member.display_name, role: member.role }, workspace: { name: "TraumWohnungHamburg" } };
@@ -442,7 +469,7 @@ export async function handleCoach(sql, request, env = {}) {
   if (action === "set_search_active") {
     const participantId = uuid(body.participantId, "participant");
     if (!await canAccessParticipant(sql, member, participantId)) throw new Error("participant_forbidden");
-    await sql`UPDATE housing.search_profiles SET active = ${Boolean(body.active)}, updated_at = now() WHERE id = ${uuid(body.profileId, "profile")} AND participant_id = ${participantId}`;
+    await sql`UPDATE housing.search_profiles SET active = ${body.active === true}, updated_at = now() WHERE id = ${uuid(body.profileId, "profile")} AND participant_id = ${participantId}`;
     return { ok: true };
   }
   if (action === "delete_search") {

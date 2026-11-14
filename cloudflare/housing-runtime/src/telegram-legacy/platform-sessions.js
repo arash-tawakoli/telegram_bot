@@ -150,15 +150,12 @@ export async function purgePlatformSessions(userId){
   const {error:storageError}=await db.storage.from(DOCUMENT_BUCKET).remove(paths);
   if(storageError)throw Error('Bewerberdokumente konnten nicht gelöscht werden.');
  }
- await db.from('applicant_documents').delete().eq('user_id',userId);
- const {data,error}=await db.from('platform_connections').select('provider').eq('user_id',userId);
- if(error)throw Error('Plattformverbindungen konnten nicht geladen werden.');
- const sourceFor={immoscout24:1,immoscout:1,immomio:3,immowelt:4};
- for(const row of data||[]){const source=sourceFor[row.provider];if(source)await applicationWorker('disconnect',userId,source).catch(()=>{});}
- await db.from('platform_connections').delete().eq('user_id',userId);
- await db.from('platform_auth_flows').delete().eq('user_id',userId);
- const {error:sessionError}=await db.from('platform_sessions').delete().eq('user_id',userId);
- if(sessionError)throw Error('Plattformsitzungen konnten nicht gelöscht werden.');
+ const {error:documentDeleteError}=await db.from('applicant_documents').delete().eq('user_id',userId);
+ if(documentDeleteError)throw Error('Bewerberdokumente konnten nicht gelöscht werden.');
+ const {error:connectionDeleteError}=await db.from('platform_connections').delete().eq('user_id',userId);
+ if(connectionDeleteError)throw Error('Plattformverbindungen konnten nicht gelöscht werden.');
+ const {error:flowDeleteError}=await db.from('platform_auth_flows').delete().eq('user_id',userId);
+ if(flowDeleteError)throw Error('Plattformsitzungen konnten nicht gelöscht werden.');
 }
 
 const connectionLabel=row=>{

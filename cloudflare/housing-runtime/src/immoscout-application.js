@@ -57,7 +57,7 @@ async function refresh(env, row, participantId, credentials) {
     signal: AbortSignal.timeout(25_000),
   });
   const token = await response.json().catch(() => null);
-  if (!response.ok || !token?.access_token) throw new Error(response.status === 401 ? "needs_login" : "temporary_network_error");
+  if (!response.ok || !token?.access_token) throw new Error(response.status === 401 || token?.error === "invalid_grant" ? "needs_login" : "temporary_network_error");
   const updated = { ...credentials, access_token: String(token.access_token), refresh_token: String(token.refresh_token || credentials.refresh_token), expires_at: new Date(Date.now() + Math.max(60, Number(token.expires_in || 3600)) * 1000).toISOString() };
   const encrypted = await encryptProviderCredentials(env, updated, participantId, "immoscout24");
   await row.sql`UPDATE housing.provider_connections SET ciphertext = ${encrypted.ciphertext}, iv = ${encrypted.iv}, key_version = ${encrypted.key_version}, expires_at = ${updated.expires_at}::timestamptz, updated_at = now() WHERE participant_id = ${participantId} AND provider = 'immoscout24'`;

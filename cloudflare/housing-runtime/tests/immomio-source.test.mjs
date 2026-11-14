@@ -44,3 +44,22 @@ test("Immomio can validate inventory without queueing matches", async () => {
 test("retired shadow source IDs are absent from the live allowlist", () => {
   for (const id of [30, 32, 36, 39, 71]) assert.equal(sourceForId(id), null);
 });
+
+
+test("missing Immomio numeric facts remain unknown instead of becoming zero", async () => {
+  const originalFetch = globalThis.fetch;
+  const token = `header.${Buffer.from(JSON.stringify({ customerId: "tenant-a" })).toString("base64url")}.signature`;
+  const url = `https://homepage.immomio.com/de/properties?token=${token}`;
+  globalThis.fetch = async input => Response.json({
+    data: { propertyList: {
+      page: { page: 0, size: 250, totalElements: 1, totalPages: 1 },
+      nodes: [{ objectId: "offer", applicationLink: "https://tenant.immomio.com/apply/00000000-0000-0000-0000-000000000001", propertyType: "FLAT", marketingType: "RENT", totalRentGross: null, totalRooms: "", size: null }],
+    } },
+  });
+  try {
+    const result = await fetchImmomioSource({ id: 23, homepage_url: url }, {});
+    assert.equal(result.nodes[0].facts.warm_rent, null);
+    assert.equal(result.nodes[0].facts.rooms, null);
+    assert.equal(result.nodes[0].facts.area_sqm, null);
+  } finally { globalThis.fetch = originalFetch; }
+});

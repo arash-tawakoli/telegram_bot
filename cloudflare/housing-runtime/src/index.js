@@ -180,6 +180,8 @@ async function runSource(sql, request, env) {
 async function processDelivery(sql, request, env) {
   const expected = env.DELIVERY_RUN_TOKEN || env.SOURCE_RUN_TOKEN;
   if (!expected || !await sameSecret(request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") || "", expected)) return json({ error: "unauthorized" }, 401);
+  const token = String(env.TELEGRAM_BOT_TOKEN || "");
+  if (!token) return json({ error: "telegram_token_missing" }, 503);
   const claimed = await sql.begin(async (tx) => {
     const rows = await tx`
       WITH fresh AS (
@@ -203,7 +205,7 @@ async function processDelivery(sql, request, env) {
       SELECT d.id, d.participant_id, d.offer_identity_id, p.telegram_chat_id, oi.facts, oi.canonical_url
       FROM candidates c
       JOIN housing.deliveries d ON d.id = c.id
-      JOIN housing.participants p ON p.id = d.participant_id
+      JOIN housing.participants p ON p.id = d.participant_id AND p.status = 'active'
       JOIN housing.offer_identities oi ON oi.id = d.offer_identity_id
       ORDER BY c.priority, c.created_at, c.id
       LIMIT 1
@@ -217,11 +219,6 @@ async function processDelivery(sql, request, env) {
   if (!claimed.telegram_chat_id) {
     await sql`UPDATE housing.deliveries SET status = 'skipped', error_message = 'telegram_not_connected' WHERE id = ${claimed.id}`.catch(() => {});
     return json({ ok: true, status: "skipped", reason: "telegram_not_connected" });
-  }
-  const token = String(env.TELEGRAM_BOT_TOKEN || "");
-  if (!token) {
-    await sql`UPDATE housing.deliveries SET status = 'failed' WHERE id = ${claimed.id}`;
-    return json({ error: "telegram_token_missing" }, 503);
   }
   const cutover = env.DELIVERY_CUTOVER_ENABLED === "1";
   const ledgerInput = { participant_id: claimed.participant_id, url: claimed.canonical_url, owner: `cloudflare:${claimed.id}` };
@@ -259,6 +256,7 @@ async function processDelivery(sql, request, env) {
     response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ chat_id: claimed.telegram_chat_id, text: telegramText(facts), parse_mode: "HTML", disable_web_page_preview: false }), signal: AbortSignal.timeout(15_000) });
   } catch (error) {
     if (cutover) await ledger("unknown").catch(() => {});
+    await sql`UPDATE housing.deliveries SET status = 'failed', error_message = 'telegram_outcome_unknown' WHERE id = ${claimed.id} AND status = 'processing'`.catch(() => {});
     throw error;
   }
   const result = await response.json().catch(() => null);
@@ -392,7 +390,7 @@ export async function handleAuth(sql, request, env = {}) {
       const email = String(body.email || "").trim().toLowerCase();
       const displayName = String(body.displayName || "").trim().slice(0, 120);
       const password = String(body.password || "");
-      if (!/^\\S+@\\S+\\.\\S+$/.test(email) || !displayName || password.length < 12 || password.length > 512) {
+      if (!/^\S+@\S+\.\S+$/.test(email) || !displayName || password.length < 12 || password.length > 512) {
         return json({ error: "profile_invalid" }, 400);
       }
       stage = "hash_password";
@@ -440,7 +438,8 @@ export async function handleAuth(sql, request, env = {}) {
 function cookie(request, name) {
   const prefix = `${name}=`;
   const value = String(request.headers.get("cookie") || "").split(";").map((part) => part.trim()).find((part) => part.startsWith(prefix));
-  return value ? decodeURIComponent(value.slice(prefix.length)) : "";
+  if (!value) return "";
+  try { return decodeURIComponent(value.slice(prefix.length)); } catch { return ""; }
 }
 
 async function requestMember(sql, request) {
@@ -505,16 +504,6 @@ export default {
     }
 
     if (routePath === "/stripe/webhook") return handleStripeWebhook(request, env);
-
-    if (request.method === "GET" && routePath === "/documents/package") {
-      try { return await withDatabase(env, (sql) => applicationDocumentPackageResponse(sql, env, request)); }
-      catch (error) { console.error("housing_document_package_failed", String(error?.message || error)); return json({ error: "document_package_unavailable" }, 503); }
-    }
-
-    if (request.method === "GET" && routePath === "/documents/package-file") {
-      try { return await withDatabase(env, (sql) => applicationDocumentFileResponse(sql, env, request)); }
-      catch (error) { console.error("housing_document_package_file_failed", String(error?.message || error)); return json({ error: "document_download_unavailable" }, 503); }
-    }
 
     if (request.method === "GET" && routePath === "/documents/package") {
       try { return await withDatabase(env, (sql) => applicationDocumentPackageResponse(sql, env, request)); }
@@ -625,7 +614,7 @@ export default {
       try {
         const readiness = await withDatabase(env, async (sql) => {
           const [tables, centralTables, imported] = await Promise.all([
-            sql`SELECT count(*) AS count FROM sqlite_master WHERE type = 'table' AND name IN ('source_registry','participants','portal_members','participant_assignments','portal_sessions','bootstrap_tokens','search_profiles','source_links','applicant_profiles','documents','upload_tokens','provider_connections','application_preferences','offer_identities','deliveries','applications','application_events','application_dedupe_keys','jobs','audit_events','telegram_updates','provider_auth_flows')`,
+            sql`SELECT count(*) AS count FROM sqlite_master WHERE type = 'table' AND name IN ('source_registry','participants','portal_members','participant_assignments','portal_sessions','bootstrap_tokens','search_profiles','source_links','applicant_profiles','documents','upload_tokens','provider_connections','application_preferences','offer_identities','deliveries','applications','application_events','application_dedupe_keys','coach_geo_snapshot','audit_events','telegram_updates','provider_auth_flows')`,
             sql`SELECT
               (SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'central_credentials') AS credentials,
               (SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'central_oauth_flows') AS oauth_flows,

@@ -364,7 +364,7 @@ export async function getCentralApplicationCredentials(env) {
     refresh_token: String(credentials.refresh_token),
   });
   if (!refreshed.response.ok || !refreshed.body?.access_token) {
-    throw new Error(refreshed.response.status === 401 ? "needs_login" : "temporary_network_error");
+    throw new Error(refreshed.response.status === 401 || refreshed.body?.error === "invalid_grant" ? "needs_login" : "temporary_network_error");
   }
   const info = await userInfo(String(refreshed.body.access_token));
   if (!info.response.ok || !info.body?.sub || validEmail(info.body?.email) !== ACCOUNT_EMAIL) {

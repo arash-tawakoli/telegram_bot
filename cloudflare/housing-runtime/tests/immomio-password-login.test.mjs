@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { handleProviderFacade } from "../src/provider-facade.js";
-import { decryptProviderCredentials } from "../src/provider-credentials.js";
+import { decryptProviderCredentials, encryptProviderCredentials } from "../src/provider-credentials.js";
+import { refreshImmomioSession } from "../src/immomio-application.js";
 
 const ticket = "provider-flow-test_12345678901234567890";
 const password = "not-a-real-password";
@@ -80,4 +81,20 @@ test("Immomio password login completes through D1 and never stores the password"
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+
+test("Immomio refresh-token revocation is reported as a login requirement", async () => {
+  const originalFetch = globalThis.fetch;
+  const participantId = "00000000-0000-4000-8000-000000000019";
+  const credentials = await encryptProviderCredentials(env, {
+    access_token: "expired-access", refresh_token: "revoked-refresh",
+    expires_at: new Date(Date.now() - 60_000).toISOString(),
+  }, participantId, "immomio");
+  globalThis.fetch = async () => Response.json({ error: "invalid_grant" }, { status: 400 });
+  try {
+    await assert.rejects(() => refreshImmomioSession(async () => { throw new Error("should not persist"); }, env, {
+      participant_id: participantId, ciphertext: credentials.ciphertext, iv: credentials.iv, key_version: credentials.key_version,
+    }), /needs_login/);
+  } finally { globalThis.fetch = originalFetch; }
 });

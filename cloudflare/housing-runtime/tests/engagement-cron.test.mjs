@@ -67,3 +67,34 @@ test("premium entitlement precedence matches the existing campaign sender", () =
   assert.equal(isPremium({}, { status: "trialing", current_period_end: null }, now), true);
   assert.equal(isPremium({}, { status: "active", current_period_end: "2026-11-12T00:00:00.000Z" }, now), false);
 });
+
+
+test("premium day campaigns target free users and cancel after an upgrade", async () => {
+  const free = database();
+  const now = new Date();
+  free.db.prepare("INSERT INTO user_engagement_notifications(id,participant_id,campaign_key,status,scheduled_at,available_at) VALUES('upsell-free','participant-1','premium_day14','pending',?,?)")
+    .run(now.toISOString(), now.toISOString());
+  const freeMessages = [];
+  const freeResult = await processEngagementNotifications(free.sql, { TELEGRAM_BOT_TOKEN: "test-token" }, now, async (_url, init) => {
+    freeMessages.push(JSON.parse(init.body));
+    return Response.json({ ok: true });
+  });
+  assert.equal(freeResult.sent, 1);
+  assert.equal(freeMessages.length, 1);
+  assert.equal(free.db.prepare("SELECT status FROM user_engagement_notifications WHERE id='upsell-free'").get().status, "sent");
+  free.db.close();
+
+  const premium = database();
+  premium.db.prepare("UPDATE participants SET plan_override='premium' WHERE id='participant-1'").run();
+  premium.db.prepare("INSERT INTO user_engagement_notifications(id,participant_id,campaign_key,status,scheduled_at,available_at) VALUES('upsell-premium','participant-1','premium_day30','pending',?,?)")
+    .run(now.toISOString(), now.toISOString());
+  let sends = 0;
+  const premiumResult = await processEngagementNotifications(premium.sql, { TELEGRAM_BOT_TOKEN: "test-token" }, now, async () => {
+    sends++;
+    return Response.json({ ok: true });
+  });
+  assert.equal(premiumResult.cancelled, 1);
+  assert.equal(sends, 0);
+  assert.equal(premium.db.prepare("SELECT status FROM user_engagement_notifications WHERE id='upsell-premium'").get().status, "cancelled");
+  premium.db.close();
+});
