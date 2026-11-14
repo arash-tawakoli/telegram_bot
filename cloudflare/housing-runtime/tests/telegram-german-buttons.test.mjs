@@ -181,6 +181,19 @@ test("search-profile menu and new-profile flow expose working callbacks in Germa
     assert.match(lastMessage(x).text, /Wo möchtest du suchen/);
     assert.ok(lastMessage(x).reply_markup.inline_keyboard.flat().some(b => b.callback_data === "loc:all"));
     assert.equal(x.sqlite.prepare("SELECT json_extract(telegram_state,'$._step') AS step FROM participants WHERE id='owner'").get().step, "location");
+    await callback("loc:all");
+    await callback("rent:800");
+    await callback("rooms:2");
+    await callback("area:40");
+    const previewButtons=lastMessage(x).reply_markup.inline_keyboard.flat().map(b=>b.callback_data);
+    assert.deepEqual(previewButtons,["profile:save","review:edit"]);
+    await callback("review:edit");
+    const editButtons=lastMessage(x).reply_markup.inline_keyboard.flat().map(b=>b.callback_data);
+    for(const key of ["types","location","rent","rooms","area"])
+      assert.ok(editButtons.includes("edit:"+key),key);
+    assert.ok(editButtons.includes("review"));
+    await callback("review");
+    assert.deepEqual(lastMessage(x).reply_markup.inline_keyboard.flat().map(b=>b.callback_data),["profile:save","review:edit"]);
   } finally { x.done(); }
 });
 
