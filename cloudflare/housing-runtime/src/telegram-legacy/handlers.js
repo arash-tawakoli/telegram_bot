@@ -16,6 +16,13 @@ const PUBLIC_COMMANDS = [
     { command: "hilfe", description: "Hilfe" },
 ];
 
+function helpFor(user) {
+    const admin = isAdmin(user);
+    return HELP_TEXT + (admin
+        ? "\\n\\n<b>Nur für Admins:</b>\\n🔐 /portalsetup – Portal-Zugang einrichten\\n🔑 /token – Zentralen ImmoScout24-Zugang verwalten\\n📢 /announcement – Ankündigungen versenden\\n🛡 /admin – Adminbereich"
+        : "");
+}
+
 const ADMIN_COMMANDS = [
     ...PUBLIC_COMMANDS,
     { command: "admin", description: "Adminbereich" },
@@ -237,7 +244,8 @@ export async function handleMessage(message, user) {
     if (command === "/status")
         return renderStatus(user, chatId);
     if (command === "/hilfe" || command === "/help") {
-        return send(chatId, HELP_TEXT);
+        await syncTelegramCommands(user, chatId);
+        return send(chatId, helpFor(user));
     }
     if (command === "/premium")
         return premium(user, chatId);
@@ -503,7 +511,7 @@ export async function handleCallback(query, user) {
     if (data === "language" || data.startsWith("lang:"))
         return settings(user, chatId, messageId);
     if (data === "help") {
-        return edit(chatId, messageId, HELP_TEXT, {
+        return edit(chatId, messageId, helpFor(user), {
             inline_keyboard: [[button("← Einstellungen", "settings")]],
         });
     }
