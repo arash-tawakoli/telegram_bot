@@ -1,4 +1,4 @@
-import { db, PREMIUM_LINK, button, send, edit } from "./runtime.js";
+import { db, button, send, edit } from "./runtime.js";
 
 export function homeKeyboard(user) {
   return { inline_keyboard: [
@@ -23,7 +23,6 @@ export function home(user, chatId, messageId) {
 
 export async function premium(user, chatId, messageId) {
   const rows = [];
-  const checkoutUrl = `${PREMIUM_LINK}?client_reference_id=${encodeURIComponent(user.id)}`;
   let text;
   if (user.is_premium) {
     text = "💎 <b>Traumwohnung Premium</b>\n\n✅ <b>Premium ist aktiv.</b>\n\n"
@@ -44,7 +43,7 @@ export async function premium(user, chatId, messageId) {
       + "⚡ Sofortige Zustellung\n🔎 Bis zu 4 Suchprofile\n🤖 Auto-Bewerbung\n"
       + "🔓 Baugenossenschafts-Angebote öffnen\n\n"
       + "<s>1,99 €</s> <b>0,99 € / Monat</b>\nKeine Mindestlaufzeit · jederzeit kündbar";
-    rows.push([{ text: "💎 Premium abonnieren", url: checkoutUrl }]);
+    text += "\n\nDer Premium-Tarif ist aktuell nicht direkt buchbar.";
   }
   rows.push([button("← Start", "home")]);
   const markup = { inline_keyboard: rows };
