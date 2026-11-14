@@ -9,7 +9,7 @@ test("simultaneous D1 delivery workers claim once and render stored listing deta
   const barrier = new Promise(resolve => { release = resolve; });
   const sqlite = new DatabaseSync(":memory:");
   sqlite.exec(readFileSync(new URL("../schema/d1/0001_housing_core.sql", import.meta.url), "utf8"));
-  sqlite.exec("INSERT INTO participants(id,first_name,last_name,telegram_chat_id) VALUES('user','A','B',12); INSERT INTO source_registry(id,name,family,connector) VALUES(1,'Test','immoscout24','test'); INSERT INTO offer_identities(id,source_id,identity_hash,canonical_url,facts) VALUES('offer',1,'offer','https://example.com/offer','{\"title\":\"Testwohnung\",\"city\":\"Hamburg\",\"warm_rent\":950,\"image_url\":\"https://pictures.immobilienscout24.de/listing.jpg\"}'); INSERT INTO deliveries(id,participant_id,offer_identity_id,idempotency_key,status) VALUES('delivery','user','offer','delivery','pending')");
+  sqlite.exec("INSERT INTO participants(id,first_name,last_name,telegram_chat_id) VALUES('user','A','B',12); INSERT INTO source_registry(id,name,family,connector) VALUES(1,'Test','immoscout24','test'); INSERT INTO offer_identities(id,source_id,identity_hash,canonical_url,facts) VALUES('offer',1,'offer','https://example.com/offer','{\"title\":\"Testwohnung\",\"city\":\"Hamburg\",\"warm_rent\":950,\"image_url\":\"https://pictures.immobilienscout24.de/listing.jpg\"}'); INSERT INTO deliveries(id,participant_id,offer_identity_id,idempotency_key,status) VALUES('00000000-0000-0000-0000-000000000003','user','offer','delivery','pending')");
   const db = {
     prepare(query) {
       const make = values => ({ all: async () => {
@@ -35,15 +35,17 @@ test("simultaneous D1 delivery workers claim once and render stored listing deta
     const responses = await Promise.all([worker.fetch(request(), env), worker.fetch(request(), env)]);
     assert.deepEqual((await Promise.all(responses.map(response => response.json()))).map(result => result.status).sort(), ["idle", "sent"]);
     assert.equal(messages.length, 1);
-    assert.equal(messages[0].photo, "https://pictures.immobilienscout24.de/listing.jpg");
-    assert.match(messages[0].caption, /Testwohnung/);
-    assert.match(messages[0].caption, /Warmmiete:<\/b> 950 €|Warmmiete:<\/b> 950/);
-    assert.equal(messages[0].reply_markup.inline_keyboard.length, 3);
-    assert.equal(messages[0].reply_markup.inline_keyboard[0][0].text, "Zu ImmoScout24");
-    assert.equal(messages[0].reply_markup.inline_keyboard[1][0].text, "⭐ Speichern");
-    assert.equal(messages[0].reply_markup.inline_keyboard[2][0].text, "🗺️ Google Map");
-    assert.match(messages[0].reply_markup.inline_keyboard[1][0].url, /^https:\/\/t\.me\/share\/url\?/);
-    assert.equal(messages[0].text, undefined);
+    assert.equal(messages[0].photo, undefined);
+    assert.match(messages[0].text, /Testwohnung/);
+    assert.match(messages[0].text, /Warmmiete:<\\/b> 950 €|Warmmiete:<\\/b> 950/);
+    assert.equal(messages[0].link_preview_options.prefer_large_media, true);
+    assert.equal(messages[0].reply_markup.inline_keyboard.length, 4);
+    assert.equal(messages[0].reply_markup.inline_keyboard[0][0].text, "🏠 Wohnung ansehen");
+    assert.equal(messages[0].reply_markup.inline_keyboard[1][0].text, "Zu ImmoScout24");
+    assert.equal(messages[0].reply_markup.inline_keyboard[2][0].text, "⭐ Speichern");
+    assert.equal(messages[0].reply_markup.inline_keyboard[3][0].text, "🗺️ Google Map");
+    assert.equal(messages[0].reply_markup.inline_keyboard[0][0].web_app.url,
+      "https://traumwohnung-housing-runtime.arash-ce5.workers.dev/angebot/00000000-0000-0000-0000-000000000003");
     assert.equal(sqlite.prepare("SELECT status FROM deliveries WHERE id='delivery'").get().status, "sent");
   } finally { globalThis.fetch = originalFetch; sqlite.close(); }
 });
