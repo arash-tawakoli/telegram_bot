@@ -1,22 +1,32 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { handleCoach } from "../src/coach-api.js";
+import worker from "../src/index.js";
 
-test("document upload and open links use the portal origin for its host-only session", async () => {
-  const participantId = "6075e235-df06-4923-8000-a653dec275ea";
-  const documentId = "7075e235-df06-4923-8000-a653dec275ea";
-  const sql = async (parts) => {
-    const query = parts.join("?");
-    if (query.includes("FROM housing.portal_sessions s")) return [{ id: "member", role: "super_admin", active: true }];
-    if (query.includes("SELECT id FROM housing.documents")) return [{ id: documentId }];
-    return [];
-  };
-  const request = body => new Request("https://runtime.example/edge/coach", {
-    method: "POST", headers: { authorization: "Bearer test", "content-type": "application/json" }, body: JSON.stringify(body),
-  });
-  const opened = await handleCoach(sql, request({ action: "open_document", participantId, documentId }));
-  const uploaded = await handleCoach(sql, request({ action: "request_upload", participantId, filename: "test.pdf", document_type: "other", mime_type: "application/pdf" }));
-  assert.equal(new URL(opened.url).origin, "https://intern.traumwohnunghamburg.de");
-  assert.equal(new URL(uploaded.signedUrl).origin, "https://intern.traumwohnunghamburg.de");
-  assert.ok(new URL(uploaded.signedUrl).searchParams.get("token"));
+test("retired document endpoints return 404 without reading or writing stored files",async()=>{
+ const cases=[
+  ["GET","/documents/package"],
+  ["GET","/documents/package-file"],
+  ["PUT","/edge/documents/upload"],
+  ["GET","/edge/documents/open"]
+ ];
+ for(const [method,path] of cases){
+  const response=await worker.fetch(new Request("https://runtime.example"+path,{method}),{});
+  assert.equal(response.status,404,path);
+ }
+});
+
+test("retired document coach actions cannot create or reveal upload links",async()=>{
+ const sql=async parts=>{
+  if(parts.join("?").includes("FROM housing.portal_sessions s"))
+    return [{id:"member",role:"super_admin",active:true}];
+  return [];
+ };
+ const request=action=>new Request("https://runtime.example/edge/coach",{
+  method:"POST",headers:{authorization:"Bearer test","content-type":"application/json"},
+  body:JSON.stringify({action,participantId:"6075e235-df06-4923-8000-a653dec275ea"})
+ });
+ for(const action of ["request_upload","register_upload","open_document","delete_document","toggle_document"]){
+  await assert.rejects(()=>handleCoach(sql,request(action)),/invalid_action/);
+ }
 });
