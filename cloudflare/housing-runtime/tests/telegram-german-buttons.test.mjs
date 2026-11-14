@@ -205,6 +205,12 @@ test("search-profile menu and new-profile flow expose working callbacks in Germa
     assert.ok(editButtons.includes("review"));
     await callback("review");
     assert.deepEqual(lastMessage(x).reply_markup.inline_keyboard.flat().map(b=>b.callback_data),["profile:save","review:edit"]);
+    await callback("profile:save");
+    assert.equal(x.sqlite.prepare("SELECT COUNT(*) n FROM search_profiles WHERE participant_id='owner'").get().n,1);
+    const confetti=x.sent.filter(y=>y.method==='sendMessage'&&y.body.message_effect_id);
+    assert.equal(confetti.length,1);
+    assert.equal(confetti[0].body.message_effect_id,"5046509860389126442");
+    assert.equal(x.sqlite.prepare("SELECT COUNT(*) n FROM profile_celebrations WHERE participant_id='owner' AND kind='search'").get().n,1);
   } finally { x.done(); }
 });
 
@@ -218,12 +224,15 @@ test("applicant profile, field transition, text choices and separate preview wor
     await callback("platforms:profile-new");
     assert.match(lastMessage(x).text, /Bewerberprofil/);
     const keys = lastMessage(x).reply_markup.inline_keyboard.flat().map(b => b.callback_data);
-    for (const name of ["salutation","first_name","last_name","email","phone","street","house_number","postcode","city","household_type","employment_status","income_range","pets","move_in_preference","wbs_status","schufa_status"]) {
+    for (const name of ["salutation","first_name","last_name","email","phone","street","house_number","postcode","city","household_type","employment_status","income_range","pets","move_in_preference","schufa_status"]) {
       assert.ok(keys.includes("platforms:profile-field:" + name), "missing field " + name);
     }
     assert.ok(keys.includes("platforms:profile-texts"));
     assert.ok(keys.includes("platforms:profile-preview"));
     assert.ok(!keys.includes("platforms:docs"));
+    assert.ok(!keys.includes("platforms:profile-field:wbs_status"));
+    assert.match(lastMessage(x).text,/Hinterlege deine Angaben für Vermieter/);
+    assert.doesNotMatch(lastMessage(x).text,/WBS|Wohnberechtigungsschein/);
     assert.doesNotMatch(lastMessage(x).text, /Profilstatus|Dokumente:/);
     await callback("platforms:profile-field:salutation");
     assert.match(lastMessage(x).text, /Anrede/);
@@ -232,6 +241,7 @@ test("applicant profile, field transition, text choices and separate preview wor
     assert.equal(JSON.parse(raw).salutation, "MR");
     await callback("platforms:profile-texts");
     assert.match(lastMessage(x).text, /Bewerbungstext/);
+    assert.match(lastMessage(x).text, /Schreibe oder passe deinen Bewerbungstext für den Vermieter an/);
     assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][0].callback_data, "platforms:profile-text:message_apartment");
     await callback("platforms:profile-text:message_apartment");
     assert.match(lastMessage(x).text, /Wohnung/);
@@ -239,6 +249,7 @@ test("applicant profile, field transition, text choices and separate preview wor
     await callback("platforms:profile-preview");
     assert.match(lastMessage(x).text, /Profilvorschau/);
     assert.match(lastMessage(x).text, /Anrede:/);
+    assert.doesNotMatch(lastMessage(x).text,/WBS-Status/);
     assert.equal(lastMessage(x).reply_markup.inline_keyboard.at(-1)[0].callback_data, "platforms:profile");
   } finally { x.done(); }
 });
