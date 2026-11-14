@@ -59,7 +59,7 @@ test("Immowelt inventory can be stored without queueing match work", async () =>
 
 test("Immowelt stores the real card photograph, never the agency logo", async () => {
   const original = globalThis.fetch;
-  const html = '<div id="classified-card-1"><img src="https://mms.immowelt.de/logo.jpg?h=50" alt="Agency">'
+  const html = '<div class="css-card" id="classified-card-1"><img src="https://mms.immowelt.de/logo.jpg?h=50" alt="Agency">'
     + '<a href="/expose/123" title="Wohnung zur Miete - Hamburg - 900 € - 2 Zimmer">Wohnung</a>'
     + '<img src="https://mms.immowelt.de/a/b/c/d/house.jpg?w=626&amp;h=470" loading="lazy"></div>';
   globalThis.fetch = async () => {
