@@ -279,6 +279,21 @@ function storageKey(path) {
   return key;
 }
 async function rpc(client, env, name, args) {
+  if (name === "claim_first_profile_celebration") {
+    const participantId = String(args.p_user || "");
+    const kind = String(args.p_kind || "");
+    if (!participantId || !["search", "applicant"].includes(kind)) {
+      return { data: null, error: new Error("profile_celebration_invalid") };
+    }
+    const guard = kind === "search"
+      ? "EXISTS(SELECT 1 FROM search_profiles WHERE participant_id=?)"
+      : "EXISTS(SELECT 1 FROM applicant_profiles WHERE participant_id=? AND json_valid(profile) AND trim(COALESCE(json_extract(profile,'$.first_name'),''))<>'' AND trim(COALESCE(json_extract(profile,'$.last_name'),''))<>'')";
+    const result = await client.run(
+      `INSERT OR IGNORE INTO profile_celebrations(participant_id,kind) SELECT ?,? WHERE ${guard}`,
+      [participantId, kind, participantId],
+    );
+    return { data: { claimed: result.count === 1 }, error: null };
+  }
   if (name === "get_or_create_referral_code") {
     const participantId = String(args.p_user || "");
     if (!participantId) return { data: null, error: new Error("referral_user_missing") };

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { applicationProvider, applicationSchedule, missingApplicantFields, listingRequiresWbs, hasValidWbs, premiumParticipant } from "../src/application-policy.js";
+import { applicationProvider, applicationSchedule, missingApplicantFields, listingRequiresWbs, premiumParticipant } from "../src/application-policy.js";
 
 test("AutoApply profile validation requires the full saved application profile", () => {
   assert.ok(missingApplicantFields({ first_name: "A", email: "not-an-email" }).includes("E-Mail-Adresse"));
@@ -25,9 +25,8 @@ test("premium overrides expire and source family controls the provider target", 
   assert.equal(applicationProvider({ family: "immomio" }, { canonical_url: "https://tenant.immomio.com/de/apply/12345678-1234-4234-8234-123456789012" }), "immomio");
 });
 
-test("WBS is only required for explicitly marked listings",()=>{
+test("WBS-restricted listings are flagged for manual handling without collecting WBS status",()=>{
  assert.equal(listingRequiresWbs({}),false);
  assert.equal(listingRequiresWbs({wbs_required:true}),true);
- assert.equal(hasValidWbs({wbs_status:"Ja"}),true);
- assert.equal(hasValidWbs({wbs_status:"Nein"}),false);
+ assert.equal(listingRequiresWbs({wbs_required:"true"}),true);
 });

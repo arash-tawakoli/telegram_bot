@@ -1,4 +1,4 @@
-import {db,secret,send,edit,button,telegram,esc,runtimeEnv} from './runtime.js';
+import {db,secret,send,edit,sendCelebration,button,telegram,esc,runtimeEnv} from './runtime.js';
 import {encryptProviderCredentials} from '../provider-credentials.js';
 import {providerStaticMissing} from './application-profile-adapters.js';
 import { DEFAULT_APPLICATION_TEXT, resolveApplicationText } from '../application-text.js';
@@ -87,7 +87,6 @@ const PROFILE_FIELDS={
  employment_status:{label:'Beschäftigungsstatus',required:true,type:'choice',max:160},
  income_range:{label:'Haushalts-Nettoeinkommen',required:true,type:'choice'},
  pets:{label:'Haustiere',required:true,type:'choice',max:160},
- wbs_status:{label:'WBS-Status',required:false,max:160},
  move_in_preference:{label:'Einzugstermin',required:true,type:'choice'},
  move_in_date:{label:'Gewünschtes Einzugsdatum',required:true,type:'date'},
  household_size:{label:'Haushaltsgröße (Legacy)',type:'integer'},
@@ -231,6 +230,12 @@ async function ensureApplicantProfile(userId){
  return created;
 }
 
+async function celebrateFirstApplicantProfile(user,chat){
+ const {data,error}=await db.rpc('claim_first_profile_celebration',{p_user:user.id,p_kind:'applicant'});
+ if(error){console.error('applicant_profile_celebration_claim_failed',error.message);return;}
+ if(data?.claimed===true)await sendCelebration(chat.id,'🎉 <b>Dein erstes Bewerberprofil ist angelegt!</b>\n\nViel Erfolg bei der Wohnungssuche!').catch(e=>console.error('applicant_celebration_failed',e.message));
+}
+
 async function renderApplicantProfile(user,chat,messageId,notice=''){
  const p=await ensureApplicantProfile(user.id);
  const {data:missing,error}=await db.rpc('application_profile_missing_fields',{p_user:user.id});
@@ -243,10 +248,7 @@ async function renderApplicantProfile(user,chat,messageId,notice=''){
  };
  const text='👤 <b>Bewerberprofil</b>\n\n'
   +(notice?esc(notice)+'\n\n':'')
-  +'Hier trägst du die Angaben ein, die Vermieter bei einer Bewerbung benötigen können:\n'
-  +'Name und Anrede, Kontakt und Adresse, Haushalt, Beschäftigung und Einkommen, Haustiere, Einzugstermin und SCHUFA. '
-  +'WBS nur, wenn die Wohnung einen Wohnberechtigungsschein voraussetzt.\n\n'
-  +'Persönliche Daten werden erst unter <b>Profilvorschau</b> angezeigt.';
+  +'Hinterlege deine Angaben für Vermieter und Bewerbungen. Unter <b>Profilvorschau</b> siehst du alle gespeicherten Daten.';
  const rows=[
   [f('salutation','Anrede'),f('schufa_status','SCHUFA')],
   [f('first_name','Vorname'),f('last_name','Nachname')],
@@ -256,7 +258,6 @@ async function renderApplicantProfile(user,chat,messageId,notice=''){
   [f('household_type','Haushalt'),f('employment_status','Beschäftigung')],
   [f('income_range','Einkommen'),f('pets','Haustiere')],
   [f('move_in_preference','Einzugstermin')],
-  [f('wbs_status','WBS-Status (optional)')],
   [button('✍️ Bewerbungstext','platforms:profile-texts')],
   [button('👁 Profilvorschau','platforms:profile-preview')],
   [button('← Start','home')]
@@ -276,7 +277,6 @@ async function renderApplicantProfilePreview(user,chat,messageId){
   ['Haushalt',householdLabel(p)],['Beschäftigung',employmentLabel(p.employment_status)],
   ['Nettoeinkommen',incomeLabel(p)],['Haustiere',shown(p.pets)],
   ['Einzug',moveInLabel(p)],['SCHUFA',schufaLabel(p.schufa_status)],
-  ['WBS-Status (optional)',shown(p.wbs_status)]
  ];
  const title='👁 <b>Profilvorschau</b>\n\n'
   +(pending.length?'⚠️ '+pending.length+' Angaben fehlen noch.':'✅ Pflichtangaben vollständig.')+'\n\n';
@@ -292,7 +292,7 @@ async function renderApplicationTexts(user,chat,messageId){
  const p=await ensureApplicantProfile(user.id);
  const render=(text,rows)=>messageId?edit(chat.id,messageId,text,{inline_keyboard:rows}):send(chat.id,text,{inline_keyboard:rows});
  const entry=(name,label)=>button(label,'platforms:profile-text:'+name);
- return render('✍️ <b>Bewerbungstext</b>\n\nWähle Wohnung oder Haus. Die Vorlage enthält <code>[[Vorname]]</code>; bei einer Bewerbung wird automatisch dein gespeicherter Vorname eingesetzt.',[
+ return render('✍️ <b>Bewerbungstext</b>\n\nSchreibe oder passe deinen Bewerbungstext für den Vermieter an.',[
   [entry('message_apartment','🏢 Wohnung'),entry('message_house','🏡 Haus')],
   [button('← Bewerberprofil','platforms:profile')]
  ]);
@@ -312,13 +312,16 @@ async function renderApplicationTextDetail(user,chat,messageId,name){
   send(chat.id,'✍️ <b>Bewerbungstext · '+label+'</b>\n\n<blockquote>'+esc(visible)+'</blockquote>',markup);
 }
 
-async function clearPendingField(user){
+async function clearPendingField(user,chat){
  const state={...(user.onboarding_state||{})};
  if(!state._applicant_field)return;
+ const promptId=Number(state._applicant_prompt_message_id||0);
  delete state._applicant_field;
  delete state._applicant_message_id;
+ delete state._applicant_prompt_message_id;
  const {error}=await db.rpc('save_ui_state',{p_user:user.id,p_step:user.onboarding_step||null,p_state:state});
  if(error)throw Error('Profilnavigation konnte nicht gespeichert werden.');
+ if(promptId>0&&chat?.id)await telegram('deleteMessage',{chat_id:chat.id,message_id:promptId}).catch(()=>{});
 }
 
 async function showFieldInput(user,chat,messageId,name){
@@ -329,8 +332,28 @@ async function showFieldInput(user,chat,messageId,name){
  if(error)throw Error('Profileingabe konnte nicht gestartet werden.');
  const text='👤 <b>'+esc(meta.label)+'</b>\n\n'+fieldPrompt(name)
   +'\n\nSende den neuen Wert als nächste Nachricht im Chat.';
- return messageId?edit(chat.id,messageId,text,{inline_keyboard:[[button('← Bewerberprofil','platforms:profile')]]})
-  :send(chat.id,text,{inline_keyboard:[[button('← Bewerberprofil','platforms:profile')]]});
+ const isText=name==='message_apartment'||name==='message_house';
+ const back=[button(isText?'← Bewerbungstext':'← Bewerberprofil',isText?'platforms:profile-texts':'platforms:profile')];
+ const rendered=messageId?await edit(chat.id,messageId,text,{inline_keyboard:[back]})
+  :await send(chat.id,text,{inline_keyboard:[back]});
+ if(isText){
+  const saved=await ensureApplicantProfile(user.id),template=String(saved[name]||'').trim()||DEFAULT_APPLICATION_TEXT;
+  try{
+   const prompt=await telegram('sendMessage',{
+    chat_id:chat.id,parse_mode:'HTML',
+    text:'✍️ <b>'+esc(meta.label)+' bearbeiten</b>\n\n'
+      +'Antworte mit dem vollständigen neuen Text. <code>[[Vorname]]</code> wird in der Vorschau automatisch ersetzt.\n\n'
+      +'<b>Aktueller Text:</b>\n<blockquote>'+esc(template.slice(0,2600))+'</blockquote>',
+    reply_markup:{force_reply:true,selective:true,input_field_placeholder:'Deinen Bewerbungstext schreiben'}
+   });
+   if(prompt?.message_id){
+    state._applicant_prompt_message_id=Number(prompt.message_id);
+    const result=await db.rpc('save_ui_state',{p_user:user.id,p_step:user.onboarding_step||null,p_state:state});
+    if(result.error)throw result.error;
+   }
+  }catch(e){console.error('application_text_force_reply_failed',String(e.message||e));}
+ }
+ return rendered;
 }
 
 function fieldPrompt(name){
@@ -395,6 +418,7 @@ export async function handleAutoApplyMessage(user,message){
    }
    const {error}=await db.from('applicant_profiles').upsert(values,{onConflict:'user_id'});if(error)throw Error('Bewerberprofil konnte nicht gespeichert werden.');
    await Promise.all([telegram('deleteMessage',{chat_id:chat.id,message_id:message.message_id}).catch(()=>{}),message.reply_to_message?.message_id?telegram('deleteMessage',{chat_id:chat.id,message_id:message.reply_to_message.message_id}).catch(()=>{}):null]);
+   await celebrateFirstApplicantProfile(user,chat);
    return send(chat.id,'✅ Bewerberprofil angelegt.',{inline_keyboard:[[button('👤 Profil öffnen','platforms:profile')],[button('← Automatische Bewerbung','platforms')]]});
   }catch(error){return send(chat.id,`⚠️ ${esc(error.message)}`);}
  }
@@ -410,10 +434,11 @@ export async function handleAutoApplyMessage(user,message){
     ? {[name]:value,move_in_preference:'EXACT_DATE',updated_at:new Date().toISOString()}
     : {[name]:value,updated_at:new Date().toISOString()};
    const {error}=await db.from('applicant_profiles').update(patch).eq('user_id',user.id);if(error)throw Error('Änderung konnte nicht gespeichert werden.');
+   if(name==='first_name'||name==='last_name')await celebrateFirstApplicantProfile(user,chat);
    await Promise.all([telegram('deleteMessage',{chat_id:chat.id,message_id:message.message_id}).catch(()=>{}),message.reply_to_message?.message_id?telegram('deleteMessage',{chat_id:chat.id,message_id:message.reply_to_message.message_id}).catch(()=>{}):null]);
    const editMessageId=Number(user.onboarding_state?._applicant_message_id||0);
    if(pendingField){
-     await clearPendingField(user);
+     await clearPendingField(user,chat);
      if(editMessageId>0){
        return name.startsWith('message_')
          ? renderApplicationTextDetail(user,chat,editMessageId,name)
@@ -487,7 +512,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
 
  if(action==='profile'){
   if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
-  await clearPendingField(user);
+  await clearPendingField(user,chat);
   return renderApplicantProfile(user,chat,messageId);
  }
  if(action==='profile-new'){
@@ -501,6 +526,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  }
  if(action==='profile-texts'){
   if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
+  await clearPendingField(user,chat);
   return renderApplicationTexts(user,chat,messageId);
  }
  if(action==='profile-text'){

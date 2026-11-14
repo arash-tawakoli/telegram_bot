@@ -20,6 +20,11 @@ function setup() {
     neighborhoods:[{id:1,name:"Altstadt",borough_id:1}],
     schleswigHolsteinAreas:[{code:"01002",name:"Kiel"}],
   }));
+  // The real search-profile save links every enabled source. Seed the same valid IDs.
+  for (const id of [1, 3, 23, 29, 34, 35, 66, 69, 71]) {
+    sqlite.prepare("INSERT OR IGNORE INTO source_registry(id,name,family,connector) VALUES(?,?,?,?)")
+      .run(id, "Testquelle " + id, "immoscout24", "test");
+  }
   const storage = new Map();
   const d1 = { prepare(query) {
     const build = args => ({
@@ -205,6 +210,12 @@ test("search-profile menu and new-profile flow expose working callbacks in Germa
     assert.ok(editButtons.includes("review"));
     await callback("review");
     assert.deepEqual(lastMessage(x).reply_markup.inline_keyboard.flat().map(b=>b.callback_data),["profile:save","review:edit"]);
+    await callback("profile:save");
+    assert.equal(x.sqlite.prepare("SELECT COUNT(*) n FROM search_profiles WHERE participant_id='owner'").get().n,1);
+    const confetti=x.sent.filter(y=>y.method==='sendMessage'&&y.body.message_effect_id);
+    assert.equal(confetti.length,1);
+    assert.equal(confetti[0].body.message_effect_id,"5046509860389126442");
+    assert.equal(x.sqlite.prepare("SELECT COUNT(*) n FROM profile_celebrations WHERE participant_id='owner' AND kind='search'").get().n,1);
   } finally { x.done(); }
 });
 
@@ -218,12 +229,15 @@ test("applicant profile, field transition, text choices and separate preview wor
     await callback("platforms:profile-new");
     assert.match(lastMessage(x).text, /Bewerberprofil/);
     const keys = lastMessage(x).reply_markup.inline_keyboard.flat().map(b => b.callback_data);
-    for (const name of ["salutation","first_name","last_name","email","phone","street","house_number","postcode","city","household_type","employment_status","income_range","pets","move_in_preference","wbs_status","schufa_status"]) {
+    for (const name of ["salutation","first_name","last_name","email","phone","street","house_number","postcode","city","household_type","employment_status","income_range","pets","move_in_preference","schufa_status"]) {
       assert.ok(keys.includes("platforms:profile-field:" + name), "missing field " + name);
     }
     assert.ok(keys.includes("platforms:profile-texts"));
     assert.ok(keys.includes("platforms:profile-preview"));
     assert.ok(!keys.includes("platforms:docs"));
+    assert.ok(!keys.includes("platforms:profile-field:wbs_status"));
+    assert.match(lastMessage(x).text,/Hinterlege deine Angaben für Vermieter/);
+    assert.doesNotMatch(lastMessage(x).text,/WBS|Wohnberechtigungsschein/);
     assert.doesNotMatch(lastMessage(x).text, /Profilstatus|Dokumente:/);
     await callback("platforms:profile-field:salutation");
     assert.match(lastMessage(x).text, /Anrede/);
@@ -232,6 +246,7 @@ test("applicant profile, field transition, text choices and separate preview wor
     assert.equal(JSON.parse(raw).salutation, "MR");
     await callback("platforms:profile-texts");
     assert.match(lastMessage(x).text, /Bewerbungstext/);
+    assert.match(lastMessage(x).text, /Schreibe oder passe deinen Bewerbungstext für den Vermieter an/);
     assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][0].callback_data, "platforms:profile-text:message_apartment");
     await callback("platforms:profile-text:message_apartment");
     assert.match(lastMessage(x).text, /Wohnung/);
@@ -239,6 +254,7 @@ test("applicant profile, field transition, text choices and separate preview wor
     await callback("platforms:profile-preview");
     assert.match(lastMessage(x).text, /Profilvorschau/);
     assert.match(lastMessage(x).text, /Anrede:/);
+    assert.doesNotMatch(lastMessage(x).text,/WBS-Status/);
     assert.equal(lastMessage(x).reply_markup.inline_keyboard.at(-1)[0].callback_data, "platforms:profile");
   } finally { x.done(); }
 });
@@ -337,4 +353,62 @@ test("Immomio connect action presents an external OAuth link without changing ap
     assert.equal(x.sqlite.prepare("SELECT status FROM provider_connections WHERE participant_id='owner' AND provider='immomio'").get().status, "pending");
     assert.equal(x.sqlite.prepare("SELECT count(*) AS n FROM applications").get().n, 0);
   } finally { globalThis.fetch = savedFetch; x.done(); }
+});
+
+test("Bewerbungstext bearbeiten uses Telegram ForceReply, saves changes, and shows the first name immediately", async () => {
+  const x = setup();
+  try {
+    x.sqlite.exec("INSERT INTO applicant_profiles(participant_id,profile) VALUES('owner','{\"first_name\":\"Mara\",\"last_name\":\"Beispiel\"}')");
+    await platformSessions(x.user, x.chat, 21, "platforms:profile-text:message_apartment");
+    assert.match(lastMessage(x).text, /Mara/);
+    assert.doesNotMatch(lastMessage(x).text, /\[\[Vorname\]\]/);
+
+    await platformSessions(x.user, x.chat, 21, "platforms:profile-field:message_apartment");
+    const forced = x.sent.map((v, i) => ({ ...v, telegramMessageId: i + 1 }))
+      .findLast(v => v.method === "sendMessage" && v.body.reply_markup?.force_reply === true);
+    assert.ok(forced, "editing must open native Telegram reply input");
+    assert.match(forced.body.text, /Bewerbungstext Wohnung bearbeiten/);
+    assert.match(forced.body.text, /\[\[Vorname\]\]/);
+    const state = JSON.parse(x.sqlite.prepare("SELECT telegram_state FROM participants WHERE id='owner'").get().telegram_state);
+    assert.equal(state._applicant_field, "message_apartment");
+    assert.equal(state._applicant_prompt_message_id, forced.telegramMessageId);
+
+    await handleMessage({
+      chat: x.chat, message_id: 90, text: "Guten Tag, mein Name ist [[Vorname]]. Ich freue mich über eine Besichtigung.",
+      reply_to_message: { message_id: forced.telegramMessageId, text: forced.body.text },
+    }, { ...x.user, onboarding_state: state, onboarding_step: state._step || null });
+
+    const saved = JSON.parse(x.sqlite.prepare("SELECT profile FROM applicant_profiles WHERE participant_id='owner'").get().profile);
+    assert.match(saved.message_apartment, /\[\[Vorname\]\]/, "the saved template must keep the placeholder");
+    const rendered = x.sent.filter(v => v.method === "editMessageText").at(-1).body;
+    assert.equal(rendered.message_id, 21);
+    assert.match(rendered.text, /mein Name ist Mara/);
+    assert.doesNotMatch(rendered.text, /\[\[Vorname\]\]/);
+    assert.ok(x.sent.some(v => v.method === "deleteMessage" && v.body.message_id === forced.telegramMessageId));
+    const finalState = JSON.parse(x.sqlite.prepare("SELECT telegram_state FROM participants WHERE id='owner'").get().telegram_state);
+    assert.equal(finalState._applicant_field, undefined);
+  } finally { x.done(); }
+});
+
+test("first completed Bewerberprofil triggers exactly one native confetti effect, not on later edits", async () => {
+  const x = setup();
+  try {
+    await platformSessions(x.user, x.chat, 21, "platforms:profile-new");
+    const field = async (name, value) => {
+      const initial = JSON.parse(x.sqlite.prepare("SELECT telegram_state FROM participants WHERE id='owner'").get().telegram_state);
+      await platformSessions({ ...x.user, onboarding_state: initial }, x.chat, 21, "platforms:profile-field:" + name);
+      const state = JSON.parse(x.sqlite.prepare("SELECT telegram_state FROM participants WHERE id='owner'").get().telegram_state);
+      await handleAutoApplyMessage({ ...x.user, onboarding_state: state, onboarding_step: state._step || null },
+        { chat: x.chat, text: value, message_id: x.sent.length + 60 });
+    };
+    const effects = () => x.sent.filter(v => v.method === "sendMessage" && v.body.message_effect_id === "5046509860389126442");
+    assert.equal(effects().length, 0, "opening an empty profile must not celebrate");
+    await field("first_name", "Mara");
+    assert.equal(effects().length, 0, "one name field is not a completed identity");
+    await field("last_name", "Beispiel");
+    assert.equal(effects().length, 1);
+    await field("first_name", "Maria");
+    assert.equal(effects().length, 1);
+    assert.equal(x.sqlite.prepare("SELECT COUNT(*) n FROM profile_celebrations WHERE participant_id='owner' AND kind='applicant'").get().n, 1);
+  } finally { x.done(); }
 });
