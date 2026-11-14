@@ -41,6 +41,17 @@ function setup() {
       run: async () => ({ meta: { changes: Number(sqlite.prepare(query).run(...args).changes) } }),
     });
     return { bind: (...args) => build(args), ...build([]) };
+  }, async batch(statements){
+    sqlite.exec("BEGIN");
+    try{
+      const results=[];
+      for(const statement of statements)results.push(await statement.all());
+      sqlite.exec("COMMIT");
+      return results;
+    }catch(error){
+      sqlite.exec("ROLLBACK");
+      throw error;
+    }
   } };
   const docs = {
     head: async key => storage.has(key) ? { key } : null,
