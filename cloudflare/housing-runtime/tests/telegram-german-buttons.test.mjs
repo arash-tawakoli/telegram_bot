@@ -730,3 +730,88 @@ test("starting an incomplete provider shows Bewerberprofil vervollständigen and
   assert.equal(x.sqlite.prepare("SELECT auto_apply_enabled FROM participants WHERE id='owner'").get().auto_apply_enabled,0);
  }finally{x.done();}
 });
+
+test("/token shares the portal's three provider connections and securely reuses login flows",async()=>{
+ const x=setup();
+ try{
+  const adminId=8538226539;
+  x.sqlite.exec("UPDATE participants SET telegram_user_id="+adminId+",telegram_chat_id="+adminId+" WHERE id='owner'");
+  x.sqlite.exec("INSERT INTO provider_connections(id,participant_id,provider,status,account_hint) VALUES('c-immo','owner','immowelt','connected','web@example.test'),('c-mio','owner','immomio','needs_login','immomio@example.test')");
+  const user={...x.user,telegram_user_id:adminId,chat_id:adminId};
+  const chat={id:adminId,type:"private"};
+  await handleMessage({chat,text:"/token"},user);
+  let buttons=lastMessage(x).reply_markup.inline_keyboard.flat();
+  assert.deepEqual(buttons.slice(0,3).map(b=>b.callback_data),[
+   "token:source:immoscout24","token:source:immowelt","token:source:immomio"
+  ]);
+  assert.match(buttons[1].text,/Verbunden/);
+  assert.match(buttons[2].text,/Erneut anmelden/);
+  assert.doesNotMatch(lastMessage(x).text,/refresh_token|access_token|ciphertext/i);
+  const action=data=>handleCallback({
+   id:"admin-"+data,data,from:{id:adminId},message:{chat,message_id:90}
+  },user);
+  await action("token:source:immowelt");
+  assert.match(lastMessage(x).text,/web@example.test/);
+  buttons=lastMessage(x).reply_markup.inline_keyboard.flat();
+  assert.ok(buttons.some(b=>b.callback_data==="token:login:immowelt"));
+  assert.ok(buttons.some(b=>b.callback_data==="token:refresh:immowelt"));
+  await action("token:login:immowelt");
+  buttons=lastMessage(x).reply_markup.inline_keyboard.flat();
+  assert.ok(buttons[0].url?.startsWith("https://login.traumwohnunghamburg.de/connect?ticket="));
+  const flow=x.sqlite.prepare("SELECT provider,origin,return_target,context FROM provider_auth_flows WHERE participant_id='owner' AND provider='immowelt'").get();
+  assert.equal(flow.provider,"immowelt");
+  assert.equal(flow.origin,"telegram");
+  assert.equal(flow.return_target,"telegram");
+  assert.equal(JSON.parse(flow.context).channel,"telegram");
+  await action("token:refresh:immowelt");
+  assert.ok(lastMessage(x).reply_markup.inline_keyboard[0][0].url?.startsWith("https://login.traumwohnunghamburg.de/connect?ticket="));
+  await action("token");
+  await action("token:source:immomio");
+  assert.match(lastMessage(x).text,/immomio@example.test/);
+  await action("token:refresh:immomio");
+  assert.match(lastMessage(x).text,/erneut an/i);
+  await action("token:source:immoscout24");
+  assert.match(lastMessage(x).text,/ImmoScout24/);
+  await action("token:login:immoscout24");
+  assert.ok(lastMessage(x).reply_markup.inline_keyboard[0][0].url?.startsWith("https://login.traumwohnunghamburg.de/connect?ticket="));
+  const central=x.sqlite.prepare("SELECT count(*) AS n FROM central_oauth_flows").get();
+  assert.equal(central.n,1,"existing central flow created without storing credentials in Telegram");
+ }finally{x.done();}
+});
+
+test("/token and token callbacks are restricted to the existing super admin",async()=>{
+ const x=setup();
+ try{
+  await handleMessage({chat:x.chat,text:"/token"},x.user);
+  assert.equal(x.sent.filter(req=>req.method==="sendMessage").length,0);
+  await handleCallback({
+   id:"token-no-access",data:"token:source:immowelt",from:{id:777},
+   message:{chat:x.chat,message_id:90}
+  },x.user);
+  assert.equal(x.sent.filter(req=>req.method==="editMessageText").length,0);
+ }finally{x.done();}
+});
+
+test("unchanged Telegram callbacks avoid participant identity writes and redundant reads",async()=>{
+ const x=setup();
+ try{
+  const queries=[];
+  const original=x.d1.prepare;
+  x.d1.prepare=query=>{queries.push(query);return original(query);};
+  const adapter=createD1Supabase(x.d1,{});
+  const payload={callback_query:{from:{id:777,first_name:"A",last_name:"B"},message:{chat:{id:777,type:"private"},message_id:44},data:"home"}};
+  const result=await adapter.rpc("prepare_telegram_update",{p_payload:payload});
+  assert.equal(result.error,null);
+  assert.equal(result.data.user.first_name,"A");
+  assert.equal(queries.filter(q=>q.includes("UPDATE participants SET telegram_chat_id")).length,0);
+  assert.equal(queries.filter(q=>q.includes("SELECT * FROM participants")).length,1);
+  queries.length=0;
+  const modified=await adapter.rpc("prepare_telegram_update",{p_payload:{callback_query:{
+   ...payload.callback_query,from:{...payload.callback_query.from,first_name:"Neuer Name"}
+  }}});
+  assert.equal(modified.error,null);
+  assert.equal(modified.data.user.first_name,"Neuer Name");
+  assert.equal(queries.filter(q=>q.includes("UPDATE participants SET telegram_chat_id")).length,1);
+  assert.equal(queries.filter(q=>q.includes("SELECT * FROM participants")).length,1);
+ }finally{x.done();}
+});
