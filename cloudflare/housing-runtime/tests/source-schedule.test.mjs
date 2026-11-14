@@ -1,29 +1,40 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { sourcesForMinute } from "../src/source-schedule.js";
+import { scheduledTasksForMinute, sourcesForMinute } from "../src/source-schedule.js";
 
-test("source polling covers every D1 source at its required interval", () => {
-  const mainRuns = new Map();
-  const shadowRuns = new Map();
+test("live source intervals stay unchanged while shadow-only sources stop polling", () => {
+  const runs = new Map();
+  const idle = [];
   for (let minute = 0; minute < 40; minute++) {
-    const runs = sourcesForMinute(minute);
-    assert.equal(runs.length, minute % 5 === 0 ? 2 : 1);
-    const [main, shadow] = runs;
-    mainRuns.set(main, [...(mainRuns.get(main) || []), minute]);
-    if (shadow !== undefined) shadowRuns.set(shadow, [...(shadowRuns.get(shadow) || []), minute]);
+    const sources = sourcesForMinute(minute);
+    if (!sources.length) {
+      idle.push(minute);
+      continue;
+    }
+    assert.equal(sources.length, 1);
+    const source = sources[0];
+    runs.set(source, [...(runs.get(source) || []), minute]);
   }
+  assert.deepEqual([...runs.keys()].sort((a, b) => a - b), [1, 3, 23, 29, 34, 35, 66, 69]);
+  assert.deepEqual(idle, [2, 7, 12, 17, 22, 27, 32, 37]);
+  const expected = new Map([[1, 10], [3, 10], [23, 10], [29, 10], [34, 10], [35, 20], [66, 20], [69, 5]]);
+  for (const [source, interval] of expected) {
+    const minutes = runs.get(source);
+    const gaps = minutes.slice(1).map((value, index) => value - minutes[index]);
+    gaps.push(minutes[0] + 40 - minutes.at(-1));
+    assert.ok(gaps.every(value => value === interval), "source " + source + ": " + gaps);
+  }
+});
 
-  assert.deepEqual([...mainRuns.keys()].sort((a, b) => a - b), [1, 3, 23, 29, 34, 35, 66, 69, 71]);
-  const expectedMainIntervals = new Map([[1, 10], [3, 10], [23, 10], [29, 10], [34, 10], [35, 20], [66, 20], [69, 5], [71, 5]]);
-  for (const [source, expected] of expectedMainIntervals) {
-    const minutes = mainRuns.get(source);
-    const intervals = minutes.slice(1).map((value, index) => value - minutes[index]);
-    intervals.push(minutes[0] + 40 - minutes.at(-1));
-    assert.ok(intervals.every((interval) => interval === expected), "source " + source + ": " + intervals);
+test("background maintenance uses lower frequency than the core dispatch minute", () => {
+  const scheduled = { verifyTelegramWebhook: [], engagement: [], telegramRecovery: [], platformSessionReminders: [], premiumOverrideExpiry: [] };
+  for (let minute = 0; minute < 60; minute++) {
+    const tasks = scheduledTasksForMinute(minute);
+    for (const key of Object.keys(scheduled)) if (tasks[key]) scheduled[key].push(minute);
   }
-
-  for (const [index, source] of [30, 32, 36, 39].entries()) {
-    const minutes = shadowRuns.get(source);
-    assert.deepEqual(minutes, [index * 5, index * 5 + 20]);
-  }
+  assert.deepEqual(scheduled.verifyTelegramWebhook, [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55]);
+  assert.deepEqual(scheduled.engagement, [15]);
+  assert.deepEqual(scheduled.telegramRecovery, [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55]);
+  assert.deepEqual(scheduled.platformSessionReminders, [0, 10, 20, 30, 40, 50]);
+  assert.deepEqual(scheduled.premiumOverrideExpiry, [0]);
 });

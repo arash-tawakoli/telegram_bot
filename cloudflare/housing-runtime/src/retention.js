@@ -73,7 +73,7 @@ export async function deleteExpiredApplicationRecords(sql, limit = 5000, now = n
             AND (julianday(${eventTime}) IS NULL
               OR julianday(${eventTime}) > julianday($1, '-24 hours'))
         )
-      ORDER BY a.created_at, a.id
+      ORDER BY julianday(${appTime}), a.id
       LIMIT $2
       FOR UPDATE SKIP LOCKED
     `, [nowIso, limit]);
@@ -99,7 +99,7 @@ export async function deleteExpiredApplicationRecords(sql, limit = 5000, now = n
       SELECT id FROM housing.application_events
       WHERE julianday(${expiredTime}) IS NOT NULL
         AND julianday(${expiredTime}) <= julianday($1, '-24 hours')
-      ORDER BY created_at, id
+      ORDER BY julianday(${expiredTime}), id
       LIMIT $2
       FOR UPDATE SKIP LOCKED
     `, [nowIso, limit]);
