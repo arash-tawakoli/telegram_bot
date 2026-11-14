@@ -8,7 +8,7 @@ import { ingestImmoScoutSource } from "./immoscout-source.js";
 import { deliveryCutoverLedger, reconcileCloudflareDeliveries } from "./delivery-cutover-ledger.js";
 import { resolveListingImage } from "./telegram-listing-preview.js";
 import { listingMessageRequest, sendListingMessage, listingMiniAppResponse } from "./listing-miniapp.js";
-import { createSession, hashPassword, memberForAccess, refreshSession, revokeSession, sha256, verifyPassword } from "./auth.js";
+import { createSession, hashPassword, refreshSession, revokeSession, sha256, verifyPassword } from "./auth.js";
 import { handleCoach } from "./coach-api.js";
 import { handleProviderFacade } from "./provider-facade.js";
 import { handleStripeWebhook } from "./stripe-webhook.js";
