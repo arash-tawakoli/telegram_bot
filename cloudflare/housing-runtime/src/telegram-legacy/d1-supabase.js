@@ -1,4 +1,5 @@
 import { missingApplicantFields } from "../application-policy.js";
+import { HOME_LANGUAGES } from "./home-language.js";
 
 import { sha256 } from "../auth.js";
 const TABLES = {
@@ -294,6 +295,77 @@ async function rpc(client, env, name, args) {
     );
     return { data: { claimed: result.count === 1 }, error: null };
   }
+  if (name === "set_home_language") {
+    const language = String(args.p_language || "");
+    if (!Object.hasOwn(HOME_LANGUAGES, language)) return { data: null, error: new Error("language_not_supported") };
+    const result = await client.run(
+      "UPDATE participants SET ui_language=?,language_selected_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP WHERE id=? AND telegram_user_id=? AND status='active'",
+      [language, args.p_user, args.p_telegram_user_id],
+    );
+    return result.count === 1 ? { data: { language }, error: null } : { data: null, error: new Error("language_user_not_found") };
+  }
+  if (name === "claim_applicant_completion_prompt") {
+    const userId = String(args.p_user || "");
+    const row = (await client.run("SELECT profile FROM applicant_profiles WHERE participant_id=? LIMIT 1", [userId]))[0];
+    if (!row || missingApplicantFields(row.profile).length)
+      return { data: { first_time: false, complete: false }, error: null };
+    const claimed = await client.run(
+      "INSERT OR IGNORE INTO applicant_completion_prompts(participant_id) SELECT ? WHERE EXISTS(SELECT 1 FROM participants WHERE id=? AND status='active')",
+      [userId, userId],
+    );
+    return { data: { first_time: claimed.count === 1, complete: true }, error: null };
+  }
+  if (name === "set_telegram_auto_apply_sources") {
+    const userId = String(args.p_user || "");
+    const providerColumns = { immoscout24: "immoscout_enabled", immowelt: "immowelt_enabled", immomio: "immomio_enabled" };
+    const provider = String(args.p_provider || "");
+    if (provider && !Object.hasOwn(providerColumns, provider))
+      return { data: null, error: new Error("provider_not_allowlisted") };
+    const enable = args.p_enabled === true;
+    const participant = (await client.run("SELECT id,status,telegram_user_id,test_auto_apply_enabled,plan_override,plan_override_expires_at,referral_bonus_until FROM participants WHERE id=? LIMIT 1", [userId]))[0];
+    if (!participant || participant.status !== "active" || Number(participant.telegram_user_id) !== Number(args.p_telegram_user_id))
+      return { data: null, error: new Error("auto_apply_user_not_found") };
+    const current = (await client.run("SELECT immoscout_enabled,immowelt_enabled,immomio_enabled FROM application_preferences WHERE participant_id=? LIMIT 1", [userId]))[0] || {};
+    const next = {
+      immoscout_enabled: provider ? (provider === "immoscout24" ? enable : bool(current.immoscout_enabled)) : enable,
+      immowelt_enabled: provider ? (provider === "immowelt" ? enable : bool(current.immowelt_enabled)) : enable,
+      immomio_enabled: provider ? (provider === "immomio" ? enable : bool(current.immomio_enabled)) : enable,
+    };
+    const active = Object.values(next).some(Boolean);
+    if (active) {
+      if (bool(participant.test_auto_apply_enabled)) return { data: null, error: new Error("test_mode_active") };
+      const profile = (await client.run("SELECT profile FROM applicant_profiles WHERE participant_id=? LIMIT 1", [userId]))[0];
+      if (!profile || missingApplicantFields(profile.profile).length)
+        return { data: null, error: new Error("profile_incomplete") };
+      const now = Date.now();
+      const overrideActive = !participant.plan_override_expires_at || Date.parse(participant.plan_override_expires_at) > now;
+      if (participant.plan_override === "free" && overrideActive)
+        return { data: null, error: new Error("premium_required") };
+      const subscription = (await client.run("SELECT status,current_period_end FROM user_subscriptions WHERE participant_id=? ORDER BY updated_at DESC LIMIT 1", [userId]))[0];
+      const premium = (participant.plan_override === "premium" && overrideActive)
+        || Date.parse(participant.referral_bonus_until || "") > now
+        || (["active","trialing"].includes(String(subscription?.status)) && (!subscription?.current_period_end || Date.parse(subscription.current_period_end) > now));
+      if (!premium) return { data: null, error: new Error("premium_required") };
+    }
+    const sourceId = { immoscout24: 1, immowelt: 4, immomio: 3 }[provider];
+    const callbackData = provider
+      ? `platforms:${enable ? "resume" : "pause"}:${sourceId}`
+      : `platforms:completion:${enable ? "yes" : "no"}`;
+    const superseding = provider
+      ? [`platforms:resume:${sourceId}`,`platforms:pause:${sourceId}`]
+      : ["platforms:completion:yes","platforms:completion:no"];
+    const order = telegramControlOrder(args, callbackData, superseding);
+    if (order.error) return { data: null, error: order.error };
+    await client.batch([
+      { query: "INSERT OR IGNORE INTO application_preferences(participant_id) VALUES(?)", params: [userId] },
+      ...(order.record ? [order.record] : []),
+      { query: `UPDATE application_preferences SET immoscout_enabled=?,immowelt_enabled=?,immomio_enabled=?,enabled=?,updated_at=CURRENT_TIMESTAMP WHERE participant_id=?${order.sql}`,
+        params: [next.immoscout_enabled ? 1 : 0, next.immowelt_enabled ? 1 : 0, next.immomio_enabled ? 1 : 0, active ? 1 : 0, userId, ...order.params] },
+      { query: `UPDATE participants SET auto_apply_enabled=?,updated_at=CURRENT_TIMESTAMP WHERE id=?${order.sql}`,
+        params: [active ? 1 : 0, userId, ...order.params] },
+    ]);
+    return { data: { enabled: active, ...next }, error: null };
+  }
   if (name === "get_or_create_referral_code") {
     const participantId = String(args.p_user || "");
     if (!participantId) return { data: null, error: new Error("referral_user_missing") };
@@ -362,14 +434,14 @@ async function rpc(client, env, name, args) {
     let user = found[0];
     if (user) {
       await client.run(
-        "UPDATE participants SET telegram_chat_id=?,username=?,first_name=COALESCE(?,first_name),last_name=COALESCE(?,last_name),ui_language='de',language_code=COALESCE(?,language_code),updated_at=CURRENT_TIMESTAMP WHERE id=?",
+        "UPDATE participants SET telegram_chat_id=?,username=?,first_name=COALESCE(?,first_name),last_name=COALESCE(?,last_name),language_code=COALESCE(?,language_code),updated_at=CURRENT_TIMESTAMP WHERE id=?",
         [chat.id, from.username || null, from.first_name || null, from.last_name || null, from.language_code || null, user.id],
       );
       user = (await client.run("SELECT * FROM participants WHERE id=?", [user.id]))[0] || user;
     } else {
       const id = crypto.randomUUID();
       await client.run(
-        "INSERT INTO participants(id,first_name,last_name,username,telegram_user_id,telegram_chat_id,ui_language,language_code,last_start_at,origin) VALUES(?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,'telegram')",
+        "INSERT INTO participants(id,first_name,last_name,username,telegram_user_id,telegram_chat_id,ui_language,language_code,last_start_at,origin,welcome_premium_granted_at,referral_bonus_until) VALUES(?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,'telegram',CURRENT_TIMESTAMP,strftime('%Y-%m-%dT%H:%M:%SZ','now','+30 days'))",
         [id, from.first_name || "Teilnehmer", from.last_name || "Unbekannt", from.username || null, from.id, chat.id, "de", from.language_code || null],
       );
       await client.run("INSERT OR IGNORE INTO application_preferences(participant_id) VALUES(?)", [id]);
