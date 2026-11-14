@@ -44,7 +44,7 @@ test("stored failed updates replay once and completed payloads are cleared",asyn
   db.close();
 });
 
-test("payload-less and exhausted updates remain untouched",async()=>{
+test("payload-less and exhausted updates are not replayed",async()=>{
   const {db,sql}=database();
   const old="2026-11-13T01:00:00.000Z";
   db.prepare("INSERT INTO telegram_updates(update_id,payload_hash,kind,status,attempts,received_at,processing_at) VALUES(?,?,?,?,?,?,?)")
@@ -55,6 +55,7 @@ test("payload-less and exhausted updates remain untouched",async()=>{
   const result=await recoverTelegramUpdates(sql,{},async()=>{calls++;},new Date("2026-11-13T02:22:00.000Z"));
   assert.deepEqual(result,{scanned:0,completed:0,failed:0});
   assert.equal(calls,0);
+  assert.equal(db.prepare("SELECT payload_json FROM telegram_updates WHERE update_id=21").get().payload_json,null);
   db.close();
 });
 
