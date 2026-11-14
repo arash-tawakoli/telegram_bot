@@ -1,4 +1,4 @@
-import { configureLegacyRuntime, db, chatLanguages, withPlan } from "./runtime.js";
+import { configureLegacyRuntime, db, withPlan } from "./runtime.js";
 import { handleMessage, handleCallback } from "./handlers.js";
 
 export async function handleLegacyTelegramUpdate(env, payload) {
@@ -19,7 +19,6 @@ export async function handleLegacyTelegramUpdate(env, payload) {
   user.request_attempt = claim;
   user.__callback_acked = false;
   if (!user.is_active) return { ok: true, blocked: true };
-  chatLanguages.set(Number(chatId), String(user.ui_language || "de"));
   if (payload.callback_query) await handleCallback(payload.callback_query, user);
   else if (payload.message?.chat?.type === "private" && (payload.message?.text || payload.message?.document || payload.message?.photo)) await handleMessage(payload.message, user);
   return { ok: true };
