@@ -22,7 +22,7 @@ function setup(legacySend) {
     const make = values => ({
       first: async () => sqlite.prepare(query).get(...values) || null,
       run: async () => ({ meta: { changes: Number(sqlite.prepare(query).run(...values).changes) } }),
-      all: async () => { const statement = sqlite.prepare(query); return /^\s*(SELECT|PRAGMA)/i.test(query) || /\bRETURNING\b/i.test(query) ? { results: statement.all(...values) } : { results: [], meta: { changes: Number(statement.run(...values).changes) } }; },
+      all: async () => { const statement = sqlite.prepare(query); return /^\s*(SELECT|WITH|PRAGMA)/i.test(query) || /\bRETURNING\b/i.test(query) ? { results: statement.all(...values) } : { results: [], meta: { changes: Number(statement.run(...values).changes) } }; },
     });
     return { bind: (...values) => make(values), ...make([]) };
   } };
