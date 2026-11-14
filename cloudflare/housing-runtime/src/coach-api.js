@@ -1,5 +1,6 @@
 import { hashPassword, memberForAccess, sha256 } from "./auth.js";
 import { assertAllowedSource } from "./source-allowlist.js";
+import { fetchImmoScoutSource, fetchImmoScoutMap, germanImmoScoutQuery } from "./immoscout-source.js";
 import { issueProviderAuthFlow } from "./provider-facade.js";
 
 const PORTAL_ORIGIN = "https://intern.traumwohnunghamburg.de";
@@ -432,6 +433,24 @@ export async function handleCoach(sql, request, env = {}) {
     await sql.unsafe("UPDATE housing.portal_members SET active = $1, updated_at = now() WHERE id = $2", [Boolean(body.active), memberId]);
     if (!body.active) await sql.unsafe("UPDATE housing.portal_sessions SET revoked_at = now() WHERE member_id = $1 AND revoked_at IS NULL", [memberId]);
     return { ok: true };
+  }
+  if (action === "immoscout_search" || action === "immoscout_map") {
+    // Both German MCP tools are read-only and require an authenticated portal member.
+    const source = assertAllowedSource(body.sourceId);
+    const query = germanImmoScoutQuery(source, body.query);
+    const limit = Number(body.limit ?? (action === "immoscout_map" ? 100 : 25));
+    const maximum = action === "immoscout_map" ? 200 : 25;
+    if (!Number.isInteger(limit) || limit < 1 || limit > maximum) throw new Error("immoscout_limit_invalid");
+    if (action === "immoscout_map") return fetchImmoScoutMap(source, { query, limit });
+    const result = await fetchImmoScoutSource(source, { query });
+    const entries = result.nodes.slice(0, limit).map((node) => ({
+      id: node.identity, url: node.canonical_url, ...node.facts,
+    }));
+    return {
+      sourceId: source.id, tool: "property_search_de", query,
+      total: result.reported_total ?? result.fetched,
+      count: entries.length, entries,
+    };
   }
   if (action === "me") return { member: { id: member.id, displayName: member.display_name, role: member.role }, workspace: { name: "TraumWohnungHamburg" } };
   if (action === "participants") return { participants: await participantRows(sql, member) };
