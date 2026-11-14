@@ -1,7 +1,4 @@
-/**
- * Telegram listing cards use one photo, one caption and the three familiar
- * inline actions. Text/link-preview delivery is intentionally not a fallback.
- */
+/** Shared listing facts and action links for isolated Telegram Mini App cards. */
 const IMAGE_HOSTS = new Set([
   "pictures.immobilienscout24.de", "mms.immowelt.de", "s3.eu-central-1.amazonaws.com",
 ]);
@@ -90,7 +87,7 @@ export function listingCaption(facts) {
     [facts?.postal_code, facts?.city].filter(present).join(" "),
   ].filter(present).join(", ");
   row("📍", "Adresse", address || facts?.city);
-  // Telegram limits photo captions to 1,024 characters after entity parsing.
+  // Keep previews compact while preserving the available property facts.
   while (lines.join("\n").length > 950 && lines.length > 3) lines.pop();
   return lines.join("\n").trim();
 }
@@ -113,61 +110,4 @@ export function listingKeyboard(facts, listingUrl, sourceId, sourceName) {
     [{ text: "⭐ Speichern", url: "https://t.me/share/url?url=" + encodeURIComponent(destination) }],
     [{ text: "🗺️ Google Map", url: "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(location) }],
   ] };
-}
-
-export function listingPhotoRequest(chatId, photo, facts, listingUrl, sourceId, sourceName) {
-  if (!listingImageUrl(photo)) throw new Error("listing_photo_missing");
-  return {
-    chat_id: Number(chatId), photo,
-    caption: listingCaption(facts), parse_mode: "HTML",
-    reply_markup: listingKeyboard(facts, listingUrl, sourceId, sourceName),
-  };
-}
-
-function unsupportedTelegramPhoto(response, data) {
-  if (response.status !== 400) return false;
-  const description = String(data?.description || "");
-  return /failed to get http url content|wrong (?:file|type)|failed to get file|file.*invalid|photo.*invalid|unsupported image/i.test(description);
-}
-
-/** Validate downloaded bytes, not the remote Content-Type or file extension. */
-async function uploadBody(photo, payload, request) {
-  const response = await request(photo, { headers: { accept: "image/*" }, signal: AbortSignal.timeout(7000) });
-  if (!response.ok || Number(response.headers.get("content-length") || 0) > 10_000_000) return null;
-  const bytes = new Uint8Array(await response.arrayBuffer());
-  if (!bytes.length || bytes.length > 10_000_000) return null;
-  const match = (offset, sig) => sig.every((n, i) => bytes[offset + i] === n);
-  const mime = match(0, [255, 216, 255]) ? "image/jpeg"
-    : match(0, [137, 80, 78, 71, 13, 10, 26, 10]) ? "image/png"
-    : match(0, [82, 73, 70, 70]) && match(8, [87, 69, 66, 80]) ? "image/webp" : null;
-  if (!mime) return null;
-  const form = new FormData();
-  form.set("chat_id", String(payload.chat_id));
-  form.set("photo", new Blob([bytes], { type: mime }), "wohnung." + mime.split("/")[1]);
-  form.set("caption", payload.caption);
-  form.set("parse_mode", "HTML");
-  form.set("reply_markup", JSON.stringify(payload.reply_markup));
-  return form;
-}
-
-/**
- * A second Telegram request is allowed only after a definitive 400 image error.
- * Network failures propagate to the caller as unknown outcomes, preventing duplicates.
- */
-export async function sendListingPhoto(token, payload, request = fetch) {
-  const endpoint = "https://api.telegram.org/bot" + token + "/sendPhoto";
-  let response = await request(endpoint, {
-    method: "POST", headers: { "content-type": "application/json" },
-    body: JSON.stringify(payload), signal: AbortSignal.timeout(15000),
-  });
-  let data = await response.json().catch(() => null);
-  if (response.ok && data?.ok === true) return { response, data };
-  if (unsupportedTelegramPhoto(response, data)) {
-    const form = await uploadBody(payload.photo, payload, request).catch(() => null);
-    if (form) {
-      response = await request(endpoint, { method: "POST", body: form, signal: AbortSignal.timeout(15000) });
-      data = await response.json().catch(() => null);
-    }
-  }
-  return { response, data };
 }
