@@ -279,6 +279,21 @@ function storageKey(path) {
   return key;
 }
 async function rpc(client, env, name, args) {
+  if (name === "get_or_create_referral_code") {
+    const participantId = String(args.p_user || "");
+    if (!participantId) return { data: null, error: new Error("referral_user_missing") };
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const existing = (await client.run("SELECT code FROM referral_codes WHERE participant_id=? LIMIT 1", [participantId]))[0];
+      if (existing) return { data: existing, error: null };
+      const code = crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase();
+      await client.run(
+        "INSERT OR IGNORE INTO referral_codes(participant_id,code) SELECT ?,? WHERE EXISTS(SELECT 1 FROM participants WHERE id=?)",
+        [participantId, code, participantId],
+      );
+    }
+    const existing = (await client.run("SELECT code FROM referral_codes WHERE participant_id=? LIMIT 1", [participantId]))[0];
+    return existing ? { data: existing, error: null } : { data: null, error: new Error("referral_code_unavailable") };
+  }
   if (name === "redeem_referral_code") {
     const code = String(args.p_code || "").trim();
     if (!args.p_referred_user_id || !code) return { data: { status: "invalid_code" }, error: null };
@@ -332,7 +347,7 @@ async function rpc(client, env, name, args) {
     let user = found[0];
     if (user) {
       await client.run(
-        "UPDATE participants SET telegram_chat_id=?,username=?,first_name=COALESCE(?,first_name),last_name=COALESCE(?,last_name),language_code=COALESCE(?,language_code),updated_at=CURRENT_TIMESTAMP WHERE id=?",
+        "UPDATE participants SET telegram_chat_id=?,username=?,first_name=COALESCE(?,first_name),last_name=COALESCE(?,last_name),ui_language='de',language_code=COALESCE(?,language_code),updated_at=CURRENT_TIMESTAMP WHERE id=?",
         [chat.id, from.username || null, from.first_name || null, from.last_name || null, from.language_code || null, user.id],
       );
       user = (await client.run("SELECT * FROM participants WHERE id=?", [user.id]))[0] || user;
@@ -340,7 +355,7 @@ async function rpc(client, env, name, args) {
       const id = crypto.randomUUID();
       await client.run(
         "INSERT INTO participants(id,first_name,last_name,username,telegram_user_id,telegram_chat_id,ui_language,language_code,last_start_at,origin) VALUES(?,?,?,?,?,?,?,?,CURRENT_TIMESTAMP,'telegram')",
-        [id, from.first_name || "Teilnehmer", from.last_name || "Unbekannt", from.username || null, from.id, chat.id, from.language_code || "de", from.language_code || null],
+        [id, from.first_name || "Teilnehmer", from.last_name || "Unbekannt", from.username || null, from.id, chat.id, "de", from.language_code || null],
       );
       await client.run("INSERT OR IGNORE INTO application_preferences(participant_id) VALUES(?)", [id]);
       user = (await client.run("SELECT * FROM participants WHERE id=?", [id]))[0];

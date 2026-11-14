@@ -1,5 +1,4 @@
 import { createD1Supabase } from "./d1-supabase.js";
-import { localizeText, localizeMarkup } from "./localization.js";
 
 export let db = null;
 let env = {};
@@ -14,7 +13,6 @@ export const SECRET_TTL_MS = 5 * 60_000;
 export const GEO_TTL_MS = 30 * 60_000;
 export const ADMIN_TELEGRAM_USER_IDS = new Set([8538226539, 414638980]);
 export const secretCache = new Map();
-export const chatLanguages = new Map();
 export let geoCache = null;
 let geographyDatabase = null;
 
@@ -61,10 +59,10 @@ export async function telegram(method, body, retry = true) {
   return result.result;
 }
 
-export function send(chatId, text, replyMarkup) { return telegram("sendMessage", { chat_id: chatId, text: localizeText(text, chatLanguages.get(chatId)), parse_mode: "HTML", disable_web_page_preview: true, reply_markup: localizeMarkup(replyMarkup, chatLanguages.get(chatId)) }); }
+export function send(chatId, text, replyMarkup) { return telegram("sendMessage", { chat_id: chatId, text, parse_mode: "HTML", disable_web_page_preview: true, reply_markup: replyMarkup }); }
 export const PARTY_EFFECT_ID = "5046509860389126442";
-export async function sendCelebration(chatId, text, replyMarkup) { try { return await telegram("sendMessage", { chat_id: chatId, text: localizeText(text, chatLanguages.get(chatId)), parse_mode: "HTML", reply_markup: localizeMarkup(replyMarkup, chatLanguages.get(chatId)), message_effect_id: PARTY_EFFECT_ID }); } catch { return send(chatId, text, replyMarkup); } }
-export async function edit(chatId, messageId, text, replyMarkup) { try { return await telegram("editMessageText", { chat_id: chatId, message_id: messageId, text: localizeText(text, chatLanguages.get(chatId)), parse_mode: "HTML", disable_web_page_preview: true, reply_markup: localizeMarkup(replyMarkup, chatLanguages.get(chatId)) }); } catch (error) { if (/message is not modified/i.test(String(error?.message || error))) return null; return send(chatId, text, replyMarkup); } }
+export async function sendCelebration(chatId, text, replyMarkup) { try { return await telegram("sendMessage", { chat_id: chatId, text, parse_mode: "HTML", reply_markup: replyMarkup, message_effect_id: PARTY_EFFECT_ID }); } catch { return send(chatId, text, replyMarkup); } }
+export async function edit(chatId, messageId, text, replyMarkup) { try { return await telegram("editMessageText", { chat_id: chatId, message_id: messageId, text, parse_mode: "HTML", disable_web_page_preview: true, reply_markup: replyMarkup }); } catch (error) { const reason = String(error?.message || error); if (/message is not modified/i.test(reason)) return null; if (/message (?:to edit )?not found|message can(?:not|\x27t) be edited|there is no text in the message to edit/i.test(reason)) return send(chatId, text, replyMarkup); throw error; } }
 export async function sendPremiumPreview(chatId, caption, replyMarkup) { return send(chatId, caption, replyMarkup); }
 export async function editPremiumPreview(chatId, messageId, caption, replyMarkup) { return edit(chatId, messageId, caption, replyMarkup); }
 export async function acknowledge(id, text) { await telegram("answerCallbackQuery", { callback_query_id: id, ...(text ? { text } : {}) }).catch(() => {}); }
@@ -85,4 +83,4 @@ export async function geography() {
   geoCache = { value, expiresAt: Date.now() + GEO_TTL_MS };
   return value;
 }
-export const HELP_TEXT = "❓ <b>Hilfe & Befehle</b>\n\n🏠 /start – Startmenü\n🔎 /suche – Suchprofil erstellen\n👤 /profile – Suchprofile anzeigen\n⚙️ /einstellungen – Einstellungen\n⏸ /pause – Suche pausieren\n▶️ /resume – Suche fortsetzen\n❓ /hilfe – Hilfe";
+export const HELP_TEXT = "❓ <b>Hilfe & Befehle</b>\n\n🏠 /start – Startmenü\n🔎 /suche – Suchprofil erstellen\n👤 /suchprofile – Suchprofile anzeigen\n⚙️ /einstellungen – Einstellungen\n⏸ /pause – Suche pausieren\n▶️ /fortsetzen – Suche fortsetzen\n❓ /hilfe – Hilfe";

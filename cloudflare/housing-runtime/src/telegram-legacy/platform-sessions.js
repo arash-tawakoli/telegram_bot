@@ -2,6 +2,26 @@ import {db,secret,send,edit,button,telegram,esc,runtimeEnv} from './runtime.js';
 import {encryptProviderCredentials} from '../provider-credentials.js';
 import {providerStaticMissing} from './application-profile-adapters.js';
 
+const userFacingError=(error)=>{
+ const reason=String(error?.message||error||'');
+ const translated={
+  test_mode_forbidden:'Der persönliche Testzugang ist nicht freigegeben.',
+  test_mode_global_auto_apply_active:'Bitte zuerst die reguläre Auto-Bewerbung deaktivieren.',
+  test_mode_profile_incomplete:'Bitte zuerst das Bewerberprofil vervollständigen.',
+  test_mode_search_profile_missing:'Es fehlt ein aktives ImmoScout24-Suchprofil.',
+  test_mode_central_account_unavailable:'Der zentrale ImmoScout24-Testzugang ist derzeit nicht verfügbar.',
+  immomio_email_required:'Bitte im Bewerberprofil zuerst eine gültige E-Mail-Adresse eintragen.',
+  auth_flow_expired:'Der Anmeldelink ist abgelaufen. Bitte erneut verbinden.',
+  invalid_callback_url:'Der Anmeldelink ist ungültig.',
+  provider_operation_not_supported:'Diese Aktion wird für die Plattform nicht unterstützt.',
+  connection_read_failed:'Der Verbindungsstatus konnte nicht geladen werden.',
+  disconnect_failed:'Die Plattformverbindung konnte nicht getrennt werden.',
+  provider_not_allowlisted:'Diese Bewerbungsplattform ist nicht unterstützt.'
+ };
+ if(translated[reason])return translated[reason];
+ return /^[a-z][a-z0-9_]+$/.test(reason)?'Die Aktion konnte nicht abgeschlossen werden. Bitte erneut versuchen.':reason;
+};
+
 const privateOwner=(user,chat)=>chat?.type==='private'&&user.is_active
  && Number(chat.id)===Number(user.telegram_user_id)&&Number(chat.id)===Number(user.chat_id);
 
@@ -101,11 +121,11 @@ const IMMO_REDIRECT='https://tenant.immomio.com/de/auth/login';
 const immoRandom=()=>{let s='';for(const b of crypto.getRandomValues(new Uint8Array(32)))s+=String.fromCharCode(b);return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')};
 const immoChallenge=async value=>btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value))))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 async function immoSso(email){const r=await fetch(IMMO_GQL,{method:'POST',headers:{'content-type':'application/json',accept:'application/json',origin:IMMOMIO_CALLBACK_ORIGIN},body:JSON.stringify({query:IMMO_SSO_QUERY,variables:{email,redirectUri:IMMO_REDIRECT,loginMethod:'DEFAULT'}}),signal:AbortSignal.timeout(20000)});const b=await r.json().catch(()=>null);const s=b?.data?.sso;if(!r.ok||b?.errors?.length||!s)throw Error('immomio_sso_failed');return{sso:s,baseUrl:'https://sso.immomio.com/auth',realm:'immomio',clientId:'immomio-oidc-web'};}
-async function beginImmomioLogin(userId){const p=await db.from('applicant_profiles').select('email').eq('user_id',userId).maybeSingle();const email=String(p.data?.email||'').trim().toLowerCase();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw Error('immomio_email_required');const c=await immoSso(email),verifier=immoRandom(),state=immoRandom().slice(0,40),challenge=await immoChallenge(verifier);await db.from('platform_auth_flows').delete().eq('user_id',userId).eq('provider','immomio').is('consumed_at',null);await db.from('platform_auth_flows').insert({id:crypto.randomUUID(),user_id:userId,provider:'immomio',state,code_verifier:verifier,origin:'telegram',return_target:'telegram',context:{channel:'telegram'},expires_at:new Date(Date.now()+10*60_000).toISOString()});await db.from('platform_connections').upsert({id:crypto.randomUUID(),user_id:userId,provider:'immomio',status:'pending',account_hint:email},{onConflict:'user_id,provider'});const url=new URL(`${c.baseUrl}/realms/${c.realm}/protocol/openid-connect/auth`);for(const[k,v]of Object.entries({client_id:c.clientId,redirect_uri:IMMO_REDIRECT,response_type:'code',scope:'openid profile email',state,code_challenge:challenge,code_challenge_method:'S256',login_hint:email,prompt:'login'}))url.searchParams.set(k,String(v));return{status:'login',url:url.href,expiresInSeconds:600};}
-async function completeImmomioLogin(userId,callbackUrl){let u;try{u=new URL(String(callbackUrl||''));}catch{throw Error('invalid_callback_url')}if(u.protocol!=='https:'||u.hostname!=='tenant.immomio.com'||u.pathname!=='/de/auth/login')throw Error('invalid_callback_url');const state=u.searchParams.get('state'),code=u.searchParams.get('code');if(!state||!code)throw Error('invalid_callback_url');const flow=await db.from('platform_auth_flows').select('*').eq('user_id',userId).eq('provider','immomio').eq('state',state).is('consumed_at',null).gt('expires_at',new Date().toISOString()).maybeSingle();if(flow.error||!flow.data)throw Error('auth_flow_expired');const p=await db.from('applicant_profiles').select('email').eq('user_id',userId).maybeSingle();const email=String(p.data?.email||'').trim().toLowerCase();const c=await immoSso(email);const response=await fetch(`${c.baseUrl}/realms/${c.realm}/protocol/openid-connect/token`,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded',accept:'application/json'},body:new URLSearchParams({grant_type:'authorization_code',code,redirect_uri:IMMO_REDIRECT,code_verifier:String(flow.data.code_verifier),client_id:c.clientId}),signal:AbortSignal.timeout(20000)});const token=await response.json().catch(()=>null);if(!response.ok||!token?.access_token||!token?.refresh_token)throw Error('token_exchange_failed');const expiresAt=new Date(Date.now()+Math.max(60,Number(token.expires_in||300))*1000).toISOString();const credentials={access_token:String(token.access_token),refresh_token:String(token.refresh_token),expires_at:expiresAt,base_url:c.baseUrl,realm:c.realm,client_id:c.clientId,redirect_uri:IMMO_REDIRECT};const encrypted=await encryptProviderCredentials(runtimeEnv(),credentials,userId,'immomio');await db.from('platform_connections').upsert({id:crypto.randomUUID(),user_id:userId,provider:'immomio',status:'connected',ciphertext:encrypted.ciphertext,iv:encrypted.iv,key_version:encrypted.key_version,expires_at:expiresAt,updated_at:new Date().toISOString()},{onConflict:'user_id,provider'});await db.from('platform_auth_flows').update({consumed_at:new Date().toISOString()}).eq('id',flow.data.id);return{status:'connected',authenticated:true};}
+async function beginImmomioLogin(userId){const p=await db.from('applicant_profiles').select('*').eq('user_id',userId).maybeSingle();const email=String(p.data?.email||'').trim().toLowerCase();if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))throw Error('immomio_email_required');const c=await immoSso(email),verifier=immoRandom(),state=immoRandom().slice(0,40),challenge=await immoChallenge(verifier);await db.from('platform_auth_flows').delete().eq('user_id',userId).eq('provider','immomio').is('consumed_at',null);await db.from('platform_auth_flows').insert({id:crypto.randomUUID(),user_id:userId,provider:'immomio',state,code_verifier:verifier,origin:'telegram',return_target:'telegram',context:{channel:'telegram'},expires_at:new Date(Date.now()+10*60_000).toISOString()});await db.from('platform_connections').upsert({id:crypto.randomUUID(),user_id:userId,provider:'immomio',status:'pending',account_hint:email},{onConflict:'user_id,provider'});const url=new URL(`${c.baseUrl}/realms/${c.realm}/protocol/openid-connect/auth`);for(const[k,v]of Object.entries({client_id:c.clientId,redirect_uri:IMMO_REDIRECT,response_type:'code',scope:'openid profile email',state,code_challenge:challenge,code_challenge_method:'S256',login_hint:email,prompt:'login'}))url.searchParams.set(k,String(v));return{status:'login',url:url.href,expiresInSeconds:600};}
+async function completeImmomioLogin(userId,callbackUrl){let u;try{u=new URL(String(callbackUrl||''));}catch{throw Error('invalid_callback_url')}if(u.protocol!=='https:'||u.hostname!=='tenant.immomio.com'||u.pathname!=='/de/auth/login')throw Error('invalid_callback_url');const state=u.searchParams.get('state'),code=u.searchParams.get('code');if(!state||!code)throw Error('invalid_callback_url');const flow=await db.from('platform_auth_flows').select('*').eq('user_id',userId).eq('provider','immomio').eq('state',state).is('consumed_at',null).gt('expires_at',new Date().toISOString()).maybeSingle();if(flow.error||!flow.data)throw Error('auth_flow_expired');const p=await db.from('applicant_profiles').select('*').eq('user_id',userId).maybeSingle();const email=String(p.data?.email||'').trim().toLowerCase();const c=await immoSso(email);const response=await fetch(`${c.baseUrl}/realms/${c.realm}/protocol/openid-connect/token`,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded',accept:'application/json'},body:new URLSearchParams({grant_type:'authorization_code',code,redirect_uri:IMMO_REDIRECT,code_verifier:String(flow.data.code_verifier),client_id:c.clientId}),signal:AbortSignal.timeout(20000)});const token=await response.json().catch(()=>null);if(!response.ok||!token?.access_token||!token?.refresh_token)throw Error('token_exchange_failed');const expiresAt=new Date(Date.now()+Math.max(60,Number(token.expires_in||300))*1000).toISOString();const credentials={access_token:String(token.access_token),refresh_token:String(token.refresh_token),expires_at:expiresAt,base_url:c.baseUrl,realm:c.realm,client_id:c.clientId,redirect_uri:IMMO_REDIRECT};const encrypted=await encryptProviderCredentials(runtimeEnv(),credentials,userId,'immomio');await db.from('platform_connections').upsert({id:crypto.randomUUID(),user_id:userId,provider:'immomio',status:'connected',ciphertext:encrypted.ciphertext,iv:encrypted.iv,key_version:encrypted.key_version,expires_at:expiresAt,updated_at:new Date().toISOString()},{onConflict:'user_id,provider'});await db.from('platform_auth_flows').update({consumed_at:new Date().toISOString()}).eq('id',flow.data.id);return{status:'connected',authenticated:true};}
 
 async function beginCloudflareProviderLogin(userId, provider){
- const p=await db.from('applicant_profiles').select('email').eq('user_id',userId).maybeSingle();
+ const p=await db.from('applicant_profiles').select('*').eq('user_id',userId).maybeSingle();
  const email=String(p.data?.email||'').trim().toLowerCase();
  const state=immoRandom().slice(0,40),verifier=immoRandom();
  await db.from('platform_auth_flows').delete().eq('user_id',userId).eq('provider',provider).is('consumed_at',null);
@@ -260,7 +280,7 @@ async function storeApplicantDocument(user,message,type){
  });
  if(uploadError)throw Error('Dokument konnte nicht sicher gespeichert werden.');
  const {error:insertError}=await db.from('applicant_documents').insert({
-  user_id:user.id,document_type:type,original_filename:original,storage_path:storagePath,
+  id:crypto.randomUUID(),user_id:user.id,document_type:type,original_filename:original,storage_path:storagePath,
   mime_type:mime,size_bytes:bytes.length,send_with_auto_apply:false
  });
  if(insertError){
@@ -284,7 +304,7 @@ async function deleteApplicantDocument(userId,id){
 async function renderApplicantDocuments(user,chat,messageId,notice=''){
  const docs=await readDocuments(user.id),selected=docs.filter(d=>d.send_with_auto_apply).length;
  const render=(text,rows)=>messageId?edit(chat.id,messageId,text,{inline_keyboard:rows}):send(chat.id,text,{inline_keyboard:rows});
- const text=`📎 <b>Bewerberdokumente</b>\n\n${notice?`${notice}\n\n`:''}${docs.length} Datei${docs.length===1?'':'en'} gespeichert · ${selected} für Auto-Bewerbungen ausgewählt.\n\n<b>Dateiversand</b>\nImmoScout24: ausgewählte Unterlagen über einen geschützten Bewerbungslink im Erstkontakt\nImmomio: nativer Upload in dein Tenant-Profil mit technischer Verifikation vor dem Versand\n\nDer geschützte Link enthält einen Snapshot der beim Erstellen ausgewählten Dateien. Späteres Abwählen verändert bereits erstellte Bewerbungen nicht; Löschen einer Datei widerruft den Zugriff auf diese Datei.`;
+ const text=`📎 <b>Bewerberdokumente</b>\n\n${notice?`${notice}\n\n`:''}${docs.length} Datei${docs.length===1?'':'en'} gespeichert · ${selected} für Auto-Bewerbungen ausgewählt.\n\n<b>Dateiversand</b>\nImmoScout24: ausgewählte Unterlagen über einen geschützten Bewerbungslink im Erstkontakt\nImmomio: Dateiupload ist über den aktuellen Cloudflare-Versand noch nicht verfügbar\n\nDer geschützte Link enthält einen Snapshot der beim Erstellen ausgewählten Dateien. Späteres Abwählen verändert bereits erstellte Bewerbungen nicht; Löschen einer Datei widerruft den Zugriff auf diese Datei.`;
  const rows=[
   [button('🪪 WBS','platforms:doc-upload:wbs'),button('🚨 Dringlichkeit','platforms:doc-upload:urgency_certificate')],
   [button('🤝 Bürgschaft','platforms:doc-upload:guarantee'),button('📊 SCHUFA','platforms:doc-upload:schufa')],
@@ -457,7 +477,7 @@ export async function handleAutoApplyMessage(user,message){
     message.reply_to_message?.message_id?telegram('deleteMessage',{chat_id:chat.id,message_id:message.reply_to_message.message_id}).catch(()=>{}):null
    ]);
    return send(chat.id,`✅ ${esc(saved.label)} gespeichert. Die Datei ist standardmäßig <b>nicht</b> für Auto-Bewerbungen ausgewählt.`,{inline_keyboard:[[button('📎 Dokumente verwalten','platforms:docs')],[button('← Bewerberprofil','platforms:profile')]]});
-  }catch(error){return send(chat.id,`⚠️ ${esc(error.message)}`,{inline_keyboard:[[button('📎 Dokumente','platforms:docs')]]});}
+  }catch(error){return send(chat.id,`⚠️ ${esc(userFacingError(error))}`,{inline_keyboard:[[button('📎 Dokumente','platforms:docs')]]});}
  }
 
  if(replied.startsWith(SETUP_PROMPT)){
@@ -509,6 +529,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  const back=[[button('← Automatische Bewerbung','platforms')]];
 
  if(action==='test'){
+  if(!['on','off'].includes(arg)) return platformSessions(user,chat,messageId,'platforms:test-status');
   const enabled=arg==='on';
   try{
    await applicationWorker('set_test_mode',user.id,1,{
@@ -517,11 +538,40 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
    });
    return platformSessions(user,chat,messageId,'platforms');
   }catch(error){
-   return render('⚠️ <b>Testmodus konnte nicht '+(enabled?'aktiviert':'deaktiviert')+' werden</b>\n\n'+esc(error?.message||'Unbekannter Fehler'),[
+   return render('⚠️ <b>Testmodus konnte nicht '+(enabled?'aktiviert':'deaktiviert')+' werden</b>\n\n'+esc(userFacingError(error)),[
     [button(enabled?'Test erneut aktivieren':'Test erneut deaktivieren','platforms:test:'+(enabled?'on':'off'))],
     ...back
    ]);
   }
+ }
+
+ if(action==='test-status'){
+  const {data:state,error}=await db.from('bot_users')
+    .select('test_auto_apply_allowed,test_auto_apply_enabled,test_auto_apply_daily_limit,test_auto_apply_enabled_at,auto_apply_enabled')
+    .eq('id',user.id).single();
+  if(error)throw Error('Teststatus konnte nicht geladen werden.');
+  if(state?.test_auto_apply_allowed!==true)
+    return render('Der persönliche ImmoScout24-Testzugang ist für dieses Konto nicht freigegeben.',back);
+  let central=null;
+  try {
+    central=await runtimeEnv().HOUSING_DB.prepare(
+      "SELECT status,enabled,last_verified_at FROM central_credentials WHERE singleton='central' LIMIT 1"
+    ).first();
+  } catch { /* A missing status is shown as unknown, never as connected. */ }
+  const testEnabled=state.test_auto_apply_enabled===true&&state.auto_apply_enabled!==true;
+  const credentialReady=central?.status==='connected'&&central?.enabled===0;
+  const verifiedAt=central?.last_verified_at?Date.parse(central.last_verified_at):NaN;
+  const lastCheck=Number.isFinite(verifiedAt)
+    ? new Date(verifiedAt).toLocaleString('de-DE')
+    : 'nicht verifiziert';
+  return render('🧪 <b>ImmoScout24 · Persönlicher Testzugang</b>\n\n'
+    +'Testmodus: <b>'+(testEnabled?'Aktiv':'Deaktiviert')+'</b>\n'
+    +'Gespeicherter Zugang: <b>'+(credentialReady?'Verbunden':'Nicht bestätigt')+'</b>\n'
+    +'Letzte Prüfung: '+esc(lastCheck)+'\n'
+    +'Tageslimit: '+Number(state.test_auto_apply_daily_limit||1)+' echte Bewerbung(en)\n\n'
+    +'Der Testzugang nutzt das zentrale NexaLabs-Konto. Die reguläre zentrale Freigabe bleibt dabei deaktiviert. '
+    +'Ob ein Bewerbungsversand erfolgreich war, ist erst nach einer bestätigten Testbewerbung nachgewiesen.',
+    [[button('← Auto-Bewerbung','platforms')]]);
  }
 
  if(action==='profile'){
@@ -668,9 +718,9 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   if(error)throw Error('Dokument konnte nicht geladen werden.');
   if(doc){
    const next=!doc.send_with_auto_apply;
-   const {error:updateError}=await db.from('applicant_documents').update({send_with_auto_apply:next,updated_at:new Date().toISOString()}).eq('id',doc.id).eq('user_id',user.id);
+   const {error:updateError}=await db.from('applicant_documents').update({send_with_auto_apply:next}).eq('id',doc.id).eq('user_id',user.id);
    if(updateError)throw Error('Dokumentauswahl konnte nicht gespeichert werden.');
-   if(!next)await applicationWorker('sync_documents',user.id,3).catch(()=>null);
+   // The current application processor reads selected documents directly from D1.
   }
   return renderApplicantDocuments(user,chat,messageId);
  }
@@ -678,7 +728,6 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   if(!user.is_premium)return render('Bewerberdokumente für Auto-Bewerbungen benötigen Premium.',back);
   try{
    await deleteApplicantDocument(user.id,arg);
-   await applicationWorker('sync_documents',user.id,3).catch(()=>null);
    return renderApplicantDocuments(user,chat,messageId,'Dokument gelöscht.');
   }catch(error){return renderApplicantDocuments(user,chat,messageId,`⚠️ ${esc(error.message)}`);}
  }
@@ -730,10 +779,10 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
        ? '<b>1.</b> Öffne Immomio.\\n<b>2.</b> Melde dich normal an. Der Rücksprung wird automatisch erkannt.'
        : 'Melde dich einmalig an. Danach bleibt die Verbindung gespeichert.';
     const loginLabel=source===4?`🌐 ${name} verbinden`:`🌐 ${name}-Login öffnen`;
-    return render(`🔐 <b>${name} verbinden</b>\n\n${note}`,[[{text:loginLabel,web_app:{url:result.url}}],...back]);
+    return render(`🔐 <b>${name} verbinden</b>\n\n${note}`,[[{text:loginLabel,url:result.url}],...back]);
    }
    return render(result.authenticated===true?`${name}: ✅ Verbindung bestätigt.`:result.authenticated===false?`${name}: Anmeldung erforderlich.`:`${name}: Verbindung gespeichert, aber noch nicht vollständig verifiziert.`,back);
-  }catch(error){return render(error.message,back);}
+  }catch(error){return render(esc(userFacingError(error)),back);}
  }
 
  if(action==='off'||action==='on'){
@@ -783,7 +832,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  for(const sourceId of Object.keys(AUTO_APPLY_PROVIDERS).map(Number)){
   const meta=AUTO_APPLY_PROVIDERS[sourceId],connected=connection(meta.key)?.status==='connected';
   if(testModeEnabled&&sourceId===1){
-   rows.push([button('🧪 ImmoScout24 · Testzugang','noop')]);
+   rows.push([button('🧪 ImmoScout24 · Testzugang','platforms:test-status')]);
    continue;
   }
   rows.push([connected

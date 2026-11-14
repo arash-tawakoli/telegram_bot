@@ -1,16 +1,16 @@
 import { platformSessions, handleAutoApplyMessage } from './platform-sessions.js';
 import { isAdmin, adminGrantLabel, adminPremiumNotice, adminUsers, adminUser, setUserBlocked, deleteUser, setPlanOverride, ANNOUNCEMENT_PROMPT, createAnnouncementDraft, cancelAnnouncement, sendAnnouncement } from "./admin.js";
-import { homeKeyboard, home, premium, setPaused, referralPage, languagePage, settings } from "./navigation.js";
+import { homeKeyboard, home, premium, setPaused, referralPage, settings } from "./navigation.js";
 import { draftFor, validateDraft, renderTypes, renderLocation, renderBoroughs, renderNeighborhoods, renderSchleswigHolsteinAreas, renderRent, renderCustomRent, renderRooms, renderArea, renderReview, renderStep, afterSelection, persistProfile, profileLimit, draftFromProfile, startNewProfile, profileEditMenu, profile, renderStatus, nextSizeStep } from "./profiles.js";
-import { db, PREMIUM_LINK, PROPERTY_TYPES, RENT_PRESETS, ROOM_PRESETS, AREA_PRESETS, NEIGHBORHOODS_PER_PAGE, chatLanguages, button, cancelRow, backRow, secret, telegram, send, sendCelebration, edit, acknowledge, saveState, geography, HELP_TEXT } from "./runtime.js";
+import { db, PREMIUM_LINK, PROPERTY_TYPES, RENT_PRESETS, ROOM_PRESETS, AREA_PRESETS, NEIGHBORHOODS_PER_PAGE, button, cancelRow, backRow, secret, telegram, send, sendCelebration, edit, acknowledge, saveState, geography, HELP_TEXT } from "./runtime.js";
 
 const PUBLIC_COMMANDS = [
     { command: "start", description: "Startmenü" },
     { command: "suche", description: "Suchprofil erstellen" },
-    { command: "profile", description: "Suchprofile anzeigen" },
+    { command: "suchprofile", description: "Suchprofile anzeigen" },
     { command: "einstellungen", description: "Einstellungen" },
     { command: "pause", description: "Suche pausieren" },
-    { command: "resume", description: "Suche fortsetzen" },
+    { command: "fortsetzen", description: "Suche fortsetzen" },
     { command: "status", description: "Systemstatus" },
     { command: "premium", description: "Premium anzeigen" },
     { command: "hilfe", description: "Hilfe" },
@@ -221,7 +221,7 @@ export async function handleMessage(message, user) {
     }
     if (command === "/suche")
         return startNewProfile(user, chatId);
-    if (command === "/profile")
+    if (command === "/suchprofile" || command === "/profile")
         return profile(user, chatId);
     if (command === "/einstellungen" || command === "/settings") {
         return settings(user, chatId);
@@ -230,7 +230,7 @@ export async function handleMessage(message, user) {
         await setPaused(user.id, true);
         return send(chatId, "⏸ Dein Suchprofil ist pausiert.");
     }
-    if (command === "/resume") {
+    if (command === "/fortsetzen" || command === "/resume") {
         await setPaused(user.id, false);
         return send(chatId, "▶️ Dein Suchprofil ist wieder aktiv.");
     }
@@ -498,21 +498,13 @@ export async function handleCallback(query, user) {
         return settings(user, chatId, messageId);
     if (data === "referral")
         return referralPage(user, chatId, messageId);
-    if (data === "language")
-        return languagePage(user, chatId, messageId);
-    if (data.startsWith("lang:")) {
-        const code = data.slice(5);
-        if (!["de", "en", "ckb", "ku", "prs", "fa", "ru", "tr", "ar"].includes(code))
-            return;
-        const { error } = await db.from("bot_users").update({ ui_language: code, updated_at: new Date().toISOString() }).eq("id", user.id);
-        if (error)
-            throw error;
-        chatLanguages.set(chatId, code);
-        return settings({ ...user, ui_language: code }, chatId, messageId);
-    }
+    // Old Telegram messages may still contain a language button.
+    // Route those callbacks to German settings without changing user data.
+    if (data === "language" || data.startsWith("lang:"))
+        return settings(user, chatId, messageId);
     if (data === "help") {
         return edit(chatId, messageId, HELP_TEXT, {
-            inline_keyboard: [[button("← Zurück", "home")]],
+            inline_keyboard: [[button("← Einstellungen", "settings")]],
         });
     }
     if (data === "premium") {
@@ -523,18 +515,16 @@ export async function handleCallback(query, user) {
         return premium(user, chatId, messageId);
     }
     if (data === "portal") {
-        if (query.message?.photo)
-            await telegram("deleteMessage", { chat_id: chatId, message_id: messageId }).catch(() => { });
         const url = await secret("stripe_portal_url").catch(() => null);
         const valid = url && /^https:\/\/billing\.stripe\.com\//.test(url);
-        return edit(chatId, messageId, valid
-            ? "💳 <b>Abo verwalten</b>"
-            : "💳 Das Stripe Customer Portal ist aktuell noch nicht konfiguriert.", {
-            inline_keyboard: [
-                ...(valid ? [[{ text: "💳 Abo verwalten", url }]] : []),
-                [button("← Premium", "premium")],
-            ],
-        });
+        const text = valid ? "💳 <b>Abo verwalten</b>" : "💳 Die Aboverwaltung ist derzeit nicht verfügbar.";
+        const markup = { inline_keyboard: [
+            ...(valid ? [[{ text: "💳 Abo verwalten", url }]] : []),
+            [button("← Premium", "premium")],
+        ] };
+        return query.message?.photo
+            ? send(chatId, text, markup)
+            : edit(chatId, messageId, text, markup);
     }
     if (data === "pause") {
         await setPaused(user.id, true);
