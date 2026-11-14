@@ -704,25 +704,14 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  if(action==='pause'||action==='resume'){
   if(!user.is_premium)return render('Auto-Bewerbungen benötigen aktives Premium.',back);
   const meta=AUTO_APPLY_PROVIDERS[source];if(!meta)return;
-  const {data:newer,error:newerError}=await db.from('bot_events')
-   .select('telegram_update_id,payload')
-   .eq('telegram_user_id',user.telegram_user_id)
-   .gt('telegram_update_id',Number(user.request_update_id||0))
-   .order('telegram_update_id',{ascending:false})
-   .limit(20);
-  if(newerError)throw Error('Plattform konnte nicht aktualisiert werden.');
-  const superseded=(newer||[]).some(event=>{
-   const value=String(event?.payload?.callback_query?.data||'');
-   return value===`platforms:pause:${source}`||value===`platforms:resume:${source}`;
+  const {error}=await db.rpc('set_application_provider_enabled_shared',{
+   p_user:user.id,
+   p_provider:meta.key,
+   p_enabled:action==='resume',
+   p_update_id:user.request_update_id,
+   p_telegram_user_id:user.telegram_user_id
   });
-  if(!superseded){
-   const {error}=await db.rpc('set_application_provider_enabled_shared',{
-    p_user:user.id,
-    p_provider:meta.key,
-    p_enabled:action==='resume'
-   });
-   if(error)throw Error(action==='resume'?'Plattform konnte nicht fortgesetzt werden.':'Plattform konnte nicht pausiert werden.');
-  }
+  if(error)throw Error(action==='resume'?'Plattform konnte nicht fortgesetzt werden.':'Plattform konnte nicht pausiert werden.');
  }
 
  if(action==='login'||action==='disconnect'||action==='check'){
@@ -748,39 +737,37 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  }
 
  if(action==='off'||action==='on'){
-  const {data:newer,error:newerError}=await db.from('bot_events')
-   .select('telegram_update_id,payload')
-   .eq('telegram_user_id',user.telegram_user_id)
-   .gt('telegram_update_id',Number(user.request_update_id||0))
-   .order('telegram_update_id',{ascending:false})
-   .limit(20);
-  if(newerError)throw Error('Auto-Bewerbung konnte nicht aktualisiert werden.');
-  const superseded=(newer||[]).some(event=>['platforms:on','platforms:off'].includes(String(event?.payload?.callback_query?.data||'')));
-  if(!superseded){
-   if(action==='off'){
-    const {error}=await db.rpc('set_application_enabled_shared',{p_user:user.id,p_enabled:false});
-    if(error)throw Error('Auto-Bewerbung konnte nicht deaktiviert werden.');
+  if(action==='off'){
+   const {error}=await db.rpc('set_application_enabled_shared',{
+    p_user:user.id,p_enabled:false,
+    p_update_id:user.request_update_id,
+    p_telegram_user_id:user.telegram_user_id
+   });
+   if(error)throw Error('Auto-Bewerbung konnte nicht deaktiviert werden.');
+  }
+  if(action==='on'){
+   if(!user.is_premium)return render('Auto-Bewerbungen benötigen aktives Premium.',back);
+   const {data:missing,error:missingError}=await db.rpc('application_profile_missing_fields',{p_user:user.id});
+   if(missingError)throw Error('Bewerberprofil konnte nicht geprüft werden.');
+   if(Array.isArray(missing)&&missing.length){
+    const preview=missing.slice(0,8).map(v=>`• ${esc(v)}`).join('\n'),more=missing.length>8?`\n• … und ${missing.length-8} weitere`:'';
+    return render(`⚠️ <b>Bewerberprofil unvollständig</b>\n\nVervollständige zuerst alle mit * markierten Pflichtfeldern.\n\n${preview}${more}`,[[button('👤 Bewerberprofil vervollständigen','platforms:profile')],...back]);
    }
-   if(action==='on'){
-    if(!user.is_premium)return render('Auto-Bewerbungen benötigen aktives Premium.',back);
-    const {data:missing,error:missingError}=await db.rpc('application_profile_missing_fields',{p_user:user.id});
-    if(missingError)throw Error('Bewerberprofil konnte nicht geprüft werden.');
-    if(Array.isArray(missing)&&missing.length){
-     const preview=missing.slice(0,8).map(v=>`• ${esc(v)}`).join('\n'),more=missing.length>8?`\n• … und ${missing.length-8} weitere`:'';
-     return render(`⚠️ <b>Bewerberprofil unvollständig</b>\n\nVervollständige zuerst alle mit * markierten Pflichtfelder.\n\n${preview}${more}`,[[button('👤 Bewerberprofil vervollständigen','platforms:profile')],...back]);
-    }
-    const {error}=await db.rpc('set_application_enabled_shared',{p_user:user.id,p_enabled:true});
-    if(error){
-     const reason=String(error.message||'');
-     const message=reason.includes('test_mode_active')
-      ? 'Deaktiviere zuerst den persönlichen Testmodus.'
-      : reason.includes('provider_required')
-       ? 'Verbinde zuerst mindestens eine Bewerbungsplattform.'
-       : reason.includes('profile_incomplete')
-        ? 'Im Bewerberprofil fehlen noch Pflichtfelder.'
-        : 'Der globale Auto-Bewerbungs-Schalter konnte nicht gespeichert werden. Bitte prüfe die Verbindung und versuche es erneut.';
-     return render(`⚠️ <b>Auto-Bewerbung nicht aktiviert</b>\n\n${message}`,[[button('👤 Bewerberprofil','platforms:profile')],...back]);
-    }
+   const {error}=await db.rpc('set_application_enabled_shared',{
+    p_user:user.id,p_enabled:true,
+    p_update_id:user.request_update_id,
+    p_telegram_user_id:user.telegram_user_id
+   });
+   if(error){
+    const reason=String(error.message||'');
+    const message=reason.includes('test_mode_active')
+     ? 'Deaktiviere zuerst den persönlichen Testmodus.'
+     : reason.includes('provider_required')
+      ? 'Verbinde zuerst mindestens eine Bewerbungsplattform.'
+      : reason.includes('profile_incomplete')
+       ? 'Im Bewerberprofil fehlen noch Pflichtfelder.'
+       : 'Der globale Auto-Bewerbungs-Schalter konnte nicht gespeichert werden. Bitte prüfe die Verbindung und versuche es erneut.';
+    return render(`⚠️ <b>Auto-Bewerbung nicht aktiviert</b>\n\n${message}`,[[button('👤 Bewerberprofil','platforms:profile')],...back]);
    }
   }
  }
