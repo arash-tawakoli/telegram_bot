@@ -410,7 +410,7 @@ export async function handleAutoApplyMessage(user,message){
     ? {[name]:value,move_in_preference:'EXACT_DATE',updated_at:new Date().toISOString()}
     : {[name]:value,updated_at:new Date().toISOString()};
    const {error}=await db.from('applicant_profiles').update(patch).eq('user_id',user.id);if(error)throw Error('Änderung konnte nicht gespeichert werden.');
-   await celebrateFirstApplicant(user,chat);
+   if(name==='first_name'||name==='last_name')await celebrateFirstApplicant(user,chat);
    await Promise.all([telegram('deleteMessage',{chat_id:chat.id,message_id:message.message_id}).catch(()=>{}),message.reply_to_message?.message_id?telegram('deleteMessage',{chat_id:chat.id,message_id:message.reply_to_message.message_id}).catch(()=>{}):null]);
    const editMessageId=Number(user.onboarding_state?._applicant_message_id||0);
    if(pendingField){
