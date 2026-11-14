@@ -315,6 +315,56 @@ async function rpc(client, env, name, args) {
     );
     return { data: { first_time: claimed.count === 1, complete: true }, error: null };
   }
+  if (name === "reset_applicant_profile_and_pause_auto_apply") {
+    const userId = String(args.p_user || "");
+    const telegramId = Number(args.p_telegram_user_id);
+    const token = String(args.p_confirmation_token || "");
+    if (!userId || !Number.isSafeInteger(telegramId) || telegramId < 1 || !/^[a-f0-9]{12}$/.test(token))
+      return { data: null, error: new Error("profile_reset_invalid") };
+
+    const oldestAllowed = Date.now() - 10 * 60_000;
+    const gate = `EXISTS (
+      SELECT 1 FROM participants WHERE id=? AND telegram_user_id=? AND status='active'
+        AND json_extract(telegram_state,'$._applicant_clear_token')=?
+        AND CAST(json_extract(telegram_state,'$._applicant_clear_issued_at') AS INTEGER)>=?
+    )`;
+    const guard = [userId, telegramId, token, oldestAllowed];
+    const results = await client.batch([
+      {
+        query: `UPDATE applicant_profiles
+          SET profile=CASE WHEN json_valid(profile) THEN json_object(
+            'message_apartment',json_extract(profile,'$.message_apartment'),
+            'message_house',json_extract(profile,'$.message_house'))
+            ELSE '{}' END,updated_at=CURRENT_TIMESTAMP
+          WHERE participant_id=? AND ${gate}`,
+        params: [userId, ...guard],
+      },
+      {
+        query: `INSERT OR IGNORE INTO application_preferences(participant_id)
+          SELECT ? WHERE ${gate}`,
+        params: [userId, ...guard],
+      },
+      {
+        query: `UPDATE application_preferences SET enabled=0,immoscout_enabled=0,
+          immowelt_enabled=0,immomio_enabled=0,updated_at=CURRENT_TIMESTAMP
+          WHERE participant_id=? AND ${gate}`,
+        params: [userId, ...guard],
+      },
+      {
+        query: `UPDATE participants SET auto_apply_enabled=0,test_auto_apply_enabled=0,
+          test_auto_apply_disabled_at=CASE WHEN test_auto_apply_enabled=1 THEN CURRENT_TIMESTAMP
+            ELSE test_auto_apply_disabled_at END,
+          telegram_state=json_remove(telegram_state,
+            '$._applicant_clear_token','$._applicant_clear_issued_at',
+            '$._applicant_field','$._applicant_message_id','$._applicant_prompt_message_id'),
+          updated_at=CURRENT_TIMESTAMP WHERE id=? AND ${gate}`,
+        params: [userId, ...guard],
+      },
+    ]);
+    if (Number(results?.[3]?.meta?.changes || 0) !== 1)
+      return { data: null, error: new Error("profile_reset_confirmation_expired") };
+    return { data: { cleared: true, auto_apply_paused: true }, error: null };
+  }
   if (name === "set_telegram_auto_apply_sources") {
     const userId = String(args.p_user || "");
     const providerColumns = { immoscout24: "immoscout_enabled", immowelt: "immowelt_enabled", immomio: "immomio_enabled" };

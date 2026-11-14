@@ -274,7 +274,7 @@ async function renderApplicantProfile(user,chat,messageId,notice=''){
   [f('household_type','Haushalt'),f('employment_status','Beschäftigung')],
   [f('income_range','Einkommen'),f('pets','Haustiere')],
   [f('move_in_preference','Einzugstermin')],
-  [button('✍️ Bewerbungstext','platforms:profile-texts')],
+  [button('✍️ Bewerbungstext ändern','platforms:profile-texts')],
   [button('👁 Profilvorschau','platforms:profile-preview')],
   [button('← Start','home')]
  ];
@@ -298,31 +298,32 @@ async function renderApplicantProfilePreview(user,chat,messageId){
   +(pending.length?'⚠️ '+pending.length+' Angaben fehlen noch.':'✅ Pflichtangaben vollständig.')+'\n\n';
  const body=values.map(([label,value])=>'<b>'+esc(label)+':</b> '+esc(value)).join('\n');
  const markup={inline_keyboard:[
-  [button('✍️ Bewerbungstext','platforms:profile-texts')],
+  [button('✍️ Bewerbungstext ändern','platforms:preview-texts')],
+  [button('🗑 Angaben löschen','platforms:profile-clear')],
   [button('← Bewerberprofil','platforms:profile')]
  ]};
  return messageId?edit(chat.id,messageId,title+body,markup):send(chat.id,title+body,markup);
 }
 
-async function renderApplicationTexts(user,chat,messageId){
- const p=await ensureApplicantProfile(user.id);
+async function renderApplicationTexts(user,chat,messageId,fromPreview=false){
+ await ensureApplicantProfile(user.id);
  const render=(text,rows)=>messageId?edit(chat.id,messageId,text,{inline_keyboard:rows}):send(chat.id,text,{inline_keyboard:rows});
- const entry=(name,label)=>button(label,'platforms:profile-text:'+name);
+ const entry=(name,label)=>button(label,'platforms:'+(fromPreview?'preview-text:':'profile-text:')+name);
  return render('✍️ <b>Bewerbungstext</b>\n\nSchreibe oder passe deinen Bewerbungstext für den Vermieter an.',[
   [entry('message_apartment','🏢 Wohnung'),entry('message_house','🏡 Haus')],
-  [button('← Bewerberprofil','platforms:profile')]
+  [button(fromPreview?'← Profilvorschau':'← Bewerberprofil',fromPreview?'platforms:profile-preview':'platforms:profile')]
  ]);
 }
 
-async function renderApplicationTextDetail(user,chat,messageId,name){
- if(!['message_apartment','message_house'].includes(name))return renderApplicationTexts(user,chat,messageId);
+async function renderApplicationTextDetail(user,chat,messageId,name,fromPreview=false){
+ if(!['message_apartment','message_house'].includes(name))return renderApplicationTexts(user,chat,messageId,fromPreview);
  const p=await ensureApplicantProfile(user.id);
  const label=name==='message_house'?'Haus':'Wohnung';
  const raw=String(p[name]??'').trim()||DEFAULT_APPLICATION_TEXT;
  const visible=resolveApplicationText(raw,p.first_name).slice(0,3200);
  const markup={inline_keyboard:[
-  [button('✏️ Bewerbungstext bearbeiten','platforms:profile-field:'+name)],
-  [button('← Bewerbungstext','platforms:profile-texts')]
+  [button('✏️ Bewerbungstext bearbeiten','platforms:'+(fromPreview?'preview-edit:':'profile-field:')+name)],
+  [button('← Bewerbungstext','platforms:'+(fromPreview?'preview-texts':'profile-texts'))]
  ]};
  return messageId?edit(chat.id,messageId,'✍️ <b>Bewerbungstext · '+label+'</b>\n\n<blockquote>'+esc(visible)+'</blockquote>',markup):
   send(chat.id,'✍️ <b>Bewerbungstext · '+label+'</b>\n\n<blockquote>'+esc(visible)+'</blockquote>',markup);
@@ -335,21 +336,24 @@ async function clearPendingField(user,chat){
  delete state._applicant_field;
  delete state._applicant_message_id;
  delete state._applicant_prompt_message_id;
+ delete state._applicant_text_origin;
  const {error}=await db.rpc('save_ui_state',{p_user:user.id,p_step:user.onboarding_step||null,p_state:state});
  if(error)throw Error('Profilnavigation konnte nicht gespeichert werden.');
  if(promptId>0&&chat?.id)await telegram('deleteMessage',{chat_id:chat.id,message_id:promptId}).catch(()=>{});
 }
 
-async function showFieldInput(user,chat,messageId,name){
+async function showFieldInput(user,chat,messageId,name,fromPreview=false){
  const meta=PROFILE_FIELDS[name];
  if(!meta)return renderApplicantProfile(user,chat,messageId);
  const state={...(user.onboarding_state||{}),_applicant_field:name,_applicant_message_id:Number(messageId)};
+ if(fromPreview)state._applicant_text_origin='preview';
+ else delete state._applicant_text_origin;
  const {error}=await db.rpc('save_ui_state',{p_user:user.id,p_step:user.onboarding_step||null,p_state:state});
  if(error)throw Error('Profileingabe konnte nicht gestartet werden.');
  const text='👤 <b>'+esc(meta.label)+'</b>\n\n'+fieldPrompt(name)
   +'\n\nSende den neuen Wert als nächste Nachricht im Chat.';
  const isText=name==='message_apartment'||name==='message_house';
- const back=[button(isText?'← Bewerbungstext':'← Bewerberprofil',isText?'platforms:profile-texts':'platforms:profile')];
+ const back=[button(isText?'← Bewerbungstext':'← Bewerberprofil',isText?(fromPreview?'platforms:preview-texts':'platforms:profile-texts'):'platforms:profile')];
  const rendered=messageId?await edit(chat.id,messageId,text,{inline_keyboard:[back]})
   :await send(chat.id,text,{inline_keyboard:[back]});
  if(isText){
@@ -459,13 +463,13 @@ export async function handleAutoApplyMessage(user,message){
      await clearPendingField(user,chat);
      if(editMessageId>0){
        response=name.startsWith('message_')
-         ? await renderApplicationTextDetail(user,chat,editMessageId,name)
+         ? await renderApplicationTextDetail(user,chat,editMessageId,name,user.onboarding_state?._applicant_text_origin==='preview')
          : await renderApplicantProfile(user,chat,editMessageId,'✅ '+PROFILE_FIELDS[name].label+' gespeichert.');
      }
    }
    if(!response){
     const messageField=name.startsWith('message_');
-    response=await send(chat.id,`✅ ${esc(PROFILE_FIELDS[name].label)} gespeichert.`,{inline_keyboard:[[button(messageField?'✍️ Vorschau öffnen':'👤 Bewerberprofil',messageField?`platforms:profile-text:${name}`:'platforms:profile')],[button('← Automatische Bewerbung','platforms')]]});
+    response=await send(chat.id,`✅ ${esc(PROFILE_FIELDS[name].label)} gespeichert.`,{inline_keyboard:[[button(messageField?'✍️ Vorschau öffnen':'👤 Bewerberprofil',messageField?`platforms:${user.onboarding_state?._applicant_text_origin==='preview'?'preview-text':'profile-text'}:${name}`:'platforms:profile')],[button('← Automatische Bewerbung','platforms')]]});
    }
    await offerCompletedApplicantActivation(user,chat,completedFieldChanged(previous,patch));
    return response;
@@ -555,31 +559,71 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
     [[button('← Auto-Bewerbung','platforms')]]);
  }
 
+ if(user.onboarding_state?._applicant_clear_token && action!=='profile-clear' && action!=='profile-clear-confirm'){
+  const state={...user.onboarding_state};
+  delete state._applicant_clear_token;
+  delete state._applicant_clear_issued_at;
+  const result=await db.rpc('save_ui_state',{p_user:user.id,p_step:user.onboarding_step||null,p_state:state});
+  if(result.error)throw Error('Profilnavigation konnte nicht gespeichert werden.');
+  user={...user,onboarding_state:state};
+ }
+
+ if(action==='profile-clear'){
+  await clearPendingField(user,chat);
+  const token=crypto.randomUUID().replace(/-/g,'').slice(0,12);
+  const state={...(user.onboarding_state||{}),_applicant_clear_token:token,_applicant_clear_issued_at:Date.now()};
+  delete state._applicant_field;
+  delete state._applicant_message_id;
+  delete state._applicant_prompt_message_id;
+  delete state._applicant_text_origin;
+  const {error}=await db.rpc('save_ui_state',{p_user:user.id,p_step:user.onboarding_step||null,p_state:state});
+  if(error)throw Error('Löschbestätigung konnte nicht geöffnet werden.');
+  return render('🗑 <b>Angaben wirklich löschen?</b>\n\nAlle persönlichen Eingaben im Bewerberprofil einschließlich SCHUFA und Einzugstermin werden gelöscht. Die Auto-Bewerbung und alle drei Quellen werden pausiert. Deine Bewerbungstexte bleiben erhalten.',[
+   [button('🗑 Ja, Angaben löschen','platforms:profile-clear-confirm:'+token)],
+   [button('← Profilvorschau','platforms:profile-preview')]
+  ]);
+ }
+ if(action==='profile-clear-confirm'){
+  const {error}=await db.rpc('reset_applicant_profile_and_pause_auto_apply',{
+   p_user:user.id,p_telegram_user_id:user.telegram_user_id,p_confirmation_token:arg
+  });
+  if(error)return render('⚠️ Diese Löschbestätigung ist ungültig oder abgelaufen. Bitte starte das Löschen erneut.',[
+   [button('← Profilvorschau','platforms:profile-preview')]
+  ]);
+  return renderApplicantProfile(user,chat,messageId,'✅ Angaben gelöscht. Automatische Bewerbung und alle drei Quellen pausiert.');
+ }
+
+ if(action==='preview-texts'){
+  await clearPendingField(user,chat);
+  return renderApplicationTexts(user,chat,messageId,true);
+ }
+ if(action==='preview-text'){
+  return renderApplicationTextDetail(user,chat,messageId,arg,true);
+ }
+ if(action==='preview-edit'){
+  if(!['message_apartment','message_house'].includes(arg))return renderApplicationTexts(user,chat,messageId,true);
+  return showFieldInput(user,chat,messageId,arg,true);
+ }
+
  if(action==='profile'){
-  if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
   await clearPendingField(user,chat);
   return renderApplicantProfile(user,chat,messageId);
  }
  if(action==='profile-new'){
-  if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
   await ensureApplicantProfile(user.id);
   return renderApplicantProfile(user,chat,messageId);
  }
  if(action==='profile-preview'){
-  if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
   return renderApplicantProfilePreview(user,chat,messageId);
  }
  if(action==='profile-texts'){
-  if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
   await clearPendingField(user,chat);
   return renderApplicationTexts(user,chat,messageId);
  }
  if(action==='profile-text'){
-  if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
   return renderApplicationTextDetail(user,chat,messageId,arg);
  }
  if(action==='profile-field'){
-  if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
   const current=await ensureApplicantProfile(user.id);
   const mark=(value,selected,label)=>value===selected?`✅ ${label}`:label;
   if(arg==='salutation'){
@@ -654,7 +698,6 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   return showFieldInput(user,chat,messageId,arg);
  }
  if(action==='profile-set'){
-  if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
   const previous=await ensureApplicantProfile(user.id);
   let patch=null;
   if(arg==='salutation'){
@@ -710,8 +753,18 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  }
 
  if(action==='pause'||action==='resume'){
-  if(action==='resume'&&!user.is_premium)return render('Auto-Bewerbungen benötigen aktives Premium.',back);
   const meta=AUTO_APPLY_PROVIDERS[source];if(!meta)return;
+  if(action==='resume'){
+   const {data:missing,error:profileError}=await db.rpc('application_profile_missing_fields',{p_user:user.id});
+   if(profileError)throw Error('Bewerberprofil konnte nicht geprüft werden.');
+   if(Array.isArray(missing)&&missing.length){
+    return render('⚠️ <b>Bewerberprofil unvollständig</b>\n\nBitte vervollständige zuerst dein Bewerberprofil, damit Auto-Bewerbungen gestartet werden können.',[
+     [button('👤 Bewerberprofil vervollständigen','platforms:profile')],
+     ...back
+    ]);
+   }
+   if(!user.is_premium)return render('Auto-Bewerbungen benötigen aktives Premium.',back);
+  }
   const {error}=await db.rpc('set_telegram_auto_apply_sources',{
    p_user:user.id,
    p_provider:meta.key,
@@ -719,11 +772,16 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
    p_update_id:user.request_update_id,
    p_telegram_user_id:user.telegram_user_id
   });
-  if(error)return render(String(error.message||'').includes('profile_incomplete')
-   ? 'Bitte vervollständige zuerst dein Bewerberprofil.'
-   : String(error.message||'').includes('test_mode_active')
-   ? 'Bitte deaktiviere zuerst den persönlichen Testmodus.'
-   : 'Die Quelle konnte nicht aktualisiert werden.',[[button('👤 Bewerberprofil','platforms:profile')],...back]);
+  if(error){
+   const reason=String(error.message||'');
+   if(reason.includes('profile_incomplete'))return render('⚠️ <b>Bewerberprofil unvollständig</b>\n\nBitte vervollständige zuerst dein Bewerberprofil.',[
+    [button('👤 Bewerberprofil vervollständigen','platforms:profile')],
+    ...back
+   ]);
+   return render(reason.includes('test_mode_active')
+    ? 'Bitte deaktiviere zuerst den persönlichen Testmodus.'
+    : 'Die Quelle konnte nicht aktualisiert werden.',back);
+  }
  }
 
  if(action==='login'||action==='disconnect'||action==='check'){
