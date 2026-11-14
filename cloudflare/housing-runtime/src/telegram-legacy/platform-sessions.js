@@ -753,8 +753,18 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  }
 
  if(action==='pause'||action==='resume'){
-  if(action==='resume'&&!user.is_premium)return render('Auto-Bewerbungen benötigen aktives Premium.',back);
   const meta=AUTO_APPLY_PROVIDERS[source];if(!meta)return;
+  if(action==='resume'){
+   const {data:missing,error:profileError}=await db.rpc('application_profile_missing_fields',{p_user:user.id});
+   if(profileError)throw Error('Bewerberprofil konnte nicht geprüft werden.');
+   if(Array.isArray(missing)&&missing.length){
+    return render('⚠️ <b>Bewerberprofil unvollständig</b>\n\nBitte vervollständige zuerst dein Bewerberprofil, damit Auto-Bewerbungen gestartet werden können.',[
+     [button('👤 Bewerberprofil vervollständigen','platforms:profile')],
+     ...back
+    ]);
+   }
+   if(!user.is_premium)return render('Auto-Bewerbungen benötigen aktives Premium.',back);
+  }
   const {error}=await db.rpc('set_telegram_auto_apply_sources',{
    p_user:user.id,
    p_provider:meta.key,
@@ -762,11 +772,16 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
    p_update_id:user.request_update_id,
    p_telegram_user_id:user.telegram_user_id
   });
-  if(error)return render(String(error.message||'').includes('profile_incomplete')
-   ? 'Bitte vervollständige zuerst dein Bewerberprofil.'
-   : String(error.message||'').includes('test_mode_active')
-   ? 'Bitte deaktiviere zuerst den persönlichen Testmodus.'
-   : 'Die Quelle konnte nicht aktualisiert werden.',[[button('👤 Bewerberprofil','platforms:profile')],...back]);
+  if(error){
+   const reason=String(error.message||'');
+   if(reason.includes('profile_incomplete'))return render('⚠️ <b>Bewerberprofil unvollständig</b>\n\nBitte vervollständige zuerst dein Bewerberprofil.',[
+    [button('👤 Bewerberprofil vervollständigen','platforms:profile')],
+    ...back
+   ]);
+   return render(reason.includes('test_mode_active')
+    ? 'Bitte deaktiviere zuerst den persönlichen Testmodus.'
+    : 'Die Quelle konnte nicht aktualisiert werden.',back);
+  }
  }
 
  if(action==='login'||action==='disconnect'||action==='check'){
