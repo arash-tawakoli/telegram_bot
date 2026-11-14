@@ -110,7 +110,24 @@ export async function ensureTelegramWebhook(env) {
   return { ok: true, url: TELEGRAM_WEBHOOK_URL };
 }
 
-async function telegramWebhook(request, env) {
+async function acknowledgeTelegramCallbackEarly(env, callbackId) {
+  if (!env.TELEGRAM_BOT_TOKEN || !callbackId) return false;
+  try {
+    const response = await fetch("https://api.telegram.org/bot"+env.TELEGRAM_BOT_TOKEN+"/answerCallbackQuery",{
+      method:"POST",
+      headers:{"content-type":"application/json"},
+      body:JSON.stringify({callback_query_id:callbackId}),
+      signal:AbortSignal.timeout(5000),
+    });
+    const result=await response.json().catch(()=>null);
+    return response.ok && result?.ok===true;
+  }catch(error){
+    console.error("telegram_early_callback_ack_failed",String(error?.message||error).slice(0,120));
+    return false;
+  }
+}
+
+async function telegramWebhook(request, env, ctx) {
   const expected = env.TELEGRAM_WEBHOOK_SECRET;
   if (!expected || !await sameSecret(request.headers.get("x-telegram-bot-api-secret-token") || "", expected)) {
     return json({ error: "unauthorized" }, 401);
@@ -123,6 +140,16 @@ async function telegramWebhook(request, env) {
   const updateId = Number(update?.update_id);
   if (!Number.isSafeInteger(updateId) || updateId < 0) return json({ error: "invalid_update" }, 400);
   const kind = update?.callback_query ? "callback_query" : update?.message ? "message" : "other";
+  // Start the Telegram spinner acknowledgement before D1 claims, activity
+  // writes, identity reads, and UI rendering. Admin actions retain their
+  // action-specific acknowledgement messages.
+  if (kind==="callback_query" && ctx?.waitUntil && update.callback_query?.id
+    && !String(update.callback_query.data||"").startsWith("admin:")) {
+    const earlyAck=acknowledgeTelegramCallbackEarly(env,String(update.callback_query.id));
+    update.__earlyCallbackAck=earlyAck;
+    ctx.waitUntil(earlyAck);
+  }
+  const started=performance.now();
   const hash = await sha256(body);
   const processingAt = new Date().toISOString();
   const sql = databaseClient(env);
@@ -135,9 +162,15 @@ async function telegramWebhook(request, env) {
       RETURNING update_id
     `;
     if (!claimed.length) return json({ ok: true, duplicate: true });
+    const claimMs=Math.round(performance.now()-started);
     await recordTelegramActivity(sql, update, processingAt);
+    const activityMs=Math.round(performance.now()-started)-claimMs;
     const result = await handleLegacyTelegramUpdate(env, update);
+    const uiMs=Math.round(performance.now()-started)-claimMs-activityMs;
     await sql`UPDATE housing.telegram_updates SET status = 'completed', completed_at = ${processingAt}, processing_at = NULL, payload_json = NULL, last_error = NULL WHERE update_id = ${updateId}`;
+    const totalMs=Math.round(performance.now()-started);
+    if(kind==="callback_query" && totalMs>1200)
+      console.warn("telegram_slow_callback",JSON.stringify({claim_ms:claimMs,activity_ms:activityMs,ui_ms:uiMs,total_ms:totalMs}));
     return json(result);
   } catch (error) {
     await sql`UPDATE housing.telegram_updates SET status = 'failed', processing_at = ${processingAt}, last_error = ${String(error?.message || error).slice(0, 500)} WHERE update_id = ${updateId}`.catch(() => {});
@@ -449,7 +482,7 @@ export async function handleAuth(sql, request, env = {}) {
 }
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const routePath = url.pathname.startsWith("/edge/") ? url.pathname.slice("/edge".length) : url.pathname;
 
@@ -487,7 +520,7 @@ export default {
     }
 
     if ((url.pathname === "/telegram/webhook" || routePath === "/telegram/webhook") && request.method === "POST") {
-      try { return await telegramWebhook(request, env); }
+      try { return await telegramWebhook(request, env, ctx); }
       catch (error) { console.error("housing_telegram_webhook_failed", String(error?.message || error)); return json({ error: "telegram_unavailable" }, 503); }
     }
 
