@@ -771,6 +771,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
 
  let testSection='';
  if(state.test_auto_apply_allowed===true){
+  rows.push([button('🧪 ImmoScout24 · Testzugang','platforms:test-status')]);
   const {data:testApps,error:testAppsError}=await db.from('applications')
    .select('id,status,last_error,sent_at,created_at,listing_id,test_mode')
    .eq('user_id',user.id).eq('test_mode',true)
