@@ -53,3 +53,11 @@ test("scheduled application processing ignores the historical pending backlog", 
   await processHousingApplication(db.query, { APPLICATION_RUN_TOKEN: "secret" }, new Request("https://runtime.test/internal/application/process?fresh_only=1", { method: "POST", headers: { authorization: "Bearer secret" } }));
   assert.match(db.writes[2].text, /oi\.first_seen_at >= cutover\.enabled_at/);
 });
+
+test("normal applications stay blocked while personal test mode is enabled", async () => {
+  const db = sqlFor({ id:"app-test", participant_id:"user-1", offer_identity_id:"offer-1", canonical_url:"https://www.immobilienscout24.de/expose/123456789", provider:"immoscout24", status:"pending", test_mode:0, test_auto_apply_enabled:1 });
+  const result = await processHousingApplication(db.query, { APPLICATION_RUN_TOKEN:"secret" }, new Request("https://runtime.test/internal/application/process", { method:"POST", headers:{ authorization:"Bearer secret" } }));
+  assert.equal(result.body.status, "manual_required");
+  assert.equal(result.body.reason, "test_mode_active");
+  assert.equal(db.writes.some(({text}) => /SET submission_started_at = now\(\)/.test(text)), false);
+});

@@ -220,6 +220,7 @@ export async function processHousingApplication(sql, env, request) {
     } };
   }
 
+  if (application.test_auto_apply_enabled) return fail("manual_required", "test_mode_active");
   if (application.preferences_enabled !== true || application.provider_enabled !== true) return fail("manual_required", "auto_apply_disabled");
   if (application.connection_status !== "connected") return fail("manual_required", "provider_not_connected");
 
