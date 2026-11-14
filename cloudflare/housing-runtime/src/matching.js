@@ -160,10 +160,9 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts) 
       ON CONFLICT (idempotency_key) DO NOTHING
       RETURNING id
     `;
-    if (inserted.length) {
-      queued++;
-      await sql`INSERT INTO housing.jobs (id, kind, payload, status) VALUES (gen_random_uuid(), 'delivery', ${JSON.stringify({ delivery_id: inserted[0].id })}::jsonb, 'queued')`;
-    }
+    // The scheduled delivery processor consumes pending housing.deliveries directly.
+    // A second housing.jobs record is never consumed and only grows indefinitely.
+    queued += inserted.length;
 
     const provider = targetProvider;
     const providerEnabled = provider === "immoscout24" ? row.immoscout_enabled
