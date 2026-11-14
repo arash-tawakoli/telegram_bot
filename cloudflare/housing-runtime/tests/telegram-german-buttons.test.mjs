@@ -241,3 +241,56 @@ test("auto-apply menu exposes only supported provider actions and non-mutating s
     assert.ok(!controls.includes("noop"), "a visible provider control must not be a no-op");
   } finally { x.done(); }
 });
+
+test("search profile pause, resume, detail and back actions persist correctly in D1", async () => {
+  const x = setup();
+  try {
+    x.sqlite.exec("INSERT INTO search_profiles(id,participant_id,profile_slot,criteria,active) VALUES('search-1','owner',1,'{\"name\":\"Meine Suche\",\"property_types\":[\"Wohnung\"],\"location_mode\":\"all_hamburg\",\"max_warm_rent\":1000,\"min_rooms\":2,\"min_area_sqm\":50}',1)");
+    const callback = data => handleCallback({
+      id: "cb-" + data, data, from: { id: 777 },
+      message: { chat: x.chat, message_id: 22 },
+    }, x.user);
+    await callback("profile:view:1");
+    assert.match(lastMessage(x).text, /Meine Suche/);
+    assert.ok(lastMessage(x).reply_markup.inline_keyboard.flat().some(b => b.callback_data === "profile:pause:1"));
+    await callback("profile:pause:1");
+    assert.equal(x.sqlite.prepare("SELECT active FROM search_profiles WHERE id='search-1'").get().active, 0);
+    await callback("profile:resume:1");
+    assert.equal(x.sqlite.prepare("SELECT active FROM search_profiles WHERE id='search-1'").get().active, 1);
+    assert.equal(lastMessage(x).reply_markup.inline_keyboard.at(-1)[0].callback_data, "profile");
+  } finally { x.done(); }
+});
+
+test("ImmoScout and Immowelt connection buttons create single-use HTTPS login links", async () => {
+  const x = setup();
+  try {
+    for (const [source, provider] of [[1, "immoscout24"], [4, "immowelt"]]) {
+      await platformSessions(x.user, x.chat, 23, "platforms:login:" + source);
+      const first = lastMessage(x).reply_markup.inline_keyboard[0][0];
+      assert.match(first.url, /^https:\/\/login\.traumwohnunghamburg\.de\/connect\?ticket=/);
+      assert.equal(first.web_app, undefined);
+      const row = x.sqlite.prepare("SELECT status FROM provider_connections WHERE participant_id='owner' AND provider=?").get(provider);
+      assert.equal(row.status, "pending");
+      assert.equal(x.sqlite.prepare("SELECT count(*) AS n FROM provider_auth_flows WHERE participant_id='owner' AND provider=? AND consumed_at IS NULL").get(provider).n, 1);
+    }
+  } finally { x.done(); }
+});
+
+test("Immomio connect action presents an external OAuth link without changing application status", async () => {
+  const x = setup();
+  const savedFetch = globalThis.fetch;
+  try {
+    x.sqlite.exec("INSERT INTO applicant_profiles(participant_id,profile) VALUES('owner','{\"email\":\"test@example.org\"}')");
+    globalThis.fetch = async (target, options) => {
+      if (String(target) === "https://gql-ps.immomio.com/tenant/graphql")
+        return Response.json({ data: { sso: { baseUrl: "https://sso.immomio.com" } } });
+      return savedFetch(target, options);
+    };
+    await platformSessions(x.user, x.chat, 24, "platforms:login:3");
+    const row = lastMessage(x).reply_markup.inline_keyboard[0][0];
+    assert.match(row.url, /^https:\/\/sso\.immomio\.com\/auth\/realms\/immomio\//);
+    assert.equal(row.web_app, undefined);
+    assert.equal(x.sqlite.prepare("SELECT status FROM provider_connections WHERE participant_id='owner' AND provider='immomio'").get().status, "pending");
+    assert.equal(x.sqlite.prepare("SELECT count(*) AS n FROM applications").get().n, 0);
+  } finally { globalThis.fetch = savedFetch; x.done(); }
+});
