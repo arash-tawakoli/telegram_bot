@@ -20,6 +20,11 @@ function setup() {
     neighborhoods:[{id:1,name:"Altstadt",borough_id:1}],
     schleswigHolsteinAreas:[{code:"01002",name:"Kiel"}],
   }));
+  // The real search-profile save links every enabled source. Seed the same valid IDs.
+  for (const id of [1, 3, 23, 29, 34, 35, 66, 69, 71]) {
+    sqlite.prepare("INSERT OR IGNORE INTO source_registry(id,name,family,connector) VALUES(?,?,?,?)")
+      .run(id, "Testquelle " + id, "immoscout24", "test");
+  }
   const storage = new Map();
   const d1 = { prepare(query) {
     const build = args => ({
