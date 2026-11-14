@@ -233,3 +233,21 @@ test("applicant profile readiness uses the same full rules as application submis
     "move_in_preference", "schufa_status",
   ]) assert.ok(result.data.includes(field), field);
 });
+
+test("participant active filters and writes map booleans to text status", async () => {
+  const calls = [];
+  const api = createD1Supabase(fakeD1((query, params) => { calls.push({ query, params }); return []; }), {});
+  await api.from("bot_users").select("id").eq("is_active", true);
+  await api.from("bot_users").select("id").eq("is_active", false);
+  await api.from("bot_users").update({ is_active: false }).eq("id", "participant-1");
+  await api.from("bot_users").update({ is_active: true }).eq("id", "participant-1");
+  await api.from("bot_users").insert({ id: "participant-2", first_name: "Test", last_name: "User", is_active: 0 });
+
+  assert.deepEqual(calls[0], { query: "SELECT id FROM participants WHERE status = ?", params: ["active"] });
+  assert.deepEqual(calls[1], { query: "SELECT id FROM participants WHERE status <> ?", params: ["active"] });
+  assert.deepEqual(calls[2], { query: "UPDATE participants SET status=? WHERE id = ?", params: ["archived", "participant-1"] });
+  assert.deepEqual(calls[3], { query: "UPDATE participants SET status=? WHERE id = ?", params: ["active", "participant-1"] });
+  const insert = calls[4];
+  assert.match(insert.query, /^INSERT OR REPLACE INTO participants/);
+  assert.ok(insert.params.includes("archived"));
+});

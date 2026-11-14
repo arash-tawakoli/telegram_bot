@@ -106,7 +106,7 @@ function outputRow(table, row) {
 class Query {
   constructor(client, table) { this.client = client; this.table = table; this.physical = TABLES[table]; this.operation = "select"; this.selectSpec = "*"; this.filters = []; this.orders = []; this.limitValue = null; this.offsetValue = null; this.countMode = false; this.head = false; this.payload = null; this.returning = false; }
   select(spec = "*", options = {}) { if (this.operation === "insert" || this.operation === "upsert") this.returning = true; this.selectSpec = spec; this.countMode = options.count === "exact"; this.head = options.head === true; return this; }
-  eq(column, value) { this.filters.push([mapColumn(this.table, column), "=", value]); return this; }
+  eq(column, value) { if (this.table === "bot_users" && column === "is_active") this.filters.push(["status", bool(value) ? "=" : "<>", "active"]); else this.filters.push([mapColumn(this.table, column), "=", value]); return this; }
   neq(column, value) { this.filters.push([mapColumn(this.table, column), "<>", value]); return this; }
   gt(column, value) { this.filters.push([mapColumn(this.table, column), ">", value]); return this; }
   gte(column, value) { this.filters.push([mapColumn(this.table, column), ">=", value]); return this; }
@@ -180,8 +180,8 @@ class Query {
       }
       return { data: [], error: null, count: rows.length };
     }
-    if (kind === "UPDATE") { const entries=Object.entries(this.payload||{}); const params=entries.map(([,v])=>scalar(v)); const whereParams=[]; const where=this.where(whereParams); const sql=`UPDATE ${this.physical} SET ${entries.map(([k])=>`${mapColumn(this.table,k)}=?`).join(",")}${where?` WHERE ${where}`:""}`; const result=await this.client.run(sql,[...params,...whereParams]); return {data:[],error:null,count:result.count}; }
-    const rows=this.payload||[]; let data=[]; for(const row of rows){const mapped={...row}; if(this.table==='bot_users'){mapped.telegram_chat_id=mapped.chat_id; delete mapped.chat_id; mapped.status=mapped.is_active===false?'archived':'active'; delete mapped.is_active; mapped.telegram_state=JSON.stringify(mapped.onboarding_state||{}); delete mapped.onboarding_state; delete mapped.onboarding_step;} if (this.table === "search_profiles") {
+    if (kind === "UPDATE") { const entries=Object.entries(this.payload||{}).map(([key,value]) => this.table === "bot_users" && key === "is_active" ? ["status", bool(value) ? "active" : "archived"] : [mapColumn(this.table,key),value]); const params=entries.map(([,value])=>scalar(value)); const whereParams=[]; const where=this.where(whereParams); const sql=`UPDATE ${this.physical} SET ${entries.map(([key])=>`${key}=?`).join(",")}${where?` WHERE ${where}`:""}`; const result=await this.client.run(sql,[...params,...whereParams]); return {data:[],error:null,count:result.count}; }
+    const rows=this.payload||[]; let data=[]; for(const row of rows){const mapped={...row}; if(this.table==='bot_users'){mapped.telegram_chat_id=mapped.chat_id; delete mapped.chat_id; mapped.status=mapped.is_active===undefined?(mapped.status||"active"):bool(mapped.is_active)?"active":"archived"; delete mapped.is_active; mapped.telegram_state=JSON.stringify(mapped.onboarding_state||{}); delete mapped.onboarding_state; delete mapped.onboarding_step;} if (this.table === "search_profiles") {
       const criteria = { ...mapped };
       const slot = Number(mapped.profile_slot ?? 1);
       if (!Number.isInteger(slot) || slot < 1 || slot > 4) throw new Error("profile_slot_invalid");
