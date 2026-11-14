@@ -7,10 +7,10 @@ import { db, PREMIUM_LINK, PROPERTY_TYPES, RENT_PRESETS, ROOM_PRESETS, AREA_PRES
 const PUBLIC_COMMANDS = [
     { command: "start", description: "Startmenü" },
     { command: "suche", description: "Suchprofil erstellen" },
-    { command: "profile", description: "Suchprofile anzeigen" },
+    { command: "suchprofile", description: "Suchprofile anzeigen" },
     { command: "einstellungen", description: "Einstellungen" },
     { command: "pause", description: "Suche pausieren" },
-    { command: "resume", description: "Suche fortsetzen" },
+    { command: "fortsetzen", description: "Suche fortsetzen" },
     { command: "status", description: "Systemstatus" },
     { command: "premium", description: "Premium anzeigen" },
     { command: "hilfe", description: "Hilfe" },
@@ -221,7 +221,7 @@ export async function handleMessage(message, user) {
     }
     if (command === "/suche")
         return startNewProfile(user, chatId);
-    if (command === "/profile")
+    if (command === "/suchprofile" || command === "/profile")
         return profile(user, chatId);
     if (command === "/einstellungen" || command === "/settings") {
         return settings(user, chatId);
@@ -230,7 +230,7 @@ export async function handleMessage(message, user) {
         await setPaused(user.id, true);
         return send(chatId, "⏸ Dein Suchprofil ist pausiert.");
     }
-    if (command === "/resume") {
+    if (command === "/fortsetzen" || command === "/resume") {
         await setPaused(user.id, false);
         return send(chatId, "▶️ Dein Suchprofil ist wieder aktiv.");
     }
