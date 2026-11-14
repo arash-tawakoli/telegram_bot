@@ -19,6 +19,19 @@ test('binary image signatures accept real octet-stream photos, not HTML or spoof
  await assert.rejects(sourcePhoto(new Response('missing',{status:404})));
 });
 
+test('legacy Immowelt delivery removes duplicated rental facts from synthetic titles',()=>{
+ const title='Wohnung zur Miete - Hamburg - 1.300 € - 3 Zimmer, 90 m², 2. Geschoss';
+ const result=scope.cap(listing({title,coldRent:1300,rooms:3,size:90,floor:'2. Geschoss'},{
+   title,district:'Eidelstedt',city:'Hamburg'
+ }), 'de');
+ assert.match(result,/^🏠 <b>Wohnung zur Miete in Eidelstedt<\/b>/);
+ assert.equal((result.match(/1\.300 €/g)||[]).length,0);
+ assert.match(result,/Kaltmiete:<\/b> 1300 €/);
+ assert.match(result,/Zimmer:<\/b> 3/);
+ assert.match(result,/Wohnfläche:<\/b> 90 m²/);
+ assert.match(result,/Etage:<\/b> 2. Geschoss/);
+});
+
 test('source borough and neighborhood are independent, escaped, and never inferred from prose',()=>{
  const c=scope.cap(listing({address:{borough:'Hamburg-Nord',quarter:'Barmbek <Nord>'}}),'de');
  assert.match(c,/Bezirk:<\/b> Hamburg-Nord/);assert.match(c,/Stadtteil:<\/b> Barmbek &lt;Nord&gt;/);
