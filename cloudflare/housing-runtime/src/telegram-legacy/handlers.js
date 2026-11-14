@@ -1,7 +1,7 @@
 import { platformSessions, handleAutoApplyMessage } from './platform-sessions.js';
 import { isAdmin, adminGrantLabel, adminPremiumNotice, adminUsers, adminUser, setUserBlocked, deleteUser, setPlanOverride, ANNOUNCEMENT_PROMPT, createAnnouncementDraft, cancelAnnouncement, sendAnnouncement } from "./admin.js";
 import { homeKeyboard, home, premium, setPaused, referralPage, settings } from "./navigation.js";
-import { draftFor, validateDraft, renderTypes, renderLocation, renderBoroughs, renderNeighborhoods, renderSchleswigHolsteinAreas, renderRent, renderCustomRent, renderRooms, renderArea, renderReview, renderStep, afterSelection, persistProfile, profileLimit, draftFromProfile, startNewProfile, profileEditMenu, profile, renderStatus, nextSizeStep } from "./profiles.js";
+import { draftFor, validateDraft, renderTypes, renderLocation, renderBoroughs, renderNeighborhoods, renderSchleswigHolsteinAreas, renderRent, renderCustomRent, renderRooms, renderArea, renderReview, renderReviewEdit, renderStep, afterSelection, persistProfile, profileLimit, draftFromProfile, startNewProfile, profileEditMenu, profile, renderStatus, nextSizeStep } from "./profiles.js";
 import { db, PREMIUM_LINK, PROPERTY_TYPES, RENT_PRESETS, ROOM_PRESETS, AREA_PRESETS, NEIGHBORHOODS_PER_PAGE, button, cancelRow, backRow, secret, telegram, send, sendCelebration, edit, acknowledge, saveState, geography, HELP_TEXT } from "./runtime.js";
 
 const PUBLIC_COMMANDS = [
@@ -537,6 +537,10 @@ export async function handleCallback(query, user) {
     if (data === "status")
         return renderStatus(user, chatId, messageId);
     const draft = draftFor(user);
+    if (data === "review:edit")
+        return renderReviewEdit(user, chatId, messageId, draft);
+    if (data === "review")
+        return renderReview(user, chatId, messageId, draft);
     if (data === "types")
         return renderTypes(user, chatId, messageId, draft);
     if (data === "location")
@@ -580,14 +584,11 @@ export async function handleCallback(query, user) {
         const hadExistingLocation = ["all_hamburg", "boroughs", "neighborhoods", "all_schleswig_holstein", "schleswig_holstein_areas"].includes(String(draft.location_mode || ""));
         const categoryEdit = draft.profile_edit === true || draft.edit_return === true;
         draft.property_types = [value];
-        draft.min_rooms = null;
-        draft.min_area_sqm = null;
-        draft.min_room_area_sqm = null;
-        if (categoryEdit) {
-            delete draft.profile_edit;
-            delete draft.edit_return;
-        }
-        return categoryEdit && hadExistingLocation
+        // Replacing the property type does not erase the other completed filters.
+        // During a review edit, immediately return to the two-action preview.
+        if (draft.edit_return && !draft.profile_edit) return renderReview(user, chatId, messageId, draft);
+        if (draft.profile_edit) return afterSelection(user, chatId, messageId, draft, "review");
+        return hadExistingLocation
             ? renderRent(user, chatId, messageId, draft)
             : renderLocation(user, chatId, messageId, draft);
     }
