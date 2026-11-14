@@ -12,6 +12,27 @@ Cloudflare Worker für den Housing-Kern von TraumWohnungHamburg.
 
 Hyperdrive und ein externer PostgreSQL-Host gehören nicht mehr zum Zielbetrieb.
 
+## ImmoScout24 MCP (nur Deutschland)
+
+Der Housing-Worker nutzt den ImmoScout24-MCP-Server `https://app.chatgpt.immobilienscout24.de/v2/mcp` über JSON-RPC 2.0 (`tools/call`, Protokoll `2025-06-18`).
+
+| MCP-Tool | Einsatz |
+| --- | --- |
+| `property_search_de` | Bestehender automatischer Quellenabruf und read-only Suche |
+| `property_map_de` | Read-only Kartenabfrage mit geprüften Koordinaten, nur auf ausdrückliche Anfrage |
+
+Österreichische MCP-Tools (`property_search_at`, `property_map_at`) sind nicht integriert.
+
+**Authentifizierter Portal-API-Zugriff:** `POST /edge/coach` mit dem bestehenden Portal-Access-Token, dem Feld `action` und `sourceId` (nur `1` für Hamburg oder `69` für Schleswig-Holstein).
+
+- `action: "immoscout_search"` ruft `property_search_de` auf und liefert maximal 25 normalisierte Angebote als `entries`.
+- `action: "immoscout_map"` ruft `property_map_de` auf und liefert maximal 200 Positionen mit `latitude`/`longitude` als `points`.
+- Optionale Eingaben: `query` (regionale Suchkriterien als Freitext, maximal 180 Zeichen), `limit` (1–25 bzw. 1–200).
+- Die Region und Deutschland werden serverseitig vorangestellt. Nicht erlaubte Quell-IDs und österreichische Ortsanfragen werden abgewiesen.
+- Beide API-Aktionen sind rein lesend. Der Kartenaufruf erstellt keine Zustellungen, Bewerbungen oder Datenbankeinträge. Ein Frontend kann die Geo-Daten für seine eigene Kartenansicht verwenden; die ChatGPT-MCP-Widget-Oberfläche wird nicht übernommen.
+
+Der bestehende automatische Quellenlauf nutzt weiterhin ausschließlich `property_search_de`. Damit erhöhen Kartenaufrufe nicht die Frequenz der automatischen Suche. Die Bewerbungsübermittlung verwendet getrennt davon die ImmoScout24-REST-Kontaktschnittstelle.
+
 ## Datenumfang
 
 Gespeichert werden nur Teilnehmer, Portalmitglieder, Zuweisungen, Suchprofile, Bewerberprofile, Quellenverknüpfungen, Providerstatus, Dokumentreferenzen, minimale Angebotsidentitäten, Zustellungen, Bewerbungen, Events, Jobs und Auditdaten.
