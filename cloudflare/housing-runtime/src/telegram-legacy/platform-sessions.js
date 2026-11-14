@@ -236,6 +236,21 @@ async function celebrateFirstApplicantProfile(user,chat){
  if(data?.claimed===true)await sendCelebration(chat.id,'🎉 <b>Dein erstes Bewerberprofil ist angelegt!</b>\n\nViel Erfolg bei der Wohnungssuche!').catch(e=>console.error('applicant_celebration_failed',e.message));
 }
 
+async function offerCompletedApplicantActivation(user,chat){
+ try{
+  const {data,error}=await db.rpc('claim_applicant_completion_prompt',{p_user:user.id});
+  if(error)throw error;
+  if(data?.first_time){
+   await sendCelebration(chat.id,
+    '🎉 <b>Dein Bewerberprofil ist vollständig!</b>\n\nJetzt die automatische Bewerbung aktivieren und sofort Angebote erhalten?',
+    {inline_keyboard:[
+      [button('Ja, aktivieren','platforms:completion:yes')],
+      [button('Nein, später','platforms:completion:no')]
+    ]});
+  }
+ }catch(error){console.error('applicant_completion_prompt',String(error?.message||error));}
+}
+
 async function renderApplicantProfile(user,chat,messageId,notice=''){
  const p=await ensureApplicantProfile(user.id);
  const {data:missing,error}=await db.rpc('application_profile_missing_fields',{p_user:user.id});
@@ -419,7 +434,9 @@ export async function handleAutoApplyMessage(user,message){
    const {error}=await db.from('applicant_profiles').upsert(values,{onConflict:'user_id'});if(error)throw Error('Bewerberprofil konnte nicht gespeichert werden.');
    await Promise.all([telegram('deleteMessage',{chat_id:chat.id,message_id:message.message_id}).catch(()=>{}),message.reply_to_message?.message_id?telegram('deleteMessage',{chat_id:chat.id,message_id:message.reply_to_message.message_id}).catch(()=>{}):null]);
    await celebrateFirstApplicantProfile(user,chat);
-   return send(chat.id,'✅ Bewerberprofil angelegt.',{inline_keyboard:[[button('👤 Profil öffnen','platforms:profile')],[button('← Automatische Bewerbung','platforms')]]});
+   const result=await send(chat.id,'✅ Bewerberprofil angelegt.',{inline_keyboard:[[button('👤 Profil öffnen','platforms:profile')],[button('← Automatische Bewerbung','platforms')]]});
+   await offerCompletedApplicantActivation(user,chat);
+   return result;
   }catch(error){return send(chat.id,`⚠️ ${esc(error.message)}`);}
  }
  const pendingField=String(user.onboarding_state?._applicant_field||'');
@@ -437,16 +454,21 @@ export async function handleAutoApplyMessage(user,message){
    if(name==='first_name'||name==='last_name')await celebrateFirstApplicantProfile(user,chat);
    await Promise.all([telegram('deleteMessage',{chat_id:chat.id,message_id:message.message_id}).catch(()=>{}),message.reply_to_message?.message_id?telegram('deleteMessage',{chat_id:chat.id,message_id:message.reply_to_message.message_id}).catch(()=>{}):null]);
    const editMessageId=Number(user.onboarding_state?._applicant_message_id||0);
+   let response;
    if(pendingField){
      await clearPendingField(user,chat);
      if(editMessageId>0){
-       return name.startsWith('message_')
-         ? renderApplicationTextDetail(user,chat,editMessageId,name)
-         : renderApplicantProfile(user,chat,editMessageId,'✅ '+PROFILE_FIELDS[name].label+' gespeichert.');
+       response=name.startsWith('message_')
+         ? await renderApplicationTextDetail(user,chat,editMessageId,name)
+         : await renderApplicantProfile(user,chat,editMessageId,'✅ '+PROFILE_FIELDS[name].label+' gespeichert.');
      }
    }
-   const messageField=name.startsWith('message_');
-   return send(chat.id,`✅ ${esc(PROFILE_FIELDS[name].label)} gespeichert.`,{inline_keyboard:[[button(messageField?'✍️ Vorschau öffnen':'👤 Bewerberprofil',messageField?`platforms:profile-text:${name}`:'platforms:profile')],[button('← Automatische Bewerbung','platforms')]]});
+   if(!response){
+    const messageField=name.startsWith('message_');
+    response=await send(chat.id,`✅ ${esc(PROFILE_FIELDS[name].label)} gespeichert.`,{inline_keyboard:[[button(messageField?'✍️ Vorschau öffnen':'👤 Bewerberprofil',messageField?`platforms:profile-text:${name}`:'platforms:profile')],[button('← Automatische Bewerbung','platforms')]]});
+   }
+   await offerCompletedApplicantActivation(user,chat);
+   return response;
   }catch(error){return send(chat.id,`⚠️ ${esc(error.message)}`);}
  }
  return null;
@@ -463,6 +485,24 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  const parts=data.split(':'),action=parts[1]||'',arg=parts[2]||'',choice=parts.slice(3).join(':'),source=Number(arg);
  const render=(text,rows)=>messageId?edit(chat.id,messageId,text,{inline_keyboard:rows}):send(chat.id,text,{inline_keyboard:rows});
  const back=[[button('← Automatische Bewerbung','platforms')]];
+
+ if(action==='completion'){
+  if(!['yes','no'].includes(arg))return platformSessions(user,chat,messageId,'platforms');
+  if(arg==='yes'&&!user.is_premium)return render('Auto-Bewerbungen benötigen aktives Premium.',back);
+  const {error}=await db.rpc('set_telegram_auto_apply_sources',{
+    p_user:user.id,p_telegram_user_id:user.telegram_user_id,p_update_id:user.request_update_id,
+    p_enabled:arg==='yes'
+  });
+  if(error){
+   const reason=String(error.message||'');
+   return render(reason.includes('profile_incomplete')
+    ? 'Bitte zuerst alle Pflichtangaben im Bewerberprofil ausfüllen.'
+    : reason.includes('test_mode_active')
+    ? 'Bitte zuerst den persönlichen Testmodus deaktivieren.'
+    : 'Die Quellen konnten nicht aktualisiert werden.',back);
+  }
+  return platformSessions(user,chat,messageId,'platforms');
+ }
 
  if(action==='test'){
   if(!['on','off'].includes(arg)) return platformSessions(user,chat,messageId,'platforms:test-status');
@@ -639,7 +679,9 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   }else return renderApplicantProfile(user,chat,messageId);
   const {error}=await db.from('applicant_profiles').update({...patch,updated_at:new Date().toISOString()}).eq('user_id',user.id);
   if(error)throw Error('Änderung konnte nicht gespeichert werden.');
-  return renderApplicantProfile(user,chat,messageId);
+  const result=await renderApplicantProfile(user,chat,messageId);
+  await offerCompletedApplicantActivation(user,chat);
+  return result;
  }
 
  if(action==='docs'||action.startsWith('doc-')) return renderApplicantProfile(user,chat,messageId);
@@ -663,16 +705,20 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  }
 
  if(action==='pause'||action==='resume'){
-  if(!user.is_premium)return render('Auto-Bewerbungen benötigen aktives Premium.',back);
+  if(action==='resume'&&!user.is_premium)return render('Auto-Bewerbungen benötigen aktives Premium.',back);
   const meta=AUTO_APPLY_PROVIDERS[source];if(!meta)return;
-  const {error}=await db.rpc('set_application_provider_enabled_shared',{
+  const {error}=await db.rpc('set_telegram_auto_apply_sources',{
    p_user:user.id,
    p_provider:meta.key,
    p_enabled:action==='resume',
    p_update_id:user.request_update_id,
    p_telegram_user_id:user.telegram_user_id
   });
-  if(error)throw Error(action==='resume'?'Plattform konnte nicht fortgesetzt werden.':'Plattform konnte nicht pausiert werden.');
+  if(error)return render(String(error.message||'').includes('profile_incomplete')
+   ? 'Bitte vervollständige zuerst dein Bewerberprofil.'
+   : String(error.message||'').includes('test_mode_active')
+   ? 'Bitte deaktiviere zuerst den persönlichen Testmodus.'
+   : 'Die Quelle konnte nicht aktualisiert werden.',[[button('👤 Bewerberprofil','platforms:profile')],...back]);
  }
 
  if(action==='login'||action==='disconnect'||action==='check'){
@@ -698,62 +744,34 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  }
 
  if(action==='off'||action==='on'){
-  if(action==='off'){
-   const {error}=await db.rpc('set_application_enabled_shared',{
-    p_user:user.id,p_enabled:false,
-    p_update_id:user.request_update_id,
-    p_telegram_user_id:user.telegram_user_id
-   });
-   if(error)throw Error('Auto-Bewerbung konnte nicht deaktiviert werden.');
-  }
-  if(action==='on'){
-   if(!user.is_premium)return render('Auto-Bewerbungen benötigen aktives Premium.',back);
-   const {data:missing,error:missingError}=await db.rpc('application_profile_missing_fields',{p_user:user.id});
-   if(missingError)throw Error('Bewerberprofil konnte nicht geprüft werden.');
-   if(Array.isArray(missing)&&missing.length){
-    const preview=missing.slice(0,8).map(v=>`• ${esc(v)}`).join('\n'),more=missing.length>8?`\n• … und ${missing.length-8} weitere`:'';
-    return render(`⚠️ <b>Bewerberprofil unvollständig</b>\n\nVervollständige zuerst alle mit * markierten Pflichtfeldern.\n\n${preview}${more}`,[[button('👤 Bewerberprofil vervollständigen','platforms:profile')],...back]);
-   }
-   const {error}=await db.rpc('set_application_enabled_shared',{
-    p_user:user.id,p_enabled:true,
-    p_update_id:user.request_update_id,
-    p_telegram_user_id:user.telegram_user_id
-   });
-   if(error){
-    const reason=String(error.message||'');
-    const message=reason.includes('test_mode_active')
-     ? 'Deaktiviere zuerst den persönlichen Testmodus.'
-     : reason.includes('provider_required')
-      ? 'Verbinde zuerst mindestens eine Bewerbungsplattform.'
-      : reason.includes('profile_incomplete')
-       ? 'Im Bewerberprofil fehlen noch Pflichtfelder.'
-       : 'Der globale Auto-Bewerbungs-Schalter konnte nicht gespeichert werden. Bitte prüfe die Verbindung und versuche es erneut.';
-    return render(`⚠️ <b>Auto-Bewerbung nicht aktiviert</b>\n\n${message}`,[[button('👤 Bewerberprofil','platforms:profile')],...back]);
-   }
-  }
+  if(action==='on'&&!user.is_premium)return render('Auto-Bewerbungen benötigen aktives Premium.',back);
+  const {error}=await db.rpc('set_telegram_auto_apply_sources',{
+    p_user:user.id,p_telegram_user_id:user.telegram_user_id,p_enabled:action==='on'
+  });
+  if(error)return render('Bitte zuerst Bewerberprofil und Testmodus prüfen.',back);
  }
 
-  const [{data:connections,error},{data:state,error:stateError}]=await Promise.all([
+  const [{data:connections,error},{data:state,error:stateError},{data:preferences,error:preferencesError}]=await Promise.all([
   db.from('platform_connections').select('provider,status').eq('user_id',user.id),
-  db.from('bot_users').select('auto_apply_enabled,test_auto_apply_allowed,test_auto_apply_enabled,test_auto_apply_daily_limit,test_auto_apply_enabled_at,test_auto_apply_disabled_at').eq('id',user.id).single()
+  db.from('bot_users').select('auto_apply_enabled,test_auto_apply_allowed,test_auto_apply_enabled,test_auto_apply_daily_limit,test_auto_apply_enabled_at,test_auto_apply_disabled_at').eq('id',user.id).single(),
+  db.from('application_preferences').select('immoscout_enabled,immowelt_enabled,immomio_enabled').eq('user_id',user.id).maybeSingle()
  ]);
- if(error||stateError)throw Error('Auto-Bewerbung konnte nicht geladen werden.');
+ if(error||stateError||preferencesError)throw Error('Auto-Bewerbung konnte nicht geladen werden.');
  const connection=(key)=>connections?.find(r=>r.provider===key);
  const testModeEnabled=state.test_auto_apply_allowed===true&&state.test_auto_apply_enabled===true&&state.auto_apply_enabled!==true;
  const rows=[];
- for(const sourceId of Object.keys(AUTO_APPLY_PROVIDERS).map(Number)){
+ for(const sourceId of [1,4,3]){
   const meta=AUTO_APPLY_PROVIDERS[sourceId],connected=connection(meta.key)?.status==='connected';
-  if(testModeEnabled&&sourceId===1){
-   rows.push([button('🧪 ImmoScout24 · Testzugang','platforms:test-status')]);
-   continue;
-  }
-  rows.push([connected
-   ? button('✅ '+meta.name,'platforms:provider:'+sourceId)
-   : button('🔐 '+meta.name+' verbinden','platforms:login:'+sourceId)]);
+  const running=state.auto_apply_enabled===true&&preferences?.[meta.field]===true&&!testModeEnabled;
+  rows.push([
+   button((connected?'✅ ':'🔐 ')+meta.name,connected?'platforms:provider:'+sourceId:'platforms:login:'+sourceId),
+   button(running?'⏸ Pause':'▶️ Start','platforms:'+(running?'pause':'resume')+':'+sourceId)
+  ]);
  }
 
  let testSection='';
  if(state.test_auto_apply_allowed===true){
+  rows.push([button('🧪 ImmoScout24 · Testzugang','platforms:test-status')]);
   const {data:testApps,error:testAppsError}=await db.from('applications')
    .select('id,status,last_error,sent_at,created_at,listing_id,test_mode')
    .eq('user_id',user.id).eq('test_mode',true)
@@ -782,12 +800,10 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   rows.push([button(testModeEnabled?'Test Deaktivieren':'Test Aktivieren','platforms:test:'+(testModeEnabled?'off':'on'))]);
  }
 
- if(!testModeEnabled){
-  rows.push([button(state.auto_apply_enabled?'⚡ Auto-Bewerbung deaktivieren':'⚡ Auto-Bewerbung aktivieren','platforms:'+(state.auto_apply_enabled?'off':'on'))]);
- }else{
+ if(testModeEnabled){
   testSection+='\n\nDie reguläre Auto-Bewerbung bleibt während des Testbetriebs deaktiviert.';
  }
  rows.push([button('← Start','home')]);
- return render('⚡ <b>Automatische Bewerbung</b>\n\nVerbinde Plattformen und verwalte die automatische Bewerbung. '+testSection,rows);
+ return render('⚡ <b>Automatische Bewerbung</b>\n\nStarte oder pausiere jede Quelle einzeln. Bewerbungen werden erst mit verbundenen Konten versendet.'+(user.is_premium?'':'\n\nZum Starten der Quellen ist Premium erforderlich.')+testSection,rows);
 
 }

@@ -13,6 +13,7 @@ test("participant settings survive migration and Telegram device language change
     const archived = { id: "user", language_code: "de", last_start_at: "2026-11-01T00:00:00Z", engagement_notifications_enabled: false, test_auto_apply_updated_by_telegram_id: 7 };
     sqlite.prepare("INSERT INTO supabase_archive_rows(schema_name,table_name,row_key,row_index,payload_json) VALUES('public','bot_users',?,0,?)").run(JSON.stringify(["user"]), JSON.stringify(archived));
     sqlite.exec(readFileSync(new URL("0011_participant_settings.sql", schema), "utf8"));
+    sqlite.exec(readFileSync(new URL("0023_language_trial_applicant_completion.sql", schema), "utf8"));
     const before = sqlite.prepare("SELECT * FROM participants WHERE id='user'").get();
     assert.equal(before.engagement_notifications_enabled, 0);
     assert.equal(before.last_start_at, archived.last_start_at);
@@ -29,11 +30,13 @@ test("participant settings survive migration and Telegram device language change
     const result = await api.rpc("prepare_telegram_update", { p_payload: { message: { from: { id: 7, first_name: "A", language_code: "en" }, chat: { id: 7 } } } });
     assert.equal(result.error, null);
     const after = sqlite.prepare("SELECT ui_language,language_code,engagement_notifications_enabled FROM participants WHERE id='user'").get();
-    assert.equal(after.ui_language, "de");
+    assert.equal(after.ui_language, "tr");
     assert.equal(after.language_code, "en");
     assert.equal(after.engagement_notifications_enabled, 0);
     const created = await api.rpc("prepare_telegram_update", { p_payload: { message: { from: { id: 8, first_name: "C", language_code: "de" }, chat: { id: 8 } } } });
     assert.equal(created.error, null);
     assert.ok(sqlite.prepare("SELECT last_start_at FROM participants WHERE telegram_user_id=8").get().last_start_at);
+    assert.equal(created.data.user.language_selected_at,null);
+    assert.ok(Date.parse(created.data.user.referral_bonus_until)>Date.now()+29*86400000);
   } finally { sqlite.close(); }
 });

@@ -8,7 +8,7 @@ const sessions = await readFile(new URL("../cloudflare/housing-runtime/src/teleg
 test("Cloudflare Telegram handlers do not depend on the Supabase EdgeRuntime global", () => {
   assert.equal(handlers.includes("EdgeRuntime"), false);
   assert.equal(sessions.includes("EdgeRuntime"), false);
-  assert.equal(handlers.split("await ack();").length - 1, 4);
+  assert.equal(handlers.split("await ack();").length - 1, 6); // Language selection adds two acknowledged callback paths.
   assert.equal(sessions.includes("applicationWorker('sync_documents'"), false);
   assert.equal(sessions.includes("renderApplicantDocuments("),false);
   assert.equal(sessions.includes("message_temporary_wg"),false);
