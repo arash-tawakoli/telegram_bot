@@ -35,6 +35,15 @@ export function missingApplicantFields(value) {
   return missing;
 }
 
+export function listingRequiresWbs(facts = {}) {
+  return facts?.wbs_required === true || facts?.wbs_required === 1
+    || facts?.wbs_required === "true" || facts?.wbs_required === "1";
+}
+
+export function hasValidWbs(profile = {}) {
+  return /^(?:ja|vorhanden|gültig|gueltig|yes|true)$/i.test(String(profile?.wbs_status || "").trim());
+}
+
 export function premiumParticipant(row, now = Date.now()) {
   if (row.plan_override === "free") return false;
   const override = timestampMillis(row.plan_override_expires_at);
