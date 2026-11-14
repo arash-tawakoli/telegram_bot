@@ -3,7 +3,7 @@ import { sendImmoweltApplication } from "./immowelt-application.js";
 import { sendImmoScoutApplication } from "./immoscout-application.js";
 import { sendImmomioApplication } from "./immomio-application.js";
 import { matchesActiveSearch } from "./matching.js";
-import { applicationProvider, applicationSchedule, missingApplicantFields, premiumParticipant, timestampMillis } from "./application-policy.js";
+import { applicationProvider, applicationSchedule, missingApplicantFields, listingRequiresWbs, hasValidWbs, premiumParticipant, timestampMillis } from "./application-policy.js";
 import { effectiveApplicationMessages } from "./application-text.js";
 import { sourceForId } from "./source-allowlist.js";
 
@@ -250,6 +250,9 @@ export async function processHousingApplication(sql, env, request) {
   `;
   if (!delivery.length) return fail("failed", "not_eligible");
 
+  if (listingRequiresWbs(application.facts) && !hasValidWbs(application.profile)) {
+    return fail("manual_required", "wbs_required");
+  }
   const schedule = applicationSchedule(application, now);
   if (!schedule.allowed) {
     await sql`
