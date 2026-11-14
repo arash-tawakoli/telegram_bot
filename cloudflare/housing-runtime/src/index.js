@@ -6,7 +6,8 @@ import { ingestImmomioSource } from "./immomio-source.js";
 import { ingestImmoweltSource } from "./immowelt-source.js";
 import { ingestImmoScoutSource } from "./immoscout-source.js";
 import { deliveryCutoverLedger, reconcileCloudflareDeliveries } from "./delivery-cutover-ledger.js";
-import { listingPhotoRequest, resolveListingImage, sendListingPhoto } from "./telegram-listing-preview.js";
+import { resolveListingImage } from "./telegram-listing-preview.js";
+import { listingMessageRequest, sendListingMessage, listingMiniAppResponse } from "./listing-miniapp.js";
 import { createSession, hashPassword, memberForAccess, refreshSession, revokeSession, sha256, verifyPassword } from "./auth.js";
 import { handleCoach } from "./coach-api.js";
 import { handleProviderFacade } from "./provider-facade.js";
@@ -235,7 +236,7 @@ async function processDelivery(sql, request, env) {
     return json({ ok: true, status: "failed", reason: "listing_photo_missing" });
   }
   let preview;
-  try { preview = listingPhotoRequest(claimed.telegram_chat_id, photo, facts, claimed.canonical_url, claimed.source_id, claimed.source_name); }
+  try { preview = listingMessageRequest(claimed.telegram_chat_id, photo, facts, claimed.canonical_url, claimed.source_id, claimed.source_name, claimed.id); }
   catch {
     await sql`UPDATE housing.deliveries SET status = 'failed', error_message = 'listing_preview_invalid' WHERE id = ${claimed.id}`;
     return json({ ok: true, status: "failed", reason: "listing_preview_invalid" });
@@ -268,15 +269,15 @@ async function processDelivery(sql, request, env) {
   }
   let response, result;
   try {
-    ({ response, data: result } = await sendListingPhoto(token, preview));
+    ({ response, data: result } = await sendListingMessage(token, preview));
   } catch (error) {
     if (cutover) await ledger("unknown").catch(() => {});
     throw error;
   }
   if (!response.ok || result?.ok !== true) {
     if (cutover) await ledger([400, 401, 403, 404, 409, 429].includes(response.status) ? "release" : "unknown");
-    await sql`UPDATE housing.deliveries SET status = 'failed', error_message = 'telegram_photo_failed' WHERE id = ${claimed.id}`;
-    return json({ error: "telegram_photo_failed" }, 503);
+    await sql`UPDATE housing.deliveries SET status = 'failed', error_message = 'telegram_card_failed' WHERE id = ${claimed.id}`;
+    return json({ error: "telegram_card_failed" }, 503);
   }
   if (cutover && (!Number.isSafeInteger(result.result?.message_id) || result.result.message_id < 1)) {
     await ledger("unknown");
@@ -288,7 +289,7 @@ async function processDelivery(sql, request, env) {
     console.error("delivery_cutover_confirmation_failed");
     return json({ ok: true, status: "sent", ledger_status: "pending" });
   }
-  return json({ ok: true, status: "sent", format: "photo", delivery_id: claimed.id });
+  return json({ ok: true, status: "sent", format: "isolated_mini_app", delivery_id: claimed.id });
 }
 
 async function runScheduledHousingWork(env, minute = Math.floor(Date.now() / 60_000)) {
@@ -513,6 +514,13 @@ export default {
         service: "traumwohnung-housing-runtime",
         databaseConfigured: Boolean(env.HOUSING_DB),
       });
+    }
+
+    // Each delivery has one non-indexed, read-only page: no Telegram media gallery.
+    if (request.method === "GET" && routePath.startsWith("/angebot/")) {
+      const id = routePath.slice("/angebot/".length);
+      try { return await withDatabase(env, (sql) => listingMiniAppResponse(sql, id)); }
+      catch (error) { console.error("listing_miniapp_failed", String(error?.message || error).slice(0,160)); return new Response("Angebot nicht verfügbar", { status: 503 }); }
     }
 
     if (routePath === "/stripe/webhook") return handleStripeWebhook(request, env);
