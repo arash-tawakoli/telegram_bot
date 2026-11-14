@@ -46,7 +46,7 @@ export function germanImmoScoutQuery(source, filter = "") {
   }
   const criteria = String(filter ?? "").trim();
   if (criteria.length > 180 || /[\u0000-\u001f]/.test(criteria)
-    || /\b(österreich|austria|vienna|wien|graz|salzburg|innsbruck|linz)\b/i.test(criteria)) {
+    || /(?:^|[\s,;])(?:österreich|oesterreich|austria|vienna|wien|graz|salzburg|innsbruck|linz)(?=$|[\s,;])/i.test(criteria)) {
     throw new Error("immoscout_query_invalid");
   }
   const region = Number(source.id) === 69 ? "Schleswig-Holstein" : "Hamburg";
