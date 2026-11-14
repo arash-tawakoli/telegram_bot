@@ -143,11 +143,13 @@ test("incomplete historical ImmoScout identity also blocks personal test AutoApp
   assert.equal(calls.some(call => call.query.includes("INSERT INTO housing.applications")), false);
 });
 test("new fresh matches queue AutoApply only for complete premium connected profiles", async () => {
+  let testMode = false;
   const calls = [];
   const sql = async (parts, ...values) => {
     const query = parts.join("?"); calls.push({ query, values });
     if (query.includes("SELECT DISTINCT sp.participant_id")) return [{
       participant_id: "u", criteria: JSON.stringify(hamburg), auto_apply_enabled: 1,
+      test_auto_apply_allowed: 1, test_auto_apply_enabled: testMode ? 1 : 0,
       plan_override: "premium", preferences_enabled: 1, immomio_enabled: 1,
       provider_connection_status: "connected",
       applicant_profile: JSON.stringify({ first_name: "A", last_name: "B", email: "a@example.com", phone: "+49123456789", street: "Test", house_number: "1", postcode: "20095", city: "Hamburg", salutation: "MS", household_type: "SINGLE", employment_status: "EMPLOYEE", income_range: "NOT_SPECIFIED", pets: "Keine", move_in_preference: "NOT_SPECIFIED", schufa_status: "NOT_SPECIFIED", wbs_status: "NOT_SPECIFIED", message_apartment: "Interesse", message_house: "Interesse", message_temporary_wg: "Interesse", message_swap: "Interesse" }),
@@ -160,4 +162,9 @@ test("new fresh matches queue AutoApply only for complete premium connected prof
   assert.equal(await queueMatches(sql, "offer", 23, "23:external:abc", { ...apartment, canonical_url: "https://tenant.immomio.com/de/apply/12345678-1234-4234-8234-123456789012" }), 1);
   assert.equal(calls.some(call => call.query.includes("INSERT INTO housing.applications")), true);
   assert.equal(calls.some(call => call.query.includes("INSERT INTO housing.application_dedupe_keys")), true);
+
+  testMode = true;
+  const beforeTestMode = calls.length;
+  assert.equal(await queueMatches(sql, "offer-test", 23, "hash-test", { ...apartment, canonical_url: "https://tenant.immomio.com/de/apply/12345678-1234-4234-8234-123456789012" }), 1);
+  assert.equal(calls.slice(beforeTestMode).some(call => call.query.includes("INSERT INTO housing.applications")), false);
 });
