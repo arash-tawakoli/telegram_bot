@@ -13,7 +13,7 @@ function setup() {
   const url = "https://www.immobilienscout24.de/expose/123456", owner = "legacy:00000000-0000-0000-0000-000000000004";
   sqlite.prepare("INSERT INTO participants(id,first_name,last_name,telegram_chat_id) VALUES(?,?,?,12)").run(user, "A", "B");
   sqlite.exec("INSERT INTO source_registry(id,name,family,connector) VALUES(1,'Test','immoscout24','test')");
-  sqlite.prepare("INSERT INTO offer_identities(id,source_id,identity_hash,canonical_url,facts) VALUES(?,1,'offer',?,'{\"title\":\"Wohnung\"}')").run(offer, url);
+  sqlite.prepare("INSERT INTO offer_identities(id,source_id,identity_hash,canonical_url,facts) VALUES(?,1,'offer',?,'{\"title\":\"Wohnung\",\"image_url\":\"https://pictures.immobilienscout24.de/listing.jpg\"}')").run(offer, url);
   sqlite.prepare("INSERT INTO deliveries(id,participant_id,offer_identity_id,idempotency_key,status) VALUES(?,?,?,'delivery','pending')").run(delivery, user, offer);
   const db = { prepare(query) {
     const make = values => ({
