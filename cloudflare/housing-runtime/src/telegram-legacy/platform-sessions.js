@@ -345,40 +345,60 @@ async function ensureApplicantProfile(userId){
 }
 
 async function renderApplicantProfile(user,chat,messageId,notice=''){
- const [p,docs,missingResult]=await Promise.all([
-  ensureApplicantProfile(user.id),
-  readDocuments(user.id),
-  db.rpc('application_profile_missing_fields',{p_user:user.id})
- ]);
- const render=(text,rows)=>messageId?edit(chat.id,messageId,text,{inline_keyboard:rows}):send(chat.id,text,{inline_keyboard:rows});
- if(!p){
-  return render(`👤 <b>Bewerberprofil</b>\n\n${notice?`${notice}\n\n`:''}Noch kein Bewerberprofil vorbereitet.`,[
-   [button('👤 Bewerberprofil öffnen','platforms:profile-new')],
-   [button('← Start','home')]
-  ]);
- }
- if(missingResult.error)throw Error('Profilstatus konnte nicht geladen werden.');
- const missing=Array.isArray(missingResult.data)?missingResult.data:[],missingSet=new Set(missing),ready=missing.length===0,selectedDocs=docs.filter(d=>d.send_with_auto_apply).length;
- const isMissing=(key,label)=>missingSet.has(key)||missingSet.has(label)||missingSet.has(PROFILE_FIELDS[key]?.label);
- const req=(key,label,value,required=false)=>`${label}${required&&isMissing(key,label)?' *':''}: ${isMissing(key,label)?'⚠️ fehlt':value}`;
- const messageCount=[p.message_apartment,p.message_house,p.message_temporary_wg,p.message_swap].filter(v=>String(v||'').trim()).length;
- const text=`👤 <b>Bewerberprofil</b>\n\n${notice?`${notice}\n\n`:''}Profilstatus: ${ready?'✅ vollständig':`⚠️ ${missing.length} Pflichtfeld${missing.length===1?' offen':'n offen'}`}\n\n`+
-  `${req('Anrede','Anrede',salutationLabel(p.salutation),true)}\n${req('Vorname','Vorname',shown(p.first_name),true)}\n${req('Nachname','Nachname',shown(p.last_name),true)}\n${req('E-Mail-Adresse','E-Mail',shown(p.email),true)}\n${req('Telefonnummer','Telefonnummer',shown(p.phone),true)}\n${req('Straße','Straße',shown(p.street),true)}\n${req('Hausnummer','Hausnummer',shown(p.house_number),true)}\n${req('PLZ','PLZ',shown(p.postcode),true)}\n${req('Ort','Ort',shown(p.city),true)}\n${req('Haushaltstyp','Haushaltstyp',householdLabel(p),true)}\n${req('Beschäftigungsstatus','Beschäftigungsstatus',employmentLabel(p.employment_status),true)}\n${req('Haushalts-Nettoeinkommen','Haushalts-Nettoeinkommen',incomeLabel(p),true)}\n${req('Haustiere','Haustiere',shown(p.pets),true)}\n${req('Einzugstermin','Einzugstermin',moveInLabel(p),true)}\n${req('SCHUFA-Status','SCHUFA-Status',schufaLabel(p.schufa_status),true)}\n${req('WBS-Status','WBS-Status',shown(p.wbs_status),true)}\n\n✍️ Bewerbungstexte: ${messageCount}/4 hinterlegt\n\nDokumente: ${docs.length} gespeichert · ${selectedDocs} ausgewählt`;
- const f=(name,label)=>{const clean=String(label).replace(/ \*$/,'');return button(isMissing(name,clean)?`${clean} *`:clean,`platforms:profile-field:${name}`)};
- return render(text,[
-  [f('salutation','Anrede *'),f('schufa_status','SCHUFA *')],
-  [f('first_name','Vorname *'),f('last_name','Nachname *')],
-  [f('email','E-Mail *'),f('phone','Telefon *')],
-  [f('street','Straße *'),f('house_number','Hausnr. *')],
-  [f('postcode','PLZ *'),f('city','Ort *')],
-  [f('household_type','Haushalt *'),f('employment_status','Beschäftigung *')],
-  [f('income_range','Einkommen *'),f('pets','Haustiere *')],
-  [f('move_in_preference','Einzugstermin *')],
-  [f('wbs_status','WBS-Status *')],
+ const p=await ensureApplicantProfile(user.id);
+ const {data:missing,error}=await db.rpc('application_profile_missing_fields',{p_user:user.id});
+ if(error)throw Error('Profilstatus konnte nicht geladen werden.');
+ const pending=Array.isArray(missing)?missing:[],missingSet=new Set(pending);
+ const f=(name,label)=>{
+  const required=PROFILE_FIELDS[name]?.required===true;
+  const missing=required&&(missingSet.has(name)||missingSet.has(PROFILE_FIELDS[name]?.label));
+  return button(missing?label+' *':label,'platforms:profile-field:'+name);
+ };
+ const text='👤 <b>Bewerberprofil</b>\\n\\n'
+  +(notice?esc(notice)+'\\n\\n':'')
+  +'Hier trägst du die Angaben ein, die Vermieter bei einer Bewerbung benötigen können:\\n'
+  +'Name und Anrede, Kontakt und Adresse, Haushalt, Beschäftigung und Einkommen, Haustiere, Einzugstermin und SCHUFA. '
+  +'WBS nur, wenn die Wohnung einen Wohnberechtigungsschein voraussetzt.\\n\\n'
+  +'Persönliche Daten werden erst unter <b>Profilvorschau</b> angezeigt.';
+ const rows=[
+  [f('salutation','Anrede'),f('schufa_status','SCHUFA')],
+  [f('first_name','Vorname'),f('last_name','Nachname')],
+  [f('email','E-Mail'),f('phone','Telefon')],
+  [f('street','Straße'),f('house_number','Hausnr.')],
+  [f('postcode','PLZ'),f('city','Ort')],
+  [f('household_type','Haushalt'),f('employment_status','Beschäftigung')],
+  [f('income_range','Einkommen'),f('pets','Haustiere')],
+  [f('move_in_preference','Einzugstermin')],
+  [f('wbs_status','WBS-Status (optional)')],
   [button('✍️ Bewerbungstext','platforms:profile-texts')],
-  [button('📎 Dokumente verwalten','platforms:docs')],
+  [button('👁 Profilvorschau','platforms:profile-preview')],
   [button('← Start','home')]
- ]);
+ ];
+ return messageId?edit(chat.id,messageId,text,{inline_keyboard:rows}):send(chat.id,text,{inline_keyboard:rows});
+}
+
+async function renderApplicantProfilePreview(user,chat,messageId){
+ const p=await ensureApplicantProfile(user.id);
+ const {data:missing,error}=await db.rpc('application_profile_missing_fields',{p_user:user.id});
+ if(error)throw Error('Profilstatus konnte nicht geladen werden.');
+ const pending=Array.isArray(missing)?missing:[];
+ const values=[
+  ['Anrede',salutationLabel(p.salutation)],['Vorname',shown(p.first_name)],['Nachname',shown(p.last_name)],
+  ['E-Mail',shown(p.email)],['Telefon',shown(p.phone)],['Straße',shown(p.street)],
+  ['Hausnummer',shown(p.house_number)],['PLZ',shown(p.postcode)],['Ort',shown(p.city)],
+  ['Haushalt',householdLabel(p)],['Beschäftigung',employmentLabel(p.employment_status)],
+  ['Nettoeinkommen',incomeLabel(p)],['Haustiere',shown(p.pets)],
+  ['Einzug',moveInLabel(p)],['SCHUFA',schufaLabel(p.schufa_status)],
+  ['WBS-Status (optional)',shown(p.wbs_status)]
+ ];
+ const title='👁 <b>Profilvorschau</b>\\n\\n'
+  +(pending.length?'⚠️ '+pending.length+' Angaben fehlen noch.':'✅ Pflichtangaben vollständig.')+'\\n\\n';
+ const body=values.map(([label,value])=>'<b>'+esc(label)+':</b> '+esc(value)).join('\\n');
+ const markup={inline_keyboard:[
+  [button('✍️ Bewerbungstext','platforms:profile-texts')],
+  [button('← Bewerberprofil','platforms:profile')]
+ ]};
+ return messageId?edit(chat.id,messageId,title+body,markup):send(chat.id,title+body,markup);
 }
 
 async function renderApplicationTexts(user,chat,messageId){
@@ -582,6 +602,10 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
   await ensureApplicantProfile(user.id);
   return renderApplicantProfile(user,chat,messageId);
+ }
+ if(action==='profile-preview'){
+  if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
+  return renderApplicantProfilePreview(user,chat,messageId);
  }
  if(action==='profile-texts'){
   if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
