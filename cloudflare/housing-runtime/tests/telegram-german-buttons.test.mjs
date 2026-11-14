@@ -131,7 +131,7 @@ test("referral page edits in place, shares a stable link, and never overwrites a
     const first = lastMessage(x);
     assert.match(first.text, /30 Tage Premium kostenlos/);
     assert.deepEqual(first.reply_markup.inline_keyboard.map(row => row[0].text),
-      ["📤 Link teilen", "← Einstellungen"]);
+      ["📤 Link teilen", "📋 Link kopieren", "← Einstellungen"]);
     const code = x.sqlite.prepare("SELECT code FROM referral_codes WHERE participant_id='owner'").get().code;
     await referralPage(x.user, 777, 20);
     assert.equal(x.sqlite.prepare("SELECT count(*) AS n FROM referral_codes WHERE participant_id='owner'").get().n, 1);
@@ -152,23 +152,15 @@ test("personal Scout test-access button is read-only and displays actual state",
   } finally { x.done(); }
 });
 
-test("document selection updates physical D1 columns and keeps a real document ID", async () => {
-  const x = setup();
-  try {
-    x.sqlite.exec("INSERT INTO applicant_profiles(participant_id,profile) VALUES('owner','{\"first_name\":\"A\",\"last_name\":\"B\"}')");
-    const message = {
-      chat: x.chat, message_id: 30, document: { file_id: "file-123", file_name: "nachweis.pdf", file_size: 9 },
-      reply_to_message: { text: "📎 Bewerberdokument · WBS", message_id: 29 },
-    };
-    await handleAutoApplyMessage(x.user, message);
-    const row = x.sqlite.prepare("SELECT id,document_type,send_with_auto_apply FROM documents WHERE participant_id='owner'").get();
-    assert.ok(/^[0-9a-f-]{36}$/i.test(row.id), "missing document ID");
-    assert.equal(row.document_type, "wbs");
-    assert.equal(row.send_with_auto_apply, 0);
-    await platformSessions(x.user, x.chat, 31, "platforms:doc-toggle:" + row.id);
-    assert.equal(x.sqlite.prepare("SELECT send_with_auto_apply FROM documents WHERE id=?").get(row.id).send_with_auto_apply, 1);
-    assert.match(lastMessage(x).text, /1 für Auto-Bewerbungen ausgewählt/);
-  } finally { x.done(); }
+test("document management is retired without deleting existing records", async () => {
+ const x=setup();
+ try {
+   x.sqlite.exec("INSERT INTO applicant_profiles(participant_id,profile) VALUES('owner','{\"first_name\":\"A\",\"last_name\":\"B\"}')");
+   await platformSessions(x.user,x.chat,31,"platforms:docs");
+   assert.match(lastMessage(x).text,/Bewerberprofil/);
+   assert.equal(lastMessage(x).reply_markup.inline_keyboard.flat().some(b=>/docs|doc-upload|doc-delete/.test(b.callback_data||"")),false);
+   assert.equal(x.sqlite.prepare("SELECT COUNT(*) n FROM documents").get().n,0);
+ }finally{x.done();}
 });
 
 test("search-profile menu and new-profile flow expose working callbacks in German", async () => {
@@ -192,7 +184,7 @@ test("search-profile menu and new-profile flow expose working callbacks in Germa
   } finally { x.done(); }
 });
 
-test("applicant profile, fields, texts, documents and back buttons render without hidden redirects", async () => {
+test("applicant profile, field transition, text choices and separate preview work", async () => {
   const x = setup();
   try {
     const callback = data => handleCallback({
@@ -206,7 +198,9 @@ test("applicant profile, fields, texts, documents and back buttons render withou
       assert.ok(keys.includes("platforms:profile-field:" + name), "missing field " + name);
     }
     assert.ok(keys.includes("platforms:profile-texts"));
-    assert.ok(keys.includes("platforms:docs"));
+    assert.ok(keys.includes("platforms:profile-preview"));
+    assert.ok(!keys.includes("platforms:docs"));
+    assert.doesNotMatch(lastMessage(x).text, /Profilstatus|Dokumente:/);
     await callback("platforms:profile-field:salutation");
     assert.match(lastMessage(x).text, /Anrede/);
     await callback("platforms:profile-set:salutation:MR");
@@ -218,11 +212,10 @@ test("applicant profile, fields, texts, documents and back buttons render withou
     await callback("platforms:profile-text:message_apartment");
     assert.match(lastMessage(x).text, /Wohnung/);
     assert.equal(lastMessage(x).reply_markup.inline_keyboard.at(-1)[0].callback_data, "platforms:profile-texts");
-    await callback("platforms:docs");
-    assert.match(lastMessage(x).text, /Bewerberdokumente/);
-    const docCallbacks = lastMessage(x).reply_markup.inline_keyboard.flat().map(b => b.callback_data);
-    for (const t of ["wbs","schufa","income_proof","rent_clearance","other"]) assert.ok(docCallbacks.includes("platforms:doc-upload:" + t));
-    assert.ok(docCallbacks.includes("platforms:profile"));
+    await callback("platforms:profile-preview");
+    assert.match(lastMessage(x).text, /Profilvorschau/);
+    assert.match(lastMessage(x).text, /Anrede:/);
+    assert.equal(lastMessage(x).reply_markup.inline_keyboard.at(-1)[0].callback_data, "platforms:profile");
   } finally { x.done(); }
 });
 
