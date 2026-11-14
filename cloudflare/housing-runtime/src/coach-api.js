@@ -1,9 +1,7 @@
-import { hashPassword, memberForAccess, sha256 } from "./auth.js";
+import { hashPassword, memberForAccess } from "./auth.js";
 import { assertAllowedSource } from "./source-allowlist.js";
 import { fetchImmoScoutSource, fetchImmoScoutMap, germanImmoScoutQuery } from "./immoscout-source.js";
 import { issueProviderAuthFlow } from "./provider-facade.js";
-
-const PORTAL_ORIGIN = "https://intern.traumwohnunghamburg.de";
 
 const HEADERS = {
   "content-type": "application/json; charset=utf-8",
@@ -65,14 +63,12 @@ async function participantRows(sql, member) {
     ? await sql`
         SELECT p.id, p.first_name, p.last_name, p.email, p.status, p.created_at,
           (SELECT count(*)::int FROM housing.search_profiles sp WHERE sp.participant_id = p.id) AS search_count,
-          (SELECT count(*)::int FROM housing.documents d WHERE d.participant_id = p.id) AS document_count,
           (SELECT m.display_name FROM housing.participant_assignments pa JOIN housing.portal_members m ON m.id = pa.member_id WHERE pa.participant_id = p.id) AS coach
         FROM housing.participants p ORDER BY p.last_name, p.first_name
       `
     : await sql`
         SELECT p.id, p.first_name, p.last_name, p.email, p.status, p.created_at,
           (SELECT count(*)::int FROM housing.search_profiles sp WHERE sp.participant_id = p.id) AS search_count,
-          (SELECT count(*)::int FROM housing.documents d WHERE d.participant_id = p.id) AS document_count,
           m.display_name AS coach
         FROM housing.participants p
         JOIN housing.participant_assignments pa ON pa.participant_id = p.id AND pa.member_id = ${member.id}
@@ -92,7 +88,6 @@ async function participantRows(sql, member) {
     },
     coach: row.coach || "",
     searchProfileCount: Number(row.search_count || 0),
-    documentCount: Number(row.document_count || 0),
     createdAt: row.created_at,
     readiness: {
       profileComplete: Boolean(row.first_name && row.last_name),
@@ -109,7 +104,7 @@ async function participant(sql, member, id) {
     sql`SELECT id, first_name, last_name, email, status, created_at, updated_at FROM housing.participants WHERE id = ${participantId}`,
     sql`SELECT id, criteria, active, created_at, updated_at FROM housing.search_profiles WHERE participant_id = ${participantId} ORDER BY created_at`,
     sql`SELECT profile, updated_at FROM housing.applicant_profiles WHERE participant_id = ${participantId}`,
-    sql`SELECT id, object_key, content_type, size_bytes, send_with_auto_apply, created_at FROM housing.documents WHERE participant_id = ${participantId} ORDER BY created_at DESC`,
+
     sql`SELECT provider, status, expires_at, updated_at FROM housing.provider_connections WHERE participant_id = ${participantId} ORDER BY provider`,
     sql`SELECT enabled, daily_limit, timezone, allowed_weekdays, send_window_start, send_window_end, immoscout_enabled, immowelt_enabled, immomio_enabled, updated_at FROM housing.application_preferences WHERE participant_id = ${participantId}`,
   ]);
@@ -120,7 +115,6 @@ async function participant(sql, member, id) {
     user: { id: person.id, first_name: person.first_name, last_name: person.last_name, email: person.email, is_active: person.status === "active" },
     profile: applicant[0]?.profile || {},
     searchProfiles: profiles.map((row) => ({ id: row.id, ...row.criteria, active: row.active, created_at: row.created_at, updated_at: row.updated_at })),
-    documents: docs,
     connections: connections.map((row) => ({ ...row, provider: row.provider === "immoscout24" ? "immoscout" : row.provider })),
     preferences: preferences[0] || null,
     applications: [],
