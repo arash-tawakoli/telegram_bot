@@ -14,7 +14,7 @@ test("simultaneous D1 delivery workers claim once and render stored listing deta
     prepare(query) {
       const make = values => ({ all: async () => {
         const statement = sqlite.prepare(query);
-        const returnsRows = /^\s*(SELECT|PRAGMA)/i.test(query) || /\bRETURNING\b/i.test(query);
+        const returnsRows = /^\s*(SELECT|WITH|PRAGMA)/i.test(query) || /\bRETURNING\b/i.test(query);
         const result = returnsRows ? { results: statement.all(...values) } : { results: [], meta: { changes: Number(statement.run(...values).changes) } };
         if (/SELECT d\.id, d\.participant_id/.test(query)) {
           selected++;

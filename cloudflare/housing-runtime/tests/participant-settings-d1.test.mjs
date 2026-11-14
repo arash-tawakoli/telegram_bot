@@ -20,7 +20,7 @@ test("participant settings survive migration and Telegram device language change
     const db = { prepare(query) {
       const make = values => ({ all: async () => {
         const statement = sqlite.prepare(query);
-        if (/^\s*(SELECT|PRAGMA)/i.test(query)) return { results: statement.all(...values), meta: { changes: 0 } };
+        if (/^\s*(SELECT|WITH|PRAGMA)/i.test(query)) return { results: statement.all(...values), meta: { changes: 0 } };
         return { results: [], meta: { changes: Number(statement.run(...values).changes) } };
       } });
       return { bind: (...values) => make(values), ...make([]) };

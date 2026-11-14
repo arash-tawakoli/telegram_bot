@@ -13,7 +13,7 @@ test("referrals register once and award both participants only after a profile i
       prepare(query) {
         const make = params => ({ all: async () => {
           const statement = sqlite.prepare(query);
-          if (/^\s*(SELECT|PRAGMA)/i.test(query)) return { results: statement.all(...params), meta: { changes: 0 } };
+          if (/^\s*(SELECT|WITH|PRAGMA)/i.test(query)) return { results: statement.all(...params), meta: { changes: 0 } };
           return { results: [], meta: { changes: Number(statement.run(...params).changes) } };
         } });
         return { bind: (...params) => make(params), ...make([]) };
