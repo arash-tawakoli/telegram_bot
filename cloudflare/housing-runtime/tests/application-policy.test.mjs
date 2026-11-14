@@ -16,3 +16,14 @@ test("Cloudflare Telegram handlers do not depend on the Supabase EdgeRuntime glo
   assert.equal(sessions.includes("message_swap"),false);
   assert.match(sessions,/platforms:profile-preview/);
 });
+
+test("only explicitly WBS-restricted offers demand a confirmed WBS", () => {
+  assert.equal(listingRequiresWbs({}), false);
+  assert.equal(listingRequiresWbs({wbs_required:false}), false);
+  assert.equal(listingRequiresWbs({wbs_required:true}), true);
+  assert.equal(listingRequiresWbs({wbs_required:"true"}), true);
+  assert.equal(hasValidWbs({wbs_status:"Ja"}), true);
+  assert.equal(hasValidWbs({wbs_status:"vorhanden"}), true);
+  assert.equal(hasValidWbs({wbs_status:"Nein"}), false);
+  assert.equal(hasValidWbs({wbs_status:""}), false);
+});
