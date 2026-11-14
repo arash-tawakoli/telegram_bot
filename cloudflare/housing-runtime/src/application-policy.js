@@ -24,9 +24,7 @@ export function missingApplicantFields(value) {
   const required = [
     ["first_name", "Vorname"], ["last_name", "Nachname"], ["street", "Straße"],
     ["house_number", "Hausnummer"], ["city", "Ort"], ["pets", "Haustiere"],
-    ["wbs_status", "WBS-Status"], ["message_apartment", "Bewerbungstext Wohnung"],
-    ["message_house", "Bewerbungstext Haus"], ["message_temporary_wg", "Bewerbungstext Auf Zeit & WG"],
-    ["message_swap", "Bewerbungstext Tauschwohnung"],
+    // WBS is required only for explicitly WBS-restricted listings.\n    // Both apartment and house texts have a safe default containing [[Vorname]].
   ];
   for (const [key, label] of required) if (!text(key)) missing.push(label);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text("email"))) missing.push("E-Mail-Adresse");
