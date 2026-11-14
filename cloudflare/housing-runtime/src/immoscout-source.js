@@ -30,6 +30,29 @@ function numeric(value) {
   return Number.isFinite(result) ? result : null;
 }
 
+function germanCoordinates(entry) {
+  const position = entry?.address?.coordinates;
+  const latitude = numeric(position?.lat);
+  const longitude = numeric(position?.lng);
+  // The Germany tools are the only supported MCP tools. Ignore invalid/out-of-country pins.
+  if (latitude == null || longitude == null
+    || latitude < 47.2 || latitude > 55.2 || longitude < 5.8 || longitude > 15.1) return {};
+  return { latitude, longitude };
+}
+
+export function germanImmoScoutQuery(source, filter = "") {
+  if (![1, 69].includes(Number(source?.id)) || source?.family !== "immoscout24") {
+    throw new Error("immoscout_source_not_allowlisted");
+  }
+  const criteria = String(filter ?? "").trim();
+  if (criteria.length > 180 || /[\u0000-\u001f]/.test(criteria)
+    || /\b(österreich|austria|vienna|wien|graz|salzburg|innsbruck|linz)\b/i.test(criteria)) {
+    throw new Error("immoscout_query_invalid");
+  }
+  const region = Number(source.id) === 69 ? "Schleswig-Holstein" : "Hamburg";
+  return `Wohnungen zur Miete in ${region}, Deutschland; ${criteria || "neueste Inserate"}`;
+}
+
 export function parseMcpToolResult(payload) {
   if (payload?.error) throw new Error(payload.error.message || "immoscout_mcp_error");
   if (payload?.result?.isError) throw new Error(payload.result.content?.map((item) => item?.text).filter(Boolean).join(" | ") || "immoscout_mcp_error");
@@ -74,6 +97,7 @@ export function normalizeImmoScoutEntry(entry, sourceId) {
       area_sqm: numeric(entry.size),
       image_url: typeof entry.titlePictureUrls?.[0]?.href === "string" ? entry.titlePictureUrls[0].href.replace(/%WIDTH%/g, "1200").replace(/%HEIGHT%/g, "800") : null,
       provider: "immoscout24",
+      ...germanCoordinates(entry),
     },
   };
 }
@@ -91,6 +115,39 @@ export async function fetchImmoScoutSource(source, config = {}) {
     nodes.push(normalized);
   }
   return { nodes, fetched: result.total ?? nodes.length, reported_total: result.total, query };
+}
+
+/**
+ * On-demand geographic results from the German property_map_de tool.
+ * Does not enqueue deliveries, applications or mutate the housing database.
+ */
+export async function fetchImmoScoutMap(source, config = {}) {
+  if (![1, 69].includes(Number(source?.id)) || source?.family !== "immoscout24") {
+    throw new Error("immoscout_source_not_allowlisted");
+  }
+  const limit = Number(config.limit ?? 100);
+  if (!Number.isInteger(limit) || limit < 1 || limit > 200) throw new Error("immoscout_limit_invalid");
+  const query = queryFor(source, config);
+  const result = await callTool("property_map_de", query);
+  const points = [];
+  const seen = new Set();
+  for (const entry of result.entries) {
+    const normalized = normalizeImmoScoutEntry(entry, Number(source.id));
+    if (!normalized || seen.has(normalized.identity)
+      || !Number.isFinite(normalized.facts.latitude)
+      || !Number.isFinite(normalized.facts.longitude)) continue;
+    seen.add(normalized.identity);
+    points.push({
+      id: normalized.identity,
+      url: normalized.canonical_url,
+      ...normalized.facts,
+    });
+    if (points.length >= limit) break;
+  }
+  return {
+    sourceId: Number(source.id), tool: "property_map_de", query,
+    total: result.total ?? result.entries.length, count: points.length, points,
+  };
 }
 
 export async function ingestImmoScoutSource(sql, source, config = {}) {
