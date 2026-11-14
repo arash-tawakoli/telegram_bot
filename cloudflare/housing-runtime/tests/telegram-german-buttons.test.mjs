@@ -574,7 +574,8 @@ test("all three sources stay visible for free users, but starting one requires P
   for(const id of [1,4,3])assert.ok(controls.includes("platforms:resume:"+id));
   assert.match(lastMessage(x).text,/Premium erforderlich/);
   await platformSessions({...x.user,is_premium:false},x.chat,59,"platforms:resume:1");
-  assert.match(lastMessage(x).text,/aktives Premium/);
+  assert.match(lastMessage(x).text,/Bewerberprofil unvollständig/);
+  assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][0].callback_data,"platforms:profile");
   assert.equal(x.sqlite.prepare("SELECT auto_apply_enabled FROM participants WHERE id='owner'").get().auto_apply_enabled,0);
  }finally{x.done();}
 });
@@ -639,7 +640,8 @@ test("preview Bewerbungstext ändern navigates through its own text editor and b
   assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][0].callback_data,"platforms:preview-edit:message_apartment");
   assert.equal(lastMessage(x).reply_markup.inline_keyboard.at(-1)[0].callback_data,"platforms:preview-texts");
   await call("platforms:preview-edit:message_apartment");
-  assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][0].callback_data,"platforms:preview-texts");
+  const fieldScreen=x.sent.filter(req=>req.method==="editMessageText").at(-1).body;
+  assert.equal(fieldScreen.reply_markup.inline_keyboard[0][0].callback_data,"platforms:preview-texts");
   const state=JSON.parse(x.sqlite.prepare("SELECT telegram_state FROM participants WHERE id='owner'").get().telegram_state);
   assert.equal(state._applicant_text_origin,"preview");
   await handleAutoApplyMessage({...x.user,onboarding_state:state},{
@@ -687,7 +689,7 @@ test("confirmed applicant reset removes every personal field, keeps application 
   assert.match(lastMessage(x).text,/Bewerberprofil/);
   x.sqlite.exec("UPDATE applicant_profiles SET profile=json_set(profile,'$.first_name','Neu') WHERE participant_id='owner'");
   await call(confirm);
-  assert.match(lastMessage(x).text,/Bestätigung ist ungültig oder abgelaufen/);
+  assert.match(lastMessage(x).text,/Löschbestätigung ist ungültig oder abgelaufen/);
   assert.equal(JSON.parse(x.sqlite.prepare("SELECT profile FROM applicant_profiles WHERE participant_id='owner'").get().profile).first_name,"Neu");
  }finally{x.done();}
 });
@@ -704,7 +706,7 @@ test("canceling the applicant reset invalidates the confirmation and preserves t
    {...x.user,onboarding_state:pending});
   assert.match(lastMessage(x).text,/Profilvorschau/);
   await call(stale);
-  assert.match(lastMessage(x).text,/Bestätigung ist ungültig oder abgelaufen/);
+  assert.match(lastMessage(x).text,/Löschbestätigung ist ungültig oder abgelaufen/);
   assert.equal(JSON.parse(x.sqlite.prepare("SELECT profile FROM applicant_profiles WHERE participant_id='owner'").get().profile).first_name,completeApplicant.first_name);
  }finally{x.done();}
 });
