@@ -220,7 +220,7 @@ test("search-profile menu and new-profile flow expose working callbacks in Germa
     const confetti=x.sent.filter(y=>y.method==='sendMessage'&&y.body.message_effect_id);
     assert.equal(confetti.length,1);
     assert.equal(confetti[0].body.message_effect_id,"5046509860389126442");
-    assert.equal(x.sqlite.prepare("SELECT COUNT(*) n FROM profile_celebrations WHERE participant_id='owner' AND kind='search'").get().n,1);
+    assert.equal(x.sqlite.prepare("SELECT COUNT(*) n FROM profile_celebrations WHERE participant_id='owner' AND kind='search'").get().n,0,"celebrations are not limited by a saved one-time claim");
   } finally { x.done(); }
 });
 
@@ -395,7 +395,7 @@ test("Bewerbungstext bearbeiten uses Telegram ForceReply, saves changes, and sho
   } finally { x.done(); }
 });
 
-test("first completed Bewerberprofil triggers exactly one native confetti effect, not on later edits", async () => {
+test("an incomplete applicant identity never celebrates before the required fields are complete", async () => {
   const x = setup();
   try {
     await platformSessions(x.user, x.chat, 21, "platforms:profile-new");
@@ -411,10 +411,9 @@ test("first completed Bewerberprofil triggers exactly one native confetti effect
     await field("first_name", "Mara");
     assert.equal(effects().length, 0, "one name field is not a completed identity");
     await field("last_name", "Beispiel");
-    assert.equal(effects().length, 1);
+    assert.equal(effects().length, 0, "first and last name do not complete the full profile");
     await field("first_name", "Maria");
-    assert.equal(effects().length, 1);
-    assert.equal(x.sqlite.prepare("SELECT COUNT(*) n FROM profile_celebrations WHERE participant_id='owner' AND kind='applicant'").get().n, 1);
+    assert.equal(effects().length, 0);
   } finally { x.done(); }
 });
 
@@ -484,7 +483,7 @@ test("new Telegram participants immediately receive a one-time 30-day Premium we
   }finally{x.done();}
 });
 
-test("a fully completed applicant profile gets one second confetti and Yes/No activation choices",async()=>{
+test("completion celebration repeats on later profile changes, and every successful Yes gets its own confetti",async()=>{
  const x=setup();
  try{
   const incomplete={...completeApplicant};delete incomplete.schufa_status;
@@ -496,11 +495,18 @@ test("a fully completed applicant profile gets one second confetti and Yes/No ac
   assert.deepEqual(celebration[0].body.reply_markup.inline_keyboard.map(row=>row[0].callback_data),
     ["platforms:completion:yes","platforms:completion:no"]);
   await platformSessions(x.user,x.chat,31,"platforms:profile-set:schufa_status:AVAILABLE");
-  assert.equal(x.sent.filter(req=>req.method==="sendMessage"&&req.body.message_effect_id==="5046509860389126442").length,1);
-  assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM applicant_completion_prompts WHERE participant_id='owner'").get().n,1);
+  assert.equal(x.sent.filter(req=>req.method==="sendMessage"&&req.body.message_effect_id==="5046509860389126442").length,2,"a second complete profile change celebrates again");
+  await platformSessions(x.user,x.chat,31,"platforms:profile-set:schufa_status:AVAILABLE");
+  assert.equal(x.sent.filter(req=>req.method==="sendMessage"&&req.body.message_effect_id==="5046509860389126442").length,2,"saving an unchanged field is not a new completion");
+  assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM applicant_completion_prompts WHERE participant_id='owner'").get().n,0,"no one-time claim is used");
 
   const callback=async data=>handleCallback({id:"choice-"+data,data,from:{id:777},message:{chat:x.chat,message_id:31}},x.user);
   await callback("platforms:completion:yes");
+  const effects=()=>x.sent.filter(req=>req.method==="sendMessage"&&req.body.message_effect_id==="5046509860389126442");
+  assert.equal(effects().length,3,"successful Yes adds a third confetti effect");
+  assert.match(effects().at(-1).body.text,/Automatische Bewerbung aktiviert/);
+  await callback("platforms:completion:yes");
+  assert.equal(effects().length,4,"another successful Yes also celebrates");
   const read=()=>x.sqlite.prepare("SELECT enabled,immoscout_enabled,immowelt_enabled,immomio_enabled FROM application_preferences WHERE participant_id='owner'").get();
   assert.deepEqual([read().enabled,read().immoscout_enabled,read().immowelt_enabled,read().immomio_enabled],[1,1,1,1]);
   assert.equal(x.sqlite.prepare("SELECT auto_apply_enabled FROM participants WHERE id='owner'").get().auto_apply_enabled,1);
@@ -508,7 +514,8 @@ test("a fully completed applicant profile gets one second confetti and Yes/No ac
   for (const id of [1,4,3])assert.ok(controls.includes("platforms:pause:"+id));
 
   await callback("platforms:completion:no");
-  assert.deepEqual([read().enabled,read().immoscout_enabled,read().immowelt_enabled,read().immomio_enabled],[0,0,0,0]);
+  assert.equal(effects().length,4,"No never celebrates");
+  assert.deepEqual([read().enabled,read().immoscout_enabled,read().immomio_enabled],[0,0,0,0]);
   const paused=lastMessage(x).reply_markup.inline_keyboard.flat().map(b=>b.callback_data);
   for (const id of [1,4,3])assert.ok(paused.includes("platforms:resume:"+id));
  }finally{x.done();}
