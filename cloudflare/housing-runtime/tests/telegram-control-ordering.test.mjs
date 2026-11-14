@@ -33,7 +33,7 @@ function database() {
   db.exec('CREATE TABLE telegram_updates(update_id INTEGER PRIMARY KEY,kind TEXT NOT NULL)');
   db.exec(readFileSync(new URL("../schema/d1/0020_telegram_control_ordering.sql", import.meta.url), "utf8"));
   db.exec(`
-    CREATE TABLE participants(id TEXT PRIMARY KEY,auto_apply_enabled INTEGER NOT NULL DEFAULT 0,test_auto_apply_enabled INTEGER NOT NULL DEFAULT 0);
+    CREATE TABLE participants(id TEXT PRIMARY KEY,auto_apply_enabled INTEGER NOT NULL DEFAULT 0,test_auto_apply_enabled INTEGER NOT NULL DEFAULT 0,updated_at TEXT);
     CREATE TABLE application_preferences(participant_id TEXT PRIMARY KEY,enabled INTEGER NOT NULL DEFAULT 0,immoscout_enabled INTEGER NOT NULL DEFAULT 0,immowelt_enabled INTEGER NOT NULL DEFAULT 0,immomio_enabled INTEGER NOT NULL DEFAULT 0);
     INSERT INTO participants(id) VALUES('participant-1');
     INSERT INTO telegram_updates(update_id,kind) VALUES(100,'callback_query'),(101,'callback_query'),(200,'callback_query'),(201,'callback_query');
