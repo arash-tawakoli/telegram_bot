@@ -811,11 +811,14 @@ export async function handleCallback(query, user) {
         if (issue)
             return renderStep(user, chatId, messageId, draft, issue);
         const referralReward = await persistProfile(user, draft);
+        const { data: first, error: celebrationError } = await db.rpc("claim_first_profile_celebration", { p_user: user.id, p_kind: "search" });
+        if (celebrationError) console.error("search_profile_celebration_claim_failed", celebrationError.message);
         const result = await edit(chatId, messageId, "✅ Deine Suche ist aktiv. Neue passende Inserate werden automatisch zugestellt.", homeKeyboard({ ...user, onboarding_step: null }));
-        if (referralReward?.status === "rewarded") {
-            await sendCelebration(chatId, "💎 <b>30 Tage Premium kostenlos aktiviert</b>\n\n" +
-                "Dein erstes Suchprofil ist erstellt und dir wurden 30 Tage Premium kostenlos gutgeschrieben.\n\n" +
-                "Viel Erfolg und viel Spaß bei deiner Wohnungssuche! 🏠");
+        if (referralReward?.status === "rewarded" || first?.claimed === true) {
+            const message = referralReward?.status === "rewarded"
+                ? "🎉 <b>Dein erstes Suchprofil ist aktiv!</b>\n\n💎 30 Tage Premium kostenlos wurden gutgeschrieben."
+                : "🎉 <b>Dein erstes Suchprofil ist aktiv!</b>\n\nAb jetzt erhältst du passende Wohnungsangebote.";
+            await sendCelebration(chatId, message).catch(error => console.error("search_profile_celebration_failed", error.message));
         }
         return result;
     }
