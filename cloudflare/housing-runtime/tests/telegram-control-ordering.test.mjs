@@ -57,7 +57,7 @@ test("D1 ignores older global and provider controls after a newer accepted callb
   await adapter.rpc('set_application_provider_enabled_shared', { p_user:'participant-1', p_provider:'immomio', p_enabled:true, p_update_id:200, p_telegram_user_id:777 });
   assert.equal(db.prepare('SELECT immomio_enabled FROM application_preferences WHERE participant_id=?').get('participant-1').immomio_enabled, 0);
 
-  const accepted = db.prepare('SELECT telegram_user_id,callback_data FROM telegram_updates WHERE update_id IN (100,101,200,201) ORDER BY update_id').all();
+  const accepted = db.prepare('SELECT telegram_user_id,callback_data FROM telegram_updates WHERE update_id IN (100,101,200,201) ORDER BY update_id').all().map(row => ({ telegram_user_id: row.telegram_user_id, callback_data: row.callback_data }));
   assert.deepEqual(accepted, [
     { telegram_user_id:777, callback_data:'platforms:on' },
     { telegram_user_id:777, callback_data:'platforms:off' },
