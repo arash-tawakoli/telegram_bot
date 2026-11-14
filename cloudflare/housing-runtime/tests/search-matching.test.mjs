@@ -98,6 +98,7 @@ test("retained Immomio source identifiers prevent reapplying after application p
   const facts = { ...apartment, canonical_url: `https://tenant.immomio.com/de/apply/${immomioId}` };
   assert.equal(await queueMatches(sql, "offer", 23, "23:external:object-1", facts), 1);
   assert.equal(calls.some(call => call.query.includes("INSERT INTO housing.deliveries")), true);
+  assert.equal(calls.some(call => call.query.includes("INSERT INTO housing.jobs")), false, "delivery idempotency is the only required queue");
   assert.equal(calls.some(call => call.query.includes("INSERT INTO housing.applications")), false);
 });
 test("incomplete historical ImmoScout application identity blocks auto-apply for that participant", async () => {
