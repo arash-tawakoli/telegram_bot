@@ -279,6 +279,21 @@ function storageKey(path) {
   return key;
 }
 async function rpc(client, env, name, args) {
+  if (name === "get_or_create_referral_code") {
+    const participantId = String(args.p_user || "");
+    if (!participantId) return { data: null, error: new Error("referral_user_missing") };
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const existing = (await client.run("SELECT code FROM referral_codes WHERE participant_id=? LIMIT 1", [participantId]))[0];
+      if (existing) return { data: existing, error: null };
+      const code = crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase();
+      await client.run(
+        "INSERT OR IGNORE INTO referral_codes(participant_id,code) SELECT ?,? WHERE EXISTS(SELECT 1 FROM participants WHERE id=?)",
+        [participantId, code, participantId],
+      );
+    }
+    const existing = (await client.run("SELECT code FROM referral_codes WHERE participant_id=? LIMIT 1", [participantId]))[0];
+    return existing ? { data: existing, error: null } : { data: null, error: new Error("referral_code_unavailable") };
+  }
   if (name === "redeem_referral_code") {
     const code = String(args.p_code || "").trim();
     if (!args.p_referred_user_id || !code) return { data: { status: "invalid_code" }, error: null };
