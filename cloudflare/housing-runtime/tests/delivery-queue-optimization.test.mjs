@@ -35,10 +35,10 @@ test("shadow retirement preserves idempotency and scheduled lookups use narrow i
         ('cutover-live','audit-user','live-offer','audit-user:cutover-hash','pending','cutover_waiting','2026-11-01 00:00:00'),
         ('shadow-pending','audit-user','shadow-offer','audit-user:shadow-pending','pending',NULL,'2026-11-01 00:00:00'),
         ('shadow-sent','audit-user','shadow-offer','audit-user:shadow-sent','sent',NULL,'2026-11-01 00:00:00');
-      INSERT INTO application_dedupe_keys(key_hash,created_at) VALUES('keep-hash','2026-11-01 00:00:00');
       INSERT INTO scout_shadow_scans(source_id,cycle_id,queue_json,status) VALUES(1,'cycle','[]','finished');
       INSERT INTO scout_shadow_offers(source_id,external_id,cycle_id,canonical_url,facts) VALUES(1,'public-offer','cycle','https://example.test/public','{}');
     `);
+    db.prepare("INSERT INTO application_dedupe_keys(key_hash,created_at) VALUES(?,?)").run("a".repeat(64), "2026-11-01 00:00:00");
     db.exec(readFileSync(new URL(migrationFile, schema), "utf8"));
 
     const delivery = id => db.prepare("SELECT status,error_message,offer_identity_id,idempotency_key FROM deliveries WHERE id=?").get(id);
@@ -54,7 +54,7 @@ test("shadow retirement preserves idempotency and scheduled lookups use narrow i
     assert.equal(db.prepare("SELECT count(*) AS count FROM offer_identities WHERE source_id=71").get().count, 0);
     assert.equal(db.prepare("SELECT count(*) AS count FROM source_registry WHERE id IN (30,32,36,39,71) AND enabled=1").get().count, 0);
     assert.equal(db.prepare("SELECT count(*) AS count FROM source_registry WHERE enabled=1").get().count, 8);
-    assert.equal(db.prepare("SELECT count(*) AS count FROM application_dedupe_keys WHERE key_hash='keep-hash'").get().count, 1);
+    assert.equal(db.prepare("SELECT count(*) AS count FROM application_dedupe_keys WHERE key_hash=?").get("a".repeat(64)).count, 1);
     assert.equal(db.prepare("SELECT count(*) AS count FROM sqlite_master WHERE type='table' AND name IN ('scout_shadow_scans','scout_shadow_offers')").get().count, 0);
 
     const fresh = plan(db, "SELECT id FROM deliveries WHERE status='pending' AND error_message IS NOT 'cutover_waiting' AND created_at >= datetime('now','-15 minutes') ORDER BY created_at,id LIMIT 1");
