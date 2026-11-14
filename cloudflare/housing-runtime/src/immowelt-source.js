@@ -16,6 +16,25 @@ function number(text, pattern) {
   return Number.isFinite(result) ? result : null;
 }
 
+
+function listingPhoto(chunk, base) {
+  // Search-result photos are served by mms.immowelt.de; provider logos use
+  // much smaller sizes and must not be selected as listing photographs.
+  for (const tag of chunk.match(/<img\b[^>]*>/gi) || []) {
+    const src = tag.match(/\b(?:src|data-src)=["']([^"']+)["']/i)?.[1];
+    if (!src) continue;
+    const image = absolute(base, src.replace(/&amp;/gi, "&"));
+    if (!image) continue;
+    const url = new URL(image);
+    if (url.protocol === "https:" && url.hostname === "mms.immowelt.de"
+      && /\.(?:jpe?g|png|webp)$/i.test(url.pathname)
+      && (Number(url.searchParams.get("w") || 0) >= 300 || /(?:image|photo|thumbnail)/i.test(tag))) {
+      return image;
+    }
+  }
+  return null;
+}
+
 function cards(html, base, sourceId) {
   const output = [];
   const seen = new Set();
@@ -46,6 +65,7 @@ function cards(html, base, sourceId) {
         rooms: number(text, /([\d]+(?:[.,][\d]+)?)\s*(?:Zimmer|Zi\.)/i),
         area_sqm: number(text, /([\d]+(?:[.,][\d]+)?)\s*m²/i),
         postal_code: text.match(/\b(20\d{3}|21\d{3}|22\d{3}|23\d{3})\b/)?.[1] || null,
+        image_url: listingPhoto(chunk, base),
         provider: "immowelt",
       },
     });
