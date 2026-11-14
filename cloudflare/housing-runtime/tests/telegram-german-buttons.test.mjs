@@ -166,10 +166,14 @@ test("document management is retired without deleting existing records", async (
 test("search-profile menu and new-profile flow expose working callbacks in German", async () => {
   const x = setup();
   try {
-    const callback = data => handleCallback({
-      id: "cb-" + data, data, from: { id: 777 },
-      message: { chat: x.chat, message_id: 21 },
-    }, x.user);
+    const callback = data => {
+      const current = x.sqlite.prepare("SELECT telegram_state FROM participants WHERE id='owner'").get();
+      const onboarding_state = JSON.parse(current?.telegram_state || "{}");
+      return handleCallback({
+        id: "cb-" + data, data, from: { id: 777 },
+        message: { chat: x.chat, message_id: 21 },
+      }, { ...x.user, onboarding_state, onboarding_step: onboarding_state._step || null });
+    };
     await callback("profile");
     assert.match(lastMessage(x).text, /Meine Suchprofile/);
     assert.ok(lastMessage(x).reply_markup.inline_keyboard.some(row => row[0].callback_data === "new"));
