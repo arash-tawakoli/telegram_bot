@@ -12,6 +12,13 @@ export async function recoverTelegramUpdates(sql, env, handleUpdate, now = new D
   if (!Number.isInteger(limit) || limit < 1 || limit > 50) throw new RangeError("telegram_recovery_limit_invalid");
   if (typeof handleUpdate !== "function") throw new TypeError("telegram_recovery_handler_missing");
   const time = new Date(now).toISOString();
+  await sql`
+    UPDATE telegram_updates
+    SET status='failed',processing_at=NULL,payload_json=NULL,last_error='telegram_retry_limit'
+    WHERE payload_json IS NOT NULL AND attempts>=5
+      AND (status='failed' OR (status='processing' AND processing_at IS NOT NULL
+        AND julianday(processing_at)<=julianday(${time},'-10 minutes')))
+  `;
   const rows = await sql`
     SELECT update_id
     FROM telegram_updates
