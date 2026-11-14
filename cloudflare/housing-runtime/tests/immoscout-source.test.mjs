@@ -39,6 +39,7 @@ test("the on-demand Scout MCP actions only support German regions", () => {
   assert.throws(() => germanImmoScoutQuery({ id: 999, family: "immoscout24" }), /immoscout_source_not_allowlisted/);
   assert.throws(() => germanImmoScoutQuery(sourceForId(3)), /immoscout_source_not_allowlisted/);
   assert.throws(() => germanImmoScoutQuery(sourceForId(1), "Wohnungen in Wien"), /immoscout_query_invalid/);
+  assert.throws(() => germanImmoScoutQuery(sourceForId(1), "in Österreich"), /immoscout_query_invalid/);
   assert.throws(() => germanImmoScoutQuery(sourceForId(1), "x".repeat(181)), /immoscout_query_invalid/);
 });
 
@@ -100,9 +101,9 @@ test("the German MCP map drops invalid coordinates and enforces result limits", 
     }), { headers: { "content-type": "application/json" } });
   };
   try {
-    assert.rejects(fetchImmoScoutMap(sourceForId(1), { limit: 0 }), /immoscout_limit_invalid/);
-    assert.rejects(fetchImmoScoutMap(sourceForId(1), { limit: 201 }), /immoscout_limit_invalid/);
-    assert.rejects(fetchImmoScoutMap(sourceForId(3)), /immoscout_source_not_allowlisted/);
+    await assert.rejects(fetchImmoScoutMap(sourceForId(1), { limit: 0 }), /immoscout_limit_invalid/);
+    await assert.rejects(fetchImmoScoutMap(sourceForId(1), { limit: 201 }), /immoscout_limit_invalid/);
+    await assert.rejects(fetchImmoScoutMap(sourceForId(3)), /immoscout_source_not_allowlisted/);
     const result = await fetchImmoScoutMap(sourceForId(1), { limit: 100 });
     assert.equal(result.count, 1);
     assert.equal(result.points[0].id, "123456");
