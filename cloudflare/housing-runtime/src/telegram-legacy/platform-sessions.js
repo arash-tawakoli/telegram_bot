@@ -260,7 +260,7 @@ async function storeApplicantDocument(user,message,type){
  });
  if(uploadError)throw Error('Dokument konnte nicht sicher gespeichert werden.');
  const {error:insertError}=await db.from('applicant_documents').insert({
-  user_id:user.id,document_type:type,original_filename:original,storage_path:storagePath,
+  id:crypto.randomUUID(),user_id:user.id,document_type:type,original_filename:original,storage_path:storagePath,
   mime_type:mime,size_bytes:bytes.length,send_with_auto_apply:false
  });
  if(insertError){
@@ -509,6 +509,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  const back=[[button('← Automatische Bewerbung','platforms')]];
 
  if(action==='test'){
+  if(!['on','off'].includes(arg)) return platformSessions(user,chat,messageId,'platforms:test-status');
   const enabled=arg==='on';
   try{
    await applicationWorker('set_test_mode',user.id,1,{
@@ -522,6 +523,34 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
     ...back
    ]);
   }
+ }
+
+ if(action==='test-status'){
+  const {data:state,error}=await db.from('bot_users')
+    .select('test_auto_apply_allowed,test_auto_apply_enabled,test_auto_apply_daily_limit,test_auto_apply_enabled_at,auto_apply_enabled')
+    .eq('id',user.id).single();
+  if(error)throw Error('Teststatus konnte nicht geladen werden.');
+  if(state?.test_auto_apply_allowed!==true)
+    return render('Der persönliche ImmoScout24-Testzugang ist für dieses Konto nicht freigegeben.',back);
+  let central=null;
+  try {
+    central=await runtimeEnv().HOUSING_DB.prepare(
+      "SELECT status,enabled,last_verified_at FROM central_credentials WHERE singleton='central' LIMIT 1"
+    ).first();
+  } catch { /* A missing status is shown as unknown, never as connected. */ }
+  const testEnabled=state.test_auto_apply_enabled===true&&state.auto_apply_enabled!==true;
+  const credentialReady=central?.status==='connected'&&central?.enabled===0;
+  const lastCheck=central?.last_verified_at
+    ? new Date(central.last_verified_at).toLocaleString('de-DE')
+    : 'nicht verifiziert';
+  return render('🧪 <b>ImmoScout24 · Persönlicher Testzugang</b>\n\n'
+    +'Testmodus: <b>'+(testEnabled?'Aktiv':'Deaktiviert')+'</b>\n'
+    +'Gespeicherter Zugang: <b>'+(credentialReady?'Verbunden':'Nicht bestätigt')+'</b>\n'
+    +'Letzte Prüfung: '+esc(lastCheck)+'\n'
+    +'Tageslimit: '+Number(state.test_auto_apply_daily_limit||1)+' echte Bewerbung(en)\n\n'
+    +'Der Testzugang nutzt das zentrale NexaLabs-Konto. Die reguläre zentrale Freigabe bleibt dabei deaktiviert. '
+    +'Ob ein Bewerbungsversand erfolgreich war, ist erst nach einer bestätigten Testbewerbung nachgewiesen.',
+    [[button('← Auto-Bewerbung','platforms')]]);
  }
 
  if(action==='profile'){
@@ -668,9 +697,9 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   if(error)throw Error('Dokument konnte nicht geladen werden.');
   if(doc){
    const next=!doc.send_with_auto_apply;
-   const {error:updateError}=await db.from('applicant_documents').update({send_with_auto_apply:next,updated_at:new Date().toISOString()}).eq('id',doc.id).eq('user_id',user.id);
+   const {error:updateError}=await db.from('applicant_documents').update({send_with_auto_apply:next}).eq('id',doc.id).eq('user_id',user.id);
    if(updateError)throw Error('Dokumentauswahl konnte nicht gespeichert werden.');
-   if(!next)await applicationWorker('sync_documents',user.id,3).catch(()=>null);
+   // The current application processor reads selected documents directly from D1.
   }
   return renderApplicantDocuments(user,chat,messageId);
  }
@@ -678,7 +707,6 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   if(!user.is_premium)return render('Bewerberdokumente für Auto-Bewerbungen benötigen Premium.',back);
   try{
    await deleteApplicantDocument(user.id,arg);
-   await applicationWorker('sync_documents',user.id,3).catch(()=>null);
    return renderApplicantDocuments(user,chat,messageId,'Dokument gelöscht.');
   }catch(error){return renderApplicantDocuments(user,chat,messageId,`⚠️ ${esc(error.message)}`);}
  }
@@ -730,7 +758,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
        ? '<b>1.</b> Öffne Immomio.\\n<b>2.</b> Melde dich normal an. Der Rücksprung wird automatisch erkannt.'
        : 'Melde dich einmalig an. Danach bleibt die Verbindung gespeichert.';
     const loginLabel=source===4?`🌐 ${name} verbinden`:`🌐 ${name}-Login öffnen`;
-    return render(`🔐 <b>${name} verbinden</b>\n\n${note}`,[[{text:loginLabel,web_app:{url:result.url}}],...back]);
+    return render(`🔐 <b>${name} verbinden</b>\n\n${note}`,[[{text:loginLabel,url:result.url}],...back]);
    }
    return render(result.authenticated===true?`${name}: ✅ Verbindung bestätigt.`:result.authenticated===false?`${name}: Anmeldung erforderlich.`:`${name}: Verbindung gespeichert, aber noch nicht vollständig verifiziert.`,back);
   }catch(error){return render(error.message,back);}
@@ -783,7 +811,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  for(const sourceId of Object.keys(AUTO_APPLY_PROVIDERS).map(Number)){
   const meta=AUTO_APPLY_PROVIDERS[sourceId],connected=connection(meta.key)?.status==='connected';
   if(testModeEnabled&&sourceId===1){
-   rows.push([button('🧪 ImmoScout24 · Testzugang','noop')]);
+   rows.push([button('🧪 ImmoScout24 · Testzugang','platforms:test-status')]);
    continue;
   }
   rows.push([connected
