@@ -6,7 +6,7 @@ import { ingestImmomioSource } from "./immomio-source.js";
 import { ingestImmoweltSource } from "./immowelt-source.js";
 import { ingestImmoScoutSource } from "./immoscout-source.js";
 import { deliveryCutoverLedger, reconcileCloudflareDeliveries } from "./delivery-cutover-ledger.js";
-import { telegramText } from "./matching.js";
+import { listingPhotoRequest, resolveListingImage, sendListingPhoto } from "./telegram-listing-preview.js";
 import { createSession, hashPassword, memberForAccess, refreshSession, revokeSession, sha256, verifyPassword } from "./auth.js";
 import { handleCoach } from "./coach-api.js";
 import { handleProviderFacade } from "./provider-facade.js";
@@ -200,11 +200,12 @@ async function processDelivery(sql, request, env) {
         UNION ALL
         SELECT id, created_at, priority FROM cutover
       )
-      SELECT d.id, d.participant_id, d.offer_identity_id, p.telegram_chat_id, oi.facts, oi.canonical_url
+      SELECT d.id, d.participant_id, d.offer_identity_id, p.telegram_chat_id, oi.source_id, s.name AS source_name, oi.facts, oi.canonical_url
       FROM candidates c
       JOIN housing.deliveries d ON d.id = c.id
       JOIN housing.participants p ON p.id = d.participant_id
       JOIN housing.offer_identities oi ON oi.id = d.offer_identity_id
+      JOIN housing.source_registry s ON s.id = oi.source_id
       ORDER BY c.priority, c.created_at, c.id
       LIMIT 1
       FOR UPDATE SKIP LOCKED
@@ -222,6 +223,22 @@ async function processDelivery(sql, request, env) {
   if (!token) {
     await sql`UPDATE housing.deliveries SET status = 'failed' WHERE id = ${claimed.id}`;
     return json({ error: "telegram_token_missing" }, 503);
+  }
+  let details = claimed.facts;
+  if (typeof details === "string") {
+    try { details = JSON.parse(details); } catch { details = {}; }
+  }
+  const facts = { ...(details && typeof details === "object" ? details : {}), canonical_url: claimed.canonical_url };
+  const photo = await resolveListingImage(facts, claimed.canonical_url, claimed.source_id);
+  if (!photo) {
+    await sql`UPDATE housing.deliveries SET status = 'failed', error_message = 'listing_photo_missing' WHERE id = ${claimed.id}`;
+    return json({ ok: true, status: "failed", reason: "listing_photo_missing" });
+  }
+  let preview;
+  try { preview = listingPhotoRequest(claimed.telegram_chat_id, photo, facts, claimed.canonical_url, claimed.source_id, claimed.source_name); }
+  catch {
+    await sql`UPDATE housing.deliveries SET status = 'failed', error_message = 'listing_preview_invalid' WHERE id = ${claimed.id}`;
+    return json({ ok: true, status: "failed", reason: "listing_preview_invalid" });
   }
   const cutover = env.DELIVERY_CUTOVER_ENABLED === "1";
   const ledgerInput = { participant_id: claimed.participant_id, url: claimed.canonical_url, owner: `cloudflare:${claimed.id}` };
@@ -249,23 +266,17 @@ async function processDelivery(sql, request, env) {
       return defer();
     }
   }
-  let details = claimed.facts;
-  if (typeof details === "string") {
-    try { details = JSON.parse(details); } catch { details = {}; }
-  }
-  const facts = { ...(details && typeof details === "object" ? details : {}), canonical_url: claimed.canonical_url };
-  let response;
+  let response, result;
   try {
-    response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ chat_id: claimed.telegram_chat_id, text: telegramText(facts), parse_mode: "HTML", disable_web_page_preview: false }), signal: AbortSignal.timeout(15_000) });
+    ({ response, data: result } = await sendListingPhoto(token, preview));
   } catch (error) {
     if (cutover) await ledger("unknown").catch(() => {});
     throw error;
   }
-  const result = await response.json().catch(() => null);
   if (!response.ok || result?.ok !== true) {
     if (cutover) await ledger([400, 401, 403, 404, 409, 429].includes(response.status) ? "release" : "unknown");
-    await sql`UPDATE housing.deliveries SET status = 'failed' WHERE id = ${claimed.id}`;
-    return json({ error: "telegram_delivery_failed" }, 503);
+    await sql`UPDATE housing.deliveries SET status = 'failed', error_message = 'telegram_photo_failed' WHERE id = ${claimed.id}`;
+    return json({ error: "telegram_photo_failed" }, 503);
   }
   if (cutover && (!Number.isSafeInteger(result.result?.message_id) || result.result.message_id < 1)) {
     await ledger("unknown");
@@ -277,7 +288,7 @@ async function processDelivery(sql, request, env) {
     console.error("delivery_cutover_confirmation_failed");
     return json({ ok: true, status: "sent", ledger_status: "pending" });
   }
-  return json({ ok: true, status: "sent", delivery_id: claimed.id });
+  return json({ ok: true, status: "sent", format: "photo", delivery_id: claimed.id });
 }
 
 async function runScheduledHousingWork(env, minute = Math.floor(Date.now() / 60_000)) {
