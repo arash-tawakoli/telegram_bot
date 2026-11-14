@@ -38,7 +38,7 @@ function listingPhoto(chunk, base) {
 function cards(html, base, sourceId) {
   const output = [];
   const seen = new Set();
-  const parts = html.split(/<div\s+id=["']classified-card-/i);
+  const parts = html.split(/<div\b[^>]*\bid=["']classified-card-/i);
   const chunks = parts.length > 1 ? parts.slice(1) : [...html.matchAll(/<a\b[^>]*href=["'][^"']*\/expose\/[^"']+["'][^>]*>[\s\S]{0,12000}?<\/a>/gi)].map(match => match[0]);
   for (const chunk of chunks) {
     const match = chunk.match(/<a\b[^>]*href=["']([^"']*\/expose\/[^"']+)["'][^>]*>/i);
