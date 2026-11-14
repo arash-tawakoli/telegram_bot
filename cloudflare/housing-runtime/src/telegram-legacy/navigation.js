@@ -1,4 +1,5 @@
 import { db, button, send, edit } from "./runtime.js";
+import { homePreview, languageMenu as renderLanguageMenu } from "./home-language.js";
 
 export function homeKeyboard(user) {
   return { inline_keyboard: [
@@ -11,13 +12,7 @@ export function homeKeyboard(user) {
 }
 
 export function home(user, chatId, messageId) {
-  const text = "🏠 <b>Traumwohnung Hamburg</b>\n\n"
-    + "Dein Bot, der rund um die Uhr passende Wohnungen sucht und dich automatisch bewirbt.\n\n"
-    + "<b>In 3 Schritten zur automatisierten Bewerbung:</b>\n\n"
-    + "1. Suchprofil erstellen\n"
-    + "2. Bewerberprofil erstellen\n"
-    + "3. Auto-Bewerbung einrichten\n\n"
-    + "<b>Jetzt loslegen!👇</b>";
+  const text = homePreview(user.ui_language);
   return messageId ? edit(chatId, messageId, text, homeKeyboard(user)) : send(chatId, text, homeKeyboard(user));
 }
 
@@ -76,9 +71,14 @@ export async function referralPage(user, chatId, messageId) {
 export function settings(user, chatId, messageId) {
   const text = "⚙️ <b>Einstellungen</b>\n\nHilfe und Premium-Empfehlungen.";
   const markup = { inline_keyboard: [
+    [button("🌐 Sprache", "language")],
     [button("❓ Hilfe", "help")],
     [button("🎁 30 Tage Premium kostenlos", "referral")],
     [button("← Start", "home")],
   ] };
   return messageId ? edit(chatId, messageId, text, markup) : send(chatId, text, markup);
+}
+
+export function languageMenu(user, chatId, messageId) {
+  return renderLanguageMenu(user, chatId, messageId, send, edit, button);
 }
