@@ -142,7 +142,7 @@ export async function applicationWorker(action,userId,source,extra={}){
  throw Error('provider_operation_not_supported');
 }
 
-exportasync function purgePlatformSessions(userId){
+export async function purgePlatformSessions(userId){
  const {data:documents,error:documentError}=await db.from('applicant_documents').select('storage_path').eq('user_id',userId);
  if(documentError)throw Error('Bewerberdokumente konnten nicht geladen werden.');
  const paths=(documents||[]).map(row=>String(row.storage_path||'')).filter(Boolean);
