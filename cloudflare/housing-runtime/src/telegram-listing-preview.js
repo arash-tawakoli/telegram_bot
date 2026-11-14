@@ -70,17 +70,16 @@ export async function resolveListingImage(facts, listingUrl, sourceId, request =
  * Those values have dedicated rows below the headline.
  */
 export function listingHeadline(facts) {
-  const raw = String(facts?.title || "Wohnung zur Miete").replace(/\\s+/g, " ").trim();
-  const priced = raw.match(/^(.*?)\\s+[–-]\\s+\\d[\\d.,\\s]*€(?:\\s+[–-]\\s+.*)?$/iu);
+  const raw = String(facts?.title || "Wohnung zur Miete").replace(/\s+/g, " ").trim();
+  const priced = raw.match(/^(.*?)\s+[–-]\s+\d[\d.,\s]*€(?:\s+[–-]\s+.*)?$/iu);
   if (!priced) return raw.slice(0, 170);
-  const headline = priced[1].split(/\\s+[–-]\\s+/)[0].trim();
+  const headline = priced[1].split(/\s+[–-]\s+/)[0].trim();
   const area = String(facts?.district || facts?.city || "").trim();
   const areaIsSafe = area && !/[<>]/.test(area);
   const withArea = areaIsSafe && !headline.toLocaleLowerCase("de").includes(area.toLocaleLowerCase("de"))
     ? headline + " in " + area : headline;
   return (withArea || "Wohnung zur Miete").slice(0, 170);
 }
-
 export function listingCaption(facts) {
   const title = listingHeadline(facts);
   const lines = ["🏠 <b>" + escapeHtml(title) + "</b>", ""];
