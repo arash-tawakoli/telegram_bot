@@ -18,7 +18,6 @@ const TABLES = {
   referrals: "referrals",
   platform_reauth_notifications: "platform_reauth_notifications",
   user_engagement_notifications: "user_engagement_notifications",
-  bot_events: null,
   platform_auth_flows: "provider_auth_flows",
   telegram_announcements: "telegram_announcements",
 };
@@ -58,6 +57,23 @@ function scalar(value) {
 
 function mapColumn(table, column) {
   return ALIASES[table]?.[column] || column;
+}
+
+function telegramControlOrder(args, callbackData, supersedingCallbacks) {
+  if (args.p_update_id == null) return { sql: "", params: [], record: null };
+  const updateId = Number(args.p_update_id);
+  const telegramUserId = Number(args.p_telegram_user_id);
+  if (!Number.isSafeInteger(updateId) || updateId < 0 || !Number.isSafeInteger(telegramUserId) || telegramUserId < 1) {
+    return { error: new Error("telegram_control_update_invalid") };
+  }
+  return {
+    sql: " AND EXISTS (SELECT 1 FROM telegram_updates WHERE update_id=? AND telegram_user_id=? AND callback_data=?) AND NOT EXISTS (SELECT 1 FROM telegram_updates WHERE telegram_user_id=? AND update_id>? AND callback_data IN (?,?))",
+    params: [updateId, telegramUserId, callbackData, telegramUserId, updateId, ...supersedingCallbacks],
+    record: {
+      query: "UPDATE telegram_updates SET telegram_user_id=?,callback_data=? WHERE update_id=? AND kind='callback_query'",
+      params: [telegramUserId, callbackData, updateId],
+    },
+  };
 }
 
 function outputRow(table, row) {
@@ -451,12 +467,33 @@ async function rpc(client, env, name, args) {
     const enabled = args.p_enabled === true || args.p_enabled === 1;
     const user = (await client.run("SELECT test_auto_apply_enabled FROM participants WHERE id=? LIMIT 1", [args.p_user]))[0];
     if (enabled && bool(user?.test_auto_apply_enabled)) return { data: null, error: new Error("test_mode_active") };
-    await client.run("INSERT OR IGNORE INTO application_preferences(participant_id) VALUES(?)", [args.p_user]);
-    await client.run("UPDATE application_preferences SET enabled=? WHERE participant_id=?", [enabled ? 1 : 0, args.p_user]);
-    await client.run("UPDATE participants SET auto_apply_enabled=?,updated_at=CURRENT_TIMESTAMP WHERE id=?", [enabled ? 1 : 0, args.p_user]);
+    const order = telegramControlOrder(args, enabled ? "platforms:on" : "platforms:off", ["platforms:on", "platforms:off"]);
+    if (order.error) return { data: null, error: order.error };
+    const results = await client.batch([
+      { query: "INSERT OR IGNORE INTO application_preferences(participant_id) VALUES(?)", params: [args.p_user] },
+      ...(order.record ? [order.record] : []),
+      { query: `UPDATE application_preferences SET enabled=? WHERE participant_id=?${order.sql}`, params: [enabled ? 1 : 0, args.p_user, ...order.params] },
+      { query: `UPDATE participants SET auto_apply_enabled=?,updated_at=CURRENT_TIMESTAMP WHERE id=?${order.sql}`, params: [enabled ? 1 : 0, args.p_user, ...order.params] },
+    ]);
+    if (order.record && Number(results?.[1]?.meta?.changes || 0) !== 1) return { data: null, error: new Error("telegram_control_update_missing") };
     return { data: { enabled }, error: null };
   }
-  if (name === "set_application_provider_enabled_shared") { const col={immoscout:"immoscout_enabled",immoscout24:"immoscout_enabled",immowelt:"immowelt_enabled",immomio:"immomio_enabled"}[args.p_provider]; if(!col)return{data:null,error:new Error("provider_not_allowlisted")}; await client.run(`INSERT OR IGNORE INTO application_preferences(participant_id) VALUES(?)`,[args.p_user]); await client.run(`UPDATE application_preferences SET ${col}=? WHERE participant_id=?`,[args.p_enabled?1:0,args.p_user]); return {data:{enabled:!!args.p_enabled},error:null}; }
+  if (name === "set_application_provider_enabled_shared") {
+    const col = { immoscout: "immoscout_enabled", immoscout24: "immoscout_enabled", immowelt: "immowelt_enabled", immomio: "immomio_enabled" }[args.p_provider];
+    const source = { immoscout: 1, immoscout24: 1, immomio: 3, immowelt: 4 }[args.p_provider];
+    if (!col) return { data: null, error: new Error("provider_not_allowlisted") };
+    const enabled = args.p_enabled === true || args.p_enabled === 1;
+    const callbackData = `platforms:${enabled ? "resume" : "pause"}:${source}`;
+    const order = telegramControlOrder(args, callbackData, [`platforms:pause:${source}`, `platforms:resume:${source}`]);
+    if (order.error) return { data: null, error: order.error };
+    const results = await client.batch([
+      { query: "INSERT OR IGNORE INTO application_preferences(participant_id) VALUES(?)", params: [args.p_user] },
+      ...(order.record ? [order.record] : []),
+      { query: `UPDATE application_preferences SET ${col}=? WHERE participant_id=?${order.sql}`, params: [enabled ? 1 : 0, args.p_user, ...order.params] },
+    ]);
+    if (order.record && Number(results?.[1]?.meta?.changes || 0) !== 1) return { data: null, error: new Error("telegram_control_update_missing") };
+    return { data: { enabled }, error: null };
+  }
   if (name === "get_schleswig_holstein_areas") {
     const row = (await client.run("SELECT payload FROM coach_geo_snapshot WHERE id='de-hh-sh' LIMIT 1"))[0];
     if (!row?.payload) return { data: null, error: new Error("geography_snapshot_missing") };
