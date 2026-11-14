@@ -13,7 +13,7 @@ function setup() {
   for (const file of readdirSync(dir).filter(name => name.endsWith(".sql")).sort()) {
     sqlite.exec(readFileSync(new URL(file, dir), "utf8"));
   }
-  sqlite.exec("INSERT INTO participants(id,first_name,last_name,telegram_user_id,telegram_chat_id,plan_override,ui_language,test_auto_apply_allowed) VALUES ('owner','A','B',777,777,'premium','en',1)");
+  sqlite.exec("INSERT INTO participants(id,first_name,last_name,telegram_user_id,telegram_chat_id,plan_override,ui_language,language_selected_at,test_auto_apply_allowed) VALUES ('owner','A','B',777,777,'premium','en',CURRENT_TIMESTAMP,1)");
   sqlite.exec("CREATE TABLE IF NOT EXISTS coach_geo_snapshot(id TEXT PRIMARY KEY,payload TEXT NOT NULL)");
   sqlite.prepare("INSERT INTO coach_geo_snapshot(id,payload) VALUES('de-hh-sh',?)").run(JSON.stringify({
     boroughs:[{id:1,name:"Hamburg-Mitte"}],
@@ -66,17 +66,17 @@ function setup() {
   };
   const user = {
     id: "owner", user_id: "owner", telegram_user_id: 777, chat_id: 777,
-    is_active: true, is_premium: true, ui_language: "en", subscription: null,
+    is_active: true, is_premium: true, ui_language: "en", language_selected_at: "2026-11-14T00:00:00Z", subscription: null,
     request_update_id: null, request_attempt: null,
   };
-  return { sqlite, storage, sent, user,
+  return { sqlite, d1, storage, sent, user,
     chat: { id: 777, type: "private" },
     done() { globalThis.fetch = before; sqlite.close(); },
   };
 }
 const lastMessage = x => x.sent.filter(item => ["sendMessage", "editMessageText"].includes(item.method)).at(-1)?.body;
 
-test("home and settings buttons are German-only regardless of saved English locale", async () => {
+test("only the home preview translates while all buttons and settings remain German", async () => {
   const x = setup();
   try {
     const root = homeKeyboard(x.user).inline_keyboard;
@@ -84,23 +84,25 @@ test("home and settings buttons are German-only regardless of saved English loca
       ["profile", "platforms:profile-new", "platforms", "premium", "settings"]);
     assert.equal(root[3][0].text, "💎 Mein Premium");
     await home(x.user, 777);
-    assert.match(lastMessage(x).text, /Suchprofil erstellen|Bewerberprofil erstellen/);
-    assert.doesNotMatch(lastMessage(x).text, /Create search|My search|Settings/i);
+    assert.match(lastMessage(x).text, /What is it\?/);
+    assert.match(lastMessage(x).text, /Create a search profile/);
+    assert.doesNotMatch(lastMessage(x).text, /Was ist das\?/);
     await settings(x.user, 777);
     const keys = lastMessage(x).reply_markup.inline_keyboard.map(row => row[0].callback_data);
-    assert.deepEqual(keys, ["help", "referral", "home"]);
-    assert.doesNotMatch(lastMessage(x).text, /Language|Sprache/i);
+    assert.deepEqual(keys, ["language", "help", "referral", "home"]);
+    assert.match(lastMessage(x).text, /Einstellungen/);
   } finally { x.done(); }
 });
 
-test("legacy language callbacks open German settings without modifying user preferences", async () => {
+test("legacy language callbacks remain safe and the language button opens nine choices", async () => {
   const x = setup();
   try {
     await handleCallback({ id: "callback-1", data: "lang:en", from: { id: 777 }, message: { chat: x.chat, message_id: 15 } }, x.user);
     assert.match(lastMessage(x).text, /Einstellungen/);
     assert.equal(sqliteLanguage(x.sqlite), "en");
     await handleCallback({ id: "callback-2", data: "language", from: { id: 777 }, message: { chat: x.chat, message_id: 15 } }, x.user);
-    assert.match(lastMessage(x).text, /Hilfe und Premium-Empfehlungen/);
+    assert.match(lastMessage(x).text, /Sprache auswählen/);
+    assert.equal(lastMessage(x).reply_markup.inline_keyboard.filter(row=>row[0].callback_data.startsWith("language:set:")).length,9);
   } finally { x.done(); }
 });
 function sqliteLanguage(sqlite) {
