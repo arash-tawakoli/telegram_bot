@@ -243,6 +243,33 @@ test("applicant profile, field transition, text choices and separate preview wor
   } finally { x.done(); }
 });
 
+test("free-text profile fields replace the current Telegram card and accept the next message",async()=>{
+ const x=setup();
+ try{
+   await handleCallback({
+     id:"callback-firstname",data:"platforms:profile-field:first_name",
+     from:{id:777},message:{chat:x.chat,message_id:21}
+   },x.user);
+   const prompt=lastMessage(x);
+   assert.match(prompt.text,/Vorname/);
+   assert.equal(prompt.message_id,21);
+   assert.equal(prompt.reply_markup.inline_keyboard[0][0].callback_data,"platforms:profile");
+   const row=x.sqlite.prepare("SELECT telegram_state FROM participants WHERE id='owner'").get();
+   const onboarding_state=JSON.parse(row?.telegram_state||"{}");
+   assert.equal(onboarding_state._applicant_field,"first_name");
+   const beforeSends=x.sent.filter(a=>a.method==="sendMessage").length;
+   await handleAutoApplyMessage({...x.user,onboarding_state,onboarding_step:onboarding_state._step||null},{
+     chat:x.chat,message_id:22,text:"Ariana"
+   });
+   const profile=x.sqlite.prepare("SELECT profile FROM applicant_profiles WHERE participant_id='owner'").get();
+   assert.equal(JSON.parse(profile.profile).first_name,"Ariana");
+   const latest=lastMessage(x);
+   assert.match(latest.text,/Bewerberprofil/);
+   assert.equal(latest.message_id,21);
+   assert.equal(x.sent.filter(a=>a.method==="sendMessage").length,beforeSends);
+ }finally{x.done();}
+});
+
 test("auto-apply menu exposes only supported provider actions and non-mutating status", async () => {
   const x = setup();
   try {
