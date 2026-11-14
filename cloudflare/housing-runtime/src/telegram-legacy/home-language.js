@@ -1,5 +1,5 @@
 // Only the Telegram home preview is localized; all buttons and other screens remain German.
-export const HOME_LANGUAGES = {"de":"Deutsch","en":"English","ar":"العربية","prs":"دری","ckb":"کوردی (سۆرانی)","kmr":"Kurdî (Kurmancî)","ru":"Русский","uk":"Українська","tr":"Türkçe"};
+export const HOME_LANGUAGES = {"de":"🇩🇪 Deutsch","en":"🇬🇧 English","ar":"🇸🇦 العربية","prs":"🇦🇫 دری","ckb":"🇮🇶 کوردی (سۆرانی)","kmr":"🇹🇷 Kurdî (Kurmancî)","ru":"🇷🇺 Русский","uk":"🇺🇦 Українська","tr":"🇹🇷 Türkçe"};
 const HOME_TEXT = {
   "de": {
     "what": "Was ist das?",
