@@ -399,21 +399,6 @@ export async function handleCallback(query, user) {
     }
     await ack();
     if (data === 'platforms' || data.startsWith('platforms:')) {
-        if (!user.is_premium) {
-            const text = "🔒 <b>Automatische Bewerbung</b>\n\n" +
-                "Die automatische Bewerbung ist mit Premium verfügbar.\n\n" +
-                "Mit Premium können passende Bewerbungen automatisch über deine verbundenen Plattformen versendet werden.\n\n" +
-                "Nach dem Upgrade kannst du die Einrichtung hier fortsetzen.";
-            const markup = {
-                inline_keyboard: [
-                    [{ text: "💎 Jetzt abonnieren", url: `${PREMIUM_LINK}?client_reference_id=${encodeURIComponent(user.id)}` }],
-                    [button("← Zurück", "home")],
-                ],
-            };
-            return query.message?.photo
-                ? send(chatId, text, markup)
-                : edit(chatId, messageId, text, markup);
-        }
         return platformSessions(user,query.message.chat,query.message?.photo?undefined:messageId,data);
     }
     if (data === "noop")
