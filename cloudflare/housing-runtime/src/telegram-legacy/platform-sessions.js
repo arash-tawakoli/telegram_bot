@@ -705,7 +705,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  }
 
  if(action==='pause'||action==='resume'){
-  if(!user.is_premium)return render('Auto-Bewerbungen benötigen aktives Premium.',back);
+  if(action==='resume'&&!user.is_premium)return render('Auto-Bewerbungen benötigen aktives Premium.',back);
   const meta=AUTO_APPLY_PROVIDERS[source];if(!meta)return;
   const {error}=await db.rpc('set_telegram_auto_apply_sources',{
    p_user:user.id,
@@ -804,6 +804,6 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   testSection+='\n\nDie reguläre Auto-Bewerbung bleibt während des Testbetriebs deaktiviert.';
  }
  rows.push([button('← Start','home')]);
- return render('⚡ <b>Automatische Bewerbung</b>\n\nStarte oder pausiere jede Quelle einzeln. Bewerbungen werden erst mit verbundenen Konten versendet.'+testSection,rows);
+ return render('⚡ <b>Automatische Bewerbung</b>\n\nStarte oder pausiere jede Quelle einzeln. Bewerbungen werden erst mit verbundenen Konten versendet.'+(user.is_premium?'':'\n\nZum Starten der Quellen ist Premium erforderlich.')+testSection,rows);
 
 }
