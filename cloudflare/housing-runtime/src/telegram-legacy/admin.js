@@ -189,6 +189,11 @@ export async function setUserBlocked(userId, blocked) {
             .eq("user_id", userId);
         if (profileError)
             throw profileError;
+        const { error: deliveryError } = await db.from("delivery_events")
+            .update({ status: "skipped", error_message: "participant_blocked" })
+            .eq("profile_id", userId)
+            .eq("status", "pending");
+        if (deliveryError) throw deliveryError;
     }
 }
 
@@ -227,24 +232,6 @@ export async function setPlanOverride(userId, grant) {
         throw error;
     if (!target)
         throw new Error("user unavailable");
-    if (plan === "premium") {
-        const { data: profiles, error: profileError } = await db
-            .from("search_profiles")
-            .select("id")
-            .eq("user_id", userId);
-        if (profileError)
-            throw profileError;
-        const profileIds = (profiles || []).map((profile) => profile.id);
-        if (profileIds.length) {
-            const { error: deliveryError } = await db
-                .from("delivery_events")
-                .update({ next_retry_at: null })
-                .in("profile_id", profileIds)
-                .eq("status", "pending");
-            if (deliveryError)
-                throw deliveryError;
-        }
-    }
     return target;
 }
 
@@ -314,13 +301,16 @@ export async function sendAnnouncement(user, chatId, messageId, announcementId) 
         .select("chat_id")
         .eq("is_active", true)
         .not("chat_id", "is", null);
-    if (recipientError)
+    if (recipientError) {
+        await db.from("telegram_announcements").update({ status: "draft" }).eq("id", announcementId).eq("status", "sending");
         throw recipientError;
+    }
 
     let sent = 0;
     let failed = 0;
     const rows = recipients || [];
-    await db.from("telegram_announcements").update({ recipient_count: rows.length }).eq("id", announcementId);
+    const { error: countError } = await db.from("telegram_announcements").update({ recipient_count: rows.length }).eq("id", announcementId);
+    if (countError) throw countError;
 
     for (const recipient of rows) {
         try {

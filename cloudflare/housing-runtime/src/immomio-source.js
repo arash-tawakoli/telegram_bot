@@ -42,6 +42,12 @@ async function resolveHomepage(url) {
   return { url: resolved, token };
 }
 
+function numeric(value) {
+  if (value == null || String(value).trim() === "") return null;
+  const result = Number(value);
+  return Number.isFinite(result) ? result : null;
+}
+
 function normalizeNode(node, sourceId) {
   if (node?.propertyType !== "FLAT" || node?.marketingType !== "RENT" || String(node?.status || "") === "RENTED") return null;
   const key = String(node.objectId || node.externalId || "").trim();
@@ -58,9 +64,9 @@ function normalizeNode(node, sourceId) {
       district: String(address.district || "").slice(0, 120),
       postal_code: String(address.zipCode || "").slice(0, 16),
       address: [address.street, address.houseNumber].filter(Boolean).join(" ").slice(0, 240),
-      warm_rent: Number.isFinite(Number(node.totalRentGross)) ? Number(node.totalRentGross) : null,
-      rooms: Number.isFinite(Number(node.totalRooms)) ? Number(node.totalRooms) : null,
-      area_sqm: Number.isFinite(Number(node.size)) ? Number(node.size) : null,
+      warm_rent: numeric(node.totalRentGross),
+      rooms: numeric(node.totalRooms),
+      area_sqm: numeric(node.size),
       wbs_required: node.wbs === true,
       available_from: node.availableFrom?.dateAvailable || null,
       image_url: typeof node.titleImage?.url === "string" ? node.titleImage.url.slice(0, 2000) : null,

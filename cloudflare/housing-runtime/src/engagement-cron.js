@@ -162,8 +162,10 @@ export async function processEngagementNotifications(sql, env, now = new Date(),
     const subscription={status:row.subscription_status,current_period_end:row.current_period_end};
     const campaign=messageFor(String(row.campaign_key));
     const key=String(row.campaign_key);
-    const premiumCampaign=key.startsWith("premium_")||key===CAMPAIGNS.autoApply3d||key===CAMPAIGNS.platform24;
-    if (!row.participant_id||!row.telegram_chat_id||Number(row.telegram_chat_id)<=0||row.participant_status!=="active"||!Number(row.engagement_notifications_enabled)||!campaign||(premiumCampaign&&!isPremium(user,subscription,at.getTime()))) {
+    const premiumNow=isPremium(user,subscription,at.getTime());
+    const premiumRequired=key===CAMPAIGNS.autoApply3d||key===CAMPAIGNS.platform24;
+    const premiumUpsell=key===CAMPAIGNS.premium14||key===CAMPAIGNS.premium30;
+    if (!row.participant_id||!row.telegram_chat_id||Number(row.telegram_chat_id)<=0||row.participant_status!=="active"||!Number(row.engagement_notifications_enabled)||!campaign||(premiumRequired&&!premiumNow)||(premiumUpsell&&premiumNow)) {
       await sql`UPDATE user_engagement_notifications SET status='cancelled',updated_at=${nowIso},last_error='not_eligible' WHERE id=${row.id} AND status='pending'`;
       cancelled++;
       continue;

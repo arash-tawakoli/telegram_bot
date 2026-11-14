@@ -61,3 +61,19 @@ test("normal applications stay blocked while personal test mode is enabled", asy
   assert.equal(result.body.reason, "test_mode_active");
   assert.equal(db.writes.some(({text}) => /SET submission_started_at = now\(\)/.test(text)), false);
 });
+
+
+test("application processing rejects malformed listing expiry timestamps", async () => {
+  const db = sqlFor({
+    id: "app-invalid-expiry", participant_id: "user-1", offer_identity_id: "offer-1", provider: "immoscout24",
+    status: "pending", test_mode: true, telegram_user_id: 8538226539, test_auto_apply_allowed: true,
+    test_auto_apply_enabled: true, auto_apply_enabled: false, preferences_enabled: false, provider_enabled: false,
+    source_id: 1, expires_at: "not-a-date", canonical_url: "https://www.immobilienscout24.de/expose/123456789",
+  });
+  const result = await processHousingApplication(db.query, { APPLICATION_RUN_TOKEN: "secret" }, new Request("https://runtime.test/internal/application/process", {
+    method: "POST", headers: { authorization: "Bearer secret" },
+  }));
+  assert.equal(result.body.status, "failed");
+  assert.equal(result.body.reason, "listing_expired");
+  assert.equal(db.writes.some(({ text }) => /SET submission_started_at = now\(\)/.test(text)), false);
+});

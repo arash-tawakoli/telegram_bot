@@ -41,3 +41,32 @@ for (const action of ["login", "password_change", "password_reset_complete"]) {
     } finally { globalThis.fetch = originalFetch; }
   });
 }
+
+
+test("portal bootstrap accepts the configured admin email", async () => {
+  const unsafeCalls = [];
+  const sql = async () => [];
+  sql.unsafe = async (query, params = []) => {
+    unsafeCalls.push({ query, params });
+    if (query.includes("SELECT id, lower(email) AS email")) {
+      return [{ id: "admin-1", email: "arash@nexalabs.de", password_hash: "migration_required$seed" }];
+    }
+    if (query.includes("UPDATE housing.bootstrap_tokens")) return [{ id: "token-1" }];
+    if (query.includes("UPDATE housing.portal_members SET display_name")) return [{ id: "admin-1" }];
+    return [];
+  };
+  const response = await handleAuth(sql, new Request("https://housing-runtime.test/edge/auth", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      action: "bootstrap_complete",
+      token: "valid-once-token",
+      email: "arash@nexalabs.de",
+      displayName: "Arash",
+      password: "a sufficiently strong test password",
+    }),
+  }));
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).ok, true);
+  assert.ok(unsafeCalls.some(({ query }) => query.includes("UPDATE housing.portal_members SET display_name")));
+});

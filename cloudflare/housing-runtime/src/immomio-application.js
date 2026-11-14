@@ -35,7 +35,7 @@ async function refresh(sql, env, application, credentials) {
   if (!credentials?.refresh_token) throw new Error("needs_login");
   const response = await fetch(`${BASE}/realms/${REALM}/protocol/openid-connect/token`, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json" }, body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: String(credentials.refresh_token), client_id: CLIENT }), signal: AbortSignal.timeout(25_000) }).catch(() => null);
   const token = await response?.json().catch(() => null);
-  if (!response?.ok || !token?.access_token) throw new Error(response?.status === 401 ? "needs_login" : "temporary_network_error");
+  if (!response?.ok || !token?.access_token) throw new Error(response?.status === 401 || token?.error === "invalid_grant" ? "needs_login" : "temporary_network_error");
   const updated = { ...credentials, access_token: String(token.access_token), refresh_token: String(token.refresh_token || credentials.refresh_token), expires_at: new Date(Date.now() + Math.max(60, Number(token.expires_in || 300)) * 1000).toISOString() };
   const encrypted = await encryptProviderCredentials(env, updated, application.participant_id, "immomio");
   await sql`UPDATE provider_connections SET ciphertext=${encrypted.ciphertext}, iv=${encrypted.iv}, key_version=${encrypted.key_version}, expires_at=${updated.expires_at}, updated_at=CURRENT_TIMESTAMP WHERE participant_id=${application.participant_id} AND provider='immomio'`;

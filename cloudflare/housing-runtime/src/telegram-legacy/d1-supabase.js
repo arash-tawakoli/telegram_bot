@@ -121,7 +121,7 @@ function outputRow(table, row) {
 
 class Query {
   constructor(client, table) { this.client = client; this.table = table; this.physical = TABLES[table]; this.operation = "select"; this.selectSpec = "*"; this.filters = []; this.orders = []; this.limitValue = null; this.offsetValue = null; this.countMode = false; this.head = false; this.payload = null; this.returning = false; }
-  select(spec = "*", options = {}) { if (this.operation === "insert" || this.operation === "upsert") this.returning = true; this.selectSpec = spec; this.countMode = options.count === "exact"; this.head = options.head === true; return this; }
+  select(spec = "*", options = {}) { if (["insert", "upsert", "update", "delete"].includes(this.operation)) this.returning = true; this.selectSpec = spec; this.countMode = options.count === "exact"; this.head = options.head === true; return this; }
   eq(column, value) { if (this.table === "bot_users" && column === "is_active") this.filters.push(["status", bool(value) ? "=" : "<>", "active"]); else this.filters.push([mapColumn(this.table, column), "=", value]); return this; }
   neq(column, value) { this.filters.push([mapColumn(this.table, column), "<>", value]); return this; }
   gt(column, value) { this.filters.push([mapColumn(this.table, column), ">", value]); return this; }
@@ -162,6 +162,12 @@ class Query {
     } catch (error) { return { data: null, error, count: null }; }
   }
   async selectRows() {
+    if (this.countMode && this.head) {
+      const params = [];
+      const where = this.where(params);
+      const rows = await this.client.run(`SELECT count(*) AS count FROM ${this.physical}${where ? ` WHERE ${where}` : ""}`, params);
+      return { data: null, error: null, count: Number(rows[0]?.count || 0) };
+    }
     const params = [];
     const columns = this.selectSpec === "*" ? "*" : this.selectSpec.split(",").map(c => c.trim().split("(")[0]).filter(Boolean).map(c => mapColumn(this.table, c)).join(",");
     let query = `SELECT ${columns || "*"} FROM ${this.physical}`;
@@ -178,8 +184,31 @@ class Query {
   where(params) {
     return this.filters.map(([column, operator, value]) => { if (operator === "IS" || operator === "IS NOT") return `${column} ${operator} NULL`; if (operator === "IN") { const list = (Array.isArray(value) ? value : []).map(() => "?").join(","); params.push(...value.map(scalar)); return `${column} IN (${list || "NULL"})`; } params.push(scalar(value)); return `${column} ${operator} ?`; }).join(" AND ");
   }
+  returningColumns() {
+    if (!this.returning) return "";
+    if (this.selectSpec === "*") return "*";
+    return this.selectSpec.split(",").map(column => mapColumn(this.table, column.trim().split("(")[0])).join(",");
+  }
+  mutationResult(rows, count = rows.count ?? rows.length) {
+    const data = rows.map(row => outputRow(this.table, row));
+    if (this.singleMode === "single") {
+      if (data.length !== 1) return { data: null, error: new Error("row_not_found"), count: data.length };
+      return { data: data[0], error: null, count: 1 };
+    }
+    if (this.singleMode === "maybe") {
+      if (data.length > 1) return { data: null, error: new Error("multiple_rows"), count: data.length };
+      return { data: data[0] || null, error: null, count: data.length };
+    }
+    return { data, error: null, count: Number(count || 0) };
+  }
   async mutate(kind) {
-    if (kind === "DELETE") { const params=[]; const where=this.where(params); const result=await this.client.run(`DELETE FROM ${this.physical}${where?` WHERE ${where}`:""}`,params); return {data:[],error:null,count:result.count}; }
+    const returning = this.returningColumns();
+    if (kind === "DELETE") {
+      const params = [];
+      const where = this.where(params);
+      const rows = await this.client.run(`DELETE FROM ${this.physical}${where ? ` WHERE ${where}` : ""}${returning ? ` RETURNING ${returning}` : ""}`, params);
+      return returning ? this.mutationResult(rows) : { data: [], error: null, count: rows.count };
+    }
     if (kind === "UPDATE" && this.table === "applicant_profiles") {
       const whereParams = [];
       const where = this.where(whereParams);
@@ -190,37 +219,83 @@ class Query {
       delete patch.participant_id;
       const updatedAt = patch.updated_at || new Date().toISOString();
       delete patch.updated_at;
+      const returned = [];
       for (const row of rows) {
         const next = { ...json(row.profile, {}), ...patch };
-        await this.client.run("UPDATE applicant_profiles SET profile=?,updated_at=? WHERE participant_id=?", [JSON.stringify(next), updatedAt, row.participant_id]);
+        const result = await this.client.run(`UPDATE applicant_profiles SET profile=?,updated_at=? WHERE participant_id=?${returning ? ` RETURNING ${returning}` : ""}`, [JSON.stringify(next), updatedAt, row.participant_id]);
+        if (returning) returned.push(...result);
       }
-      return { data: [], error: null, count: rows.length };
+      return returning ? this.mutationResult(returned, rows.length) : { data: [], error: null, count: rows.length };
     }
-    if (kind === "UPDATE") { const entries=Object.entries(this.payload||{}).map(([key,value]) => this.table === "bot_users" && key === "is_active" ? ["status", bool(value) ? "active" : "archived"] : [mapColumn(this.table,key),value]); const params=entries.map(([,value])=>scalar(value)); const whereParams=[]; const where=this.where(whereParams); const sql=`UPDATE ${this.physical} SET ${entries.map(([key])=>`${key}=?`).join(",")}${where?` WHERE ${where}`:""}`; const result=await this.client.run(sql,[...params,...whereParams]); return {data:[],error:null,count:result.count}; }
-    const rows=this.payload||[]; let data=[]; for(const row of rows){const mapped={...row}; if(this.table==='bot_users'){mapped.telegram_chat_id=mapped.chat_id; delete mapped.chat_id; mapped.status=mapped.is_active===undefined?(mapped.status||"active"):bool(mapped.is_active)?"active":"archived"; delete mapped.is_active; mapped.telegram_state=JSON.stringify(mapped.onboarding_state||{}); delete mapped.onboarding_state; delete mapped.onboarding_step;} if (this.table === "search_profiles") {
-      const criteria = { ...mapped };
-      const slot = Number(mapped.profile_slot ?? 1);
-      if (!Number.isInteger(slot) || slot < 1 || slot > 4) throw new Error("profile_slot_invalid");
-      mapped.id = mapped.id || crypto.randomUUID();
-      for (const key of ["id", "user_id", "participant_id", "active", "is_active", "profile_slot", "created_at", "updated_at", "criteria"]) delete criteria[key];
-      mapped.criteria = JSON.stringify(criteria);
-      mapped.participant_id = mapped.user_id || mapped.participant_id;
-      mapped.profile_slot = slot;
-      mapped.active = mapped.is_active === false || mapped.active === false || mapped.active === 0 ? 0 : 1;
-      delete mapped.user_id;
-      delete mapped.is_active;
-    } if(this.table==='applicant_profiles'){
-      const participantId=mapped.user_id||mapped.participant_id;
-      const profile={...mapped};
-      delete profile.participant_id;
-      delete profile.user_id;
-      delete profile.updated_at;
-      const updatedAt=mapped.updated_at||new Date().toISOString();
-      for(const key of Object.keys(mapped)) delete mapped[key];
-      mapped.participant_id=participantId;
-      mapped.profile=JSON.stringify(profile);
-      mapped.updated_at=updatedAt;
-    } for(const [logical,physical] of Object.entries(ALIASES[this.table]||{})){if(Object.prototype.hasOwnProperty.call(mapped,logical)){mapped[physical]=mapped[logical];delete mapped[logical];}} const keys=Object.keys(mapped); const vals=keys.map(k=>scalar(mapped[k])); const placeholders=keys.map(()=>"?").join(","); const sql = this.table === "search_profiles" ? `INSERT INTO ${this.physical} (${keys.join(",")}) VALUES (${placeholders}) ON CONFLICT(participant_id,profile_slot) DO UPDATE SET ${keys.filter(k => !["id","participant_id","profile_slot","created_at","updated_at"].includes(k)).map(k => `${k}=excluded.${k}`).concat("updated_at=CURRENT_TIMESTAMP").join(",")}` : this.table === "applicant_profiles" ? (this.ignoreDuplicates ? `INSERT OR IGNORE INTO applicant_profiles (${keys.join(",")}) VALUES (${placeholders})` : `INSERT INTO applicant_profiles (${keys.join(",")}) VALUES (${placeholders}) ON CONFLICT(participant_id) DO UPDATE SET profile=excluded.profile,updated_at=excluded.updated_at`) : `INSERT OR REPLACE INTO ${this.physical} (${keys.join(",")}) VALUES (${placeholders})`; const result=await this.client.run(sql,vals); if(this.returning) data.push(outputRow(this.table,mapped)); } return {data,error:null,count:rows.length};
+    if (kind === "UPDATE") {
+      const entries = Object.entries(this.payload || {}).map(([key, value]) => this.table === "bot_users" && key === "is_active" ? ["status", bool(value) ? "active" : "archived"] : [mapColumn(this.table, key), value]);
+      const params = entries.map(([, value]) => scalar(value));
+      const whereParams = [];
+      const where = this.where(whereParams);
+      const query = `UPDATE ${this.physical} SET ${entries.map(([key]) => `${key}=?`).join(",")}${where ? ` WHERE ${where}` : ""}${returning ? ` RETURNING ${returning}` : ""}`;
+      const rows = await this.client.run(query, [...params, ...whereParams]);
+      return returning ? this.mutationResult(rows) : { data: [], error: null, count: rows.count };
+    }
+    const returned = [];
+    let count = 0;
+    for (const row of this.payload || []) {
+      const mapped = { ...row };
+      if (this.table === "bot_users") {
+        mapped.telegram_chat_id = mapped.chat_id;
+        delete mapped.chat_id;
+        mapped.status = mapped.is_active === undefined ? (mapped.status || "active") : bool(mapped.is_active) ? "active" : "archived";
+        delete mapped.is_active;
+        mapped.telegram_state = JSON.stringify(mapped.onboarding_state || {});
+        delete mapped.onboarding_state;
+        delete mapped.onboarding_step;
+      }
+      if (this.table === "search_profiles") {
+        const criteria = { ...mapped };
+        const slot = Number(mapped.profile_slot ?? 1);
+        if (!Number.isInteger(slot) || slot < 1 || slot > 4) throw new Error("profile_slot_invalid");
+        mapped.id = mapped.id || crypto.randomUUID();
+        for (const key of ["id", "user_id", "participant_id", "active", "is_active", "profile_slot", "created_at", "updated_at", "criteria"]) delete criteria[key];
+        mapped.criteria = JSON.stringify(criteria);
+        mapped.participant_id = mapped.user_id || mapped.participant_id;
+        mapped.profile_slot = slot;
+        mapped.active = mapped.is_active === false || mapped.active === false || mapped.active === 0 ? 0 : 1;
+        delete mapped.user_id;
+        delete mapped.is_active;
+      }
+      if (this.table === "applicant_profiles") {
+        const participantId = mapped.user_id || mapped.participant_id;
+        const profile = { ...mapped };
+        delete profile.participant_id;
+        delete profile.user_id;
+        delete profile.updated_at;
+        const updatedAt = mapped.updated_at || new Date().toISOString();
+        for (const key of Object.keys(mapped)) delete mapped[key];
+        mapped.participant_id = participantId;
+        mapped.profile = JSON.stringify(profile);
+        mapped.updated_at = updatedAt;
+      }
+      for (const [logical, physical] of Object.entries(ALIASES[this.table] || {})) {
+        if (Object.prototype.hasOwnProperty.call(mapped, logical)) { mapped[physical] = mapped[logical]; delete mapped[logical]; }
+      }
+      const keys = Object.keys(mapped);
+      const values = keys.map(key => scalar(mapped[key]));
+      const placeholders = keys.map(() => "?").join(",");
+      let query;
+      if (this.table === "search_profiles") {
+        const updates = keys.filter(key => !["id", "participant_id", "profile_slot", "created_at", "updated_at"].includes(key)).map(key => `${key}=excluded.${key}`).concat("updated_at=CURRENT_TIMESTAMP").join(",");
+        query = `INSERT INTO ${this.physical} (${keys.join(",")}) VALUES (${placeholders}) ON CONFLICT(participant_id,profile_slot) DO UPDATE SET ${updates}`;
+      } else if (this.table === "applicant_profiles") {
+        query = this.ignoreDuplicates
+          ? `INSERT OR IGNORE INTO applicant_profiles (${keys.join(",")}) VALUES (${placeholders})`
+          : `INSERT INTO applicant_profiles (${keys.join(",")}) VALUES (${placeholders}) ON CONFLICT(participant_id) DO UPDATE SET profile=excluded.profile,updated_at=excluded.updated_at`;
+      } else {
+        query = `INSERT OR REPLACE INTO ${this.physical} (${keys.join(",")}) VALUES (${placeholders})`;
+      }
+      const rows = await this.client.run(`${query}${returning ? ` RETURNING ${returning}` : ""}`, values);
+      count += Number(rows.count || 0);
+      if (returning) returned.push(...rows.map(result => outputRow(this.table, result)));
+    }
+    return returning ? this.mutationResult(returned, count) : { data: [], error: null, count };
   }
 }
 

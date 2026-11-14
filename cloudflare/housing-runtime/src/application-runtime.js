@@ -144,8 +144,9 @@ export async function processHousingApplication(sql, env, request) {
   if (!PROVIDERS.has(provider)) return fail("failed", "provider_not_allowlisted");
   if (!application.offer_identity_id || !application.canonical_url) return fail("failed", "listing_expired");
 
-  if (application.test_mode && application.expires_at && Date.parse(application.expires_at) <= Date.now()) {
-    return fail("failed", "listing_expired");
+  if (application.test_mode) {
+    const expiresAt = timestampMillis(application.expires_at);
+    if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) return fail("failed", "listing_expired");
   }
 
   if (application.test_mode) {
@@ -230,8 +231,11 @@ export async function processHousingApplication(sql, env, request) {
   if (!providerSource || applicationProvider(providerSource, facts) !== provider) return fail("failed", "not_eligible");
   if (application.participant_status !== "active" || !application.auto_apply_enabled
     || !premiumParticipant(application, now.getTime())) return fail("failed", "not_eligible");
-  if (!application.expires_at || timestampMillis(application.expires_at) <= now.getTime()
-    || !application.first_seen_at || timestampMillis(application.first_seen_at) < timestampMillis(application.cutover_enabled_at)) {
+  const expiresAt = timestampMillis(application.expires_at);
+  const firstSeenAt = timestampMillis(application.first_seen_at);
+  const cutoverEnabledAt = timestampMillis(application.cutover_enabled_at);
+  if (!Number.isFinite(expiresAt) || expiresAt <= now.getTime()
+    || !Number.isFinite(firstSeenAt) || !Number.isFinite(cutoverEnabledAt) || firstSeenAt < cutoverEnabledAt) {
     return fail("failed", "listing_expired");
   }
   const missing = missingApplicantFields(application.profile);

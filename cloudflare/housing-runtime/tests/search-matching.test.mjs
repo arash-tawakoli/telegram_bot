@@ -162,6 +162,7 @@ test("new fresh matches queue AutoApply only for complete premium connected prof
   assert.equal(await queueMatches(sql, "offer", 23, "23:external:abc", { ...apartment, canonical_url: "https://tenant.immomio.com/de/apply/12345678-1234-4234-8234-123456789012" }), 1);
   assert.equal(calls.some(call => call.query.includes("INSERT INTO housing.applications")), true);
   assert.equal(calls.some(call => call.query.includes("INSERT INTO housing.application_dedupe_keys")), true);
+  assert.equal(calls.some(call => call.query.includes("INSERT INTO housing.jobs")), false);
 
   testMode = true;
   const beforeTestMode = calls.length;
