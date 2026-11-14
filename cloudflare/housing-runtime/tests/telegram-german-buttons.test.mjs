@@ -769,7 +769,7 @@ test("/token shares the portal's three provider connections and securely reuses 
   await action("token:source:immomio");
   assert.match(lastMessage(x).text,/immomio@example.test/);
   await action("token:refresh:immomio");
-  assert.match(lastMessage(x).text,/erneut an/i);
+  assert.match(lastMessage(x).text,/erneut bei der Quelle an/i);
   await action("token:source:immoscout24");
   assert.match(lastMessage(x).text,/ImmoScout24/);
   await action("token:login:immoscout24");
