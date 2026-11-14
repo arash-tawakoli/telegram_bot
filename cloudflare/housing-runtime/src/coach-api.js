@@ -302,7 +302,7 @@ async function ownerParticipant(sql) {
   return rows[0]?.id || null;
 }
 
-async function adminTokenStatus(sql, env) {
+export async function adminTokenStatus(sql, env) {
   const [scout, ownerId] = await Promise.all([
     centralCall(env, "/internal/status", {}, "GET"),
     ownerParticipant(sql),
@@ -322,7 +322,7 @@ async function adminTokenStatus(sql, env) {
   };
 }
 
-async function adminTokenStart(sql, env, member, providerName) {
+export async function adminTokenStart(sql, env, member, providerName, channel = 'coach') {
   if (!PROVIDERS.has(providerName)) throw new Error("provider_not_allowlisted");
   const ownerId = await ownerParticipant(sql);
   if (!ownerId) throw new Error("owner_telegram_account_unavailable");
@@ -330,11 +330,22 @@ async function adminTokenStart(sql, env, member, providerName) {
     const flow = await centralCall(env, "/internal/start", { admin_telegram_id: String(OWNER_TELEGRAM_ID), user_id: ownerId });
     return { url: flow.url, expiresAt: flow.expires_at, provider: providerName, scope: "central" };
   }
-  const flow = await issueProviderAuthFlow(sql, ownerId, providerName, "coach", "coach", { member_id: member.id });
+  const telegram = channel === "telegram";
+  const flow = await issueProviderAuthFlow(sql, ownerId, providerName,
+    telegram ? "telegram" : "coach",
+    telegram ? "telegram" : "coach",
+    telegram ? { channel: "telegram" } : { member_id: member.id });
   return {
     url: `https://login.traumwohnunghamburg.de/connect?ticket=${encodeURIComponent(flow.state)}`,
     expiresAt: flow.expiresAt, provider: providerName, scope: "owner_participant",
   };
+}
+
+export async function adminTokenRefresh(env) {
+  const result = await centralCall(env, "/internal/refresh-test", { admin_telegram_id: String(OWNER_TELEGRAM_ID) });
+  if (result.status !== "refreshed" || result.verified !== true || result.enabled !== false)
+    throw new Error("central_token_refresh_test_failed");
+  return { status: result.status, verified: true, enabled: false, expires_at: result.expires_at || null };
 }
 
 export async function handleCoach(sql, request, env = {}) {
@@ -346,11 +357,7 @@ export async function handleCoach(sql, request, env = {}) {
     if (body.previewMemberId) throw new Error("preview_read_only");
     if (action === "admin_token_status") return adminTokenStatus(sql, env);
     if (action === "admin_token_start") return adminTokenStart(sql, env, member, String(body.provider || ""));
-    if (action === "admin_token_refresh") {
-      const result = await centralCall(env, "/internal/refresh-test", { admin_telegram_id: String(OWNER_TELEGRAM_ID) });
-      if (result.status !== "refreshed" || result.verified !== true || result.enabled !== false) throw new Error("central_token_refresh_test_failed");
-      return { status: result.status, verified: true, enabled: false, expires_at: result.expires_at || null };
-    }
+    if (action === "admin_token_refresh") return adminTokenRefresh(env);
     throw new Error("invalid_action");
   }
   if (action === "members") {
