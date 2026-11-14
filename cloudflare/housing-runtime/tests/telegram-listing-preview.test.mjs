@@ -43,7 +43,7 @@ test("only approved HTTPS image hosts can be used in the Mini App", () => {
   assert.equal(listingImageUrl("http://mms.immowelt.de/a.jpg"), null);
   assert.equal(listingImageUrl("https://evil.example/a.jpg"), null);
   assert.equal(listingImageUrl("https://127.0.0.1/a.jpg"), null);
-  assert.equal(listingImageUrl("https://mms.immowelt.de:443/a.jpg"), null);
+  assert.equal(listingImageUrl("https://mms.immowelt.de:8443/a.jpg"), null);
 });
 
 test("existing Immowelt OG picture resolver remains available for isolated pages", async () => {
