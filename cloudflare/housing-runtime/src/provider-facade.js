@@ -328,7 +328,7 @@ async function scoutMfa(env, sql, value, factorId, passCode = null) {
   throw new Error("mfa_challenge_failed");
 }
 
-async function centralCall(env, path, body = {}, method = "POST") {
+export async function centralCall(env, path, body = {}, method = "POST") {
   const request = new Request(`https://housing-runtime.internal${path}`, { method, headers: { authorization: `Bearer ${env.CENTRAL_API_SECRET || ""}`, "content-type": "application/json" }, ...(method === "GET" ? {} : { body: JSON.stringify(body) }) });
   const response = await centralTokenWorker.fetch(request, { ...env, DB: env.HOUSING_DB, API_SECRET: env.CENTRAL_API_SECRET, TOKEN_ENCRYPTION_KEY: env.CENTRAL_TOKEN_ENCRYPTION_KEY });
   const data = await response.json().catch(() => null); if (!response.ok || !data) throw new Error(data?.error || "central_immoscout_unavailable"); return data;
