@@ -1,6 +1,7 @@
 import {db,secret,send,edit,button,telegram,esc,runtimeEnv} from './runtime.js';
 import {encryptProviderCredentials} from '../provider-credentials.js';
 import {providerStaticMissing} from './application-profile-adapters.js';
+import { DEFAULT_APPLICATION_TEXT, resolveApplicationText } from '../application-text.js';
 
 const userFacingError=(error)=>{
  const reason=String(error?.message||error||'');
@@ -86,30 +87,16 @@ const PROFILE_FIELDS={
  employment_status:{label:'Beschäftigungsstatus',required:true,type:'choice',max:160},
  income_range:{label:'Haushalts-Nettoeinkommen',required:true,type:'choice'},
  pets:{label:'Haustiere',required:true,type:'choice',max:160},
- wbs_status:{label:'WBS-Status',required:true,max:160},
+ wbs_status:{label:'WBS-Status',required:false,max:160},
  move_in_preference:{label:'Einzugstermin',required:true,type:'choice'},
  move_in_date:{label:'Gewünschtes Einzugsdatum',required:true,type:'date'},
  household_size:{label:'Haushaltsgröße (Legacy)',type:'integer'},
  monthly_net_income:{label:'Monatliches Nettoeinkommen (Legacy)',type:'money'},
  schufa_status:{label:'SCHUFA-Status',required:true,type:'choice'},
- message_apartment:{label:'Bewerbungstext Wohnung',required:true,max:4000},
- message_house:{label:'Bewerbungstext Haus',required:true,max:4000},
- message_temporary_wg:{label:'Bewerbungstext Auf Zeit & WG',required:true,max:4000},
- message_swap:{label:'Bewerbungstext Tauschwohnung',required:true,max:4000}
+ message_apartment:{label:'Bewerbungstext Wohnung',required:false,max:4000},
+ message_house:{label:'Bewerbungstext Haus',required:false,max:4000}
 };
 const DOCUMENT_BUCKET='applicant-documents';
-const MAX_DOCUMENT_BYTES=6*1024*1024;
-const DOCUMENT_TYPES={
- wbs:{label:'WBS',button:'🪪 WBS'},
- urgency_certificate:{label:'Dringlichkeitsschein',button:'🚨 Dringlichkeit'},
- guarantee:{label:'Bürgschaft',button:'🤝 Bürgschaft'},
- schufa:{label:'SCHUFA',button:'📊 SCHUFA'},
- income_proof:{label:'Einkommensnachweis',button:'💶 Einkommen'},
- rent_clearance:{label:'Mietschuldenfreiheitsbescheinigung',button:'🏠 Mietschuldenfrei'},
- other:{label:'Sonstiges Dokument',button:'📎 Sonstiges'}
-};
-const DOC_PROMPT_PREFIX='📎 Bewerberdokument · ';
-
 const SETUP_PROMPT='👤 Bewerberprofil · Grundeinrichtung';
 const FIELD_PROMPT_PREFIX='👤 Bewerberprofil · ';
 const IMMOMIO_CALLBACK_ORIGIN='https://tenant.immomio.com';
@@ -223,106 +210,6 @@ export function immomioCallbackFromMessage(message){
  return null;
 }
 
-const clip=(value,max=28)=>{const s=String(value||'').replace(/\s+/g,' ').trim();return s.length>max?s.slice(0,max-1)+'…':s;};
-const safeOriginalName=value=>String(value||'Dokument')
- .replace(/[\u0000-\u001f\u007f]/g,' ')
- .replace(/[\\/]+/g,'_')
- .replace(/\s+/g,' ')
- .trim()
- .slice(0,180)||'Dokument';
-
-function sniffDocumentMime(bytes){
- if(bytes.length>=5&&bytes[0]===0x25&&bytes[1]===0x50&&bytes[2]===0x44&&bytes[3]===0x46&&bytes[4]===0x2d)return 'application/pdf';
- if(bytes.length>=3&&bytes[0]===0xff&&bytes[1]===0xd8&&bytes[2]===0xff)return 'image/jpeg';
- if(bytes.length>=8&&bytes[0]===0x89&&bytes[1]===0x50&&bytes[2]===0x4e&&bytes[3]===0x47&&bytes[4]===0x0d&&bytes[5]===0x0a&&bytes[6]===0x1a&&bytes[7]===0x0a)return 'image/png';
- return null;
-}
-const extensionForMime=mime=>mime==='application/pdf'?'pdf':mime==='image/jpeg'?'jpg':'png';
-
-async function readDocuments(userId){
- const {data,error}=await db.from('applicant_documents')
-  .select('id,document_type,original_filename,storage_path,mime_type,size_bytes,send_with_auto_apply,created_at')
-  .eq('user_id',userId)
-  .order('created_at',{ascending:false});
- if(error)throw Error('Bewerberdokumente konnten nicht geladen werden.');
- return data||[];
-}
-
-async function downloadTelegramDocument(fileId){
- const file=await telegram('getFile',{file_id:fileId});
- const path=String(file?.file_path||'');
- if(!path||path.includes('..'))throw Error('Telegram-Datei konnte nicht geladen werden.');
- const request=async(force=false)=>{
-  const token=await secret('telegram_bot_token_runtime',force);
-  return fetch(`https://api.telegram.org/file/bot${token}/${path}`,{signal:AbortSignal.timeout(25000)});
- };
- let response=await request(false);
- if(response.status===401)response=await request(true);
- if(!response.ok)throw Error('Telegram-Datei konnte nicht geladen werden.');
- const bytes=new Uint8Array(await response.arrayBuffer());
- if(!bytes.length||bytes.length>MAX_DOCUMENT_BYTES)throw Error('Die Datei muss zwischen 1 Byte und 6 MB groß sein.');
- return bytes;
-}
-
-async function storeApplicantDocument(user,message,type){
- const meta=DOCUMENT_TYPES[type];if(!meta)throw Error('Unbekannter Dokumenttyp.');
- const doc=message?.document;
- if(!doc)throw Error('Bitte sende das Dokument als Datei – nicht als Foto.');
- const declaredSize=Number(doc.file_size||0);
- if(declaredSize>MAX_DOCUMENT_BYTES)throw Error('Die Datei darf maximal 6 MB groß sein.');
- const bytes=await downloadTelegramDocument(String(doc.file_id||''));
- const mime=sniffDocumentMime(bytes);
- if(!mime)throw Error('Erlaubt sind ausschließlich PDF-, JPG- und PNG-Dateien.');
- const original=safeOriginalName(doc.file_name||`${meta.label}.${extensionForMime(mime)}`);
- const storagePath=`${user.id}/${crypto.randomUUID()}.${extensionForMime(mime)}`;
- const {error:uploadError}=await db.storage.from(DOCUMENT_BUCKET).upload(storagePath,bytes,{
-  contentType:mime,upsert:false,cacheControl:'3600'
- });
- if(uploadError)throw Error('Dokument konnte nicht sicher gespeichert werden.');
- const {error:insertError}=await db.from('applicant_documents').insert({
-  id:crypto.randomUUID(),user_id:user.id,document_type:type,original_filename:original,storage_path:storagePath,
-  mime_type:mime,size_bytes:bytes.length,send_with_auto_apply:false
- });
- if(insertError){
-  await db.storage.from(DOCUMENT_BUCKET).remove([storagePath]).catch(()=>{});
-  throw Error('Dokumentmetadaten konnten nicht gespeichert werden.');
- }
- return {label:meta.label,filename:original};
-}
-
-async function deleteApplicantDocument(userId,id){
- const {data:doc,error}=await db.from('applicant_documents')
-  .select('id,storage_path').eq('id',id).eq('user_id',userId).maybeSingle();
- if(error)throw Error('Dokument konnte nicht geladen werden.');
- if(!doc)return;
- const {error:storageError}=await db.storage.from(DOCUMENT_BUCKET).remove([doc.storage_path]);
- if(storageError)throw Error('Dokumentdatei konnte nicht gelöscht werden.');
- const {error:deleteError}=await db.from('applicant_documents').delete().eq('id',id).eq('user_id',userId);
- if(deleteError)throw Error('Dokument konnte nicht gelöscht werden.');
-}
-
-async function renderApplicantDocuments(user,chat,messageId,notice=''){
- const docs=await readDocuments(user.id),selected=docs.filter(d=>d.send_with_auto_apply).length;
- const render=(text,rows)=>messageId?edit(chat.id,messageId,text,{inline_keyboard:rows}):send(chat.id,text,{inline_keyboard:rows});
- const text=`📎 <b>Bewerberdokumente</b>\n\n${notice?`${notice}\n\n`:''}${docs.length} Datei${docs.length===1?'':'en'} gespeichert · ${selected} für Auto-Bewerbungen ausgewählt.\n\n<b>Dateiversand</b>\nImmoScout24: ausgewählte Unterlagen über einen geschützten Bewerbungslink im Erstkontakt\nImmomio: Dateiupload ist über den aktuellen Cloudflare-Versand noch nicht verfügbar\n\nDer geschützte Link enthält einen Snapshot der beim Erstellen ausgewählten Dateien. Späteres Abwählen verändert bereits erstellte Bewerbungen nicht; Löschen einer Datei widerruft den Zugriff auf diese Datei.`;
- const rows=[
-  [button('🪪 WBS','platforms:doc-upload:wbs'),button('🚨 Dringlichkeit','platforms:doc-upload:urgency_certificate')],
-  [button('🤝 Bürgschaft','platforms:doc-upload:guarantee'),button('📊 SCHUFA','platforms:doc-upload:schufa')],
-  [button('💶 Einkommensnachweis','platforms:doc-upload:income_proof')],
-  [button('🏠 Mietschuldenfrei','platforms:doc-upload:rent_clearance')],
-  [button('📎 Sonstiges','platforms:doc-upload:other')]
- ];
- for(const doc of docs){
-  const meta=DOCUMENT_TYPES[doc.document_type]||DOCUMENT_TYPES.other;
-  rows.push([
-   button(`${doc.send_with_auto_apply?'✅':'○'} ${meta.button} · ${clip(doc.original_filename,22)}`,`platforms:doc-toggle:${doc.id}`),
-   button('🗑',`platforms:doc-delete:${doc.id}`)
-  ]);
- }
- rows.push([button('← Bewerberprofil','platforms:profile')]);
- return render(text,rows);
-}
-
 async function readProfile(userId){
  const {data,error}=await db.from('applicant_profiles').select('*').eq('user_id',userId).maybeSingle();
  if(error)throw Error('Bewerberprofil konnte nicht geladen werden.');
@@ -404,36 +291,25 @@ async function renderApplicantProfilePreview(user,chat,messageId){
 async function renderApplicationTexts(user,chat,messageId){
  const p=await ensureApplicantProfile(user.id);
  const render=(text,rows)=>messageId?edit(chat.id,messageId,text,{inline_keyboard:rows}):send(chat.id,text,{inline_keyboard:rows});
- const entry=(name,label,value)=>{const clean=String(label).replace(/ \*$/,'');const filled=String(value??'').trim()!=='';return button(`${filled?'✅':'⚠️'} ${filled?clean:`${clean} *`}`,`platforms:profile-text:${name}`)};
- const text='✍️ <b>Bewerbungstext</b>\n\nWähle eine Wohnform, um den hinterlegten Bewerbungstext als Vorschau zu öffnen und zu bearbeiten.';
- return render(text,[
-  [entry('message_house','Haus *',p.message_house),entry('message_apartment','Wohnung *',p.message_apartment)],
-  [entry('message_temporary_wg','Auf Zeit & WG *',p.message_temporary_wg),entry('message_swap','Tauschwohnung *',p.message_swap)],
+ const entry=(name,label)=>button(label,'platforms:profile-text:'+name);
+ return render('✍️ <b>Bewerbungstext</b>\n\nWähle Wohnung oder Haus. Die Vorlage enthält <code>[[Vorname]]</code>; bei einer Bewerbung wird automatisch dein gespeicherter Vorname eingesetzt.',[
+  [entry('message_apartment','🏢 Wohnung'),entry('message_house','🏡 Haus')],
   [button('← Bewerberprofil','platforms:profile')]
  ]);
 }
 
 async function renderApplicationTextDetail(user,chat,messageId,name){
- const allowed=new Set(['message_apartment','message_house','message_temporary_wg','message_swap']);
- if(!allowed.has(name))return renderApplicationTexts(user,chat,messageId);
+ if(!['message_apartment','message_house'].includes(name))return renderApplicationTexts(user,chat,messageId);
  const p=await ensureApplicantProfile(user.id);
- const render=(text,rows)=>messageId?edit(chat.id,messageId,text,{inline_keyboard:rows}):send(chat.id,text,{inline_keyboard:rows});
- const labels={
-  message_apartment:'Wohnung',
-  message_house:'Haus',
-  message_temporary_wg:'Auf Zeit & WG',
-  message_swap:'Tauschwohnung'
- };
- const raw=String(p[name]??'').trim();
- const max=3200,visible=raw.length>max?`${raw.slice(0,max-1)}…`:raw;
- const preview=raw
-  ? `<blockquote>${esc(visible)}</blockquote>${raw.length>max?'\n<i>Vorschau gekürzt</i>':''}`
-  : '⚠️ <i>Noch kein Bewerbungstext hinterlegt.</i>';
- const text=`✍️ <b>Bewerbungstext · ${esc(labels[name])}</b>\n\n${preview}`;
- return render(text,[
-  [button('✏️ Bewerbungstext bearbeiten',`platforms:profile-field:${name}`)],
+ const label=name==='message_house'?'Haus':'Wohnung';
+ const raw=String(p[name]??'').trim()||DEFAULT_APPLICATION_TEXT;
+ const visible=resolveApplicationText(raw,p.first_name).slice(0,3200);
+ const markup={inline_keyboard:[
+  [button('✏️ Bewerbungstext bearbeiten','platforms:profile-field:'+name)],
   [button('← Bewerbungstext','platforms:profile-texts')]
- ]);
+ ]};
+ return messageId?edit(chat.id,messageId,'✍️ <b>Bewerbungstext · '+label+'</b>\n\n<blockquote>'+esc(visible)+'</blockquote>',markup):
+  send(chat.id,'✍️ <b>Bewerbungstext · '+label+'</b>\n\n<blockquote>'+esc(visible)+'</blockquote>',markup);
 }
 
 function fieldPrompt(name){
@@ -483,23 +359,6 @@ export async function handleAutoApplyMessage(user,message){
    return send(chat.id,`⚠️ ${esc(error.message)}`,{inline_keyboard:[[button(`🔐 ${name} erneut verbinden`,`platforms:login:${source}`)],[button('← Automatische Bewerbung','platforms')]]});
   }
  }
- if(replied.startsWith(DOC_PROMPT_PREFIX)){
-  if(!user.is_premium)return send(chat.id,'💎 Bewerberdokumente benötigen Premium.');
-  const label=replied.slice(DOC_PROMPT_PREFIX.length).split('\n')[0].trim();
-  const type=Object.entries(DOCUMENT_TYPES).find(([,meta])=>meta.label===label)?.[0];
-  if(!type)return null;
-  try{
-   const current=await readProfile(user.id);
-   if(!current)return send(chat.id,'Bitte zuerst das Bewerberprofil anlegen.',{inline_keyboard:[[button('➕ Bewerberprofil anlegen','platforms:profile-new')]]});
-   const saved=await storeApplicantDocument(user,message,type);
-   await Promise.all([
-    telegram('deleteMessage',{chat_id:chat.id,message_id:message.message_id}).catch(()=>{}),
-    message.reply_to_message?.message_id?telegram('deleteMessage',{chat_id:chat.id,message_id:message.reply_to_message.message_id}).catch(()=>{}):null
-   ]);
-   return send(chat.id,`✅ ${esc(saved.label)} gespeichert. Die Datei ist standardmäßig <b>nicht</b> für Auto-Bewerbungen ausgewählt.`,{inline_keyboard:[[button('📎 Dokumente verwalten','platforms:docs')],[button('← Bewerberprofil','platforms:profile')]]});
-  }catch(error){return send(chat.id,`⚠️ ${esc(userFacingError(error))}`,{inline_keyboard:[[button('📎 Dokumente','platforms:docs')]]});}
- }
-
  if(replied.startsWith(SETUP_PROMPT)){
   const parts=text.split('|').map(v=>v.trim());
  if(![2,3,5,6].includes(parts.length))return send(chat.id,'Bitte <code>Vorname | Nachname</code> eingeben; optional kannst du die E-Mail als dritten Wert ergänzen. Für ImmoScout24 und Immowelt ist die E-Mail erforderlich.');
@@ -725,36 +584,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   return renderApplicantProfile(user,chat,messageId);
  }
 
- if(action==='docs'){
-  if(!user.is_premium)return render('Bewerberdokumente für Auto-Bewerbungen benötigen Premium.',back);
-  return renderApplicantDocuments(user,chat,messageId);
- }
- if(action==='doc-upload'){
-  if(!user.is_premium)return render('Bewerberdokumente für Auto-Bewerbungen benötigen Premium.',back);
-  const meta=DOCUMENT_TYPES[arg];if(!meta)return renderApplicantDocuments(user,chat,messageId);
-  await ensureApplicantProfile(user.id);
-  const incomeHint=arg==='income_proof'?'\nFür die letzten drei Monate kannst du diesen Upload dreimal nacheinander verwenden.':'';
-  return send(chat.id,`${DOC_PROMPT_PREFIX}${meta.label}\n\nSende die Datei als <b>Antwort auf diese Nachricht</b>.\n\nErlaubt: PDF, JPG oder PNG · maximal 6 MB.${incomeHint}\nNeue Dateien sind zunächst nicht für Auto-Bewerbungen freigegeben.`,{force_reply:true,selective:true,input_field_placeholder:'Datei senden'});
- }
- if(action==='doc-toggle'){
-  if(!user.is_premium)return render('Bewerberdokumente für Auto-Bewerbungen benötigen Premium.',back);
-  const {data:doc,error}=await db.from('applicant_documents').select('id,send_with_auto_apply').eq('id',arg).eq('user_id',user.id).maybeSingle();
-  if(error)throw Error('Dokument konnte nicht geladen werden.');
-  if(doc){
-   const next=!doc.send_with_auto_apply;
-   const {error:updateError}=await db.from('applicant_documents').update({send_with_auto_apply:next}).eq('id',doc.id).eq('user_id',user.id);
-   if(updateError)throw Error('Dokumentauswahl konnte nicht gespeichert werden.');
-   // The current application processor reads selected documents directly from D1.
-  }
-  return renderApplicantDocuments(user,chat,messageId);
- }
- if(action==='doc-delete'){
-  if(!user.is_premium)return render('Bewerberdokumente für Auto-Bewerbungen benötigen Premium.',back);
-  try{
-   await deleteApplicantDocument(user.id,arg);
-   return renderApplicantDocuments(user,chat,messageId,'Dokument gelöscht.');
-  }catch(error){return renderApplicantDocuments(user,chat,messageId,`⚠️ ${esc(error.message)}`);}
- }
+ if(action==='docs'||action.startsWith('doc-')) return renderApplicantProfile(user,chat,messageId);
 
  if(action==='provider'){
   if(!user.is_premium)return render('Auto-Bewerbungen benötigen aktives Premium.',back);
