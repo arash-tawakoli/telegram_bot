@@ -312,11 +312,32 @@ async function renderApplicationTextDetail(user,chat,messageId,name){
   send(chat.id,'✍️ <b>Bewerbungstext · '+label+'</b>\n\n<blockquote>'+esc(visible)+'</blockquote>',markup);
 }
 
+async function clearPendingField(user){
+ const state={...(user.onboarding_state||{})};
+ if(!state._applicant_field)return;
+ delete state._applicant_field;
+ delete state._applicant_message_id;
+ const {error}=await db.rpc('save_ui_state',{p_user:user.id,p_step:user.onboarding_step||null,p_state:state});
+ if(error)throw Error('Profilnavigation konnte nicht gespeichert werden.');
+}
+
+async function showFieldInput(user,chat,messageId,name){
+ const meta=PROFILE_FIELDS[name];
+ if(!meta)return renderApplicantProfile(user,chat,messageId);
+ const state={...(user.onboarding_state||{}),_applicant_field:name,_applicant_message_id:Number(messageId)};
+ const {error}=await db.rpc('save_ui_state',{p_user:user.id,p_step:user.onboarding_step||null,p_state:state});
+ if(error)throw Error('Profileingabe konnte nicht gestartet werden.');
+ const text='👤 <b>'+esc(meta.label)+'</b>\n\n'+fieldPrompt(name)
+  +'\n\nSende den neuen Wert als nächste Nachricht im Chat.';
+ return messageId?edit(chat.id,messageId,text,{inline_keyboard:[[button('← Bewerberprofil','platforms:profile')]]})
+  :send(chat.id,text,{inline_keyboard:[[button('← Bewerberprofil','platforms:profile')]]});
+}
+
 function fieldPrompt(name){
  const meta=PROFILE_FIELDS[name];if(!meta)return null;
  const optional=meta.required?'':'\nOptional: Sende nur <code>-</code>, um den Wert zu löschen.';
  const extra=meta.type==='date'?'\nFormat: <code>JJJJ-MM-TT</code>':meta.type==='integer'?'\nZahl von 1 bis 20':meta.type==='money'?'\nNur den Betrag eingeben, z. B. <code>2500</code>':meta.hint?`\n${meta.hint}`:'';
- return `${FIELD_PROMPT_PREFIX}${meta.label}\n\nBitte antworte auf diese Nachricht mit dem neuen Wert.${extra}${optional}`;
+ return `Bitte gib den neuen Wert ein.${extra}${optional}`;
 }
 
 function validateField(name,input){
@@ -377,9 +398,11 @@ export async function handleAutoApplyMessage(user,message){
    return send(chat.id,'✅ Bewerberprofil angelegt.',{inline_keyboard:[[button('👤 Profil öffnen','platforms:profile')],[button('← Automatische Bewerbung','platforms')]]});
   }catch(error){return send(chat.id,`⚠️ ${esc(error.message)}`);}
  }
- if(replied.startsWith(FIELD_PROMPT_PREFIX)){
+ const pendingField=String(user.onboarding_state?._applicant_field||'');
+ if((pendingField&&PROFILE_FIELDS[pendingField]&&text&&!text.startsWith('/'))||replied.startsWith(FIELD_PROMPT_PREFIX)){
   const label=replied.slice(FIELD_PROMPT_PREFIX.length).split('\n')[0].trim();
-  const entry=Object.entries(PROFILE_FIELDS).find(([,meta])=>meta.label===label);if(!entry)return null;
+  const entry=pendingField&&PROFILE_FIELDS[pendingField]?[pendingField,PROFILE_FIELDS[pendingField]]:Object.entries(PROFILE_FIELDS).find(([,meta])=>meta.label===label);
+  if(!entry)return null;
   const [name]=entry;
   try{
    await ensureApplicantProfile(user.id);
@@ -388,6 +411,15 @@ export async function handleAutoApplyMessage(user,message){
     : {[name]:value,updated_at:new Date().toISOString()};
    const {error}=await db.from('applicant_profiles').update(patch).eq('user_id',user.id);if(error)throw Error('Änderung konnte nicht gespeichert werden.');
    await Promise.all([telegram('deleteMessage',{chat_id:chat.id,message_id:message.message_id}).catch(()=>{}),message.reply_to_message?.message_id?telegram('deleteMessage',{chat_id:chat.id,message_id:message.reply_to_message.message_id}).catch(()=>{}):null]);
+   const editMessageId=Number(user.onboarding_state?._applicant_message_id||0);
+   if(pendingField){
+     await clearPendingField(user);
+     if(editMessageId>0){
+       return name.startsWith('message_')
+         ? renderApplicationTextDetail(user,chat,editMessageId,name)
+         : renderApplicantProfile(user,chat,editMessageId,'✅ '+PROFILE_FIELDS[name].label+' gespeichert.');
+     }
+   }
    const messageField=name.startsWith('message_');
    return send(chat.id,`✅ ${esc(PROFILE_FIELDS[name].label)} gespeichert.`,{inline_keyboard:[[button(messageField?'✍️ Vorschau öffnen':'👤 Bewerberprofil',messageField?`platforms:profile-text:${name}`:'platforms:profile')],[button('← Automatische Bewerbung','platforms')]]});
   }catch(error){return send(chat.id,`⚠️ ${esc(error.message)}`);}
@@ -455,6 +487,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
 
  if(action==='profile'){
   if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
+  await clearPendingField(user);
   return renderApplicantProfile(user,chat,messageId);
  }
  if(action==='profile-new'){
@@ -546,8 +579,8 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
     [button('← Bewerberprofil','platforms:profile')]
    ]);
   }
-  const prompt=fieldPrompt(arg);if(!prompt)return renderApplicantProfile(user,chat,messageId);
-  return send(chat.id,prompt,{force_reply:true,selective:true,input_field_placeholder:PROFILE_FIELDS[arg].label});
+  if(!PROFILE_FIELDS[arg])return renderApplicantProfile(user,chat,messageId);
+  return showFieldInput(user,chat,messageId,arg);
  }
  if(action==='profile-set'){
   if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
@@ -571,8 +604,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   }else if(arg==='move_in_preference'){
    if(!Object.hasOwn(MOVE_IN_LABELS,choice))return renderApplicantProfile(user,chat,messageId);
    if(choice==='EXACT_DATE'){
-    const prompt=fieldPrompt('move_in_date');
-    return send(chat.id,prompt,{force_reply:true,selective:true,input_field_placeholder:'JJJJ-MM-TT'});
+    return showFieldInput(user,chat,messageId,'move_in_date');
    }
    patch={move_in_preference:choice,move_in_date:null};
   }else if(arg==='schufa_status'){
