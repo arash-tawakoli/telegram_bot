@@ -19,7 +19,6 @@ import { runEngagementNotifications } from "./engagement-cron.js";
 import { recordTelegramActivity, recoverTelegramUpdates } from "./telegram-recovery.js";
 import { scheduledTasksForMinute, sourcesForMinute } from "./source-schedule.js";
 import { runPlatformSessionReminders } from "./platform-session-cron.js";
-import { applicationDocumentFileResponse, applicationDocumentPackageResponse } from "./application-documents.js";
 
 const HEADERS = {
   "content-type": "application/json; charset=utf-8",
@@ -467,38 +466,6 @@ async function participantAllowed(sql, member, participantId) {
   return Boolean(rows[0]);
 }
 
-async function uploadDocument(sql, request, env) {
-  if (!env.DOCUMENTS) return json({ error: "document_storage_unavailable" }, 503);
-  const member = await requestMember(sql, request);
-  if (!member) return json({ error: "unauthorized" }, 401);
-  const token = new URL(request.url).searchParams.get("token") || "";
-  const rows = await sql`SELECT id, participant_id, object_key, content_type FROM housing.upload_tokens WHERE token_hash = ${await sha256(token)} AND expires_at > now() AND uploaded_at IS NULL AND consumed_at IS NULL`;
-  if (!rows[0] || !await participantAllowed(sql, member, rows[0].participant_id)) return json({ error: "upload_not_found" }, 404);
-  const length = Number(request.headers.get("content-length") || 0);
-  if (length > 6 * 1024 * 1024) return json({ error: "document_too_large" }, 413);
-  const body = await request.arrayBuffer();
-  if (!body.byteLength || body.byteLength > 6 * 1024 * 1024) return json({ error: "document_too_large" }, 413);
-  await env.DOCUMENTS.put(rows[0].object_key, body, { httpMetadata: { contentType: rows[0].content_type } });
-  await sql`UPDATE housing.upload_tokens SET uploaded_at = now(), size_bytes = ${body.byteLength} WHERE id = ${rows[0].id}`;
-  return json({ ok: true });
-}
-
-async function openDocument(sql, request, env) {
-  if (!env.DOCUMENTS) return json({ error: "document_storage_unavailable" }, 503);
-  const member = await requestMember(sql, request);
-  if (!member) return json({ error: "unauthorized" }, 401);
-  const url = new URL(request.url);
-  const participantId = url.searchParams.get("participant_id") || "";
-  const documentId = url.searchParams.get("document_id") || "";
-  if (!await participantAllowed(sql, member, participantId)) return json({ error: "participant_forbidden" }, 403);
-  const rows = await sql`SELECT object_key, content_type, original_filename FROM housing.documents WHERE id = ${documentId} AND participant_id = ${participantId}`;
-  if (!rows[0]) return json({ error: "document_not_found" }, 404);
-  const object = await env.DOCUMENTS.get(rows[0].object_key);
-  if (!object) return json({ error: "document_not_found" }, 404);
-  const headers = new Headers({ ...HEADERS, "content-type": rows[0].content_type, "content-disposition": `inline; filename="${String(rows[0].original_filename).replace(/[^a-zA-Z0-9._-]/g, "_")}"` });
-  return new Response(object.body, { status: 200, headers });
-}
-
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -524,26 +491,6 @@ export default {
     }
 
     if (routePath === "/stripe/webhook") return handleStripeWebhook(request, env);
-
-    if (request.method === "GET" && routePath === "/documents/package") {
-      try { return await withDatabase(env, (sql) => applicationDocumentPackageResponse(sql, env, request)); }
-      catch (error) { console.error("housing_document_package_failed", String(error?.message || error)); return json({ error: "document_package_unavailable" }, 503); }
-    }
-
-    if (request.method === "GET" && routePath === "/documents/package-file") {
-      try { return await withDatabase(env, (sql) => applicationDocumentFileResponse(sql, env, request)); }
-      catch (error) { console.error("housing_document_package_file_failed", String(error?.message || error)); return json({ error: "document_download_unavailable" }, 503); }
-    }
-
-    if (request.method === "GET" && routePath === "/documents/package") {
-      try { return await withDatabase(env, (sql) => applicationDocumentPackageResponse(sql, env, request)); }
-      catch (error) { console.error("housing_document_package_failed", String(error?.message || error)); return json({ error: "document_package_unavailable" }, 503); }
-    }
-
-    if (request.method === "GET" && routePath === "/documents/package-file") {
-      try { return await withDatabase(env, (sql) => applicationDocumentFileResponse(sql, env, request)); }
-      catch (error) { console.error("housing_document_package_file_failed", String(error?.message || error)); return json({ error: "document_download_unavailable" }, 503); }
-    }
 
     if (routePath === "/internal/delivery-cutover-ledger" && request.method === "POST") {
       const secret = String(env.DELIVERY_CUTOVER_SECRET || "");
@@ -608,16 +555,6 @@ export default {
         console.error("housing_coach_api_failed", code.slice(0, 180));
         return json({ error: code || "coach_api_failed" }, status);
       }
-    }
-
-    if (request.method === "PUT" && url.pathname === "/edge/documents/upload") {
-      try { return await withDatabase(env, (sql) => uploadDocument(sql, request, env)); }
-      catch (error) { console.error("housing_document_upload_failed", String(error?.message || error)); return json({ error: "document_upload_failed" }, 503); }
-    }
-
-    if (request.method === "GET" && url.pathname === "/edge/documents/open") {
-      try { return await withDatabase(env, (sql) => openDocument(sql, request, env)); }
-      catch (error) { console.error("housing_document_open_failed", String(error?.message || error)); return json({ error: "document_open_failed" }, 503); }
     }
 
     if (request.method === "GET" && routePath === "/internal/source-allowlist") {
