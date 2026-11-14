@@ -559,31 +559,71 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
     [[button('← Auto-Bewerbung','platforms')]]);
  }
 
+ if(user.onboarding_state?._applicant_clear_token && action!=='profile-clear' && action!=='profile-clear-confirm'){
+  const state={...user.onboarding_state};
+  delete state._applicant_clear_token;
+  delete state._applicant_clear_issued_at;
+  const result=await db.rpc('save_ui_state',{p_user:user.id,p_step:user.onboarding_step||null,p_state:state});
+  if(result.error)throw Error('Profilnavigation konnte nicht gespeichert werden.');
+  user={...user,onboarding_state:state};
+ }
+
+ if(action==='profile-clear'){
+  await clearPendingField(user,chat);
+  const token=crypto.randomUUID().replace(/-/g,'').slice(0,12);
+  const state={...(user.onboarding_state||{}),_applicant_clear_token:token,_applicant_clear_issued_at:Date.now()};
+  delete state._applicant_field;
+  delete state._applicant_message_id;
+  delete state._applicant_prompt_message_id;
+  delete state._applicant_text_origin;
+  const {error}=await db.rpc('save_ui_state',{p_user:user.id,p_step:user.onboarding_step||null,p_state:state});
+  if(error)throw Error('Löschbestätigung konnte nicht geöffnet werden.');
+  return render('🗑 <b>Angaben wirklich löschen?</b>\n\nAlle persönlichen Eingaben im Bewerberprofil einschließlich SCHUFA und Einzugstermin werden gelöscht. Die Auto-Bewerbung und alle drei Quellen werden pausiert. Deine Bewerbungstexte bleiben erhalten.',[
+   [button('🗑 Ja, Angaben löschen','platforms:profile-clear-confirm:'+token)],
+   [button('← Profilvorschau','platforms:profile-preview')]
+  ]);
+ }
+ if(action==='profile-clear-confirm'){
+  const {error}=await db.rpc('reset_applicant_profile_and_pause_auto_apply',{
+   p_user:user.id,p_telegram_user_id:user.telegram_user_id,p_confirmation_token:arg
+  });
+  if(error)return render('⚠️ Diese Löschbestätigung ist ungültig oder abgelaufen. Bitte starte das Löschen erneut.',[
+   [button('← Profilvorschau','platforms:profile-preview')]
+  ]);
+  return renderApplicantProfile(user,chat,messageId,'✅ Angaben gelöscht. Automatische Bewerbung und alle drei Quellen pausiert.');
+ }
+
+ if(action==='preview-texts'){
+  await clearPendingField(user,chat);
+  return renderApplicationTexts(user,chat,messageId,true);
+ }
+ if(action==='preview-text'){
+  return renderApplicationTextDetail(user,chat,messageId,arg,true);
+ }
+ if(action==='preview-edit'){
+  if(!['message_apartment','message_house'].includes(arg))return renderApplicationTexts(user,chat,messageId,true);
+  return showFieldInput(user,chat,messageId,arg,true);
+ }
+
  if(action==='profile'){
-  if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
   await clearPendingField(user,chat);
   return renderApplicantProfile(user,chat,messageId);
  }
  if(action==='profile-new'){
-  if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
   await ensureApplicantProfile(user.id);
   return renderApplicantProfile(user,chat,messageId);
  }
  if(action==='profile-preview'){
-  if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
   return renderApplicantProfilePreview(user,chat,messageId);
  }
  if(action==='profile-texts'){
-  if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
   await clearPendingField(user,chat);
   return renderApplicationTexts(user,chat,messageId);
  }
  if(action==='profile-text'){
-  if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
   return renderApplicationTextDetail(user,chat,messageId,arg);
  }
  if(action==='profile-field'){
-  if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
   const current=await ensureApplicantProfile(user.id);
   const mark=(value,selected,label)=>value===selected?`✅ ${label}`:label;
   if(arg==='salutation'){
@@ -658,7 +698,6 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   return showFieldInput(user,chat,messageId,arg);
  }
  if(action==='profile-set'){
-  if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
   const previous=await ensureApplicantProfile(user.id);
   let patch=null;
   if(arg==='salutation'){
