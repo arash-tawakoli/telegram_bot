@@ -6,6 +6,9 @@ import { configureLegacyRuntime } from "../src/telegram-legacy/runtime.js";
 import { home, homeKeyboard, settings, premium, referralPage } from "../src/telegram-legacy/navigation.js";
 import { handleCallback, handleMessage } from "../src/telegram-legacy/handlers.js";
 import { platformSessions, handleAutoApplyMessage } from "../src/telegram-legacy/platform-sessions.js";
+import { homePreview, HOME_LANGUAGES } from "../src/telegram-legacy/home-language.js";
+import { createD1Supabase } from "../src/telegram-legacy/d1-supabase.js";
+import { withPlan } from "../src/telegram-legacy/runtime.js";
 
 function setup() {
   const sqlite = new DatabaseSync(":memory:");
@@ -413,4 +416,132 @@ test("first completed Bewerberprofil triggers exactly one native confetti effect
     assert.equal(effects().length, 1);
     assert.equal(x.sqlite.prepare("SELECT COUNT(*) n FROM profile_celebrations WHERE participant_id='owner' AND kind='applicant'").get().n, 1);
   } finally { x.done(); }
+});
+
+const completeApplicant = {
+  first_name:"Mara",last_name:"Beispiel",email:"mara@example.org",phone:"+49123456789",
+  street:"Testweg",house_number:"1",postcode:"20095",city:"Hamburg",
+  salutation:"MS",household_type:"SINGLE",employment_status:"EMPLOYEE",
+  income_range:"NOT_SPECIFIED",pets:"NO",move_in_preference:"NOT_SPECIFIED",schufa_status:"NOT_SPECIFIED"
+};
+
+test("all nine home preview translations preserve German menu controls", async () => {
+  const x=setup();
+  try{
+    assert.deepEqual(Object.keys(HOME_LANGUAGES),["de","en","ar","prs","ckb","kmr","ru","uk","tr"]);
+    for (const code of Object.keys(HOME_LANGUAGES)){
+      const preview=homePreview(code);
+      assert.match(preview,/Traumwohnung Hamburg/);
+      assert.match(preview,/1[.] /);
+      assert.match(preview,/2[.] /);
+      assert.match(preview,/3[.] /);
+      assert.ok(preview.length<900);
+      await home({...x.user,ui_language:code},777);
+      assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][0].text,"🔎 Suchprofil");
+    }
+    assert.match(homePreview("unknown"),/Was ist das/);
+  }finally{x.done();}
+});
+
+test("first /start asks for language, choosing Sorani persists and opens the localized home",async()=>{
+  const x=setup();
+  try{
+    x.sqlite.exec("UPDATE participants SET language_selected_at=NULL WHERE id='owner'");
+    const fresh={...x.user,language_selected_at:null};
+    await handleMessage({chat:x.chat,text:"/start"},fresh);
+    assert.match(lastMessage(x).text,/Sprache auswählen/);
+    assert.equal(lastMessage(x).reply_markup.inline_keyboard.filter(row=>row[0].callback_data.startsWith("language:set:")).length,9);
+    assert.equal(lastMessage(x).reply_markup.inline_keyboard.some(row=>row[0].callback_data==="profile"),false);
+    await handleCallback({id:"choice-sorani",data:"language:set:ckb",from:{id:777},message:{chat:x.chat,message_id:73}},fresh);
+    assert.equal(sqliteLanguage(x.sqlite),"ckb");
+    assert.ok(x.sqlite.prepare("SELECT language_selected_at FROM participants WHERE id='owner'").get().language_selected_at);
+    assert.match(lastMessage(x).text,/ئەمە چییە/);
+    assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][0].text,"🔎 Suchprofil");
+    const adapter=createD1Supabase(x.d1,{});
+    await adapter.rpc("prepare_telegram_update",{p_payload:{message:{chat:x.chat,from:{id:777,first_name:"Mara",language_code:"de"}}}});
+    assert.equal(sqliteLanguage(x.sqlite),"ckb","Telegram updates must not reset the chosen language");
+  }finally{x.done();}
+});
+
+test("new Telegram participants immediately receive a one-time 30-day Premium welcome grant",async()=>{
+  const x=setup();
+  try{
+    const adapter=createD1Supabase(x.d1,{});
+    const message={chat:{id:888,type:"private"},from:{id:888,first_name:"Neu",last_name:"Nutzer",language_code:"ru"},text:"/start"};
+    const first=await adapter.rpc("prepare_telegram_update",{p_payload:{message}});
+    assert.equal(first.error,null);
+    assert.equal(first.data.is_new_user,true);
+    assert.equal(first.data.user.language_selected_at,null);
+    const user=first.data.user;
+    assert.ok(Date.parse(user.referral_bonus_until)>Date.now()+29*24*3600000);
+    assert.equal((await withPlan(user,null)).is_premium,true);
+    assert.ok(x.sqlite.prepare("SELECT welcome_premium_granted_at FROM participants WHERE id=?").get(user.id)?.welcome_premium_granted_at);
+    const prefs=x.sqlite.prepare("SELECT enabled,immoscout_enabled,immowelt_enabled,immomio_enabled FROM application_preferences WHERE participant_id=?").get(user.id);
+    assert.deepEqual([prefs.enabled,prefs.immoscout_enabled,prefs.immowelt_enabled,prefs.immomio_enabled],[0,0,0,0]);
+    const next=await adapter.rpc("prepare_telegram_update",{p_payload:{message}});
+    assert.equal(next.data.is_new_user,false);
+    assert.equal(next.data.user.referral_bonus_until,user.referral_bonus_until,"repeated updates do not extend the welcome trial");
+  }finally{x.done();}
+});
+
+test("a fully completed applicant profile gets one second confetti and Yes/No activation choices",async()=>{
+ const x=setup();
+ try{
+  const incomplete={...completeApplicant};delete incomplete.schufa_status;
+  x.sqlite.prepare("INSERT INTO applicant_profiles(participant_id,profile) VALUES('owner',?)").run(JSON.stringify(incomplete));
+  await platformSessions(x.user,x.chat,31,"platforms:profile-set:schufa_status:NOT_SPECIFIED");
+  const celebration=x.sent.filter(req=>req.method==="sendMessage"&&req.body.message_effect_id==="5046509860389126442");
+  assert.equal(celebration.length,1);
+  assert.match(celebration[0].body.text,/Jetzt die automatische Bewerbung aktivieren/);
+  assert.deepEqual(celebration[0].body.reply_markup.inline_keyboard.map(row=>row[0].callback_data),
+    ["platforms:completion:yes","platforms:completion:no"]);
+  await platformSessions(x.user,x.chat,31,"platforms:profile-set:schufa_status:AVAILABLE");
+  assert.equal(x.sent.filter(req=>req.method==="sendMessage"&&req.body.message_effect_id==="5046509860389126442").length,1);
+  assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM applicant_completion_prompts WHERE participant_id='owner'").get().n,1);
+
+  const callback=async data=>handleCallback({id:"choice-"+data,data,from:{id:777},message:{chat:x.chat,message_id:31}},x.user);
+  await callback("platforms:completion:yes");
+  const read=()=>x.sqlite.prepare("SELECT enabled,immoscout_enabled,immowelt_enabled,immomio_enabled FROM application_preferences WHERE participant_id='owner'").get();
+  assert.deepEqual([read().enabled,read().immoscout_enabled,read().immowelt_enabled,read().immomio_enabled],[1,1,1,1]);
+  assert.equal(x.sqlite.prepare("SELECT auto_apply_enabled FROM participants WHERE id='owner'").get().auto_apply_enabled,1);
+  const controls=lastMessage(x).reply_markup.inline_keyboard.flat().map(b=>b.callback_data);
+  for (const id of [1,4,3])assert.ok(controls.includes("platforms:pause:"+id));
+
+  await callback("platforms:completion:no");
+  assert.deepEqual([read().enabled,read().immoscout_enabled,read().immowelt_enabled,read().immomio_enabled],[0,0,0,0]);
+  const paused=lastMessage(x).reply_markup.inline_keyboard.flat().map(b=>b.callback_data);
+  for (const id of [1,4,3])assert.ok(paused.includes("platforms:resume:"+id));
+ }finally{x.done();}
+});
+
+test("each provider Start/Pause independently controls stored preferences",async()=>{
+ const x=setup();
+ try{
+  x.sqlite.prepare("INSERT INTO applicant_profiles(participant_id,profile) VALUES('owner',?)").run(JSON.stringify(completeApplicant));
+  await platformSessions(x.user,x.chat,44,"platforms");
+  let controls=lastMessage(x).reply_markup.inline_keyboard.flat().map(b=>b.callback_data);
+  for (const id of [1,4,3])assert.ok(controls.includes("platforms:resume:"+id));
+  await platformSessions(x.user,x.chat,44,"platforms:resume:1");
+  const read=()=>x.sqlite.prepare("SELECT enabled,immoscout_enabled,immowelt_enabled,immomio_enabled FROM application_preferences WHERE participant_id='owner'").get();
+  assert.deepEqual([read().enabled,read().immoscout_enabled,read().immowelt_enabled,read().immomio_enabled],[1,1,0,0]);
+  await platformSessions(x.user,x.chat,44,"platforms:resume:4");
+  assert.deepEqual([read().enabled,read().immoscout_enabled,read().immowelt_enabled,read().immomio_enabled],[1,1,1,0]);
+  await platformSessions(x.user,x.chat,44,"platforms:pause:1");
+  assert.deepEqual([read().enabled,read().immoscout_enabled,read().immowelt_enabled,read().immomio_enabled],[1,0,1,0]);
+  await platformSessions(x.user,x.chat,44,"platforms:pause:4");
+  assert.deepEqual([read().enabled,read().immoscout_enabled,read().immowelt_enabled,read().immomio_enabled],[0,0,0,0]);
+  controls=lastMessage(x).reply_markup.inline_keyboard.flat().map(b=>b.callback_data);
+  for (const id of [1,4,3])assert.ok(controls.includes("platforms:resume:"+id));
+ }finally{x.done();}
+});
+
+test("incomplete applicant profile never enables any auto-apply source",async()=>{
+ const x=setup();
+ try{
+  await platformSessions(x.user,x.chat,44,"platforms:resume:1");
+  assert.match(lastMessage(x).text,/vervollständige zuerst dein Bewerberprofil/);
+  assert.equal(x.sqlite.prepare("SELECT auto_apply_enabled FROM participants WHERE id='owner'").get().auto_apply_enabled,0);
+  await platformSessions(x.user,x.chat,44,"platforms:completion:yes");
+  assert.equal(x.sqlite.prepare("SELECT auto_apply_enabled FROM participants WHERE id='owner'").get().auto_apply_enabled,0);
+ }finally{x.done();}
 });
