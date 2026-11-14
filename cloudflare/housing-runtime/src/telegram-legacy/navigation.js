@@ -59,14 +59,8 @@ export async function setPaused(userId, paused, slot) {
 }
 
 export async function referralPage(user, chatId, messageId) {
-  let { data: code, error } = await db.from("referral_codes").select("code").eq("user_id", user.id).maybeSingle();
-  if (error) throw error;
-  if (!code) {
-    const value = crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase();
-    const result = await db.from("referral_codes").insert({ user_id: user.id, code: value }).select("code").single();
-    if (result.error) throw result.error;
-    code = result.data;
-  }
+  const { data: code, error } = await db.rpc("get_or_create_referral_code", { p_user: user.id });
+  if (error || !code?.code) throw error || new Error("Empfehlungslink konnte nicht erstellt werden.");
   const link = `https://t.me/traumwohnunghamburgbot?start=ref_${encodeURIComponent(code.code)}`;
   const text = "🎁 <b>30 Tage Premium kostenlos</b>\n\n"
     + "Empfiehl Traumwohnung Hamburg weiter. Sobald die geworbene Person ihr erstes Suchprofil aktiviert, "
