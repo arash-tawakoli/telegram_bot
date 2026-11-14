@@ -354,11 +354,11 @@ async function renderApplicantProfile(user,chat,messageId,notice=''){
   const missing=required&&(missingSet.has(name)||missingSet.has(PROFILE_FIELDS[name]?.label));
   return button(missing?label+' *':label,'platforms:profile-field:'+name);
  };
- const text='👤 <b>Bewerberprofil</b>\\n\\n'
-  +(notice?esc(notice)+'\\n\\n':'')
-  +'Hier trägst du die Angaben ein, die Vermieter bei einer Bewerbung benötigen können:\\n'
+ const text='👤 <b>Bewerberprofil</b>\n\n'
+  +(notice?esc(notice)+'\n\n':'')
+  +'Hier trägst du die Angaben ein, die Vermieter bei einer Bewerbung benötigen können:\n'
   +'Name und Anrede, Kontakt und Adresse, Haushalt, Beschäftigung und Einkommen, Haustiere, Einzugstermin und SCHUFA. '
-  +'WBS nur, wenn die Wohnung einen Wohnberechtigungsschein voraussetzt.\\n\\n'
+  +'WBS nur, wenn die Wohnung einen Wohnberechtigungsschein voraussetzt.\n\n'
   +'Persönliche Daten werden erst unter <b>Profilvorschau</b> angezeigt.';
  const rows=[
   [f('salutation','Anrede'),f('schufa_status','SCHUFA')],
@@ -391,9 +391,9 @@ async function renderApplicantProfilePreview(user,chat,messageId){
   ['Einzug',moveInLabel(p)],['SCHUFA',schufaLabel(p.schufa_status)],
   ['WBS-Status (optional)',shown(p.wbs_status)]
  ];
- const title='👁 <b>Profilvorschau</b>\\n\\n'
-  +(pending.length?'⚠️ '+pending.length+' Angaben fehlen noch.':'✅ Pflichtangaben vollständig.')+'\\n\\n';
- const body=values.map(([label,value])=>'<b>'+esc(label)+':</b> '+esc(value)).join('\\n');
+ const title='👁 <b>Profilvorschau</b>\n\n'
+  +(pending.length?'⚠️ '+pending.length+' Angaben fehlen noch.':'✅ Pflichtangaben vollständig.')+'\n\n';
+ const body=values.map(([label,value])=>'<b>'+esc(label)+':</b> '+esc(value)).join('\n');
  const markup={inline_keyboard:[
   [button('✍️ Bewerbungstext','platforms:profile-texts')],
   [button('← Bewerberprofil','platforms:profile')]
