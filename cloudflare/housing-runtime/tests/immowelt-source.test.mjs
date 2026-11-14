@@ -56,3 +56,21 @@ test("Immowelt inventory can be stored without queueing match work", async () =>
     assert.match(calls[0], /INSERT INTO housing.offer_identities/);
   } finally { globalThis.fetch = original; }
 });
+
+test("Immowelt stores the real card photograph, never the agency logo", async () => {
+  const original = globalThis.fetch;
+  const html = '<div id="classified-card-1"><img src="https://mms.immowelt.de/logo.jpg?h=50" alt="Agency">'
+    + '<a href="/expose/123" title="Wohnung zur Miete - Hamburg - 900 € - 2 Zimmer">Wohnung</a>'
+    + '<img src="https://mms.immowelt.de/a/b/c/d/house.jpg?w=626&amp;h=470" loading="lazy"></div>';
+  globalThis.fetch = async () => {
+    const response = new Response(html, { status: 200 });
+    Object.defineProperty(response, "url", { value: "https://www.immowelt.de/suche/" });
+    return response;
+  };
+  try {
+    const result = await fetchImmoweltSource({ id: 3, search_url: "https://www.immowelt.de/suche/" });
+    assert.equal(result.nodes.length, 1);
+    assert.equal(result.nodes[0].facts.image_url,
+      "https://mms.immowelt.de/a/b/c/d/house.jpg?w=626&h=470");
+  } finally { globalThis.fetch = original; }
+});
