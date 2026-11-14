@@ -230,17 +230,18 @@ async function ensureApplicantProfile(userId){
  return created;
 }
 
-async function celebrateFirstApplicantProfile(user,chat){
- const {data,error}=await db.rpc('claim_first_profile_celebration',{p_user:user.id,p_kind:'applicant'});
- if(error){console.error('applicant_profile_celebration_claim_failed',error.message);return;}
- if(data?.claimed===true)await sendCelebration(chat.id,'🎉 <b>Dein erstes Bewerberprofil ist angelegt!</b>\n\nViel Erfolg bei der Wohnungssuche!').catch(e=>console.error('applicant_celebration_failed',e.message));
-}
+// A completion is a successful change to a required profile field that leaves
+// the full applicant profile valid. Repeat the celebration on later edits too.
+const completedFieldChanged=(previous,patch)=>Object.entries(patch).some(
+ ([key,value])=>PROFILE_FIELDS[key]?.required===true&&String(previous?.[key]??'')!==String(value??'')
+);
 
-async function offerCompletedApplicantActivation(user,chat){
+async function offerCompletedApplicantActivation(user,chat,changed){
+ if(!changed)return;
  try{
-  const {data,error}=await db.rpc('claim_applicant_completion_prompt',{p_user:user.id});
+  const {data:missing,error}=await db.rpc('application_profile_missing_fields',{p_user:user.id});
   if(error)throw error;
-  if(data?.first_time){
+  if(Array.isArray(missing)&&missing.length===0){
    await sendCelebration(chat.id,
     '🎉 <b>Dein Bewerberprofil ist vollständig!</b>\n\nJetzt die automatische Bewerbung aktivieren und sofort Angebote erhalten?',
     {inline_keyboard:[
@@ -422,6 +423,7 @@ export async function handleAutoApplyMessage(user,message){
   const parts=text.split('|').map(v=>v.trim());
  if(![2,3,5,6].includes(parts.length))return send(chat.id,'Bitte <code>Vorname | Nachname</code> eingeben; optional kannst du die E-Mail als dritten Wert ergänzen. Für ImmoScout24 und Immowelt ist die E-Mail erforderlich.');
   try{
+   const previous=await readProfile(user.id);
    const values={
     user_id:user.id,
     first_name:validateField('first_name',parts[0]),last_name:validateField('last_name',parts[1]),email:parts.length>=3?validateField('email',parts[2]):null,...(parts.length>=5?{phone:validateField('phone',parts[3]),city:validateField('city',parts[4])}:{}),updated_at:new Date().toISOString()
@@ -433,9 +435,8 @@ export async function handleAutoApplyMessage(user,message){
    }
    const {error}=await db.from('applicant_profiles').upsert(values,{onConflict:'user_id'});if(error)throw Error('Bewerberprofil konnte nicht gespeichert werden.');
    await Promise.all([telegram('deleteMessage',{chat_id:chat.id,message_id:message.message_id}).catch(()=>{}),message.reply_to_message?.message_id?telegram('deleteMessage',{chat_id:chat.id,message_id:message.reply_to_message.message_id}).catch(()=>{}):null]);
-   await celebrateFirstApplicantProfile(user,chat);
    const result=await send(chat.id,'✅ Bewerberprofil angelegt.',{inline_keyboard:[[button('👤 Profil öffnen','platforms:profile')],[button('← Automatische Bewerbung','platforms')]]});
-   await offerCompletedApplicantActivation(user,chat);
+   await offerCompletedApplicantActivation(user,chat,completedFieldChanged(previous,values));
    return result;
   }catch(error){return send(chat.id,`⚠️ ${esc(error.message)}`);}
  }
@@ -446,12 +447,11 @@ export async function handleAutoApplyMessage(user,message){
   if(!entry)return null;
   const [name]=entry;
   try{
-   await ensureApplicantProfile(user.id);
+   const previous=await ensureApplicantProfile(user.id);
    const value=validateField(name,text),patch=name==='move_in_date'
     ? {[name]:value,move_in_preference:'EXACT_DATE',updated_at:new Date().toISOString()}
     : {[name]:value,updated_at:new Date().toISOString()};
    const {error}=await db.from('applicant_profiles').update(patch).eq('user_id',user.id);if(error)throw Error('Änderung konnte nicht gespeichert werden.');
-   if(name==='first_name'||name==='last_name')await celebrateFirstApplicantProfile(user,chat);
    await Promise.all([telegram('deleteMessage',{chat_id:chat.id,message_id:message.message_id}).catch(()=>{}),message.reply_to_message?.message_id?telegram('deleteMessage',{chat_id:chat.id,message_id:message.reply_to_message.message_id}).catch(()=>{}):null]);
    const editMessageId=Number(user.onboarding_state?._applicant_message_id||0);
    let response;
@@ -467,7 +467,7 @@ export async function handleAutoApplyMessage(user,message){
     const messageField=name.startsWith('message_');
     response=await send(chat.id,`✅ ${esc(PROFILE_FIELDS[name].label)} gespeichert.`,{inline_keyboard:[[button(messageField?'✍️ Vorschau öffnen':'👤 Bewerberprofil',messageField?`platforms:profile-text:${name}`:'platforms:profile')],[button('← Automatische Bewerbung','platforms')]]});
    }
-   await offerCompletedApplicantActivation(user,chat);
+   await offerCompletedApplicantActivation(user,chat,completedFieldChanged(previous,patch));
    return response;
   }catch(error){return send(chat.id,`⚠️ ${esc(error.message)}`);}
  }
@@ -501,7 +501,12 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
     ? 'Bitte zuerst den persönlichen Testmodus deaktivieren.'
     : 'Die Quellen konnten nicht aktualisiert werden.',back);
   }
-  return platformSessions(user,chat,messageId,'platforms');
+  const result=await platformSessions(user,chat,messageId,'platforms');
+  if(arg==='yes'){
+   await sendCelebration(chat.id,'🎉 <b>Automatische Bewerbung aktiviert!</b>\n\nImmoScout24, Immowelt und Immomio sind gestartet.')
+    .catch(error=>console.error('auto_apply_activation_celebration',String(error?.message||error)));
+  }
+  return result;
  }
 
  if(action==='test'){
@@ -650,7 +655,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  }
  if(action==='profile-set'){
   if(!user.is_premium)return render('Das Bewerberprofil für Auto-Bewerbungen benötigt Premium.',back);
-  await ensureApplicantProfile(user.id);
+  const previous=await ensureApplicantProfile(user.id);
   let patch=null;
   if(arg==='salutation'){
    if(!Object.hasOwn(SALUTATION_LABELS,choice))return renderApplicantProfile(user,chat,messageId);
@@ -680,7 +685,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   const {error}=await db.from('applicant_profiles').update({...patch,updated_at:new Date().toISOString()}).eq('user_id',user.id);
   if(error)throw Error('Änderung konnte nicht gespeichert werden.');
   const result=await renderApplicantProfile(user,chat,messageId);
-  await offerCompletedApplicantActivation(user,chat);
+  await offerCompletedApplicantActivation(user,chat,completedFieldChanged(previous,patch));
   return result;
  }
 

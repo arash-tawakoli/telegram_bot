@@ -809,14 +809,17 @@ export async function handleCallback(query, user) {
         const issue = validateDraft(draft);
         if (issue)
             return renderStep(user, chatId, messageId, draft, issue);
+        // Celebrate each newly created search profile, including additional profiles
+        // and profiles recreated after deletion. Editing a saved slot is not creation.
+        const { data: existing, error: existingError } = await db.from("search_profiles")
+            .select("id").eq("user_id", user.id).eq("profile_slot", draft.profile_slot).maybeSingle();
+        if (existingError) throw existingError;
         const referralReward = await persistProfile(user, draft);
-        const { data: first, error: celebrationError } = await db.rpc("claim_first_profile_celebration", { p_user: user.id, p_kind: "search" });
-        if (celebrationError) console.error("search_profile_celebration_claim_failed", celebrationError.message);
         const result = await edit(chatId, messageId, "✅ Deine Suche ist aktiv. Neue passende Inserate werden automatisch zugestellt.", homeKeyboard({ ...user, onboarding_step: null }));
-        if (referralReward?.status === "rewarded" || first?.claimed === true) {
+        if (!existing) {
             const message = referralReward?.status === "rewarded"
-                ? "🎉 <b>Dein erstes Suchprofil ist aktiv!</b>\n\n💎 30 Tage Premium kostenlos wurden gutgeschrieben."
-                : "🎉 <b>Dein erstes Suchprofil ist aktiv!</b>\n\nAb jetzt erhältst du passende Wohnungsangebote.";
+                ? "🎉 <b>Dein Suchprofil ist aktiv!</b>\n\n💎 30 Tage Premium kostenlos wurden gutgeschrieben."
+                : "🎉 <b>Dein Suchprofil ist aktiv!</b>\n\nAb jetzt erhältst du passende Wohnungsangebote.";
             await sendCelebration(chatId, message).catch(error => console.error("search_profile_celebration_failed", error.message));
         }
         return result;
