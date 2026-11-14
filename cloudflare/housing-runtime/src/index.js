@@ -448,24 +448,6 @@ export async function handleAuth(sql, request, env = {}) {
   return json({ error: "invalid_action" }, 400);
 }
 
-function cookie(request, name) {
-  const prefix = `${name}=`;
-  const value = String(request.headers.get("cookie") || "").split(";").map((part) => part.trim()).find((part) => part.startsWith(prefix));
-  return value ? decodeURIComponent(value.slice(prefix.length)) : "";
-}
-
-async function requestMember(sql, request) {
-  const authorization = request.headers.get("authorization") || "";
-  const bearer = authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : cookie(request, "__Host-tw_cp_access");
-  return memberForAccess(sql, bearer);
-}
-
-async function participantAllowed(sql, member, participantId) {
-  if (member?.role === "admin" || member?.role === "super_admin") return true;
-  const rows = await sql`SELECT 1 FROM housing.participant_assignments WHERE participant_id = ${participantId} AND member_id = ${member.id}`;
-  return Boolean(rows[0]);
-}
-
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
