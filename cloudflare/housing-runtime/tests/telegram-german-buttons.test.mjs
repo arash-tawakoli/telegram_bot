@@ -735,9 +735,13 @@ test("/token shares the portal's three provider connections and securely reuses 
  const x=setup();
  try{
   const adminId=8538226539;
-  x.sqlite.exec("UPDATE participants SET telegram_user_id="+adminId+",telegram_chat_id="+adminId+" WHERE id='owner'");
-  x.sqlite.exec("INSERT INTO provider_connections(id,participant_id,provider,status,account_hint) VALUES('c-immo','owner','immowelt','connected','web@example.test'),('c-mio','owner','immomio','needs_login','immomio@example.test')");
-  const user={...x.user,telegram_user_id:adminId,chat_id:adminId};
+  const ownerUuid="33333333-3333-4333-8333-333333333333";
+  x.sqlite.prepare("INSERT INTO participants(id,first_name,last_name,telegram_user_id,telegram_chat_id,language_selected_at) VALUES(?,?,?,?,?,CURRENT_TIMESTAMP)")
+   .run(ownerUuid,"A","B",adminId,adminId);
+  x.sqlite.prepare("INSERT INTO provider_connections(id,participant_id,provider,status,account_hint) VALUES(?,?,?,?,?),(?,?,?,?,?)")
+   .run("c-immo",ownerUuid,"immowelt","connected","web@example.test",
+        "c-mio",ownerUuid,"immomio","needs_login","immomio@example.test");
+  const user={...x.user,id:ownerUuid,user_id:ownerUuid,telegram_user_id:adminId,chat_id:adminId};
   const chat={id:adminId,type:"private"};
   await handleMessage({chat,text:"/token"},user);
   let buttons=lastMessage(x).reply_markup.inline_keyboard.flat();
@@ -758,7 +762,7 @@ test("/token shares the portal's three provider connections and securely reuses 
   await action("token:login:immowelt");
   buttons=lastMessage(x).reply_markup.inline_keyboard.flat();
   assert.ok(buttons[0].url?.startsWith("https://login.traumwohnunghamburg.de/connect?ticket="));
-  const flow=x.sqlite.prepare("SELECT provider,origin,return_target,context FROM provider_auth_flows WHERE participant_id='owner' AND provider='immowelt'").get();
+  const flow=x.sqlite.prepare("SELECT provider,origin,return_target,context FROM provider_auth_flows WHERE participant_id=? AND provider='immowelt'").get(ownerUuid);
   assert.equal(flow.provider,"immowelt");
   assert.equal(flow.origin,"telegram");
   assert.equal(flow.return_target,"telegram");
