@@ -1,4 +1,4 @@
-import {db,secret,send,edit,button,telegram,esc,runtimeEnv} from './runtime.js';
+import {db,secret,send,edit,sendCelebration,button,telegram,esc,runtimeEnv} from './runtime.js';
 import {encryptProviderCredentials} from '../provider-credentials.js';
 import {providerStaticMissing} from './application-profile-adapters.js';
 import { DEFAULT_APPLICATION_TEXT, resolveApplicationText } from '../application-text.js';
@@ -87,7 +87,6 @@ const PROFILE_FIELDS={
  employment_status:{label:'Beschäftigungsstatus',required:true,type:'choice',max:160},
  income_range:{label:'Haushalts-Nettoeinkommen',required:true,type:'choice'},
  pets:{label:'Haustiere',required:true,type:'choice',max:160},
- wbs_status:{label:'WBS-Status',required:false,max:160},
  move_in_preference:{label:'Einzugstermin',required:true,type:'choice'},
  move_in_date:{label:'Gewünschtes Einzugsdatum',required:true,type:'date'},
  household_size:{label:'Haushaltsgröße (Legacy)',type:'integer'},
@@ -243,10 +242,7 @@ async function renderApplicantProfile(user,chat,messageId,notice=''){
  };
  const text='👤 <b>Bewerberprofil</b>\n\n'
   +(notice?esc(notice)+'\n\n':'')
-  +'Hier trägst du die Angaben ein, die Vermieter bei einer Bewerbung benötigen können:\n'
-  +'Name und Anrede, Kontakt und Adresse, Haushalt, Beschäftigung und Einkommen, Haustiere, Einzugstermin und SCHUFA. '
-  +'WBS nur, wenn die Wohnung einen Wohnberechtigungsschein voraussetzt.\n\n'
-  +'Persönliche Daten werden erst unter <b>Profilvorschau</b> angezeigt.';
+  +'Hinterlege deine Angaben für Vermieter und Bewerbungen. Unter <b>Profilvorschau</b> siehst du alle gespeicherten Daten.';
  const rows=[
   [f('salutation','Anrede'),f('schufa_status','SCHUFA')],
   [f('first_name','Vorname'),f('last_name','Nachname')],
@@ -256,7 +252,6 @@ async function renderApplicantProfile(user,chat,messageId,notice=''){
   [f('household_type','Haushalt'),f('employment_status','Beschäftigung')],
   [f('income_range','Einkommen'),f('pets','Haustiere')],
   [f('move_in_preference','Einzugstermin')],
-  [f('wbs_status','WBS-Status (optional)')],
   [button('✍️ Bewerbungstext','platforms:profile-texts')],
   [button('👁 Profilvorschau','platforms:profile-preview')],
   [button('← Start','home')]
@@ -276,7 +271,6 @@ async function renderApplicantProfilePreview(user,chat,messageId){
   ['Haushalt',householdLabel(p)],['Beschäftigung',employmentLabel(p.employment_status)],
   ['Nettoeinkommen',incomeLabel(p)],['Haustiere',shown(p.pets)],
   ['Einzug',moveInLabel(p)],['SCHUFA',schufaLabel(p.schufa_status)],
-  ['WBS-Status (optional)',shown(p.wbs_status)]
  ];
  const title='👁 <b>Profilvorschau</b>\n\n'
   +(pending.length?'⚠️ '+pending.length+' Angaben fehlen noch.':'✅ Pflichtangaben vollständig.')+'\n\n';
@@ -292,7 +286,7 @@ async function renderApplicationTexts(user,chat,messageId){
  const p=await ensureApplicantProfile(user.id);
  const render=(text,rows)=>messageId?edit(chat.id,messageId,text,{inline_keyboard:rows}):send(chat.id,text,{inline_keyboard:rows});
  const entry=(name,label)=>button(label,'platforms:profile-text:'+name);
- return render('✍️ <b>Bewerbungstext</b>\n\nWähle Wohnung oder Haus. Die Vorlage enthält <code>[[Vorname]]</code>; bei einer Bewerbung wird automatisch dein gespeicherter Vorname eingesetzt.',[
+ return render('✍️ <b>Bewerbungstext</b>\n\nSchreibe oder passe deinen Bewerbungstext für den Vermieter an.',[
   [entry('message_apartment','🏢 Wohnung'),entry('message_house','🏡 Haus')],
   [button('← Bewerberprofil','platforms:profile')]
  ]);
