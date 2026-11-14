@@ -47,5 +47,16 @@ test("simultaneous D1 delivery workers claim once and render stored listing deta
     assert.equal(messages[0].reply_markup.inline_keyboard[0][0].web_app.url,
       "https://traumwohnung-housing-runtime.arash-ce5.workers.dev/angebot/00000000-0000-0000-0000-000000000003");
     assert.equal(sqlite.prepare("SELECT status FROM deliveries WHERE id='00000000-0000-0000-0000-000000000003'").get().status, "sent");
+    const pageResponse = await worker.fetch(new Request(
+      "https://runtime.example/angebot/00000000-0000-0000-0000-000000000003",
+    ), env);
+    assert.equal(pageResponse.status, 200);
+    assert.match(pageResponse.headers.get("content-type"), /text\/html/);
+    const html = await pageResponse.text();
+    assert.match(html, /Testwohnung/);
+    assert.match(html, /og:image/);
+    assert.equal((html.match(/<article>/g) || []).length, 1);
+    assert.doesNotMatch(html, /telegram_chat_id|participant_id/);
+
   } finally { globalThis.fetch = originalFetch; sqlite.close(); }
 });
