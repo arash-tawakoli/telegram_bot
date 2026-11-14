@@ -533,7 +533,7 @@ export default {
         return await withDatabase(env, async (sql) => json(await handleCoach(sql, request, env)));
       } catch (error) {
         const code = String(error?.message || "");
-        const status = code === "unauthorized" ? 401 : code === "participant_forbidden" ? 403 : code === "invalid_action" ? 400 : 422;
+        const status = code === "unauthorized" ? 401 : ["participant_forbidden", "super_admin_required", "preview_read_only"].includes(code) ? 403 : ["invalid_action", "provider_not_allowlisted"].includes(code) ? 400 : 422;
         console.error("housing_coach_api_failed", code.slice(0, 180));
         return json({ error: code || "coach_api_failed" }, status);
       }
