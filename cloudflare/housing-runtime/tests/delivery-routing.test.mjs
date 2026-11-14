@@ -28,7 +28,7 @@ function deliveryD1(participantStatus = "active") {
     CREATE TABLE deliveries (id TEXT PRIMARY KEY,participant_id TEXT,offer_identity_id TEXT,status TEXT,attempts INTEGER DEFAULT 0,error_message TEXT,telegram_message_id INTEGER,created_at TEXT DEFAULT CURRENT_TIMESTAMP,sent_at TEXT);
     CREATE TABLE participants (id TEXT PRIMARY KEY,status TEXT,telegram_chat_id INTEGER);
     CREATE TABLE offer_identities (id TEXT PRIMARY KEY,facts TEXT,canonical_url TEXT);
-    INSERT INTO participants VALUES ('p1',${JSON.stringify(participantStatus)},123);
+    INSERT INTO participants VALUES ('p1','${participantStatus}',123);
     INSERT INTO offer_identities VALUES ('o1','{"title":"Wohnung","city":"Hamburg"}','https://www.immobilienscout24.de/expose/123456789');
     INSERT INTO deliveries(id,participant_id,offer_identity_id,status,created_at) VALUES ('d1','p1','o1','pending',CURRENT_TIMESTAMP);
   `);

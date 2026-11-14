@@ -144,7 +144,7 @@ export async function processHousingApplication(sql, env, request) {
   if (!PROVIDERS.has(provider)) return fail("failed", "provider_not_allowlisted");
   if (!application.offer_identity_id || !application.canonical_url) return fail("failed", "listing_expired");
 
-  if (application.test_mode) {
+  if (application.test_mode && application.expires_at) {
     const expiresAt = timestampMillis(application.expires_at);
     if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) return fail("failed", "listing_expired");
   }

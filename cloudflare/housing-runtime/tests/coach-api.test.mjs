@@ -88,6 +88,7 @@ test("coach application history uses D1-compatible SQL and returns listing detai
 
   const result = await handleCoach(sql, request(access, { action: "applications", days: 30 }));
   assert.equal(result.total, 1);
+  assert.equal(result.applications.length, 1, JSON.stringify(result));
   assert.equal(result.applications[0].listings.title, "Wohnung in Hamburg");
   assert.equal(result.applications[0].listings.district, "Altona");
   assert.equal(result.applications[0].wait_reason, "none");
