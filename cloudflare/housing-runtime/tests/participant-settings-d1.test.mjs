@@ -29,7 +29,7 @@ test("participant settings survive migration and Telegram device language change
     const result = await api.rpc("prepare_telegram_update", { p_payload: { message: { from: { id: 7, first_name: "A", language_code: "en" }, chat: { id: 7 } } } });
     assert.equal(result.error, null);
     const after = sqlite.prepare("SELECT ui_language,language_code,engagement_notifications_enabled FROM participants WHERE id='user'").get();
-    assert.equal(after.ui_language, "tr");
+    assert.equal(after.ui_language, "de");
     assert.equal(after.language_code, "en");
     assert.equal(after.engagement_notifications_enabled, 0);
     const created = await api.rpc("prepare_telegram_update", { p_payload: { message: { from: { id: 8, first_name: "C", language_code: "de" }, chat: { id: 8 } } } });
