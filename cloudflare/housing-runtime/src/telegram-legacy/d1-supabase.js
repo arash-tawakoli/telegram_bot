@@ -102,7 +102,7 @@ function outputRow(table, row) {
     const criteria = json(row.criteria, {});
     return { ...criteria, ...row, user_id: row.participant_id, is_active: bool(row.active), profile_slot: Number(row.profile_slot ?? criteria.profile_slot ?? 1), name: criteria.name || null, property_types: criteria.property_types || [] };
   }
-  if (table === "applicant_profiles") return { ...profile, ...row, user_id: row.participant_id };
+  if (table === "applicant_profiles") { const visible={...profile}; delete visible.wbs_status; return { ...visible, ...row, user_id: row.participant_id }; }
   if (table === "platform_connections") return { ...row, user_id: row.participant_id, credential_ciphertext: row.ciphertext, credential_iv: row.iv };
   if (table === "applicant_documents") return { ...row, user_id: row.participant_id, storage_path: row.object_key, mime_type: row.content_type };
   if (table === "listings") return { ...facts, ...row, title: facts.title || "Wohnungsangebot", is_active: !row.expires_at || new Date(row.expires_at).getTime() > Date.now(), source_listing_key: row.external_id, raw: facts };
@@ -191,7 +191,7 @@ class Query {
       const updatedAt = patch.updated_at || new Date().toISOString();
       delete patch.updated_at;
       for (const row of rows) {
-        const next = { ...json(row.profile, {}), ...patch };
+        const next = { ...json(row.profile, {}), ...patch }; delete next.wbs_status;
         await this.client.run("UPDATE applicant_profiles SET profile=?,updated_at=? WHERE participant_id=?", [JSON.stringify(next), updatedAt, row.participant_id]);
       }
       return { data: [], error: null, count: rows.length };
@@ -212,6 +212,7 @@ class Query {
     } if(this.table==='applicant_profiles'){
       const participantId=mapped.user_id||mapped.participant_id;
       const profile={...mapped};
+      delete profile.wbs_status;
       delete profile.participant_id;
       delete profile.user_id;
       delete profile.updated_at;
@@ -420,6 +421,20 @@ async function rpc(client, env, name, args) {
     return saved?.id
       ? { data: { id: saved.id, profile_slot: slot, status: Number(results.at(-1)?.meta?.changes || 0) ? "rewarded" : "none" }, error: null }
       : { data: null, error: new Error("search_profile_save_failed") };
+  }
+  if (name === "claim_profile_milestone") {
+    const profileType = String(args.p_profile_type || "");
+    const userId = String(args.p_user || "");
+    if (!userId || !["search", "applicant"].includes(profileType))
+      return { data: null, error: new Error("invalid_profile_milestone") };
+    const exists = profileType === "search"
+      ? "EXISTS (SELECT 1 FROM search_profiles WHERE participant_id=?)"
+      : "EXISTS (SELECT 1 FROM applicant_profiles WHERE participant_id=? AND length(trim(COALESCE(json_extract(profile,'$.first_name'),'')))>0 AND length(trim(COALESCE(json_extract(profile,'$.last_name'),'')))>0)";
+    const inserted = await client.run(
+      "INSERT OR IGNORE INTO telegram_profile_milestones(participant_id,profile_type) SELECT ?,? WHERE " + exists,
+      [userId, profileType, userId],
+    );
+    return { data: { first_time: inserted.count === 1 }, error: null };
   }
   if (name === "application_profile_missing_fields") {
     const row = (await client.run("SELECT profile FROM applicant_profiles WHERE participant_id=?", [args.p_user]))[0];
