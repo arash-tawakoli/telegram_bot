@@ -545,3 +545,17 @@ test("incomplete applicant profile never enables any auto-apply source",async()=
   assert.equal(x.sqlite.prepare("SELECT auto_apply_enabled FROM participants WHERE id='owner'").get().auto_apply_enabled,0);
  }finally{x.done();}
 });
+
+test("all three sources stay visible for free users, but starting one requires Premium",async()=>{
+ const x=setup();
+ try{
+  await handleCallback({id:"free-menu",data:"platforms",from:{id:777},message:{chat:x.chat,message_id:59}},
+   {...x.user,is_premium:false});
+  const controls=lastMessage(x).reply_markup.inline_keyboard.flat().map(b=>b.callback_data);
+  for(const id of [1,4,3])assert.ok(controls.includes("platforms:resume:"+id));
+  assert.match(lastMessage(x).text,/Premium erforderlich/);
+  await platformSessions({...x.user,is_premium:false},x.chat,59,"platforms:resume:1");
+  assert.match(lastMessage(x).text,/aktives Premium/);
+  assert.equal(x.sqlite.prepare("SELECT auto_apply_enabled FROM participants WHERE id='owner'").get().auto_apply_enabled,0);
+ }finally{x.done();}
+});
