@@ -118,7 +118,7 @@ test("the help callback returns to settings and German commands are registered",
     await handleCallback({ id: "callback-help", data: "help", from: { id: 777 }, message: { chat: x.chat, message_id: 16 } }, x.user);
     assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][0].callback_data, "settings");
     await handleMessage({ chat: x.chat, text: "/start" }, x.user);
-    assert.match(lastMessage(x).text, /Jetzt loslegen/);
+    assert.match(lastMessage(x).text, /Get started/);
     const commands = x.sent.find(item => item.method === "setMyCommands")?.body?.commands || [];
     assert.ok(commands.some(c => c.command === "suchprofile"));
     assert.ok(commands.some(c => c.command === "fortsetzen"));
