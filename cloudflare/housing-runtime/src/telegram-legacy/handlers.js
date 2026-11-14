@@ -1,8 +1,11 @@
 import { platformSessions, handleAutoApplyMessage } from './platform-sessions.js';
+import { adminTokenStatus, adminTokenStart, adminTokenRefresh } from '../coach-api.js';
+import { createD1Client } from '../d1-database.js';
+import { refreshImmomioSession } from '../immomio-application.js';
 import { isAdmin, adminGrantLabel, adminPremiumNotice, adminUsers, adminUser, setUserBlocked, deleteUser, setPlanOverride, ANNOUNCEMENT_PROMPT, createAnnouncementDraft, cancelAnnouncement, sendAnnouncement } from "./admin.js";
 import { homeKeyboard, home, premium, setPaused, referralPage, settings, languageMenu } from "./navigation.js";
 import { draftFor, validateDraft, renderTypes, renderLocation, renderBoroughs, renderNeighborhoods, renderSchleswigHolsteinAreas, renderRent, renderCustomRent, renderRooms, renderArea, renderReview, renderReviewEdit, renderStep, afterSelection, persistProfile, profileLimit, draftFromProfile, startNewProfile, profileEditMenu, profile, renderStatus, nextSizeStep } from "./profiles.js";
-import { db, PREMIUM_LINK, PROPERTY_TYPES, RENT_PRESETS, ROOM_PRESETS, AREA_PRESETS, NEIGHBORHOODS_PER_PAGE, button, cancelRow, backRow, secret, telegram, send, sendCelebration, edit, acknowledge, saveState, geography, HELP_TEXT } from "./runtime.js";
+import { db, PREMIUM_LINK, PROPERTY_TYPES, RENT_PRESETS, ROOM_PRESETS, AREA_PRESETS, NEIGHBORHOODS_PER_PAGE, button, cancelRow, backRow, runtimeEnv, esc, secret, telegram, send, sendCelebration, edit, acknowledge, saveState, geography, HELP_TEXT } from "./runtime.js";
 
 const PUBLIC_COMMANDS = [
     { command: "start", description: "Startmenü" },
@@ -19,7 +22,7 @@ const PUBLIC_COMMANDS = [
 function helpFor(user) {
     const admin = isAdmin(user);
     return HELP_TEXT + (admin
-        ? "\n\n<b>Nur für Admins:</b>\n🔐 /portalsetup – Portal-Zugang einrichten\n🔑 /token – Zentralen ImmoScout24-Zugang verwalten\n📢 /announcement – Ankündigungen versenden\n🛡 /admin – Adminbereich"
+        ? "\n\n<b>Nur für Admins:</b>\n🔐 /portalsetup – Portal-Zugang einrichten\n🔑 /token – Quellen und Tokens verwalten\n📢 /announcement – Ankündigungen versenden\n🛡 /admin – Adminbereich"
         : "");
 }
 
@@ -27,7 +30,7 @@ const ADMIN_COMMANDS = [
     ...PUBLIC_COMMANDS,
     { command: "admin", description: "Adminbereich" },
     { command: "announcement", description: "Ankündigung senden" },
-    { command: "token", description: "Zentralen ImmoScout24-Zugang verbinden" },
+    { command: "token", description: "Quellen und Tokens verwalten" },
     { command: "portalsetup", description: "Coach-Portal-Zugang einrichten" },
 ];
 
@@ -162,6 +165,109 @@ async function startCentralImmoScoutToken(user, chatId) {
         { inline_keyboard: [[{ text: "🌐 Mit ImmoScout24 anmelden", url: flow.url }]] });
 }
 
+const TOKEN_SOURCES = {
+  immoscout24: {name:"ImmoScout24",icon:"🏢"},
+  immowelt: {name:"Immowelt",icon:"🌐"},
+  immomio: {name:"Immomio",icon:"🏠"}
+};
+const TOKEN_SOURCE_NAMES = Object.keys(TOKEN_SOURCES);
+const tokenPage = (chatId,messageId,text,rows) => messageId
+  ? edit(chatId,messageId,text,{inline_keyboard:rows})
+  : send(chatId,text,{inline_keyboard:rows});
+const tokenDate = value => value && Number.isFinite(Date.parse(value))
+  ? new Date(value).toLocaleString("de-DE")
+  : "—";
+function tokenStatusLabel(item) {
+  return item?.status==="connected" ? "✅ Verbunden"
+    : item?.status==="pending" ? "🟡 Anmeldung läuft"
+    : item?.status==="needs_login" ? "🟠 Erneut anmelden"
+    : "⚪ Nicht verbunden";
+}
+function tokenError(error) {
+  const code=String(error?.message||error);
+  if(code.includes("needs_login")||code.includes("auth_flow_expired"))
+    return "Bitte melde dich erneut bei der Quelle an.";
+  if(code.includes("temporary_network_error"))
+    return "Die Verbindung ist vorübergehend nicht erreichbar. Bitte versuche es erneut.";
+  return "Die Aktion konnte nicht abgeschlossen werden. Prüfe den Status oder melde dich erneut an.";
+}
+async function withAdminTokenDatabase(operation){
+  const sql=createD1Client(runtimeEnv().HOUSING_DB);
+  try{return await operation(sql,runtimeEnv());}
+  finally{await sql.end({timeout:5});}
+}
+async function showTokenSources(user,chatId,messageId) {
+  const status=await withAdminTokenDatabase((sql,env)=>adminTokenStatus(sql,env));
+  const rows=TOKEN_SOURCE_NAMES.map(provider=>{
+    const meta=TOKEN_SOURCES[provider],item=status[provider];
+    return [button(meta.icon+" "+meta.name+" · "+tokenStatusLabel(item),"token:source:"+provider)];
+  });
+  rows.push([button("← Start","home")]);
+  return tokenPage(chatId,messageId,"🔑 <b>Quellen und Tokens</b>\n\nVerwalte deine drei Plattformzugänge. Telegram und das interne Portal verwenden dieselben verschlüsselten Anmeldedaten. Geheimnisse werden nicht im Chat angezeigt.",rows);
+}
+async function showTokenSource(user,chatId,messageId,provider){
+  if(!Object.hasOwn(TOKEN_SOURCES,provider))return showTokenSources(user,chatId,messageId);
+  const item=(await withAdminTokenDatabase((sql,env)=>adminTokenStatus(sql,env)))[provider]||{};
+  const meta=TOKEN_SOURCES[provider];
+  const text="🔑 <b>"+meta.name+"</b>\n\nStatus: <b>"+tokenStatusLabel(item)+"</b>\n"
+    +"Konto: "+esc(item.account_hint||"—")+"\n"
+    +"Gültig bis: "+esc(tokenDate(item.expires_at))+"\n\n"
+    +(provider==="immowelt"
+      ?"Immowelt nutzt eine gespeicherte Sitzung. Zum Aktualisieren ist eine erneute Anmeldung erforderlich."
+      :"Tokens werden über die bestehenden sicheren Web-Anmeldewege gespeichert und erneuert.");
+  const rows=[
+    [button(item.status==="connected"?"🔐 Erneut anmelden":"🔐 Anmelden und speichern","token:login:"+provider)],
+    [button(provider==="immowelt"?"🔄 Sitzung erneuern (Login)":"🔄 Token aktualisieren","token:refresh:"+provider)],
+    [button("↻ Status aktualisieren","token:source:"+provider)],
+    [button("← Alle Quellen","token")]
+  ];
+  return tokenPage(chatId,messageId,text,rows);
+}
+async function startTokenLogin(user,chatId,messageId,provider) {
+  if(!Object.hasOwn(TOKEN_SOURCES,provider))return showTokenSources(user,chatId,messageId);
+  const flow=await withAdminTokenDatabase((sql,env)=>adminTokenStart(sql,env,null,provider,"telegram"));
+  const target=new URL(String(flow.url||""));
+  if(target.protocol!=="https:"||target.hostname!=="login.traumwohnunghamburg.de")
+    throw new Error("invalid_login_link");
+  return tokenPage(chatId,messageId,"🔐 <b>"+TOKEN_SOURCES[provider].name+"</b>\n\nÖffne den sicheren Anmeldelink. Nach erfolgreicher Anmeldung werden die vorhandenen Zugangsdaten im gemeinsamen Cloudflare-Backend aktualisiert.\n\nGültig bis: "+esc(tokenDate(flow.expiresAt)),[
+    [{text:"🌐 Anmeldung öffnen",url:target.href}],
+    [button("↻ Status prüfen","token:source:"+provider)],
+    [button("← Alle Quellen","token")]
+  ]);
+}
+async function refreshTokenSource(user,chatId,messageId,provider) {
+  if(!Object.hasOwn(TOKEN_SOURCES,provider))return showTokenSources(user,chatId,messageId);
+  if(provider==="immowelt")return startTokenLogin(user,chatId,messageId,provider);
+  try{
+    if(provider==="immoscout24"){
+      const result=await withAdminTokenDatabase((_sql,env)=>adminTokenRefresh(env));
+      return tokenPage(chatId,messageId,
+        "✅ <b>ImmoScout24-Refresh bestätigt.</b>\n\nToken gültig bis: "
+        +esc(tokenDate(result.expires_at))+"\nDer zentrale Versand bleibt wie im Web-Refresh-Test deaktiviert.",[
+          [button("↻ Status prüfen","token:source:immoscout24")],
+          [button("← Alle Quellen","token")]
+        ]);
+    }
+    await withAdminTokenDatabase(async(sql,env)=>{
+      const owner=(await sql`SELECT id FROM participants WHERE telegram_user_id=${Number(user.telegram_user_id)} AND status='active' LIMIT 1`)[0];
+      if(!owner)throw new Error("needs_login");
+      const rows=await sql`SELECT participant_id,ciphertext,iv,key_version,status
+        FROM provider_connections WHERE participant_id=${owner.id} AND provider='immomio' LIMIT 1`;
+      if(rows[0]?.status!=="connected"||!rows[0]?.ciphertext)throw new Error("needs_login");
+      await refreshImmomioSession(sql,env,rows[0]);
+    });
+    return tokenPage(chatId,messageId,"✅ <b>Immomio-Token geprüft und bei Bedarf aktualisiert.</b>\n\nDie verschlüsselten Zugangsdaten bleiben im gemeinsamen Backend.",[
+      [button("↻ Status prüfen","token:source:immomio")],
+      [button("← Alle Quellen","token")]
+    ]);
+  }catch(error){
+    return tokenPage(chatId,messageId,"⚠️ <b>"+TOKEN_SOURCES[provider].name+"</b>\n\n"+esc(tokenError(error)),[
+      [button("🔐 Erneut anmelden","token:login:"+provider)],
+      [button("← Alle Quellen","token")]
+    ]);
+  }
+}
+
 export async function handleMessage(message, user) {
     const chatId = Number(message.chat.id);
     const text = String(message.text || "").trim();
@@ -194,18 +300,15 @@ export async function handleMessage(message, user) {
             { inline_keyboard: [[{ text: "Coach-Portal einrichten", url }]] });
     }
     if (command === "/token") {
-        if (!isAdmin(user))
-            return;
+        if (!isAdmin(user) || message.chat?.type !== "private") return;
         const mode = argument.trim().toLowerCase();
-        if (mode === "status")
-            return centralImmoScoutTokenStatus(chatId);
         if (mode === "testen" || mode === "refresh-test")
-            return testCentralImmoScoutRefresh(user, chatId);
+            return refreshTokenSource(user, chatId, undefined, "immoscout24");
         if (mode === "aktivieren" || mode === "enable")
             return setCentralImmoScoutEnabled(user, chatId, true);
         if (mode === "deaktivieren" || mode === "disable")
             return setCentralImmoScoutEnabled(user, chatId, false);
-        return startCentralImmoScoutToken(user, chatId);
+        return showTokenSources(user, chatId);
     }
     if (command === "/announcement") {
         if (!isAdmin(user))
@@ -398,6 +501,23 @@ export async function handleCallback(query, user) {
         return ack();
     }
     await ack();
+    if (data === "token" || data.startsWith("token:")) {
+        if (!isAdmin(user) || query.message?.chat?.type !== "private"
+            || chatId !== Number(user.telegram_user_id)) return;
+        const [,action,provider] = data.split(":");
+        try {
+            if (data === "token") return showTokenSources(user,chatId,messageId);
+            if (action === "source") return showTokenSource(user,chatId,messageId,provider);
+            if (action === "login") return startTokenLogin(user,chatId,messageId,provider);
+            if (action === "refresh") return refreshTokenSource(user,chatId,messageId,provider);
+        } catch(error) {
+            console.error("telegram_token_action_failed",String(error?.message||error));
+            return tokenPage(chatId,messageId,"⚠️ "+esc(tokenError(error)),[
+              [button("← Quellen","token")]
+            ]);
+        }
+        return showTokenSources(user,chatId,messageId);
+    }
     if (data === 'platforms' || data.startsWith('platforms:')) {
         return platformSessions(user,query.message.chat,query.message?.photo?undefined:messageId,data);
     }

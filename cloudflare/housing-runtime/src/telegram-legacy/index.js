@@ -17,7 +17,7 @@ export async function handleLegacyTelegramUpdate(env, payload) {
   );
   user.request_update_id = payload.update_id;
   user.request_attempt = claim;
-  user.__callback_acked = false;
+  user.__callback_acked = payload.__earlyCallbackAck ? await payload.__earlyCallbackAck : false;
   if (!user.is_active) return { ok: true, blocked: true };
   if (payload.callback_query) await handleCallback(payload.callback_query, user);
   else if (payload.message?.chat?.type === "private" && (payload.message?.text || payload.message?.document || payload.message?.photo)) await handleMessage(payload.message, user);

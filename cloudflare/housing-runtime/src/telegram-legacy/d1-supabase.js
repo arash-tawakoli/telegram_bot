@@ -483,11 +483,28 @@ async function rpc(client, env, name, args) {
     const found = await client.run("SELECT * FROM participants WHERE telegram_user_id=? LIMIT 1", [from.id]);
     let user = found[0];
     if (user) {
-      await client.run(
-        "UPDATE participants SET telegram_chat_id=?,username=?,first_name=COALESCE(?,first_name),last_name=COALESCE(?,last_name),language_code=COALESCE(?,language_code),updated_at=CURRENT_TIMESTAMP WHERE id=?",
-        [chat.id, from.username || null, from.first_name || null, from.last_name || null, from.language_code || null, user.id],
+      // A callback normally carries unchanged Telegram identity data. Avoid a
+      // write and follow-up SELECT on every tap; keep the response up to date
+      // in memory only when the identity actually changes.
+      const next = {
+        telegram_chat_id: Number(chat.id),
+        username: from.username || null,
+        first_name: from.first_name || user.first_name,
+        last_name: from.last_name || user.last_name,
+        language_code: from.language_code || user.language_code || null,
+      };
+      const changed = Object.keys(next).some(key =>
+        (key === "telegram_chat_id"
+          ? Number(user[key]) !== Number(next[key])
+          : String(user[key] ?? "") !== String(next[key] ?? "")),
       );
-      user = (await client.run("SELECT * FROM participants WHERE id=?", [user.id]))[0] || user;
+      if (changed) {
+        await client.run(
+          "UPDATE participants SET telegram_chat_id=?,username=?,first_name=?,last_name=?,language_code=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
+          [next.telegram_chat_id,next.username,next.first_name,next.last_name,next.language_code,user.id],
+        );
+        user = { ...user, ...next };
+      }
     } else {
       const id = crypto.randomUUID();
       await client.run(

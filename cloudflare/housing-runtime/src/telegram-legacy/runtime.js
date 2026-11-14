@@ -60,8 +60,9 @@ export async function telegram(method, body, retry = true) {
 }
 
 export function send(chatId, text, replyMarkup) { return telegram("sendMessage", { chat_id: chatId, text, parse_mode: "HTML", disable_web_page_preview: true, reply_markup: replyMarkup }); }
-export const PARTY_EFFECT_ID = "5046509860389126442";
-export async function sendCelebration(chatId, text, replyMarkup) { try { return await telegram("sendMessage", { chat_id: chatId, text, parse_mode: "HTML", reply_markup: replyMarkup, message_effect_id: PARTY_EFFECT_ID }); } catch { return send(chatId, text, replyMarkup); } }
+// Native Telegram fire effect for private chats; replaces the previous confetti effect.
+export const CELEBRATION_EFFECT_ID = "5104841245755180586";
+export async function sendCelebration(chatId, text, replyMarkup) { try { return await telegram("sendMessage", { chat_id: chatId, text, parse_mode: "HTML", reply_markup: replyMarkup, message_effect_id: CELEBRATION_EFFECT_ID }); } catch { return send(chatId, text, replyMarkup); } }
 export async function edit(chatId, messageId, text, replyMarkup) { try { return await telegram("editMessageText", { chat_id: chatId, message_id: messageId, text, parse_mode: "HTML", disable_web_page_preview: true, reply_markup: replyMarkup }); } catch (error) { const reason = String(error?.message || error); if (/message is not modified/i.test(reason)) return null; if (/message (?:to edit )?not found|message can(?:not|\x27t) be edited|there is no text in the message to edit/i.test(reason)) return send(chatId, text, replyMarkup); throw error; } }
 export async function sendPremiumPreview(chatId, caption, replyMarkup) { return send(chatId, caption, replyMarkup); }
 export async function editPremiumPreview(chatId, messageId, caption, replyMarkup) { return edit(chatId, messageId, caption, replyMarkup); }

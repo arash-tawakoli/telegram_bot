@@ -61,6 +61,8 @@ function setup() {
   configureLegacyRuntime({
     TELEGRAM_BOT_TOKEN: "fake",
     STRIPE_PORTAL_URL: "https://billing.stripe.com/p/login/test",
+    CENTRAL_API_SECRET: "test-central-secret",
+    CENTRAL_TOKEN_ENCRYPTION_KEY: "1".repeat(64),
     DOCUMENTS: docs,
     HOUSING_DB: d1,
   }, d1);
@@ -230,7 +232,7 @@ test("search-profile menu and new-profile flow expose working callbacks in Germa
     assert.equal(x.sqlite.prepare("SELECT COUNT(*) n FROM search_profiles WHERE participant_id='owner'").get().n,1);
     const confetti=x.sent.filter(y=>y.method==='sendMessage'&&y.body.message_effect_id);
     assert.equal(confetti.length,1);
-    assert.equal(confetti[0].body.message_effect_id,"5046509860389126442");
+    assert.equal(confetti[0].body.message_effect_id,"5104841245755180586");
     assert.equal(x.sqlite.prepare("SELECT COUNT(*) n FROM profile_celebrations WHERE participant_id='owner' AND kind='search'").get().n,0,"celebrations are not limited by a saved one-time claim");
   } finally { x.done(); }
 });
@@ -417,7 +419,7 @@ test("an incomplete applicant identity never celebrates before the required fiel
       await handleAutoApplyMessage({ ...x.user, onboarding_state: state, onboarding_step: state._step || null },
         { chat: x.chat, text: value, message_id: x.sent.length + 60 });
     };
-    const effects = () => x.sent.filter(v => v.method === "sendMessage" && v.body.message_effect_id === "5046509860389126442");
+    const effects = () => x.sent.filter(v => v.method === "sendMessage" && v.body.message_effect_id === "5104841245755180586");
     assert.equal(effects().length, 0, "opening an empty profile must not celebrate");
     await field("first_name", "Mara");
     assert.equal(effects().length, 0, "one name field is not a completed identity");
@@ -501,20 +503,20 @@ test("completion celebration repeats on later profile changes, and every success
   x.sqlite.exec("INSERT INTO applicant_completion_prompts(participant_id) VALUES('owner')");
   x.sqlite.prepare("INSERT INTO applicant_profiles(participant_id,profile) VALUES('owner',?)").run(JSON.stringify(incomplete));
   await platformSessions(x.user,x.chat,31,"platforms:profile-set:schufa_status:NOT_SPECIFIED");
-  const celebration=x.sent.filter(req=>req.method==="sendMessage"&&req.body.message_effect_id==="5046509860389126442");
+  const celebration=x.sent.filter(req=>req.method==="sendMessage"&&req.body.message_effect_id==="5104841245755180586");
   assert.equal(celebration.length,1);
   assert.match(celebration[0].body.text,/Jetzt die automatische Bewerbung aktivieren/);
   assert.deepEqual(celebration[0].body.reply_markup.inline_keyboard.map(row=>row[0].callback_data),
     ["platforms:completion:yes","platforms:completion:no"]);
   await platformSessions(x.user,x.chat,31,"platforms:profile-set:schufa_status:AVAILABLE");
-  assert.equal(x.sent.filter(req=>req.method==="sendMessage"&&req.body.message_effect_id==="5046509860389126442").length,2,"a second complete profile change celebrates again");
+  assert.equal(x.sent.filter(req=>req.method==="sendMessage"&&req.body.message_effect_id==="5104841245755180586").length,2,"a second complete profile change celebrates again");
   await platformSessions(x.user,x.chat,31,"platforms:profile-set:schufa_status:AVAILABLE");
-  assert.equal(x.sent.filter(req=>req.method==="sendMessage"&&req.body.message_effect_id==="5046509860389126442").length,2,"saving an unchanged field is not a new completion");
+  assert.equal(x.sent.filter(req=>req.method==="sendMessage"&&req.body.message_effect_id==="5104841245755180586").length,2,"saving an unchanged field is not a new completion");
   assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM applicant_completion_prompts WHERE participant_id='owner'").get().n,1,"the historical claim is ignored");
 
   const callback=async data=>handleCallback({id:"choice-"+data,data,from:{id:777},message:{chat:x.chat,message_id:31}},x.user);
   await callback("platforms:completion:yes");
-  const effects=()=>x.sent.filter(req=>req.method==="sendMessage"&&req.body.message_effect_id==="5046509860389126442");
+  const effects=()=>x.sent.filter(req=>req.method==="sendMessage"&&req.body.message_effect_id==="5104841245755180586");
   assert.equal(effects().length,3,"successful Yes adds a third confetti effect");
   assert.match(effects().at(-1).body.text,/Automatische Bewerbung aktiviert/);
   await callback("platforms:completion:yes");
@@ -599,7 +601,7 @@ test("every newly created search-profile slot celebrates, even for a user with a
   await create();
   await create();
   assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM search_profiles WHERE participant_id='owner'").get().n,2);
-  const effects=x.sent.filter(m=>m.method==="sendMessage"&&m.body.message_effect_id==="5046509860389126442");
+  const effects=x.sent.filter(m=>m.method==="sendMessage"&&m.body.message_effect_id==="5104841245755180586");
   assert.equal(effects.length,2);
   assert.ok(effects.every(m=>/Suchprofil ist aktiv/.test(m.body.text)));
  }finally{x.done();}
@@ -726,5 +728,94 @@ test("starting an incomplete provider shows Bewerberprofil vervollständigen and
   assert.match(lastMessage(x).text,/Hinterlege deine Angaben/);
   assert.ok(lastMessage(x).reply_markup.inline_keyboard.flat().some(b=>b.callback_data==="platforms:profile-field:first_name"));
   assert.equal(x.sqlite.prepare("SELECT auto_apply_enabled FROM participants WHERE id='owner'").get().auto_apply_enabled,0);
+ }finally{x.done();}
+});
+
+test("/token shares the portal's three provider connections and securely reuses login flows",async()=>{
+ const x=setup();
+ try{
+  const adminId=8538226539;
+  const ownerUuid="33333333-3333-4333-8333-333333333333";
+  x.sqlite.prepare("INSERT INTO participants(id,first_name,last_name,telegram_user_id,telegram_chat_id,language_selected_at) VALUES(?,?,?,?,?,CURRENT_TIMESTAMP)")
+   .run(ownerUuid,"A","B",adminId,adminId);
+  x.sqlite.prepare("INSERT INTO provider_connections(id,participant_id,provider,status,account_hint) VALUES(?,?,?,?,?),(?,?,?,?,?)")
+   .run("c-immo",ownerUuid,"immowelt","connected","web@example.test",
+        "c-mio",ownerUuid,"immomio","needs_login","immomio@example.test");
+  const user={...x.user,id:ownerUuid,user_id:ownerUuid,telegram_user_id:adminId,chat_id:adminId};
+  const chat={id:adminId,type:"private"};
+  await handleMessage({chat,text:"/token"},user);
+  let buttons=lastMessage(x).reply_markup.inline_keyboard.flat();
+  assert.deepEqual(buttons.slice(0,3).map(b=>b.callback_data),[
+   "token:source:immoscout24","token:source:immowelt","token:source:immomio"
+  ]);
+  assert.match(buttons[1].text,/Verbunden/);
+  assert.match(buttons[2].text,/Erneut anmelden/);
+  assert.doesNotMatch(lastMessage(x).text,/refresh_token|access_token|ciphertext/i);
+  const action=data=>handleCallback({
+   id:"admin-"+data,data,from:{id:adminId},message:{chat,message_id:90}
+  },user);
+  await action("token:source:immowelt");
+  assert.match(lastMessage(x).text,/web@example.test/);
+  buttons=lastMessage(x).reply_markup.inline_keyboard.flat();
+  assert.ok(buttons.some(b=>b.callback_data==="token:login:immowelt"));
+  assert.ok(buttons.some(b=>b.callback_data==="token:refresh:immowelt"));
+  await action("token:login:immowelt");
+  buttons=lastMessage(x).reply_markup.inline_keyboard.flat();
+  assert.ok(buttons[0].url?.startsWith("https://login.traumwohnunghamburg.de/connect?ticket="));
+  const flow=x.sqlite.prepare("SELECT provider,origin,return_target,context FROM provider_auth_flows WHERE participant_id=? AND provider='immowelt'").get(ownerUuid);
+  assert.equal(flow.provider,"immowelt");
+  assert.equal(flow.origin,"telegram");
+  assert.equal(flow.return_target,"telegram");
+  assert.equal(JSON.parse(flow.context).channel,"telegram");
+  await action("token:refresh:immowelt");
+  assert.ok(lastMessage(x).reply_markup.inline_keyboard[0][0].url?.startsWith("https://login.traumwohnunghamburg.de/connect?ticket="));
+  await action("token");
+  await action("token:source:immomio");
+  assert.match(lastMessage(x).text,/immomio@example.test/);
+  await action("token:refresh:immomio");
+  assert.match(lastMessage(x).text,/erneut bei der Quelle an/i);
+  await action("token:source:immoscout24");
+  assert.match(lastMessage(x).text,/ImmoScout24/);
+  await action("token:login:immoscout24");
+  assert.ok(lastMessage(x).reply_markup.inline_keyboard[0][0].url?.startsWith("https://login.traumwohnunghamburg.de/connect?ticket="));
+  const central=x.sqlite.prepare("SELECT count(*) AS n FROM central_oauth_flows").get();
+  assert.equal(central.n,1,"existing central flow created without storing credentials in Telegram");
+ }finally{x.done();}
+});
+
+test("/token and token callbacks are restricted to the existing super admin",async()=>{
+ const x=setup();
+ try{
+  await handleMessage({chat:x.chat,text:"/token"},x.user);
+  assert.equal(x.sent.filter(req=>req.method==="sendMessage").length,0);
+  await handleCallback({
+   id:"token-no-access",data:"token:source:immowelt",from:{id:777},
+   message:{chat:x.chat,message_id:90}
+  },x.user);
+  assert.equal(x.sent.filter(req=>req.method==="editMessageText").length,0);
+ }finally{x.done();}
+});
+
+test("unchanged Telegram callbacks avoid participant identity writes and redundant reads",async()=>{
+ const x=setup();
+ try{
+  const queries=[];
+  const original=x.d1.prepare;
+  x.d1.prepare=query=>{queries.push(query);return original(query);};
+  const adapter=createD1Supabase(x.d1,{});
+  const payload={callback_query:{from:{id:777,first_name:"A",last_name:"B"},message:{chat:{id:777,type:"private"},message_id:44},data:"home"}};
+  const result=await adapter.rpc("prepare_telegram_update",{p_payload:payload});
+  assert.equal(result.error,null);
+  assert.equal(result.data.user.first_name,"A");
+  assert.equal(queries.filter(q=>q.includes("UPDATE participants SET telegram_chat_id")).length,0);
+  assert.equal(queries.filter(q=>q.includes("SELECT * FROM participants")).length,1);
+  queries.length=0;
+  const modified=await adapter.rpc("prepare_telegram_update",{p_payload:{callback_query:{
+   ...payload.callback_query,from:{...payload.callback_query.from,first_name:"Neuer Name"}
+  }}});
+  assert.equal(modified.error,null);
+  assert.equal(modified.data.user.first_name,"Neuer Name");
+  assert.equal(queries.filter(q=>q.includes("UPDATE participants SET telegram_chat_id")).length,1);
+  assert.equal(queries.filter(q=>q.includes("SELECT * FROM participants")).length,1);
  }finally{x.done();}
 });
