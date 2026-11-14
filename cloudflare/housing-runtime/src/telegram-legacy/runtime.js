@@ -83,4 +83,4 @@ export async function geography() {
   geoCache = { value, expiresAt: Date.now() + GEO_TTL_MS };
   return value;
 }
-export const HELP_TEXT = "❓ <b>Hilfe & Befehle</b>\\n\\n🏠 /start – Startmenü\\n🔎 /suche – Suchprofil erstellen\\n👤 /suchprofile – Suchprofile anzeigen\\n⚙️ /einstellungen – Einstellungen\\n⏸ /pause – Suche pausieren\\n▶️ /fortsetzen – Suche fortsetzen\\n📊 /status – Systemstatus\\n💎 /premium – Premium anzeigen\\n❓ /hilfe – Hilfe";
+export const HELP_TEXT = "❓ <b>Hilfe & Befehle</b>\n\n🏠 /start – Startmenü\n🔎 /suche – Suchprofil erstellen\n👤 /suchprofile – Suchprofile anzeigen\n⚙️ /einstellungen – Einstellungen\n⏸ /pause – Suche pausieren\n▶️ /fortsetzen – Suche fortsetzen\n📊 /status – Systemstatus\n💎 /premium – Premium anzeigen\n❓ /hilfe – Hilfe";
