@@ -603,3 +603,126 @@ test("every newly created search-profile slot celebrates, even for a user with a
   assert.ok(effects.every(m=>/Suchprofil ist aktiv/.test(m.body.text)));
  }finally{x.done();}
 });
+
+test("all nine languages show representative flags without translating the German menus",async()=>{
+ const x=setup();
+ try{
+  for(const [code,label] of Object.entries(HOME_LANGUAGES)){
+   assert.match(label,/^[🇦-🇿]{2} /u,code);
+  }
+  await handleCallback({id:"language-flags",data:"language",from:{id:777},message:{chat:x.chat,message_id:91}},x.user);
+  const rows=lastMessage(x).reply_markup.inline_keyboard;
+  const options=rows.filter(row=>row[0].callback_data?.startsWith("language:set:"));
+  assert.equal(options.length,9);
+  assert.ok(options.every(row=>/🇩🇪|🇬🇧|🇸🇦|🇦🇫|🇮🇶|🇹🇷|🇷🇺|🇺🇦/u.test(row[0].text)));
+  assert.equal(rows.at(-1)[0].callback_data,"settings");
+ }finally{x.done();}
+});
+
+test("preview Bewerbungstext ändern navigates through its own text editor and back without opening search profiles",async()=>{
+ const x=setup();
+ try{
+  const call=data=>handleCallback({id:"preview-"+data,data,from:{id:777},message:{chat:x.chat,message_id:91}},x.user);
+  await call("platforms:profile-new");
+  await call("platforms:profile-preview");
+  let rows=lastMessage(x).reply_markup.inline_keyboard;
+  assert.deepEqual(rows.map(row=>row[0].callback_data),["platforms:preview-texts","platforms:profile-clear","platforms:profile"]);
+  assert.match(rows[0][0].text,/Bewerbungstext ändern/);
+  assert.match(rows[1][0].text,/Angaben löschen/);
+  await call("platforms:preview-texts");
+  assert.match(lastMessage(x).text,/Schreibe oder passe deinen Bewerbungstext/);
+  rows=lastMessage(x).reply_markup.inline_keyboard;
+  assert.equal(rows[0][0].callback_data,"platforms:preview-text:message_apartment");
+  assert.equal(rows[0][1].callback_data,"platforms:preview-text:message_house");
+  assert.equal(rows.at(-1)[0].callback_data,"platforms:profile-preview");
+  await call("platforms:preview-text:message_apartment");
+  assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][0].callback_data,"platforms:preview-edit:message_apartment");
+  assert.equal(lastMessage(x).reply_markup.inline_keyboard.at(-1)[0].callback_data,"platforms:preview-texts");
+  await call("platforms:preview-edit:message_apartment");
+  assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][0].callback_data,"platforms:preview-texts");
+  const state=JSON.parse(x.sqlite.prepare("SELECT telegram_state FROM participants WHERE id='owner'").get().telegram_state);
+  assert.equal(state._applicant_text_origin,"preview");
+  await handleAutoApplyMessage({...x.user,onboarding_state:state},{
+   chat:x.chat,message_id:90,text:"Guten Tag [[Vorname]], ich interessiere mich für die Wohnung."
+  });
+  const edited=x.sent.filter(req=>req.method==="editMessageText").at(-1).body;
+  assert.equal(edited.reply_markup.inline_keyboard.at(-1)[0].callback_data,"platforms:preview-texts");
+  await call("platforms:preview-texts");
+  await call("platforms:profile-preview");
+  assert.match(lastMessage(x).text,/Profilvorschau/);
+  await call("platforms:profile");
+  assert.match(lastMessage(x).text,/Bewerberprofil/);
+  assert.equal(lastMessage(x).reply_markup.inline_keyboard.at(-1)[0].callback_data,"home");
+  await call("home");
+  assert.match(lastMessage(x).text,/Traumwohnung Hamburg/);
+ }finally{x.done();}
+});
+
+test("confirmed applicant reset removes every personal field, keeps application texts, and pauses all application sources",async()=>{
+ const x=setup();
+ try{
+  const profile={...completeApplicant,move_in_date:"2026-12-01",household_size:2,monthly_net_income:2200,
+    message_apartment:"Hallo [[Vorname]]! Wohnung",message_house:"Hallo [[Vorname]]! Haus"};
+  x.sqlite.prepare("INSERT INTO applicant_profiles(participant_id,profile) VALUES('owner',?)").run(JSON.stringify(profile));
+  x.sqlite.exec("INSERT INTO application_preferences(participant_id,enabled,immoscout_enabled,immowelt_enabled,immomio_enabled) VALUES('owner',1,1,1,1)");
+  x.sqlite.exec("UPDATE participants SET auto_apply_enabled=1,test_auto_apply_enabled=1 WHERE id='owner'");
+  const call=data=>handleCallback({id:"clear-"+data,data,from:{id:777},message:{chat:x.chat,message_id:32}},x.user);
+  await call("platforms:profile-preview");
+  await call("platforms:profile-clear");
+  let buttons=lastMessage(x).reply_markup.inline_keyboard.map(row=>row[0]);
+  const confirm=buttons[0].callback_data;
+  assert.match(confirm,/^platforms:profile-clear-confirm:[a-f0-9]{12}$/);
+  assert.equal(buttons[1].callback_data,"platforms:profile-preview");
+  assert.match(lastMessage(x).text,/Bewerbungstexte bleiben erhalten/);
+  await call(confirm);
+  const saved=JSON.parse(x.sqlite.prepare("SELECT profile FROM applicant_profiles WHERE participant_id='owner'").get().profile);
+  assert.deepEqual(saved,{message_apartment:profile.message_apartment,message_house:profile.message_house});
+  const prefs=x.sqlite.prepare("SELECT enabled,immoscout_enabled,immowelt_enabled,immomio_enabled FROM application_preferences WHERE participant_id='owner'").get();
+  assert.deepEqual(Object.values(prefs),[0,0,0,0]);
+  const state=x.sqlite.prepare("SELECT auto_apply_enabled,test_auto_apply_enabled,telegram_state FROM participants WHERE id='owner'").get();
+  assert.equal(state.auto_apply_enabled,0);
+  assert.equal(state.test_auto_apply_enabled,0);
+  assert.equal(JSON.parse(state.telegram_state)._applicant_clear_token,undefined);
+  assert.match(lastMessage(x).text,/Angaben gelöscht/);
+  assert.match(lastMessage(x).text,/Bewerberprofil/);
+  x.sqlite.exec("UPDATE applicant_profiles SET profile=json_set(profile,'$.first_name','Neu') WHERE participant_id='owner'");
+  await call(confirm);
+  assert.match(lastMessage(x).text,/Bestätigung ist ungültig oder abgelaufen/);
+  assert.equal(JSON.parse(x.sqlite.prepare("SELECT profile FROM applicant_profiles WHERE participant_id='owner'").get().profile).first_name,"Neu");
+ }finally{x.done();}
+});
+
+test("canceling the applicant reset invalidates the confirmation and preserves the profile",async()=>{
+ const x=setup();
+ try{
+  x.sqlite.prepare("INSERT INTO applicant_profiles(participant_id,profile) VALUES('owner',?)").run(JSON.stringify(completeApplicant));
+  const call=data=>handleCallback({id:"cancel-"+data,data,from:{id:777},message:{chat:x.chat,message_id:44}},x.user);
+  await call("platforms:profile-clear");
+  const stale=lastMessage(x).reply_markup.inline_keyboard[0][0].callback_data;
+  const pending=JSON.parse(x.sqlite.prepare("SELECT telegram_state FROM participants WHERE id='owner'").get().telegram_state);
+  await handleCallback({id:"cancel-preview",data:"platforms:profile-preview",from:{id:777},message:{chat:x.chat,message_id:44}},
+   {...x.user,onboarding_state:pending});
+  assert.match(lastMessage(x).text,/Profilvorschau/);
+  await call(stale);
+  assert.match(lastMessage(x).text,/Bestätigung ist ungültig oder abgelaufen/);
+  assert.equal(JSON.parse(x.sqlite.prepare("SELECT profile FROM applicant_profiles WHERE participant_id='owner'").get().profile).first_name,completeApplicant.first_name);
+ }finally{x.done();}
+});
+
+test("starting an incomplete provider shows Bewerberprofil vervollständigen and its button reaches the applicant editor",async()=>{
+ const x=setup();
+ try{
+  const user={...x.user,is_premium:false};
+  const call=data=>handleCallback({id:"missing-"+data,data,from:{id:777},message:{chat:x.chat,message_id:85}},user);
+  await call("platforms:resume:1");
+  assert.match(lastMessage(x).text,/Bewerberprofil unvollständig/);
+  const buttons=lastMessage(x).reply_markup.inline_keyboard.flat();
+  assert.equal(buttons[0].callback_data,"platforms:profile");
+  assert.match(buttons[0].text,/Bewerberprofil vervollständigen/);
+  assert.equal(buttons[1].callback_data,"platforms");
+  await call("platforms:profile");
+  assert.match(lastMessage(x).text,/Hinterlege deine Angaben/);
+  assert.ok(lastMessage(x).reply_markup.inline_keyboard.flat().some(b=>b.callback_data==="platforms:profile-field:first_name"));
+  assert.equal(x.sqlite.prepare("SELECT auto_apply_enabled FROM participants WHERE id='owner'").get().auto_apply_enabled,0);
+ }finally{x.done();}
+});
