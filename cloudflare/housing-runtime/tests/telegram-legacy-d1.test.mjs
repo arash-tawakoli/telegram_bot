@@ -227,11 +227,12 @@ test("applicant profile readiness uses the same full rules as application submis
   const result = await api.rpc("application_profile_missing_fields", { p_user: "participant-1" });
   assert.equal(result.error, null);
   for (const field of [
-    "Haustiere", "WBS-Status", "Bewerbungstext Wohnung", "Bewerbungstext Haus",
-    "Bewerbungstext Auf Zeit & WG", "Bewerbungstext Tauschwohnung",
+    "Haustiere",
     "salutation", "household_type", "employment_status", "income_range",
     "move_in_preference", "schufa_status",
   ]) assert.ok(result.data.includes(field), field);
+  for(const field of ["WBS-Status","Bewerbungstext Wohnung","Bewerbungstext Haus","Bewerbungstext Auf Zeit & WG","Bewerbungstext Tauschwohnung"])
+    assert.equal(result.data.includes(field),false,field);
 });
 
 test("participant active filters and writes map booleans to text status", async () => {
