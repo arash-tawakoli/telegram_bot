@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  listingCaption, listingKeyboard, listingImageUrl, resolveListingImage,
+  listingCaption, listingHeadline, listingKeyboard, listingImageUrl, resolveListingImage,
 } from "../src/telegram-listing-preview.js";
 
 const source = "https://www.immowelt.de/expose/123";
@@ -19,6 +19,23 @@ test("shared facts keep the original apartment details without a Telegram photo 
   assert.match(caption, /Lüttwisch 2, 22523 Hamburg/);
   assert.doesNotMatch(caption, /Originalangebot öffnen/);
   assert.ok(caption.length < 1024);
+});
+
+test("Immowelt search titles do not repeat prices, room counts or floor details", () => {
+  const facts = {
+    title: "Wohnung zur Miete - Hamburg - 1.300 € - 3 Zimmer, 90 m², 2. Geschoss",
+    cold_rent: 1300, rooms: 3, area_sqm: 90, floor: "2. Geschoss",
+    district: "Eidelstedt", city: "Hamburg", postal_code: "22523", address: "Lüttwisch 2",
+  };
+  assert.equal(listingHeadline(facts), "Wohnung zur Miete in Eidelstedt");
+  const caption=listingCaption(facts);
+  assert.match(caption, /^🏠 <b>Wohnung zur Miete in Eidelstedt<\/b>/);
+  for (const detail of ["Kaltmiete:</b> 1.300 €","Zimmer:</b> 3","Wohnfläche:</b> 90 m²","Etage:</b> 2. Geschoss","Lüttwisch 2, 22523 Hamburg"])
+    assert.ok(caption.includes(detail), detail);
+  assert.equal((caption.match(/1.300 €/g)||[]).length,1);
+  assert.equal((caption.match(/90 m²/g)||[]).length,1);
+  assert.equal(listingHeadline({title:"Maisonette-Wohnung mit Dachterrasse in Harvestehude",district:"Harvestehude"}),
+    "Maisonette-Wohnung mit Dachterrasse in Harvestehude");
 });
 
 test("unknown fields stay absent and HTML is escaped", () => {
