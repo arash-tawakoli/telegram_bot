@@ -143,10 +143,23 @@ async function withHamburgGeo(l:any) {
     return match ? {...l,district:match.district,borough:match.borough} : {...l,district};
   }catch{return {...l,district};}
 }
+// Keep synthetic search-card summaries out of the title: prices, rooms and
+// floor already appear as structured facts in the Telegram caption.
+function shortListingTitle(l: any) {
+  const raw = String(l.title || "Wohnung zur Miete").replace(/\s+/g, " ").trim();
+  const priced = raw.match(/^(.*?)\s+[–-]\s+\d[\d.,\s]*€(?:\s+[–-]\s+.*)?$/iu);
+  if (!priced) return raw.slice(0, 170);
+  const headline = priced[1].split(/\s+[–-]\s+/)[0].trim();
+  const area = String(l.district || l.city || "").trim();
+  const areaIsSafe = area && !/[<>]/.test(area);
+  const withArea = areaIsSafe && !headline.toLocaleLowerCase("de").includes(area.toLocaleLowerCase("de"))
+    ? headline + " in " + area : headline;
+  return (withArea || "Wohnung zur Miete").slice(0, 170);
+}
 function cap(l: any, lang: string, app: any = null) {
   l = knownFacts(l);
   const lines = [
-    `🏠 <b>${esc(String(l.title || "Listing").slice(0, 180))}</b>`,
+    `🏠 <b>${esc(shortListingTitle(l))}</b>`,
     "",
   ];
   if(l._saga_recovery===true)lines.push("🟢 <b>"+(lang==="de"?"Noch verfügbar":"Still available")+"</b>","");
