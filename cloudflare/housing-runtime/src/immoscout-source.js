@@ -30,13 +30,22 @@ function numeric(value) {
   return Number.isFinite(result) ? result : null;
 }
 
-function germanCoordinates(entry) {
+function germanCoordinates(entry, sourceId) {
   const position = entry?.address?.coordinates;
   const latitude = numeric(position?.lat);
   const longitude = numeric(position?.lng);
-  // The Germany tools are the only supported MCP tools. Ignore invalid/out-of-country pins.
-  if (latitude == null || longitude == null
-    || latitude < 47.2 || latitude > 55.2 || longitude < 5.8 || longitude > 15.1) return {};
+  const country = String(entry?.address?.countryCode || entry?.address?.country || "").trim().toLowerCase();
+  // A broad source-region envelope rejects foreign and unrelated German results.
+  // The original MCP search remains the authority for administrative boundaries.
+  const bounds = Number(sourceId) === 1
+    ? { minLat: 53.35, maxLat: 53.82, minLng: 9.65, maxLng: 10.45 }
+    : Number(sourceId) === 69
+      ? { minLat: 53.3, maxLat: 55.14, minLng: 7.4, maxLng: 11.4 }
+      : null;
+  if (!bounds || latitude == null || longitude == null
+    || (country && !["de", "deu", "deutschland", "germany"].includes(country))
+    || latitude < bounds.minLat || latitude > bounds.maxLat
+    || longitude < bounds.minLng || longitude > bounds.maxLng) return {};
   return { latitude, longitude };
 }
 
@@ -97,7 +106,7 @@ export function normalizeImmoScoutEntry(entry, sourceId) {
       area_sqm: numeric(entry.size),
       image_url: typeof entry.titlePictureUrls?.[0]?.href === "string" ? entry.titlePictureUrls[0].href.replace(/%WIDTH%/g, "1200").replace(/%HEIGHT%/g, "800") : null,
       provider: "immoscout24",
-      ...germanCoordinates(entry),
+      ...germanCoordinates(entry, sourceId),
     },
   };
 }
