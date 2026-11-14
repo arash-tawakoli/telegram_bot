@@ -92,11 +92,14 @@ test("the German MCP map drops invalid coordinates and enforces result limits", 
     return new Response(JSON.stringify({
       jsonrpc: "2.0", id: payload.id, result: { structuredContent: {
         entries: [
-          { exposedId: "123456", exposeUrl: "https://www.immobilienscout24.de/expose/123456", address: { coordinates: { lat: 48.14, lng: 11.58 } } },
-          { exposedId: "123456", exposeUrl: "https://www.immobilienscout24.de/expose/123456", address: { coordinates: { lat: 48.14, lng: 11.58 } } },
+          { exposedId: "123456", exposeUrl: "https://www.immobilienscout24.de/expose/123456", address: { coordinates: { lat: 53.55, lng: 10.0 } } },
+          { exposedId: "123456", exposeUrl: "https://www.immobilienscout24.de/expose/123456", address: { coordinates: { lat: 53.55, lng: 10.0 } } },
           { exposedId: "123457", exposeUrl: "https://www.immobilienscout24.de/expose/123457", address: { coordinates: { lat: 0, lng: 0 } } },
           { exposedId: "123458", exposeUrl: "https://example.org/expose/123458", address: { coordinates: { lat: 53.5, lng: 10 } } },
-        ], total: 4,
+          { exposedId: "123459", exposeUrl: "https://www.immobilienscout24.de/expose/123459", address: { city: "München", coordinates: { lat: 48.14, lng: 11.58 } } },
+          { exposedId: "123460", exposeUrl: "https://www.immobilienscout24.de/expose/123460", address: { countryCode: "AT", coordinates: { lat: 53.55, lng: 10 } } },
+          { exposedId: "123461", exposeUrl: "https://www.immobilienscout24.de/expose/123461", address: { city: "Wien", coordinates: { lat: 48.21, lng: 16.37 } } },
+        ], total: 7,
       } },
     }), { headers: { "content-type": "application/json" } });
   };
@@ -110,4 +113,17 @@ test("the German MCP map drops invalid coordinates and enforces result limits", 
   } finally {
     globalThis.fetch = previousFetch;
   }
+});
+
+test("Schleswig-Holstein map accepts northern coordinates but rejects Austria", () => {
+  const valid = normalizeImmoScoutEntry({
+    exposedId: "333333", exposeUrl: "https://www.immobilienscout24.de/expose/333333",
+    address: { city: "Kiel", countryCode: "DE", coordinates: { lat: 54.323, lng: 10.139 } },
+  }, 69);
+  assert.equal(valid.facts.latitude, 54.323);
+  const crossBorder = normalizeImmoScoutEntry({
+    exposedId: "444444", exposeUrl: "https://www.immobilienscout24.de/expose/444444",
+    address: { countryCode: "AT", coordinates: { lat: 54.323, lng: 10.139 } },
+  }, 69);
+  assert.equal(crossBorder.facts.latitude, undefined);
 });
