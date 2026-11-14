@@ -21,11 +21,13 @@ function setup(role="super_admin"){
  };
  const env={
   HOUSING_DB:{prepare(query){
-   return {bind(...values){
-    return {first:async()=>query.includes("FROM central_credentials")?{
+   const methods=values=>({
+    first:async()=>query.includes("FROM central_credentials")?{
      account_hint:"account@example.test",status:"connected",enabled:0,expires_at:"2026-12-31T00:00:00Z",last_verified_at:null
-    }:null,run:async()=>{if(query.includes("INSERT INTO central_oauth_flows"))flowInsertions.push(values);return {meta:{changes:1}}}};
-   }};
+    }:null,
+    run:async()=>{if(query.includes("INSERT INTO central_oauth_flows"))flowInsertions.push(values);return {meta:{changes:1}}}
+   });
+   return {...methods([]),bind:(...values)=>methods(values)};
   }},
   CENTRAL_API_SECRET:"test-internal-secret",
   CENTRAL_TOKEN_ENCRYPTION_KEY:"1".repeat(64)
