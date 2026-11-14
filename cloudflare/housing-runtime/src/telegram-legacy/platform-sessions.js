@@ -2,6 +2,26 @@ import {db,secret,send,edit,button,telegram,esc,runtimeEnv} from './runtime.js';
 import {encryptProviderCredentials} from '../provider-credentials.js';
 import {providerStaticMissing} from './application-profile-adapters.js';
 
+const userFacingError=(error)=>{
+ const reason=String(error?.message||error||'');
+ const translated={
+  test_mode_forbidden:'Der persönliche Testzugang ist nicht freigegeben.',
+  test_mode_global_auto_apply_active:'Bitte zuerst die reguläre Auto-Bewerbung deaktivieren.',
+  test_mode_profile_incomplete:'Bitte zuerst das Bewerberprofil vervollständigen.',
+  test_mode_search_profile_missing:'Es fehlt ein aktives ImmoScout24-Suchprofil.',
+  test_mode_central_account_unavailable:'Der zentrale ImmoScout24-Testzugang ist derzeit nicht verfügbar.',
+  immomio_email_required:'Bitte im Bewerberprofil zuerst eine gültige E-Mail-Adresse eintragen.',
+  auth_flow_expired:'Der Anmeldelink ist abgelaufen. Bitte erneut verbinden.',
+  invalid_callback_url:'Der Anmeldelink ist ungültig.',
+  provider_operation_not_supported:'Diese Aktion wird für die Plattform nicht unterstützt.',
+  connection_read_failed:'Der Verbindungsstatus konnte nicht geladen werden.',
+  disconnect_failed:'Die Plattformverbindung konnte nicht getrennt werden.',
+  provider_not_allowlisted:'Diese Bewerbungsplattform ist nicht unterstützt.'
+ };
+ if(translated[reason])return translated[reason];
+ return /^[a-z][a-z0-9_]+$/.test(reason)?'Die Aktion konnte nicht abgeschlossen werden. Bitte erneut versuchen.':reason;
+};
+
 const privateOwner=(user,chat)=>chat?.type==='private'&&user.is_active
  && Number(chat.id)===Number(user.telegram_user_id)&&Number(chat.id)===Number(user.chat_id);
 
@@ -284,7 +304,7 @@ async function deleteApplicantDocument(userId,id){
 async function renderApplicantDocuments(user,chat,messageId,notice=''){
  const docs=await readDocuments(user.id),selected=docs.filter(d=>d.send_with_auto_apply).length;
  const render=(text,rows)=>messageId?edit(chat.id,messageId,text,{inline_keyboard:rows}):send(chat.id,text,{inline_keyboard:rows});
- const text=`📎 <b>Bewerberdokumente</b>\n\n${notice?`${notice}\n\n`:''}${docs.length} Datei${docs.length===1?'':'en'} gespeichert · ${selected} für Auto-Bewerbungen ausgewählt.\n\n<b>Dateiversand</b>\nImmoScout24: ausgewählte Unterlagen über einen geschützten Bewerbungslink im Erstkontakt\nImmomio: nativer Upload in dein Tenant-Profil mit technischer Verifikation vor dem Versand\n\nDer geschützte Link enthält einen Snapshot der beim Erstellen ausgewählten Dateien. Späteres Abwählen verändert bereits erstellte Bewerbungen nicht; Löschen einer Datei widerruft den Zugriff auf diese Datei.`;
+ const text=`📎 <b>Bewerberdokumente</b>\n\n${notice?`${notice}\n\n`:''}${docs.length} Datei${docs.length===1?'':'en'} gespeichert · ${selected} für Auto-Bewerbungen ausgewählt.\n\n<b>Dateiversand</b>\nImmoScout24: ausgewählte Unterlagen über einen geschützten Bewerbungslink im Erstkontakt\nImmomio: Dateiupload ist über den aktuellen Cloudflare-Versand noch nicht verfügbar\n\nDer geschützte Link enthält einen Snapshot der beim Erstellen ausgewählten Dateien. Späteres Abwählen verändert bereits erstellte Bewerbungen nicht; Löschen einer Datei widerruft den Zugriff auf diese Datei.`;
  const rows=[
   [button('🪪 WBS','platforms:doc-upload:wbs'),button('🚨 Dringlichkeit','platforms:doc-upload:urgency_certificate')],
   [button('🤝 Bürgschaft','platforms:doc-upload:guarantee'),button('📊 SCHUFA','platforms:doc-upload:schufa')],
@@ -457,7 +477,7 @@ export async function handleAutoApplyMessage(user,message){
     message.reply_to_message?.message_id?telegram('deleteMessage',{chat_id:chat.id,message_id:message.reply_to_message.message_id}).catch(()=>{}):null
    ]);
    return send(chat.id,`✅ ${esc(saved.label)} gespeichert. Die Datei ist standardmäßig <b>nicht</b> für Auto-Bewerbungen ausgewählt.`,{inline_keyboard:[[button('📎 Dokumente verwalten','platforms:docs')],[button('← Bewerberprofil','platforms:profile')]]});
-  }catch(error){return send(chat.id,`⚠️ ${esc(error.message)}`,{inline_keyboard:[[button('📎 Dokumente','platforms:docs')]]});}
+  }catch(error){return send(chat.id,`⚠️ ${esc(userFacingError(error))}`,{inline_keyboard:[[button('📎 Dokumente','platforms:docs')]]});}
  }
 
  if(replied.startsWith(SETUP_PROMPT)){
@@ -518,7 +538,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
    });
    return platformSessions(user,chat,messageId,'platforms');
   }catch(error){
-   return render('⚠️ <b>Testmodus konnte nicht '+(enabled?'aktiviert':'deaktiviert')+' werden</b>\n\n'+esc(error?.message||'Unbekannter Fehler'),[
+   return render('⚠️ <b>Testmodus konnte nicht '+(enabled?'aktiviert':'deaktiviert')+' werden</b>\n\n'+esc(userFacingError(error)),[
     [button(enabled?'Test erneut aktivieren':'Test erneut deaktivieren','platforms:test:'+(enabled?'on':'off'))],
     ...back
    ]);
@@ -540,8 +560,9 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   } catch { /* A missing status is shown as unknown, never as connected. */ }
   const testEnabled=state.test_auto_apply_enabled===true&&state.auto_apply_enabled!==true;
   const credentialReady=central?.status==='connected'&&central?.enabled===0;
-  const lastCheck=central?.last_verified_at
-    ? new Date(central.last_verified_at).toLocaleString('de-DE')
+  const verifiedAt=central?.last_verified_at?Date.parse(central.last_verified_at):NaN;
+  const lastCheck=Number.isFinite(verifiedAt)
+    ? new Date(verifiedAt).toLocaleString('de-DE')
     : 'nicht verifiziert';
   return render('🧪 <b>ImmoScout24 · Persönlicher Testzugang</b>\n\n'
     +'Testmodus: <b>'+(testEnabled?'Aktiv':'Deaktiviert')+'</b>\n'
@@ -761,7 +782,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
     return render(`🔐 <b>${name} verbinden</b>\n\n${note}`,[[{text:loginLabel,url:result.url}],...back]);
    }
    return render(result.authenticated===true?`${name}: ✅ Verbindung bestätigt.`:result.authenticated===false?`${name}: Anmeldung erforderlich.`:`${name}: Verbindung gespeichert, aber noch nicht vollständig verifiziert.`,back);
-  }catch(error){return render(error.message,back);}
+  }catch(error){return render(esc(userFacingError(error)),back);}
  }
 
  if(action==='off'||action==='on'){
