@@ -55,7 +55,7 @@ test("scheduled application processing ignores the historical pending backlog", 
 });
 
 test("normal applications stay blocked while personal test mode is enabled", async () => {
-  const db = sqlFor({ id:"app-test", participant_id:"user-1", offer_identity_id:"offer-1", provider:"immoscout24", status:"pending", test_mode:0, test_auto_apply_enabled:1 });
+  const db = sqlFor({ id:"app-test", participant_id:"user-1", offer_identity_id:"offer-1", canonical_url:"https://www.immobilienscout24.de/expose/123456789", provider:"immoscout24", status:"pending", test_mode:0, test_auto_apply_enabled:1 });
   const result = await processHousingApplication(db.query, { APPLICATION_RUN_TOKEN:"secret" }, new Request("https://runtime.test/internal/application/process", { method:"POST", headers:{ authorization:"Bearer secret" } }));
   assert.equal(result.body.status, "manual_required");
   assert.equal(result.body.reason, "test_mode_active");
