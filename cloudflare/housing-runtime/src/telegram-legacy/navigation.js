@@ -68,6 +68,7 @@ export async function referralPage(user, chatId, messageId) {
     + "<b>Dein persönlicher Empfehlungslink:</b>\n" + link;
   const markup = { inline_keyboard: [
     [{ text: "📤 Link teilen", url: "https://t.me/share/url?url=" + encodeURIComponent(link) }],
+    [{ text: "📋 Link kopieren", copy_text: { text: link } }],
     [button("← Einstellungen", "settings")],
   ] };
   return messageId ? edit(chatId, messageId, text, markup) : send(chatId, text, markup);
