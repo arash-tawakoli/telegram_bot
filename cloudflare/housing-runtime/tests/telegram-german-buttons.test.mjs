@@ -125,7 +125,8 @@ test("Premium only shows a real Stripe management button for paid subscriptions"
     assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][0].url,
       "https://billing.stripe.com/p/login/test");
     await premium({ ...x.user, is_premium: false }, 777);
-    assert.match(lastMessage(x).reply_markup.inline_keyboard[0][0].text, /Premium abonnieren/);
+    assert.match(lastMessage(x).text,/nicht direkt buchbar/);
+    assert.equal(lastMessage(x).reply_markup.inline_keyboard.some(row=>/Premium abonnieren/.test(row[0].text)),false);
   } finally { x.done(); }
 });
 
