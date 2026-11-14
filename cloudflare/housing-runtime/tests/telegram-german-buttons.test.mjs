@@ -14,6 +14,12 @@ function setup() {
     sqlite.exec(readFileSync(new URL(file, dir), "utf8"));
   }
   sqlite.exec("INSERT INTO participants(id,first_name,last_name,telegram_user_id,telegram_chat_id,plan_override,ui_language,test_auto_apply_allowed) VALUES ('owner','A','B',777,777,'premium','en',1)");
+  sqlite.exec("CREATE TABLE IF NOT EXISTS coach_geo_snapshot(id TEXT PRIMARY KEY,payload TEXT NOT NULL)");
+  sqlite.prepare("INSERT INTO coach_geo_snapshot(id,payload) VALUES('de-hh-sh',?)").run(JSON.stringify({
+    boroughs:[{id:1,name:"Hamburg-Mitte"}],
+    neighborhoods:[{id:1,name:"Altstadt",borough_id:1}],
+    schleswigHolsteinAreas:[{code:"01002",name:"Kiel"}],
+  }));
   const storage = new Map();
   const d1 = { prepare(query) {
     const build = args => ({
