@@ -52,6 +52,7 @@ test("application processor fails closed when central provider credentials are a
 test("central AutoApply stays paused after deployment and does not reserve or send", async () => {
   const db = sqlFor({
     id: "app-paused", participant_id: "user-1", offer_identity_id: "offer-1",
+    canonical_url: "https://tenant.immomio.com/apply/12345678-1234-4234-8234-123456789012",
     provider: "immomio", status: "pending", test_mode: 0,
     preferences_enabled: true, provider_enabled: true, auto_apply_enabled: true,
   });
