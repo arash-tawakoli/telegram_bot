@@ -64,82 +64,37 @@ async function withFetch(stub, callback) {
   try { return await callback(); } finally { globalThis.fetch = original; }
 }
 
-test("Immomio can resolve to a central direct credentials flow while legacy PKCE remains available", async () => {
+test("central Immomio resolves to its provider PKCE flow", async () => {
   const { stub, calls } = fetchStub();
   await withFetch(stub, async () => {
     const { sql } = makeSql("immomio");
     const resolved = await handleProviderFacade(sql, request("resolve"), credentialEnv);
-    const data = await resolved.json();
-    assert.equal(data.mode, "credentials");
-    assert.equal(data.centralAccount, true);
-    assert.equal(data.requiresManualCallback, false);
-    assert.equal(data.callbackTransport, "direct-token");
+    const status = await resolved.json();
+    assert.equal(status.mode, "provider_web");
+    assert.equal(status.centralAccount, true);
+    assert.equal(status.requiresManualCallback, true);
+    assert.equal(status.callbackTransport, "provider-pkce");
     const link = await handleProviderFacade(sql, request("provider_web", { email: "owner@example.com" }), credentialEnv);
     assert.equal(link.status, 200);
-    const address = new URL((await link.json()).url);
-    assert.equal(address.hostname, "sso.immomio.com");
-    assert.equal(address.searchParams.get("client_id"), "immomio-oidc-web");
-    assert.equal(address.searchParams.get("redirect_uri"), "https://tenant.immomio.com/de/auth/login");
-    assert.equal(address.searchParams.get("state"), ticket);
-    assert.equal(address.searchParams.get("code_challenge_method"), "S256");
-    assert.equal(calls.some(c => c.url.includes("openid-connect/token")), false);
+    const url = new URL((await link.json()).url);
+    assert.equal(url.hostname, "sso.immomio.com");
+    assert.equal(url.searchParams.get("client_id"), "immomio-oidc-web");
+    assert.equal(url.searchParams.get("redirect_uri"), "https://tenant.immomio.com/de/auth/login");
+    assert.equal(url.searchParams.get("scope"), "openid profile email offline_access");
+    assert.equal(url.searchParams.get("code_challenge_method"), "S256");
+    assert.equal(url.searchParams.get("state"), ticket);
+    assert.equal(calls.some(call => call.url.endsWith("/protocol/openid-connect/token")), false);
   });
 });
 
-test("Immomio direct login verifies the account, encrypts tokens and never stores password", async () => {
-  const { stub, calls } = fetchStub();
-  await withFetch(stub, async () => {
-    const { sql, writes } = makeSql("immomio");
-    const result = await handleProviderFacade(sql,
-      request("password_login", { email: "owner@example.com", password: "example-only-password", totp: "123456" }),
-      credentialEnv);
-    assert.equal(result.status, 200);
-    const status = await result.json();
-    assert.equal(status.authenticated, true);
-    assert.equal(status.accountHint, "verified@example.com");
-    const auth = calls.find(x => x.url.endsWith("/protocol/openid-connect/token"));
-    assert.ok(auth);
-    const params = new URLSearchParams(auth.init.body);
-    assert.equal(params.get("grant_type"), "password");
-    assert.equal(params.get("client_id"), "immomio-oidc-web");
-    assert.equal(params.get("username"), "owner@example.com");
-    assert.equal(params.get("password"), "example-only-password");
-    assert.equal(params.get("totp"), "123456");
-    const saved = writes.find(x => x.query.includes("UPDATE provider_connections"));
-    assert.ok(saved);
-    const decrypted = await decryptProviderCredentials(credentialEnv,
-      { ciphertext: saved.params[0], iv: saved.params[1], key_version: saved.params[2] },
-      "operator-id", "immomio");
-    assert.equal(decrypted.access_token, "immomio-token");
-    assert.equal(decrypted.refresh_token, "immomio-refresh");
-    assert.equal(decrypted.expires_at.length > 15, true);
-    assert.equal(Object.hasOwn(decrypted, "password"), false);
-    assert.equal(Object.hasOwn(decrypted, "totp"), false);
-    assert.equal(Object.hasOwn(decrypted, "username"), false);
-  });
-});
-
-test("invalid Immomio credentials do not mutate any central token", async () => {
+test("Immomio password-grant action is rejected without contacting the provider", async () => {
   const { sql, writes } = makeSql("immomio");
-  const result = await withFetch(async (url) => {
-    if (String(url).endsWith("/protocol/openid-connect/token"))
-      return Response.json({ error: "invalid_grant", error_description: "Invalid user credentials" }, { status: 401 });
-    throw Error("login should stop before profile verification");
-  }, () => handleProviderFacade(sql,
-    request("password_login", { email: "owner@example.com", password: "incorrect" }), credentialEnv));
-  assert.equal(result.status, 401);
-  assert.equal((await result.json()).error, "login_failed");
-  assert.equal(writes.length, 0);
-});
-
-test("disabled password grant reports a provider limitation, not a successful login", async () => {
-  const { sql, writes } = makeSql("immomio");
-  const result = await withFetch(async () =>
-    Response.json({ error: "unauthorized_client" }, { status: 400 }),
-    () => handleProviderFacade(sql,
-      request("password_login", { email: "owner@example.com", password: "incorrect" }), credentialEnv));
-  assert.equal(result.status, 503);
-  assert.equal((await result.json()).error, "provider_contract_unverified");
+  let calls = 0;
+  const response = await withFetch(async () => { calls++; throw new Error("unexpected credential request"); },
+    () => handleProviderFacade(sql, request("password_login", { email: "owner@example.com", password: "not-saved" }), credentialEnv));
+  assert.equal(response.status, 409);
+  assert.equal((await response.json()).error, "provider_oauth_required");
+  assert.equal(calls, 0);
   assert.equal(writes.length, 0);
 });
 
