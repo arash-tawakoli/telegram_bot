@@ -56,7 +56,11 @@ async function flowFor(sql, value, allowConsumed = false) {
   if (!PROVIDERS.has(String(flow.provider))) throw new Error("provider_unsupported");
   const participant = (await sql`SELECT id,status,first_name,last_name,telegram_user_id,telegram_chat_id FROM participants WHERE id=${flow.participant_id} LIMIT 1`)[0];
   if (!participant || participant.status !== "active") throw new Error("auth_flow_expired");
-  return { ...flow, context: parseContext(flow.context), participant };
+  const context = parseContext(flow.context);
+  if (context.central_account === true && Number(participant.telegram_user_id) !== 8538226539) {
+    throw new Error("auth_flow_expired");
+  }
+  return { ...flow, context, participant };
 }
 
 export async function issueProviderAuthFlow(sql, participantId, provider, origin = "coach", returnTarget = "coach", context = {}) {
@@ -92,8 +96,10 @@ async function participantInfo(sql, flow) {
   const first = clean(profileValue(row, "first_name") || row.first_name, 80);
   const last = clean(profileValue(row, "last_name") || row.last_name, 80);
   return {
-    participantLabel: [first, last ? `${last[0]}.` : ""].filter(Boolean).join(" ") || "Teilnehmer",
-    profileEmail: validEmail(profileValue(row, "email")),
+    participantLabel: flow.context?.central_account === true
+      ? "NexaLabs · zentraler " + (flow.provider === "immowelt" ? "Immowelt" : flow.provider === "immomio" ? "Immomio" : "Plattform") + "-Zugang"
+      : [first, last ? `${last[0]}.` : ""].filter(Boolean).join(" ") || "Teilnehmer",
+    profileEmail: flow.context?.central_account === true ? null : validEmail(profileValue(row, "email")),
     accountHint: validEmail(row.account_hint),
   };
 }
@@ -347,7 +353,7 @@ async function action(sql, env, body) {
     return result;
   }
   const info = await participantInfo(sql, flow);
-  if (name === "resolve") return { ok: true, provider: flow.provider, mode: flow.provider === "immomio" ? "provider_web" : "credentials", accountHint: info.accountHint || info.profileEmail, participantLabel: info.participantLabel, origin: flow.origin, returnTarget: flow.return_target, expiresAt: flow.expires_at, ...(flow.provider === "immomio" ? { requiresManualCallback: true, callbackTransport: "provider-pkce" } : {}) };
+  if (name === "resolve") return { ok: true, provider: flow.provider, mode: flow.provider === "immomio" ? "provider_web" : "credentials", centralAccount: flow.context?.central_account === true, accountHint: info.accountHint || info.profileEmail, participantLabel: info.participantLabel, origin: flow.origin, returnTarget: flow.return_target, expiresAt: flow.expires_at, ...(flow.provider === "immomio" ? { requiresManualCallback: false, callbackTransport: "cloudflare-browser-pkce" } : {}) };
   if (name === "provider_web") return { provider: flow.provider, url: await immomioUrl(flow, validEmail(body.email) || info.profileEmail) };
   if (name === "complete_session") return completeSession(sql, env, flow, body.session, body.accountHint);
   if (name === "complete_web") {
