@@ -1,9 +1,9 @@
-import { platformSessions, handleAutoApplyMessage } from './platform-sessions.js';
+import { platformSessions, handleAutoApplyMessage, clearPendingField } from './platform-sessions.js';
 import { adminTokenStatus, adminTokenStart, adminTokenRefresh } from '../coach-api.js';
 import { createD1Client } from '../d1-database.js';
 import { refreshImmomioSession } from '../immomio-application.js';
 import { isAdmin, adminGrantLabel, adminPremiumNotice, adminUsers, adminUser, setUserBlocked, deleteUser, setPlanOverride, ANNOUNCEMENT_PROMPT, createAnnouncementDraft, cancelAnnouncement, sendAnnouncement } from "./admin.js";
-import { homeKeyboard, home, premium, setPaused, referralPage, settings, languageMenu } from "./navigation.js";
+import { homeKeyboard, home, premium, setPaused, referralPage, settings, languageMenu, QUICK_ACTIONS, showQuickActions } from "./navigation.js";
 import { draftFor, validateDraft, renderTypes, renderLocation, renderBoroughs, renderNeighborhoods, renderSchleswigHolsteinAreas, renderRent, renderCustomRent, renderRooms, renderArea, renderReview, renderReviewEdit, renderStep, afterSelection, persistProfile, profileLimit, draftFromProfile, startNewProfile, profileEditMenu, profile, renderStatus, nextSizeStep } from "./profiles.js";
 import { db, PREMIUM_LINK, PROPERTY_TYPES, RENT_PRESETS, ROOM_PRESETS, AREA_PRESETS, NEIGHBORHOODS_PER_PAGE, button, cancelRow, backRow, runtimeEnv, esc, secret, telegram, send, sendCelebration, edit, acknowledge, saveState, geography, HELP_TEXT } from "./runtime.js";
 
@@ -329,7 +329,11 @@ export async function handleMessage(message, user) {
                 console.error("referral_register", error.message);
         }
         await syncTelegramCommands(user, chatId);
-        return user.language_selected_at ? home(user, chatId) : languageMenu(user, chatId);
+        if (!user.language_selected_at) return languageMenu(user, chatId);
+        // The Telegram reply keyboard must be attached to its own message;
+        // the normal home preview keeps its existing inline navigation.
+        await showQuickActions(chatId);
+        return home(user, chatId);
     }
     if (command === "/suche")
         return startNewProfile(user, chatId);
@@ -354,6 +358,23 @@ export async function handleMessage(message, user) {
     }
     if (command === "/premium")
         return premium(user, chatId);
+    // A reply-keyboard press arrives as an ordinary text message. Handle it
+    // before free-text fields and search-step validation so it cannot be saved
+    // as an applicant name, message template or custom rent.
+    const quickAction = Object.keys(QUICK_ACTIONS).find(key => QUICK_ACTIONS[key] === text);
+    if (quickAction) {
+        if (user.onboarding_state?._applicant_field)
+            await clearPendingField(user, message.chat);
+        if (user.onboarding_step)
+            await saveState(user.id, null, {}, user.request_update_id, user.request_attempt);
+        user = { ...user, onboarding_state: {}, onboarding_step: null };
+        if (quickAction === "premium") return premium(user, chatId);
+        if (quickAction === "autoApply") return platformSessions(user, message.chat, undefined, "platforms");
+        if (quickAction === "profile") return platformSessions(user, message.chat, undefined, "platforms:profile");
+        return send(chatId, helpFor(user), {
+            inline_keyboard: [[button("← Start", "home")]],
+        });
+    }
     const repliedText = String(message.reply_to_message?.text || "");
     if (isAdmin(user) && repliedText.startsWith(ANNOUNCEMENT_PROMPT)) {
         return createAnnouncementDraft(user, chatId, text);
@@ -405,6 +426,7 @@ export async function handleCallback(query, user) {
             p_user: user.id, p_telegram_user_id: user.telegram_user_id, p_language: chosen,
         });
         if (error || !selected?.language) return languageMenu(user, chatId, messageId);
+        if (!user.language_selected_at) await showQuickActions(chatId);
         return home({ ...user, ui_language: selected.language, language_selected_at: new Date().toISOString() }, chatId, messageId);
     }
     if (!user.language_selected_at) {
