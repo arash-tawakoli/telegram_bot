@@ -344,7 +344,8 @@ async function runScheduledHousingWork(env, minute = Math.floor(Date.now() / 60_
       console.error("housing_telegram_recovery_failed", String(error?.message || error));
     }
   }
-  if (tasks.platformSessionReminders) {
+  // Central provider accounts are maintained by admins, not by participants.
+  if (tasks.platformSessionReminders && env.PERSONAL_PROVIDER_REAUTH_ENABLED === "1") {
     try {
       const result = await withDatabase(env, (sql) => runPlatformSessionReminders(sql, env));
       if (result.queued || result.sent) console.log("housing_platform_session_reminders", JSON.stringify(result));
