@@ -11,10 +11,8 @@ const OWNER_ID = "owner-participant-id";
 test("central providers use the administrator credential, never the applicant connection", async () => {
   const env = { APPLICATION_CREDENTIAL_KEY: KEY };
   const encrypted = await encryptProviderCredentials(env, {
-    access_token: "opaque-central-access",
-    refresh_token: "opaque-central-refresh",
+    cookies: [{ name: "oauth.access.token", value: "opaque-central-access", domain: ".immowelt.de", path: "/", expires: 4070908800 }],
     expires_at: "2099-01-01T00:00:00Z",
-    client_id: "registered-client",
   }, OWNER_ID, "immowelt");
   const queries = [];
   const sql = async (strings, ...values) => {
@@ -27,45 +25,30 @@ test("central providers use the administrator credential, never the applicant co
   };
   const result = await getCentralProviderCredentials(sql, env, "immowelt");
   assert.equal(result.ownerId, OWNER_ID);
-  assert.equal(result.credentials.access_token, "opaque-central-access");
-  assert.equal(result.credentials.refresh_token, "opaque-central-refresh");
+  assert.equal(result.credentials.cookies[0].value, "opaque-central-access");
+  assert.equal(Object.hasOwn(result.credentials, "access_token"), false);
   assert.match(queries[0].query, /owner.telegram_user_id/);
   assert.deepEqual(queries[0].values, [8538226539, "immowelt"]);
 });
 
-test("Immowelt central OAuth token refreshes automatically, without browser cookies", async () => {
+test("Immowelt OAuth-only token records require login without a client ID", async () => {
   const originalFetch = globalThis.fetch;
-  const env = { APPLICATION_CREDENTIAL_KEY: KEY, IMMOWELT_OAUTH_CLIENT_ID: "registered-client" };
+  const env = { APPLICATION_CREDENTIAL_KEY: KEY };
   const encrypted = await encryptProviderCredentials(env, {
     access_token: "old-token", refresh_token: "old-refresh",
-    client_id: "registered-client", expires_at: new Date(Date.now() - 30_000).toISOString(),
+    expires_at: new Date(Date.now() - 30_000).toISOString(),
   }, OWNER_ID, "immowelt");
-  const requests = [], queries = [];
-  globalThis.fetch = async (url, opts) => {
-    requests.push({ url: String(url), body: new URLSearchParams(opts.body) });
-    return Response.json({ access_token: "new-token", refresh_token: "new-refresh", expires_in: 1200 });
-  };
-  const sql = async (strings, ...values) => {
-    const query = strings.join("?");
-    queries.push({ query, values });
-    if (query.includes("SELECT pc.participant_id")) return [{
-      participant_id: OWNER_ID, status: "connected", account_hint: "owner@example.com",
-      ciphertext: encrypted.ciphertext, iv: encrypted.iv, key_version: encrypted.key_version,
-    }];
-    return [];
-  };
+  let calls = 0;
+  globalThis.fetch = async () => { calls++; throw new Error("no Immowelt OAuth client call is allowed"); };
+  const sql = async (strings) => strings.join("").includes("SELECT pc.participant_id") ? [{
+    participant_id: OWNER_ID, status: "connected", ciphertext: encrypted.ciphertext,
+    iv: encrypted.iv, key_version: encrypted.key_version,
+    expires_at: new Date(Date.now() - 30_000).toISOString(), updated_at: new Date().toISOString(),
+  }] : [];
   try {
-    const result = await getCentralProviderCredentials(sql, env, "immowelt");
-    assert.equal(result.credentials.access_token, "new-token");
-    assert.equal(result.credentials.refresh_token, "new-refresh");
-    assert.equal(requests.length, 1);
-    assert.equal(requests[0].url, "https://signin.immowelt.de/oauth/token");
-    assert.equal(requests[0].body.get("grant_type"), "refresh_token");
-    assert.equal(requests[0].body.get("client_id"), "registered-client");
-    assert.ok(queries.some(q => q.query.includes("UPDATE housing.provider_connections")));
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
+    await assert.rejects(() => getCentralProviderCredentials(sql, env, "immowelt"), /needs_login/);
+    assert.equal(calls, 0);
+  } finally { globalThis.fetch = originalFetch; }
 });
 
 test("Immomio central OAuth token refresh uses Keycloak, not a remote browser", async () => {
@@ -94,7 +77,7 @@ test("Immomio central OAuth token refresh uses Keycloak, not a remote browser", 
   }
 });
 
-test("browser cookie sessions are rejected for central Immowelt authentication", async () => {
+test("Immowelt cookie sessions without an access token require login", async () => {
   const env = { APPLICATION_CREDENTIAL_KEY: KEY };
   const encrypted = await encryptProviderCredentials(env, {
     cookies: [{ name: "legacy", value: "opaque", domain: ".immowelt.de" }],
@@ -104,7 +87,7 @@ test("browser cookie sessions are rejected for central Immowelt authentication",
     iv:encrypted.iv,key_version:encrypted.key_version,
   }];
   await assert.rejects(() => getCentralProviderCredentials(sql,env,"immowelt"),
-    /provider_contract_unverified/);
+    /needs_login/);
 });
 
 test("Scout production requires explicit central account enablement", async () => {
