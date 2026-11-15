@@ -930,3 +930,87 @@ test("quick navigation cancels an incomplete custom-rent step before opening ano
   assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM search_profiles WHERE participant_id='owner'").get().n,0);
  }finally{x.done();}
 });
+
+
+test("admin user directory is paginated and can filter Free users without flooding Telegram buttons", async()=>{
+  const x=setup();
+  try{
+    const add=x.sqlite.prepare("INSERT INTO participants(id,first_name,last_name,telegram_user_id,telegram_chat_id,status) VALUES(?,?,?,?,?,?)");
+    for(let i=0;i<22;i++)add.run("dir-"+i,"Nutzer",""+i,1000+i,1000+i,i<2?"archived":"active");
+    const admin={...x.user,telegram_user_id:8538226539,chat_id:8538226539};
+    const chat={id:8538226539,type:"private"};
+    await handleMessage({chat,text:"/admin"},admin);
+    const initial=lastMessage(x).reply_markup.inline_keyboard.flat();
+    assert.ok(initial.length<=14, "admin user list must remain compact");
+    assert.ok(initial.some(b=>b.callback_data==="admin:list:free:0"));
+    assert.ok(initial.some(b=>b.callback_data==="admin:reset:preview"));
+    assert.ok(initial.some(b=>b.callback_data==="admin:list:all:1"));
+    await handleCallback({id:"filter-admin",data:"admin:list:free:1",from:{id:8538226539},message:{chat,message_id:101}},admin);
+    const page=lastMessage(x);
+    assert.match(page.text,/Seite 2 von/);
+    assert.ok(page.reply_markup.inline_keyboard.flat().every(b=>b.callback_data!=="admin:user:dir-0"));
+  }finally{x.done()}
+});
+
+test("confirmed Premium reset grants seven days only to active Free users and sends one notification",async()=>{
+  const x=setup();
+  try{
+    const add=x.sqlite.prepare("INSERT INTO participants(id,first_name,last_name,telegram_user_id,telegram_chat_id,status,plan_override,plan_override_expires_at,referral_bonus_until) VALUES(?,?,?,?,?,?,?,?,?)");
+    const future=new Date(Date.now()+10*86400000).toISOString(),past=new Date(Date.now()-86400000).toISOString();
+    add.run("free-a","Free","A",1001,1001,"active",null,null,null);
+    add.run("free-b","Free","B",1002,1002,"active",null,null,null);
+    add.run("paid","Paid","C",1003,1003,"active",null,null,null);
+    add.run("referral","Referral","D",1004,1004,"active",null,null,future);
+    add.run("existing","Existing","E",1005,1005,"active","premium",future,null);
+    add.run("expired","Expired","F",1006,1006,"active","premium",past,null);
+    add.run("blocked","Blocked","G",1007,1007,"archived",null,null,null);
+    x.sqlite.exec("INSERT INTO user_subscriptions(id,participant_id,provider,status) VALUES ('stripe-paid','paid','stripe','active')");
+    const admin={...x.user,telegram_user_id:8538226539,chat_id:8538226539};
+    const chat={id:8538226539,type:"private"};
+    const callback=async(action)=>handleCallback({id:"reset-"+action,data:action,from:{id:8538226539},message:{chat,message_id:99}},admin);
+    await callback("admin:reset:preview");
+    assert.match(lastMessage(x).text,/Berechtigte aktive Free-Nutzer: <b>3<\/b>/);
+    assert.ok(lastMessage(x).reply_markup.inline_keyboard.flat().some(b=>b.callback_data==="admin:reset:confirm"));
+    await callback("admin:reset:confirm");
+    assert.match(lastMessage(x).text,/Neu aktiviert: 3/);
+    for(const id of ["free-a","free-b","expired"]){
+      const row=x.sqlite.prepare("SELECT plan_override,plan_override_expires_at FROM participants WHERE id=?").get(id);
+      assert.equal(row.plan_override,"premium",id);
+      const days=(Date.parse(row.plan_override_expires_at)-Date.now())/86400000;
+      assert.ok(days>6.95&&days<7.01,id);
+    }
+    assert.equal(x.sqlite.prepare("SELECT plan_override FROM participants WHERE id='paid'").get().plan_override,null);
+    assert.equal(x.sqlite.prepare("SELECT plan_override FROM participants WHERE id='referral'").get().plan_override,null);
+    assert.equal(x.sqlite.prepare("SELECT plan_override_expires_at FROM participants WHERE id='existing'").get().plan_override_expires_at,future);
+    assert.equal(x.sqlite.prepare("SELECT plan_override FROM participants WHERE id='blocked'").get().plan_override,null);
+    const notify=x.sent.filter(item=>item.method==="sendMessage"&&[1001,1002,1006].includes(item.body.chat_id));
+    assert.equal(notify.length,3);
+    assert.ok(notify.every(x=>/7 Tage Premium/.test(x.body.text)));
+    await callback("admin:reset:confirm");
+    assert.match(lastMessage(x).text,/Neu aktiviert: 0/);
+    assert.equal(x.sent.filter(item=>item.method==="sendMessage"&&[1001,1002,1006].includes(item.body.chat_id)).length,3,
+      "a repeated confirmation must never resend or extend grants");
+  }finally{x.done()}
+});
+
+test("bulk AutoApply starts and pauses all source send preferences without changing search profiles",async()=>{
+ const x=setup();
+ try{
+  x.sqlite.prepare("INSERT INTO applicant_profiles(participant_id,profile) VALUES('owner',?)").run(JSON.stringify({
+   first_name:"Anna",last_name:"B",email:"anna@example.com",phone:"+491700000000",street:"Test",house_number:"1",
+   postcode:"20099",city:"Hamburg",salutation:"MS",household_type:"SINGLE",employment_status:"EMPLOYEE",
+   income_range:"NOT_SPECIFIED",pets:"NONE",move_in_preference:"NOT_SPECIFIED",schufa_status:"NOT_SPECIFIED",
+   wbs_status:"NOT_SPECIFIED",message_apartment:"Interesse",message_house:"Interesse",
+   message_temporary_wg:"Interesse",message_swap:"Interesse"
+  }));
+  await platformSessions(x.user,x.chat,51,"platforms:on");
+  const p=x.sqlite.prepare("SELECT immoscout_enabled,immowelt_enabled,immomio_enabled,enabled FROM application_preferences WHERE participant_id='owner'").get();
+  assert.deepEqual([p.immoscout_enabled,p.immowelt_enabled,p.immomio_enabled,p.enabled],[1,1,1,1]);
+  assert.equal(x.sqlite.prepare("SELECT auto_apply_enabled FROM participants WHERE id='owner'").get().auto_apply_enabled,1);
+  await platformSessions(x.user,x.chat,51,"platforms:off");
+  const q=x.sqlite.prepare("SELECT immoscout_enabled,immowelt_enabled,immomio_enabled,enabled FROM application_preferences WHERE participant_id='owner'").get();
+  assert.deepEqual([q.immoscout_enabled,q.immowelt_enabled,q.immomio_enabled,q.enabled],[0,0,0,0]);
+  assert.equal(x.sqlite.prepare("SELECT auto_apply_enabled FROM participants WHERE id='owner'").get().auto_apply_enabled,0);
+  assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM search_profiles").get().n,0);
+ }finally{x.done()}
+});
