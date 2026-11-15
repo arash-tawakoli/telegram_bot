@@ -1,14 +1,15 @@
 import { premium } from "./navigation.js";
 import { purgePlatformSessions } from './platform-sessions.js';
 import { profile } from "./profiles.js";
-import { db, ADMIN_TELEGRAM_USER_IDS, esc, short, button, send, edit, telegram } from "./runtime.js";
+import { db, ADMIN_TELEGRAM_USER_IDS, esc, short, button, send, edit, telegram, runtimeEnv } from "./runtime.js";
 export function isAdmin(user) {
     return ADMIN_TELEGRAM_USER_IDS.has(Number(user?.telegram_user_id));
 }
 
 export function effectivePremiumFor(user, subscription) {
     const now = Date.now();
-    if (user?.plan_override === "free")
+    if (user?.plan_override === "free" &&
+        (!user.plan_override_expires_at || new Date(user.plan_override_expires_at).getTime() > now))
         return false;
     if (user?.plan_override === "premium" &&
         (!user.plan_override_expires_at ||
@@ -72,44 +73,135 @@ export function adminPremiumNotice(grant) {
         : `💎 <b>Kostenloses Premium aktiviert</b>\n\nDu hast ${adminGrantLabel(grant)} kostenlos Premium bekommen. Premium ist ab sofort aktiv.`;
 }
 
-export async function adminUsers(user, chatId, messageId) {
-    if (!isAdmin(user))
-        return;
-    const { data: users, error } = await db
-        .from("bot_users")
+const ADMIN_PAGE_SIZE = 8;
+const ADMIN_FILTERS = new Set(["all", "free", "premium", "blocked"]);
+
+async function adminDirectory() {
+    const { data: users, error } = await db.from("bot_users")
         .select("id,telegram_user_id,first_name,last_name,username,is_active,plan_override,plan_override_expires_at,referral_bonus_until,created_at")
-        .order("created_at");
-    if (error)
-        throw error;
-    const ids = (users || []).map((entry) => entry.id);
+        .order("created_at", { ascending: false });
+    if (error) throw error;
+    const ids = (users || []).map(entry => entry.id);
     let subscriptions = [];
     if (ids.length) {
-        const { data, error: subscriptionError } = await db
-            .from("user_subscriptions")
-            .select("user_id,status,current_period_end")
-            .in("user_id", ids);
-        if (subscriptionError)
-            throw subscriptionError;
+        const { data, error: subscriptionError } = await db.from("user_subscriptions")
+            .select("user_id,status,current_period_end").in("user_id", ids);
+        if (subscriptionError) throw subscriptionError;
         subscriptions = data || [];
     }
-    const subscriptionByUser = new Map(subscriptions.map((entry) => [String(entry.user_id), entry]));
-    const rows = (users || []).map((entry) => {
-        const premium = effectivePremiumFor(entry, subscriptionByUser.get(String(entry.id)));
-        const name = short([entry.first_name, entry.last_name].filter(Boolean).join(" ") ||
-            entry.username ||
-            String(entry.telegram_user_id), 34);
-        return [
-            button(`${entry.is_active ? (premium ? "💎" : "▫️") : "🚫"} ${name} · ${entry.is_active ? (premium ? "PREMIUM" : "FREE") : "GESPERRT"}`, `admin:user:${entry.id}`),
-        ];
+    const subscriptionByUser = new Map(subscriptions.map(entry => [String(entry.user_id), entry]));
+    return (users || []).map(entry => ({
+        ...entry, premium: effectivePremiumFor(entry, subscriptionByUser.get(String(entry.id))),
+    }));
+}
+
+export async function adminUsers(user, chatId, messageId, filter = "all", page = 0) {
+    if (!isAdmin(user)) return;
+    const users = await adminDirectory();
+    filter = ADMIN_FILTERS.has(filter) ? filter : "all";
+    const counts = {
+        all: users.length,
+        free: users.filter(u => u.is_active && !u.premium).length,
+        premium: users.filter(u => u.is_active && u.premium).length,
+        blocked: users.filter(u => !u.is_active).length,
+    };
+    const visible = users.filter(u => filter === "all" || (filter === "free" && u.is_active && !u.premium)
+        || (filter === "premium" && u.is_active && u.premium) || (filter === "blocked" && !u.is_active));
+    const pages = Math.max(1, Math.ceil(visible.length / ADMIN_PAGE_SIZE));
+    page = Math.max(0, Math.min(pages - 1, Number.isInteger(Number(page)) ? Number(page) : 0));
+    const rows = visible.slice(page * ADMIN_PAGE_SIZE, (page + 1) * ADMIN_PAGE_SIZE).map(entry => {
+        const name = short([entry.first_name, entry.last_name].filter(Boolean).join(" ")
+            || entry.username || String(entry.telegram_user_id), 28);
+        const state = !entry.is_active ? "🚫" : entry.premium ? "💎" : "▫️";
+        return [button(state + " " + name, "admin:user:" + entry.id)];
     });
-    if (!rows.length)
-        rows.push([button("Keine Nutzer", "noop")]);
-    const blocked = (users || []).filter((entry) => !entry.is_active).length;
-    const text = `🔒 <b>Admin</b>\n\nNutzer: ${users?.length || 0} · gesperrt: ${blocked}`;
-    const markup = { inline_keyboard: rows };
-    return messageId
-        ? edit(chatId, messageId, text, markup)
-        : send(chatId, text, markup);
+    const filterButton = (label, key) => button((filter === key ? "✓ " : "") + label, "admin:list:" + key + ":0");
+    rows.unshift([filterButton("Alle " + counts.all, "all"), filterButton("Free " + counts.free, "free")],
+        [filterButton("Premium " + counts.premium, "premium"), filterButton("Gesperrt " + counts.blocked, "blocked")]);
+    if (!visible.length) rows.push([button("Keine Nutzer", "noop")]);
+    if (pages > 1) {
+        const nav = [];
+        if (page > 0) nav.push(button("← Zurück", "admin:list:" + filter + ":" + (page - 1)));
+        if (page < pages - 1) nav.push(button("Weiter →", "admin:list:" + filter + ":" + (page + 1)));
+        rows.push(nav);
+    }
+    rows.push([button("🎁 Free-Nutzern 7 Tage Premium geben", "admin:reset:preview")]);
+    const text = "🛡 <b>Admin · Nutzer</b>\n\n"
+        + "Nutzer: " + counts.all + " · Free: " + counts.free
+        + " · Premium: " + counts.premium + " · gesperrt: " + counts.blocked
+        + "\nSeite " + (page + 1) + " von " + pages;
+    return messageId ? edit(chatId, messageId, text, { inline_keyboard: rows })
+        : send(chatId, text, { inline_keyboard: rows });
+}
+
+// Same eligibility rule is applied at preview and inside the atomic UPDATE.
+// Active subscriptions, referral bonuses and unexpired grants are never overwritten.
+const RESET_FREE_WHERE = `p.status='active'
+    AND NOT (p.plan_override='premium' AND
+        (p.plan_override_expires_at IS NULL OR julianday(p.plan_override_expires_at)>julianday(?)))
+    AND NOT (p.referral_bonus_until IS NOT NULL AND julianday(p.referral_bonus_until)>julianday(?))
+    AND NOT EXISTS (
+        SELECT 1 FROM user_subscriptions s
+        WHERE s.participant_id=p.id AND s.provider='stripe'
+          AND s.status IN ('active','trialing')
+          AND (s.current_period_end IS NULL OR julianday(s.current_period_end)>julianday(?))
+    )`;
+
+export async function previewFreePremiumReset(user, chatId, messageId) {
+    if (!isAdmin(user)) return;
+    const now = new Date().toISOString();
+    const result = await runtimeEnv().HOUSING_DB.prepare(
+        "SELECT COUNT(*) AS eligible FROM participants p WHERE " + RESET_FREE_WHERE
+    ).bind(now, now, now).first();
+    const eligible = Number(result?.eligible || 0);
+    const rows = eligible ? [
+        [button("✅ " + eligible + " Free-Nutzern 7 Tage geben", "admin:reset:confirm")],
+        [button("← Abbrechen", "admin:list")],
+    ] : [[button("← Admin", "admin:list")]];
+    return edit(chatId, messageId,
+        "🎁 <b>Premium-Reset · Bestätigung</b>\n\n"
+        + "Berechtigte aktive Free-Nutzer: <b>" + eligible + "</b>\n"
+        + "Bereits bestehendes Premium wird nicht verändert.\n\n"
+        + (eligible ? "Nach Bestätigung erhalten diese Nutzer 7 Tage Premium und eine Telegram-Nachricht."
+            : "Aktuell sind keine Free-Nutzer berechtigt."),
+        { inline_keyboard: rows });
+}
+
+export async function executeFreePremiumReset(user, chatId, messageId) {
+    if (!isAdmin(user)) return;
+    const now = new Date().toISOString();
+    const expires = adminGrantExpiry("7d", new Date(now));
+    // D1 applies the entitlement change atomically and RETURNING contains only
+    // newly upgraded accounts. Repeated button presses cannot grant twice.
+    const result = await runtimeEnv().HOUSING_DB.prepare(
+        `UPDATE participants SET plan_override='premium',
+            plan_override_expires_at=?, updated_at=CURRENT_TIMESTAMP
+          WHERE id IN (SELECT p.id FROM participants p WHERE ${RESET_FREE_WHERE})
+          RETURNING id,telegram_chat_id`
+    ).bind(expires, now, now, now).all();
+    const upgraded = result.results || [];
+    let sent = 0, failed = 0, noChat = 0;
+    for (const recipient of upgraded) {
+        if (!recipient.telegram_chat_id) { noChat++; continue; }
+        try {
+            await send(Number(recipient.telegram_chat_id),
+                "🎁 <b>7 Tage Premium geschenkt!</b>\n\n"
+                + "Dein Premium-Zugang ist ab sofort für sieben Tage aktiviert. "
+                + "Viel Erfolg bei der Wohnungssuche!");
+            sent++;
+        } catch (error) {
+            failed++;
+            console.error("admin_free_premium_reset_notice", String(error?.message || error));
+        }
+        if (upgraded.length > 1) await new Promise(resolve => setTimeout(resolve, 45));
+    }
+    return edit(chatId, messageId, "✅ <b>Premium-Reset abgeschlossen</b>\n\n"
+        + "Neu aktiviert: " + upgraded.length + "\n"
+        + "Benachrichtigt: " + sent + "\n"
+        + "Nachricht fehlgeschlagen: " + failed + "\n"
+        + "Ohne Telegram-Chat: " + noChat + "\n\n"
+        + "Bestehende Premium-Zugänge blieben unverändert.",
+        { inline_keyboard: [[button("← Admin", "admin:list")]] });
 }
 
 export async function adminUser(user, chatId, messageId, userId) {

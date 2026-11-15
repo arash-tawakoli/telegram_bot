@@ -2,21 +2,22 @@ import { platformSessions, handleAutoApplyMessage, clearPendingField } from './p
 import { adminTokenStatus, adminTokenStart, adminTokenRefresh } from '../coach-api.js';
 import { createD1Client } from '../d1-database.js';
 import { refreshImmomioSession } from '../immomio-application.js';
-import { isAdmin, adminGrantLabel, adminPremiumNotice, adminUsers, adminUser, setUserBlocked, deleteUser, setPlanOverride, ANNOUNCEMENT_PROMPT, createAnnouncementDraft, cancelAnnouncement, sendAnnouncement } from "./admin.js";
+import { isAdmin, adminGrantLabel, adminPremiumNotice, adminUsers, adminUser, previewFreePremiumReset, executeFreePremiumReset, setUserBlocked, deleteUser, setPlanOverride, ANNOUNCEMENT_PROMPT, createAnnouncementDraft, cancelAnnouncement, sendAnnouncement } from "./admin.js";
 import { homeKeyboard, home, premium, setPaused, referralPage, settings, languageMenu, QUICK_ACTIONS, showQuickActions } from "./navigation.js";
 import { draftFor, validateDraft, renderTypes, renderLocation, renderBoroughs, renderNeighborhoods, renderSchleswigHolsteinAreas, renderRent, renderCustomRent, renderRooms, renderArea, renderReview, renderReviewEdit, renderStep, afterSelection, persistProfile, profileLimit, draftFromProfile, startNewProfile, profileEditMenu, profile, renderStatus, nextSizeStep } from "./profiles.js";
 import { db, PREMIUM_LINK, PROPERTY_TYPES, RENT_PRESETS, ROOM_PRESETS, AREA_PRESETS, NEIGHBORHOODS_PER_PAGE, button, cancelRow, backRow, runtimeEnv, esc, secret, telegram, send, sendCelebration, edit, acknowledge, saveState, geography, HELP_TEXT } from "./runtime.js";
 
 const PUBLIC_COMMANDS = [
     { command: "start", description: "Startmenü" },
+    { command: "premium", description: "Premium" },
+    { command: "einstellungen", description: "Einstellungen" },
+    { command: "hilfe", description: "Hilfe & Support" },
+    { command: "sprache", description: "Sprache" },
     { command: "suche", description: "Suchprofil erstellen" },
     { command: "suchprofile", description: "Suchprofile anzeigen" },
-    { command: "einstellungen", description: "Einstellungen" },
     { command: "pause", description: "Suche pausieren" },
     { command: "fortsetzen", description: "Suche fortsetzen" },
     { command: "status", description: "Systemstatus" },
-    { command: "premium", description: "Premium anzeigen" },
-    { command: "hilfe", description: "Hilfe" },
 ];
 
 function helpFor(user) {
@@ -278,7 +279,7 @@ export async function handleMessage(message, user) {
     if (!user.language_selected_at && command !== "/start" && command !== "/commands")
         return languageMenu(user, chatId);
     if (command === "/admin") {
-        if (!isAdmin(user))
+        if (!isAdmin(user) || message.chat?.type !== "private" || chatId !== Number(user.telegram_user_id))
             return;
         return adminUsers(user, chatId);
     }
@@ -341,6 +342,9 @@ export async function handleMessage(message, user) {
         return profile(user, chatId);
     if (command === "/einstellungen" || command === "/settings") {
         return settings(user, chatId);
+    }
+    if (command === "/sprache" || command === "/language") {
+        return languageMenu(user, chatId);
     }
     if (command === "/pause") {
         await setPaused(user.id, true);
@@ -434,11 +438,21 @@ export async function handleCallback(query, user) {
         return query.message?.chat?.type === "private" ? languageMenu(user, chatId, messageId) : undefined;
     }
     if (data.startsWith("admin:")) {
-        if (!isAdmin(user))
+        if (!isAdmin(user) || query.message?.chat?.type !== "private"
+            || chatId !== Number(user.telegram_user_id))
             return ack();
-        if (data === "admin:list") {
+        if (data === "admin:list" || data.startsWith("admin:list:")) {
             await ack();
-            return adminUsers(user, chatId, messageId);
+            const [, , filter = "all", page = "0"] = data.split(":");
+            return adminUsers(user, chatId, messageId, filter, Number(page));
+        }
+        if (data === "admin:reset:preview" || data === "admin:reset:confirm") {
+            if (query.message?.chat?.type !== "private" || chatId !== Number(user.telegram_user_id))
+                return ack();
+            await ack(data.endsWith("confirm") ? "Premium-Reset wird durchgeführt" : undefined);
+            return data.endsWith("confirm")
+                ? executeFreePremiumReset(user, chatId, messageId)
+                : previewFreePremiumReset(user, chatId, messageId);
         }
         if (data.startsWith("admin:announcement-send:")) {
             const announcementId = data.slice("admin:announcement-send:".length);

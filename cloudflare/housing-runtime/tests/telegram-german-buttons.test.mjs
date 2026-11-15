@@ -97,8 +97,8 @@ test("only the home preview translates while all buttons and settings remain Ger
   try {
     const root = homeKeyboard(x.user).inline_keyboard;
     assert.deepEqual(root.map(row => row[0].callback_data),
-      ["profile", "platforms:profile-new", "platforms", "premium", "settings"]);
-    assert.equal(root[3][0].text, "💎 Mein Premium");
+      ["profile", "platforms:profile-new", "platforms"]);
+    assert.equal(root.some(row => /premium|settings/.test(row[0].callback_data)), false);
     await home(x.user, 777);
     assert.match(lastMessage(x).text, /What is it\?/);
     assert.match(lastMessage(x).text, /Create a search profile/);
@@ -136,6 +136,11 @@ test("the help callback returns to settings and German commands are registered",
     assert.ok(commands.some(c => c.command === "suchprofile"));
     assert.ok(commands.some(c => c.command === "fortsetzen"));
     assert.equal(commands.some(c => c.command === "resume"), false);
+    for(const [command,description] of [["premium","Premium"],["einstellungen","Einstellungen"],["hilfe","Hilfe & Support"],["sprache","Sprache"]]){
+      assert.ok(commands.some(c=>c.command===command&&c.description===description),command);
+    }
+    await handleMessage({chat:x.chat,text:"/sprache"},x.user);
+    assert.match(lastMessage(x).text,/Sprache auswählen/);
   } finally { x.done(); }
 });
 
@@ -312,13 +317,14 @@ test("auto-apply menu exposes only supported provider actions and non-mutating s
     x.sqlite.exec("UPDATE participants SET test_auto_apply_enabled=1,test_auto_apply_daily_limit=1 WHERE id='owner'");
     await platformSessions(x.user, x.chat, 21, "platforms");
     const controls = lastMessage(x).reply_markup.inline_keyboard.flat().map(b => b.callback_data);
-    assert.ok(controls.includes("platforms:test-status"), "test access was a no-op");
+    assert.equal(controls.includes("platforms:test-status"), false, "personal test button remains hidden");
     assert.ok(controls.includes("platforms:provider:3"), "Immomio central source missing");
     assert.ok(controls.includes("platforms:provider:4"), "Immowelt central source missing");
     assert.ok(!controls.some(value => String(value || "").startsWith("platforms:login:")), "personal provider login must remain hidden");
-    assert.ok(controls.includes("platforms:test:off"), "deactivation missing");
+    assert.equal(controls.some(value=>String(value||"").startsWith("platforms:test:")), false);
     assert.ok(controls.includes("home"), "back to start missing");
-    assert.ok(!controls.includes("platforms:on"), "normal auto-apply must remain disabled in test mode");
+    assert.ok(controls.includes("platforms:on"), "start all missing");
+    assert.ok(controls.includes("platforms:off"), "pause all missing");
     assert.ok(!controls.includes("noop"), "a visible provider control must not be a no-op");
   } finally { x.done(); }
 });
@@ -820,16 +826,16 @@ test("unchanged Telegram callbacks avoid participant identity writes and redunda
  }finally{x.done();}
 });
 
-test("persistent quick-access keyboard has exactly the four agreed labels in a 2×2 layout",()=>{
+test("persistent quick-access keyboard keeps only profile and Auto-Bewerbung",()=>{
  const keys=quickActionsKeyboard();
  assert.deepEqual(keys.keyboard.map(row=>row.map(b=>b.text)),[
-  ["💎 Premium","⚡ Auto-Bewerbung"],
-  ["👤 Mein Profil","❓ Hilfe & Support"],
+  ["⚡ Auto-Bewerbung","👤 Mein Profil"],
  ]);
  assert.equal(keys.is_persistent,true);
  assert.equal(keys.resize_keyboard,true);
  assert.equal(keys.one_time_keyboard,false);
- assert.deepEqual(Object.values(QUICK_ACTIONS),keys.keyboard.flat().map(b=>b.text));
+ assert.deepEqual(keys.keyboard.flat().map(b=>b.text),[QUICK_ACTIONS.autoApply,QUICK_ACTIONS.profile]);
+ assert.ok(!keys.keyboard.flat().some(b=>/Premium|Einstellungen|Hilfe/.test(b.text)));
 });
 
 test("/start installs the persistent reply keyboard without replacing the inline home menu",async()=>{
@@ -840,11 +846,11 @@ test("/start installs the persistent reply keyboard without replacing the inline
   assert.equal(messages.length,2,"quick keyboard and existing home preview are distinct Telegram messages");
   assert.equal(messages[0].body.reply_markup.is_persistent,true);
   assert.deepEqual(messages[0].body.reply_markup.keyboard.map(row=>row.map(b=>b.text)),[
-   ["💎 Premium","⚡ Auto-Bewerbung"],["👤 Mein Profil","❓ Hilfe & Support"]
+   ["⚡ Auto-Bewerbung","👤 Mein Profil"]
   ]);
   assert.match(messages[1].body.text,/Traumwohnung Hamburg/);
   assert.deepEqual(messages[1].body.reply_markup.inline_keyboard.map(row=>row[0].callback_data),
-   ["profile","platforms:profile-new","platforms","premium","settings"]);
+   ["profile","platforms:profile-new","platforms"]);
  }finally{x.done();}
 });
 
@@ -862,7 +868,7 @@ test("first language selection unlocks bottom quick keys only after onboarding, 
   },fresh);
   const keys=x.sent.filter(item=>item.method==="sendMessage"&&item.body.reply_markup?.keyboard);
   assert.equal(keys.length,1);
-  assert.equal(keys[0].body.reply_markup.keyboard[0][0].text,"💎 Premium");
+  assert.equal(keys[0].body.reply_markup.keyboard[0][0].text,"⚡ Auto-Bewerbung");
   assert.match(lastMessage(x).text,/What is it/);
   await handleCallback({
    id:"change-language",data:"language:set:de",from:{id:777},
@@ -923,4 +929,88 @@ test("quick navigation cancels an incomplete custom-rent step before opening ano
   assert.equal(saved._step,null);
   assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM search_profiles WHERE participant_id='owner'").get().n,0);
  }finally{x.done();}
+});
+
+
+test("admin user directory is paginated and can filter Free users without flooding Telegram buttons", async()=>{
+  const x=setup();
+  try{
+    const add=x.sqlite.prepare("INSERT INTO participants(id,first_name,last_name,telegram_user_id,telegram_chat_id,status) VALUES(?,?,?,?,?,?)");
+    for(let i=0;i<22;i++)add.run("dir-"+i,"Nutzer",""+i,1000+i,1000+i,i<2?"archived":"active");
+    const admin={...x.user,telegram_user_id:8538226539,chat_id:8538226539};
+    const chat={id:8538226539,type:"private"};
+    await handleMessage({chat,text:"/admin"},admin);
+    const initial=lastMessage(x).reply_markup.inline_keyboard.flat();
+    assert.ok(initial.length<=14, "admin user list must remain compact");
+    assert.ok(initial.some(b=>b.callback_data==="admin:list:free:0"));
+    assert.ok(initial.some(b=>b.callback_data==="admin:reset:preview"));
+    assert.ok(initial.some(b=>b.callback_data==="admin:list:all:1"));
+    await handleCallback({id:"filter-admin",data:"admin:list:free:1",from:{id:8538226539},message:{chat,message_id:101}},admin);
+    const page=lastMessage(x);
+    assert.match(page.text,/Seite 2 von/);
+    assert.ok(page.reply_markup.inline_keyboard.flat().every(b=>b.callback_data!=="admin:user:dir-0"));
+  }finally{x.done()}
+});
+
+test("confirmed Premium reset grants seven days only to active Free users and sends one notification",async()=>{
+  const x=setup();
+  try{
+    const add=x.sqlite.prepare("INSERT INTO participants(id,first_name,last_name,telegram_user_id,telegram_chat_id,status,plan_override,plan_override_expires_at,referral_bonus_until) VALUES(?,?,?,?,?,?,?,?,?)");
+    const future=new Date(Date.now()+10*86400000).toISOString(),past=new Date(Date.now()-86400000).toISOString();
+    add.run("free-a","Free","A",1001,1001,"active",null,null,null);
+    add.run("free-b","Free","B",1002,1002,"active",null,null,null);
+    add.run("paid","Paid","C",1003,1003,"active",null,null,null);
+    add.run("referral","Referral","D",1004,1004,"active",null,null,future);
+    add.run("existing","Existing","E",1005,1005,"active","premium",future,null);
+    add.run("expired","Expired","F",1006,1006,"active","premium",past,null);
+    add.run("blocked","Blocked","G",1007,1007,"archived",null,null,null);
+    x.sqlite.exec("INSERT INTO user_subscriptions(id,participant_id,provider,status) VALUES ('stripe-paid','paid','stripe','active')");
+    const admin={...x.user,telegram_user_id:8538226539,chat_id:8538226539};
+    const chat={id:8538226539,type:"private"};
+    const callback=async(action)=>handleCallback({id:"reset-"+action,data:action,from:{id:8538226539},message:{chat,message_id:99}},admin);
+    await callback("admin:reset:preview");
+    assert.match(lastMessage(x).text,/Berechtigte aktive Free-Nutzer: <b>3<\/b>/);
+    assert.ok(lastMessage(x).reply_markup.inline_keyboard.flat().some(b=>b.callback_data==="admin:reset:confirm"));
+    await callback("admin:reset:confirm");
+    assert.match(lastMessage(x).text,/Neu aktiviert: 3/);
+    for(const id of ["free-a","free-b","expired"]){
+      const row=x.sqlite.prepare("SELECT plan_override,plan_override_expires_at FROM participants WHERE id=?").get(id);
+      assert.equal(row.plan_override,"premium",id);
+      const days=(Date.parse(row.plan_override_expires_at)-Date.now())/86400000;
+      assert.ok(days>6.95&&days<7.01,id);
+    }
+    assert.equal(x.sqlite.prepare("SELECT plan_override FROM participants WHERE id='paid'").get().plan_override,null);
+    assert.equal(x.sqlite.prepare("SELECT plan_override FROM participants WHERE id='referral'").get().plan_override,null);
+    assert.equal(x.sqlite.prepare("SELECT plan_override_expires_at FROM participants WHERE id='existing'").get().plan_override_expires_at,future);
+    assert.equal(x.sqlite.prepare("SELECT plan_override FROM participants WHERE id='blocked'").get().plan_override,null);
+    const notify=x.sent.filter(item=>item.method==="sendMessage"&&[1001,1002,1006].includes(item.body.chat_id));
+    assert.equal(notify.length,3);
+    assert.ok(notify.every(x=>/7 Tage Premium/.test(x.body.text)));
+    await callback("admin:reset:confirm");
+    assert.match(lastMessage(x).text,/Neu aktiviert: 0/);
+    assert.equal(x.sent.filter(item=>item.method==="sendMessage"&&[1001,1002,1006].includes(item.body.chat_id)).length,3,
+      "a repeated confirmation must never resend or extend grants");
+  }finally{x.done()}
+});
+
+test("bulk AutoApply starts and pauses all source send preferences without changing search profiles",async()=>{
+ const x=setup();
+ try{
+  x.sqlite.prepare("INSERT INTO applicant_profiles(participant_id,profile) VALUES('owner',?)").run(JSON.stringify({
+   first_name:"Anna",last_name:"B",email:"anna@example.com",phone:"+491700000000",street:"Test",house_number:"1",
+   postcode:"20099",city:"Hamburg",salutation:"MS",household_type:"SINGLE",employment_status:"EMPLOYEE",
+   income_range:"NOT_SPECIFIED",pets:"NONE",move_in_preference:"NOT_SPECIFIED",schufa_status:"NOT_SPECIFIED",
+   wbs_status:"NOT_SPECIFIED",message_apartment:"Interesse",message_house:"Interesse",
+   message_temporary_wg:"Interesse",message_swap:"Interesse"
+  }));
+  await platformSessions(x.user,x.chat,51,"platforms:on");
+  const p=x.sqlite.prepare("SELECT immoscout_enabled,immowelt_enabled,immomio_enabled,enabled FROM application_preferences WHERE participant_id='owner'").get();
+  assert.deepEqual([p.immoscout_enabled,p.immowelt_enabled,p.immomio_enabled,p.enabled],[1,1,1,1]);
+  assert.equal(x.sqlite.prepare("SELECT auto_apply_enabled FROM participants WHERE id='owner'").get().auto_apply_enabled,1);
+  await platformSessions(x.user,x.chat,51,"platforms:off");
+  const q=x.sqlite.prepare("SELECT immoscout_enabled,immowelt_enabled,immomio_enabled,enabled FROM application_preferences WHERE participant_id='owner'").get();
+  assert.deepEqual([q.immoscout_enabled,q.immowelt_enabled,q.immomio_enabled,q.enabled],[0,0,0,0]);
+  assert.equal(x.sqlite.prepare("SELECT auto_apply_enabled FROM participants WHERE id='owner'").get().auto_apply_enabled,0);
+  assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM search_profiles").get().n,0);
+ }finally{x.done()}
 });

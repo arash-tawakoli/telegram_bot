@@ -123,5 +123,6 @@ export function listingKeyboard(facts, listingUrl, sourceId, sourceName) {
     [{ text: "Zu " + sourceLabel(sourceId, sourceName), url: destination }],
     [{ text: "⭐ Speichern", url: "https://t.me/share/url?url=" + encodeURIComponent(destination) }],
     [{ text: "🗺️ Google Map", url: "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(location) }],
+    [{ text: "📤 Teilen", url: "https://t.me/share/url?url=" + encodeURIComponent(destination) + "&text=" + encodeURIComponent(listingHeadline(facts)) }],
   ] };
 }
