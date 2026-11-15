@@ -865,10 +865,10 @@ test("persistent quick-access keyboard has Premium, Sprache, Einstellungen and G
  assert.equal(keys.keyboard.flat().some(b=>/Auto-Bewerbung|Mein Profil/.test(b.text)),false);
 });
 
-test("/start restores the four shortcuts for users on the previous keyboard version",async()=>{
+test("/start restores four missing shortcuts from version 2 exactly once; /commands always reinstalls",async()=>{
  const x=setup();
  try{
-  x.sqlite.prepare("UPDATE participants SET reply_keyboard_version=1 WHERE id='owner'").run();
+  x.sqlite.prepare("UPDATE participants SET reply_keyboard_version=2 WHERE id='owner'").run();
   await handleMessage({chat:x.chat,text:"/start"},x.user);
   const messages=x.sent.filter(item=>item.method==="sendMessage");
   assert.equal(messages.length,2,"quick keyboard and existing home preview are distinct Telegram messages");
@@ -884,7 +884,7 @@ test("/start restores the four shortcuts for users on the previous keyboard vers
   await handleMessage({chat:x.chat,text:"/start"},x.user);
   assert.equal(x.sent.filter(item=>item.method==="sendMessage"&&item.body.reply_markup?.keyboard).length,1,
    "the persistent reply keyboard must not produce another setup message on later /start");
-  assert.equal(x.sqlite.prepare("SELECT reply_keyboard_version AS version FROM participants WHERE id='owner'").get().version,2);
+  assert.equal(x.sqlite.prepare("SELECT reply_keyboard_version AS version FROM participants WHERE id='owner'").get().version,3);
   await handleMessage({chat:x.chat,text:"/commands"},x.user);
   const reinstalls=x.sent.filter(item=>item.method==="sendMessage"&&item.body.reply_markup?.keyboard);
   assert.equal(reinstalls.length,2,"/commands reinstalls the keyboard explicitly if the client has hidden it");

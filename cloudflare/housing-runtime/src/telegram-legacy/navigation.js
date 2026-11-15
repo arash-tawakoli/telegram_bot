@@ -23,7 +23,7 @@ export function quickActionsKeyboard() {
   };
 }
 
-const REPLY_KEYBOARD_VERSION = 2;
+const REPLY_KEYBOARD_VERSION = 3;
 
 export async function showQuickActions(chatId, user, { force = false } = {}) {
   const database = runtimeEnv()?.HOUSING_DB;
