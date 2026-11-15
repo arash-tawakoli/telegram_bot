@@ -2,6 +2,7 @@ import { hashPassword, memberForAccess } from "./auth.js";
 import { assertAllowedSource } from "./source-allowlist.js";
 import { fetchImmoScoutSource, fetchImmoScoutMap, germanImmoScoutQuery } from "./immoscout-source.js";
 import { issueProviderAuthFlow, centralCall } from "./provider-facade.js";
+import { getCentralProviderCredentials } from "./central-provider-credentials.js";
 
 const HEADERS = {
   "content-type": "application/json; charset=utf-8",
@@ -307,17 +308,30 @@ export async function adminTokenStatus(sql, env) {
     centralCall(env, "/internal/status", {}, "GET"),
     ownerParticipant(sql),
   ]);
-  const rows = ownerId ? await sql`
+  let rows = ownerId ? await sql`
     SELECT provider, status, account_hint, expires_at, updated_at
     FROM housing.provider_connections
     WHERE participant_id = ${ownerId} AND provider IN ('immowelt', 'immomio')
   ` : [];
+  // Refresh only near-expired connected central tokens. Status checks never require a browser.
+  const refreshable = rows.filter(row =>
+    row.status === "connected" && row.expires_at
+    && Date.parse(row.expires_at) < Date.now() + 60_000);
+  if (refreshable.length) {
+    await Promise.all(refreshable.map(row =>
+      getCentralProviderCredentials(sql, env, row.provider).catch(() => null)));
+    rows = await sql`
+      SELECT provider, status, account_hint, expires_at, updated_at
+      FROM housing.provider_connections
+      WHERE participant_id = ${ownerId} AND provider IN ('immowelt', 'immomio')
+    `;
+  }
   const connection = name => rows.find(row => row.provider === name) || {};
   return {
     immoscout24: { scope: "central", configured: scout.configured === true, status: scout.status || "disconnected", account_hint: scout.account_hint || null, enabled: scout.enabled === true, expires_at: scout.expires_at || null, last_verified_at: scout.last_verified_at || null },
     ...Object.fromEntries(["immowelt", "immomio"].map(name => {
       const row = connection(name);
-      const expired = name === "immowelt" && row.expires_at && Date.parse(row.expires_at) <= Date.now();
+      const expired = row.expires_at && Date.parse(row.expires_at) <= Date.now();
       const status = expired ? "needs_login" : (row.status || "disconnected");
       return [name, { scope: "central", configured: status === "connected", status, account_hint: row.account_hint || null, expires_at: row.expires_at || null }];
     })),
