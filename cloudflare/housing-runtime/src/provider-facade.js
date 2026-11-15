@@ -442,7 +442,7 @@ async function action(sql, env, body) {
     participantLabel: info.participantLabel,
     origin: flow.origin, returnTarget: flow.return_target, expiresAt: flow.expires_at,
     ...(flow.provider === "immomio" ? {
-      requiresManualCallback: true, callbackTransport: "manual-provider-pkce",
+      requiresManualCallback: false, callbackTransport: "direct-token",
     } : {}),
   };
   if (name === "provider_web") {
