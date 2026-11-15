@@ -9,14 +9,15 @@ import { db, PREMIUM_LINK, PROPERTY_TYPES, RENT_PRESETS, ROOM_PRESETS, AREA_PRES
 
 const PUBLIC_COMMANDS = [
     { command: "start", description: "Startmenü" },
+    { command: "premium", description: "Premium" },
+    { command: "einstellungen", description: "Einstellungen" },
+    { command: "hilfe", description: "Hilfe & Support" },
+    { command: "sprache", description: "Sprache" },
     { command: "suche", description: "Suchprofil erstellen" },
     { command: "suchprofile", description: "Suchprofile anzeigen" },
-    { command: "einstellungen", description: "Einstellungen" },
     { command: "pause", description: "Suche pausieren" },
     { command: "fortsetzen", description: "Suche fortsetzen" },
     { command: "status", description: "Systemstatus" },
-    { command: "premium", description: "Premium anzeigen" },
-    { command: "hilfe", description: "Hilfe" },
 ];
 
 function helpFor(user) {
@@ -341,6 +342,9 @@ export async function handleMessage(message, user) {
         return profile(user, chatId);
     if (command === "/einstellungen" || command === "/settings") {
         return settings(user, chatId);
+    }
+    if (command === "/sprache" || command === "/language") {
+        return languageMenu(user, chatId);
     }
     if (command === "/pause") {
         await setPaused(user.id, true);
