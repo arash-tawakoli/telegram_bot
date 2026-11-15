@@ -164,6 +164,11 @@ test("new fresh matches queue AutoApply for complete premium profiles without pe
   assert.equal(calls.some(call => call.query.includes("INSERT INTO housing.applications")), true);
   assert.equal(calls.some(call => call.query.includes("INSERT INTO housing.application_dedupe_keys")), true);
 
+  const beforeBlocked = calls.length;
+  assert.equal(await queueMatches(sql, "offer-disabled", 23, "23:external:disabled", { ...apartment, canonical_url: "https://tenant.immomio.com/de/apply/12345678-1234-4234-8234-123456789012" }, false), 1);
+  assert.equal(calls.slice(beforeBlocked).some(call => call.query.includes("INSERT INTO housing.applications")), false,
+    "central rollout disabled must not enqueue applications");
+
   testMode = true;
   const beforeTestMode = calls.length;
   assert.equal(await queueMatches(sql, "offer-test", 23, "hash-test", { ...apartment, canonical_url: "https://tenant.immomio.com/de/apply/12345678-1234-4234-8234-123456789012" }), 1);
