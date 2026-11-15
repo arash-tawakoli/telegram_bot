@@ -120,7 +120,7 @@ function berlinDayStartISO(now = new Date()) {
   return new Date(utcMidnight.getTime() - offsetMinutes * 60_000).toISOString().replace("T", " ").replace("Z", "").slice(0, 19);
 }
 
-export async function queueMatches(sql, offerId, sourceId, identityHash, facts) {
+export async function queueMatches(sql, offerId, sourceId, identityHash, facts, centralAutoApplyEnabled = true) {
   const source = sourceForId(sourceId);
   if (source?.delivery_mode !== "live") return 0;
   const targetProvider = applicationProvider(source, facts);
