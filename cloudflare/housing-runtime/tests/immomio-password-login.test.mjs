@@ -99,6 +99,7 @@ test("Immomio direct login verifies the account, encrypts tokens and never store
     assert.equal(params.get("username"), "owner@example.com");
     assert.equal(params.get("password"), "example-only-password");
     assert.equal(params.get("totp"), "123456");
+    assert.equal(params.get("scope"), "openid profile email offline_access");
     const saved = writes.find(x => x.query.includes("UPDATE provider_connections"));
     assert.ok(saved);
     const decrypted = await decryptProviderCredentials(credentialEnv,
@@ -193,11 +194,14 @@ test("central Immowelt logs in with the existing server form and stores only enc
       const params = new URLSearchParams(init.body);
       assert.equal(params.get("username"), "owner@example.com");
       assert.equal(params.get("password"), "portal-secret");
-      return redirect("https://www.immowelt.de/step", "oauth.access.token=immowelt-session-token; Domain=.immowelt.de; Path=/; HttpOnly; Secure; Max-Age=3600");
+      return redirect("https://www.immowelt.de/step", "iw-session=opaque; Domain=.immowelt.de; Path=/; HttpOnly; Secure");
     }
-    if (url === "https://www.immowelt.de/step")
-      return redirect("https://www.immowelt.de/account", "oauth.access.expiration=" + expires + "; Domain=.immowelt.de; Path=/; Secure; Max-Age=3600");
-    if (url === "https://www.immowelt.de/account") return new Response("account");
+    if (url === "https://www.immowelt.de/step") return new Response("account");
+    if (url === "https://signin.immowelt.de/refresh")
+      return redirect("https://www.immowelt.de/refresh-token", "oauth.access.token=immowelt-session-token; Domain=.immowelt.de; Path=/; HttpOnly; Secure; Max-Age=3600");
+    if (url === "https://www.immowelt.de/refresh-token")
+      return redirect("https://www.immowelt.de/refresh-finish", "oauth.access.expiration=" + expires + "; Domain=.immowelt.de; Path=/; Secure; Max-Age=3600");
+    if (url === "https://www.immowelt.de/refresh-finish") return new Response("account");
     throw new Error("unexpected endpoint " + url);
   };
   await withFetch(stub, async () => {
@@ -210,6 +214,7 @@ test("central Immowelt logs in with the existing server form and stores only enc
     const sent = calls.find((call) => call.url.endsWith("/login/submit"));
     assert.ok(sent);
     assert.equal(new URL(sent.url).hostname, "signin.immowelt.de");
+    assert.ok(calls.some((call) => call.url === "https://signin.immowelt.de/refresh"));
     const saved = writes.find((write) => write.query.includes("UPDATE provider_connections"));
     assert.ok(saved);
     const credentials = await decryptProviderCredentials(credentialEnv,
