@@ -317,8 +317,9 @@ export async function handleMessage(message, user) {
         }
         await syncTelegramCommands(user, chatId);
         if (!user.language_selected_at) return languageMenu(user, chatId);
-        // Install the updated reply keyboard only once per participant.
-        await showQuickActions(chatId, user);
+        // /start restores outdated shortcuts once; /commands can reinstall
+        // the keyboard if Telegram has hidden or removed it.
+        await showQuickActions(chatId, user, { force: command === "/commands" });
         return home(user, chatId);
     }
     if (command === "/suche")

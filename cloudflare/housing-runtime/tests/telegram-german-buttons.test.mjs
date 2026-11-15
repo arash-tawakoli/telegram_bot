@@ -865,9 +865,10 @@ test("persistent quick-access keyboard has Premium, Sprache, Einstellungen and G
  assert.equal(keys.keyboard.flat().some(b=>/Auto-Bewerbung|Mein Profil/.test(b.text)),false);
 });
 
-test("/start installs the updated persistent reply keyboard without changing the inline home menu",async()=>{
+test("/start restores the four shortcuts for users on the previous keyboard version",async()=>{
  const x=setup();
  try{
+  x.sqlite.prepare("UPDATE participants SET reply_keyboard_version=1 WHERE id='owner'").run();
   await handleMessage({chat:x.chat,text:"/start"},x.user);
   const messages=x.sent.filter(item=>item.method==="sendMessage");
   assert.equal(messages.length,2,"quick keyboard and existing home preview are distinct Telegram messages");
@@ -876,14 +877,21 @@ test("/start installs the updated persistent reply keyboard without changing the
    ["💎 Premium","🌐 Sprache"],
    ["⚙️ Einstellungen","⭐ Gespeichert"],
   ]);
-  assert.match(messages[0].body.text,/Schnellfunktionen stehen jetzt/);
+  assert.match(messages[0].body.text,/Schnellfunktionen sind wieder verfügbar/);
   assert.match(messages[1].body.text,/Traumwohnung Hamburg/);
   assert.deepEqual(messages[1].body.reply_markup.inline_keyboard.map(row=>row[0].callback_data),
    ["profile","platforms:profile-new","platforms"]);
   await handleMessage({chat:x.chat,text:"/start"},x.user);
   assert.equal(x.sent.filter(item=>item.method==="sendMessage"&&item.body.reply_markup?.keyboard).length,1,
    "the persistent reply keyboard must not produce another setup message on later /start");
-  assert.equal(x.sqlite.prepare("SELECT reply_keyboard_version AS version FROM participants WHERE id='owner'").get().version,1);
+  assert.equal(x.sqlite.prepare("SELECT reply_keyboard_version AS version FROM participants WHERE id='owner'").get().version,2);
+  await handleMessage({chat:x.chat,text:"/commands"},x.user);
+  const reinstalls=x.sent.filter(item=>item.method==="sendMessage"&&item.body.reply_markup?.keyboard);
+  assert.equal(reinstalls.length,2,"/commands reinstalls the keyboard explicitly if the client has hidden it");
+  assert.deepEqual(reinstalls[1].body.reply_markup.keyboard.map(row=>row.map(b=>b.text)),[
+   ["💎 Premium","🌐 Sprache"],
+   ["⚙️ Einstellungen","⭐ Gespeichert"],
+  ]);
  }finally{x.done();}
 });
 
