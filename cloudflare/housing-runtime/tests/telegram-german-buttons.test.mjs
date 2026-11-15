@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import { readFileSync, readdirSync } from "node:fs";
 import { configureLegacyRuntime } from "../src/telegram-legacy/runtime.js";
-import { home, homeKeyboard, settings, premium, referralPage } from "../src/telegram-legacy/navigation.js";
+import { home, homeKeyboard, settings, premium, referralPage, QUICK_ACTIONS, quickActionsKeyboard } from "../src/telegram-legacy/navigation.js";
 import { handleCallback, handleMessage } from "../src/telegram-legacy/handlers.js";
 import { platformSessions, handleAutoApplyMessage } from "../src/telegram-legacy/platform-sessions.js";
 import { homePreview, HOME_LANGUAGES } from "../src/telegram-legacy/home-language.js";
@@ -817,5 +817,110 @@ test("unchanged Telegram callbacks avoid participant identity writes and redunda
   assert.equal(modified.data.user.first_name,"Neuer Name");
   assert.equal(queries.filter(q=>q.includes("UPDATE participants SET telegram_chat_id")).length,1);
   assert.equal(queries.filter(q=>q.includes("SELECT * FROM participants")).length,1);
+ }finally{x.done();}
+});
+
+test("persistent quick-access keyboard has exactly the four agreed labels in a 2×2 layout",()=>{
+ const keys=quickActionsKeyboard();
+ assert.deepEqual(keys.keyboard.map(row=>row.map(b=>b.text)),[
+  ["💎 Premium","⚡ Auto-Bewerbung"],
+  ["👤 Mein Profil","❓ Hilfe & Support"],
+ ]);
+ assert.equal(keys.is_persistent,true);
+ assert.equal(keys.resize_keyboard,true);
+ assert.equal(keys.one_time_keyboard,false);
+ assert.deepEqual(Object.values(QUICK_ACTIONS),keys.keyboard.flat().map(b=>b.text));
+});
+
+test("/start installs the persistent reply keyboard without replacing the inline home menu",async()=>{
+ const x=setup();
+ try{
+  await handleMessage({chat:x.chat,text:"/start"},x.user);
+  const messages=x.sent.filter(item=>item.method==="sendMessage");
+  assert.equal(messages.length,2,"quick keyboard and existing home preview are distinct Telegram messages");
+  assert.equal(messages[0].reply_markup.is_persistent,true);
+  assert.deepEqual(messages[0].reply_markup.keyboard.map(row=>row.map(b=>b.text)),[
+   ["💎 Premium","⚡ Auto-Bewerbung"],["👤 Mein Profil","❓ Hilfe & Support"]
+  ]);
+  assert.match(messages[1].text,/Traumwohnung Hamburg/);
+  assert.deepEqual(messages[1].reply_markup.inline_keyboard.map(row=>row[0].callback_data),
+   ["profile","platforms:profile-new","platforms","premium","settings"]);
+ }finally{x.done();}
+});
+
+test("first language selection unlocks bottom quick keys only after onboarding, not before",async()=>{
+ const x=setup();
+ try{
+  const fresh={...x.user,language_selected_at:null};
+  x.sqlite.exec("UPDATE participants SET language_selected_at=NULL WHERE id='owner'");
+  await handleMessage({chat:x.chat,text:"/start"},fresh);
+  assert.equal(x.sent.filter(item=>item.method==="sendMessage"&&item.body.reply_markup?.keyboard).length,0);
+  assert.match(lastMessage(x).text,/Sprache auswählen/);
+  await handleCallback({
+   id:"first-language",data:"language:set:en",from:{id:777},
+   message:{chat:x.chat,message_id:71}
+  },fresh);
+  const keys=x.sent.filter(item=>item.method==="sendMessage"&&item.body.reply_markup?.keyboard);
+  assert.equal(keys.length,1);
+  assert.equal(keys[0].body.reply_markup.keyboard[0][0].text,"💎 Premium");
+  assert.match(lastMessage(x).text,/What is it/);
+  await handleCallback({
+   id:"change-language",data:"language:set:de",from:{id:777},
+   message:{chat:x.chat,message_id:71}
+  },{...x.user,language_selected_at:new Date().toISOString()});
+  assert.equal(x.sent.filter(item=>item.method==="sendMessage"&&item.body.reply_markup?.keyboard).length,1,
+   "changing languages later does not send another keyboard message");
+ }finally{x.done();}
+});
+
+test("each bottom button invokes the existing Premium, Auto-Bewerbung, Bewerberprofil and Hilfe views",async()=>{
+ const x=setup();
+ try{
+  const check=async(label,content)=>{
+   await handleMessage({chat:x.chat,text:label},x.user);
+   assert.match(lastMessage(x).text,content,label);
+   assert.equal(lastMessage(x).reply_markup?.keyboard,undefined,
+    "view continues to use existing inline buttons, not duplicate reply keyboard");
+  };
+  await check(QUICK_ACTIONS.premium,/Traumwohnung Premium/);
+  await check(QUICK_ACTIONS.autoApply,/Automatische Bewerbung/);
+  await check(QUICK_ACTIONS.profile,/Bewerberprofil/);
+  await check(QUICK_ACTIONS.help,/Hilfe & Befehle/);
+  assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][0].callback_data,"home");
+  assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM user_subscriptions WHERE participant_id='owner'").get().n,0,
+   "Premium shortcut must not create or modify a subscription");
+ }finally{x.done();}
+});
+
+test("quick access from a pending applicant ForceReply clears draft instead of saving button text",async()=>{
+ const x=setup();
+ try{
+  x.sqlite.prepare("INSERT INTO applicant_profiles(participant_id,profile) VALUES('owner',?)")
+   .run(JSON.stringify({first_name:"Mara"}));
+  const state={_applicant_field:"first_name",_applicant_message_id:61,_applicant_prompt_message_id:62};
+  x.sqlite.prepare("UPDATE participants SET telegram_state=? WHERE id='owner'").run(JSON.stringify(state));
+  await handleMessage({
+   chat:x.chat,text:QUICK_ACTIONS.premium,
+   reply_to_message:{message_id:62,text:"__APPLICANT_FIELD__first_name"}
+  },{...x.user,onboarding_state:state});
+  assert.match(lastMessage(x).text,/Traumwohnung Premium/);
+  assert.equal(JSON.parse(x.sqlite.prepare("SELECT profile FROM applicant_profiles WHERE participant_id='owner'").get().profile).first_name,"Mara");
+  const saved=JSON.parse(x.sqlite.prepare("SELECT telegram_state FROM participants WHERE id='owner'").get().telegram_state);
+  assert.equal(saved._applicant_field,undefined);
+  assert.ok(x.sent.some(item=>item.method==="deleteMessage"&&item.body.message_id===62));
+ }finally{x.done();}
+});
+
+test("quick navigation cancels an incomplete custom-rent step before opening another menu",async()=>{
+ const x=setup();
+ try{
+  const wizard={_step:"rent_custom",max_warm_rent:null,profile_slot:1};
+  x.sqlite.prepare("UPDATE participants SET telegram_state=? WHERE id='owner'").run(JSON.stringify(wizard));
+  await handleMessage({chat:x.chat,text:QUICK_ACTIONS.help},
+   {...x.user,onboarding_step:"rent_custom",onboarding_state:wizard});
+  assert.match(lastMessage(x).text,/Hilfe & Befehle/);
+  const saved=JSON.parse(x.sqlite.prepare("SELECT telegram_state FROM participants WHERE id='owner'").get().telegram_state);
+  assert.equal(saved._step,null);
+  assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM search_profiles WHERE participant_id='owner'").get().n,0);
  }finally{x.done();}
 });
