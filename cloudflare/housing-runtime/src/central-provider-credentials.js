@@ -13,7 +13,7 @@ export async function getCentralProviderCredentials(sql, env, provider, { testMo
   }
 
   const rows = await sql`
-    SELECT pc.participant_id, pc.status, pc.ciphertext, pc.iv, pc.key_version, pc.account_hint
+    SELECT pc.participant_id, pc.status, pc.ciphertext, pc.iv, pc.key_version, pc.account_hint, pc.expires_at
     FROM housing.provider_connections pc
     JOIN housing.participants owner ON owner.id = pc.participant_id
     WHERE owner.telegram_user_id = ${OWNER_TELEGRAM_ID}
@@ -23,6 +23,9 @@ export async function getCentralProviderCredentials(sql, env, provider, { testMo
   const row = rows[0];
   if (row?.status !== "connected" || !row.ciphertext || !row.iv) {
     throw new Error("central_provider_unavailable");
+  }
+  if (provider === "immowelt" && row.expires_at && Date.parse(row.expires_at) < Date.now() + 60_000) {
+    throw new Error("needs_login");
   }
   const credentials = await decryptProviderCredentials(env, row, row.participant_id, provider);
   if (!credentials || typeof credentials !== "object") throw new Error("central_provider_unavailable");
