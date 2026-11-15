@@ -44,12 +44,14 @@ test("remove only non-delivering cooperatives, preserving all profiles, delivery
  }finally{db.close();}
 });
 
-test("database foreign keys stop retiring a source with a surviving offer",()=>{
+test("an unexpected retained offer blocks all cooperative cleanup without touching links",()=>{
  const db=fixture();
  try{
   db.prepare("INSERT INTO offer_identities(id,source_id,identity_hash,canonical_url,facts) VALUES('historical',34,'old-34','https://tenant.immomio.com/apply/00000000-0000-4000-8000-000000000034','{}')").run();
-  assert.throws(()=>db.exec(migration),/FOREIGN KEY constraint failed/);
+  db.exec(migration);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM source_links").get().n,13);
   assert.equal(db.prepare("SELECT id FROM source_registry WHERE id=34").get().id,34);
   assert.equal(db.prepare("SELECT source_id FROM offer_identities WHERE id='historical'").get().source_id,34);
+  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM source_registry").get().n,13);
  }finally{db.close();}
 });
