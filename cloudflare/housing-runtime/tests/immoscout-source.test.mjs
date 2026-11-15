@@ -295,3 +295,133 @@ test("every other Scout run preserves broad coverage while rotating specific pla
   assert.equal(chooseImmoScoutQuery([queries[0]],1000),queries[0]);
   assert.throws(()=>chooseImmoScoutQuery([]),/plan_empty/);
 });
+
+
+test("one MCP handshake serves concurrent Hamburg and Schleswig-Holstein tool calls", async () => {
+  const previousFetch = globalThis.fetch;
+  const requests = [];
+  globalThis.fetch = async (_url, options) => {
+    const payload = JSON.parse(options.body);
+    requests.push({ method: payload.method, headers: options.headers, params: payload.params });
+    assert.equal(options.headers["mcp-protocol-version"], "2025-06-18");
+    assert.equal(options.headers["mcp-session-id"], undefined, "stateless server sends no session ID");
+    if (payload.method === "initialize") {
+      assert.equal(payload.params.protocolVersion, "2025-06-18");
+      assert.equal(payload.params.clientInfo.name, "traumwohnung-housing-runtime");
+      assert.deepEqual(payload.params.capabilities, {});
+    }
+    const lifecycle = mockMcpLifecycle(payload);
+    if (lifecycle) return lifecycle;
+    assert.equal(payload.method, "tools/call");
+    return Response.json({ jsonrpc: "2.0", id: payload.id, result: { structuredContent: { entries: [], total: 0 } } });
+  };
+  try {
+    await Promise.all([
+      fetchImmoScoutSource(sourceForId(1)),
+      fetchImmoScoutMap(sourceForId(69)),
+    ]);
+    assert.deepEqual(requests.map(r => r.method),
+      ["initialize", "notifications/initialized", "tools/call", "tools/call"]);
+    assert.deepEqual(requests.slice(2).map(r => r.params.name), ["property_search_de", "property_map_de"]);
+    await fetchImmoScoutSource(sourceForId(69));
+    assert.equal(requests.filter(r => r.method === "initialize").length, 1, "one handshake per active isolate");
+  } finally {
+    globalThis.fetch = previousFetch;
+    resetMcpSession();
+  }
+});
+
+test("MCP session header is propagated and a 404 reinitializes once", async () => {
+  const previousFetch = globalThis.fetch;
+  const calls = [];
+  let attempts = 0;
+  globalThis.fetch = async (_url, options) => {
+    const payload = JSON.parse(options.body);
+    calls.push({ method: payload.method, sessionId: options.headers["mcp-session-id"] || null });
+    if (payload.method === "initialize") {
+      attempts++;
+      return mockMcpLifecycle(payload, { sessionId: attempts === 1 ? "session-old" : "session-new" });
+    }
+    if (payload.method === "notifications/initialized") return new Response(null, { status: 202 });
+    if (options.headers["mcp-session-id"] === "session-old") return new Response("", { status: 404 });
+    return Response.json({ jsonrpc: "2.0", id: payload.id, result: { structuredContent: { entries: [], total: 0 } } });
+  };
+  try {
+    const result = await fetchImmoScoutSource(sourceForId(1));
+    assert.deepEqual(result.nodes, []);
+    await fetchImmoScoutSource(sourceForId(69));
+    assert.deepEqual(calls, [
+      { method: "initialize", sessionId: null },
+      { method: "notifications/initialized", sessionId: "session-old" },
+      { method: "tools/call", sessionId: "session-old" },
+      { method: "initialize", sessionId: null },
+      { method: "notifications/initialized", sessionId: "session-new" },
+      { method: "tools/call", sessionId: "session-new" },
+      { method: "tools/call", sessionId: "session-new" },
+    ]);
+  } finally {
+    globalThis.fetch = previousFetch;
+    resetMcpSession();
+  }
+});
+
+test("unsupported MCP version fails before any tool call", async () => {
+  const previousFetch = globalThis.fetch;
+  const seen = [];
+  globalThis.fetch = async (_url, options) => {
+    const payload = JSON.parse(options.body);
+    seen.push(payload.method);
+    return mockMcpLifecycle(payload, { protocolVersion: "2024-11-05" })
+      || Response.json({ jsonrpc: "2.0", id: payload.id, result: { structuredContent: { entries: [], total: 0 } } });
+  };
+  try {
+    await assert.rejects(fetchImmoScoutSource(sourceForId(1)), /immoscout_mcp_protocol_unsupported/);
+    assert.deepEqual(seen, ["initialize"]);
+  } finally {
+    globalThis.fetch = previousFetch;
+    resetMcpSession();
+  }
+});
+
+test("failed initialization is retried on a subsequent request", async () => {
+  const previousFetch = globalThis.fetch;
+  const seen = [];
+  let failFirst = true;
+  globalThis.fetch = async (_url, options) => {
+    const payload = JSON.parse(options.body);
+    seen.push(payload.method);
+    if (payload.method === "initialize" && failFirst) {
+      failFirst = false;
+      return new Response("", { status: 503 });
+    }
+    return mockMcpLifecycle(payload)
+      || Response.json({ jsonrpc: "2.0", id: payload.id, result: { structuredContent: { entries: [], total: 0 } } });
+  };
+  try {
+    await assert.rejects(fetchImmoScoutSource(sourceForId(1)), /immoscout_mcp_http_503/);
+    assert.deepEqual((await fetchImmoScoutSource(sourceForId(69))).nodes, []);
+    assert.deepEqual(seen, ["initialize", "initialize", "notifications/initialized", "tools/call"]);
+  } finally {
+    globalThis.fetch = previousFetch;
+    resetMcpSession();
+  }
+});
+
+test("failed initialized notification prevents MCP tool calls", async () => {
+  const previousFetch = globalThis.fetch;
+  const seen = [];
+  globalThis.fetch = async (_url, options) => {
+    const payload = JSON.parse(options.body);
+    seen.push(payload.method);
+    if (payload.method === "notifications/initialized") return new Response("", { status: 401 });
+    return mockMcpLifecycle(payload)
+      || Response.json({ jsonrpc: "2.0", id: payload.id, result: { structuredContent: { entries: [], total: 0 } } });
+  };
+  try {
+    await assert.rejects(fetchImmoScoutSource(sourceForId(1)), /immoscout_mcp_http_401/);
+    assert.deepEqual(seen, ["initialize", "notifications/initialized"]);
+  } finally {
+    globalThis.fetch = previousFetch;
+    resetMcpSession();
+  }
+});
