@@ -23,19 +23,22 @@ export function quickActionsKeyboard() {
   };
 }
 
-export async function showQuickActions(chatId, user) {
+const REPLY_KEYBOARD_VERSION = 2;
+
+export async function showQuickActions(chatId, user, { force = false } = {}) {
   const database = runtimeEnv()?.HOUSING_DB;
   if (!database?.prepare || !user?.id) return;
   const existing = await database.prepare(
     "SELECT reply_keyboard_version FROM participants WHERE id=?"
   ).bind(user.id).first();
-  if (!existing || Number(existing.reply_keyboard_version) >= 1) return;
-  // Telegram requires a separate message to install a reply keyboard while
-  // the main home message continues using inline navigation.
-  await send(chatId, "Die vier Schnellfunktionen stehen jetzt unter dem Eingabefeld.", quickActionsKeyboard());
+  if (!existing || (!force && Number(existing.reply_keyboard_version) >= REPLY_KEYBOARD_VERSION)) return;
+  // Telegram cannot report whether a user has hidden/removed the reply
+  // keyboard. /commands explicitly reinstalls it without making every /start
+  // send an extra setup message.
+  await send(chatId, "Die vier Schnellfunktionen sind wieder verfügbar.", quickActionsKeyboard());
   await database.prepare(
-    "UPDATE participants SET reply_keyboard_version=1 WHERE id=? AND reply_keyboard_version<1"
-  ).bind(user.id).run();
+    "UPDATE participants SET reply_keyboard_version=? WHERE id=? AND reply_keyboard_version<?"
+  ).bind(REPLY_KEYBOARD_VERSION, user.id, REPLY_KEYBOARD_VERSION).run();
 }
 
 export function homeKeyboard(user) {
