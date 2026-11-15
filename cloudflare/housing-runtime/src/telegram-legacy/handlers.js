@@ -363,7 +363,7 @@ export async function handleMessage(message, user) {
             await saveState(user.id, null, {}, user.request_update_id, user.request_attempt);
         user = { ...user, onboarding_state: {}, onboarding_step: null };
         if (quickAction === "premium") return premium(user, chatId);
-        if (quickAction === "language") return languageMenu(user, chatId);
+        if (quickAction === "home") return home(user, chatId);
         if (quickAction === "settings") return settings(user, chatId);
         if (quickAction === "saved") return savedOffers(user, chatId);
         return send(chatId, helpFor(user), {
