@@ -1,4 +1,6 @@
 import { getCentralProviderCredentials } from "./central-provider-credentials.js";
+import { decryptProviderCredentials, encryptProviderCredentials } from "./provider-credentials.js";
+import { refreshImmoweltCookies } from "./immowelt-auth.js";
 
 function xml(value) {
   return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
@@ -12,6 +14,23 @@ function profileValue(profile, ...keys) {
 function estateId(url, fallback) {
   const raw = String(url || "").match(/\/expose\/([^/?#]+)/i)?.[1] || String(fallback || "");
   try { return decodeURIComponent(raw).replace(/[{}-]/g, "").toUpperCase(); } catch { return raw.replace(/[{}-]/g, "").toUpperCase(); }
+}
+
+export async function refreshImmoweltSession(sql, env, connection, force = false) {
+  const credentials = await decryptProviderCredentials(env, connection, connection.participant_id, "immowelt");
+  if (!credentials?.cookies?.length) throw new Error("needs_login");
+  const updated = await refreshImmoweltCookies(credentials, force);
+  if (!updated.cookies?.some((cookie) => cookie.name === "oauth.access.token")) throw new Error("needs_login");
+  const encrypted = await encryptProviderCredentials(env, updated, connection.participant_id, "immowelt");
+  await sql`
+    UPDATE housing.provider_connections
+    SET ciphertext = ${encrypted.ciphertext}, iv = ${encrypted.iv},
+        key_version = ${encrypted.key_version}, expires_at = ${updated.expires_at || null},
+        updated_at = CURRENT_TIMESTAMP
+    WHERE participant_id = ${connection.participant_id} AND provider = 'immowelt'
+      AND status = 'connected'
+  `;
+  return updated;
 }
 
 export async function sendImmoweltApplication(application, env, sql, central = null) {
