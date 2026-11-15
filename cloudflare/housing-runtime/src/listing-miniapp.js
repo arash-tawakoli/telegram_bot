@@ -8,7 +8,7 @@ export function listingWebUrl(id) { if (!UUID.test(String(id))) throw new Error(
 export function listingMessageRequest(chatId, photo, facts, listingUrl, sourceId, sourceName, deliveryId) {
   if (!listingImageUrl(photo)) throw new Error("listing_photo_missing");
   listingWebUrl(deliveryId); // Retain strict delivery identity validation.
-  const buttons = listingKeyboard(facts, listingUrl, sourceId, sourceName).inline_keyboard;
+  const buttons = listingKeyboard(facts, listingUrl, sourceId, sourceName, deliveryId).inline_keyboard;
   return {
     chat_id: Number(chatId),
     photo: listingImageUrl(photo),

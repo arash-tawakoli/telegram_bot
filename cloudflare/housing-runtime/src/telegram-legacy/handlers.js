@@ -4,6 +4,7 @@ import { createD1Client } from '../d1-database.js';
 import { refreshImmomioSession } from '../immomio-application.js';
 import { isAdmin, adminGrantLabel, adminPremiumNotice, adminUsers, adminUser, previewFreePremiumReset, executeFreePremiumReset, setUserBlocked, deleteUser, setPlanOverride, ANNOUNCEMENT_PROMPT, createAnnouncementDraft, cancelAnnouncement, sendAnnouncement } from "./admin.js";
 import { homeKeyboard, home, premium, setPaused, referralPage, settings, languageMenu, QUICK_ACTIONS, showQuickActions } from "./navigation.js";
+import { saveDeliveredOffer, removeSavedOffer, savedOffers } from "./saved-offers.js";
 import { draftFor, validateDraft, renderTypes, renderLocation, renderBoroughs, renderNeighborhoods, renderSchleswigHolsteinAreas, renderRent, renderCustomRent, renderRooms, renderArea, renderReview, renderReviewEdit, renderStep, afterSelection, persistProfile, profileLimit, draftFromProfile, startNewProfile, profileEditMenu, profile, renderStatus, nextSizeStep } from "./profiles.js";
 import { db, PREMIUM_LINK, PROPERTY_TYPES, RENT_PRESETS, ROOM_PRESETS, AREA_PRESETS, NEIGHBORHOODS_PER_PAGE, button, cancelRow, backRow, runtimeEnv, esc, secret, telegram, send, sendCelebration, edit, acknowledge, saveState, geography, HELP_TEXT } from "./runtime.js";
 
@@ -13,6 +14,7 @@ const PUBLIC_COMMANDS = [
     { command: "suche", description: "Suchprofil erstellen" },
     { command: "suchprofile", description: "Suchprofile anzeigen" },
     { command: "premium", description: "Premium" },
+    { command: "gespeichert", description: "Gespeicherte Inserate" },
     { command: "sprache", description: "Sprache" },
     { command: "hilfe", description: "Hilfe & Support" },
     { command: "teilen", description: "30 Tage Premium kostenlos" },
@@ -315,9 +317,8 @@ export async function handleMessage(message, user) {
         }
         await syncTelegramCommands(user, chatId);
         if (!user.language_selected_at) return languageMenu(user, chatId);
-        // The Telegram reply keyboard must be attached to its own message;
-        // the normal home preview keeps its existing inline navigation.
-        await showQuickActions(chatId);
+        // Install the updated reply keyboard only once per participant.
+        await showQuickActions(chatId, user);
         return home(user, chatId);
     }
     if (command === "/suche")
@@ -346,6 +347,8 @@ export async function handleMessage(message, user) {
     }
     if (command === "/premium")
         return premium(user, chatId);
+    if (command === "/gespeichert")
+        return savedOffers(user, chatId);
     if (command === "/teilen")
         return referralPage(user, chatId);
     // A reply-keyboard press arrives as an ordinary text message. Handle it
@@ -360,7 +363,8 @@ export async function handleMessage(message, user) {
         user = { ...user, onboarding_state: {}, onboarding_step: null };
         if (quickAction === "premium") return premium(user, chatId);
         if (quickAction === "language") return languageMenu(user, chatId);
-        if (quickAction === "share") return referralPage(user, chatId);
+        if (quickAction === "settings") return settings(user, chatId);
+        if (quickAction === "saved") return savedOffers(user, chatId);
         return send(chatId, helpFor(user), {
             inline_keyboard: [[button("← Start", "home")]],
         });
@@ -416,7 +420,7 @@ export async function handleCallback(query, user) {
             p_user: user.id, p_telegram_user_id: user.telegram_user_id, p_language: chosen,
         });
         if (error || !selected?.language) return languageMenu(user, chatId, messageId);
-        if (!user.language_selected_at) await showQuickActions(chatId);
+        if (!user.language_selected_at) await showQuickActions(chatId, user);
         return home({ ...user, ui_language: selected.language, language_selected_at: new Date().toISOString() }, chatId, messageId);
     }
     if (!user.language_selected_at) {
@@ -521,6 +525,40 @@ export async function handleCallback(query, user) {
             return adminUser(user, chatId, messageId, userId);
         }
         return ack();
+    }
+    if (data.startsWith("save:")) {
+        if (query.message?.chat?.type !== "private"
+            || chatId !== Number(user.telegram_user_id)) return ack();
+        const deliveryId = data.slice(5);
+        try {
+            const saved = await saveDeliveredOffer(user, deliveryId);
+            await ack(saved ? "⭐ Inserat gespeichert" : "Dieses Angebot kann nicht gespeichert werden.");
+            if (saved && Array.isArray(query.message?.reply_markup?.inline_keyboard)) {
+                const keyboard = query.message.reply_markup.inline_keyboard.map(row =>
+                    row.map(item => item.callback_data === data
+                        ? { ...item, text: "⭐ Gespeichert" } : { ...item }));
+                await telegram("editMessageReplyMarkup", {
+                    chat_id: chatId, message_id: messageId,
+                    reply_markup: { inline_keyboard: keyboard },
+                }).catch(() => {});
+            }
+        } catch (error) {
+            console.error("telegram_offer_save_failed", String(error));
+            await ack("Speichern fehlgeschlagen");
+        }
+        return;
+    }
+    if (data === "saved" || data.startsWith("saved:list:") || data.startsWith("saved:delete:")) {
+        if (query.message?.chat?.type !== "private"
+            || chatId !== Number(user.telegram_user_id)) return ack();
+        await ack();
+        let page = 0;
+        if (data.startsWith("saved:list:")) page = Number(data.slice("saved:list:".length));
+        if (data.startsWith("saved:delete:")) {
+            const id = Number(data.slice("saved:delete:".length));
+            await removeSavedOffer(user, id);
+        }
+        return savedOffers(user, chatId, messageId, page);
     }
     await ack();
     if (data === "token" || data.startsWith("token:")) {

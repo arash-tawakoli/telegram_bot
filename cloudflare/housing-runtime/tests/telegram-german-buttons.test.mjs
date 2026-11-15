@@ -852,11 +852,11 @@ test("unchanged Telegram callbacks avoid participant identity writes and redunda
  }finally{x.done();}
 });
 
-test("persistent quick-access keyboard has Premium, Sprache, Hilfe und Teilen in a 2x2 grid",()=>{
+test("persistent quick-access keyboard has Premium, Sprache, Einstellungen and Gespeichert in a 2x2 grid",()=>{
  const keys=quickActionsKeyboard();
  assert.deepEqual(keys.keyboard.map(row=>row.map(b=>b.text)),[
   ["💎 Premium","🌐 Sprache"],
-  ["❓ Hilfe & Support","🎁 Teilen"],
+  ["⚙️ Einstellungen","⭐ Gespeichert"],
  ]);
  assert.equal(keys.is_persistent,true);
  assert.equal(keys.resize_keyboard,true);
@@ -874,11 +874,16 @@ test("/start installs the updated persistent reply keyboard without changing the
   assert.equal(messages[0].body.reply_markup.is_persistent,true);
   assert.deepEqual(messages[0].body.reply_markup.keyboard.map(row=>row.map(b=>b.text)),[
    ["💎 Premium","🌐 Sprache"],
-   ["❓ Hilfe & Support","🎁 Teilen"],
+   ["⚙️ Einstellungen","⭐ Gespeichert"],
   ]);
+  assert.match(messages[0].body.text,/Schnellfunktionen stehen jetzt/);
   assert.match(messages[1].body.text,/Traumwohnung Hamburg/);
   assert.deepEqual(messages[1].body.reply_markup.inline_keyboard.map(row=>row[0].callback_data),
    ["profile","platforms:profile-new","platforms"]);
+  await handleMessage({chat:x.chat,text:"/start"},x.user);
+  assert.equal(x.sent.filter(item=>item.method==="sendMessage"&&item.body.reply_markup?.keyboard).length,1,
+   "the persistent reply keyboard must not produce another setup message on later /start");
+  assert.equal(x.sqlite.prepare("SELECT reply_keyboard_version AS version FROM participants WHERE id='owner'").get().version,1);
  }finally{x.done();}
 });
 
@@ -918,10 +923,9 @@ test("all four bottom shortcuts open their existing screens and preserve subscri
   };
   await check(QUICK_ACTIONS.premium,/Traumwohnung Premium/);
   await check(QUICK_ACTIONS.language,/Sprache auswählen/);
-  await check(QUICK_ACTIONS.help,/Hilfe & Befehle/);
-  await check(QUICK_ACTIONS.share,/30 Tage Premium kostenlos/);
-  assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][0].text,"📤 Link teilen");
-  assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM referral_codes WHERE participant_id='owner'").get().n,1);
+  await check(QUICK_ACTIONS.settings,/Einstellungen/);
+  await check(QUICK_ACTIONS.saved,/Gespeicherte Inserate/);
+  assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM referral_codes WHERE participant_id='owner'").get().n,0);
   assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM user_subscriptions WHERE participant_id='owner'").get().n,0,
    "premium shortcut must not create or modify a subscription");
  }finally{x.done();}
@@ -951,15 +955,71 @@ test("quick navigation cancels an incomplete custom-rent step before opening ano
  try{
   const wizard={_step:"rent_custom",max_warm_rent:null,profile_slot:1};
   x.sqlite.prepare("UPDATE participants SET telegram_state=? WHERE id='owner'").run(JSON.stringify(wizard));
-  await handleMessage({chat:x.chat,text:QUICK_ACTIONS.help},
+  await handleMessage({chat:x.chat,text:QUICK_ACTIONS.settings},
    {...x.user,onboarding_step:"rent_custom",onboarding_state:wizard});
-  assert.match(lastMessage(x).text,/Hilfe & Befehle/);
+  assert.match(lastMessage(x).text,/Einstellungen/);
   const saved=JSON.parse(x.sqlite.prepare("SELECT telegram_state FROM participants WHERE id='owner'").get().telegram_state);
   assert.equal(saved._step,null);
   assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM search_profiles WHERE participant_id='owner'").get().n,0);
  }finally{x.done();}
 });
 
+
+test("delivered offer is saved once, displayed for the owner, and removable",async()=>{
+ const x=setup();
+ try{
+  const delivery="00000000-0000-0000-0000-000000000111";
+  const link="https://www.immobilienscout24.de/expose/123456";
+  const facts={title:"Balkonwohnung in Hamburg",warm_rent:650,city:"Hamburg"};
+  x.sqlite.prepare("INSERT INTO offer_identities(id,source_id,identity_hash,canonical_url,facts) VALUES(?,?,?,?,?)")
+   .run("offer-111",1,"hash-111",link,JSON.stringify(facts));
+  x.sqlite.prepare("INSERT INTO deliveries(id,participant_id,offer_identity_id,idempotency_key,status) VALUES(?,?,?,?,?)")
+   .run(delivery,"owner","offer-111","delivery-111","sent");
+  const markup={inline_keyboard:[
+   [{text:"Zu ImmoScout24",url:link}],
+   [{text:"⭐ Speichern",callback_data:"save:"+delivery}],
+  ]};
+  const tap=()=>handleCallback({id:"save-test",data:"save:"+delivery,from:{id:777},
+   message:{chat:x.chat,message_id:82,photo:[{file_id:"fixture"}],reply_markup:markup}},x.user);
+  await tap();
+  assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM saved_offers WHERE participant_id='owner'").get().n,1);
+  const saved=x.sqlite.prepare("SELECT canonical_url,title,warm_rent FROM saved_offers WHERE participant_id='owner'").get();
+  assert.equal(saved.canonical_url,link);
+  assert.match(saved.title,/Balkonwohnung/);
+  assert.equal(saved.warm_rent,650);
+  const editMarkup=x.sent.filter(x=>x.method==="editMessageReplyMarkup").at(-1)?.body?.reply_markup;
+  assert.equal(editMarkup.inline_keyboard[1][0].text,"⭐ Gespeichert");
+  await tap();
+  assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM saved_offers WHERE participant_id='owner'").get().n,1,
+   "saving the same delivered apartment twice must not create duplicates");
+  await handleMessage({chat:x.chat,text:"/gespeichert"},x.user);
+  assert.match(lastMessage(x).text,/Balkonwohnung/);
+  assert.match(lastMessage(x).text,/650 €/);
+  assert.ok(lastMessage(x).reply_markup.inline_keyboard.flat().some(b=>b.url===link));
+  const remove=lastMessage(x).reply_markup.inline_keyboard.flat().find(b=>b.callback_data?.startsWith("saved:delete:"));
+  assert.ok(remove);
+  await handleCallback({id:"remove-test",data:remove.callback_data,from:{id:777},
+   message:{chat:x.chat,message_id:85}},x.user);
+  assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM saved_offers WHERE participant_id='owner'").get().n,0);
+  assert.match(lastMessage(x).text,/noch keine Angebote/);
+ }finally{x.done();}
+});
+
+test("save callbacks reject a delivery belonging to another participant",async()=>{
+ const x=setup();
+ try{
+  const delivery="00000000-0000-0000-0000-000000000222";
+  const link="https://www.immobilienscout24.de/expose/222";
+  x.sqlite.exec("INSERT INTO participants(id,first_name,last_name,telegram_user_id) VALUES('other','C','D',888)");
+  x.sqlite.prepare("INSERT INTO offer_identities(id,source_id,identity_hash,canonical_url,facts) VALUES(?,?,?,?,?)")
+   .run("offer-222",1,"hash-222",link,JSON.stringify({title:"Private Wohnung"}));
+  x.sqlite.prepare("INSERT INTO deliveries(id,participant_id,offer_identity_id,idempotency_key,status) VALUES(?,?,?,?,?)")
+   .run(delivery,"other","offer-222","delivery-222-key","sent");
+  await handleCallback({id:"cross-user",data:"save:"+delivery,from:{id:777},
+   message:{chat:x.chat,message_id:93,photo:[{file_id:"fixture"}]}},x.user);
+  assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM saved_offers").get().n,0);
+ }finally{x.done();}
+});
 
 test("admin user directory is paginated and can filter Free users without flooding Telegram buttons", async()=>{
   const x=setup();

@@ -1,4 +1,4 @@
-import { db, button, send, edit } from "./runtime.js";
+import { db, button, send, edit, runtimeEnv } from "./runtime.js";
 import { homePreview, languageMenu as renderLanguageMenu } from "./home-language.js";
 
 // Telegram reply keyboard: shown below the message input, independently of the
@@ -6,15 +6,15 @@ import { homePreview, languageMenu as renderLanguageMenu } from "./home-language
 export const QUICK_ACTIONS = Object.freeze({
   premium: "💎 Premium",
   language: "🌐 Sprache",
-  help: "❓ Hilfe & Support",
-  share: "🎁 Teilen",
+  settings: "⚙️ Einstellungen",
+  saved: "⭐ Gespeichert",
 });
 
 export function quickActionsKeyboard() {
   return {
     keyboard: [
       [{ text: QUICK_ACTIONS.premium }, { text: QUICK_ACTIONS.language }],
-      [{ text: QUICK_ACTIONS.help }, { text: QUICK_ACTIONS.share }],
+      [{ text: QUICK_ACTIONS.settings }, { text: QUICK_ACTIONS.saved }],
     ],
     is_persistent: true,
     resize_keyboard: true,
@@ -23,8 +23,19 @@ export function quickActionsKeyboard() {
   };
 }
 
-export function showQuickActions(chatId) {
-  return send(chatId, "📌 Schnellzugriff", quickActionsKeyboard());
+export async function showQuickActions(chatId, user) {
+  const database = runtimeEnv()?.HOUSING_DB;
+  if (!database?.prepare || !user?.id) return;
+  const existing = await database.prepare(
+    "SELECT reply_keyboard_version FROM participants WHERE id=?"
+  ).bind(user.id).first();
+  if (!existing || Number(existing.reply_keyboard_version) >= 1) return;
+  // Telegram requires a separate message to install a reply keyboard while
+  // the main home message continues using inline navigation.
+  await send(chatId, "Die vier Schnellfunktionen stehen jetzt unter dem Eingabefeld.", quickActionsKeyboard());
+  await database.prepare(
+    "UPDATE participants SET reply_keyboard_version=1 WHERE id=? AND reply_keyboard_version<1"
+  ).bind(user.id).run();
 }
 
 export function homeKeyboard(user) {

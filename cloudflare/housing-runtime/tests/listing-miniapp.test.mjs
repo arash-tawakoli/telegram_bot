@@ -28,6 +28,8 @@ test("a Telegram listing is one native non-clickable photo with a separate share
   assert.deepEqual(payload.reply_markup.inline_keyboard.map(row => row[0].text),
     ["Zu ImmoScout24", "⭐ Speichern", "🗺️ Google Map", "📤 Teilen"]);
   assert.equal(payload.reply_markup.inline_keyboard[0][0].url, source);
+  assert.equal(payload.reply_markup.inline_keyboard[1][0].callback_data, "save:" + delivery);
+  assert.equal(payload.reply_markup.inline_keyboard[1][0].url, undefined);
   assert.throws(() => listingMessageRequest(123, null, facts, source, 1, "ImmoScout24", delivery), /listing_photo_missing/);
 });
 
@@ -95,6 +97,7 @@ test("isolated HTML displays only one whitelisted listing and never recipient in
   assert.doesNotMatch(html, /otherListing|nextOffer|swiper|carousel/);
   assert.match(html, /Zu ImmoScout24/);
   assert.match(html, /Google Map/);
+  assert.doesNotMatch(html, /⭐ Speichern/); // Public preview cannot mutate personal saved offers.
 });
 
 test("invalid and nonexistent deliveries cannot expose any listing data", async () => {
