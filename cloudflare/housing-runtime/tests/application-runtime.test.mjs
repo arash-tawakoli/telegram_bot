@@ -31,7 +31,7 @@ test("application processor is idle when no pending application exists", async (
   assert.deepEqual(result.body, { ok: true, status: "idle" });
 });
 
-test("application processor fails closed while a provider transport is pending", async () => {
+test("application processor fails closed when central provider credentials are absent", async () => {
   const db = sqlFor({
     id: "app-1", participant_id: "user-1", offer_identity_id: "offer-1", provider: "immomio", status: "pending",
     participant_status: "active", auto_apply_enabled: true, plan_override: "premium",
@@ -44,7 +44,8 @@ test("application processor fails closed while a provider transport is pending",
   });
   const result = await processHousingApplication(db.query, { APPLICATION_RUN_TOKEN: "secret" }, new Request("https://runtime.test/internal/application/process", { method: "POST", headers: { authorization: "Bearer secret" } }));
   assert.equal(result.body.status, "manual_required");
-  assert.equal(result.body.reason, "needs_login");
+  assert.equal(result.body.reason, "central_provider_unavailable");
+  assert.equal(db.writes.some(({ text }) => /SET submission_started_at = now\\(\\)/.test(text)), false);
   assert.ok(db.writes.some(({ text }) => /housing\.application_events/.test(text)));
 });
 
