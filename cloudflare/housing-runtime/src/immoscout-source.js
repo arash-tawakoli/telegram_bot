@@ -197,6 +197,10 @@ export function normalizeImmoScoutEntry(entry, sourceId) {
   const city = String(address.city || entry.city || "").toLowerCase();
   if (city && Number(sourceId) === 1 && !city.includes("hamburg")) return null;
   if (city && Number(sourceId) === 69 && city.startsWith("hamburg")) return null;
+  // Schleswig-Holstein postcodes fall in 21xxx–25xxx. Ignore clear
+  // cross-region results without treating missing postcodes as invalid.
+  const postcode = String(address.postcode || "");
+  if (Number(sourceId) === 69 && postcode && !/^2[1-5]\d{3}$/.test(postcode)) return null;
   const cold = numeric(entry.price?.value);
   const total = numeric(entry.totalRent);
   const propertyType = String(entry.type || "").toUpperCase();
