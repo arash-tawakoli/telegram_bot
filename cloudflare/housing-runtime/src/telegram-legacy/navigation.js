@@ -5,15 +5,16 @@ import { homePreview, languageMenu as renderLanguageMenu } from "./home-language
 // existing inline buttons in the home message.
 export const QUICK_ACTIONS = Object.freeze({
   premium: "💎 Premium",
-  autoApply: "⚡ Auto-Bewerbung",
-  profile: "👤 Mein Profil",
+  language: "🌐 Sprache",
   help: "❓ Hilfe & Support",
+  share: "🎁 Teilen",
 });
 
 export function quickActionsKeyboard() {
   return {
     keyboard: [
-      [{ text: QUICK_ACTIONS.autoApply }, { text: QUICK_ACTIONS.profile }],
+      [{ text: QUICK_ACTIONS.premium }, { text: QUICK_ACTIONS.language }],
+      [{ text: QUICK_ACTIONS.help }, { text: QUICK_ACTIONS.share }],
     ],
     is_persistent: true,
     resize_keyboard: true,
