@@ -2,6 +2,12 @@ import centralTokenWorker from "./immoscout-central-token.js";
 import { encryptProviderCredentials } from "./provider-credentials.js";
 
 const PROVIDERS = new Set(["immoscout24", "immowelt", "immomio"]);
+const IMMOWELT_ISSUER = "https://signin.immowelt.de";
+const IMMOWELT_AUTHORIZE = IMMOWELT_ISSUER + "/authorize";
+const IMMOWELT_TOKEN = IMMOWELT_ISSUER + "/oauth/token";
+const IMMOWELT_USERINFO = IMMOWELT_ISSUER + "/userinfo";
+// A registered callback for an operator-owned OAuth client is required.
+const IMMOWELT_CALLBACK = "https://login.traumwohnunghamburg.de/oauth/immowelt/callback";
 const IMMOMIO_GQL = "https://gql-ps.immomio.com/tenant/graphql";
 const IMMOMIO_TENANT = "https://tenant.immomio.com";
 const IMMOMIO_REDIRECT = "https://tenant.immomio.com/de/auth/login";
@@ -121,6 +127,77 @@ async function resolveSso(email) {
   return { baseUrl: IMMOMIO_BASE, realm: IMMOMIO_REALM, clientId: IMMOMIO_CLIENT };
 }
 
+function immoweltClient(env) {
+  const clientId = clean(env.IMMOWELT_OAUTH_CLIENT_ID, 200);
+  if (!/^[A-Za-z0-9_.-]{3,200}$/.test(clientId)) throw new Error("provider_oauth_not_configured");
+  return { clientId, clientSecret: clean(env.IMMOWELT_OAUTH_CLIENT_SECRET, 1000) };
+}
+async function immoweltUrl(flow, env) {
+  if (flow.context?.central_account !== true || flow.provider !== "immowelt")
+    throw new Error("provider_unsupported");
+  const client = immoweltClient(env);
+  const url = new URL(IMMOWELT_AUTHORIZE);
+  const params = {
+    client_id: client.clientId,
+    redirect_uri: IMMOWELT_CALLBACK,
+    response_type: "code",
+    scope: "openid profile email offline_access",
+    state: flow.state,
+    code_challenge: await challenge(flow.code_verifier),
+    code_challenge_method: "S256",
+    prompt: "login",
+  };
+  for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
+  return url.href;
+}
+async function completeImmoweltOauth(sql, env, flow, callback) {
+  if (flow.context?.central_account !== true) throw new Error("provider_unsupported");
+  let url;
+  try { url = new URL(String(callback || "")); } catch { throw new Error("invalid_callback_url"); }
+  if (url.origin !== "https://login.traumwohnunghamburg.de"
+      || url.pathname !== "/oauth/immowelt/callback"
+      || url.searchParams.get("state") !== flow.state
+      || !url.searchParams.get("code")
+      || url.searchParams.has("error")) throw new Error("invalid_callback_url");
+  const { clientId, clientSecret } = immoweltClient(env);
+  const payload = new URLSearchParams({
+    grant_type: "authorization_code",
+    client_id: clientId,
+    code: url.searchParams.get("code"),
+    redirect_uri: IMMOWELT_CALLBACK,
+    code_verifier: String(flow.code_verifier),
+  });
+  if (clientSecret) payload.set("client_secret", clientSecret);
+  const response = await fetch(IMMOWELT_TOKEN, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json" },
+    body: payload,
+    signal: AbortSignal.timeout(25_000),
+  }).catch(() => null);
+  const token = await response?.json().catch(() => null);
+  if (!response?.ok || !token?.access_token || !token?.refresh_token)
+    throw new Error("token_exchange_failed");
+  const me = await fetch(IMMOWELT_USERINFO, {
+    headers: { accept: "application/json", authorization: "Bearer " + token.access_token },
+    signal: AbortSignal.timeout(20_000),
+  }).catch(() => null);
+  const identity = await me?.json().catch(() => null);
+  const email = validEmail(identity?.email);
+  if (!me?.ok || !identity?.sub || !email) throw new Error("userinfo_failed");
+  const expiresAt = new Date(Date.now() + Math.max(60, Number(token.expires_in || 300)) * 1000).toISOString();
+  const credentials = {
+    access_token: String(token.access_token),
+    refresh_token: String(token.refresh_token),
+    expires_at: expiresAt,
+    client_id: clientId,
+    redirect_uri: IMMOWELT_CALLBACK,
+    token_type: "Bearer",
+    sub: String(identity.sub),
+  };
+  const encrypted = await encryptProviderCredentials(env, credentials, flow.participant_id, "immowelt");
+  return completeFlow(sql, flow, env, encrypted, email, expiresAt);
+}
+
 async function immomioUrl(flow, emailValue) {
   const email = validEmail(emailValue);
   if (!email) throw new Error("provider_email_required");
@@ -159,31 +236,6 @@ async function completeFlow(sql, flow, env, encrypted, accountHint, expiresAt = 
   return { status: "connected", authenticated: true, accountHint: accountHint || null };
 }
 
-function immoweltSession(value) {
-  const cookies = Array.isArray(value?.cookies) ? value.cookies : [];
-  if (!cookies.length || cookies.length > 100) throw new Error("provider_completion_failed");
-  const safe = cookies.map((row) => {
-    const domain = clean(row?.domain, 320).toLowerCase();
-    if (!row?.name || !row?.value || !(domain === "immowelt.de" || domain.endsWith(".immowelt.de") || domain === "signin.immowelt.de")) return null;
-    return { name: clean(row.name, 240), value: String(row.value).slice(0, 12_000), domain, path: clean(row.path, 500) || "/", expires: Number.isFinite(Number(row.expires)) ? Number(row.expires) : -1, httpOnly: row.httpOnly === true, secure: row.secure !== false, sameSite: clean(row.sameSite, 40) || undefined };
-  }).filter(Boolean);
-  if (!safe.length) throw new Error("provider_completion_failed");
-  return { cookies: safe, userAgent: clean(value?.userAgent, 500) || "TraumWohnungHamburg/1.0" };
-}
-
-async function completeSession(sql, env, flow, value, accountHint) {
-  if (flow.provider !== "immowelt") throw new Error("provider_unsupported");
-  const session = immoweltSession(value);
-  const hint = validEmail(accountHint);
-  if (accountHint && !hint) throw new Error("provider_completion_failed");
-  const encrypted = await encryptProviderCredentials(env, session, flow.participant_id, "immowelt");
-  const expiries = session.cookies.map(c => Number(c.expires)).filter(t => Number.isFinite(t) && t > Date.now()/1000 + 60);
-  // Treat unbounded browser sessions as 12-hour credentials; never assume perpetual login.
-  const expiresAt = new Date(Math.min(Date.now() + 12*60*60*1000,
-    expiries.length ? Math.min(...expiries)*1000 : Infinity)).toISOString();
-  return completeFlow(sql, flow, env, encrypted, hint, expiresAt);
-}
-
 async function verifyImmomio(accessToken) {
   const query = "query currentUser { user { id email } }";
   const response = await fetch(IMMOMIO_GQL, { method: "POST", headers: { "content-type": "application/json", accept: "application/json", origin: IMMOMIO_TENANT, referer: `${IMMOMIO_TENANT}/`, authorization: accessToken }, body: JSON.stringify({ query, variables: {} }), signal: AbortSignal.timeout(20_000) }).catch(() => null);
@@ -208,38 +260,6 @@ async function completeImmomio(sql, env, flow, value) {
   const user = await verifyImmomio(String(token.access_token));
   const accountHint = validEmail(user?.email);
   if (!accountHint) throw new Error("token_exchange_failed");
-  const expiresAt = new Date(Date.now() + Math.max(60, Number(token.expires_in || 300)) * 1000).toISOString();
-  const credentials = { access_token: String(token.access_token), refresh_token: String(token.refresh_token), id_token: token.id_token ? String(token.id_token) : undefined, expires_at: expiresAt, base_url: cfg.baseUrl, realm: cfg.realm, client_id: cfg.clientId, redirect_uri: IMMOMIO_REDIRECT };
-  const encrypted = await encryptProviderCredentials(env, credentials, flow.participant_id, "immomio");
-  return completeFlow(sql, flow, env, encrypted, accountHint, expiresAt);
-}
-
-async function immomioPasswordLogin(sql, env, flow, emailValue, passwordValue) {
-  const email = validEmail(emailValue), password = String(passwordValue || "").slice(0, 1024);
-  if (!email) throw new Error("provider_email_required");
-  if (!password) throw new Error("login_failed");
-  const cfg = await resolveSso(email);
-  let response;
-  try {
-    response = await fetch(`${cfg.baseUrl}/realms/${cfg.realm}/protocol/openid-connect/token`, {
-      method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json" },
-      body: new URLSearchParams({ grant_type: "password", client_id: cfg.clientId, username: email, password, scope: "openid profile email" }),
-      signal: AbortSignal.timeout(25_000),
-    });
-  } catch { throw new Error("temporary_network_error"); }
-  const token = await response.json().catch(() => null);
-  if (!response.ok || !token?.access_token || !token?.refresh_token) {
-    const description = clean(token?.error_description, 500).toLowerCase();
-    const error = clean(token?.error, 120).toLowerCase();
-    if (/otp|totp|one.?time|authenticator|two.?factor/.test(description)) throw new Error("provider_interactive_challenge");
-    if (/temporar.*(disabled|locked)|account.*(disabled|locked)|too many.*(attempt|login)|brute.?force|locked out/.test(description)) throw new Error("account_temporarily_locked");
-    if (error === "unsupported_grant_type" || /grant.?type.*(unsupported|not allowed|disabled)/.test(description)) throw new Error("provider_contract_unverified");
-    if (response.status === 400 || response.status === 401 || error === "invalid_grant") throw new Error("login_failed");
-    throw new Error("provider_contract_unverified");
-  }
-  const user = await verifyImmomio(String(token.access_token));
-  const accountHint = validEmail(user?.email) || email;
   const expiresAt = new Date(Date.now() + Math.max(60, Number(token.expires_in || 300)) * 1000).toISOString();
   const credentials = { access_token: String(token.access_token), refresh_token: String(token.refresh_token), id_token: token.id_token ? String(token.id_token) : undefined, expires_at: expiresAt, base_url: cfg.baseUrl, realm: cfg.realm, client_id: cfg.clientId, redirect_uri: IMMOMIO_REDIRECT };
   const encrypted = await encryptProviderCredentials(env, credentials, flow.participant_id, "immomio");
@@ -357,18 +377,37 @@ async function action(sql, env, body) {
     return result;
   }
   const info = await participantInfo(sql, flow);
-  if (name === "resolve") return { ok: true, provider: flow.provider, mode: flow.provider === "immomio" ? "provider_web" : "credentials", centralAccount: flow.context?.central_account === true, accountHint: info.accountHint || info.profileEmail, participantLabel: info.participantLabel, origin: flow.origin, returnTarget: flow.return_target, expiresAt: flow.expires_at, ...(flow.provider === "immomio" ? { requiresManualCallback: false, callbackTransport: "cloudflare-browser-pkce" } : {}) };
-  if (name === "provider_web") return { provider: flow.provider, url: await immomioUrl(flow, validEmail(body.email) || info.profileEmail) };
-  if (name === "complete_session") return completeSession(sql, env, flow, body.session, body.accountHint);
+  if (name === "resolve") return {
+    ok: true, provider: flow.provider,
+    mode: flow.provider === "immoscout24" ? "credentials" : "provider_web",
+    centralAccount: flow.context?.central_account === true,
+    oauthConfigured: flow.provider === "immowelt" ? Boolean(env.IMMOWELT_OAUTH_CLIENT_ID) : true,
+    accountHint: info.accountHint || info.profileEmail,
+    participantLabel: info.participantLabel,
+    origin: flow.origin, returnTarget: flow.return_target, expiresAt: flow.expires_at,
+    ...(flow.provider === "immomio" ? {
+      requiresManualCallback: true, callbackTransport: "manual-provider-pkce",
+    } : {}),
+  };
+  if (name === "provider_web") {
+    if (flow.provider === "immomio") {
+      return { provider: flow.provider, url: await immomioUrl(flow, validEmail(body.email) || info.profileEmail) };
+    }
+    if (flow.provider === "immowelt") {
+      return { provider: flow.provider, url: await immoweltUrl(flow, env) };
+    }
+    throw new Error("provider_unsupported");
+  }
   if (name === "complete_web") {
     if (flow.provider === "immomio") return completeImmomio(sql, env, flow, body.callbackUrl);
+    if (flow.provider === "immowelt") return completeImmoweltOauth(sql, env, flow, body.callbackUrl);
     if (flow.provider === "immoscout24") { const callback = scoutCallback(body.callbackUrl); if (callback.state !== flow.state || callback.error || !callback.code) throw new Error("invalid_callback_url"); return exchangeScoutCode(sql, env, flow, callback.code, info.profileEmail); }
     throw new Error("provider_unsupported");
   }
   if (name === "password_login") {
-    if (flow.provider === "immomio") return immomioPasswordLogin(sql, env, flow, body.email, body.password);
+    if (flow.provider === "immomio") throw new Error("provider_oauth_required");
     if (flow.provider === "immoscout24") return scoutPassword(sql, env, flow, body.email, body.password);
-    throw new Error("provider_browser_required");
+    throw new Error("provider_oauth_required");
   }
   if (name === "mfa_start" || name === "mfa_verify") {
     if (flow.provider !== "immoscout24") throw new Error("provider_interactive_challenge");
@@ -388,7 +427,7 @@ export async function handleProviderFacade(sql, request, env) {
   catch (error) {
     const code = String(error?.message || "auth_facade_failed");
     console.error("housing_provider_facade_action_failed", code);
-    const safe = new Set(["invalid_ticket", "auth_flow_expired", "provider_unsupported", "profile_email_required", "provider_contract_unverified", "temporary_network_error", "invalid_action", "invalid_callback_url", "provider_completion_failed", "token_exchange_failed", "login_failed", "account_temporarily_locked", "provider_interactive_challenge", "human_verification_required", "provider_email_required", "mfa_factor_unsupported", "mfa_invalid_code", "mfa_challenge_failed", "mfa_expired", "central_account_mismatch", "provider_browser_required"]);
+    const safe = new Set(["invalid_ticket", "auth_flow_expired", "provider_unsupported", "profile_email_required", "provider_contract_unverified", "temporary_network_error", "invalid_action", "invalid_callback_url", "provider_completion_failed", "token_exchange_failed", "login_failed", "account_temporarily_locked", "provider_interactive_challenge", "human_verification_required", "provider_email_required", "mfa_factor_unsupported", "mfa_invalid_code", "mfa_challenge_failed", "mfa_expired", "central_account_mismatch", "provider_oauth_required", "provider_oauth_not_configured", "userinfo_failed"]);
     const status = code === "invalid_ticket" || code === "invalid_callback_url" ? 400 : code === "auth_flow_expired" || code === "mfa_expired" ? 410 : code === "account_temporarily_locked" ? 423 : code === "login_failed" || code === "mfa_invalid_code" ? 401 : code.startsWith("mfa_") || code === "provider_interactive_challenge" ? 409 : 503;
     return json({ error: safe.has(code) ? code : "auth_facade_failed" }, status);
   }
