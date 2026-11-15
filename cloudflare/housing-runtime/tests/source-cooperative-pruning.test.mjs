@@ -33,9 +33,9 @@ test("remove only non-delivering cooperatives, preserving all profiles, delivery
   assert.deepEqual(links,[...keep].sort((a,b)=>a-b));
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM search_profiles").get().n,1);
   assert.equal(db.prepare("SELECT COUNT(*) AS n FROM participants").get().n,1);
-  assert.deepEqual(db.prepare("SELECT offer_identity_id,status FROM deliveries WHERE id='delivered'").get(),
+  assert.deepEqual({ ...db.prepare("SELECT offer_identity_id,status FROM deliveries WHERE id='delivered'").get() },
     {offer_identity_id:"offer-23",status:"sent"});
-  assert.deepEqual(db.prepare("SELECT offer_identity_id,status FROM applications WHERE id='application'").get(),
+  assert.deepEqual({ ...db.prepare("SELECT offer_identity_id,status FROM applications WHERE id='application'").get() },
     {offer_identity_id:"offer-23",status:"sent"});
   assert.equal(db.prepare("SELECT enabled FROM source_registry WHERE id=71").get().enabled,0,
     "the disabled non-cooperative Immowelt SH remains untouched");
