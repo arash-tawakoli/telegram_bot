@@ -438,7 +438,8 @@ export async function handleCallback(query, user) {
         return query.message?.chat?.type === "private" ? languageMenu(user, chatId, messageId) : undefined;
     }
     if (data.startsWith("admin:")) {
-        if (!isAdmin(user))
+        if (!isAdmin(user) || query.message?.chat?.type !== "private"
+            || chatId !== Number(user.telegram_user_id))
             return ack();
         if (data === "admin:list" || data.startsWith("admin:list:")) {
             await ack();
