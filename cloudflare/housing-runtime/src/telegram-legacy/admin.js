@@ -137,7 +137,7 @@ export async function adminUsers(user, chatId, messageId, filter = "all", page =
 // Same eligibility rule is applied at preview and inside the atomic UPDATE.
 // Active subscriptions, referral bonuses and unexpired grants are never overwritten.
 const RESET_FREE_WHERE = `p.status='active'
-    AND NOT (p.plan_override='premium' AND
+    AND NOT (COALESCE(p.plan_override,'')='premium' AND
         (p.plan_override_expires_at IS NULL OR julianday(p.plan_override_expires_at)>julianday(?)))
     AND NOT (p.referral_bonus_until IS NOT NULL AND julianday(p.referral_bonus_until)>julianday(?))
     AND NOT EXISTS (
