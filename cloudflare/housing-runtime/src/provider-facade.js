@@ -78,7 +78,7 @@ export async function issueProviderAuthFlow(sql, participantId, provider, origin
   await sql`
     INSERT INTO provider_connections (id,participant_id,provider,status)
     VALUES (${crypto.randomUUID()},${participantId},${provider},'pending')
-    ON CONFLICT (participant_id,provider) DO UPDATE SET status='pending',updated_at=CURRENT_TIMESTAMP
+    ON CONFLICT (participant_id,provider) DO NOTHING
   `;
   return { state, expiresAt: expires };
 }
@@ -177,7 +177,11 @@ async function completeSession(sql, env, flow, value, accountHint) {
   const hint = validEmail(accountHint);
   if (accountHint && !hint) throw new Error("provider_completion_failed");
   const encrypted = await encryptProviderCredentials(env, session, flow.participant_id, "immowelt");
-  return completeFlow(sql, flow, env, encrypted, hint, null);
+  const expiries = session.cookies.map(c => Number(c.expires)).filter(t => Number.isFinite(t) && t > Date.now()/1000 + 60);
+  // Treat unbounded browser sessions as 12-hour credentials; never assume perpetual login.
+  const expiresAt = new Date(Math.min(Date.now() + 12*60*60*1000,
+    expiries.length ? Math.min(...expiries)*1000 : Infinity)).toISOString();
+  return completeFlow(sql, flow, env, encrypted, hint, expiresAt);
 }
 
 async function verifyImmomio(accessToken) {
