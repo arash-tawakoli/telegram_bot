@@ -94,7 +94,7 @@ test("Immomio central OAuth token refresh uses Keycloak, not a remote browser", 
   }
 });
 
-test("browser cookie sessions are rejected for central Immowelt authentication", async () => {
+test("Immowelt cookie sessions without an access token require login", async () => {
   const env = { APPLICATION_CREDENTIAL_KEY: KEY };
   const encrypted = await encryptProviderCredentials(env, {
     cookies: [{ name: "legacy", value: "opaque", domain: ".immowelt.de" }],
@@ -104,7 +104,7 @@ test("browser cookie sessions are rejected for central Immowelt authentication",
     iv:encrypted.iv,key_version:encrypted.key_version,
   }];
   await assert.rejects(() => getCentralProviderCredentials(sql,env,"immowelt"),
-    /provider_contract_unverified/);
+    /needs_login/);
 });
 
 test("Scout production requires explicit central account enablement", async () => {
