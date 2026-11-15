@@ -26,4 +26,15 @@ jobs:
         with:
           node-version: 24
       - run: npm install --no-audit --no-fund
-      - run: npm test
+      - name: Capture regression test output
+        run: |
+          npm test > ci-regression.log 2>&1
+          status=$?
+          echo "Regression test exit: $status"
+          exit "$status"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: housing-regression-ci-diagnostics
+          path: ci-regression.log
+          if-no-files-found: ignore
