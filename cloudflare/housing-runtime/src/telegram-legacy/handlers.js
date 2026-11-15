@@ -7,14 +7,16 @@ import { homeKeyboard, home, premium, setPaused, referralPage, settings, languag
 import { draftFor, validateDraft, renderTypes, renderLocation, renderBoroughs, renderNeighborhoods, renderSchleswigHolsteinAreas, renderRent, renderCustomRent, renderRooms, renderArea, renderReview, renderReviewEdit, renderStep, afterSelection, persistProfile, profileLimit, draftFromProfile, startNewProfile, profileEditMenu, profile, renderStatus, nextSizeStep } from "./profiles.js";
 import { db, PREMIUM_LINK, PROPERTY_TYPES, RENT_PRESETS, ROOM_PRESETS, AREA_PRESETS, NEIGHBORHOODS_PER_PAGE, button, cancelRow, backRow, runtimeEnv, esc, secret, telegram, send, sendCelebration, edit, acknowledge, saveState, geography, HELP_TEXT } from "./runtime.js";
 
+// Most-used functions first, then settings and search controls.
 const PUBLIC_COMMANDS = [
     { command: "start", description: "Startmenü" },
-    { command: "premium", description: "Premium" },
-    { command: "einstellungen", description: "Einstellungen" },
-    { command: "hilfe", description: "Hilfe & Support" },
-    { command: "sprache", description: "Sprache" },
     { command: "suche", description: "Suchprofil erstellen" },
     { command: "suchprofile", description: "Suchprofile anzeigen" },
+    { command: "premium", description: "Premium" },
+    { command: "sprache", description: "Sprache" },
+    { command: "hilfe", description: "Hilfe & Support" },
+    { command: "teilen", description: "30 Tage Premium kostenlos" },
+    { command: "einstellungen", description: "Einstellungen" },
     { command: "pause", description: "Suche pausieren" },
     { command: "fortsetzen", description: "Suche fortsetzen" },
     { command: "status", description: "Systemstatus" },
@@ -23,7 +25,7 @@ const PUBLIC_COMMANDS = [
 function helpFor(user) {
     const admin = isAdmin(user);
     return HELP_TEXT + (admin
-        ? "\n\n<b>Nur für Admins:</b>\n🔐 /portalsetup – Portal-Zugang einrichten\n🔑 /token – Quellen und Tokens verwalten\n📢 /announcement – Ankündigungen versenden\n🛡 /admin – Adminbereich"
+        ? "\n\n<b>Nur für Admins:</b>\n🔑 /token – Quellen und Tokens verwalten\n📢 /announcement – Ankündigungen versenden\n🛡 /admin – Adminbereich"
         : "");
 }
 
@@ -32,7 +34,6 @@ const ADMIN_COMMANDS = [
     { command: "admin", description: "Adminbereich" },
     { command: "announcement", description: "Ankündigung senden" },
     { command: "token", description: "Quellen und Tokens verwalten" },
-    { command: "portalsetup", description: "Coach-Portal-Zugang einrichten" },
 ];
 
 async function syncTelegramCommands(user, chatId) {
@@ -283,23 +284,6 @@ export async function handleMessage(message, user) {
             return;
         return adminUsers(user, chatId);
     }
-    if (command === "/portalsetup") {
-        if (!isAdmin(user))
-            return;
-        const { data, error } = await db.rpc("issue_portal_bootstrap_token", {
-            p_telegram_user_id: Number(user.telegram_user_id),
-        });
-        if (error) {
-            const message = String(error.message || "");
-            if (message.includes("bootstrap_already_complete")) return send(chatId, "Dein Coach-Portal-Administratorzugang ist bereits eingerichtet. Melde dich mit deinem Cloudflare-Portalpasswort an.");
-            if (message.includes("bootstrap_admin_missing")) return send(chatId, "Der Super-Admin wurde im Cloudflare-Portal nicht gefunden. Bitte den Support kontaktieren.");
-            return send(chatId, "Der Einrichtungslink konnte nicht erstellt werden. Bitte versuche es erneut oder kontaktiere den Support.");
-        }
-        const url = "https://intern.traumwohnunghamburg.de/?setup=" + encodeURIComponent(String(data.token));
-        return send(chatId,
-            "🔐 <b>Coach-Portal sicher einrichten</b>\n\nDer einmalige Einrichtungslink ist 24 Stunden gültig. Öffne ihn selbst und lege ein neues Passwort mit mindestens 12 Zeichen fest. Das Passwort wird ausschließlich in Cloudflare D1 gespeichert.\n\nNach erfolgreicher Einrichtung ist die alte Supabase-Anmeldung nicht mehr erforderlich.",
-            { inline_keyboard: [[{ text: "Coach-Portal einrichten", url }]] });
-    }
     if (command === "/token") {
         if (!isAdmin(user) || message.chat?.type !== "private") return;
         const mode = argument.trim().toLowerCase();
@@ -362,6 +346,8 @@ export async function handleMessage(message, user) {
     }
     if (command === "/premium")
         return premium(user, chatId);
+    if (command === "/teilen")
+        return referralPage(user, chatId);
     // A reply-keyboard press arrives as an ordinary text message. Handle it
     // before free-text fields and search-step validation so it cannot be saved
     // as an applicant name, message template or custom rent.
@@ -373,8 +359,8 @@ export async function handleMessage(message, user) {
             await saveState(user.id, null, {}, user.request_update_id, user.request_attempt);
         user = { ...user, onboarding_state: {}, onboarding_step: null };
         if (quickAction === "premium") return premium(user, chatId);
-        if (quickAction === "autoApply") return platformSessions(user, message.chat, undefined, "platforms");
-        if (quickAction === "profile") return platformSessions(user, message.chat, undefined, "platforms:profile");
+        if (quickAction === "language") return languageMenu(user, chatId);
+        if (quickAction === "share") return referralPage(user, chatId);
         return send(chatId, helpFor(user), {
             inline_keyboard: [[button("← Start", "home")]],
         });
