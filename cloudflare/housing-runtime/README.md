@@ -18,8 +18,8 @@ Der Housing-Worker nutzt den ImmoScout24-MCP-Server `https://app.chatgpt.immobil
 
 | MCP-Tool | Einsatz |
 | --- | --- |
-| `property_search_de` | Bestehender automatischer Quellenabruf und read-only Suche |
-| `property_map_de` | Read-only Kartenabfrage mit geprüften Koordinaten, nur auf ausdrückliche Anfrage |
+| `property_search_de` | Suche im gemeinsamen HH-/SH-Abruf und read-only Coach-Suche |
+| `property_map_de` | Ergänzt beim automatischen Abruf Warmmiete, Nebenkosten und Koordinaten; on-demand Kartenabfrage bleibt read-only |
 
 Österreichische MCP-Tools (`property_search_at`, `property_map_at`) sind nicht integriert.
 
@@ -31,7 +31,9 @@ Der Housing-Worker nutzt den ImmoScout24-MCP-Server `https://app.chatgpt.immobil
 - Die Region und Deutschland werden serverseitig vorangestellt. Nicht erlaubte Quell-IDs und österreichische Ortsanfragen werden abgewiesen.
 - Beide API-Aktionen sind rein lesend. Der Kartenaufruf erstellt keine Zustellungen, Bewerbungen oder Datenbankeinträge. Ein Frontend kann die Geo-Daten für seine eigene Kartenansicht verwenden; die ChatGPT-MCP-Widget-Oberfläche wird nicht übernommen.
 
-Der bestehende automatische Quellenlauf nutzt weiterhin ausschließlich `property_search_de`. Damit erhöhen Kartenaufrufe nicht die Frequenz der automatischen Suche. Die Bewerbungsübermittlung verwendet getrennt davon die ImmoScout24-REST-Kontaktschnittstelle.
+**Gemeinsamer ImmoScout24-Workflow für Hamburg und Schleswig-Holstein:** Beide Quell-IDs (1 und 69) verwenden dieselbe Pipeline und denselben 10-Minuten-Takt. Aus aktiven Suchprofilen werden regionale Suchbegriffe (Bundesland, Hamburger Bezirke/Stadtteile, Schleswig-Holsteiner Gemeinden/Kreise) und Wohnformen abgeleitet. Pro Quellenlauf erfolgt **eine gezielte** `property_search_de`-Abfrage und **eine** ergänzende `property_map_de`-Abfrage mit identischem Suchbegriff. Treffer werden anhand der ImmoScout24-ID dedupliziert; Karteninformationen ergänzen fehlende Daten der Suche. Maximal 15 zusätzliche Kartentreffer werden je Lauf verarbeitet. Schlägt die Karte fehl, bleiben Suchtreffer nutzbar.
+
+Die normale MCP-Suche liefert `price.value` (Grund-/Kaltmiete); nur `totalRent` gilt als bestätigte Warmmiete. Angebote ohne bestätigte Warmmiete werden **nicht als Treffer innerhalb eines Warmmietlimits** zugestellt. Die bestehenden Bewerbungsfreigaben und Idempotenzschlüssel bleiben unverändert; Bewerbungen verwenden weiterhin die getrennte ImmoScout24-REST-Kontaktschnittstelle. Zusätzliche MCP-Ressourcen oder ein ChatGPT-Widget sind nicht Teil des Housing-Workers. Ein autorisierter Live-Handshake-/Toolkatalogtest und die Nutzungsgenehmigung für automatisierte MCP-Abfragen sind weiterhin separat zu verifizieren.
 
 ## Datenumfang
 
