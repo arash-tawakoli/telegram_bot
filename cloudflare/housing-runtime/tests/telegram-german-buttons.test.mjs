@@ -852,11 +852,11 @@ test("unchanged Telegram callbacks avoid participant identity writes and redunda
  }finally{x.done();}
 });
 
-test("persistent quick-access keyboard has Premium, Sprache, Hilfe und Teilen in a 2x2 grid",()=>{
+test("persistent quick-access keyboard has Premium, Sprache, Einstellungen and Gespeichert in a 2x2 grid",()=>{
  const keys=quickActionsKeyboard();
  assert.deepEqual(keys.keyboard.map(row=>row.map(b=>b.text)),[
   ["💎 Premium","🌐 Sprache"],
-  ["❓ Hilfe & Support","🎁 Teilen"],
+  ["⚙️ Einstellungen","⭐ Gespeichert"],
  ]);
  assert.equal(keys.is_persistent,true);
  assert.equal(keys.resize_keyboard,true);
@@ -874,11 +874,16 @@ test("/start installs the updated persistent reply keyboard without changing the
   assert.equal(messages[0].body.reply_markup.is_persistent,true);
   assert.deepEqual(messages[0].body.reply_markup.keyboard.map(row=>row.map(b=>b.text)),[
    ["💎 Premium","🌐 Sprache"],
-   ["❓ Hilfe & Support","🎁 Teilen"],
+   ["⚙️ Einstellungen","⭐ Gespeichert"],
   ]);
+  assert.match(messages[0].body.text,/Schnellfunktionen stehen jetzt/);
   assert.match(messages[1].body.text,/Traumwohnung Hamburg/);
   assert.deepEqual(messages[1].body.reply_markup.inline_keyboard.map(row=>row[0].callback_data),
    ["profile","platforms:profile-new","platforms"]);
+  await handleMessage({chat:x.chat,text:"/start"},x.user);
+  assert.equal(x.sent.filter(item=>item.method==="sendMessage"&&item.body.reply_markup?.keyboard).length,1,
+   "the persistent reply keyboard must not produce another setup message on later /start");
+  assert.equal(x.sqlite.prepare("SELECT reply_keyboard_version AS version FROM participants WHERE id='owner'").get().version,1);
  }finally{x.done();}
 });
 
@@ -918,10 +923,9 @@ test("all four bottom shortcuts open their existing screens and preserve subscri
   };
   await check(QUICK_ACTIONS.premium,/Traumwohnung Premium/);
   await check(QUICK_ACTIONS.language,/Sprache auswählen/);
-  await check(QUICK_ACTIONS.help,/Hilfe & Befehle/);
-  await check(QUICK_ACTIONS.share,/30 Tage Premium kostenlos/);
-  assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][0].text,"📤 Link teilen");
-  assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM referral_codes WHERE participant_id='owner'").get().n,1);
+  await check(QUICK_ACTIONS.settings,/Einstellungen/);
+  await check(QUICK_ACTIONS.saved,/Gespeicherte Inserate/);
+  assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM referral_codes WHERE participant_id='owner'").get().n,0);
   assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM user_subscriptions WHERE participant_id='owner'").get().n,0,
    "premium shortcut must not create or modify a subscription");
  }finally{x.done();}
@@ -951,9 +955,9 @@ test("quick navigation cancels an incomplete custom-rent step before opening ano
  try{
   const wizard={_step:"rent_custom",max_warm_rent:null,profile_slot:1};
   x.sqlite.prepare("UPDATE participants SET telegram_state=? WHERE id='owner'").run(JSON.stringify(wizard));
-  await handleMessage({chat:x.chat,text:QUICK_ACTIONS.help},
+  await handleMessage({chat:x.chat,text:QUICK_ACTIONS.settings},
    {...x.user,onboarding_step:"rent_custom",onboarding_state:wizard});
-  assert.match(lastMessage(x).text,/Hilfe & Befehle/);
+  assert.match(lastMessage(x).text,/Einstellungen/);
   const saved=JSON.parse(x.sqlite.prepare("SELECT telegram_state FROM participants WHERE id='owner'").get().telegram_state);
   assert.equal(saved._step,null);
   assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM search_profiles WHERE participant_id='owner'").get().n,0);
