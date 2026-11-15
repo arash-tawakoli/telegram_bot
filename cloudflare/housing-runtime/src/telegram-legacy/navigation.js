@@ -13,8 +13,7 @@ export const QUICK_ACTIONS = Object.freeze({
 export function quickActionsKeyboard() {
   return {
     keyboard: [
-      [{ text: QUICK_ACTIONS.premium }, { text: QUICK_ACTIONS.autoApply }],
-      [{ text: QUICK_ACTIONS.profile }, { text: QUICK_ACTIONS.help }],
+      [{ text: QUICK_ACTIONS.autoApply }, { text: QUICK_ACTIONS.profile }],
     ],
     is_persistent: true,
     resize_keyboard: true,
@@ -32,8 +31,7 @@ export function homeKeyboard(user) {
     [button("🔎 Suchprofil", "profile")],
     [button("👤 Bewerberprofil", "platforms:profile-new")],
     [button(user.is_premium ? "⚡ Auto-Bewerbung" : "🔒 Auto-Bewerbung", "platforms")],
-    [button(user.is_premium ? "💎 Mein Premium" : "💎 Premium ansehen", "premium")],
-    [button("⚙️ Einstellungen", "settings")],
+
   ] };
 }
 
