@@ -222,7 +222,7 @@ async function immomioDirectPassword(sql, env, flow, emailValue, passwordValue, 
   // Credentials are sent only to Keycloak, never persisted or logged.
   const payload = new URLSearchParams({
     grant_type: "password", client_id: IMMOMIO_CLIENT,
-    username: email, password, scope: "openid profile email",
+    username: email, password, scope: "openid profile email offline_access",
   });
   if (totp) payload.set("totp", totp);
   const response = await fetch(
@@ -443,7 +443,7 @@ export async function handleProviderFacade(sql, request, env) {
   catch (error) {
     const code = String(error?.message || "auth_facade_failed");
     console.error("housing_provider_facade_action_failed", code);
-    const safe = new Set(["invalid_ticket", "auth_flow_expired", "provider_unsupported", "profile_email_required", "provider_contract_unverified", "temporary_network_error", "invalid_action", "invalid_callback_url", "provider_completion_failed", "token_exchange_failed", "login_failed", "account_temporarily_locked", "provider_interactive_challenge", "human_verification_required", "provider_email_required", "mfa_factor_unsupported", "mfa_invalid_code", "mfa_challenge_failed", "mfa_expired", "central_account_mismatch", "provider_oauth_required", "provider_oauth_not_configured", "userinfo_failed", "refresh_token_missing", "device_confirmation_required", "needs_login"]);
+    const safe = new Set(["invalid_ticket", "auth_flow_expired", "provider_unsupported", "profile_email_required", "provider_contract_unverified", "temporary_network_error", "invalid_action", "invalid_callback_url", "provider_completion_failed", "token_exchange_failed", "login_failed", "account_temporarily_locked", "provider_interactive_challenge", "human_verification_required", "provider_email_required", "mfa_factor_unsupported", "mfa_invalid_code", "mfa_challenge_failed", "mfa_expired", "central_account_mismatch", "provider_oauth_required", "provider_oauth_not_configured", "userinfo_failed", "refresh_token_missing", "device_confirmation_required", "needs_login", "credential_key_invalid", "credential_decrypt_failed"]);
     const status = code === "invalid_ticket" || code === "invalid_callback_url" ? 400 : code === "auth_flow_expired" || code === "mfa_expired" ? 410 : code === "account_temporarily_locked" ? 423 : code === "login_failed" || code === "mfa_invalid_code" ? 401 : code.startsWith("mfa_") || code === "provider_interactive_challenge" || code === "provider_oauth_required" ? 409 : 503;
     return json({ error: safe.has(code) ? code : "auth_facade_failed" }, status);
   }

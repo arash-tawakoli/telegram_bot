@@ -215,11 +215,12 @@ async function mfaResult(env, flow, email, url, html, jar) {
   return { status: "mfa_required", authenticated: false, mfaRequired: true, codeDispatched: true,
     mfaTicket: ticket, factors: [{ id: "immowelt_code", type, label: factorLabel(type) }] };
 }
-function loginSuccess(email, jar) {
-  const cookies = sessionCookies(jar);
-  if (!cookies.length || !cookieValue(cookies, "oauth.access.token")) throw new Error("provider_completion_failed");
-  return { status: "connected", authenticated: true, accountHint: email, passwordStored: false,
-    session: { cookies, userAgent: UA } };
+async function loginSuccess(env, email, jar) {
+  let session = { cookies: sessionCookies(jar), userAgent: UA };
+  if (!session.cookies.length) throw new Error("provider_completion_failed");
+  if (!cookieValue(session.cookies, "oauth.access.token")) session = await refreshImmoweltCookies(session, true);
+  if (!session.cookies.some((cookie) => cookie.name === "oauth.access.token")) throw new Error("provider_completion_failed");
+  return { status: "connected", authenticated: true, accountHint: email, passwordStored: false, session };
 }
 async function settle(env, flow, email, startUrl, initialResponse, jar, afterCredential) {
   let url = allowedUrl(startUrl), response = initialResponse;
@@ -243,7 +244,7 @@ async function settle(env, flow, email, startUrl, initialResponse, jar, afterCre
       }
       throw new Error("provider_interactive_challenge");
     }
-    if (host === "immowelt.de" || host.endsWith(".immowelt.de")) return loginSuccess(email, jar);
+    if (host === "immowelt.de" || host.endsWith(".immowelt.de")) return loginSuccess(env, email, jar);
     throw new Error("provider_contract_unverified");
   }
   throw new Error("provider_contract_unverified");
