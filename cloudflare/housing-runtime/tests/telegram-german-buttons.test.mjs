@@ -965,6 +965,62 @@ test("quick navigation cancels an incomplete custom-rent step before opening ano
 });
 
 
+test("delivered offer is saved once, displayed for the owner, and removable",async()=>{
+ const x=setup();
+ try{
+  const delivery="00000000-0000-0000-0000-000000000111";
+  const link="https://www.immobilienscout24.de/expose/123456";
+  const facts={title:"Balkonwohnung in Hamburg",warm_rent:650,city:"Hamburg"};
+  x.sqlite.prepare("INSERT INTO offer_identities(id,source_id,identity_hash,canonical_url,facts) VALUES(?,?,?,?,?)")
+   .run("offer-111",1,"hash-111",link,JSON.stringify(facts));
+  x.sqlite.prepare("INSERT INTO deliveries(id,participant_id,offer_identity_id,idempotency_key,status) VALUES(?,?,?,?,?)")
+   .run(delivery,"owner","offer-111","delivery-111","sent");
+  const markup={inline_keyboard:[
+   [{text:"Zu ImmoScout24",url:link}],
+   [{text:"⭐ Speichern",callback_data:"save:"+delivery}],
+  ]};
+  const tap=()=>handleCallback({id:"save-test",data:"save:"+delivery,from:{id:777},
+   message:{chat:x.chat,message_id:82,photo:[{file_id:"fixture"}],reply_markup:markup}},x.user);
+  await tap();
+  assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM saved_offers WHERE participant_id='owner'").get().n,1);
+  const saved=x.sqlite.prepare("SELECT canonical_url,title,facts FROM saved_offers WHERE participant_id='owner'").get();
+  assert.equal(saved.canonical_url,link);
+  assert.match(saved.title,/Balkonwohnung/);
+  assert.equal(JSON.parse(saved.facts).warm_rent,650);
+  const editMarkup=x.sent.filter(x=>x.method==="editMessageReplyMarkup").at(-1)?.body?.reply_markup;
+  assert.equal(editMarkup.inline_keyboard[1][0].text,"⭐ Gespeichert");
+  await tap();
+  assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM saved_offers WHERE participant_id='owner'").get().n,1,
+   "saving the same delivered apartment twice must not create duplicates");
+  await handleMessage({chat:x.chat,text:"/gespeichert"},x.user);
+  assert.match(lastMessage(x).text,/Balkonwohnung/);
+  assert.match(lastMessage(x).text,/650 €/);
+  assert.ok(lastMessage(x).reply_markup.inline_keyboard.flat().some(b=>b.url===link));
+  const remove=lastMessage(x).reply_markup.inline_keyboard.flat().find(b=>b.callback_data?.startsWith("saved:delete:"));
+  assert.ok(remove);
+  await handleCallback({id:"remove-test",data:remove.callback_data,from:{id:777},
+   message:{chat:x.chat,message_id:85}},x.user);
+  assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM saved_offers WHERE participant_id='owner'").get().n,0);
+  assert.match(lastMessage(x).text,/noch keine Angebote/);
+ }finally{x.done();}
+});
+
+test("save callbacks reject a delivery belonging to another participant",async()=>{
+ const x=setup();
+ try{
+  const delivery="00000000-0000-0000-0000-000000000222";
+  const link="https://www.immobilienscout24.de/expose/222";
+  x.sqlite.exec("INSERT INTO participants(id,first_name,last_name,telegram_user_id) VALUES('other','C','D',888)");
+  x.sqlite.prepare("INSERT INTO offer_identities(id,source_id,identity_hash,canonical_url,facts) VALUES(?,?,?,?,?)")
+   .run("offer-222",1,"hash-222",link,JSON.stringify({title:"Private Wohnung"}));
+  x.sqlite.prepare("INSERT INTO deliveries(id,participant_id,offer_identity_id,idempotency_key,status) VALUES(?,?,?,?,?)")
+   .run(delivery,"other","offer-222","delivery-222-key","sent");
+  await handleCallback({id:"cross-user",data:"save:"+delivery,from:{id:777},
+   message:{chat:x.chat,message_id:93,photo:[{file_id:"fixture"}]}},x.user);
+  assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM saved_offers").get().n,0);
+ }finally{x.done();}
+});
+
 test("admin user directory is paginated and can filter Free users without flooding Telegram buttons", async()=>{
   const x=setup();
   try{
