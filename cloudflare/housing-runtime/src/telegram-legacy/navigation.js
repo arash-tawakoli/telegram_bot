@@ -4,8 +4,8 @@ import { homePreview, languageMenu as renderLanguageMenu } from "./home-language
 // Telegram reply keyboard: shown below the message input, independently of the
 // existing inline buttons in the home message.
 export const QUICK_ACTIONS = Object.freeze({
-  premium: "💎 Premium",
   home: "🏠 Startmenü",
+  premium: "💎 Premium",
   settings: "⚙️ Einstellungen",
   saved: "⭐ Gespeichert",
 });
@@ -13,7 +13,7 @@ export const QUICK_ACTIONS = Object.freeze({
 export function quickActionsKeyboard() {
   return {
     keyboard: [
-      [{ text: QUICK_ACTIONS.premium }, { text: QUICK_ACTIONS.home }],
+      [{ text: QUICK_ACTIONS.home }, { text: QUICK_ACTIONS.premium }],
       [{ text: QUICK_ACTIONS.settings }, { text: QUICK_ACTIONS.saved }],
     ],
     is_persistent: true,
@@ -23,7 +23,7 @@ export function quickActionsKeyboard() {
   };
 }
 
-const REPLY_KEYBOARD_VERSION = 4;
+const REPLY_KEYBOARD_VERSION = 5;
 
 export async function showQuickActions(chatId, user, { force = false } = {}) {
   const database = runtimeEnv()?.HOUSING_DB;
