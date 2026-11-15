@@ -1,6 +1,32 @@
 import { db, button, send, edit } from "./runtime.js";
 import { homePreview, languageMenu as renderLanguageMenu } from "./home-language.js";
 
+// Telegram reply keyboard: shown below the message input, independently of the
+// existing inline buttons in the home message.
+export const QUICK_ACTIONS = Object.freeze({
+  premium: "💎 Premium",
+  autoApply: "⚡ Auto-Bewerbung",
+  profile: "👤 Mein Profil",
+  help: "❓ Hilfe & Support",
+});
+
+export function quickActionsKeyboard() {
+  return {
+    keyboard: [
+      [{ text: QUICK_ACTIONS.premium }, { text: QUICK_ACTIONS.autoApply }],
+      [{ text: QUICK_ACTIONS.profile }, { text: QUICK_ACTIONS.help }],
+    ],
+    is_persistent: true,
+    resize_keyboard: true,
+    one_time_keyboard: false,
+    input_field_placeholder: "Schnellzugriff wählen",
+  };
+}
+
+export function showQuickActions(chatId) {
+  return send(chatId, "📌 Schnellzugriff", quickActionsKeyboard());
+}
+
 export function homeKeyboard(user) {
   return { inline_keyboard: [
     [button("🔎 Suchprofil", "profile")],
