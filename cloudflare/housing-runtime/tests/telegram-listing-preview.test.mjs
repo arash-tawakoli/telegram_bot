@@ -48,11 +48,13 @@ test("unknown fields stay absent and HTML is escaped", () => {
 test("source/save/map actions remain on the housing card", () => {
   const markup = listingKeyboard({ city: "Hamburg" }, source, 3, "Immowelt Hamburg");
   assert.deepEqual(markup.inline_keyboard.map(row => row[0].text), [
-    "Zu Immowelt", "⭐ Speichern", "🗺️ Google Map",
+    "Zu Immowelt", "⭐ Speichern", "🗺️ Google Map", "📤 Teilen",
   ]);
   assert.equal(markup.inline_keyboard[0][0].url, source);
   assert.match(markup.inline_keyboard[1][0].url, /^https:\/\/t\.me\/share\/url\?/);
   assert.match(markup.inline_keyboard[2][0].url, /^https:\/\/www\.google\.com\/maps\/search\//);
+  assert.match(markup.inline_keyboard[3][0].url, /^https:\/\/t\.me\/share\/url\?/);
+  assert.ok(markup.inline_keyboard[3][0].url.includes(encodeURIComponent(source)));
 });
 
 test("only approved HTTPS image hosts can be used in the Mini App", () => {
