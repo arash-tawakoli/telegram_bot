@@ -16,7 +16,7 @@ test("live source intervals stay unchanged while shadow-only sources stop pollin
     runs.set(source, [...(runs.get(source) || []), minute]);
   }
   assert.deepEqual([...runs.keys()].sort((a, b) => a - b), [1, 3, 23, 29, 35, 66, 69]);
-  assert.deepEqual(idle, [2, 7, 12, 17, 22, 27, 32, 37]);
+  assert.deepEqual(idle, [2, 7, 8, 12, 17, 18, 22, 27, 28, 32, 37, 38]);
   const expected = new Map([[1, 10], [3, 10], [23, 10], [29, 10], [35, 20], [66, 20], [69, 5]]);
   for (const [source, interval] of expected) {
     const minutes = runs.get(source);
