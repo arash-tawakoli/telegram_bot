@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS saved_offers (
   canonical_url TEXT NOT NULL,
   title TEXT NOT NULL,
   source_name TEXT NOT NULL,
-  facts TEXT NOT NULL DEFAULT '{}',
+  warm_rent REAL,
   saved_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(participant_id, offer_identity_id)
 );
