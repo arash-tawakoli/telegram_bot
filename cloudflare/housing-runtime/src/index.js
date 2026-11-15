@@ -190,6 +190,7 @@ async function runSource(sql, request, env) {
   const rawConnectorConfig = rows[0].connector_config || {};
   const connectorConfig = typeof rawConnectorConfig === "string" ? JSON.parse(rawConnectorConfig || "{}") : rawConnectorConfig;
   const sourceRow = {
+    ...source,
     ...rows[0],
     homepage_url: connectorConfig.homepage_url || connectorConfig.url || null,
     search_url: connectorConfig.search_url || connectorConfig.url || null,
