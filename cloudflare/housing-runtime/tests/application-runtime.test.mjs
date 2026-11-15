@@ -45,7 +45,7 @@ test("application processor fails closed when central provider credentials are a
   const result = await processHousingApplication(db.query, { APPLICATION_RUN_TOKEN: "secret" }, new Request("https://runtime.test/internal/application/process", { method: "POST", headers: { authorization: "Bearer secret" } }));
   assert.equal(result.body.status, "manual_required");
   assert.equal(result.body.reason, "central_provider_unavailable");
-  assert.equal(db.writes.some(({ text }) => /SET submission_started_at = now\\(\\)/.test(text)), false);
+  assert.equal(db.writes.some(({ text }) => /SET submission_started_at = now\(\)/.test(text)), false);
   assert.ok(db.writes.some(({ text }) => /housing\.application_events/.test(text)));
 });
 
