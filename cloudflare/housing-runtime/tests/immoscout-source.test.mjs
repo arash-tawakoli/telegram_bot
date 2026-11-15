@@ -125,7 +125,7 @@ test("Schleswig-Holstein map accepts northern coordinates but rejects Austria", 
     exposedId: "444444", exposeUrl: "https://www.immobilienscout24.de/expose/444444",
     address: { countryCode: "AT", coordinates: { lat: 54.323, lng: 10.139 } },
   }, 69);
-  assert.equal(crossBorder.facts.latitude, undefined);
+  assert.equal(crossBorder, null, "foreign-country offers are excluded before the matching pipeline");
 });
 
 
