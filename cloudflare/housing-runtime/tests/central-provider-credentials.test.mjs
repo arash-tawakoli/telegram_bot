@@ -80,7 +80,7 @@ test("Immomio never creates an application under the wrong account identity", as
       participant_id: "applicant-id",
       profile: { email: "applicant@example.com" },
       facts: { applicationLink: "https://tenant.immomio.com/apply/12345678-1234-4234-8234-123456789012" },
-    }, {}, null, { ownerId: OWNER_ID, credentials: { access_token: "opaque", expires_at: "2099-01-01T00:00:00Z" } });
+    }, {}, null, { ownerId: "applicant-id", credentials: { access_token: "opaque", expires_at: "2099-01-01T00:00:00Z" } });
     assert.deepEqual(outcome, { status: "manual_required", error: "central_identity_mismatch" });
     assert.equal(requests.length, 1);
     assert.match(requests[0], /currentUser/);
