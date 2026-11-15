@@ -1,4 +1,4 @@
-const SOURCE_ROTATION = Object.freeze([69, 1, null, 3, 23, 69, 29, null, 34, 35, 69, 1, null, 3, 23, 69, 29, null, 34, 66]);
+const SOURCE_ROTATION = Object.freeze([69, 1, null, 3, 23, 69, 29, null, null, 35, 69, 1, null, 3, 23, 69, 29, null, null, 66]);
 
 export function sourcesForMinute(minute) {
   const source = SOURCE_ROTATION[minute % SOURCE_ROTATION.length];
