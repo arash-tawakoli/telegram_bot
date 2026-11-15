@@ -9,7 +9,16 @@ test("an unrecognized provider response increments failures and does not mark su
     if (query.includes("SELECT id, name, connector_config")) return { results: [{ id: 1, name: "Hamburg", connector_config: "{}" }] };
     return { results: [], meta: { changes: 1 } };
   } }; } };
-  globalThis.fetch = async () => { remoteCalls++; return Response.json({ result: { structuredContent: { entries: [], total: null } } }); };
+  globalThis.fetch = async (_url, options) => {
+    const payload = JSON.parse(options.body);
+    if (payload.method === "initialize") return Response.json({
+      jsonrpc: "2.0", id: payload.id,
+      result: { protocolVersion: "2025-06-18", capabilities: { tools: {} } },
+    });
+    if (payload.method === "notifications/initialized") return new Response(null, { status: 202 });
+    remoteCalls++;
+    return Response.json({ jsonrpc: "2.0", id: payload.id, result: { structuredContent: { entries: [], total: null } } });
+  };
   try {
     const req = new Request("https://runtime.example/internal/source/run", { method: "POST", headers: { authorization: "Bearer test-source-token", "content-type": "application/json" }, body: JSON.stringify({ source_id: 1 }) });
     assert.equal((await worker.fetch(req, { HOUSING_DB: db, SOURCE_RUN_TOKEN: "test-source-token" })).status, 503);
