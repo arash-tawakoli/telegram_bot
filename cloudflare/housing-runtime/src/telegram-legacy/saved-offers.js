@@ -48,12 +48,14 @@ export async function saveDeliveredOffer(user, deliveryId) {
   if (!offer?.offer_identity_id || !destination) return false;
   const facts = factsObject(offer.facts);
   const title = listingHeadline(facts).slice(0, 170);
+  const warm = Number(facts.warm_rent);
+  const warmRent = Number.isFinite(warm) && warm > 0 ? warm : null;
   const sourceName = String(offer.source_name || "Angebot").slice(0, 70);
   await query`
     INSERT OR IGNORE INTO saved_offers
-      (participant_id, offer_identity_id, canonical_url, title, source_name, facts)
+      (participant_id, offer_identity_id, canonical_url, title, source_name, warm_rent)
     VALUES (${user.id}, ${offer.offer_identity_id}, ${destination},
-      ${title}, ${sourceName}, ${JSON.stringify(facts).slice(0, 15000)})
+      ${title}, ${sourceName}, ${warmRent})
   `;
   return true;
 }
@@ -75,7 +77,7 @@ export async function savedOffers(user, chatId, messageId, requestedPage = 0) {
   const maxPage = Math.max(0, Math.ceil(total / PAGE_SIZE) - 1);
   const current = Math.min(page, maxPage);
   const items = await query`
-    SELECT id, canonical_url, title, source_name, facts
+    SELECT id, canonical_url, title, source_name, warm_rent
     FROM saved_offers WHERE participant_id = ${user.id}
     ORDER BY saved_at DESC, id DESC
     LIMIT ${PAGE_SIZE} OFFSET ${current * PAGE_SIZE}
@@ -84,8 +86,7 @@ export async function savedOffers(user, chatId, messageId, requestedPage = 0) {
   const rows = [];
   if (!items.length) text += "Du hast noch keine Angebote gespeichert.";
   for (const [index, item] of items.entries()) {
-    const facts = factsObject(item.facts);
-    const price = Number(facts.warm_rent);
+    const price = Number(item.warm_rent);
     const displayPrice = Number.isFinite(price) && price > 0
       ? " · " + new Intl.NumberFormat("de-DE", { maximumFractionDigits: 2 }).format(price) + " €" : "";
     text += `${current * PAGE_SIZE + index + 1}. <b>${esc(short(item.title, 75))}</b>\n${esc(item.source_name)}${displayPrice}\n\n`;
