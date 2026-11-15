@@ -73,13 +73,15 @@ export async function getCentralProviderCredentials(sql, env, provider, { testMo
   if (!credentials || typeof credentials !== "object") throw new Error("central_provider_unavailable");
   const expiry = Date.parse(String(credentials.expires_at || row.expires_at || ""));
   const updatedAt = Date.parse(String(row.updated_at || ""));
-  const hourlyImmowelt = provider === "immowelt" && Number.isFinite(updatedAt) && updatedAt <= Date.now() - 55 * 60_000;
+  const hourlyProviderRefresh = ["immowelt", "immomio"].includes(provider) &&
+    Number.isFinite(updatedAt) && updatedAt <= Date.now() - 55 * 60_000;
   const cookieSession = provider === "immowelt" && Array.isArray(credentials.cookies) && credentials.cookies.length > 0;
   if (cookieSession) {
     if (!credentials.cookies.some((cookie) => cookie.name === "oauth.access.token")) throw new Error("needs_login");
-    if (hourlyImmowelt || (Number.isFinite(expiry) && expiry < Date.now() + 60_000))
-      credentials = await refreshCentralProvider(sql, env, provider, row, credentials, hourlyImmowelt);
-  } else if (Number.isFinite(expiry) && expiry < Date.now() + 60_000) {
+    if (hourlyProviderRefresh || (Number.isFinite(expiry) && expiry < Date.now() + 60_000))
+      credentials = await refreshCentralProvider(sql, env, provider, row, credentials, hourlyProviderRefresh);
+  } else if ((Number.isFinite(expiry) && expiry < Date.now() + 60_000) ||
+      (provider === "immomio" && hourlyProviderRefresh)) {
     if (!credentials.refresh_token) throw new Error("needs_login");
     credentials = await refreshCentralProvider(sql, env, provider, row, credentials);
   }

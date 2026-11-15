@@ -7,26 +7,35 @@ import { refreshImmoweltSession } from "./immowelt-application.js";
 const LABELS = { immoscout24: "ImmoScout24", immowelt: "Immowelt", immomio: "Immomio" };
 const enabled = value => value === true || value === 1;
 
-async function scanExpiringSessions(sql, env, now) {
-  const rows = await sql`
+async function scanExpiringSessions(sql, env, now, centralOnly = false) {
+  const rows = centralOnly ? await sql`
     SELECT pc.participant_id, pc.provider, pc.ciphertext, pc.iv, pc.key_version, pc.expires_at, pc.updated_at
     FROM housing.provider_connections pc
     JOIN housing.participants p ON p.id = pc.participant_id
-    WHERE pc.status = 'connected' AND p.status = 'active' AND (p.auto_apply_enabled = 1 OR p.telegram_user_id = 8538226539)
-      AND pc.provider IN ('immoscout24','immowelt','immomio') AND (pc.expires_at IS NOT NULL OR pc.provider = 'immowelt')
+    WHERE pc.status = 'connected' AND p.status = 'active' AND p.telegram_user_id = ${8538226539}
+      AND pc.provider IN ('immowelt','immomio')
+      AND (pc.expires_at IS NOT NULL OR pc.provider = 'immowelt')
+  ` : await sql`
+    SELECT pc.participant_id, pc.provider, pc.ciphertext, pc.iv, pc.key_version, pc.expires_at, pc.updated_at
+    FROM housing.provider_connections pc
+    JOIN housing.participants p ON p.id = pc.participant_id
+    WHERE pc.status = 'connected' AND p.status = 'active'
+      AND (p.auto_apply_enabled = 1 OR p.telegram_user_id = ${8538226539})
+      AND pc.provider IN ('immoscout24','immowelt','immomio')
+      AND (pc.expires_at IS NOT NULL OR pc.provider = 'immowelt')
   `;
   let checked = 0, marked = 0;
   for (const connection of rows) {
     const expiresAt = timestampMillis(connection.expires_at);
     const updatedAt = timestampMillis(connection.updated_at);
-    const hourlyImmoweltRefresh = connection.provider === "immowelt" &&
+    const hourlyRefresh = ["immowelt", "immomio"].includes(connection.provider) &&
       Number.isFinite(updatedAt) && updatedAt <= now.getTime() - 55 * 60_000;
-    if (!hourlyImmoweltRefresh && (!Number.isFinite(expiresAt) || expiresAt > now.getTime() + 10 * 60_000)) continue;
+    if (!hourlyRefresh && (!Number.isFinite(expiresAt) || expiresAt > now.getTime() + 10 * 60_000)) continue;
     checked++;
     try {
       if (connection.provider === "immoscout24") await refreshImmoScoutSession(sql, env, connection);
-      else if (connection.provider === "immowelt") await refreshImmoweltSession(sql, env, connection, hourlyImmoweltRefresh);
-      else await refreshImmomioSession(sql, env, connection);
+      else if (connection.provider === "immowelt") await refreshImmoweltSession(sql, env, connection, hourlyRefresh);
+      else await refreshImmomioSession(sql, env, connection, hourlyRefresh);
     } catch (error) {
       if (String(error?.message || error) !== "needs_login") continue;
       await sql`
@@ -37,6 +46,10 @@ async function scanExpiringSessions(sql, env, now) {
     }
   }
   return { checked, marked };
+}
+
+export async function runCentralProviderSessionRefresh(sql, env, now = new Date()) {
+  return scanExpiringSessions(sql, env, now, true);
 }
 
 async function sendReminder(sql, env, row, now, fetchImpl) {

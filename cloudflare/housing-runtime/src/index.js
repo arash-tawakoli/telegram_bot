@@ -18,7 +18,7 @@ import { handleLegacyTelegramUpdate } from "./telegram-legacy/index.js";
 import { runEngagementNotifications } from "./engagement-cron.js";
 import { recordTelegramActivity, recoverTelegramUpdates } from "./telegram-recovery.js";
 import { scheduledTasksForMinute, sourcesForMinute } from "./source-schedule.js";
-import { runPlatformSessionReminders } from "./platform-session-cron.js";
+import { runCentralProviderSessionRefresh, runPlatformSessionReminders } from "./platform-session-cron.js";
 
 const HEADERS = {
   "content-type": "application/json; charset=utf-8",
@@ -330,6 +330,12 @@ async function processDelivery(sql, request, env) {
 async function runScheduledHousingWork(env, minute = Math.floor(Date.now() / 60_000)) {
   const scheduledSources = sourcesForMinute(minute);
   const tasks = scheduledTasksForMinute(minute);
+  try {
+    const result = await withDatabase(env, (sql) => runCentralProviderSessionRefresh(sql, env));
+    if (result.checked || result.marked) console.log("housing_central_provider_refresh", JSON.stringify(result));
+  } catch (error) {
+    console.error("housing_central_provider_refresh_failed", String(error?.message || error));
+  }
   if (tasks.engagement) {
     try {
       const result = await withDatabase(env, (sql) => runEngagementNotifications(sql, env));
