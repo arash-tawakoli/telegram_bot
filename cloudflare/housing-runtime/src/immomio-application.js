@@ -31,8 +31,8 @@ async function gql(query, variables, token) {
   if (!response.ok || body?.errors?.length) return { response, body };
   return { response, body };
 }
-async function refresh(sql, env, application, credentials) {
-  if (credentials?.access_token && Date.parse(credentials.expires_at || "") > Date.now() + 60_000) return credentials;
+async function refresh(sql, env, application, credentials, force = false) {
+  if (!force && credentials?.access_token && Date.parse(credentials.expires_at || "") > Date.now() + 60_000) return credentials;
   if (!credentials?.refresh_token) throw new Error("needs_login");
   const response = await fetch(`${BASE}/realms/${REALM}/protocol/openid-connect/token`, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json" }, body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: String(credentials.refresh_token), client_id: CLIENT }), signal: AbortSignal.timeout(25_000) }).catch(() => null);
   const token = await response?.json().catch(() => null);
@@ -44,7 +44,7 @@ async function refresh(sql, env, application, credentials) {
   return updated;
 }
 
-export async function refreshImmomioSession(sql, env, connection) {
+export async function refreshImmomioSession(sql, env, connection, force = false) {
   const application = {
     participant_id: connection.participant_id,
     connection_ciphertext: connection.ciphertext,
@@ -54,7 +54,7 @@ export async function refreshImmomioSession(sql, env, connection) {
   const credentials = await decryptProviderCredentials(env, {
     ciphertext: connection.ciphertext, iv: connection.iv, key_version: connection.key_version,
   }, connection.participant_id, "immomio");
-  const refreshed = await refresh(sql, env, application, credentials);
+  const refreshed = await refresh(sql, env, application, credentials, force);
   const user = await gql(PROFILE_QUERY, {}, refreshed.access_token);
   if (!user.response.ok || user.body?.errors?.length || !user.body?.data?.user?.id) {
     if ([401, 403].includes(user.response.status)) throw new Error("needs_login");
