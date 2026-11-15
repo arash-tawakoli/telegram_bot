@@ -42,6 +42,8 @@ test("simultaneous D1 delivery workers claim once and render stored listing deta
     assert.equal(messages[0].reply_markup.inline_keyboard.length, 4);
     assert.equal(messages[0].reply_markup.inline_keyboard[0][0].text, "Zu ImmoScout24");
     assert.equal(messages[0].reply_markup.inline_keyboard[1][0].text, "⭐ Speichern");
+    assert.equal(messages[0].reply_markup.inline_keyboard[1][0].callback_data, "save:00000000-0000-0000-0000-000000000003");
+    assert.equal(messages[0].reply_markup.inline_keyboard[1][0].url, undefined);
     assert.equal(messages[0].reply_markup.inline_keyboard[2][0].text, "🗺️ Google Map");
     assert.equal(messages[0].reply_markup.inline_keyboard[3][0].text, "📤 Teilen");
     assert.doesNotMatch(messages[0].caption,/Wohnung einzeln ansehen/);
