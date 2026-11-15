@@ -257,7 +257,8 @@ export async function processHousingApplication(sql, env, request) {
   try { central = await getCentralProviderCredentials(sql, env, provider); }
   catch (error) { return fail("manual_required", centralCredentialError(error)); }
   if (provider === "immomio"
-    && (!central.accountHint || String(central.accountHint).trim().toLowerCase()
+    && (central.ownerId !== application.participant_id
+      || !central.accountHint || String(central.accountHint).trim().toLowerCase()
       !== String(application.profile.email || "").trim().toLowerCase())) {
     return fail("manual_required", "central_identity_mismatch");
   }
