@@ -205,7 +205,7 @@ async function immomioUrl(flow, emailValue) {
   if (!email) throw new Error("provider_email_required");
   const cfg = await resolveSso(email);
   const url = new URL(`${cfg.baseUrl}/realms/${cfg.realm}/protocol/openid-connect/auth`);
-  const values = { client_id: cfg.clientId, redirect_uri: IMMOMIO_REDIRECT, response_type: "code", response_mode: "query", scope: "openid profile email", state: flow.state, code_challenge: await challenge(flow.code_verifier), code_challenge_method: "S256", login_hint: email, prompt: "login" };
+  const values = { client_id: cfg.clientId, redirect_uri: IMMOMIO_REDIRECT, response_type: "code", response_mode: "query", scope: "openid profile email offline_access", state: flow.state, code_challenge: await challenge(flow.code_verifier), code_challenge_method: "S256", login_hint: email, prompt: "login" };
   for (const [key, value] of Object.entries(values)) url.searchParams.set(key, String(value));
   return url.href;
 }
@@ -247,59 +247,6 @@ async function verifyImmomio(accessToken) {
   return user;
 }
 
-
-async function immomioDirectPassword(sql, env, flow, emailValue, passwordValue, totpValue) {
-  if (flow.provider !== "immomio" || flow.context?.central_account !== true)
-    throw new Error("provider_unsupported");
-  const email = validEmail(emailValue);
-  const password = String(passwordValue || "");
-  const totp = String(totpValue || "").trim();
-  if (!email || !password || password.length > 1024 || (totp && !/^[0-9]{6,8}$/.test(totp)))
-    throw new Error("login_failed");
-  // Credentials are sent only to Keycloak, never persisted or logged.
-  const payload = new URLSearchParams({
-    grant_type: "password", client_id: IMMOMIO_CLIENT,
-    username: email, password, scope: "openid profile email",
-  });
-  if (totp) payload.set("totp", totp);
-  const response = await fetch(
-    IMMOMIO_BASE + "/realms/" + IMMOMIO_REALM + "/protocol/openid-connect/token",
-    { method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json" },
-      body: payload, signal: AbortSignal.timeout(25_000) },
-  ).catch(() => null);
-  if (!response) throw new Error("temporary_network_error");
-  const token = await response.json().catch(() => null);
-  if (!response.ok) {
-    if (response.status === 429) throw new Error("account_temporarily_locked");
-    if (token?.error === "invalid_grant") {
-      if (/not fully set up|verify.*email|action required/i.test(String(token.error_description || "")))
-        throw new Error("provider_interactive_challenge");
-      throw new Error("login_failed");
-    }
-    if (token?.error === "unauthorized_client" || token?.error === "unsupported_grant_type")
-      throw new Error("provider_contract_unverified");
-    throw new Error("temporary_network_error");
-  }
-  if (!token?.access_token || !token?.refresh_token) throw new Error("refresh_token_missing");
-  const user = await verifyImmomio(String(token.access_token));
-  const verifiedEmail = validEmail(user?.email);
-  if (!verifiedEmail) throw new Error("userinfo_failed");
-  const expiresIn = Number(token.expires_in);
-  const expiresAt = new Date(Date.now() +
-    (Number.isFinite(expiresIn) && expiresIn > 0 ? Math.max(60, expiresIn) : 300) * 1000
-  ).toISOString();
-  const credentials = {
-    access_token: String(token.access_token),
-    refresh_token: String(token.refresh_token),
-    id_token: token.id_token ? String(token.id_token) : undefined,
-    expires_at: expiresAt,
-    base_url: IMMOMIO_BASE, realm: IMMOMIO_REALM, client_id: IMMOMIO_CLIENT,
-    redirect_uri: IMMOMIO_REDIRECT,
-  };
-  const encrypted = await encryptProviderCredentials(env, credentials, flow.participant_id, "immomio");
-  return completeFlow(sql, flow, env, encrypted, verifiedEmail, expiresAt);
-}
 
 async function completeImmomio(sql, env, flow, value) {
   const url = callbackUrl(value, flow.state);
@@ -435,14 +382,14 @@ async function action(sql, env, body) {
   const info = await participantInfo(sql, flow);
   if (name === "resolve") return {
     ok: true, provider: flow.provider,
-    mode: flow.provider === "immowelt" ? "provider_web" : "credentials",
+    mode: ["immowelt", "immomio"].includes(flow.provider) ? "provider_web" : "credentials",
     centralAccount: flow.context?.central_account === true,
     oauthConfigured: flow.provider === "immowelt" ? Boolean(env.IMMOWELT_OAUTH_CLIENT_ID) && env.IMMOWELT_OAUTH_CALLBACK_APPROVED === "1" : true,
     accountHint: info.accountHint || info.profileEmail,
     participantLabel: info.participantLabel,
     origin: flow.origin, returnTarget: flow.return_target, expiresAt: flow.expires_at,
     ...(flow.provider === "immomio" ? {
-      requiresManualCallback: false, callbackTransport: "direct-token",
+      requiresManualCallback: true, callbackTransport: "provider-pkce",
     } : {}),
   };
   if (name === "provider_web") {
@@ -461,7 +408,6 @@ async function action(sql, env, body) {
     throw new Error("provider_unsupported");
   }
   if (name === "password_login") {
-    if (flow.provider === "immomio") return immomioDirectPassword(sql, env, flow, body.email, body.password, body.totp);
     if (flow.provider === "immoscout24") return scoutPassword(sql, env, flow, body.email, body.password);
     throw new Error("provider_oauth_required");
   }
