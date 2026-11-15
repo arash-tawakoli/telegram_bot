@@ -794,7 +794,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   const meta=AUTO_APPLY_PROVIDERS[sourceId];
   const running=state.auto_apply_enabled===true&&preferences?.[meta.field]===true&&!testModeEnabled;
   rows.push([
-   button('✓ '+meta.name,'platforms:provider:'+sourceId),
+   button(meta.name,'platforms:provider:'+sourceId),
    button(running?'⏸ Pause':'▶️ Start','platforms:'+(running?'pause':'resume')+':'+sourceId)
   ]);
  }
