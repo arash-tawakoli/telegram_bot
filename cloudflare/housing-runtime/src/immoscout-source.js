@@ -82,11 +82,11 @@ async function initializeMcp() {
 async function establishedSession() {
   if (!mcpSessionPromise) {
     const pending = initializeMcp();
-    mcpSessionPromise = pending.catch(error => {
+    const wrapped = pending.catch(error => {
       if (mcpSessionPromise === wrapped) mcpSessionPromise = null;
       throw error;
     });
-    const wrapped = mcpSessionPromise;
+    mcpSessionPromise = wrapped;
   }
   return mcpSessionPromise;
 }
