@@ -31,15 +31,80 @@ export function parseMcpEnvelope(body, requestId) {
   return response;
 }
 
-async function postMcp(payload) {
+// All German Scout tools share one initialized MCP transport per Worker isolate.
+// The current live server is stateless (no Mcp-Session-Id); if a session ID is
+// introduced, send it on subsequent requests and recover once from expiry.
+let mcpSessionPromise = null;
+
+export function resetMcpSession() {
+  mcpSessionPromise = null;
+}
+
+async function sendMcp(payload, session = null) {
+  const headers = {
+    "content-type": "application/json",
+    accept: "application/json, text/event-stream",
+    "mcp-protocol-version": session?.protocolVersion || MCP_PROTOCOL,
+    "user-agent": "TraumWohnungHamburg/1.0",
+  };
+  if (session?.id) headers["mcp-session-id"] = session.id;
   const response = await fetch(MCP_URL, {
-    method: "POST",
-    headers: { "content-type": "application/json", accept: "application/json, text/event-stream", "mcp-protocol-version": MCP_PROTOCOL, "user-agent": "TraumWohnungHamburg/1.0" },
-    body: JSON.stringify(payload),
+    method: "POST", headers, body: JSON.stringify(payload),
     signal: AbortSignal.timeout(15_000),
   });
-  if (!response.ok) throw new Error("immoscout_mcp_http_" + response.status);
-  return parseMcpEnvelope(await response.text(), payload.id);
+  if (!response.ok) {
+    const error = new Error("immoscout_mcp_http_" + response.status);
+    error.httpStatus = response.status;
+    throw error;
+  }
+  return response;
+}
+
+async function initializeMcp() {
+  const id = crypto.randomUUID();
+  const response = await sendMcp({
+    jsonrpc: "2.0", id, method: "initialize",
+    params: {
+      protocolVersion: MCP_PROTOCOL, capabilities: {},
+      clientInfo: { name: "traumwohnung-housing-runtime", version: "1.0.0" },
+    },
+  });
+  const envelope = parseMcpEnvelope(await response.text(), id);
+  if (envelope.error) throw new Error("immoscout_mcp_initialize_failed");
+  const protocolVersion = envelope.result?.protocolVersion;
+  if (protocolVersion !== MCP_PROTOCOL) throw new Error("immoscout_mcp_protocol_unsupported");
+  const session = { protocolVersion, id: response.headers.get("mcp-session-id") || null };
+  // MCP notifications can return HTTP 202 with an empty body.
+  await sendMcp({ jsonrpc: "2.0", method: "notifications/initialized" }, session);
+  return session;
+}
+
+async function establishedSession() {
+  if (!mcpSessionPromise) {
+    mcpSessionPromise = initializeMcp().catch(error => {
+      mcpSessionPromise = null;
+      throw error;
+    });
+  }
+  return mcpSessionPromise;
+}
+
+async function postMcp(payload) {
+  const sessionPromise = mcpSessionPromise || establishedSession();
+  const session = await sessionPromise;
+  const perform = async (current) => {
+    const response = await sendMcp(payload, current);
+    return parseMcpEnvelope(await response.text(), payload.id);
+  };
+  try {
+    return await perform(session);
+  } catch (error) {
+    if (error.httpStatus !== 404 || !session.id) throw error;
+    // 404 denotes an expired stateful MCP session. Retry only this read-only
+    // tool call, never reusing the retired session identifier.
+    if (mcpSessionPromise === sessionPromise) resetMcpSession();
+    return perform(await establishedSession());
+  }
 }
 
 function entryId(entry) {
