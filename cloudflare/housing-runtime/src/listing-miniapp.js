@@ -7,19 +7,19 @@ function escapeHtml(value) { return String(value ?? "").replace(/&/g, "&amp;").r
 export function listingWebUrl(id) { if (!UUID.test(String(id))) throw new Error("listing_delivery_id_invalid"); return PUBLIC_ORIGIN + "/angebot/" + String(id).toLowerCase(); }
 export function listingMessageRequest(chatId, photo, facts, listingUrl, sourceId, sourceName, deliveryId) {
   if (!listingImageUrl(photo)) throw new Error("listing_photo_missing");
-  const page = listingWebUrl(deliveryId);
+  listingWebUrl(deliveryId); // Retain strict delivery identity validation.
   const buttons = listingKeyboard(facts, listingUrl, sourceId, sourceName).inline_keyboard;
   return {
     chat_id: Number(chatId),
-    text: listingCaption(facts),
+    photo: listingImageUrl(photo),
+    caption: listingCaption(facts),
     parse_mode: "HTML",
-    link_preview_options: { url: page, prefer_large_media: true, show_above_text: true },
     reply_markup: { inline_keyboard: buttons },
   };
 }
-/** One sendMessage; no native Telegram photo/media and no gallery. Network ambiguity is never retried. */
+/** One native, non-link photo; no gallery and no retry on ambiguous delivery. */
 export async function sendListingMessage(token, payload, request = fetch) {
-  const endpoint = "https://api.telegram.org/bot" + token + "/sendMessage";
+  const endpoint = "https://api.telegram.org/bot" + token + "/sendPhoto";
   const post = body => request(endpoint, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(15000) });
   const response = await post(payload);
   const data = await response.json().catch(() => null);
