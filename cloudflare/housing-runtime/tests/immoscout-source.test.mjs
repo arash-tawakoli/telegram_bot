@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { normalizeImmoScoutEntry, parseMcpToolResult, germanImmoScoutQuery, fetchImmoScoutSource, fetchImmoScoutMap } from "../src/immoscout-source.js";
+import { normalizeImmoScoutEntry, parseMcpToolResult, germanImmoScoutQuery, fetchImmoScoutSource, fetchImmoScoutMap, ingestImmoScoutSource, planImmoScoutQueries, parseMcpEnvelope } from "../src/immoscout-source.js";
 import { sourceForId } from "../src/source-allowlist.js";
 
 test("ImmoScout MCP entries become minimal offer facts", () => {
@@ -126,4 +126,137 @@ test("Schleswig-Holstein map accepts northern coordinates but rejects Austria", 
     address: { countryCode: "AT", coordinates: { lat: 54.323, lng: 10.139 } },
   }, 69);
   assert.equal(crossBorder.facts.latitude, undefined);
+});
+
+
+test("unified query planner applies identical logic to Hamburg and Schleswig-Holstein", () => {
+  const hamburg = sourceForId(1), schleswig = sourceForId(69);
+  const profiles = [
+    { property_types: ["Wohnung"], location_mode: "all_hamburg" },
+    { property_types: ["Wohnung"], location_mode: "boroughs", boroughs: ["Harburg"] },
+    { property_types: ["Wohnung"], location_mode: "neighborhoods", neighborhoods: ["Eidelstedt"] },
+    { property_types: ["Haus"], location_mode: "all_hamburg" },
+    { property_types: ["Wohnung"], location_mode: "schleswig_holstein_areas", location_area_codes: ["01060","01002"] },
+    { property_types: ["Haus"], location_mode: "all_schleswig_holstein" },
+  ];
+  const areas = [
+    { area_code: "01060", name: "Segeberg", area_type: "county" },
+    { area_code: "01002", name: "Kiel", area_type: "independent_city" },
+  ];
+  assert.deepEqual(planImmoScoutQueries(hamburg, profiles, areas), [
+    "Wohnungen zur Miete in Hamburg",
+    "Wohnungen zur Miete in Hamburg-Harburg",
+    "Wohnungen zur Miete in Hamburg-Eidelstedt",
+    "Häuser zur Miete in Hamburg",
+  ]);
+  assert.deepEqual(planImmoScoutQueries(schleswig, profiles, areas), [
+    "Wohnungen zur Miete in Schleswig-Holstein",
+    "Wohnungen zur Miete im Kreis Segeberg",
+    "Wohnungen zur Miete in Kiel",
+    "Häuser zur Miete in Schleswig-Holstein",
+  ]);
+  assert.deepEqual(planImmoScoutQueries(schleswig, [
+    { property_types: ["Wohnung"], location_mode: "schleswig_holstein_areas", location_area_codes: ["nonexistent"] },
+  ]), ["Wohnungen zur Miete in Schleswig-Holstein"], "missing geographic data falls back to a broad query");
+  assert.throws(() => planImmoScoutQueries(sourceForId(3), profiles), /not_allowlisted/);
+});
+
+test("SSE progress events cannot replace the correlated JSON-RPC tool result", () => {
+  const notification = JSON.stringify({ jsonrpc: "2.0", method: "notifications/progress", params: { progress: 0.5 } });
+  const response = JSON.stringify({ jsonrpc: "2.0", id: "expected", result: { structuredContent: { entries: [], total: 0 } } });
+  const stream = "event: message\ndata: " + notification + "\n\nevent: message\ndata: " + response + "\n\n";
+  assert.equal(parseMcpEnvelope(stream, "expected").id, "expected");
+  assert.throws(() => parseMcpEnvelope(stream, "different"), /response_invalid/);
+  assert.throws(() => parseMcpEnvelope("data: not-json\n\n", "expected"), /sse_invalid/);
+  assert.deepEqual(parseMcpEnvelope(response, "expected").result.structuredContent, { entries: [], total: 0 });
+});
+
+test("both regions share bounded search + map enrichment with stable IDs and correct warm rent", async () => {
+  const original = globalThis.fetch;
+  const calls = [];
+  const e = (id, city, cold, warm, coords) => ({
+    exposedId: id, exposeUrl: "https://www.immobilienscout24.de/expose/" + id,
+    title: "Wohnung in " + city, address: { city, postcode: "20095", ...(coords ? { coordinates: coords } : {}) },
+    price: { value: cold }, ...(warm == null ? {} : { totalRent: warm }),
+  });
+  globalThis.fetch = async (_url, init) => {
+    const payload = JSON.parse(init.body);
+    calls.push({ method: payload.params.name, query: payload.params.arguments.query });
+    const city = payload.params.arguments.query.includes("Schleswig-Holstein") ? "Kiel" : "Hamburg";
+    const entries = payload.params.name === "property_search_de"
+      ? [e("123", city, 800, null), e("124", city, 900, 1100)]
+      : [e("123", city, 800, 1030, { lat: city === "Kiel" ? 54.3 : 53.56, lng: 10.02 }),
+        e("124", city, 900, 1100), e("125", city, 650, 770), e("126", "Wien", 200, 250)];
+    return new Response(JSON.stringify({ jsonrpc: "2.0", id: payload.id, result: { structuredContent: { total: entries.length, entries } } }), { headers: { "content-type": "application/json" } });
+  };
+  try {
+    for (const source of [sourceForId(1), sourceForId(69)]) {
+      const result = await fetchImmoScoutSource(source, { enrichWithMap: true, maxMapExtras: 1 });
+      assert.equal(result.searchCount, 2);
+      assert.equal(result.mapCount, 4);
+      assert.equal(result.added, 1);
+      assert.equal(result.enriched, 1);
+      assert.equal(result.nodes.length, 3);
+      assert.equal(result.nodes.find(n => n.identity === "123").facts.warm_rent, 1030);
+      assert.equal(result.nodes.find(n => n.identity === "123").facts.cold_rent, 800);
+      assert.equal(result.nodes.find(n => n.identity === "123").facts.latitude, source.id === 1 ? 53.56 : 54.3);
+      assert.ok(result.nodes.every(n => n.source_id === source.id));
+    }
+    assert.deepEqual(calls.map(c => c.method), ["property_search_de","property_map_de","property_search_de","property_map_de"]);
+    assert.equal(calls[0].query, calls[1].query);
+    assert.equal(calls[2].query, calls[3].query);
+  } finally { globalThis.fetch = original; }
+});
+
+test("map outage does not prevent search-only delivery preparation", async () => {
+  const previous = globalThis.fetch;
+  globalThis.fetch = async (_url, init) => {
+    const payload = JSON.parse(init.body);
+    const result = payload.params.name === "property_map_de"
+      ? { isError: true, content: [{ text: "map temporarily unavailable" }] }
+      : { structuredContent: { total: 1, entries: [{ exposedId: "100", exposeUrl: "https://www.immobilienscout24.de/expose/100", title: "Wohnung in Hamburg", address: { city: "Hamburg" }, price: { value: 500 } }] } };
+    return new Response(JSON.stringify({ jsonrpc: "2.0", id: payload.id, result }));
+  };
+  try {
+    const result = await fetchImmoScoutSource(sourceForId(1), { enrichWithMap: true });
+    assert.equal(result.nodes.length, 1);
+    assert.equal(result.nodes[0].facts.warm_rent, null);
+    assert.match(result.map_error, /temporarily unavailable/);
+  } finally { globalThis.fetch = previous; }
+});
+
+test("scheduled ingestion uses the same profile-driven pipeline in both regions", async () => {
+  const previous = globalThis.fetch, calls = [];
+  globalThis.fetch = async (_url, init) => {
+    const payload = JSON.parse(init.body);
+    calls.push({ method: payload.params.name, query: payload.params.arguments.query });
+    return new Response(JSON.stringify({ jsonrpc: "2.0", id: payload.id, result: { structuredContent: { entries: [], total: 0 } } }));
+  };
+  const sql = async () => [];
+  sql.unsafe = async (statement) => {
+    if (statement.includes("search_profiles")) return [
+      { criteria: JSON.stringify({ property_types: ["Wohnung"], location_mode: "boroughs", boroughs: ["Harburg"] }) },
+      { criteria: JSON.stringify({ property_types: ["Wohnung"], location_mode: "schleswig_holstein_areas", location_area_codes: ["01060"] }) },
+    ];
+    if (statement.includes("coach_geo_snapshot")) return [{ payload: JSON.stringify({ schleswigHolsteinAreas: [{ area_code: "01060", name: "Segeberg", area_type: "county" }] }) }];
+    return [];
+  };
+  try {
+    for (const source of [sourceForId(1), sourceForId(69)]) {
+      const out = await ingestImmoScoutSource(sql, source);
+      assert.equal(out.inserted, 0);
+      assert.equal(out.valid, 0);
+      assert.equal(out.map_count, 0);
+      assert.ok(planImmoScoutQueries(source, [
+        { property_types: ["Wohnung"], location_mode: "boroughs", boroughs: ["Harburg"] },
+        { property_types: ["Wohnung"], location_mode: "schleswig_holstein_areas", location_area_codes: ["01060"] },
+      ], [{ area_code: "01060", name: "Segeberg", area_type: "county" }]).includes(out.query));
+    }
+    assert.equal(calls.length, 4);
+    for (let i = 0; i < 4; i += 2) {
+      assert.equal(calls[i].method, "property_search_de");
+      assert.equal(calls[i+1].method, "property_map_de");
+      assert.equal(calls[i].query, calls[i+1].query);
+    }
+  } finally { globalThis.fetch = previous; }
 });
