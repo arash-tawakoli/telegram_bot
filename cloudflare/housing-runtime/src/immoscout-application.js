@@ -70,20 +70,13 @@ export async function refreshImmoScoutSession(sql, env, connection) {
   return refresh(env, row, connection.participant_id, credentials);
 }
 
-export async function sendImmoScoutApplication(application, env, sql) {
+export async function sendImmoScoutApplication(application, env, sql, central = null) {
   const profile = application.profile || {};
   const id = String(application.external_id || "").match(/\d{6,20}/)?.[0] || String(application.canonical_url || "").match(/\/expose\/(\d{6,20})/)?.[1];
   if (!id) return { status: "manual_required", error: "provider_identifier_unresolved" };
   const testMode = application.test_mode === true || application.test_mode === 1;
-  let credentials;
-  if (testMode) {
-    // Test mode must use the central encrypted credential only. Never fall back to a participant plugin.
-    credentials = await getCentralApplicationCredentials(env);
-  } else {
-    const row = { ciphertext: application.connection_ciphertext, iv: application.connection_iv, key_version: application.connection_key_version, sql };
-    credentials = await decryptProviderCredentials(env, row, application.participant_id, "immoscout24");
-    credentials = await refresh(env, row, application.participant_id, credentials);
-  }
+  // Auto-apply never authenticates with the participant's provider connection.
+  const credentials = central?.credentials || await getCentralApplicationCredentials(env, { testMode });
   const detailResponse = await fetch(`https://rest.immobilienscout24.de/restapi/api/search/v1.0/expose/${encodeURIComponent(id)}`, { headers: { accept: "application/json", authorization: `Bearer ${credentials.access_token}`, "user-agent": USER_AGENT }, signal: AbortSignal.timeout(25_000) });
   if (detailResponse.status === 401 || detailResponse.status === 403) return { status: "manual_required", error: "needs_login" };
   const detail = await detailResponse.json().catch(() => null);

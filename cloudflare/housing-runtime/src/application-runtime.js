@@ -6,6 +6,7 @@ import { matchesActiveSearch } from "./matching.js";
 import { applicationProvider, applicationSchedule, missingApplicantFields, listingRequiresWbs, premiumParticipant, timestampMillis } from "./application-policy.js";
 import { effectiveApplicationMessages } from "./application-text.js";
 import { sourceForId } from "./source-allowlist.js";
+import { centralCredentialError, getCentralProviderCredentials } from "./central-provider-credentials.js";
 
 function enabled(value) { return value === true || value === 1; }
 
@@ -47,15 +48,6 @@ async function event(sql, applicationId, provider, type, status, reason, metadat
   `;
 }
 
-async function markConnectionNeedsLogin(sql, application, result) {
-  if (result?.error !== "needs_login") return;
-  await sql`
-    UPDATE housing.provider_connections
-    SET status = 'needs_login', updated_at = now()
-    WHERE participant_id = ${application.participant_id} AND provider = ${application.provider}
-  `;
-}
-
 async function claim(sql, freshOnly = false) {
   return sql.begin(async (tx) => {
     await tx`
@@ -83,10 +75,6 @@ async function claim(sql, freshOnly = false) {
           WHEN 'immomio' THEN pref.immomio_enabled
           ELSE false
         END AS provider_enabled,
-        CASE WHEN a.test_mode = true THEN NULL ELSE pc.status END AS connection_status,
-        CASE WHEN a.test_mode = true THEN NULL ELSE pc.ciphertext END AS connection_ciphertext,
-        CASE WHEN a.test_mode = true THEN NULL ELSE pc.iv END AS connection_iv,
-        CASE WHEN a.test_mode = true THEN NULL ELSE pc.key_version END AS connection_key_version,
         sub.status AS subscription_status, sub.current_period_end AS subscription_period_end,
         cutover.enabled_at AS cutover_enabled_at
       FROM housing.applications a
@@ -94,7 +82,6 @@ async function claim(sql, freshOnly = false) {
       LEFT JOIN housing.applicant_profiles ap ON ap.participant_id = a.participant_id
       LEFT JOIN housing.offer_identities oi ON oi.id = a.offer_identity_id
       LEFT JOIN housing.application_preferences pref ON pref.participant_id = a.participant_id
-      LEFT JOIN housing.provider_connections pc ON pc.participant_id = a.participant_id AND pc.provider = a.provider
       LEFT JOIN housing.user_subscriptions sub ON sub.participant_id = a.participant_id AND sub.provider = 'stripe'
       LEFT JOIN housing.application_queue_cutover cutover ON cutover.id = 1
       WHERE a.status = 'pending' AND a.next_attempt_at <= now()
@@ -226,7 +213,22 @@ export async function processHousingApplication(sql, env, request) {
 
   if (application.test_auto_apply_enabled) return fail("manual_required", "test_mode_active");
   if (application.preferences_enabled !== true || application.provider_enabled !== true) return fail("manual_required", "auto_apply_disabled");
-  if (application.connection_status !== "connected") return fail("manual_required", "provider_not_connected");
+
+  // Infrastructure can be deployed before operator logins and test submissions.
+  // Never send or consume queued normal applications until explicitly enabled.
+  if (env.CENTRAL_AUTO_APPLY_ENABLED !== "1") {
+    const nextAttemptAt = new Date(Date.now() + 60 * 60_000).toISOString();
+    await sql`
+      UPDATE housing.applications
+      SET status = 'pending', wait_reason = 'central_auto_apply_paused',
+        next_attempt_at = ${nextAttemptAt}, lease_until = NULL, updated_at = now()
+      WHERE id = ${application.id} AND status = 'processing'
+    `;
+    return { status: 200, body: {
+      ok: true, status: "deferred", provider,
+      reason: "central_auto_apply_paused", application_id: application.id,
+    } };
+  }
 
   const now = new Date();
   const providerSource = sourceForId(application.source_id);
@@ -262,6 +264,20 @@ export async function processHousingApplication(sql, env, request) {
     `;
     return { status: 200, body: { ok: true, status: "deferred", provider, reason: schedule.reason, application_id: application.id } };
   }
+  // Provider credentials are resolved centrally; applicants never link accounts.
+  // Fail before quota reservation when central authentication is unavailable.
+  if (provider === "immowelt" && env.CENTRAL_IMMOWELT_TRANSPORT_VERIFIED !== "1") {
+    return fail("manual_required", "provider_contract_unverified");
+  }
+  let central;
+  try { central = await getCentralProviderCredentials(sql, env, provider); }
+  catch (error) { return fail("manual_required", centralCredentialError(error)); }
+  if (provider === "immomio"
+    && (central.ownerId !== application.participant_id
+      || !central.accountHint || String(central.accountHint).trim().toLowerCase()
+      !== String(application.profile.email || "").trim().toLowerCase())) {
+    return fail("manual_required", "central_identity_mismatch");
+  }
   // Uploaded applicant documents are not part of the simplified application flow.
   const configuredLimit = Number(application.daily_limit);
   const dailyLimit = application.daily_limit == null || !Number.isFinite(configuredLimit)
@@ -285,7 +301,9 @@ export async function processHousingApplication(sql, env, request) {
   }
 
   if (provider === "immowelt") {
-    const result = await sendImmoweltApplication(application, env);
+    let result;
+    try { result = await sendImmoweltApplication(application, env, sql, central); }
+    catch (error) { result = { status: "manual_required", error: centralCredentialError(error) }; }
     await sql`UPDATE housing.applications SET status = ${result.status}, last_error = ${result.error || null}, sent_at = CASE WHEN ${result.status} = 'sent' THEN now() ELSE sent_at END, lease_until = NULL, wait_reason = NULL, updated_at = now() WHERE id = ${application.id}`;
     await event(sql, application.id, provider, "provider_submission", result.status, result.error || null, { confirmation: result.confirmation || null });
     return { status: 200, body: { ok: true, status: result.status, provider, reason: result.error || result.confirmation || null, application_id: application.id } };
@@ -294,11 +312,10 @@ export async function processHousingApplication(sql, env, request) {
   if (provider === "immoscout24") {
     let result;
     try {
-      result = await sendImmoScoutApplication({ ...application, document_package_url: null }, env, sql);
+      result = await sendImmoScoutApplication({ ...application, document_package_url: null }, env, sql, central);
     } catch (error) {
-      result = { status: "manual_required", error: ["needs_login", "temporary_network_error", "credential_decrypt_failed"].includes(String(error?.message || "")) ? String(error.message) : "provider_contract_unverified" };
+      result = { status: "manual_required", error: centralCredentialError(error) };
     }
-    await markConnectionNeedsLogin(sql, application, result);
     await sql`UPDATE housing.applications SET status = ${result.status}, last_error = ${result.error || null}, sent_at = CASE WHEN ${result.status} = 'sent' THEN now() ELSE sent_at END, lease_until = NULL, wait_reason = NULL, updated_at = now() WHERE id = ${application.id}`;
     await event(sql, application.id, provider, "provider_submission", result.status, result.error || null, { confirmation: result.confirmation || null });
     return { status: 200, body: { ok: true, status: result.status, provider, reason: result.error || result.confirmation || null, application_id: application.id } };
@@ -306,9 +323,8 @@ export async function processHousingApplication(sql, env, request) {
 
   if (provider === "immomio") {
     let result;
-    try { result = await sendImmomioApplication(application, env, sql); }
-    catch (error) { result = { status: "manual_required", error: ["needs_login", "temporary_network_error", "credential_decrypt_failed"].includes(String(error?.message || "")) ? String(error.message) : "provider_contract_unverified" }; }
-    await markConnectionNeedsLogin(sql, application, result);
+    try { result = await sendImmomioApplication(application, env, sql, central); }
+    catch (error) { result = { status: "manual_required", error: centralCredentialError(error) }; }
     await sql`UPDATE housing.applications SET status = ${result.status}, last_error = ${result.error || null}, sent_at = CASE WHEN ${result.status} = 'sent' THEN now() ELSE sent_at END, lease_until = NULL, wait_reason = NULL, updated_at = now() WHERE id = ${application.id}`;
     await event(sql, application.id, provider, "provider_submission", result.status, result.error || null, { confirmation: result.confirmation || null, application_id: result.applicationId || null, follow_up: result.followUpRequired || null });
     return { status: 200, body: { ok: true, status: result.status, provider, reason: result.error || result.confirmation || null, application_id: application.id } };

@@ -120,7 +120,7 @@ function berlinDayStartISO(now = new Date()) {
   return new Date(utcMidnight.getTime() - offsetMinutes * 60_000).toISOString().replace("T", " ").replace("Z", "").slice(0, 19);
 }
 
-export async function queueMatches(sql, offerId, sourceId, identityHash, facts) {
+export async function queueMatches(sql, offerId, sourceId, identityHash, facts, centralAutoApplyEnabled = true) {
   const source = sourceForId(sourceId);
   if (source?.delivery_mode !== "live") return 0;
   const targetProvider = applicationProvider(source, facts);
@@ -131,14 +131,12 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts) 
       p.plan_override, p.plan_override_expires_at, p.referral_bonus_until,
       s.status AS subscription_status, s.current_period_end AS subscription_period_end,
       ap.profile AS applicant_profile, pref.enabled AS preferences_enabled,
-      pref.immoscout_enabled, pref.immowelt_enabled, pref.immomio_enabled,
-      pc.status AS provider_connection_status
+      pref.immoscout_enabled, pref.immowelt_enabled, pref.immomio_enabled
     FROM housing.search_profiles sp
     JOIN housing.source_links sl ON sl.search_profile_id = sp.id AND sl.source_id = ${sourceId}
     JOIN housing.participants p ON p.id = sp.participant_id AND p.status = 'active'
     LEFT JOIN housing.applicant_profiles ap ON ap.participant_id = p.id
     LEFT JOIN housing.application_preferences pref ON pref.participant_id = p.id
-    LEFT JOIN housing.provider_connections pc ON pc.participant_id = p.id AND pc.provider = ${targetProvider || ""}
     LEFT JOIN housing.user_subscriptions s ON s.participant_id = p.id AND s.provider = 'stripe'
     WHERE sp.active = true
   `;
@@ -176,9 +174,9 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts) 
       : provider === "immowelt" ? row.immowelt_enabled
         : provider === "immomio" ? row.immomio_enabled : false;
     const profile = object(row.applicant_profile);
-    if (autoApplyFresh && provider && enabled(row.auto_apply_enabled) && !enabled(row.test_auto_apply_enabled) && premiumParticipant(row)
+    if (autoApplyFresh && centralAutoApplyEnabled && provider && enabled(row.auto_apply_enabled) && !enabled(row.test_auto_apply_enabled) && premiumParticipant(row)
       && enabled(row.preferences_enabled) && enabled(providerEnabled)
-      && row.provider_connection_status === "connected" && missingApplicantFields(profile).length === 0) {
+      && missingApplicantFields(profile).length === 0) {
       const applicationKey = applicationIdempotencyKey(row.participant_id, provider, identityHash);
       const immomioId = provider === "immomio"
         ? String(facts.canonical_url || "").match(/^https:\/\/tenant\.immomio\.com\/(?:de\/)?apply\/([0-9a-f-]{36})(?:[/?#]|$)/i)?.[1]?.toLowerCase()
@@ -200,7 +198,7 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts) 
       }
     }
 
-    // The personal test path is deliberately separate from participant plugin connections.
+    // The personal test path is deliberately separate from regular central applications.
     if (autoApplyFresh && [1, 69].includes(Number(sourceId))
       && Number(row.telegram_user_id) === 8538226539
       && (row.test_auto_apply_allowed === true || row.test_auto_apply_allowed === 1)

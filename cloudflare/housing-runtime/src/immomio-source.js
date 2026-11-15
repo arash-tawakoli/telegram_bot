@@ -120,7 +120,7 @@ export async function ingestImmomioSource(sql, source, config = {}) {
     `;
     if (rows.length) {
       inserted++;
-      if (config.queue_matches !== false) await queueMatches(sql, rows[0].id, node.source_id, node.source_id + ":external:" + node.identity, { ...node.facts, canonical_url: node.canonical_url });
+      if (config.queue_matches !== false) await queueMatches(sql, rows[0].id, node.source_id, node.source_id + ":external:" + node.identity, { ...node.facts, canonical_url: node.canonical_url }, source.central_auto_apply_enabled === true);
     }
   }
   return { fetched: result.fetched, valid: result.nodes.length, inserted, pages: result.pages };

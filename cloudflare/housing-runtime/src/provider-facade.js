@@ -185,8 +185,9 @@ async function verifyImmomio(accessToken) {
 
 async function completeImmomio(sql, env, flow, value) {
   const url = callbackUrl(value, flow.state);
-  const email = (await participantInfo(sql, flow)).profileEmail;
-  const cfg = await resolveSso(email);
+  // The state-bound PKCE authorization was validated when the URL was issued.
+  // The applicant profile email is not the operator account's login identity.
+  const cfg = { baseUrl: IMMOMIO_BASE, realm: IMMOMIO_REALM, clientId: IMMOMIO_CLIENT };
   const response = await fetch(`${cfg.baseUrl}/realms/${cfg.realm}/protocol/openid-connect/token`, {
     method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json" },
     body: new URLSearchParams({ grant_type: "authorization_code", code: url.searchParams.get("code"), redirect_uri: IMMOMIO_REDIRECT, code_verifier: String(flow.code_verifier), client_id: cfg.clientId }),
@@ -195,7 +196,8 @@ async function completeImmomio(sql, env, flow, value) {
   const token = await response?.json().catch(() => null);
   if (!response?.ok || !token?.access_token || !token?.refresh_token) throw new Error("token_exchange_failed");
   const user = await verifyImmomio(String(token.access_token));
-  const accountHint = validEmail(user?.email) || email;
+  const accountHint = validEmail(user?.email);
+  if (!accountHint) throw new Error("token_exchange_failed");
   const expiresAt = new Date(Date.now() + Math.max(60, Number(token.expires_in || 300)) * 1000).toISOString();
   const credentials = { access_token: String(token.access_token), refresh_token: String(token.refresh_token), id_token: token.id_token ? String(token.id_token) : undefined, expires_at: expiresAt, base_url: cfg.baseUrl, realm: cfg.realm, client_id: cfg.clientId, redirect_uri: IMMOMIO_REDIRECT };
   const encrypted = await encryptProviderCredentials(env, credentials, flow.participant_id, "immomio");

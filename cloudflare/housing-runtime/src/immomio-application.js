@@ -1,4 +1,5 @@
 import { decryptProviderCredentials, encryptProviderCredentials } from "./provider-credentials.js";
+import { centralCredentialError, getCentralProviderCredentials } from "./central-provider-credentials.js";
 
 const GQL = "https://gql-ps.immomio.com/tenant/graphql";
 const ORIGIN = "https://tenant.immomio.com";
@@ -37,8 +38,9 @@ async function refresh(sql, env, application, credentials) {
   const token = await response?.json().catch(() => null);
   if (!response?.ok || !token?.access_token) throw new Error(response?.status === 401 ? "needs_login" : "temporary_network_error");
   const updated = { ...credentials, access_token: String(token.access_token), refresh_token: String(token.refresh_token || credentials.refresh_token), expires_at: new Date(Date.now() + Math.max(60, Number(token.expires_in || 300)) * 1000).toISOString() };
-  const encrypted = await encryptProviderCredentials(env, updated, application.participant_id, "immomio");
-  await sql`UPDATE provider_connections SET ciphertext=${encrypted.ciphertext}, iv=${encrypted.iv}, key_version=${encrypted.key_version}, expires_at=${updated.expires_at}, updated_at=CURRENT_TIMESTAMP WHERE participant_id=${application.participant_id} AND provider='immomio'`;
+  const credentialOwnerId = application.central_credential_owner_id || application.participant_id;
+  const encrypted = await encryptProviderCredentials(env, updated, credentialOwnerId, "immomio");
+  await sql`UPDATE provider_connections SET ciphertext=${encrypted.ciphertext}, iv=${encrypted.iv}, key_version=${encrypted.key_version}, expires_at=${updated.expires_at}, updated_at=CURRENT_TIMESTAMP WHERE participant_id=${credentialOwnerId} AND provider='immomio'`;
   return updated;
 }
 
@@ -61,17 +63,33 @@ export async function refreshImmomioSession(sql, env, connection) {
   return refreshed;
 }
 
-export async function sendImmomioApplication(application, env, sql) {
+export async function sendImmomioApplication(application, env, sql, central = null) {
   const profile = parse(application.profile);
   const facts = parse(application.facts);
   const source = sourceIdentifier(facts);
   if (!source) return { status: "manual_required", error: "application_link_missing" };
   let credentials;
-  try { credentials = await refresh(sql, env, application, await decryptProviderCredentials(env, { ciphertext: application.connection_ciphertext, iv: application.connection_iv, key_version: application.connection_key_version }, application.participant_id, "immomio")); }
-  catch (error) { return { status: "manual_required", error: ["needs_login", "temporary_network_error", "credential_decrypt_failed"].includes(String(error?.message || "")) ? String(error.message) : "provider_contract_unverified" }; }
+  try {
+    const connection = central || await getCentralProviderCredentials(sql, env, "immomio");
+    if (connection.ownerId !== application.participant_id) {
+      return { status: "manual_required", error: "central_identity_mismatch" };
+    }
+    credentials = await refresh(sql, env, {
+      ...application, central_credential_owner_id: connection.ownerId,
+    }, connection.credentials);
+  } catch (error) {
+    return { status: "manual_required", error: centralCredentialError(error) };
+  }
   const user = await gql(PROFILE_QUERY, {}, credentials.access_token);
   if (!user.response.ok || user.body?.errors?.length || !user.body?.data?.user?.id) return { status: "manual_required", error: user.response.status === 401 || user.response.status === 403 ? "needs_login" : "provider_contract_unverified" };
   const accountId = String(user.body.data.user.id);
+  // createApplication assigns the application to this Immomio userId, not to
+  // an arbitrary tenant. Do not send another person's application as owner.
+  const centralEmail = clean(user.body.data.user.email, 320).toLowerCase();
+  const applicantEmail = clean(value(profile, "email"), 320).toLowerCase();
+  if (!centralEmail || centralEmail !== applicantEmail) {
+    return { status: "manual_required", error: "central_identity_mismatch" };
+  }
   const property = await gql(PROPERTY_QUERY, { sourceIdentifier: source }, credentials.access_token);
   if (!property.response.ok || property.body?.errors?.length) return { status: "manual_required", error: property.response.status === 404 ? "listing_unavailable" : "provider_contract_unverified" };
   const target = property.body?.data?.propertyBySourceIdentifier;

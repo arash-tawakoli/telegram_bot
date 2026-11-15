@@ -1,3 +1,5 @@
+import { getCentralProviderCredentials } from "./central-provider-credentials.js";
+
 function xml(value) {
   return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
 }
@@ -12,7 +14,7 @@ function estateId(url, fallback) {
   try { return decodeURIComponent(raw).replace(/[{}-]/g, "").toUpperCase(); } catch { return raw.replace(/[{}-]/g, "").toUpperCase(); }
 }
 
-export async function sendImmoweltApplication(application, env) {
+export async function sendImmoweltApplication(application, env, sql, central = null) {
   const profile = application.profile || {};
   const email = profileValue(profile, "email");
   const firstName = profileValue(profile, "first_name", "firstname");
@@ -23,6 +25,23 @@ export async function sendImmoweltApplication(application, env) {
   }
   const id = estateId(url, application.external_id);
   if (!/^[0-9A-F]{32}$/.test(id)) return { status: "manual_required", error: "provider_identifier_unresolved" };
+  // Immowelt's saved central credential is an authenticated browser session.
+  // Only same-site cookies valid for the API host may accompany a request.
+  const connection = central || await getCentralProviderCredentials(sql, env, "immowelt");
+  const cookies = connection.credentials.cookies.filter((cookie) => {
+    const domain = String(cookie.domain || "").toLowerCase();
+    const expiry = Number(cookie.expires);
+    return (domain === "immowelt.de" || domain === ".immowelt.de")
+      && /^[a-z0-9_.-]{1,240}$/i.test(String(cookie.name || ""))
+      && typeof cookie.value === "string" && cookie.value.length > 0
+      && (!Number.isFinite(expiry) || expiry < 0 || expiry * 1000 > Date.now() + 60_000);
+  });
+  if (!cookies.length) return { status: "manual_required", error: "needs_login" };
+  // SOAP authentication and on-behalf-of delivery have not been verified.
+  if (env.CENTRAL_IMMOWELT_TRANSPORT_VERIFIED !== "1") {
+    return { status: "manual_required", error: "provider_contract_unverified" };
+  }
+  const cookieHeader = cookies.map((cookie) => `${cookie.name}=${cookie.value}`).join("; ");
   const phone = profileValue(profile, "phone");
   const message = profileValue(profile, "message", "message_apartment", "message_house") || "Anfrage zur Immobilie";
   const soap = `<?xml version="1.0" encoding="utf-8"?>
@@ -40,7 +59,7 @@ export async function sendImmoweltApplication(application, env) {
   try {
     response = await fetch("https://api.immowelt.de/WebServices/CommunicationService.asmx", {
       method: "POST",
-      headers: { "content-type": "text/xml; charset=utf-8", soapaction: '"http://immowelt.de/services/SendContactMail"', accept: "text/xml,application/xml" },
+      headers: { cookie: cookieHeader, "content-type": "text/xml; charset=utf-8", soapaction: '"http://immowelt.de/services/SendContactMail"', accept: "text/xml,application/xml" },
       body: soap,
       signal: AbortSignal.timeout(30_000),
     });

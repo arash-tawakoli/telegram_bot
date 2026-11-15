@@ -398,7 +398,7 @@ export async function ingestImmoScoutSource(sql, source, config = {}) {
     `;
     if (rows.length) {
       inserted++;
-      await queueMatches(sql, rows[0].id, node.source_id, node.source_id + ":external:" + node.identity, { ...node.facts, canonical_url: node.canonical_url });
+      await queueMatches(sql, rows[0].id, node.source_id, node.source_id + ":external:" + node.identity, { ...node.facts, canonical_url: node.canonical_url }, source.central_auto_apply_enabled === true);
     }
   }
   return { fetched: result.fetched, valid: result.nodes.length, inserted, query: result.query,
