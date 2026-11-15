@@ -317,7 +317,7 @@ export async function adminTokenStatus(sql, env) {
     immoscout24: { scope: "central", configured: scout.configured === true, status: scout.status || "disconnected", account_hint: scout.account_hint || null, enabled: scout.enabled === true, expires_at: scout.expires_at || null, last_verified_at: scout.last_verified_at || null },
     ...Object.fromEntries(["immowelt", "immomio"].map(name => {
       const row = connection(name);
-      return [name, { scope: "owner_participant", configured: row.status === "connected", status: row.status || "disconnected", account_hint: row.account_hint || null, expires_at: row.expires_at || null }];
+      return [name, { scope: "central", configured: row.status === "connected", status: row.status || "disconnected", account_hint: row.account_hint || null, expires_at: row.expires_at || null }];
     })),
   };
 }
@@ -334,10 +334,10 @@ export async function adminTokenStart(sql, env, member, providerName, channel = 
   const flow = await issueProviderAuthFlow(sql, ownerId, providerName,
     telegram ? "telegram" : "coach",
     telegram ? "telegram" : "coach",
-    telegram ? { channel: "telegram" } : { member_id: member.id });
+    telegram ? { channel: "telegram", central_account: true } : { member_id: member.id, central_account: true });
   return {
     url: `https://login.traumwohnunghamburg.de/connect?ticket=${encodeURIComponent(flow.state)}`,
-    expiresAt: flow.expiresAt, provider: providerName, scope: "owner_participant",
+    expiresAt: flow.expiresAt, provider: providerName, scope: "central",
   };
 }
 
