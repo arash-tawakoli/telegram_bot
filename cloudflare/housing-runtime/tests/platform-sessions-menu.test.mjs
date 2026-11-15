@@ -52,6 +52,7 @@ test("auto-apply menu only iterates provider adapters that still exist", async (
   assert.equal(labels.some(text => text.includes("Immomio")), true);
   assert.equal(labels.some(text => text.includes("Immowelt")), true);
   assert.equal(labels.some(text => text.includes("Kleinanzeigen")), false);
+  assert.equal(labels.some(text => text.includes("verbinden")), false);
 });
 
 test("Telegram Immomio callback parser accepts the configured redirect URI", () => {
