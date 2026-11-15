@@ -84,15 +84,15 @@ export async function geography() {
   geoCache = { value, expiresAt: Date.now() + GEO_TTL_MS };
   return value;
 }
-export const HELP_TEXT = "❓ <b>Hilfe & Befehle</b>\\n\\n"
-    + "🏠 /start – Startmenü\\n"
-    + "🔎 /suche – Suchprofil erstellen\\n"
-    + "👤 /suchprofile – Suchprofile anzeigen\\n"
-    + "💎 /premium – Premium\\n"
-    + "🌐 /sprache – Sprache wählen\\n"
-    + "❓ /hilfe – Hilfe & Support\\n"
-    + "🎁 /teilen – 30 Tage Premium kostenlos\\n"
-    + "⚙️ /einstellungen – Einstellungen\\n"
-    + "⏸ /pause – Suche pausieren\\n"
-    + "▶️ /fortsetzen – Suche fortsetzen\\n"
+export const HELP_TEXT = "❓ <b>Hilfe & Befehle</b>\n\n"
+    + "🏠 /start – Startmenü\n"
+    + "🔎 /suche – Suchprofil erstellen\n"
+    + "👤 /suchprofile – Suchprofile anzeigen\n"
+    + "💎 /premium – Premium\n"
+    + "🌐 /sprache – Sprache wählen\n"
+    + "❓ /hilfe – Hilfe & Support\n"
+    + "🎁 /teilen – 30 Tage Premium kostenlos\n"
+    + "⚙️ /einstellungen – Einstellungen\n"
+    + "⏸ /pause – Suche pausieren\n"
+    + "▶️ /fortsetzen – Suche fortsetzen\n"
     + "📊 /status – Systemstatus";
