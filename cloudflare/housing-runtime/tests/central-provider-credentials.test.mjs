@@ -29,6 +29,29 @@ test("central providers use the administrator credential, never the applicant co
   assert.deepEqual(queries[0].values, [8538226539, "immowelt"]);
 });
 
+test("Scout production requires explicit central account enablement", async () => {
+  const env = {
+    CENTRAL_TOKEN_ENCRYPTION_KEY: KEY,
+    HOUSING_DB: {
+      prepare() {
+        return {
+          async first() {
+            return {
+              status: "connected", enabled: 0,
+              account_hint: "arash@nexalabs.de",
+              ciphertext: "opaque", iv: "opaque",
+            };
+          },
+        };
+      },
+    },
+  };
+  await assert.rejects(
+    () => getCentralProviderCredentials(null, env, "immoscout24"),
+    /test_mode_central_account_unavailable/,
+  );
+});
+
 test("missing administrator connection fails closed", async () => {
   const sql = async () => [];
   await assert.rejects(
