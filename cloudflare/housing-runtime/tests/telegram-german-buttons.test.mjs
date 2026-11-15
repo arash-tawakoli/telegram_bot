@@ -137,10 +137,10 @@ test("the help callback returns to settings and German commands are registered",
     assert.ok(commands.some(c => c.command === "fortsetzen"));
     assert.equal(commands.some(c => c.command === "resume"), false);
     assert.deepEqual(commands.map(c=>c.command),[
-      "start","suche","suchprofile","premium","sprache","hilfe",
+      "start","suche","suchprofile","premium","gespeichert","sprache","hilfe",
       "teilen","einstellungen","pause","fortsetzen","status"
     ]);
-    for(const [command,description] of [["premium","Premium"],["einstellungen","Einstellungen"],["hilfe","Hilfe & Support"],["sprache","Sprache"],["teilen","30 Tage Premium kostenlos"]]){
+    for(const [command,description] of [["premium","Premium"],["gespeichert","Gespeicherte Inserate"],["einstellungen","Einstellungen"],["hilfe","Hilfe & Support"],["sprache","Sprache"],["teilen","30 Tage Premium kostenlos"]]){
       assert.ok(commands.some(c=>c.command===command&&c.description===description),command);
     }
     assert.equal(commands.some(c=>c.command==="portalsetup"),false);
