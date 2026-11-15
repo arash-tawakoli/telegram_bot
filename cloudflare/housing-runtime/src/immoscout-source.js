@@ -164,10 +164,19 @@ export function planImmoScoutQueries(source, rawProfiles = [], areas = []) {
   return [...all];
 }
 
+// Keep broad coverage on every second run while rotating targeted locations.
+// Without this, many active districts could starve the broad discovery query.
+export function chooseImmoScoutQuery(queries, now = Date.now()) {
+  if (!Array.isArray(queries) || !queries.length) throw new Error("immoscout_query_plan_empty");
+  if (queries.length === 1) return queries[0];
+  const slot = Math.floor(now / (10 * 60_000));
+  return slot % 2 === 0 ? queries[0] : queries[1 + (Math.floor(slot / 2) % (queries.length - 1))];
+}
+
 let cachedAreas = null;
 async function scheduledQuery(sql, source, now = Date.now()) {
   const profiles = await sql.unsafe(
-    "SELECT sp.criteria FROM housing.search_profiles sp JOIN housing.source_links sl ON sl.search_profile_id=sp.id WHERE sl.source_id=$1 AND sp.active=true",
+    "SELECT sp.criteria FROM housing.search_profiles sp JOIN housing.source_links sl ON sl.search_profile_id=sp.id WHERE sl.source_id=$1 AND sp.active=true ORDER BY sp.id",
     [source.id],
   );
   let areas = [];
@@ -179,7 +188,7 @@ async function scheduledQuery(sql, source, now = Date.now()) {
     areas = cachedAreas.values;
   }
   const queries = planImmoScoutQueries(source, profiles, areas);
-  return queries[Math.floor(now / (10 * 60_000)) % queries.length];
+  return chooseImmoScoutQuery(queries, now);
 }
 
 function queryFor(source, config = {}) {
