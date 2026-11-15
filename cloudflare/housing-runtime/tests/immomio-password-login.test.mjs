@@ -6,7 +6,7 @@ import { decryptProviderCredentials } from "../src/provider-credentials.js";
 const ticket = "provider-flow-test_12345678901234567890";
 const KEY = "01".repeat(32);
 const credentialEnv = { APPLICATION_CREDENTIAL_KEY: KEY };
-const immoweltEnv = { ...credentialEnv, IMMOWELT_OAUTH_CLIENT_ID: "immowelt-registered-client" };
+const immoweltEnv = { ...credentialEnv, IMMOWELT_OAUTH_CLIENT_ID: "immowelt-registered-client", IMMOWELT_OAUTH_CALLBACK_APPROVED: "1" };
 
 function makeSql(provider = "immomio") {
   const writes = [];
@@ -140,6 +140,16 @@ test("Immowelt OAuth cannot start without a configured registered client", async
   assert.equal(result.status, 503);
   assert.equal((await result.json()).error, "provider_oauth_not_configured");
   assert.equal(writes.length, 0);
+});
+
+test("Immowelt requires explicit callback approval even with a configured client", async () => {
+  const env = { ...credentialEnv, IMMOWELT_OAUTH_CLIENT_ID: "immowelt-registered-client" };
+  const x = makeSql("immowelt");
+  const resolved = await handleProviderFacade(x.sql, request("resolve"), env);
+  assert.equal((await resolved.json()).oauthConfigured, false);
+  const result = await handleProviderFacade(x.sql, request("provider_web"), env);
+  assert.equal(result.status, 503);
+  assert.equal((await result.json()).error, "provider_oauth_not_configured");
 });
 
 test("Immowelt creates an Auth0 S256 code URL with exact first-party callback", async () => {
