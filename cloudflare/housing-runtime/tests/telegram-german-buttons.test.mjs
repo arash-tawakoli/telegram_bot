@@ -852,10 +852,10 @@ test("unchanged Telegram callbacks avoid participant identity writes and redunda
  }finally{x.done();}
 });
 
-test("persistent quick-access keyboard has Premium, Sprache, Einstellungen and Gespeichert in a 2x2 grid",()=>{
+test("persistent quick-access keyboard has Premium, Startmenü, Einstellungen and Gespeichert in a 2x2 grid",()=>{
  const keys=quickActionsKeyboard();
  assert.deepEqual(keys.keyboard.map(row=>row.map(b=>b.text)),[
-  ["💎 Premium","🌐 Sprache"],
+  ["💎 Premium","🏠 Startmenü"],
   ["⚙️ Einstellungen","⭐ Gespeichert"],
  ]);
  assert.equal(keys.is_persistent,true);
@@ -865,16 +865,16 @@ test("persistent quick-access keyboard has Premium, Sprache, Einstellungen and G
  assert.equal(keys.keyboard.flat().some(b=>/Auto-Bewerbung|Mein Profil/.test(b.text)),false);
 });
 
-test("/start restores four missing shortcuts from version 2 exactly once; /commands always reinstalls",async()=>{
+test("/start upgrades four shortcuts from version 3 exactly once; /commands always reinstalls",async()=>{
  const x=setup();
  try{
-  x.sqlite.prepare("UPDATE participants SET reply_keyboard_version=2 WHERE id='owner'").run();
+  x.sqlite.prepare("UPDATE participants SET reply_keyboard_version=3 WHERE id='owner'").run();
   await handleMessage({chat:x.chat,text:"/start"},x.user);
   const messages=x.sent.filter(item=>item.method==="sendMessage");
   assert.equal(messages.length,2,"quick keyboard and existing home preview are distinct Telegram messages");
   assert.equal(messages[0].body.reply_markup.is_persistent,true);
   assert.deepEqual(messages[0].body.reply_markup.keyboard.map(row=>row.map(b=>b.text)),[
-   ["💎 Premium","🌐 Sprache"],
+   ["💎 Premium","🏠 Startmenü"],
    ["⚙️ Einstellungen","⭐ Gespeichert"],
   ]);
   assert.match(messages[0].body.text,/Schnellfunktionen sind wieder verfügbar/);
@@ -884,12 +884,12 @@ test("/start restores four missing shortcuts from version 2 exactly once; /comma
   await handleMessage({chat:x.chat,text:"/start"},x.user);
   assert.equal(x.sent.filter(item=>item.method==="sendMessage"&&item.body.reply_markup?.keyboard).length,1,
    "the persistent reply keyboard must not produce another setup message on later /start");
-  assert.equal(x.sqlite.prepare("SELECT reply_keyboard_version AS version FROM participants WHERE id='owner'").get().version,3);
+  assert.equal(x.sqlite.prepare("SELECT reply_keyboard_version AS version FROM participants WHERE id='owner'").get().version,4);
   await handleMessage({chat:x.chat,text:"/commands"},x.user);
   const reinstalls=x.sent.filter(item=>item.method==="sendMessage"&&item.body.reply_markup?.keyboard);
   assert.equal(reinstalls.length,2,"/commands reinstalls the keyboard explicitly if the client has hidden it");
   assert.deepEqual(reinstalls[1].body.reply_markup.keyboard.map(row=>row.map(b=>b.text)),[
-   ["💎 Premium","🌐 Sprache"],
+   ["💎 Premium","🏠 Startmenü"],
    ["⚙️ Einstellungen","⭐ Gespeichert"],
   ]);
  }finally{x.done();}
@@ -930,7 +930,7 @@ test("all four bottom shortcuts open their existing screens and preserve subscri
     "views keep their existing inline buttons, without a duplicate reply keyboard");
   };
   await check(QUICK_ACTIONS.premium,/Traumwohnung Premium/);
-  await check(QUICK_ACTIONS.language,/Sprache auswählen/);
+  await check(QUICK_ACTIONS.home,/Traumwohnung Hamburg/);
   await check(QUICK_ACTIONS.settings,/Einstellungen/);
   await check(QUICK_ACTIONS.saved,/Gespeicherte Inserate/);
   assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM referral_codes WHERE participant_id='owner'").get().n,0);
