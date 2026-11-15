@@ -136,12 +136,38 @@ test("the help callback returns to settings and German commands are registered",
     assert.ok(commands.some(c => c.command === "suchprofile"));
     assert.ok(commands.some(c => c.command === "fortsetzen"));
     assert.equal(commands.some(c => c.command === "resume"), false);
-    for(const [command,description] of [["premium","Premium"],["einstellungen","Einstellungen"],["hilfe","Hilfe & Support"],["sprache","Sprache"]]){
+    assert.deepEqual(commands.map(c=>c.command),[
+      "start","suche","suchprofile","premium","sprache","hilfe",
+      "teilen","einstellungen","pause","fortsetzen","status"
+    ]);
+    for(const [command,description] of [["premium","Premium"],["einstellungen","Einstellungen"],["hilfe","Hilfe & Support"],["sprache","Sprache"],["teilen","30 Tage Premium kostenlos"]]){
       assert.ok(commands.some(c=>c.command===command&&c.description===description),command);
     }
+    assert.equal(commands.some(c=>c.command==="portalsetup"),false);
     await handleMessage({chat:x.chat,text:"/sprache"},x.user);
     assert.match(lastMessage(x).text,/Sprache auswählen/);
   } finally { x.done(); }
+});
+
+test("/teilen opens the referral reward and /portalsetup is no longer registered or active",async()=>{
+ const x=setup();
+ try{
+  await handleMessage({chat:x.chat,text:"/teilen"},x.user);
+  assert.match(lastMessage(x).text,/30 Tage Premium kostenlos/);
+  const before=x.sent.length;
+  const admin={...x.user,telegram_user_id:8538226539,chat_id:8538226539};
+  const chat={id:8538226539,type:"private"};
+  await handleMessage({chat,text:"/start"},admin);
+  const adminCommands=x.sent.filter(item=>item.method==="setMyCommands"
+    &&item.body.scope?.type==="chat" && item.body.scope.chat_id===8538226539);
+  assert.ok(adminCommands.length>0);
+  assert.ok(adminCommands.every(item=>item.body.commands.every(cmd=>cmd.command!=="portalsetup")));
+  await handleMessage({chat,text:"/hilfe"},admin);
+  assert.doesNotMatch(lastMessage(x).text,/portalsetup/);
+  await handleMessage({chat,text:"/portalsetup"},admin);
+  assert.match(lastMessage(x).text,/Bitte verwende die Befehle oder Buttons/);
+  assert.ok(x.sent.length>before);
+ }finally{x.done();}
 });
 
 test("Premium only shows a real Stripe management button for paid subscriptions", async () => {
@@ -826,19 +852,20 @@ test("unchanged Telegram callbacks avoid participant identity writes and redunda
  }finally{x.done();}
 });
 
-test("persistent quick-access keyboard keeps only profile and Auto-Bewerbung",()=>{
+test("persistent quick-access keyboard has Premium, Sprache, Hilfe und Teilen in a 2x2 grid",()=>{
  const keys=quickActionsKeyboard();
  assert.deepEqual(keys.keyboard.map(row=>row.map(b=>b.text)),[
-  ["⚡ Auto-Bewerbung","👤 Mein Profil"],
+  ["💎 Premium","🌐 Sprache"],
+  ["❓ Hilfe & Support","🎁 Teilen"],
  ]);
  assert.equal(keys.is_persistent,true);
  assert.equal(keys.resize_keyboard,true);
  assert.equal(keys.one_time_keyboard,false);
- assert.deepEqual(keys.keyboard.flat().map(b=>b.text),[QUICK_ACTIONS.autoApply,QUICK_ACTIONS.profile]);
- assert.ok(!keys.keyboard.flat().some(b=>/Premium|Einstellungen|Hilfe/.test(b.text)));
+ assert.deepEqual(keys.keyboard.flat().map(b=>b.text),Object.values(QUICK_ACTIONS));
+ assert.equal(keys.keyboard.flat().some(b=>/Auto-Bewerbung|Mein Profil/.test(b.text)),false);
 });
 
-test("/start installs the persistent reply keyboard without replacing the inline home menu",async()=>{
+test("/start installs the updated persistent reply keyboard without changing the inline home menu",async()=>{
  const x=setup();
  try{
   await handleMessage({chat:x.chat,text:"/start"},x.user);
@@ -846,7 +873,8 @@ test("/start installs the persistent reply keyboard without replacing the inline
   assert.equal(messages.length,2,"quick keyboard and existing home preview are distinct Telegram messages");
   assert.equal(messages[0].body.reply_markup.is_persistent,true);
   assert.deepEqual(messages[0].body.reply_markup.keyboard.map(row=>row.map(b=>b.text)),[
-   ["⚡ Auto-Bewerbung","👤 Mein Profil"]
+   ["💎 Premium","🌐 Sprache"],
+   ["❓ Hilfe & Support","🎁 Teilen"],
   ]);
   assert.match(messages[1].body.text,/Traumwohnung Hamburg/);
   assert.deepEqual(messages[1].body.reply_markup.inline_keyboard.map(row=>row[0].callback_data),
@@ -854,7 +882,7 @@ test("/start installs the persistent reply keyboard without replacing the inline
  }finally{x.done();}
 });
 
-test("first language selection unlocks bottom quick keys only after onboarding, not before",async()=>{
+test("first language selection unlocks new bottom shortcuts only after onboarding",async()=>{
  const x=setup();
  try{
   const fresh={...x.user,language_selected_at:null};
@@ -868,7 +896,7 @@ test("first language selection unlocks bottom quick keys only after onboarding, 
   },fresh);
   const keys=x.sent.filter(item=>item.method==="sendMessage"&&item.body.reply_markup?.keyboard);
   assert.equal(keys.length,1);
-  assert.equal(keys[0].body.reply_markup.keyboard[0][0].text,"⚡ Auto-Bewerbung");
+  assert.equal(keys[0].body.reply_markup.keyboard[0][0].text,"💎 Premium");
   assert.match(lastMessage(x).text,/What is it/);
   await handleCallback({
    id:"change-language",data:"language:set:de",from:{id:777},
@@ -879,22 +907,23 @@ test("first language selection unlocks bottom quick keys only after onboarding, 
  }finally{x.done();}
 });
 
-test("each bottom button invokes the existing Premium, Auto-Bewerbung, Bewerberprofil and Hilfe views",async()=>{
+test("all four bottom shortcuts open their existing screens and preserve subscriptions",async()=>{
  const x=setup();
  try{
   const check=async(label,content)=>{
    await handleMessage({chat:x.chat,text:label},x.user);
    assert.match(lastMessage(x).text,content,label);
    assert.equal(lastMessage(x).reply_markup?.keyboard,undefined,
-    "view continues to use existing inline buttons, not duplicate reply keyboard");
+    "views keep their existing inline buttons, without a duplicate reply keyboard");
   };
   await check(QUICK_ACTIONS.premium,/Traumwohnung Premium/);
-  await check(QUICK_ACTIONS.autoApply,/Automatische Bewerbung/);
-  await check(QUICK_ACTIONS.profile,/Bewerberprofil/);
+  await check(QUICK_ACTIONS.language,/Sprache auswählen/);
   await check(QUICK_ACTIONS.help,/Hilfe & Befehle/);
-  assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][0].callback_data,"home");
+  await check(QUICK_ACTIONS.share,/30 Tage Premium kostenlos/);
+  assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][0].text,"📤 Link teilen");
+  assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM referral_codes WHERE participant_id='owner'").get().n,1);
   assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM user_subscriptions WHERE participant_id='owner'").get().n,0,
-   "Premium shortcut must not create or modify a subscription");
+   "premium shortcut must not create or modify a subscription");
  }finally{x.done();}
 });
 
