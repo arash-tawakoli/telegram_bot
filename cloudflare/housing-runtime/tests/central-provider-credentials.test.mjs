@@ -65,6 +65,23 @@ test("central credential errors disclose only safe diagnostics", () => {
   assert.equal(centralCredentialError(new Error("sensitive details")), "provider_contract_unverified");
 });
 
+test("Immomio rejects a different participant even when profile email matches the owner", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => { throw new Error("must not contact Immomio for another participant"); };
+  try {
+    const outcome = await sendImmomioApplication({
+      participant_id: "other-applicant-id",
+      profile: { email: "owner@example.com" },
+      facts: { applicationLink: "https://tenant.immomio.com/apply/12345678-1234-4234-8234-123456789012" },
+    }, {}, null, {
+      ownerId: OWNER_ID, credentials: { access_token: "opaque", expires_at: "2099-01-01T00:00:00Z" },
+    });
+    assert.deepEqual(outcome, { status: "manual_required", error: "central_identity_mismatch" });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("Immomio never creates an application under the wrong account identity", async () => {
   const originalFetch = globalThis.fetch;
   const requests = [];
