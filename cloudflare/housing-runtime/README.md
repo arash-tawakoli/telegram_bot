@@ -41,7 +41,7 @@ Vollständige Anzeigentexte werden nicht gespeichert. Zustellungen und Bewerbung
 
 ## Quellen
 
-Aktiv sind neun Quellen: ImmoScout24 Hamburg/Schleswig-Holstein, Immowelt Hamburg/Schleswig-Holstein und fünf funktionierende Tenant.immoMio-Quellen. Nicht allowlistete Quellen werden im Worker abgewiesen.
+Produktiv sind **sieben Quellen**: ImmoScout24 Hamburg/Schleswig-Holstein, Immowelt Hamburg sowie vier Immomio-Baugenossenschaften mit nachgewiesener Angebotszustellung: **Hamburger Wohnen (23), VHW (29), Walddörfer (35), GEWOBA Nord (66)**. Qualifikation: erfolgreicher Immomio-Homepage-GraphQL-Abruf, mindestens ein Angebot mit gültigem `tenant.immomio.com/apply/<uuid>`-Link sowie mindestens eine erfolgreiche Telegram-Zustellung.\n\nAndere genossenschaftliche Quellen werden nicht verarbeitet. Die früheren IDs 30, 32, 34, 36, 39 sind im D1-Cleanup `0024_prune_non_delivering_cooperatives.sql` entfernt; historische Quellenaudits und Migrationen bleiben als Nachweis erhalten. Immowelt Schleswig-Holstein (71) bleibt separat deaktiviert und wird hier nicht verändert. Nicht allowlistete Quellen werden im Worker abgewiesen.
 
 ## D1-Setup
 
