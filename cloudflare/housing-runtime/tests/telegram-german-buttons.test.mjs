@@ -838,12 +838,12 @@ test("/start installs the persistent reply keyboard without replacing the inline
   await handleMessage({chat:x.chat,text:"/start"},x.user);
   const messages=x.sent.filter(item=>item.method==="sendMessage");
   assert.equal(messages.length,2,"quick keyboard and existing home preview are distinct Telegram messages");
-  assert.equal(messages[0].reply_markup.is_persistent,true);
-  assert.deepEqual(messages[0].reply_markup.keyboard.map(row=>row.map(b=>b.text)),[
+  assert.equal(messages[0].body.reply_markup.is_persistent,true);
+  assert.deepEqual(messages[0].body.reply_markup.keyboard.map(row=>row.map(b=>b.text)),[
    ["💎 Premium","⚡ Auto-Bewerbung"],["👤 Mein Profil","❓ Hilfe & Support"]
   ]);
-  assert.match(messages[1].text,/Traumwohnung Hamburg/);
-  assert.deepEqual(messages[1].reply_markup.inline_keyboard.map(row=>row[0].callback_data),
+  assert.match(messages[1].body.text,/Traumwohnung Hamburg/);
+  assert.deepEqual(messages[1].body.reply_markup.inline_keyboard.map(row=>row[0].callback_data),
    ["profile","platforms:profile-new","platforms","premium","settings"]);
  }finally{x.done();}
 });
