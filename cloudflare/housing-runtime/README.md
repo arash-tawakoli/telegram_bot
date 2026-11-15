@@ -14,7 +14,7 @@ Hyperdrive und ein externer PostgreSQL-Host gehören nicht mehr zum Zielbetrieb.
 
 ## ImmoScout24 MCP (nur Deutschland)
 
-Der Housing-Worker nutzt den ImmoScout24-MCP-Server `https://app.chatgpt.immobilienscout24.de/v2/mcp` über JSON-RPC 2.0 (`tools/call`, Protokoll `2025-06-18`).
+Der Housing-Worker nutzt den ImmoScout24-MCP-Server `https://app.chatgpt.immobilienscout24.de/v2/mcp` über JSON-RPC 2.0 (Protokoll `2025-06-18`). Vor dem ersten `tools/call` führt der gemeinsame Cloudflare-Client `initialize` und `notifications/initialized` aus. Er nutzt das bestätigte Protokoll und eine optionale `Mcp-Session-Id`, teilt die initialisierte Verbindung im Worker und erneuert eine abgelaufene Session (HTTP 404) einmalig. Bei fehlgeschlagener Initialisierung erfolgt kein Toolaufruf.
 
 | MCP-Tool | Einsatz |
 | --- | --- |
@@ -33,7 +33,7 @@ Der Housing-Worker nutzt den ImmoScout24-MCP-Server `https://app.chatgpt.immobil
 
 **Gemeinsamer ImmoScout24-Workflow für Hamburg und Schleswig-Holstein:** Beide Quell-IDs (1 und 69) verwenden dieselbe Pipeline und denselben 10-Minuten-Takt. Aus aktiven Suchprofilen werden regionale Suchbegriffe (Bundesland, Hamburger Bezirke/Stadtteile, Schleswig-Holsteiner Gemeinden/Kreise) und Wohnformen abgeleitet. Pro Quellenlauf erfolgt **eine gezielte** `property_search_de`-Abfrage und **eine** ergänzende `property_map_de`-Abfrage mit identischem Suchbegriff. Treffer werden anhand der ImmoScout24-ID dedupliziert; Karteninformationen ergänzen fehlende Daten der Suche. Maximal 15 zusätzliche Kartentreffer werden je Lauf verarbeitet. Schlägt die Karte fehl, bleiben Suchtreffer nutzbar.
 
-Die normale MCP-Suche liefert `price.value` (Grund-/Kaltmiete); nur `totalRent` gilt als bestätigte Warmmiete. Angebote ohne bestätigte Warmmiete werden **nicht als Treffer innerhalb eines Warmmietlimits** zugestellt. Die bestehenden Bewerbungsfreigaben und Idempotenzschlüssel bleiben unverändert; Bewerbungen verwenden weiterhin die getrennte ImmoScout24-REST-Kontaktschnittstelle. Zusätzliche MCP-Ressourcen oder ein ChatGPT-Widget sind nicht Teil des Housing-Workers. Ein autorisierter Live-Handshake-/Toolkatalogtest und die Nutzungsgenehmigung für automatisierte MCP-Abfragen sind weiterhin separat zu verifizieren.
+Die normale MCP-Suche liefert `price.value` (Grund-/Kaltmiete); nur `totalRent` gilt als bestätigte Warmmiete. Angebote ohne bestätigte Warmmiete werden **nicht als Treffer innerhalb eines Warmmietlimits** zugestellt. Die bestehenden Bewerbungsfreigaben und Idempotenzschlüssel bleiben unverändert; Bewerbungen verwenden weiterhin die getrennte ImmoScout24-REST-Kontaktschnittstelle. Zusätzliche MCP-Ressourcen oder ein ChatGPT-Widget sind nicht Teil des Housing-Workers. Ein direkter Live-Protokolltest vom 15.11.2026 bestätigte `initialize` (HTTP 200), `notifications/initialized` (HTTP 202), `tools/list` (HTTP 200) und beide deutschen Tools. Der Server gab keine Session-ID zurück; der Client unterstützt sie dennoch für zukünftige Stateful-Transporte. Die Nutzungsberechtigung wurde vom Betreiber separat geklärt.
 
 ## Datenumfang
 
