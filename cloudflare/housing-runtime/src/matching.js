@@ -174,7 +174,7 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts, 
       : provider === "immowelt" ? row.immowelt_enabled
         : provider === "immomio" ? row.immomio_enabled : false;
     const profile = object(row.applicant_profile);
-    if (autoApplyFresh && provider && enabled(row.auto_apply_enabled) && !enabled(row.test_auto_apply_enabled) && premiumParticipant(row)
+    if (autoApplyFresh && centralAutoApplyEnabled && provider && enabled(row.auto_apply_enabled) && !enabled(row.test_auto_apply_enabled) && premiumParticipant(row)
       && enabled(row.preferences_enabled) && enabled(providerEnabled)
       && missingApplicantFields(profile).length === 0) {
       const applicationKey = applicationIdempotencyKey(row.participant_id, provider, identityHash);
