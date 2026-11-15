@@ -1,7 +1,21 @@
-import test from "node:test";
+import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { normalizeImmoScoutEntry, parseMcpToolResult, germanImmoScoutQuery, fetchImmoScoutSource, fetchImmoScoutMap, ingestImmoScoutSource, planImmoScoutQueries, parseMcpEnvelope, chooseImmoScoutQuery } from "../src/immoscout-source.js";
+import { normalizeImmoScoutEntry, parseMcpToolResult, germanImmoScoutQuery, fetchImmoScoutSource, fetchImmoScoutMap, ingestImmoScoutSource, planImmoScoutQueries, parseMcpEnvelope, chooseImmoScoutQuery, resetMcpSession } from "../src/immoscout-source.js";
 import { sourceForId } from "../src/source-allowlist.js";
+
+beforeEach(() => resetMcpSession());
+
+function mockMcpLifecycle(payload, { protocolVersion = "2025-06-18", sessionId = null } = {}) {
+  if (payload.method === "initialize") {
+    return new Response(JSON.stringify({
+      jsonrpc: "2.0", id: payload.id,
+      result: { protocolVersion, capabilities: { tools: {} }, serverInfo: { name: "is24-app-in-chatgpt", version: "0.1.0" } },
+    }), { headers: sessionId ? { "mcp-session-id": sessionId } : {} });
+  }
+  if (payload.method === "notifications/initialized") return new Response(null, { status: 202 });
+  return null;
+}
+
 
 test("ImmoScout MCP entries become minimal offer facts", () => {
   const result = normalizeImmoScoutEntry({
@@ -61,6 +75,8 @@ test("the German Scout search and map use distinct MCP tools", async () => {
   globalThis.fetch = async (url, request) => {
     assert.equal(url, "https://app.chatgpt.immobilienscout24.de/v2/mcp");
     const payload = JSON.parse(request.body);
+    const lifecycle = mockMcpLifecycle(payload);
+    if (lifecycle) return lifecycle;
     calls.push(payload);
     return new Response(JSON.stringify({
       jsonrpc: "2.0", id: payload.id,
@@ -89,6 +105,8 @@ test("the German MCP map drops invalid coordinates and enforces result limits", 
   const previousFetch = globalThis.fetch;
   globalThis.fetch = async (_url, request) => {
     const payload = JSON.parse(request.body);
+    const lifecycle = mockMcpLifecycle(payload);
+    if (lifecycle) return lifecycle;
     return new Response(JSON.stringify({
       jsonrpc: "2.0", id: payload.id, result: { structuredContent: {
         entries: [
@@ -181,6 +199,8 @@ test("both regions share bounded search + map enrichment with stable IDs and cor
   });
   globalThis.fetch = async (_url, init) => {
     const payload = JSON.parse(init.body);
+    const lifecycle = mockMcpLifecycle(payload);
+    if (lifecycle) return lifecycle;
     calls.push({ method: payload.params.name, query: payload.params.arguments.query });
     const city = payload.params.arguments.query.includes("Schleswig-Holstein") ? "Kiel" : "Hamburg";
     const entries = payload.params.name === "property_search_de"
@@ -212,6 +232,8 @@ test("map outage does not prevent search-only delivery preparation", async () =>
   const previous = globalThis.fetch;
   globalThis.fetch = async (_url, init) => {
     const payload = JSON.parse(init.body);
+    const lifecycle = mockMcpLifecycle(payload);
+    if (lifecycle) return lifecycle;
     const result = payload.params.name === "property_map_de"
       ? { isError: true, content: [{ text: "map temporarily unavailable" }] }
       : { structuredContent: { total: 1, entries: [{ exposedId: "100", exposeUrl: "https://www.immobilienscout24.de/expose/100", title: "Wohnung in Hamburg", address: { city: "Hamburg" }, price: { value: 500 } }] } };
@@ -229,6 +251,8 @@ test("scheduled ingestion uses the same profile-driven pipeline in both regions"
   const previous = globalThis.fetch, calls = [];
   globalThis.fetch = async (_url, init) => {
     const payload = JSON.parse(init.body);
+    const lifecycle = mockMcpLifecycle(payload);
+    if (lifecycle) return lifecycle;
     calls.push({ method: payload.params.name, query: payload.params.arguments.query });
     return new Response(JSON.stringify({ jsonrpc: "2.0", id: payload.id, result: { structuredContent: { entries: [], total: 0 } } }));
   };
