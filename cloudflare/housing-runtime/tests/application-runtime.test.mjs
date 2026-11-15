@@ -42,11 +42,27 @@ test("application processor fails closed when central provider credentials are a
     preferences_enabled: true, provider_enabled: true, daily_limit: null, timezone: "Europe/Berlin",
     allowed_weekdays: null, send_window_start: null, send_window_end: null, connection_status: "connected",
   });
-  const result = await processHousingApplication(db.query, { APPLICATION_RUN_TOKEN: "secret" }, new Request("https://runtime.test/internal/application/process", { method: "POST", headers: { authorization: "Bearer secret" } }));
+  const result = await processHousingApplication(db.query, { APPLICATION_RUN_TOKEN: "secret", CENTRAL_AUTO_APPLY_ENABLED: "1" }, new Request("https://runtime.test/internal/application/process", { method: "POST", headers: { authorization: "Bearer secret" } }));
   assert.equal(result.body.status, "manual_required");
   assert.equal(result.body.reason, "central_provider_unavailable");
   assert.equal(db.writes.some(({ text }) => /SET submission_started_at = now\(\)/.test(text)), false);
   assert.ok(db.writes.some(({ text }) => /housing\.application_events/.test(text)));
+});
+
+test("central AutoApply stays paused after deployment and does not reserve or send", async () => {
+  const db = sqlFor({
+    id: "app-paused", participant_id: "user-1", offer_identity_id: "offer-1",
+    provider: "immomio", status: "pending", test_mode: 0,
+    preferences_enabled: true, provider_enabled: true, auto_apply_enabled: true,
+  });
+  const result = await processHousingApplication(db.query, { APPLICATION_RUN_TOKEN: "secret" },
+    new Request("https://runtime.test/internal/application/process", {
+      method: "POST", headers: { authorization: "Bearer secret" },
+    }));
+  assert.equal(result.body.status, "deferred");
+  assert.equal(result.body.reason, "central_auto_apply_paused");
+  assert.equal(db.writes.some(({ text }) => /SET submission_started_at = now\\(\\)/.test(text)), false);
+  assert.equal(db.writes.some(({ text }) => /wait_reason = 'central_auto_apply_paused'/.test(text)), true);
 });
 
 test("scheduled application processing ignores the historical pending backlog", async () => {
