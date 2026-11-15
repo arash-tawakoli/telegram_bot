@@ -25,15 +25,15 @@ const PUBLIC_COMMANDS = [
 function helpFor(user) {
     const admin = isAdmin(user);
     return HELP_TEXT + (admin
-        ? "\n\n<b>Nur für Admins:</b>\n🔑 /token – Quellen und Tokens verwalten\n📢 /announcement – Ankündigungen versenden\n🛡 /admin – Adminbereich"
+        ? "\n\n<b>Nur für Admins:</b>\n🛡 /admin – Adminbereich\n🔑 /token – Quellen und Tokens verwalten\n📢 /announcement – Ankündigungen versenden"
         : "");
 }
 
 const ADMIN_COMMANDS = [
     ...PUBLIC_COMMANDS,
     { command: "admin", description: "Adminbereich" },
-    { command: "announcement", description: "Ankündigung senden" },
     { command: "token", description: "Quellen und Tokens verwalten" },
+    { command: "announcement", description: "Ankündigung senden" },
 ];
 
 async function syncTelegramCommands(user, chatId) {
