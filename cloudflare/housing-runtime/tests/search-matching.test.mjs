@@ -169,3 +169,33 @@ test("new fresh matches queue AutoApply only for complete premium connected prof
   assert.equal(await queueMatches(sql, "offer-test", 23, "hash-test", { ...apartment, canonical_url: "https://tenant.immomio.com/de/apply/12345678-1234-4234-8234-123456789012" }), 1);
   assert.equal(calls.slice(beforeTestMode).some(call => call.query.includes("INSERT INTO housing.applications")), false);
 });
+
+
+test("Hamburg and Schleswig-Holstein require verified warm rent for Scout budget matching", () => {
+  const shAreas=[{ name:"Kiel", area_type:"independent_city", area_code:"01002", parent_code:"SH" }];
+  const scenarios=[
+    {sourceId:1,criteria:hamburg,facts:{...apartment,city:"Hamburg"}},
+    {sourceId:69,criteria:{...hamburg,location_mode:"all_schleswig_holstein"},
+      facts:{...apartment,title:"Wohnung in Kiel",city:"Kiel"}},
+  ];
+  for(const {sourceId,criteria,facts} of scenarios){
+    assert.equal(matchesProfile(criteria,{...facts,warm_rent:null,cold_rent:750},sourceId,shAreas),false,
+      "basic rent must not be misread as meeting a warm-rent cap");
+    assert.equal(matchesProfile(criteria,{...facts,warm_rent:1250,cold_rent:750},sourceId,shAreas),false);
+    assert.equal(matchesProfile(criteria,{...facts,warm_rent:1000,cold_rent:750},sourceId,shAreas),true);
+  }
+  assert.equal(matchesProfile(hamburg,{...apartment,warm_rent:null,cold_rent:750},3),true,
+    "other existing connectors retain their previous explicit unknown-rent policy");
+});
+
+
+test("provider city labels match the canonical municipality in both states", () => {
+  assert.equal(matchesProfile(hamburg, {...apartment,city:"Harburg, Hamburg"},1),true);
+  const areas=[
+    {name:"Lübeck",area_type:"independent_city",area_code:"01003",parent_code:"SH"},
+    {name:"Barsbüttel",area_type:"municipality",area_code:"01062006",parent_code:"01062"},
+  ];
+  const sh={property_types:["Wohnung"],location_mode:"schleswig_holstein_areas",location_area_codes:["01003"]};
+  assert.equal(matchesProfile(sh,{...apartment,city:"Lübeck / Travemünde",title:"Wohnung in Lübeck"},69,areas),true);
+  assert.equal(matchesProfile(sh,{...apartment,city:"Barsbüttel/OT Stellau"},69,areas),false);
+});

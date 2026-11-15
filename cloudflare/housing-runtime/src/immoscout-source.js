@@ -3,6 +3,34 @@ import { queueMatches } from "./matching.js";
 const MCP_URL = "https://app.chatgpt.immobilienscout24.de/v2/mcp";
 const MCP_PROTOCOL = "2025-06-18";
 
+// Select a complete JSON-RPC response, skipping SSE progress notifications.
+export function parseMcpEnvelope(body, requestId) {
+  const text = String(body || "").trim().replace(/^\uFEFF/, "");
+  const messages = [];
+  if (text.startsWith("{")) {
+    messages.push(JSON.parse(text));
+  } else {
+    let data = [];
+    const flush = () => {
+      if (!data.length) return;
+      const raw = data.join("\n").trim();
+      data = [];
+      if (!raw || raw === "[DONE]") return;
+      try { messages.push(JSON.parse(raw)); }
+      catch { throw new Error("immoscout_mcp_sse_invalid"); }
+    };
+    for (const line of text.split(/\r?\n/)) {
+      if (!line.trim()) { flush(); continue; }
+      if (line.startsWith("data:")) data.push(line.slice(5).trimStart());
+    }
+    flush();
+  }
+  const response = messages.find(item => item && item.id === requestId && (item.result || item.error))
+    || messages.find(item => item && (item.result || item.error) && item.id == null);
+  if (!response) throw new Error("immoscout_mcp_response_invalid");
+  return response;
+}
+
 async function postMcp(payload) {
   const response = await fetch(MCP_URL, {
     method: "POST",
@@ -10,14 +38,8 @@ async function postMcp(payload) {
     body: JSON.stringify(payload),
     signal: AbortSignal.timeout(15_000),
   });
-  const text = await response.text();
-  if (!response.ok) throw new Error(`immoscout_mcp_http_${response.status}`);
-  const trimmed = text.trim().replace(/^\uFEFF/, "");
-  if (trimmed.startsWith("{")) return JSON.parse(trimmed);
-  for (const line of text.split(/\r?\n/)) if (line.startsWith("data:")) {
-    try { return JSON.parse(line.slice(5).trim()); } catch { /* continue to the next SSE frame */ }
-  }
-  throw new Error(`immoscout_mcp_response_invalid:${response.headers.get("content-type") || "unknown"}:${trimmed.slice(0, 80).replace(/[\u0000-\u001f\u007f]/g, " ")}`);
+  if (!response.ok) throw new Error("immoscout_mcp_http_" + response.status);
+  return parseMcpEnvelope(await response.text(), payload.id);
 }
 
 function entryId(entry) {
@@ -76,11 +98,102 @@ async function callTool(name, query) {
   return parseMcpToolResult(await postMcp({ jsonrpc: "2.0", id: crypto.randomUUID(), method: "tools/call", params: { name, arguments: { query } } }));
 }
 
+const RENTAL_TYPES = Object.freeze({
+  Wohnung: "Wohnungen zur Miete",
+  Haus: "Häuser zur Miete",
+  WG: "WG-Zimmer zur Miete",
+  Tauschwohnung: "Tauschwohnungen",
+});
+
+function parseJson(value) {
+  if (value && typeof value === "object") return value;
+  try { return JSON.parse(value || "{}"); } catch { return {}; }
+}
+function list(value) { return Array.isArray(value) ? value : []; }
+function scoutRegion(source) {
+  if (source?.family !== "immoscout24" || ![1, 69].includes(Number(source?.id)))
+    throw new Error("immoscout_source_not_allowlisted");
+  return Number(source.id) === 1 ? "Hamburg" : "Schleswig-Holstein";
+}
+function safePlace(value) {
+  const text = String(value ?? "").trim();
+  return text.length <= 100 && /^[A-Za-zÀ-ÿ0-9 .()/-]+$/.test(text) ? text : "";
+}
+function queryText(type, place) {
+  return (RENTAL_TYPES[type] || RENTAL_TYPES.Wohnung) +
+    (place.startsWith("Kreis ") ? " im " : " in ") + place;
+}
+
+// The same planner handles both states; only the area selections differ.
+export function planImmoScoutQueries(source, rawProfiles = [], areas = []) {
+  const region = scoutRegion(source);
+  const all = new Set();
+  const add = (type, place) => {
+    if (RENTAL_TYPES[type] && place) all.add(queryText(type, place));
+  };
+  add("Wohnung", region);
+  const byCode = new Map(list(areas).map(area => [String(area.area_code), area]));
+  for (const value of rawProfiles) {
+    const profile = parseJson(value?.criteria ?? value);
+    const type = list(profile.property_types)[0] || profile.property_type;
+    const mode = String(profile.location_mode || "");
+    if (!RENTAL_TYPES[type]) continue;
+    if (region === "Hamburg") {
+      if (mode === "all_hamburg") add(type, region);
+      if (mode === "boroughs" || mode === "neighborhoods") {
+        const selected = mode === "neighborhoods"
+          ? list(profile.neighborhoods).length ? profile.neighborhoods : profile.districts
+          : profile.boroughs;
+        for (const name of list(selected)) {
+          const place = safePlace(name);
+          if (place) add(type, place.startsWith("Hamburg") ? place : "Hamburg-" + place);
+        }
+      }
+    } else {
+      if (mode === "all_schleswig_holstein") add(type, region);
+      if (mode === "schleswig_holstein_areas") {
+        for (const code of list(profile.location_area_codes)) {
+          const area = byCode.get(String(code));
+          const name = safePlace(area?.name);
+          if (!name) continue;
+          add(type, area.area_type === "county" ? "Kreis " + name : name);
+        }
+      }
+    }
+  }
+  return [...all];
+}
+
+// Keep broad coverage on every second run while rotating targeted locations.
+// Without this, many active districts could starve the broad discovery query.
+export function chooseImmoScoutQuery(queries, now = Date.now()) {
+  if (!Array.isArray(queries) || !queries.length) throw new Error("immoscout_query_plan_empty");
+  if (queries.length === 1) return queries[0];
+  const slot = Math.floor(now / (10 * 60_000));
+  return slot % 2 === 0 ? queries[0] : queries[1 + (Math.floor(slot / 2) % (queries.length - 1))];
+}
+
+let cachedAreas = null;
+async function scheduledQuery(sql, source, now = Date.now()) {
+  const profiles = await sql.unsafe(
+    "SELECT sp.criteria FROM housing.search_profiles sp JOIN housing.source_links sl ON sl.search_profile_id=sp.id WHERE sl.source_id=$1 AND sp.active=true ORDER BY sp.id",
+    [source.id],
+  );
+  let areas = [];
+  if (Number(source.id) === 69 && profiles.some(row => parseJson(row.criteria).location_mode === "schleswig_holstein_areas")) {
+    if (!cachedAreas || cachedAreas.expires < Date.now()) {
+      const rows = await sql.unsafe("SELECT payload FROM housing.coach_geo_snapshot WHERE id=$1", ["de-hh-sh"]);
+      cachedAreas = { expires: Date.now() + 10 * 60_000, values: list(parseJson(rows[0]?.payload).schleswigHolsteinAreas) };
+    }
+    areas = cachedAreas.values;
+  }
+  const queries = planImmoScoutQueries(source, profiles, areas);
+  return chooseImmoScoutQuery(queries, now);
+}
+
 function queryFor(source, config = {}) {
   if (config.query) return String(config.query).slice(0, 500);
-  return /schleswig/i.test(String(source.name || ""))
-    ? "Wohnungen zur Miete in Schleswig-Holstein, neueste Inserate"
-    : "Wohnungen zur Miete in Hamburg, neueste Inserate";
+  return queryText("Wohnung", scoutRegion(source));
 }
 
 export function normalizeImmoScoutEntry(entry, sourceId) {
@@ -88,6 +201,18 @@ export function normalizeImmoScoutEntry(entry, sourceId) {
   const url = String(entry?.exposeUrl || "");
   if (!id || !/^https:\/\/www\.immobilienscout24\.de\/expose\//i.test(url)) return null;
   const address = entry.address || {};
+  const country = String(address.countryCode || address.country || "").toLowerCase();
+  if (country && !["de", "deu", "deutschland", "germany"].includes(country)) return null;
+  const city = String(address.city || entry.city || "").toLowerCase();
+  if (city && Number(sourceId) === 1 && !city.includes("hamburg")) return null;
+  if (city && Number(sourceId) === 69 && city.startsWith("hamburg")) return null;
+  // Schleswig-Holstein postcodes fall in 21xxx–25xxx. Ignore clear
+  // cross-region results without treating missing postcodes as invalid.
+  const postcode = String(address.postcode || "");
+  if (Number(sourceId) === 69 && postcode && !/^2[1-5]\d{3}$/.test(postcode)) return null;
+  const cold = numeric(entry.price?.value);
+  const total = numeric(entry.totalRent);
+  const propertyType = String(entry.type || "").toUpperCase();
   return {
     source_id: sourceId,
     identity: id,
@@ -98,32 +223,66 @@ export function normalizeImmoScoutEntry(entry, sourceId) {
       district: String(address.quarter || entry.district || "").slice(0, 120),
       postal_code: String(address.postcode || "").slice(0, 16),
       address: [address.street, address.houseNumber].filter(Boolean).join(" ").slice(0, 240),
-      warm_rent: numeric(entry.totalRent),
-      cold_rent: numeric(entry.price?.value),
+      // price.value is the basic rent; only totalRent is verified as warm rent.
+      warm_rent: total > 0 && (cold == null || total >= cold) ? total : null,
+      cold_rent: cold > 0 ? cold : null,
       additional_costs: numeric(entry.serviceCharge),
       heating_costs: numeric(entry.heatingCosts),
       rooms: numeric(entry.rooms),
       area_sqm: numeric(entry.size),
       image_url: typeof entry.titlePictureUrls?.[0]?.href === "string" ? entry.titlePictureUrls[0].href.replace(/%WIDTH%/g, "1200").replace(/%HEIGHT%/g, "800") : null,
       provider: "immoscout24",
+      ...(propertyType.includes("HOUSE") ? { property_type: "Haus" }
+        : propertyType.includes("APARTMENT") || propertyType.includes("FLAT") ? { property_type: "Wohnung" } : {}),
       ...germanCoordinates(entry, sourceId),
     },
   };
 }
 
 export async function fetchImmoScoutSource(source, config = {}) {
+  scoutRegion(source);
   const query = queryFor(source, config);
-  const result = await callTool("property_search_de", query);
-  const nodes = [];
-  const seen = new Set();
-  for (const entry of result.entries) {
+  const search = await callTool("property_search_de", query);
+  const nodes = new Map();
+  for (const entry of search.entries) {
     const normalized = normalizeImmoScoutEntry(entry, source.id);
-    if (!normalized) continue;
-    if (seen.has(normalized.identity)) continue;
-    seen.add(normalized.identity);
-    nodes.push(normalized);
+    if (normalized && !nodes.has(normalized.identity)) nodes.set(normalized.identity, normalized);
   }
-  return { nodes, fetched: result.total ?? nodes.length, reported_total: result.total, query };
+  const searchCount = nodes.size;
+  let mapCount = 0, enriched = 0, added = 0, mapError = null;
+  if (config.enrichWithMap === true) {
+    try {
+      const result = await callTool("property_map_de", query);
+      mapCount = result.entries.length;
+      const maxExtra = Math.max(0, Math.min(20, Number(config.maxMapExtras ?? 15) || 0));
+      for (const entry of result.entries) {
+        const normalized = normalizeImmoScoutEntry(entry, source.id);
+        if (!normalized) continue;
+        const previous = nodes.get(normalized.identity);
+        if (previous) {
+          const facts = { ...previous.facts };
+          for (const [key, value] of Object.entries(normalized.facts)) {
+            if ((facts[key] == null || facts[key] === "") && value != null && value !== "") facts[key] = value;
+          }
+          if (Object.keys(normalized.facts).some(key => facts[key] !== previous.facts[key])) enriched++;
+          nodes.set(normalized.identity, { ...previous, facts });
+        } else if (added < maxExtra) {
+          nodes.set(normalized.identity, normalized);
+          added++;
+        }
+      }
+    } catch (error) {
+      mapError = String(error?.message || error).slice(0, 120);
+      console.warn("immoscout_map_enrichment_failed", mapError);
+    }
+  }
+  return {
+    nodes: [...nodes.values()],
+    fetched: search.total ?? searchCount,
+    reported_total: search.total,
+    query, searchCount, mapCount, enriched, added,
+    ...(mapError ? { map_error: mapError } : {}),
+  };
 }
 
 /**
@@ -160,7 +319,8 @@ export async function fetchImmoScoutMap(source, config = {}) {
 }
 
 export async function ingestImmoScoutSource(sql, source, config = {}) {
-  const result = await fetchImmoScoutSource(source, config);
+  const query = config.query || await scheduledQuery(sql, source);
+  const result = await fetchImmoScoutSource(source, { ...config, query, enrichWithMap: true, maxMapExtras: 15 });
   let inserted = 0;
   for (const node of result.nodes) {
     const rows = await sql`
@@ -174,5 +334,7 @@ export async function ingestImmoScoutSource(sql, source, config = {}) {
       await queueMatches(sql, rows[0].id, node.source_id, node.source_id + ":external:" + node.identity, { ...node.facts, canonical_url: node.canonical_url });
     }
   }
-  return { fetched: result.fetched, valid: result.nodes.length, inserted, query: result.query };
+  return { fetched: result.fetched, valid: result.nodes.length, inserted, query: result.query,
+    search_count: result.searchCount, map_count: result.mapCount, enriched: result.enriched,
+    added: result.added, ...(result.map_error ? { map_error: result.map_error } : {}) };
 }
