@@ -736,7 +736,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
 
  if(action==='provider'){
   const meta=AUTO_APPLY_PROVIDERS[source];if(!meta)return;
-  return render(`<b>${meta.name}</b>\\n\\nDie Plattform wird zentral von NexaLabs verwaltet. Du musst kein eigenes Plattformkonto verbinden.`,back);
+  return render(`<b>${meta.name}</b>\n\nDie Plattform wird zentral von NexaLabs verwaltet. Du musst kein eigenes Plattformkonto verbinden.`,back);
  }
 
  if(action==='pause'||action==='resume'){
