@@ -215,8 +215,14 @@ test("central Immowelt logs in with the existing server form and stores only enc
     assert.ok(sent);
     assert.equal(new URL(sent.url).hostname, "signin.immowelt.de");
     assert.ok(calls.some((call) => call.url === "https://signin.immowelt.de/refresh"));
+    const claim = writes.find((write) => write.query.includes("UPDATE provider_auth_flows"));
+    assert.equal(claim.query.includes("id=$1"), true);
+    assert.equal(claim.params.length, 1);
     const saved = writes.find((write) => write.query.includes("UPDATE provider_connections"));
     assert.ok(saved);
+    assert.match(saved.query, /ciphertext=\$1,iv=\$2,key_version=\$3/);
+    assert.match(saved.query, /participant_id=\$6 AND provider=\$7/);
+    assert.equal(saved.params.length, 7);
     const credentials = await decryptProviderCredentials(credentialEnv,
       { ciphertext: saved.params[0], iv: saved.params[1], key_version: saved.params[2] },
       "operator-id", "immowelt");

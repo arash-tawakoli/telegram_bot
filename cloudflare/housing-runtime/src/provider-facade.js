@@ -139,10 +139,10 @@ function callbackUrl(value, state) {
   return url;
 }
 async function completeFlow(sql, flow, env, encrypted, accountHint, expiresAt = null) {
-  const claim = await sql.unsafe("UPDATE provider_auth_flows SET consumed_at=CURRENT_TIMESTAMP WHERE id=? AND consumed_at IS NULL AND expires_at>CURRENT_TIMESTAMP", [flow.id]);
+  const claim = await sql.unsafe("UPDATE provider_auth_flows SET consumed_at=CURRENT_TIMESTAMP WHERE id=$1 AND consumed_at IS NULL AND expires_at>CURRENT_TIMESTAMP", [flow.id]);
   if (!claim.count) throw new Error("auth_flow_expired");
   await sql.unsafe(
-    "UPDATE provider_connections SET status='connected',ciphertext=?,iv=?,key_version=?,account_hint=?,expires_at=?,updated_at=CURRENT_TIMESTAMP WHERE participant_id=? AND provider=?",
+    "UPDATE provider_connections SET status='connected',ciphertext=$1,iv=$2,key_version=$3,account_hint=$4,expires_at=$5,updated_at=CURRENT_TIMESTAMP WHERE participant_id=$6 AND provider=$7",
     [encrypted.ciphertext, encrypted.iv, encrypted.key_version, accountHint || null, expiresAt, flow.participant_id, flow.provider],
   );
   if (flow.origin === "telegram" && flow.participant_id && env.TELEGRAM_BOT_TOKEN) {
