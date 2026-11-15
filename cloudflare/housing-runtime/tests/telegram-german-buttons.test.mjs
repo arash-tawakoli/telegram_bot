@@ -983,10 +983,10 @@ test("delivered offer is saved once, displayed for the owner, and removable",asy
    message:{chat:x.chat,message_id:82,photo:[{file_id:"fixture"}],reply_markup:markup}},x.user);
   await tap();
   assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM saved_offers WHERE participant_id='owner'").get().n,1);
-  const saved=x.sqlite.prepare("SELECT canonical_url,title,facts FROM saved_offers WHERE participant_id='owner'").get();
+  const saved=x.sqlite.prepare("SELECT canonical_url,title,warm_rent FROM saved_offers WHERE participant_id='owner'").get();
   assert.equal(saved.canonical_url,link);
   assert.match(saved.title,/Balkonwohnung/);
-  assert.equal(JSON.parse(saved.facts).warm_rent,650);
+  assert.equal(saved.warm_rent,650);
   const editMarkup=x.sent.filter(x=>x.method==="editMessageReplyMarkup").at(-1)?.body?.reply_markup;
   assert.equal(editMarkup.inline_keyboard[1][0].text,"⭐ Gespeichert");
   await tap();
