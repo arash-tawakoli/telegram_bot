@@ -97,8 +97,8 @@ test("only the home preview translates while all buttons and settings remain Ger
   try {
     const root = homeKeyboard(x.user).inline_keyboard;
     assert.deepEqual(root.map(row => row[0].callback_data),
-      ["profile", "platforms:profile-new", "platforms", "premium", "settings"]);
-    assert.equal(root[3][0].text, "💎 Mein Premium");
+      ["profile", "platforms:profile-new", "platforms"]);
+    assert.equal(root.some(row => /premium|settings/.test(row[0].callback_data)), false);
     await home(x.user, 777);
     assert.match(lastMessage(x).text, /What is it\?/);
     assert.match(lastMessage(x).text, /Create a search profile/);
@@ -136,6 +136,11 @@ test("the help callback returns to settings and German commands are registered",
     assert.ok(commands.some(c => c.command === "suchprofile"));
     assert.ok(commands.some(c => c.command === "fortsetzen"));
     assert.equal(commands.some(c => c.command === "resume"), false);
+    for(const [command,description] of [["premium","Premium"],["einstellungen","Einstellungen"],["hilfe","Hilfe & Support"],["sprache","Sprache"]]){
+      assert.ok(commands.some(c=>c.command===command&&c.description===description),command);
+    }
+    await handleMessage({chat:x.chat,text:"/sprache"},x.user);
+    assert.match(lastMessage(x).text,/Sprache auswählen/);
   } finally { x.done(); }
 });
 
@@ -312,13 +317,14 @@ test("auto-apply menu exposes only supported provider actions and non-mutating s
     x.sqlite.exec("UPDATE participants SET test_auto_apply_enabled=1,test_auto_apply_daily_limit=1 WHERE id='owner'");
     await platformSessions(x.user, x.chat, 21, "platforms");
     const controls = lastMessage(x).reply_markup.inline_keyboard.flat().map(b => b.callback_data);
-    assert.ok(controls.includes("platforms:test-status"), "test access was a no-op");
+    assert.equal(controls.includes("platforms:test-status"), false, "personal test button remains hidden");
     assert.ok(controls.includes("platforms:provider:3"), "Immomio central source missing");
     assert.ok(controls.includes("platforms:provider:4"), "Immowelt central source missing");
     assert.ok(!controls.some(value => String(value || "").startsWith("platforms:login:")), "personal provider login must remain hidden");
-    assert.ok(controls.includes("platforms:test:off"), "deactivation missing");
+    assert.equal(controls.some(value=>String(value||"").startsWith("platforms:test:")), false);
     assert.ok(controls.includes("home"), "back to start missing");
-    assert.ok(!controls.includes("platforms:on"), "normal auto-apply must remain disabled in test mode");
+    assert.ok(controls.includes("platforms:on"), "start all missing");
+    assert.ok(controls.includes("platforms:off"), "pause all missing");
     assert.ok(!controls.includes("noop"), "a visible provider control must not be a no-op");
   } finally { x.done(); }
 });
@@ -820,16 +826,16 @@ test("unchanged Telegram callbacks avoid participant identity writes and redunda
  }finally{x.done();}
 });
 
-test("persistent quick-access keyboard has exactly the four agreed labels in a 2×2 layout",()=>{
+test("persistent quick-access keyboard keeps only profile and Auto-Bewerbung",()=>{
  const keys=quickActionsKeyboard();
  assert.deepEqual(keys.keyboard.map(row=>row.map(b=>b.text)),[
-  ["💎 Premium","⚡ Auto-Bewerbung"],
-  ["👤 Mein Profil","❓ Hilfe & Support"],
+  ["⚡ Auto-Bewerbung","👤 Mein Profil"],
  ]);
  assert.equal(keys.is_persistent,true);
  assert.equal(keys.resize_keyboard,true);
  assert.equal(keys.one_time_keyboard,false);
- assert.deepEqual(Object.values(QUICK_ACTIONS),keys.keyboard.flat().map(b=>b.text));
+ assert.deepEqual(keys.keyboard.flat().map(b=>b.text),[QUICK_ACTIONS.autoApply,QUICK_ACTIONS.profile]);
+ assert.ok(!keys.keyboard.flat().some(b=>/Premium|Einstellungen|Hilfe/.test(b.text)));
 });
 
 test("/start installs the persistent reply keyboard without replacing the inline home menu",async()=>{
@@ -840,11 +846,11 @@ test("/start installs the persistent reply keyboard without replacing the inline
   assert.equal(messages.length,2,"quick keyboard and existing home preview are distinct Telegram messages");
   assert.equal(messages[0].body.reply_markup.is_persistent,true);
   assert.deepEqual(messages[0].body.reply_markup.keyboard.map(row=>row.map(b=>b.text)),[
-   ["💎 Premium","⚡ Auto-Bewerbung"],["👤 Mein Profil","❓ Hilfe & Support"]
+   ["⚡ Auto-Bewerbung","👤 Mein Profil"]
   ]);
   assert.match(messages[1].body.text,/Traumwohnung Hamburg/);
   assert.deepEqual(messages[1].body.reply_markup.inline_keyboard.map(row=>row[0].callback_data),
-   ["profile","platforms:profile-new","platforms","premium","settings"]);
+   ["profile","platforms:profile-new","platforms"]);
  }finally{x.done();}
 });
 
@@ -862,7 +868,7 @@ test("first language selection unlocks bottom quick keys only after onboarding, 
   },fresh);
   const keys=x.sent.filter(item=>item.method==="sendMessage"&&item.body.reply_markup?.keyboard);
   assert.equal(keys.length,1);
-  assert.equal(keys[0].body.reply_markup.keyboard[0][0].text,"💎 Premium");
+  assert.equal(keys[0].body.reply_markup.keyboard[0][0].text,"⚡ Auto-Bewerbung");
   assert.match(lastMessage(x).text,/What is it/);
   await handleCallback({
    id:"change-language",data:"language:set:de",from:{id:777},
