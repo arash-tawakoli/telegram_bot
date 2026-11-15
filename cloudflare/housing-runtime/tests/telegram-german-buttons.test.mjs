@@ -313,8 +313,9 @@ test("auto-apply menu exposes only supported provider actions and non-mutating s
     await platformSessions(x.user, x.chat, 21, "platforms");
     const controls = lastMessage(x).reply_markup.inline_keyboard.flat().map(b => b.callback_data);
     assert.ok(controls.includes("platforms:test-status"), "test access was a no-op");
-    assert.ok(controls.includes("platforms:login:3"), "Immomio login missing");
-    assert.ok(controls.includes("platforms:login:4"), "Immowelt login missing");
+    assert.ok(controls.includes("platforms:provider:3"), "Immomio central source missing");
+    assert.ok(controls.includes("platforms:provider:4"), "Immowelt central source missing");
+    assert.ok(!controls.some(value => String(value || "").startsWith("platforms:login:")), "personal provider login must remain hidden");
     assert.ok(controls.includes("platforms:test:off"), "deactivation missing");
     assert.ok(controls.includes("home"), "back to start missing");
     assert.ok(!controls.includes("platforms:on"), "normal auto-apply must remain disabled in test mode");
@@ -341,38 +342,35 @@ test("search profile pause, resume, detail and back actions persist correctly in
   } finally { x.done(); }
 });
 
-test("ImmoScout and Immowelt connection buttons create single-use HTTPS login links", async () => {
+test("all three central sources expose status without creating participant login links", async () => {
   const x = setup();
   try {
-    for (const [source, provider] of [[1, "immoscout24"], [4, "immowelt"]]) {
-      await platformSessions(x.user, x.chat, 23, "platforms:login:" + source);
-      const first = lastMessage(x).reply_markup.inline_keyboard[0][0];
-      assert.match(first.url, /^https:\/\/login\.traumwohnunghamburg\.de\/connect\?ticket=/);
-      assert.equal(first.web_app, undefined);
-      const row = x.sqlite.prepare("SELECT status FROM provider_connections WHERE participant_id='owner' AND provider=?").get(provider);
-      assert.equal(row.status, "pending");
-      assert.equal(x.sqlite.prepare("SELECT count(*) AS n FROM provider_auth_flows WHERE participant_id='owner' AND provider=? AND consumed_at IS NULL").get(provider).n, 1);
+    await platformSessions(x.user, x.chat, 23, "platforms");
+    const controls = lastMessage(x).reply_markup.inline_keyboard.flat();
+    for (const [source, provider] of [[1, "immoscout24"], [4, "immowelt"], [3, "immomio"]]) {
+      assert.ok(controls.some(button => button.callback_data === "platforms:provider:" + source));
+      await platformSessions(x.user, x.chat, 23, "platforms:provider:" + source);
+      const page = lastMessage(x);
+      assert.match(page.text, /zentral/i);
+      assert.doesNotMatch(page.text, /Konto nicht verbunden/);
+      assert.ok(!page.reply_markup.inline_keyboard.flat().some(button => button.url),
+        "central connection details must not expose participant login links");
+      assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM provider_connections WHERE participant_id='owner' AND provider=?").get(provider).n, 0);
+      assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM provider_auth_flows WHERE participant_id='owner' AND provider=?").get(provider).n, 0);
     }
+    assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM applications").get().n, 0);
   } finally { x.done(); }
 });
 
-test("Immomio connect action presents an external OAuth link without changing application status", async () => {
+test("legacy personal provider login callbacks are safely ignored", async () => {
   const x = setup();
-  const savedFetch = globalThis.fetch;
   try {
-    x.sqlite.exec("INSERT INTO applicant_profiles(participant_id,profile) VALUES('owner','{\"email\":\"test@example.org\"}')");
-    globalThis.fetch = async (target, options) => {
-      if (String(target) === "https://gql-ps.immomio.com/tenant/graphql")
-        return Response.json({ data: { sso: { baseUrl: "https://sso.immomio.com" } } });
-      return savedFetch(target, options);
-    };
-    await platformSessions(x.user, x.chat, 24, "platforms:login:3");
-    const row = lastMessage(x).reply_markup.inline_keyboard[0][0];
-    assert.match(row.url, /^https:\/\/sso\.immomio\.com\/auth\/realms\/immomio\//);
-    assert.equal(row.web_app, undefined);
-    assert.equal(x.sqlite.prepare("SELECT status FROM provider_connections WHERE participant_id='owner' AND provider='immomio'").get().status, "pending");
-    assert.equal(x.sqlite.prepare("SELECT count(*) AS n FROM applications").get().n, 0);
-  } finally { globalThis.fetch = savedFetch; x.done(); }
+    for (const source of [1, 3, 4]) {
+      await platformSessions(x.user, x.chat, 24, "platforms:login:" + source);
+      assert.match(lastMessage(x).text, /zentral verwaltet/);
+    }
+    assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM provider_auth_flows").get().n, 0);
+  } finally { x.done(); }
 });
 
 test("Bewerbungstext bearbeiten uses Telegram ForceReply, saves changes, and shows the first name immediately", async () => {
