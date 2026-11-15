@@ -1,12 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { handleProviderFacade } from "../src/provider-facade.js";
-import { decryptProviderCredentials } from "../src/provider-credentials.js";
+import { decryptProviderCredentials, encryptProviderCredentials } from "../src/provider-credentials.js";
+import { refreshImmoweltSession } from "../src/immowelt-application.js";
 
 const ticket = "provider-flow-test_12345678901234567890";
 const KEY = "01".repeat(32);
 const credentialEnv = { APPLICATION_CREDENTIAL_KEY: KEY };
-const immoweltEnv = { ...credentialEnv, IMMOWELT_OAUTH_CLIENT_ID: "immowelt-registered-client", IMMOWELT_OAUTH_CALLBACK_APPROVED: "1" };
 
 function makeSql(provider = "immomio") {
   const writes = [];
@@ -48,12 +48,6 @@ function fetchStub() {
     }
     if (url === "https://sso.immomio.com/auth/realms/immomio/protocol/openid-connect/token") {
       return Response.json({ access_token: "immomio-token", refresh_token: "immomio-refresh", expires_in: 3600 });
-    }
-    if (url === "https://signin.immowelt.de/oauth/token") {
-      return Response.json({ access_token: "immowelt-token", refresh_token: "immowelt-refresh", expires_in: 3600 });
-    }
-    if (url === "https://signin.immowelt.de/userinfo") {
-      return Response.json({ sub: "auth0|owner", email: "verified@example.com" });
     }
     throw Error("unexpected endpoint: " + url);
   };
@@ -180,80 +174,86 @@ test("Immomio rejects wrong callback state before token exchange", async () => {
   });
 });
 
-test("Immowelt OAuth cannot start without a configured registered client", async () => {
+test("central Immowelt logs in with the existing server form and stores only encrypted cookies", async () => {
   const { sql, writes } = makeSql("immowelt");
-  const result = await handleProviderFacade(sql, request("provider_web"), credentialEnv);
-  assert.equal(result.status, 503);
-  assert.equal((await result.json()).error, "provider_oauth_not_configured");
-  assert.equal(writes.length, 0);
-});
-
-test("Immowelt requires explicit callback approval even with a configured client", async () => {
-  const env = { ...credentialEnv, IMMOWELT_OAUTH_CLIENT_ID: "immowelt-registered-client" };
-  const x = makeSql("immowelt");
-  const resolved = await handleProviderFacade(x.sql, request("resolve"), env);
-  assert.equal((await resolved.json()).oauthConfigured, false);
-  const result = await handleProviderFacade(x.sql, request("provider_web"), env);
-  assert.equal(result.status, 503);
-  assert.equal((await result.json()).error, "provider_oauth_not_configured");
-});
-
-test("Immowelt creates an Auth0 S256 code URL with exact first-party callback", async () => {
-  const { sql } = makeSql("immowelt");
-  const resolve = await handleProviderFacade(sql, request("resolve"), immoweltEnv);
-  assert.equal((await resolve.json()).oauthConfigured, true);
-  const result = await handleProviderFacade(sql, request("provider_web"), immoweltEnv);
-  assert.equal(result.status, 200);
-  const u = new URL((await result.json()).url);
-  assert.equal(u.origin, "https://signin.immowelt.de");
-  assert.equal(u.pathname, "/authorize");
-  assert.equal(u.searchParams.get("client_id"), "immowelt-registered-client");
-  assert.equal(u.searchParams.get("redirect_uri"), "https://login.traumwohnunghamburg.de/oauth/immowelt/callback");
-  assert.equal(u.searchParams.get("code_challenge_method"), "S256");
-  assert.equal(u.searchParams.get("state"), ticket);
-});
-
-test("Immowelt authorization callback requires a verified user and encrypts tokens", async () => {
-  const { stub, calls } = fetchStub();
+  const expires = Math.floor(Date.now() / 1000) + 3600;
+  const calls = [];
+  const redirect = (location, cookie) => {
+    const headers = new Headers({ location });
+    if (cookie) headers.append("set-cookie", cookie);
+    return new Response(null, { status: 302, headers });
+  };
+  const stub = async (input, init = {}) => {
+    const url = String(input); calls.push({ url, init });
+    if (url === "https://signin.immowelt.de/?target=portal&path=%2F")
+      return redirect("https://signin.immowelt.de/login/transaction", "iw-flow=opaque; Domain=.immowelt.de; Path=/; HttpOnly; Secure");
+    if (url === "https://signin.immowelt.de/login/transaction")
+      return new Response('<form data-form-primary="true" action="/login/submit"><input type="hidden" name="csrf" value="csrf-1"><input name="username"><input name="password"></form>');
+    if (url === "https://signin.immowelt.de/login/submit") {
+      const params = new URLSearchParams(init.body);
+      assert.equal(params.get("username"), "owner@example.com");
+      assert.equal(params.get("password"), "portal-secret");
+      return redirect("https://www.immowelt.de/step", "oauth.access.token=immowelt-session-token; Domain=.immowelt.de; Path=/; HttpOnly; Secure; Max-Age=3600");
+    }
+    if (url === "https://www.immowelt.de/step")
+      return redirect("https://www.immowelt.de/account", "oauth.access.expiration=" + expires + "; Domain=.immowelt.de; Path=/; Secure; Max-Age=3600");
+    if (url === "https://www.immowelt.de/account") return new Response("account");
+    throw new Error("unexpected endpoint " + url);
+  };
   await withFetch(stub, async () => {
-    const { sql, writes } = makeSql("immowelt");
-    const callbackUrl = "https://login.traumwohnunghamburg.de/oauth/immowelt/callback?state=" + ticket + "&code=opaque-code";
-    const result = await handleProviderFacade(sql, request("complete_web", { callbackUrl }), immoweltEnv);
-    assert.equal(result.status, 200);
-    const returned = await result.json();
-    assert.equal(returned.authenticated, true);
-    assert.equal(returned.accountHint, "verified@example.com");
-    const tokenReq = calls.find(x => x.url === "https://signin.immowelt.de/oauth/token");
-    assert.ok(tokenReq);
-    const params = new URLSearchParams(tokenReq.init.body);
-    assert.equal(params.get("grant_type"), "authorization_code");
-    assert.equal(params.get("code_verifier"), "test-pkce-verifier");
-    const userInfo = calls.find(x => x.url === "https://signin.immowelt.de/userinfo");
-    assert.equal(userInfo.init.headers.authorization, "Bearer immowelt-token");
-    const saved = writes.find(x => x.query.includes("UPDATE provider_connections"));
+    const response = await handleProviderFacade(sql,
+      request("password_login", { email: "owner@example.com", password: "portal-secret" }), credentialEnv);
+    assert.equal(response.status, 200);
+    const result = await response.json();
+    assert.equal(result.authenticated, true);
+    assert.equal(result.accountHint, "owner@example.com");
+    const sent = calls.find((call) => call.url.endsWith("/login/submit"));
+    assert.ok(sent);
+    assert.equal(new URL(sent.url).hostname, "signin.immowelt.de");
+    const saved = writes.find((write) => write.query.includes("UPDATE provider_connections"));
     assert.ok(saved);
-    const credentials = await decryptProviderCredentials(immoweltEnv,
+    const credentials = await decryptProviderCredentials(credentialEnv,
       { ciphertext: saved.params[0], iv: saved.params[1], key_version: saved.params[2] },
       "operator-id", "immowelt");
-    assert.equal(credentials.access_token, "immowelt-token");
-    assert.equal(credentials.refresh_token, "immowelt-refresh");
+    assert.ok(credentials.cookies.some((cookie) => cookie.name === "oauth.access.token"));
+    assert.equal(credentials.expires_at, new Date(expires * 1000).toISOString());
     assert.equal(Object.hasOwn(credentials, "password"), false);
+    assert.equal(Object.hasOwn(credentials, "username"), false);
   });
 });
 
-test("Immowelt refuses an OAuth token without a refresh grant", async () => {
-  const { stub } = fetchStub();
-  const modified = async (url, opts) => {
-    if (String(url) === "https://signin.immowelt.de/oauth/token")
-      return Response.json({ access_token: "short-lived", expires_in: 3600 });
-    return stub(url, opts);
+test("Immowelt refreshes the stored cookie token and saves the rotated session", async () => {
+  const now = Math.floor(Date.now() / 1000);
+  const old = await encryptProviderCredentials(credentialEnv, {
+    userAgent: "Immowelt test agent",
+    expires_at: new Date((now - 1) * 1000).toISOString(),
+    cookies: [
+      { name: "oauth.access.token", value: "old-token", domain: ".immowelt.de", path: "/", expires: now + 3600, secure: true },
+      { name: "oauth.access.expiration", value: String(now - 1), domain: ".immowelt.de", path: "/", expires: now + 3600, secure: true },
+    ],
+  }, "operator-id", "immowelt");
+  const connection = { ...old, participant_id: "operator-id" };
+  const redirect = (location, cookie) => {
+    const headers = new Headers({ location });
+    if (cookie) headers.append("set-cookie", cookie);
+    return new Response(null, { status: 302, headers });
   };
-  await withFetch(modified, async () => {
-    const { sql, writes } = makeSql("immowelt");
-    const cb = "https://login.traumwohnunghamburg.de/oauth/immowelt/callback?state=" + ticket + "&code=opaque";
-    const response = await handleProviderFacade(sql, request("complete_web", { callbackUrl: cb }), immoweltEnv);
-    assert.equal(response.status, 503);
-    assert.equal((await response.json()).error, "token_exchange_failed");
-    assert.equal(writes.length, 0);
+  const expiry = now + 3600, calls = [];
+  const stub = async (input, init = {}) => {
+    const url = String(input); calls.push({ url, init });
+    if (url === "https://signin.immowelt.de/refresh")
+      return redirect("https://www.immowelt.de/step", "oauth.access.token=new-token; Domain=.immowelt.de; Path=/; HttpOnly; Secure; Max-Age=3600");
+    if (url === "https://www.immowelt.de/step")
+      return redirect("https://www.immowelt.de/account", "oauth.access.expiration=" + expiry + "; Domain=.immowelt.de; Path=/; Secure; Max-Age=3600");
+    if (url === "https://www.immowelt.de/account") return new Response("ok");
+    throw new Error("unexpected endpoint " + url);
+  };
+  await withFetch(stub, async () => {
+    const sql = async () => [];
+    const refreshed = await refreshImmoweltSession(sql, credentialEnv, connection, true);
+    assert.equal(refreshed.cookies.find((cookie) => cookie.name === "oauth.access.token").value, "new-token");
+    assert.equal(refreshed.expires_at, new Date(expiry * 1000).toISOString());
+    assert.equal(calls[0].url, "https://signin.immowelt.de/refresh");
+    assert.match(calls[0].init.headers.get("cookie"), /oauth\.access\.token=old-token/);
   });
 });
