@@ -1,8 +1,111 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { encryptProviderCredentials, decryptProviderCredentials } from "../src/provider-credentials.js";
 import { DatabaseSync } from "node:sqlite";
 import { createD1Client } from "../src/d1-database.js";
-import { runPlatformSessionReminders } from "../src/platform-session-cron.js";
+import { runCentralProviderSessionRefresh, runPlatformSessionReminders } from "../src/platform-session-cron.js";
+
+test("central-provider refresh runs independently of participant reauth reminders", () => {
+  const source = readFileSync(new URL("../src/index.js", import.meta.url), "utf8");
+  const scheduled = source.slice(source.indexOf("async function runScheduledHousingWork"), source.indexOf("if (tasks.engagement)", source.indexOf("async function runScheduledHousingWork")));
+  assert.match(scheduled, /runCentralProviderSessionRefresh/);
+  assert.doesNotMatch(scheduled, /PERSONAL_PROVIDER_REAUTH_ENABLED/);
+});
+
+test("central Immowelt cookie session refreshes on the hourly cadence without sending reminders", async () => {
+  const env = { APPLICATION_CREDENTIAL_KEY: "11".repeat(32) };
+  const now = new Date("2026-11-15T23:00:00.000Z");
+  const expiry = Math.floor(now.getTime() / 1000) + 3600;
+  const encrypted = await encryptProviderCredentials(env, {
+    userAgent: "Immowelt refresh test",
+    expires_at: new Date(expiry * 1000).toISOString(),
+    cookies: [
+      { name: "oauth.access.token", value: "old-token", domain: ".immowelt.de", path: "/", expires: expiry, secure: true },
+      { name: "oauth.access.expiration", value: String(expiry), domain: ".immowelt.de", path: "/", expires: expiry, secure: true },
+    ],
+  }, "owner-id", "immowelt");
+  const connection = { participant_id: "owner-id", provider: "immowelt", status: "connected",
+    ciphertext: encrypted.ciphertext, iv: encrypted.iv, key_version: encrypted.key_version,
+    expires_at: new Date(expiry * 1000).toISOString(),
+    updated_at: new Date(now.getTime() - 56 * 60_000).toISOString() };
+  const queries = [], calls = [];
+  let saved;
+  const sql = async (parts, ...values) => {
+    const query = parts.join("?"); queries.push({ query, values });
+    if (query.includes("SELECT pc.participant_id") && query.includes("telegram_user_id")) return [connection];
+    if (query.includes("UPDATE housing.provider_connections")) { saved = { query, values }; return []; }
+    return [];
+  };
+  const redirect = (location, cookie) => {
+    const headers = new Headers({ location });
+    if (cookie) headers.append("set-cookie", cookie);
+    return new Response(null, { status: 302, headers });
+  };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input, init = {}) => {
+    const url = String(input); calls.push({ url, init });
+    if (url === "https://signin.immowelt.de/refresh")
+      return redirect("https://www.immowelt.de/refresh-token", "oauth.access.token=new-token; Domain=.immowelt.de; Path=/; Secure; Max-Age=3600");
+    if (url === "https://www.immowelt.de/refresh-token")
+      return redirect("https://www.immowelt.de/refresh-finish", "oauth.access.expiration=" + expiry + "; Domain=.immowelt.de; Path=/; Secure; Max-Age=3600");
+    if (url === "https://www.immowelt.de/refresh-finish") return new Response("ok");
+    throw new Error("unexpected endpoint " + url);
+  };
+  try {
+    const result = await runCentralProviderSessionRefresh(sql, env, now);
+    assert.deepEqual(result, { checked: 1, marked: 0 });
+    assert.equal(calls[0].url, "https://signin.immowelt.de/refresh");
+    assert.ok(saved);
+    const refreshed = await decryptProviderCredentials(env,
+      { ciphertext: saved.values[0], iv: saved.values[1], key_version: saved.values[2] },
+      "owner-id", "immowelt");
+    assert.equal(refreshed.cookies.find((cookie) => cookie.name === "oauth.access.token").value, "new-token");
+    assert.ok(queries.some(({ query }) => query.includes("telegram_user_id")));
+    assert.equal(calls.some(({ url }) => url.includes("api.telegram.org")), false);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test("central Immomio token refreshes hourly even while its access token remains valid", async () => {
+  const env = { APPLICATION_CREDENTIAL_KEY: "22".repeat(32) };
+  const now = new Date("2026-11-15T23:00:00.000Z");
+  const expiresAt = new Date(now.getTime() + 4 * 60 * 60_000).toISOString();
+  const encrypted = await encryptProviderCredentials(env, {
+    access_token: "old-token", refresh_token: "old-refresh", expires_at: expiresAt,
+  }, "owner-id", "immomio");
+  const connection = { participant_id: "owner-id", provider: "immomio", status: "connected",
+    ciphertext: encrypted.ciphertext, iv: encrypted.iv, key_version: encrypted.key_version,
+    expires_at: expiresAt, updated_at: new Date(now.getTime() - 56 * 60_000).toISOString() };
+  const queries = [], calls = [];
+  let saved;
+  const sql = async (parts, ...values) => {
+    const query = parts.join("?"); queries.push({ query, values });
+    if (query.includes("SELECT pc.participant_id") && query.includes("telegram_user_id")) return [connection];
+    if (query.includes("UPDATE provider_connections")) { saved = { query, values }; return []; }
+    return [];
+  };
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input, init = {}) => {
+    const url = String(input); calls.push({ url, init });
+    if (url === "https://sso.immomio.com/auth/realms/immomio/protocol/openid-connect/token")
+      return Response.json({ access_token: "new-token", refresh_token: "new-refresh", expires_in: 3600 });
+    if (url === "https://gql-ps.immomio.com/tenant/graphql")
+      return Response.json({ data: { user: { id: "owner-id", email: "owner@example.com" } } });
+    throw new Error("unexpected endpoint " + url);
+  };
+  try {
+    const result = await runCentralProviderSessionRefresh(sql, env, now);
+    assert.deepEqual(result, { checked: 1, marked: 0 });
+    assert.equal(calls[0].url, "https://sso.immomio.com/auth/realms/immomio/protocol/openid-connect/token");
+    assert.ok(saved);
+    const refreshed = await decryptProviderCredentials(env,
+      { ciphertext: saved.values[0], iv: saved.values[1], key_version: saved.values[2] },
+      "owner-id", "immomio");
+    assert.equal(refreshed.access_token, "new-token");
+    assert.equal(refreshed.refresh_token, "new-refresh");
+    assert.ok(queries.some(({ query }) => query.includes("telegram_user_id")));
+  } finally { globalThis.fetch = originalFetch; }
+});
 
 test("D1 session reminders issue one Cloudflare login ticket and advance the reminder stage", async () => {
   const calls = [];
