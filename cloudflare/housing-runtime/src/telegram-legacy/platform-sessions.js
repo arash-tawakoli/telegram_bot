@@ -329,7 +329,7 @@ async function renderApplicationTextDetail(user,chat,messageId,name,fromPreview=
   send(chat.id,'✍️ <b>Bewerbungstext · '+label+'</b>\n\n<blockquote>'+esc(visible)+'</blockquote>',markup);
 }
 
-async function clearPendingField(user,chat){
+export async function clearPendingField(user,chat){
  const state={...(user.onboarding_state||{})};
  if(!state._applicant_field)return;
  const promptId=Number(state._applicant_prompt_message_id||0);
