@@ -214,6 +214,22 @@ export async function processHousingApplication(sql, env, request) {
   if (application.test_auto_apply_enabled) return fail("manual_required", "test_mode_active");
   if (application.preferences_enabled !== true || application.provider_enabled !== true) return fail("manual_required", "auto_apply_disabled");
 
+  // Infrastructure can be deployed before operator logins and test submissions.
+  // Never send or consume queued normal applications until explicitly enabled.
+  if (env.CENTRAL_AUTO_APPLY_ENABLED !== "1") {
+    const nextAttemptAt = new Date(Date.now() + 60 * 60_000).toISOString();
+    await sql`
+      UPDATE housing.applications
+      SET status = 'pending', wait_reason = 'central_auto_apply_paused',
+        next_attempt_at = ${nextAttemptAt}, lease_until = NULL, updated_at = now()
+      WHERE id = ${application.id} AND status = 'processing'
+    `;
+    return { status: 200, body: {
+      ok: true, status: "deferred", provider,
+      reason: "central_auto_apply_paused", application_id: application.id,
+    } };
+  }
+
   const now = new Date();
   const providerSource = sourceForId(application.source_id);
   const facts = { ...application.facts, canonical_url: application.canonical_url };
