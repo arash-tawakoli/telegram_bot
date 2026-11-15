@@ -72,8 +72,8 @@ test("Immomio can resolve to a central direct credentials flow while legacy PKCE
     const data = await resolved.json();
     assert.equal(data.mode, "credentials");
     assert.equal(data.centralAccount, true);
-    assert.equal(data.requiresManualCallback, true);
-    assert.equal(data.callbackTransport, "manual-provider-pkce");
+    assert.equal(data.requiresManualCallback, false);
+    assert.equal(data.callbackTransport, "direct-token");
     const link = await handleProviderFacade(sql, request("provider_web", { email: "owner@example.com" }), credentialEnv);
     assert.equal(link.status, 200);
     const address = new URL((await link.json()).url);
