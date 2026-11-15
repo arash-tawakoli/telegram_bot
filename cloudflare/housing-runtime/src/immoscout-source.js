@@ -81,17 +81,19 @@ async function initializeMcp() {
 
 async function establishedSession() {
   if (!mcpSessionPromise) {
-    mcpSessionPromise = initializeMcp().catch(error => {
-      mcpSessionPromise = null;
+    const pending = initializeMcp();
+    mcpSessionPromise = pending.catch(error => {
+      if (mcpSessionPromise === wrapped) mcpSessionPromise = null;
       throw error;
     });
+    const wrapped = mcpSessionPromise;
   }
   return mcpSessionPromise;
 }
 
 async function postMcp(payload) {
-  const sessionPromise = mcpSessionPromise || establishedSession();
-  const session = await sessionPromise;
+  const session = await establishedSession();
+  const sessionPromise = mcpSessionPromise;
   const perform = async (current) => {
     const response = await sendMcp(payload, current);
     return parseMcpEnvelope(await response.text(), payload.id);
