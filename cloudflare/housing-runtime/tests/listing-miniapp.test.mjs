@@ -14,25 +14,24 @@ test("unique HTTPS Mini App address per delivery with no other offers or query i
   assert.throws(() => listingWebUrl("delivery"), /listing_delivery_id_invalid/);
 });
 
-test("a Telegram listing is one photo preview with one title and exactly three action buttons", () => {
+test("a Telegram listing is one native non-clickable photo with a separate share action", () => {
   const payload = listingMessageRequest(123, photo, facts, source, 1, "ImmoScout24", delivery);
   assert.equal(payload.chat_id, 123);
-  assert.equal(payload.photo, undefined);
+  assert.equal(payload.photo, photo);
   assert.equal(payload.media_group_id, undefined);
-  assert.match(payload.text, /Sonnige Wohnung/);
-  assert.match(payload.text, /Kaltmiete/);
-  assert.doesNotMatch(payload.text, /Wohnung einzeln ansehen/);
-  assert.equal(payload.link_preview_options.prefer_large_media, true);
-  assert.equal(payload.link_preview_options.show_above_text, true);
-  assert.equal(payload.link_preview_options.url, listingWebUrl(delivery));
-  assert.equal(payload.reply_markup.inline_keyboard.length, 3);
+  assert.match(payload.caption, /Sonnige Wohnung/);
+  assert.match(payload.caption, /Kaltmiete/);
+  assert.doesNotMatch(payload.caption, /Wohnung einzeln ansehen/);
+  assert.equal(payload.text, undefined);
+  assert.equal(payload.link_preview_options, undefined);
+  assert.equal(payload.reply_markup.inline_keyboard.length, 4);
   assert.deepEqual(payload.reply_markup.inline_keyboard.map(row => row[0].text),
-    ["Zu ImmoScout24", "⭐ Speichern", "🗺️ Google Map"]);
+    ["Zu ImmoScout24", "⭐ Speichern", "🗺️ Google Map", "📤 Teilen"]);
   assert.equal(payload.reply_markup.inline_keyboard[0][0].url, source);
   assert.throws(() => listingMessageRequest(123, null, facts, source, 1, "ImmoScout24", delivery), /listing_photo_missing/);
 });
 
-test("successful Telegram send makes exactly one sendMessage call, never photo or media group", async () => {
+test("successful Telegram send makes exactly one native sendPhoto call", async () => {
   const payload = listingMessageRequest(123, photo, facts, source, 1, "ImmoScout24", delivery);
   const calls = [];
   const send = async (url, options) => {
@@ -42,8 +41,9 @@ test("successful Telegram send makes exactly one sendMessage call, never photo o
   const result = await sendListingMessage("fake", payload, send);
   assert.equal(result.data.result.message_id, 25);
   assert.equal(calls.length, 1);
-  assert.match(calls[0].url, /\/sendMessage$/);
-  assert.equal(calls[0].body.photo, undefined);
+  assert.match(calls[0].url, /\/sendPhoto$/);
+  assert.equal(calls[0].body.photo, photo);
+  assert.equal(calls[0].body.link_preview_options, undefined);
 });
 
 test("definitive Telegram errors do not cause duplicate listing messages", async () => {
@@ -56,7 +56,7 @@ test("definitive Telegram errors do not cause duplicate listing messages", async
   const result = await sendListingMessage("fake", payload, send);
   assert.equal(result.response.status,400);
   assert.equal(calls.length,1);
-  assert.equal(calls[0].reply_markup.inline_keyboard.length,3);
+  assert.equal(calls[0].reply_markup.inline_keyboard.length,4);
 });
 
 test("ambiguous network failure never resends a listing", async () => {
