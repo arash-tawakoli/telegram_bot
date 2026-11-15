@@ -780,7 +780,14 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   const {error}=await db.rpc('set_telegram_auto_apply_sources',{
     p_user:user.id,p_telegram_user_id:user.telegram_user_id,p_enabled:action==='on'
   });
-  if(error)return render('Bitte zuerst Bewerberprofil und Testmodus prüfen.',back);
+  if(error){
+   const reason=String(error.message||'');
+   return render(reason.includes('profile_incomplete')
+    ? '⚠️ Bitte vervollständige zuerst dein Bewerberprofil.'
+    : reason.includes('test_mode_active')
+    ? '⚠️ Ein vorhandener Testmodus verhindert das Starten. Bitte kontaktiere den Support.'
+    : 'Die Auto-Bewerbung konnte nicht aktualisiert werden.',back);
+  }
  }
 
   const [{data:state,error:stateError},{data:preferences,error:preferencesError}]=await Promise.all([
@@ -799,41 +806,14 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   ]);
  }
 
- let testSection='';
- if(state.test_auto_apply_allowed===true){
-  rows.push([button('🧪 ImmoScout24 · Testzugang','platforms:test-status')]);
-  const {data:testApps,error:testAppsError}=await db.from('applications')
-   .select('id,status,last_error,sent_at,created_at,listing_id,test_mode')
-   .eq('user_id',user.id).eq('test_mode',true)
-   .order('created_at',{ascending:false}).limit(5);
-  if(testAppsError)throw Error('Testverlauf konnte nicht geladen werden.');
-  const listingIds=[...new Set((testApps||[]).map(row=>row.listing_id).filter(Boolean))];
-  let listingMap=new Map();
-  if(listingIds.length){
-   const {data:listings,error:listingsError}=await db.from('listings').select('id,title').in('id',listingIds);
-   if(listingsError)throw Error('Testverlauf konnte nicht geladen werden.');
-   listingMap=new Map((listings||[]).map(row=>[row.id,row.title]));
-  }
-  const statusLabels={sent:'Versendet',pending:'Wartet',processing:'Wird versendet',failed:'Fehlgeschlagen',manual_required:'Manuelle Prüfung'};
-  const history=(testApps||[]).length
-   ? (testApps||[]).map(row=>{
-      const title=esc(listingMap.get(row.listing_id)||'ImmoScout24-Inserat');
-      const status=esc(statusLabels[row.status]||row.status||'Unbekannt');
-      const when=new Date(row.sent_at||row.created_at).toLocaleString('de-DE');
-      const error=row.last_error?' · '+esc(row.last_error):'';
-      return '• '+title+' — <b>'+status+'</b> · '+esc(when)+error;
-     }).join('\n')
-   : 'Noch keine Testbewerbungen.';
-  const dailyLimit=Number(state.test_auto_apply_daily_limit||1);
-  const dailyLabel=dailyLimit===1?'1 echte Bewerbung':dailyLimit+' echte Bewerbungen';
-  testSection='\n\n🧪 <b>Persönlicher Testbetrieb</b>\nStatus: <b>'+(testModeEnabled?'Aktiv':'Deaktiviert')+'</b>\nQuelle: ImmoScout24 über den zentralen NexaLabs-Zugang — unabhängig von einem persönlichen ImmoScout24-Konto.\nProfil: dein aktives Suchprofil und dein Bewerberprofil.\nTageslimit: <b>'+dailyLabel+' pro Tag</b>.\nPersönliche Plattformverbindungen werden dafür nicht benötigt.\n\n<b>Letzte Testbewerbungen</b>\n'+history;
-  rows.push([button(testModeEnabled?'Test Deaktivieren':'Test Aktivieren','platforms:test:'+(testModeEnabled?'off':'on'))]);
- }
-
- if(testModeEnabled){
-  testSection+='\n\nDie reguläre Auto-Bewerbung bleibt während des Testbetriebs deaktiviert.';
- }
+ // Global controls change the actual Auto-Bewerbung preference, not the housing search.
+ rows.push([
+  button('▶️ Alle starten','platforms:on'),
+  button('⏸ Alle pausieren','platforms:off')
+ ]);
+ const centralNote=runtimeEnv().CENTRAL_AUTO_APPLY_ENABLED==='1'?''
+  :'\n\nℹ️ Der automatische Versand ist derzeit zentral noch nicht freigegeben.';
  rows.push([button('← Start','home')]);
- return render('⚡ <b>Automatische Bewerbung</b>\n\nStarte oder pausiere jede Quelle einzeln. Bewerbungen nutzen zentral verwaltete Zugänge; du musst kein Plattformkonto verbinden.'+(user.is_premium?'':'\n\nZum Starten der Quellen ist Premium erforderlich.')+testSection,rows);
+ return render('⚡ <b>Automatische Bewerbung</b>\n\nStarte oder pausiere den automatischen Bewerbungsversand je Quelle oder für alle Quellen. Die Wohnungssuche bleibt davon unberührt. Plattformzugänge werden zentral verwaltet.'+(user.is_premium?'':'\n\nZum Starten der Quellen ist Premium erforderlich.')+centralNote,rows);
 
 }
