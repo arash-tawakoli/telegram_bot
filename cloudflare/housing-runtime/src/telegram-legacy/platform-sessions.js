@@ -735,21 +735,8 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  if(action==='docs'||action.startsWith('doc-')) return renderApplicantProfile(user,chat,messageId);
 
  if(action==='provider'){
-  if(!user.is_premium)return render('Auto-Bewerbungen benötigen aktives Premium.',back);
   const meta=AUTO_APPLY_PROVIDERS[source];if(!meta)return;
-  const {data:connection,error}=await db.from('platform_connections').select('provider,status').eq('user_id',user.id).eq('provider',meta.key).maybeSingle();
-  if(error)throw Error('Plattform konnte nicht geladen werden.');
-  if(connection?.status!=='connected'){
-   return render(`<b>${meta.name}</b>\n\nKonto nicht verbunden.`,[
-    [button(`🔐 ${meta.name} verbinden`,`platforms:login:${source}`)],
-    ...back
-   ]);
-  }
-  return render(`<b>${meta.name}</b>\n\nKonto verbunden.`,[
-   [button('Verbindung prüfen',`platforms:check:${source}`)],
-   [button('Verbindung trennen',`platforms:disconnect:${source}`)],
-   ...back
-  ]);
+  return render(`<b>${meta.name}</b>\\n\\nDie Plattform wird zentral von NexaLabs verwaltet. Du musst kein eigenes Plattformkonto verbinden.`,back);
  }
 
  if(action==='pause'||action==='resume'){
@@ -785,25 +772,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  }
 
  if(action==='login'||action==='disconnect'||action==='check'){
-  if(![1,3,4].includes(source))return;
-  if(action!=='disconnect'&&!user.is_premium)return render('Zum Verbinden ist Premium erforderlich.',back);
-  const name=source===1?'ImmoScout24':source===3?'Immomio':'Immowelt';
-  try{
-   let workerAction=action;
-   const extra=source===4&&action==='login'?{origin:'telegram',returnTarget:'telegram',context:{channel:'telegram'}}:{};
-   const result=await applicationWorker(workerAction,user.id,source,extra);
-   if(action==='disconnect')return render(`${name}: Verbindung gelöscht.`,back);
-   if(action==='login'&&result.url){
-     const note=source===4
-      ? '<b>1.</b> Tippe auf <b>Immowelt verbinden</b>.\\n<b>2.</b> Melde dich mit deinem Konto an.'
-      : source===3
-       ? '<b>1.</b> Öffne Immomio.\\n<b>2.</b> Melde dich normal an. Der Rücksprung wird automatisch erkannt.'
-       : 'Melde dich einmalig an. Danach bleibt die Verbindung gespeichert.';
-    const loginLabel=source===4?`🌐 ${name} verbinden`:`🌐 ${name}-Login öffnen`;
-    return render(`🔐 <b>${name} verbinden</b>\n\n${note}`,[[{text:loginLabel,url:result.url}],...back]);
-   }
-   return render(result.authenticated===true?`${name}: ✅ Verbindung bestätigt.`:result.authenticated===false?`${name}: Anmeldung erforderlich.`:`${name}: Verbindung gespeichert, aber noch nicht vollständig verifiziert.`,back);
-  }catch(error){return render(esc(userFacingError(error)),back);}
+  return render('Die Plattformzugänge werden zentral verwaltet. Eine persönliche Verknüpfung ist nicht erforderlich.',back);
  }
 
  if(action==='off'||action==='on'){
@@ -814,20 +783,18 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   if(error)return render('Bitte zuerst Bewerberprofil und Testmodus prüfen.',back);
  }
 
-  const [{data:connections,error},{data:state,error:stateError},{data:preferences,error:preferencesError}]=await Promise.all([
-  db.from('platform_connections').select('provider,status').eq('user_id',user.id),
+  const [{data:state,error:stateError},{data:preferences,error:preferencesError}]=await Promise.all([
   db.from('bot_users').select('auto_apply_enabled,test_auto_apply_allowed,test_auto_apply_enabled,test_auto_apply_daily_limit,test_auto_apply_enabled_at,test_auto_apply_disabled_at').eq('id',user.id).single(),
   db.from('application_preferences').select('immoscout_enabled,immowelt_enabled,immomio_enabled').eq('user_id',user.id).maybeSingle()
  ]);
- if(error||stateError||preferencesError)throw Error('Auto-Bewerbung konnte nicht geladen werden.');
- const connection=(key)=>connections?.find(r=>r.provider===key);
+ if(stateError||preferencesError)throw Error('Auto-Bewerbung konnte nicht geladen werden.');
  const testModeEnabled=state.test_auto_apply_allowed===true&&state.test_auto_apply_enabled===true&&state.auto_apply_enabled!==true;
  const rows=[];
  for(const sourceId of [1,4,3]){
-  const meta=AUTO_APPLY_PROVIDERS[sourceId],connected=connection(meta.key)?.status==='connected';
+  const meta=AUTO_APPLY_PROVIDERS[sourceId];
   const running=state.auto_apply_enabled===true&&preferences?.[meta.field]===true&&!testModeEnabled;
   rows.push([
-   button((connected?'✅ ':'🔐 ')+meta.name,connected?'platforms:provider:'+sourceId:'platforms:login:'+sourceId),
+   button('✓ '+meta.name,'platforms:provider:'+sourceId),
    button(running?'⏸ Pause':'▶️ Start','platforms:'+(running?'pause':'resume')+':'+sourceId)
   ]);
  }
@@ -859,7 +826,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
    : 'Noch keine Testbewerbungen.';
   const dailyLimit=Number(state.test_auto_apply_daily_limit||1);
   const dailyLabel=dailyLimit===1?'1 echte Bewerbung':dailyLimit+' echte Bewerbungen';
-  testSection='\n\n🧪 <b>Persönlicher Testbetrieb</b>\nStatus: <b>'+(testModeEnabled?'Aktiv':'Deaktiviert')+'</b>\nQuelle: ImmoScout24 über den zentralen NexaLabs-Zugang — unabhängig von deiner persönlichen ImmoScout24-Plugin-Verbindung.\nProfil: dein aktives Suchprofil und dein Bewerberprofil.\nTageslimit: <b>'+dailyLabel+' pro Tag</b>.\nDeine Plugin-Verbindungen werden dafür nicht benötigt und nicht verändert. Die Verbindungen anderer Nutzer bleiben unverändert.\n\n<b>Letzte Testbewerbungen</b>\n'+history;
+  testSection='\n\n🧪 <b>Persönlicher Testbetrieb</b>\nStatus: <b>'+(testModeEnabled?'Aktiv':'Deaktiviert')+'</b>\nQuelle: ImmoScout24 über den zentralen NexaLabs-Zugang — unabhängig von einem persönlichen ImmoScout24-Konto.\nProfil: dein aktives Suchprofil und dein Bewerberprofil.\nTageslimit: <b>'+dailyLabel+' pro Tag</b>.\nPersönliche Plattformverbindungen werden dafür nicht benötigt.\n\n<b>Letzte Testbewerbungen</b>\n'+history;
   rows.push([button(testModeEnabled?'Test Deaktivieren':'Test Aktivieren','platforms:test:'+(testModeEnabled?'off':'on'))]);
  }
 
@@ -867,6 +834,6 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   testSection+='\n\nDie reguläre Auto-Bewerbung bleibt während des Testbetriebs deaktiviert.';
  }
  rows.push([button('← Start','home')]);
- return render('⚡ <b>Automatische Bewerbung</b>\n\nStarte oder pausiere jede Quelle einzeln. Bewerbungen werden erst mit verbundenen Konten versendet.'+(user.is_premium?'':'\n\nZum Starten der Quellen ist Premium erforderlich.')+testSection,rows);
+ return render('⚡ <b>Automatische Bewerbung</b>\n\nStarte oder pausiere jede Quelle einzeln. Bewerbungen nutzen zentral verwaltete Zugänge; du musst kein Plattformkonto verbinden.'+(user.is_premium?'':'\n\nZum Starten der Quellen ist Premium erforderlich.')+testSection,rows);
 
 }
