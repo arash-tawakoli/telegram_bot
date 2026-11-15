@@ -64,9 +64,10 @@ test("Super Admin sees only existing credential metadata, never token secrets",a
  const rows=await handleCoach(x.sql,x.request("admin_token_status"),x.env);
  assert.equal(rows.immoscout24.status,"connected");
  assert.equal(rows.immoscout24.scope,"central");
- assert.equal(rows.immowelt.scope,"owner_participant");
+ assert.equal(rows.immowelt.scope,"central");
  assert.equal(rows.immowelt.status,"connected");
  assert.equal(rows.immomio.status,"needs_login");
+ assert.equal(rows.immomio.scope,"central");
  assert.doesNotMatch(JSON.stringify(rows),/access_token|refresh_token|ciphertext|test-internal-secret/);
 });
 
@@ -77,6 +78,7 @@ test("login buttons reuse existing one-time central and provider connection flow
   assert.equal(response.provider,provider);
   assert.ok(response.url.startsWith(origin),provider);
   assert.ok(Date.parse(response.expiresAt)>Date.now(),provider);
+  assert.equal(response.scope,"central");
  }
  assert.equal(x.flowInsertions.length,1,"Only ImmoScout uses the existing central OAuth flow");
  assert.equal(x.queries.filter(q=>q.includes("INSERT INTO provider_auth_flows")).length,2);
