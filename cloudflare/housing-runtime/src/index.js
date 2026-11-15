@@ -192,6 +192,8 @@ async function runSource(sql, request, env) {
   const sourceRow = {
     ...source,
     ...rows[0],
+    // New central AutoApply stays off until the administrator has tested the senders.
+    central_auto_apply_enabled: env.CENTRAL_AUTO_APPLY_ENABLED === "1",
     homepage_url: connectorConfig.homepage_url || connectorConfig.url || null,
     search_url: connectorConfig.search_url || connectorConfig.url || null,
   };
