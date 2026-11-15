@@ -317,7 +317,9 @@ export async function adminTokenStatus(sql, env) {
     immoscout24: { scope: "central", configured: scout.configured === true, status: scout.status || "disconnected", account_hint: scout.account_hint || null, enabled: scout.enabled === true, expires_at: scout.expires_at || null, last_verified_at: scout.last_verified_at || null },
     ...Object.fromEntries(["immowelt", "immomio"].map(name => {
       const row = connection(name);
-      return [name, { scope: "central", configured: row.status === "connected", status: row.status || "disconnected", account_hint: row.account_hint || null, expires_at: row.expires_at || null }];
+      const expired = name === "immowelt" && row.expires_at && Date.parse(row.expires_at) <= Date.now();
+      const status = expired ? "needs_login" : (row.status || "disconnected");
+      return [name, { scope: "central", configured: status === "connected", status, account_hint: row.account_hint || null, expires_at: row.expires_at || null }];
     })),
   };
 }
