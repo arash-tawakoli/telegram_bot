@@ -78,7 +78,7 @@ export async function issueProviderAuthFlow(sql, participantId, provider, origin
   await sql`
     INSERT INTO provider_connections (id,participant_id,provider,status)
     VALUES (${crypto.randomUUID()},${participantId},${provider},'pending')
-    ON CONFLICT (participant_id,provider) DO NOTHING
+    ON CONFLICT (participant_id,provider) DO UPDATE SET status=CASE WHEN ${context?.central_account === true ? 1 : 0}=1 THEN provider_connections.status ELSE 'pending' END,updated_at=CURRENT_TIMESTAMP
   `;
   return { state, expiresAt: expires };
 }
