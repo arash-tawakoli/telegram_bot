@@ -1,22 +1,22 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { sendImmoScoutApplication } from "../src/immoscout-application.js";
-import { encryptProviderCredentials } from "../src/provider-credentials.js";
 
-test("ImmoScout application fails closed when the encrypted provider session is absent", async () => {
+test("ImmoScout application fails closed when the central credential is unavailable", async () => {
   await assert.rejects(
     () => sendImmoScoutApplication({ participant_id: "user-1", external_id: "123456789", profile: {} }, {}, () => {}),
-    /credential_key_invalid|needs_login/,
+    /test_mode_central_account_unavailable/,
   );
 });
 
 test("ImmoScout attaches the 24-hour D1 document-package link when the provider form supports it", async () => {
   const originalFetch = globalThis.fetch;
-  const env = { APPLICATION_CREDENTIAL_KEY: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" };
+  const env = {};
   const participantId = "00000000-0000-4000-8000-000000000001";
-  const credentials = await encryptProviderCredentials(env, {
-    access_token: "access-token", refresh_token: "refresh-token", expires_at: new Date(Date.now() + 60 * 60_000).toISOString(),
-  }, participantId, "immoscout24");
+  const central = { credentials: {
+    access_token: "central-access-token", refresh_token: "central-refresh-token",
+    expires_at: new Date(Date.now() + 60 * 60_000).toISOString(),
+  } };
   const calls = [];
   globalThis.fetch = async (url, init = {}) => {
     calls.push({ url: String(url), body: init.body ? JSON.parse(init.body) : null });
@@ -33,11 +33,8 @@ test("ImmoScout attaches the 24-hour D1 document-package link when the provider 
       external_id: "123456789",
       canonical_url: "https://www.immobilienscout24.de/expose/123456789",
       profile: { first_name: "A", last_name: "B", email: "a@example.com", phone: "+49123456789", street: "Testweg", house_number: "1", postcode: "20095", city: "Hamburg", message_apartment: "Interesse an der Wohnung" },
-      connection_ciphertext: credentials.ciphertext,
-      connection_iv: credentials.iv,
-      connection_key_version: credentials.key_version,
       document_package_url: "https://intern.traumwohnunghamburg.de/edge/documents/package?t=signed",
-    }, env, async () => []);
+    }, env, async () => [], central);
     assert.equal(result.status, "sent");
     const sent = calls.find(call => call.url.endsWith("/contact"));
     const form = sent.body["expose.contactForm"];
