@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { normalizeImmoScoutEntry, parseMcpToolResult, germanImmoScoutQuery, fetchImmoScoutSource, fetchImmoScoutMap, ingestImmoScoutSource, planImmoScoutQueries, parseMcpEnvelope } from "../src/immoscout-source.js";
+import { normalizeImmoScoutEntry, parseMcpToolResult, germanImmoScoutQuery, fetchImmoScoutSource, fetchImmoScoutMap, ingestImmoScoutSource, planImmoScoutQueries, parseMcpEnvelope, chooseImmoScoutQuery } from "../src/immoscout-source.js";
 import { sourceForId } from "../src/source-allowlist.js";
 
 test("ImmoScout MCP entries become minimal offer facts", () => {
@@ -259,4 +259,15 @@ test("scheduled ingestion uses the same profile-driven pipeline in both regions"
       assert.equal(calls[i].query, calls[i+1].query);
     }
   } finally { globalThis.fetch = previous; }
+});
+
+
+test("every other Scout run preserves broad coverage while rotating specific places", () => {
+  const queries=["Wohnungen zur Miete in Hamburg","Wohnungen zur Miete in Hamburg-Harburg","Wohnungen zur Miete in Hamburg-Eidelstedt"];
+  const slotMs=10*60_000;
+  assert.deepEqual(Array.from({length:8},(_,i)=>chooseImmoScoutQuery(queries,i*slotMs)), [
+    queries[0],queries[1],queries[0],queries[2],queries[0],queries[1],queries[0],queries[2],
+  ]);
+  assert.equal(chooseImmoScoutQuery([queries[0]],1000),queries[0]);
+  assert.throws(()=>chooseImmoScoutQuery([]),/plan_empty/);
 });
