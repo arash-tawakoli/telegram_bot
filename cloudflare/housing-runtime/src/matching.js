@@ -39,6 +39,9 @@ export function matchesProfile(criteria, facts, sourceId, areas = []) {
   if (types.length !== 1 || listingCategory(facts) !== types[0]) return false;
   const warm = number(facts?.warm_rent), cold = number(facts?.cold_rent), maxRent = number(criteria.max_warm_rent ?? criteria.maxWarmRent);
   if (criteria.require_known_warm_rent && !(warm > 0)) return false;
+  // Both Scout regions use the same verified-warm-rent requirement.
+  // A cold/basic rent cannot prove that the user's warm-rent cap is met.
+  if (maxRent != null && sourceForId(sourceId)?.family === "immoscout24" && !(warm > 0)) return false;
   if (maxRent != null && ((warm > 0 && warm > maxRent) || (!(warm > 0) && !criteria.require_known_warm_rent && cold > maxRent))) return false;
   const deposit = number(facts?.deposit), maxDeposit = number(criteria.max_deposit);
   if (maxDeposit != null && (deposit == null || deposit > maxDeposit)) return false;
@@ -52,7 +55,7 @@ export function matchesProfile(criteria, facts, sourceId, areas = []) {
 
   const city = normalize(facts?.city), state = String(facts?.state_code || "").toUpperCase();
   const matchingAreas = city ? areas.filter(x => ["municipality", "independent_city"].includes(x.area_type) && normalize(x.name) === city) : [];
-  const isHamburg = state === "HH" || (!state && (city === "hamburg" || city.startsWith("hamburg-") || city.startsWith("hamburg,") || city.startsWith("hamburg ") || (!city && [1, 3, 23, 29, 34, 35].includes(Number(sourceId)))));
+  const isHamburg = state === "HH" || (!state && (city === "hamburg" || city.startsWith("hamburg-") || city.startsWith("hamburg,") || city.startsWith("hamburg ") || (!city && [1, 3, 23, 29, 35, 66].includes(Number(sourceId)))));
   const isSchleswigHolstein = state === "SH" || (!state && !isHamburg && (matchingAreas.length > 0 || (!city && [69, 71].includes(Number(sourceId)))));
   const mode = criteria.location_mode;
   if (mode === "all_hamburg") return isHamburg;
