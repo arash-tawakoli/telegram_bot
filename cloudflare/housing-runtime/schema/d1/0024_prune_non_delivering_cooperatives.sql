@@ -7,5 +7,15 @@
 -- Earlier migrations and source audits stay immutable for reproducibility.
 -- Historical deliveries/applications must remain intact. Their foreign keys
 -- prevent deleting an unexpected still-referenced offer identity.
-DELETE FROM source_links WHERE source_id IN (30,32,34,36,39);
-DELETE FROM source_registry WHERE id IN (30,32,34,36,39);
+-- If a new offer appears during cutover, preserve all source configuration
+-- and profile links instead of partly deleting its references.
+DELETE FROM source_links
+WHERE source_id IN (30,32,34,36,39)
+  AND NOT EXISTS (
+    SELECT 1 FROM offer_identities WHERE source_id IN (30,32,34,36,39)
+  );
+DELETE FROM source_registry
+WHERE id IN (30,32,34,36,39)
+  AND NOT EXISTS (
+    SELECT 1 FROM offer_identities WHERE source_id IN (30,32,34,36,39)
+  );
