@@ -25,10 +25,13 @@ export async function sendImmoweltApplication(application, env, sql, central = n
   }
   const id = estateId(url, application.external_id);
   if (!/^[0-9A-F]{32}$/.test(id)) return { status: "manual_required", error: "provider_identifier_unresolved" };
-  // Immowelt's saved central credential is an authenticated browser session.
-  // Only same-site cookies valid for the API host may accompany a request.
+  // OIDC bearer tokens are for account login, not a verified SOAP send credential.
+  // Never fall back to Cloudflare Browser cookies or represent an unverified send as successful.
   const connection = central || await getCentralProviderCredentials(sql, env, "immowelt");
-  const cookies = connection.credentials.cookies.filter((cookie) => {
+  if (connection.credentials.access_token) {
+    return { status: "manual_required", error: "provider_contract_unverified" };
+  }
+  const cookies = (Array.isArray(connection.credentials.cookies) ? connection.credentials.cookies : []).filter((cookie) => {
     const domain = String(cookie.domain || "").toLowerCase();
     const expiry = Number(cookie.expires);
     return (domain === "immowelt.de" || domain === ".immowelt.de")
