@@ -128,6 +128,8 @@ async function resolveSso(email) {
 }
 
 function immoweltClient(env) {
+  // Require an explicitly approved redirect on the operator-owned Auth0 client.
+  if (env.IMMOWELT_OAUTH_CALLBACK_APPROVED !== "1") throw new Error("provider_oauth_not_configured");
   const clientId = clean(env.IMMOWELT_OAUTH_CLIENT_ID, 200);
   if (!/^[A-Za-z0-9_.-]{3,200}$/.test(clientId)) throw new Error("provider_oauth_not_configured");
   return { clientId, clientSecret: clean(env.IMMOWELT_OAUTH_CLIENT_SECRET, 1000) };
@@ -381,7 +383,7 @@ async function action(sql, env, body) {
     ok: true, provider: flow.provider,
     mode: flow.provider === "immoscout24" ? "credentials" : "provider_web",
     centralAccount: flow.context?.central_account === true,
-    oauthConfigured: flow.provider === "immowelt" ? Boolean(env.IMMOWELT_OAUTH_CLIENT_ID) : true,
+    oauthConfigured: flow.provider === "immowelt" ? Boolean(env.IMMOWELT_OAUTH_CLIENT_ID) && env.IMMOWELT_OAUTH_CALLBACK_APPROVED === "1" : true,
     accountHint: info.accountHint || info.profileEmail,
     participantLabel: info.participantLabel,
     origin: flow.origin, returnTarget: flow.return_target, expiresAt: flow.expires_at,
