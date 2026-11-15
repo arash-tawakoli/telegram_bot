@@ -71,6 +71,9 @@ export async function sendImmomioApplication(application, env, sql, central = nu
   let credentials;
   try {
     const connection = central || await getCentralProviderCredentials(sql, env, "immomio");
+    if (connection.ownerId !== application.participant_id) {
+      return { status: "manual_required", error: "central_identity_mismatch" };
+    }
     credentials = await refresh(sql, env, {
       ...application, central_credential_owner_id: connection.ownerId,
     }, connection.credentials);
