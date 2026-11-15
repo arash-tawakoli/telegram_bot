@@ -295,7 +295,7 @@ async function disconnectProvider(sql, member, body) {
   return { ok: true, status: "disconnected" };
 }
 
-// The administrator owns the Immowelt and Immomio encrypted connections; applicants do not.
+// Same credentials and login paths as Telegram; no separate token vault is created.
 const OWNER_TELEGRAM_ID = 8538226539;
 async function ownerParticipant(sql) {
   const rows = await sql`SELECT id FROM housing.participants WHERE telegram_user_id = ${OWNER_TELEGRAM_ID} AND status = 'active' LIMIT 1`;
@@ -317,7 +317,7 @@ export async function adminTokenStatus(sql, env) {
     immoscout24: { scope: "central", configured: scout.configured === true, status: scout.status || "disconnected", account_hint: scout.account_hint || null, enabled: scout.enabled === true, expires_at: scout.expires_at || null, last_verified_at: scout.last_verified_at || null },
     ...Object.fromEntries(["immowelt", "immomio"].map(name => {
       const row = connection(name);
-      return [name, { scope: "central", configured: row.status === "connected", status: row.status || "disconnected", account_hint: row.account_hint || null, expires_at: row.expires_at || null }];
+      return [name, { scope: "owner_participant", configured: row.status === "connected", status: row.status || "disconnected", account_hint: row.account_hint || null, expires_at: row.expires_at || null }];
     })),
   };
 }
@@ -337,7 +337,7 @@ export async function adminTokenStart(sql, env, member, providerName, channel = 
     telegram ? { channel: "telegram" } : { member_id: member.id });
   return {
     url: `https://login.traumwohnunghamburg.de/connect?ticket=${encodeURIComponent(flow.state)}`,
-    expiresAt: flow.expiresAt, provider: providerName, scope: "central",
+    expiresAt: flow.expiresAt, provider: providerName, scope: "owner_participant",
   };
 }
 
