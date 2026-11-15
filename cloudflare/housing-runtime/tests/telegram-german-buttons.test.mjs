@@ -230,6 +230,8 @@ test("search-profile menu and new-profile flow expose working callbacks in Germa
     assert.deepEqual(lastMessage(x).reply_markup.inline_keyboard.flat().map(b=>b.callback_data),["profile:save","review:edit"]);
     await callback("profile:save");
     assert.equal(x.sqlite.prepare("SELECT COUNT(*) n FROM search_profiles WHERE participant_id='owner'").get().n,1);
+    const linkedSources=x.sqlite.prepare("SELECT source_id FROM source_links ORDER BY source_id").all().map(row=>row.source_id);
+    assert.deepEqual(linkedSources,[1,3,23,29,35,66,69,71],"new profiles must not include retired cooperative 34");
     const confetti=x.sent.filter(y=>y.method==='sendMessage'&&y.body.message_effect_id);
     assert.equal(confetti.length,1);
     assert.equal(confetti[0].body.message_effect_id,"5104841245755180586");
