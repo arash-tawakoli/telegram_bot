@@ -337,7 +337,7 @@ async function mfaVerify(env, ticketValue, factorIdValue, passCodeValue) {
   }
   throw new Error("mfa_challenge_failed");
 }
-export async function getCentralApplicationCredentials(env) {
+export async function getCentralApplicationCredentials(env, { testMode = true } = {}) {
   const database = env.DB || env.HOUSING_DB;
   const centralEnv = {
     ...env,
@@ -348,7 +348,7 @@ export async function getCentralApplicationCredentials(env) {
   const row = await database.prepare(
     "SELECT account_hint,ciphertext,iv,status,enabled,expires_at FROM central_credentials WHERE singleton='central'"
   ).first();
-  if (!row || row.status !== "connected" || Number(row.enabled) !== 0
+  if (!row || row.status !== "connected" || Number(row.enabled) !== (testMode ? 0 : 1)
     || validEmail(row.account_hint) !== ACCOUNT_EMAIL || !row.ciphertext || !row.iv) {
     throw new Error("test_mode_central_account_unavailable");
   }
@@ -380,7 +380,7 @@ export async function getCentralApplicationCredentials(env) {
     scope: String(refreshed.body.scope || credentials.scope || SCOPE),
     sub: String(info.body.sub),
   };
-  await persistCredentials(centralEnv, updated, true, null, true);
+  await persistCredentials(centralEnv, updated, true, null, testMode);
   return updated;
 }
 
