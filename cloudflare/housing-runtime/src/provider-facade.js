@@ -247,6 +247,60 @@ async function verifyImmomio(accessToken) {
   return user;
 }
 
+
+async function immomioDirectPassword(sql, env, flow, emailValue, passwordValue, totpValue) {
+  if (flow.provider !== "immomio" || flow.context?.central_account !== true)
+    throw new Error("provider_unsupported");
+  const email = validEmail(emailValue);
+  const password = String(passwordValue || "");
+  const totp = String(totpValue || "").trim();
+  if (!email || !password || password.length > 1024 || (totp && !/^[0-9]{6,8}$/.test(totp)))
+    throw new Error("login_failed");
+  // Credentials are sent only to Keycloak, never persisted or logged.
+  const payload = new URLSearchParams({
+    grant_type: "password", client_id: IMMOMIO_CLIENT,
+    username: email, password, scope: "openid profile email",
+  });
+  if (totp) payload.set("totp", totp);
+  const response = await fetch(
+    IMMOMIO_BASE + "/realms/" + IMMOMIO_REALM + "/protocol/openid-connect/token",
+    { method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded", accept: "application/json" },
+      body: payload, signal: AbortSignal.timeout(25_000) },
+  ).catch(() => null);
+  if (!response) throw new Error("temporary_network_error");
+  const token = await response.json().catch(() => null);
+  if (!response.ok) {
+    if (response.status === 429) throw new Error("account_temporarily_locked");
+    if (token?.error === "invalid_grant") {
+      if (/not fully set up|verify.*email|action required/i.test(String(token.error_description || "")))
+        throw new Error("provider_interactive_challenge");
+      throw new Error("login_failed");
+    }
+    if (token?.error === "unauthorized_client" || token?.error === "unsupported_grant_type")
+      throw new Error("provider_contract_unverified");
+    throw new Error("temporary_network_error");
+  }
+  if (!token?.access_token || !token?.refresh_token) throw new Error("refresh_token_missing");
+  const user = await verifyImmomio(String(token.access_token));
+  const verifiedEmail = validEmail(user?.email);
+  if (!verifiedEmail) throw new Error("userinfo_failed");
+  const expiresIn = Number(token.expires_in);
+  const expiresAt = new Date(Date.now() +
+    (Number.isFinite(expiresIn) && expiresIn > 0 ? Math.max(60, expiresIn) : 300) * 1000
+  ).toISOString();
+  const credentials = {
+    access_token: String(token.access_token),
+    refresh_token: String(token.refresh_token),
+    id_token: token.id_token ? String(token.id_token) : undefined,
+    expires_at: expiresAt,
+    base_url: IMMOMIO_BASE, realm: IMMOMIO_REALM, client_id: IMMOMIO_CLIENT,
+    redirect_uri: IMMOMIO_REDIRECT,
+  };
+  const encrypted = await encryptProviderCredentials(env, credentials, flow.participant_id, "immomio");
+  return completeFlow(sql, flow, env, encrypted, verifiedEmail, expiresAt);
+}
+
 async function completeImmomio(sql, env, flow, value) {
   const url = callbackUrl(value, flow.state);
   // The state-bound PKCE authorization was validated when the URL was issued.
@@ -381,7 +435,7 @@ async function action(sql, env, body) {
   const info = await participantInfo(sql, flow);
   if (name === "resolve") return {
     ok: true, provider: flow.provider,
-    mode: flow.provider === "immoscout24" ? "credentials" : "provider_web",
+    mode: flow.provider === "immowelt" ? "provider_web" : "credentials",
     centralAccount: flow.context?.central_account === true,
     oauthConfigured: flow.provider === "immowelt" ? Boolean(env.IMMOWELT_OAUTH_CLIENT_ID) && env.IMMOWELT_OAUTH_CALLBACK_APPROVED === "1" : true,
     accountHint: info.accountHint || info.profileEmail,
@@ -407,7 +461,7 @@ async function action(sql, env, body) {
     throw new Error("provider_unsupported");
   }
   if (name === "password_login") {
-    if (flow.provider === "immomio") throw new Error("provider_oauth_required");
+    if (flow.provider === "immomio") return immomioDirectPassword(sql, env, flow, body.email, body.password, body.totp);
     if (flow.provider === "immoscout24") return scoutPassword(sql, env, flow, body.email, body.password);
     throw new Error("provider_oauth_required");
   }
@@ -429,7 +483,7 @@ export async function handleProviderFacade(sql, request, env) {
   catch (error) {
     const code = String(error?.message || "auth_facade_failed");
     console.error("housing_provider_facade_action_failed", code);
-    const safe = new Set(["invalid_ticket", "auth_flow_expired", "provider_unsupported", "profile_email_required", "provider_contract_unverified", "temporary_network_error", "invalid_action", "invalid_callback_url", "provider_completion_failed", "token_exchange_failed", "login_failed", "account_temporarily_locked", "provider_interactive_challenge", "human_verification_required", "provider_email_required", "mfa_factor_unsupported", "mfa_invalid_code", "mfa_challenge_failed", "mfa_expired", "central_account_mismatch", "provider_oauth_required", "provider_oauth_not_configured", "userinfo_failed"]);
+    const safe = new Set(["invalid_ticket", "auth_flow_expired", "provider_unsupported", "profile_email_required", "provider_contract_unverified", "temporary_network_error", "invalid_action", "invalid_callback_url", "provider_completion_failed", "token_exchange_failed", "login_failed", "account_temporarily_locked", "provider_interactive_challenge", "human_verification_required", "provider_email_required", "mfa_factor_unsupported", "mfa_invalid_code", "mfa_challenge_failed", "mfa_expired", "central_account_mismatch", "provider_oauth_required", "provider_oauth_not_configured", "userinfo_failed", "refresh_token_missing"]);
     const status = code === "invalid_ticket" || code === "invalid_callback_url" ? 400 : code === "auth_flow_expired" || code === "mfa_expired" ? 410 : code === "account_temporarily_locked" ? 423 : code === "login_failed" || code === "mfa_invalid_code" ? 401 : code.startsWith("mfa_") || code === "provider_interactive_challenge" || code === "provider_oauth_required" ? 409 : 503;
     return json({ error: safe.has(code) ? code : "auth_facade_failed" }, status);
   }
