@@ -176,7 +176,7 @@ test("both regions share bounded search + map enrichment with stable IDs and cor
   const calls = [];
   const e = (id, city, cold, warm, coords) => ({
     exposedId: id, exposeUrl: "https://www.immobilienscout24.de/expose/" + id,
-    title: "Wohnung in " + city, address: { city, postcode: "20095", ...(coords ? { coordinates: coords } : {}) },
+    title: "Wohnung in " + city, address: { city, postcode: city === "Kiel" ? "24105" : "20095", ...(coords ? { coordinates: coords } : {}) },
     price: { value: cold }, ...(warm == null ? {} : { totalRent: warm }),
   });
   globalThis.fetch = async (_url, init) => {
