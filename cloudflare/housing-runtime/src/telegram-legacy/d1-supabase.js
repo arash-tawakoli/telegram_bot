@@ -607,7 +607,7 @@ async function rpc(client, env, name, args) {
         return { data: null, error: new Error("test_mode_central_account_unavailable") };
       }
       await client.run(
-        "UPDATE participants SET test_auto_apply_daily_limit=1,test_auto_apply_enabled=1,test_auto_apply_enabled_at=CURRENT_TIMESTAMP,test_auto_apply_disabled_at=NULL,test_auto_apply_updated_by_telegram_id=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
+        "UPDATE participants SET test_auto_apply_daily_limit=0,test_auto_apply_enabled=1,test_auto_apply_enabled_at=CURRENT_TIMESTAMP,test_auto_apply_disabled_at=NULL,test_auto_apply_updated_by_telegram_id=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
         [telegramId, args.p_user],
       );
     } else {
@@ -627,7 +627,7 @@ async function rpc(client, env, name, args) {
     return { data: {
       allowed: bool(updated?.test_auto_apply_allowed),
       enabled: bool(updated?.test_auto_apply_enabled),
-      daily_limit: Number(updated?.test_auto_apply_daily_limit || 1),
+      daily_limit: null,
       enabled_at: updated?.test_auto_apply_enabled_at || null,
       disabled_at: updated?.test_auto_apply_disabled_at || null,
     }, error: null };
