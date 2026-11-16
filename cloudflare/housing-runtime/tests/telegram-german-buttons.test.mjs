@@ -531,6 +531,8 @@ test("new Telegram participants immediately receive a one-time 30-day Premium we
 test("completion celebration repeats on later profile changes, and every successful Yes gets its own confetti",async()=>{
  const x=setup();
  try{
+  x.sqlite.prepare("INSERT INTO search_profiles(id,participant_id,criteria,active) VALUES('completion-search','owner',?,1)")
+    .run(JSON.stringify({property_types:["Wohnung"],location_mode:"all_hamburg"}));
   const incomplete={...completeApplicant};delete incomplete.schufa_status;
   x.sqlite.exec("INSERT INTO applicant_completion_prompts(participant_id) VALUES('owner')");
   x.sqlite.prepare("INSERT INTO applicant_profiles(participant_id,profile) VALUES('owner',?)").run(JSON.stringify(incomplete));
@@ -570,6 +572,8 @@ test("completion celebration repeats on later profile changes, and every success
 test("each provider Start/Pause independently controls stored preferences",async()=>{
  const x=setup();
  try{
+  x.sqlite.prepare("INSERT INTO search_profiles(id,participant_id,criteria,active) VALUES('independent-search','owner',?,1)")
+    .run(JSON.stringify({property_types:["Wohnung"],location_mode:"all_hamburg"}));
   x.sqlite.prepare("INSERT INTO applicant_profiles(participant_id,profile) VALUES('owner',?)").run(JSON.stringify(completeApplicant));
   await platformSessions(x.user,x.chat,44,"platforms");
   let controls=lastMessage(x).reply_markup.inline_keyboard.flat().map(b=>b.callback_data);
@@ -1124,7 +1128,7 @@ test("free users can activate Scout with a complete applicant and active search,
    const user={...x.user,is_premium:false};
    await platformSessions(user,x.chat,89,"platforms:resume:1");
    assert.equal(x.sqlite.prepare("SELECT auto_apply_enabled FROM participants WHERE id='owner'").get().auto_apply_enabled,1);
-   assert.deepEqual(x.sqlite.prepare("SELECT enabled,immoscout_enabled FROM application_preferences WHERE participant_id='owner'").get(),{enabled:1,immoscout_enabled:1});
+   assert.deepEqual({...x.sqlite.prepare("SELECT enabled,immoscout_enabled FROM application_preferences WHERE participant_id='owner'").get()},{enabled:1,immoscout_enabled:1});
    await platformSessions(user,x.chat,89,"platforms:pause:1");
    assert.equal(x.sqlite.prepare("SELECT auto_apply_enabled FROM participants WHERE id='owner'").get().auto_apply_enabled,0);
  } finally { x.done(); }
