@@ -251,7 +251,7 @@ async function finishWithSession(env, flow, email, sessionToken) {
       sub: String(info.body.sub),
     };
     stage = "persist";
-    await persistCredentials(env, credentials, false, flow.admin_telegram_id);
+    await persistCredentials(env, credentials, true, flow.admin_telegram_id);
     return { status: "connected", authenticated: true, accountReady: true, accountHint: verifiedEmail, passwordStored: false };
   } catch (error) {
     const code = String(error?.message || "immoscout_operation_failed");
@@ -348,7 +348,7 @@ export async function getCentralApplicationCredentials(env, { testMode = true } 
   const row = await database.prepare(
     "SELECT account_hint,ciphertext,iv,status,enabled,expires_at FROM central_credentials WHERE singleton='central'"
   ).first();
-  if (!row || row.status !== "connected" || Number(row.enabled) !== (testMode ? 0 : 1)
+  if (!row || row.status !== "connected" || (!testMode && Number(row.enabled) !== 1)
     || validEmail(row.account_hint) !== ACCOUNT_EMAIL || !row.ciphertext || !row.iv) {
     throw new Error("test_mode_central_account_unavailable");
   }
@@ -380,7 +380,7 @@ export async function getCentralApplicationCredentials(env, { testMode = true } 
     scope: String(refreshed.body.scope || credentials.scope || SCOPE),
     sub: String(info.body.sub),
   };
-  await persistCredentials(centralEnv, updated, true, null, testMode);
+  await persistCredentials(centralEnv, updated, true, null, false);
   return updated;
 }
 
@@ -403,7 +403,7 @@ async function refreshCredentialsForTest(env, adminId) {
     "SELECT ciphertext,iv,status,enabled FROM central_credentials WHERE singleton='central'"
   ).first();
   if (!row || row.status !== "connected") throw new Error("needs_login");
-  if (row.enabled !== 0) throw new Error("auto_apply_must_be_disabled");
+  const originallyEnabled = Number(row.enabled) === 1;
 
   let stage = "decrypt";
   try {
@@ -434,10 +434,10 @@ async function refreshCredentialsForTest(env, adminId) {
       token_type: String(body.token_type || current.token_type || "Bearer"),
       scope: String(body.scope || current.scope || SCOPE),
       sub: String(info.body.sub),
-    }, true, adminId, true);
+    }, true, adminId, false);
 
     const status = await credentialStatus(env);
-    if (status.enabled !== false) throw new Error("auto_apply_state_changed");
+    if (status.enabled !== originallyEnabled) throw new Error("auto_apply_state_changed");
     await env.DB.prepare(
       "INSERT INTO central_audit_events(event_type,account_hint,admin_telegram_id) VALUES('refresh_test_succeeded',?,?)"
     ).bind(ACCOUNT_EMAIL, String(adminId)).run();
@@ -446,7 +446,7 @@ async function refreshCredentialsForTest(env, adminId) {
       verified: true,
       account_hint: ACCOUNT_EMAIL,
       expires_at: expiresAt,
-      enabled: false,
+      enabled: status.enabled,
     };
   } catch (error) {
     const code = safeDiagnosticCode(error);

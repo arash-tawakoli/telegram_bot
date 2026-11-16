@@ -224,13 +224,17 @@ test("test application does not send when the atomic authorization reservation f
   }
 });
 
-test("test application fails closed when the central credential is globally enabled", async () => {
+test("owner test applications continue working when central credentials support opted-in live users", async () => {
   const central = await centralCredentialRow({ enabled: 1 });
   const db = sqlFor(applicationRow());
   const originalFetch = globalThis.fetch;
-  let called = false;
+  const requests = [];
   try {
-    globalThis.fetch = async () => { called = true; throw new Error("unexpected_fetch"); };
+    globalThis.fetch = async (url, init = {}) => {
+      requests.push({ url: String(url), method: init.method || "GET" });
+      if (String(url).endsWith("/contact")) return Response.json({});
+      return Response.json({ "expose.expose": { contactFormConfiguration: {} } });
+    };
     const result = await processHousingApplication(db.query, {
       APPLICATION_RUN_TOKEN: "run-secret",
       CENTRAL_TOKEN_ENCRYPTION_KEY: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
@@ -238,9 +242,10 @@ test("test application fails closed when the central credential is globally enab
     }, new Request("https://runtime.test/internal/application/process", {
       method: "POST", headers: { authorization: "Bearer run-secret" },
     }));
-    assert.equal(result.body.status, "manual_required");
-    assert.equal(result.body.reason, "test_mode_central_account_unavailable");
-    assert.equal(called, false);
+    assert.equal(result.body.status, "sent");
+    assert.equal(result.body.test_mode, true);
+    assert.equal(requests.length, 2);
+    assert.match(requests[1].url, /\/contact$/);
   } finally {
     globalThis.fetch = originalFetch;
   }

@@ -430,15 +430,11 @@ async function rpc(client, env, name, args) {
       const profile = (await client.run("SELECT profile FROM applicant_profiles WHERE participant_id=? LIMIT 1", [userId]))[0];
       if (!profile || missingApplicantFields(profile.profile).length)
         return { data: null, error: new Error("profile_incomplete") };
-      const now = Date.now();
-      const overrideActive = !participant.plan_override_expires_at || Date.parse(participant.plan_override_expires_at) > now;
-      if (participant.plan_override === "free" && overrideActive)
-        return { data: null, error: new Error("premium_required") };
-      const subscription = (await client.run("SELECT status,current_period_end FROM user_subscriptions WHERE participant_id=? ORDER BY updated_at DESC LIMIT 1", [userId]))[0];
-      const premium = (participant.plan_override === "premium" && overrideActive)
-        || Date.parse(participant.referral_bonus_until || "") > now
-        || (["active","trialing"].includes(String(subscription?.status)) && (!subscription?.current_period_end || Date.parse(subscription.current_period_end) > now));
-      if (!premium) return { data: null, error: new Error("premium_required") };
+      const activeSearch = (await client.run(
+        "SELECT 1 AS found FROM search_profiles WHERE participant_id=? AND active=1 AND json_valid(criteria) AND json_extract(criteria,'$.location_mode') IS NOT NULL AND (json_extract(criteria,'$.property_types') IS NOT NULL OR json_extract(criteria,'$.property_type') IS NOT NULL) LIMIT 1",
+        [userId],
+      ))[0];
+      if (!activeSearch) return { data: null, error: new Error("search_profile_missing") };
     }
     const sourceId = { immoscout24: 1, immowelt: 4, immomio: 3 }[provider];
     const callbackData = provider

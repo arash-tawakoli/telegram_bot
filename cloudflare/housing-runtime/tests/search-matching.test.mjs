@@ -28,6 +28,41 @@ test("matching respects property type, region, neighborhood and required facts",
   assert.equal(matchesProfile(hamburg, { ...apartment, city: "Hamburg, Altona" }, 1), true);
 });
 
+test("free users with an opted-in sender and complete profiles queue Scout without a subscription", async () => {
+  const calls = [];
+  const profile = {
+    first_name: "Eva", last_name: "Test", email: "eva@example.com",
+    phone: "+491711234567", street: "Testweg", house_number: "1",
+    postcode: "20095", city: "Hamburg", salutation: "MS",
+    household_type: "SINGLE", employment_status: "EMPLOYEE",
+    income_range: "NOT_SPECIFIED", pets: "Keine",
+    move_in_preference: "NOT_SPECIFIED", schufa_status: "NOT_SPECIFIED",
+  };
+  const sql = async (parts, ...values) => {
+    const query = parts.join("?");
+    calls.push({ query, values });
+    if (query.includes("SELECT DISTINCT sp.participant_id")) return [{
+      participant_id: "free-test-user", profile_slot: 1, criteria: JSON.stringify(hamburg),
+      applicant_profile: JSON.stringify(profile), auto_apply_enabled: 1,
+      preferences_enabled: 1, immoscout_enabled: 1,
+      test_auto_apply_enabled: 0, plan_override: "free", subscription_status: null,
+    }];
+    if (query.includes("SELECT i.first_seen_at")) return [{
+      first_seen_at: new Date(Date.now()-50_000).toISOString(),
+      expires_at: new Date(Date.now()+3_600_000).toISOString(),
+      enabled_at: new Date(Date.now()-90_000).toISOString(),
+    }];
+    if (query.includes("INSERT INTO housing.deliveries")) return [{id:"delivery"}];
+    if (query.includes("INSERT INTO housing.applications")) return [{id:"application"}];
+    return [];
+  };
+  await queueMatches(sql,"offer",1,"1:external:free-test",{
+    ...apartment,canonical_url:"https://www.immobilienscout24.de/expose/172800001",
+  },true);
+  assert.equal(calls.filter(x=>x.query.includes("INSERT INTO housing.applications")).length,1);
+  assert.equal(calls.filter(x=>x.query.includes("INSERT INTO housing.deliveries")).length,1);
+});
+
 test("Schleswig-Holstein selections require a matching municipality or county", () => {
   const areas = [{ name: "Lübeck", area_type: "independent_city", area_code: "01003", parent_code: "SH" }, { name: "Wedel", area_type: "municipality", area_code: "01056048", parent_code: "01056" }];
   const criteria = { property_types: ["Wohnung"], location_mode: "schleswig_holstein_areas", location_area_codes: ["01056"] };
