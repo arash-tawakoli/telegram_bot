@@ -166,7 +166,7 @@ const SAFE_VALIDATION_FIELDS = new Set([
 function safeValidationDetail(messages) {
   for (const message of messages) {
     if (typeof message !== "string" || message.length > 4000) continue;
-    const match = /\\[\\s*MESSAGE\\s*:\\s*([A-Za-z][A-Za-z0-9_.]*)\\s*:[\\s\\S]*:\\s*([A-Z][A-Z0-9_]{2,63})\\s*\\]/.exec(message);
+    const match = /\[\s*MESSAGE\s*:\s*([A-Za-z][A-Za-z0-9_.]*)\s*:[\s\S]*:\s*([A-Z][A-Z0-9_]{2,63})\s*\]/.exec(message);
     if (match && SAFE_VALIDATION_FIELDS.has(match[1])) {
       return { provider_validation_field: match[1], provider_validation_rule: match[2] };
     }
