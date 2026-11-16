@@ -392,10 +392,12 @@ async function rpc(client, env, name, args) {
       const sourceId = { immoscout24: 1, immowelt: 4, immomio: 3 }[provider];
       const callbackData = provider
         ? `platforms:${enable ? "resume" : "pause"}:${sourceId}`
-        : `platforms:${enable ? "on" : "off"}`;
+        : args.p_from_completion === true
+          ? `platforms:completion:${enable ? "yes" : "no"}`
+          : `platforms:${enable ? "on" : "off"}`;
       const superseding = provider
         ? [`platforms:resume:${sourceId}`, `platforms:pause:${sourceId}`]
-        : ["platforms:on", "platforms:off"];
+        : ["platforms:on", "platforms:off", "platforms:completion:yes", "platforms:completion:no"];
       const order = telegramControlOrder(args, callbackData, superseding);
       if (order.error) return { data: null, error: order.error };
       const newlyActivated = active && (!bool(participant.test_auto_apply_enabled) ||
@@ -441,10 +443,12 @@ async function rpc(client, env, name, args) {
     const sourceId = { immoscout24: 1, immowelt: 4, immomio: 3 }[provider];
     const callbackData = provider
       ? `platforms:${enable ? "resume" : "pause"}:${sourceId}`
-      : `platforms:completion:${enable ? "yes" : "no"}`;
+      : args.p_from_completion === true
+        ? `platforms:completion:${enable ? "yes" : "no"}`
+        : `platforms:${enable ? "on" : "off"}`;
     const superseding = provider
       ? [`platforms:resume:${sourceId}`,`platforms:pause:${sourceId}`]
-      : ["platforms:completion:yes","platforms:completion:no"];
+      : ["platforms:completion:yes","platforms:completion:no","platforms:on","platforms:off"];
     const order = telegramControlOrder(args, callbackData, superseding);
     if (order.error) return { data: null, error: order.error };
     await client.batch([
