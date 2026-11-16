@@ -10,22 +10,6 @@ import { centralCredentialError, getCentralProviderCredentials } from "./central
 
 function enabled(value) { return value === true || value === 1; }
 
-function berlinDayStartSql(now = new Date()) {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/Berlin", year: "numeric", month: "2-digit", day: "2-digit",
-  }).formatToParts(now);
-  const part = (type) => parts.find((entry) => entry.type === type)?.value;
-  const year = Number(part("year")), month = Number(part("month")), day = Number(part("day"));
-  const utcMidnight = new Date(Date.UTC(year, month - 1, day));
-  const offsetParts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Europe/Berlin", timeZoneName: "shortOffset", hour: "2-digit", hourCycle: "h23",
-  }).formatToParts(utcMidnight);
-  const label = offsetParts.find((entry) => entry.type === "timeZoneName")?.value || "GMT+0";
-  const match = label.match(/GMT([+-])(\d{1,2})(?::?(\d{2}))?/);
-  const offset = match ? (match[1] === "-" ? -1 : 1) * (Number(match[2]) * 60 + Number(match[3] || 0)) : 0;
-  return new Date(utcMidnight.getTime() - offset * 60_000).toISOString().replace("T", " ").replace("Z", "").slice(0, 19);
-}
-
 async function sameSecret(supplied, expected) {
   if (typeof supplied !== "string" || typeof expected !== "string" || supplied.length === 0 || supplied.length !== expected.length) return false;
   const encoder = new TextEncoder();
@@ -67,7 +51,7 @@ async function claim(sql, freshOnly = false) {
         p.telegram_user_id, p.test_auto_apply_allowed, p.test_auto_apply_enabled,
         p.auto_apply_enabled, p.plan_override, p.plan_override_expires_at, p.referral_bonus_until,
         ap.profile, oi.canonical_url, oi.external_id, oi.source_id, oi.first_seen_at, oi.expires_at, oi.facts,
-        pref.enabled AS preferences_enabled, pref.daily_limit, pref.timezone,
+        pref.enabled AS preferences_enabled, pref.timezone,
         pref.allowed_weekdays, pref.send_window_start, pref.send_window_end,
         CASE a.provider
           WHEN 'immoscout24' THEN pref.immoscout_enabled
