@@ -798,7 +798,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   db.from('application_preferences').select('immoscout_enabled,immowelt_enabled,immomio_enabled').eq('user_id',user.id).maybeSingle()
  ]);
  if(stateError||preferencesError)throw Error('Auto-Bewerbung konnte nicht geladen werden.');
- const isTestAccount=state.test_auto_apply_allowed===true;
+ const isTestAccount=state.test_auto_apply_allowed===true&&Number(user.telegram_user_id)===8538226539;
  const rows=[];
  for(const sourceId of [1,4,3]){
   const meta=AUTO_APPLY_PROVIDERS[sourceId];
