@@ -327,6 +327,81 @@ test("large Scout map subsets use a few D1 batches and one candidate-profile rea
   } finally { globalThis.fetch = original; }
 });
 
+
+test("targeted Hamburg Scout searches queue consented complete-profile AutoApply just like broad searches", async () => {
+  const originalFetch = globalThis.fetch;
+  const queued = [];
+  const completeProfile = {
+    first_name: "Test", last_name: "Person", email: "test@example.com",
+    phone: "+49123456789", street: "Testweg", house_number: "7",
+    postcode: "20095", city: "Hamburg", salutation: "MS",
+    household_type: "SINGLE", employment_status: "EMPLOYEE",
+    income_range: "1000_1500", pets: "NO",
+    move_in_preference: "FLEXIBLE", schufa_status: "NOT_SPECIFIED",
+  };
+  globalThis.fetch = async (_url, options) => {
+    const payload = JSON.parse(options.body);
+    const lifecycle = mockMcpLifecycle(payload);
+    if (lifecycle) return lifecycle;
+    return Response.json({ jsonrpc: "2.0", id: payload.id,
+      result: { structuredContent: {
+        total: 1, entries: [{
+          exposedId: "172800001",
+          exposeUrl: "https://www.immobilienscout24.de/expose/172800001",
+          title: "Wohnung in Hamburg-Altona",
+          address: { city: "Hamburg", postcode: "22765" },
+          price: { value: 850 }, totalRent: 1000, rooms: 2, size: 51,
+        }],
+      } },
+    });
+  };
+  const sql = async (parts, ...values) => {
+    const statement = parts.join("?");
+    if (statement.includes("SELECT DISTINCT sp.participant_id")) return [{
+      participant_id: "test-owner", profile_slot: 1,
+      criteria: JSON.stringify({ property_types: ["Wohnung"],
+        location_mode: "all_hamburg", max_warm_rent: 1200 }),
+      applicant_profile: JSON.stringify(completeProfile),
+      telegram_user_id: 8538226539,
+      test_auto_apply_allowed: 1, test_auto_apply_enabled: 1,
+      test_auto_apply_enabled_at: new Date(Date.now() - 10_000).toISOString(),
+      auto_apply_enabled: 0, immoscout_enabled: 1,
+      preferences_enabled: 0,
+    }];
+    if (statement.includes("SELECT i.first_seen_at")) return [{
+      first_seen_at: new Date(Date.now() - 86_400_000).toISOString(),
+      enabled_at: new Date(Date.now() - 120_000).toISOString(),
+      expires_at: new Date(Date.now() + 3_600_000).toISOString(),
+    }];
+    if (statement.includes("INSERT INTO housing.deliveries")) return [{ id: "delivery" }];
+    if (statement.includes("INSERT INTO housing.applications")) {
+      queued.push({ statement, values });
+      return [{ id: "application" }];
+    }
+    return [];
+  };
+  sql.unsafe = async (statement) => {
+    if (statement.includes("SELECT external_id, facts")) return [];
+    if (statement.includes("INSERT INTO housing.offer_identities"))
+      return [{ id: "offer", external_id: "172800001" }];
+    return [];
+  };
+  try {
+    for (const query of [
+      "Wohnungen zur Miete in Hamburg",
+      hamburgCoverageQueries()[3],
+    ]) {
+      const before = queued.length;
+      const result = await ingestImmoScoutSource(sql, sourceForId(1), { query });
+      assert.equal(result.valid, 1);
+      assert.equal(queued.length, before + 1, query + " must attempt test AutoApply");
+      assert.equal(result.coverage_partition, query !== "Wohnungen zur Miete in Hamburg");
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("map outage does not prevent search-only delivery preparation", async () => {
   const previous = globalThis.fetch;
   globalThis.fetch = async (_url, init) => {
