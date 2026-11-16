@@ -149,9 +149,9 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts, 
     WHERE i.id = ${offerId}
   `)[0];
   const now = Date.now();
-  const autoApplyFresh = cutover
-    && timestampMillis(cutover.first_seen_at) >= timestampMillis(cutover.enabled_at)
-    && (!cutover.expires_at || timestampMillis(cutover.expires_at) > now);
+  // AutoApply eligibility follows the active search profile and sender state,
+  // not when the source first discovered a still-active listing.
+  const listingActive = cutover && (!cutover.expires_at || timestampMillis(cutover.expires_at) > now);
   let queued = 0;
   const needsAreas = rows.some(row => String(object(row.criteria).location_mode || "").includes("schleswig_holstein"));
   const areas = needsAreas ? await geographicAreas(sql) : [];
@@ -176,12 +176,9 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts, 
       : provider === "immowelt" ? row.immowelt_enabled
         : provider === "immomio" ? row.immomio_enabled : false;
     const profile = object(row.applicant_profile);
-    const profileRentCap = number(criteria.max_warm_rent ?? criteria.maxWarmRent);
-    // Notifications may include listings with unspecified warm rent; automatic
-    // submissions require the actual warm rent to meet any configured cap.
-    const sendablePrice = source?.family !== "immoscout24" || profileRentCap == null
-      || (number(facts.warm_rent) > 0 && number(facts.warm_rent) <= profileRentCap);
-    if (autoApplyFresh && centralAutoApplyEnabled && sendablePrice && provider && enabled(row.auto_apply_enabled) && !enabled(row.test_auto_apply_enabled) && premiumParticipant(row)
+    // matchesProfile already enforces every selected search criterion. Do not
+    // introduce another warm-rent filter or source-specific application gate.
+    if (listingActive && centralAutoApplyEnabled && provider && enabled(row.auto_apply_enabled) && !enabled(row.test_auto_apply_enabled) && premiumParticipant(row)
       && enabled(row.preferences_enabled) && enabled(providerEnabled)
       && missingApplicantFields(profile).length === 0) {
       const applicationKey = applicationIdempotencyKey(row.participant_id, provider, identityHash);
@@ -205,12 +202,11 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts, 
       }
     }
 
-    // The owner's per-provider test path is separate from regular applications.
-    // Only offers discovered after test activation are eligible.
-    const testStartedAt = timestampMillis(row.test_auto_apply_enabled_at);
-    const testOfferFresh = autoApplyFresh && Number.isFinite(testStartedAt)
-      && timestampMillis(cutover.first_seen_at) >= testStartedAt;
-    if (allowTestApplications && sendablePrice && testOfferFresh && provider && enabled(providerEnabled)
+    // The owner's personal sender uses the same profile match as normal
+    // AutoApply. Only an active listing, full applicant profile and an enabled
+    // sender are required; the per-offer key prevents duplicate applications.
+    if (allowTestApplications && listingActive && provider && enabled(providerEnabled)
+      && missingApplicantFields(profile).length === 0
       && Number(row.telegram_user_id) === 8538226539
       && (row.test_auto_apply_allowed === true || row.test_auto_apply_allowed === 1)
       && (row.test_auto_apply_enabled === true || row.test_auto_apply_enabled === 1)
