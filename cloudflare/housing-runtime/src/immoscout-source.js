@@ -427,11 +427,18 @@ export async function ingestImmoScoutSource(sql, source, config = {}) {
   // One bounded lookup replaces hundreds of individual reads while retaining
   // verified facts omitted by a later, smaller MCP result.
   const identities = result.nodes.map(node => node.identity);
-  const priorRows = identities.length ? await sql.unsafe(
-    `SELECT external_id, facts FROM housing.offer_identities
-       WHERE source_id=$1 AND external_id IN (${identities.map((_, i) => "$" + (i + 2)).join(",")})`,
-    [source.id, ...identities],
-  ) : [];
+  const priorRows = [];
+  // D1 limits bound SQL variables. Partition the existing-record lookup to
+  // keep each query safely below the cap even when the MCP returns 200 cards.
+  for (let offset = 0; offset < identities.length; offset += 75) {
+    const chunk = identities.slice(offset, offset + 75);
+    const rows = await sql.unsafe(
+      `SELECT external_id, facts FROM housing.offer_identities
+         WHERE source_id=$1 AND external_id IN (${chunk.map((_, i) => "$" + (i + 2)).join(",")})`,
+      [source.id, ...chunk],
+    );
+    priorRows.push(...rows);
+  }
   const prior = new Map(priorRows.map(row => [String(row.external_id), parseJson(row.facts)]));
   const prepared = result.nodes.map(node => {
     const facts = { ...(prior.get(node.identity) || {}) };
