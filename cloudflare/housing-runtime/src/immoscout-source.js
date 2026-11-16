@@ -421,37 +421,73 @@ export async function ingestImmoScoutSource(sql, source, config = {}) {
   const query = config.query || await scheduledQuery(sql, source);
   const isCoveragePartition = Number(source.id) === 1 && hamburgCoverageQueries().includes(query);
   const result = await fetchImmoScoutSource(source, { ...config, query, enrichWithMap: true, maxMapExtras: 200 });
+
+  // One bounded lookup replaces hundreds of individual reads while retaining
+  // verified facts omitted by a later, smaller MCP result.
+  const identities = result.nodes.map(node => node.identity);
+  const priorRows = identities.length ? await sql.unsafe(
+    `SELECT external_id, facts FROM housing.offer_identities
+       WHERE source_id=$1 AND external_id IN (${identities.map((_, i) => "$" + (i + 2)).join(",")})`,
+    [source.id, ...identities],
+  ) : [];
+  const prior = new Map(priorRows.map(row => [String(row.external_id), parseJson(row.facts)]));
+  const prepared = result.nodes.map(node => {
+    const facts = { ...(prior.get(node.identity) || {}) };
+    for (const [key, value] of Object.entries(node.facts)) {
+      if (value != null && value !== "") facts[key] = value;
+      else if (!(key in facts)) facts[key] = value;
+    }
+    return { ...node, facts };
+  });
+
+  const profileCache = {};
   let inserted = 0;
-  for (const node of result.nodes) {
-    const rows = await sql`
-      INSERT INTO housing.offer_identities (id, source_id, identity_hash, external_id, canonical_url, facts, last_seen_at, expires_at)
-      VALUES (gen_random_uuid(), ${node.source_id}, ${node.source_id + ":external:" + node.identity}, ${node.identity}, ${node.canonical_url}, ${JSON.stringify(node.facts)}::jsonb, now(), now() + interval '24 hours')
-      ON CONFLICT (identity_hash) DO UPDATE SET
-        canonical_url = EXCLUDED.canonical_url,
-        facts = json_set(EXCLUDED.facts,
-          '$.warm_rent', COALESCE(json_extract(EXCLUDED.facts,'$.warm_rent'), json_extract(offer_identities.facts,'$.warm_rent')),
-          '$.property_type', COALESCE(json_extract(EXCLUDED.facts,'$.property_type'), json_extract(offer_identities.facts,'$.property_type')),
-          '$.image_url', COALESCE(json_extract(EXCLUDED.facts,'$.image_url'), json_extract(offer_identities.facts,'$.image_url')),
-          '$.rooms', COALESCE(json_extract(EXCLUDED.facts,'$.rooms'), json_extract(offer_identities.facts,'$.rooms')),
-          '$.area_sqm', COALESCE(json_extract(EXCLUDED.facts,'$.area_sqm'), json_extract(offer_identities.facts,'$.area_sqm'))
-        ), last_seen_at = now(), expires_at = EXCLUDED.expires_at
-      RETURNING id
-    `;
-    if (rows.length) {
-      inserted++;
-      // Partition crawls backfill inventory and Telegram notifications. Do not
-      // interpret older listings newly discovered by a partition as freshly
-      // published listings eligible for automatic applications.
-      await queueMatches(sql, rows[0].id, node.source_id, node.source_id + ":external:" + node.identity,
+  // An atomic multi-row D1 upsert avoids one round-trip for every Scout card.
+  // Matching still uses the original per-user idempotency keys and permissions.
+  for (let offset = 0; offset < prepared.length; offset += 20) {
+    const chunk = prepared.slice(offset, offset + 20);
+    const params = [];
+    const tuples = chunk.map(node => {
+      const index = params.length + 1;
+      params.push(node.source_id, node.source_id + ":external:" + node.identity,
+        node.identity, node.canonical_url, JSON.stringify(node.facts));
+      return `(gen_random_uuid(), $${index}, $${index + 1}, $${index + 2},
+        $${index + 3}, $${index + 4}, now(), now() + interval '24 hours')`;
+    });
+    const rows = await sql.unsafe(
+      `INSERT INTO housing.offer_identities
+       (id,source_id,identity_hash,external_id,canonical_url,facts,last_seen_at,expires_at)
+       VALUES ${tuples.join(",")}
+       ON CONFLICT (identity_hash) DO UPDATE SET
+         canonical_url=EXCLUDED.canonical_url,
+         facts=json_set(EXCLUDED.facts,
+           '$.warm_rent',COALESCE(json_extract(EXCLUDED.facts,'$.warm_rent'),json_extract(offer_identities.facts,'$.warm_rent')),
+           '$.property_type',COALESCE(json_extract(EXCLUDED.facts,'$.property_type'),json_extract(offer_identities.facts,'$.property_type')),
+           '$.image_url',COALESCE(json_extract(EXCLUDED.facts,'$.image_url'),json_extract(offer_identities.facts,'$.image_url')),
+           '$.rooms',COALESCE(json_extract(EXCLUDED.facts,'$.rooms'),json_extract(offer_identities.facts,'$.rooms')),
+           '$.area_sqm',COALESCE(json_extract(EXCLUDED.facts,'$.area_sqm'),json_extract(offer_identities.facts,'$.area_sqm'))
+         ),
+         last_seen_at=now(),expires_at=EXCLUDED.expires_at
+       RETURNING id,external_id`,
+      params,
+    );
+    inserted += rows.length;
+    const byExternalId = new Map(rows.map(row => [String(row.external_id), row.id]));
+    for (const node of chunk) {
+      const offerId = byExternalId.get(node.identity);
+      if (!offerId) continue;
+      // Partition scans backfill listings and deliveries, not old applications.
+      await queueMatches(sql, offerId, node.source_id,
+        node.source_id + ":external:" + node.identity,
         { ...node.facts, canonical_url: node.canonical_url },
-        source.central_auto_apply_enabled === true && !isCoveragePartition, !isCoveragePartition);
+        source.central_auto_apply_enabled === true && !isCoveragePartition,
+        !isCoveragePartition, profileCache);
     }
   }
   return {
     fetched: result.fetched, valid: result.nodes.length, inserted, query: result.query,
     search_count: result.searchCount, map_count: result.mapCount, enriched: result.enriched,
     added: result.added, coverage_partition: isCoveragePartition,
-    // MCP totals reflect the entire market, not the number of returned entries.
     missing_from_response: result.reported_total == null ? null
       : Math.max(0, result.reported_total - result.nodes.length),
     ...(result.map_error ? { map_error: result.map_error } : {}),
