@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { webcrypto } from "node:crypto";
+
+globalThis.crypto ||= webcrypto;
 import { encryptProviderCredentials, decryptProviderCredentials } from "../src/provider-credentials.js";
 import { DatabaseSync } from "node:sqlite";
 import { createD1Client } from "../src/d1-database.js";
@@ -11,6 +14,58 @@ test("central-provider refresh runs independently of participant reauth reminder
   const scheduled = source.slice(source.indexOf("async function runScheduledHousingWork"), source.indexOf("if (tasks.engagement)", source.indexOf("async function runScheduledHousingWork")));
   assert.match(scheduled, /runCentralProviderSessionRefresh/);
   assert.doesNotMatch(scheduled, /PERSONAL_PROVIDER_REAUTH_ENABLED/);
+});
+
+test("central ImmoScout access token refreshes proactively and retains encrypted credentials", async () => {
+  const now = new Date(Math.floor(Date.now() / 300_000) * 300_000);
+  const hexKey = "01".repeat(32);
+  const key = await crypto.subtle.importKey(
+    "raw", Uint8Array.from(hexKey.match(/../g), x => parseInt(x, 16)),
+    { name: "AES-GCM" }, false, ["encrypt", "decrypt"]);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const aad = new TextEncoder().encode("nexalabs:immoscout:central:v1");
+  const expiry = new Date(now.getTime() + 120_000).toISOString();
+  const encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv, additionalData: aad },
+    key, new TextEncoder().encode(JSON.stringify({
+      access_token: "old-access", refresh_token: "old-refresh", expires_at: expiry,
+    })));
+  const row = { status: "connected", enabled: 0, account_hint: "arash@nexalabs.de",
+    expires_at: expiry, ciphertext: Buffer.from(new Uint8Array(encrypted)).toString("base64"),
+    iv: Buffer.from(iv).toString("base64") };
+  const writes = [];
+  const database = { prepare(query) { return {
+    first: async () => row,
+    bind(...values) { return { run: async () => {
+      writes.push({ query, values });
+      return { meta: { changes: 1 } };
+    } }; },
+  }; } };
+  const calls = [], originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    calls.push(String(url));
+    if (String(url).endsWith("/v1/token"))
+      return Response.json({ access_token: "new-access", refresh_token: "new-refresh", expires_in: 3600 });
+    if (String(url).endsWith("/v1/userinfo"))
+      return Response.json({ sub: "central-owner", email: "arash@nexalabs.de" });
+    throw new Error("unexpected refresh endpoint");
+  };
+  try {
+    const result = await runCentralProviderSessionRefresh(async () => [], {
+      HOUSING_DB: database, CENTRAL_TOKEN_ENCRYPTION_KEY: hexKey,
+    }, now);
+    assert.deepEqual(result, { checked: 0, marked: 0 });
+    assert.equal(calls.length, 2);
+    const saved = writes.find(x => x.query.includes("INSERT INTO central_credentials"));
+    assert.ok(saved, "encrypted record is updated, not deleted");
+    const plain = await crypto.subtle.decrypt({ name: "AES-GCM",
+      iv: Uint8Array.from(Buffer.from(saved.values[2], "base64")), additionalData: aad },
+      key, Uint8Array.from(Buffer.from(saved.values[1], "base64")));
+    const tokens = JSON.parse(new TextDecoder().decode(plain));
+    assert.equal(tokens.access_token, "new-access");
+    assert.equal(tokens.refresh_token, "new-refresh");
+    assert.ok(Date.parse(tokens.expires_at) > Date.now() + 30 * 60_000);
+    assert.equal(writes.some(x => /DELETE FROM central_credentials/.test(x.query)), false);
+  } finally { globalThis.fetch = originalFetch; }
 });
 
 test("central Immowelt cookie session refreshes on the hourly cadence without sending reminders", async () => {
