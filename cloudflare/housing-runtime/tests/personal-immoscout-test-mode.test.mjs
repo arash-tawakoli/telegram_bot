@@ -107,6 +107,7 @@ test("matching queues a separate ImmoScout test application only for an opted-in
         criteria: JSON.stringify({ max_warm_rent: 1800, property_types: ["Wohnung"], location_mode: "all_hamburg" }),
         test_auto_apply_allowed: 1,
         test_auto_apply_enabled: 1,
+        test_auto_apply_enabled_at: new Date(Date.now() - 7_000).toISOString(),
         test_auto_apply_daily_limit: 1,
         auto_apply_enabled: 0,
       }];
