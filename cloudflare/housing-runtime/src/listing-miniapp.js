@@ -6,20 +6,21 @@ const APP_JS = "if (window.Telegram && window.Telegram.WebApp) { window.Telegram
 function escapeHtml(value) { return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;"); }
 export function listingWebUrl(id) { if (!UUID.test(String(id))) throw new Error("listing_delivery_id_invalid"); return PUBLIC_ORIGIN + "/angebot/" + String(id).toLowerCase(); }
 export function listingMessageRequest(chatId, photo, facts, listingUrl, sourceId, sourceName, deliveryId) {
-  if (!listingImageUrl(photo)) throw new Error("listing_photo_missing");
   listingWebUrl(deliveryId); // Retain strict delivery identity validation.
   const buttons = listingKeyboard(facts, listingUrl, sourceId, sourceName, deliveryId).inline_keyboard;
-  return {
-    chat_id: Number(chatId),
-    photo: listingImageUrl(photo),
-    caption: listingCaption(facts),
-    parse_mode: "HTML",
+  const image = listingImageUrl(photo);
+  return image ? {
+    chat_id: Number(chatId), photo: image, caption: listingCaption(facts),
+    parse_mode: "HTML", reply_markup: { inline_keyboard: buttons },
+  } : {
+    chat_id: Number(chatId), text: listingCaption(facts),
+    parse_mode: "HTML", disable_web_page_preview: true,
     reply_markup: { inline_keyboard: buttons },
   };
 }
-/** One native, non-link photo; no gallery and no retry on ambiguous delivery. */
+/** One photo or a text fallback; no retry on ambiguous delivery. */
 export async function sendListingMessage(token, payload, request = fetch) {
-  const endpoint = "https://api.telegram.org/bot" + token + "/sendPhoto";
+  const endpoint = "https://api.telegram.org/bot" + token + (payload.photo ? "/sendPhoto" : "/sendMessage");
   const post = body => request(endpoint, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(15000) });
   const response = await post(payload);
   const data = await response.json().catch(() => null);
@@ -39,7 +40,6 @@ export async function listingMiniAppResponse(sql, id) {
   if (typeof facts === "string") { try { facts = JSON.parse(facts); } catch { facts = {}; } }
   if (!facts || typeof facts !== "object" || Array.isArray(facts)) facts = {};
   const photo = await resolveListingImage(facts, row.canonical_url, row.source_id);
-  if (!photo) return new Response("Angebot nicht verfügbar", { status: 404, headers: { "cache-control": "no-store" } });
   const actions = listingKeyboard(facts, row.canonical_url, row.source_id, row.source_name).inline_keyboard.map((r, i) =>
     '<a class="action' + (i ? ' secondary' : '') + '" href="' + escapeHtml(r[0].url) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(r[0].text) + '</a>').join("");
   const title = listingHeadline(facts);
@@ -52,12 +52,13 @@ export async function listingMiniAppResponse(sql, id) {
     '<meta property="og:type" content="website"><meta property="og:site_name" content="Traumwohnung Hamburg">',
     '<meta property="og:title" content="' + escapeHtml(title) + '">',
     '<meta property="og:description" content="' + escapeHtml(description) + '">',
-    '<meta property="og:image" content="' + escapeHtml(photo) + '">',
-    '<meta name="twitter:card" content="summary_large_image"><meta name="theme-color" content="#152433">',
+    ...(photo ? ['<meta property="og:image" content="' + escapeHtml(photo) + '">'] : []),
+    '<meta name="twitter:card" content="' + (photo ? 'summary_large_image' : 'summary') + '"><meta name="theme-color" content="#152433">',
     '<title>' + escapeHtml(title) + ' · Traumwohnung Hamburg</title>',
     '<style nonce="' + nonce + '">' + CSS + '</style>',
     '<script src="https://telegram.org/js/telegram-web-app.js?65"></script>',
-    '</head><body><main><article><figure><img src="' + escapeHtml(photo) + '" alt="Foto des Wohnungsangebots" loading="eager"></figure>',
+    '</head><body><main><article>',
+    ...(photo ? ['<figure><img src="' + escapeHtml(photo) + '" alt="Foto des Wohnungsangebots" loading="eager"></figure>'] : []),
     '<section><div class="details">' + listingCaption(facts) + '</div><nav aria-label="Angebotsaktionen">' + actions + '</nav></section>',
     '</article><small>Einzelansicht · keine Galerie mit anderen Wohnungen</small></main>',
     '<script nonce="' + nonce + '">' + APP_JS + '</script></body></html>',
