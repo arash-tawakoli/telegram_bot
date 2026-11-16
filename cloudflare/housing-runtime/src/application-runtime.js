@@ -88,7 +88,7 @@ async function claim(sql, freshOnly = false) {
         AND (a.lease_until IS NULL OR a.lease_until < now())
         AND (${!freshOnly} = true OR a.test_mode = true OR (
           a.created_at >= now() - interval '24 hours'
-          AND oi.expires_at > now() AND oi.first_seen_at >= cutover.enabled_at
+          AND oi.expires_at > now()
         ))
       ORDER BY CASE WHEN a.test_mode = true THEN 0 ELSE 1 END, a.created_at
       LIMIT 1
