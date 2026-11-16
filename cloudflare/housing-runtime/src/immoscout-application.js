@@ -10,12 +10,76 @@ function value(profile, ...keys) {
   return "";
 }
 
+// Translate the user's persisted profile into the fields defined by Scout's
+// contactFormConfiguration. Keep unknown values missing rather than inventing them.
+const SCOUT_EMPLOYMENT = Object.freeze({
+  EMPLOYEE: "Angestellt", WORKER: "Arbeitnehmer/in",
+  SELF_EMPLOYED: "Selbstständig", CIVIL_SERVANT: "Verbeamtet",
+  APPRENTICE: "Auszubildend", STUDENT: "Studierend",
+  DOCTORAL: "Promovierend", HOMEMAKER: "Hausarbeit",
+  JOBSEEKER: "Arbeitssuchend", RETIRED: "Im Ruhestand", OTHER: "Sonstiges",
+});
+
+function scoutIncome(profile) {
+  const exact = Number(profile?.monthly_net_income);
+  if (Number.isFinite(exact) && exact > 0) return String(exact);
+  const range = value(profile, "income_range").toUpperCase();
+  const between = /^(\d{3,5})_(\d{3,5})$/.exec(range);
+  if (between && Number(between[1]) < Number(between[2])) {
+    return `${between[1]} € - ${between[2]} €`;
+  }
+  const under = /^UNDER_(\d{3,5})$/.exec(range);
+  if (under) return `Unter ${under[1]} €`;
+  const over = /^OVER_(\d{3,5})$/.exec(range);
+  if (over) return `Über ${over[1]} €`;
+  if (range === "HOUSING_BENEFIT") return "Wohngeld";
+  return undefined;
+}
+
+function scoutMoveIn(profile) {
+  const date = value(profile, "move_in_date");
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return date;
+  const preference = value(profile, "move_in_preference");
+  return preference === "IMMEDIATE" ? "Ab sofort"
+    : preference === "FLEXIBLE" ? "Flexibel" : undefined;
+}
+
+function scoutAddress(profile) {
+  const street = value(profile, "street");
+  const houseNumber = value(profile, "house_number");
+  const postcode = value(profile, "postcode");
+  const city = value(profile, "city");
+  return street && houseNumber && /^\d{5}$/.test(postcode) && city ? {
+    "@xsi.type": "common:Address", street, houseNumber, postcode, city,
+  } : undefined;
+}
+
 function fieldKey(key) {
   return String(key).replace(/Field$/i, "").replace(/[^a-z0-9]/gi, "").toLowerCase();
 }
 
 function fieldValue(key, profile, message, packageUrl) {
   const k = fieldKey(key);
+  if (k === "address") return scoutAddress(profile);
+  if (k === "salutation") {
+    const s = value(profile, "salutation").toUpperCase();
+    return { MR: "MALE", MS: "FEMALE", COMPANY: "COMPANY",
+      NEUTRAL: "NO_SALUTATION", NOT_SPECIFIED: "NO_SALUTATION", DIVERSE: "NO_SALUTATION" }[s];
+  }
+  if (k === "petsinhousehold") {
+    const pets = profile?.pets;
+    return typeof pets === "boolean" ? (pets ? "Ja" : "Nein")
+      : value(profile, "pets") || undefined;
+  }
+  if (k === "numberofpersons") {
+    const count = Number(profile?.household_size);
+    return Number.isInteger(count) && count > 0 && count <= 30 ? count : undefined;
+  }
+  if (k === "employmentrelationship") {
+    return SCOUT_EMPLOYMENT[value(profile, "employment_status").toUpperCase()];
+  }
+  if (k === "income") return scoutIncome(profile);
+  if (k === "moveindate") return scoutMoveIn(profile);
   if (/first(name|givenname|vorname)/.test(k)) return value(profile, "first_name", "firstname");
   if (/last(name|surname|familyname|nachname)/.test(k)) return value(profile, "last_name", "lastname");
   if (/email/.test(k)) return value(profile, "email");
@@ -32,8 +96,9 @@ function fieldValue(key, profile, message, packageUrl) {
   return undefined;
 }
 
-function prepare(config, profile, message, packageUrl) {
+function prepare(config, profile, message, packageUrl, contactFormType = "") {
   const form = { "@xmlns": { common: "http://rest.immobilienscout24.de/schema/common/1.0" } };
+  if (["LONG", "EMAIL", "PHONE"].includes(contactFormType)) form["@contactFormType"] = contactFormType;
   const missing = [];
   for (const [key, raw] of Object.entries(config || {})) {
     if (!String(key).endsWith("Field")) continue;
@@ -82,11 +147,13 @@ export async function sendImmoScoutApplication(application, env, sql, central = 
   const detail = await detailResponse.json().catch(() => null);
   if (!detailResponse.ok || !detail) return { status: detailResponse.status >= 500 ? "manual_required" : "failed", error: detailResponse.status === 404 ? "listing_unavailable" : "provider_contract_unverified" };
   const expose = detail?.["expose.expose"] || detail?.expose || detail;
+  const contactFormType = String(expose?.["@contactFormType"] || "").toUpperCase();
+  if (contactFormType === "NONE") return { status: "manual_required", error: "provider_contact_disabled" };
   const baseMessage = value(profile, "message", "message_apartment", "message_house") || "Anfrage zur Immobilie";
   const packageUrl = String(application.document_package_url || "");
   const suffix = packageUrl ? `\n\nBewerbungsunterlagen (geschützter Link): ${packageUrl}` : "";
   const message = suffix && baseMessage.length + suffix.length <= 4000 ? baseMessage + suffix : baseMessage;
-  const prepared = prepare(expose?.contactFormConfiguration || {}, profile, message, packageUrl);
+  const prepared = prepare(expose?.contactFormConfiguration || {}, profile, message, packageUrl, contactFormType);
   if (prepared.missing.length) return { status: "manual_required", error: `required_profile_data_missing:${prepared.missing.join(",")}` };
   if (testMode) {
     if (typeof application.authorizeTestSend !== "function") return { status: "manual_required", error: "test_send_authorization_missing" };
@@ -99,8 +166,29 @@ export async function sendImmoScoutApplication(application, env, sql, central = 
     body: JSON.stringify({ "expose.contactForm": prepared.form }),
     signal: AbortSignal.timeout(30_000),
   });
-  if (response.ok) return { status: "sent", confirmation: "official_rest_2xx" };
-  if (response.status === 401 || response.status === 403) return { status: "manual_required", error: "needs_login" };
-  if (response.status === 404 || response.status === 410) return { status: "failed", error: "listing_unavailable" };
-  return { status: "manual_required", error: response.status >= 500 ? "provider_http_5xx" : "provider_rejected" };
+  // Persist only a numeric HTTP status and the provider's machine-readable
+  // code. Never store free-form responses, credentials or applicant details.
+  const body = await response.text().catch(() => "");
+  let machineCode = null;
+  try {
+    const parsed = JSON.parse(body);
+    const messages = parsed?.["common.messages"];
+    const codes = [
+      parsed?.messageCode, parsed?.errorCode, parsed?.code,
+      ...(Array.isArray(messages) ? messages.map(item => item?.message?.messageCode) : []),
+    ];
+    machineCode = codes.find(code => typeof code === "string" && /^[A-Z][A-Z0-9_]{1,79}$/.test(code)) || null;
+  } catch {
+    machineCode = /<messageCode>([A-Z][A-Z0-9_]{1,79})<\/messageCode>/i.exec(body)?.[1] || null;
+  }
+  const diagnostics = { provider_http_status: response.status,
+    ...(machineCode ? { provider_message_code: machineCode } : {}) };
+  if (response.ok && !/^ERROR_/i.test(machineCode || "")) {
+    return { status: "sent", confirmation: "official_rest_2xx", ...diagnostics };
+  }
+  if (response.status === 401 || response.status === 403) return { status: "manual_required", error: "needs_login", ...diagnostics };
+  if (response.status === 404 || response.status === 410) return { status: "failed", error: "listing_unavailable", ...diagnostics };
+  return { status: "manual_required",
+    error: response.status >= 500 ? "provider_http_5xx" : "provider_rejected",
+    ...diagnostics };
 }
