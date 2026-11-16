@@ -46,7 +46,7 @@ function adapterFixture() {
   function stmt(query,params) {
     return {all:async()=>{
       const prepared=db.prepare(query);
-      if (/^\\s*(SELECT|WITH|PRAGMA)\\b/i.test(query) || /\\bRETURNING\\b/i.test(query))
+      if (/^\s*(SELECT|WITH|PRAGMA)\b/i.test(query) || /\bRETURNING\b/i.test(query))
         return {results:prepared.all(...params),meta:{changes:0}};
       const result=prepared.run(...params);
       return {results:[],meta:{changes:Number(result.changes)}};
