@@ -305,38 +305,21 @@ export async function deleteUser(userId) {
 export async function setPlanOverride(userId, grant) {
     const plan = grant === "free" ? "free" : "premium";
     const expiresAt = adminGrantExpiry(grant);
-    const { data: target, error } = await db
-        .from("bot_users")
-        .update({
-        plan_override: plan,
-        plan_override_expires_at: expiresAt,
-        updated_at: new Date().toISOString(),
-    })
-        .eq("id", userId)
-        .select("id,chat_id")
-        .maybeSingle();
-    if (error)
-        throw error;
-    if (!target)
-        throw new Error("user unavailable");
-    if (plan === "premium") {
-        const { data: profiles, error: profileError } = await db
-            .from("search_profiles")
-            .select("id")
-            .eq("user_id", userId);
-        if (profileError)
-            throw profileError;
-        const profileIds = (profiles || []).map((profile) => profile.id);
-        if (profileIds.length) {
-            const { error: deliveryError } = await db
-                .from("delivery_events")
-                .update({ next_retry_at: null })
-                .in("profile_id", profileIds)
-                .eq("status", "pending");
-            if (deliveryError)
-                throw deliveryError;
-        }
-    }
+    const database = runtimeEnv()?.HOUSING_DB;
+    if (!database?.batch) throw new Error("premium_database_unavailable");
+    const statements = [
+        database.prepare(
+            "UPDATE participants SET plan_override=?,plan_override_expires_at=?,updated_at=CURRENT_TIMESTAMP WHERE id=? RETURNING id,telegram_chat_id AS chat_id"
+        ).bind(plan, expiresAt, userId),
+    ];
+    if (plan === "free") statements.push(
+        database.prepare("UPDATE search_profiles SET active=0,updated_at=CURRENT_TIMESTAMP WHERE participant_id=? AND profile_slot>1").bind(userId),
+        database.prepare("UPDATE application_preferences SET enabled=0,updated_at=CURRENT_TIMESTAMP WHERE participant_id=?").bind(userId),
+        database.prepare("UPDATE participants SET auto_apply_enabled=0,updated_at=CURRENT_TIMESTAMP WHERE id=?").bind(userId),
+    );
+    const results = await database.batch(statements);
+    const target = results?.[0]?.results?.[0];
+    if (!target) throw new Error("user unavailable");
     return target;
 }
 

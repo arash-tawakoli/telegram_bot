@@ -1,4 +1,4 @@
-import { missingApplicantFields } from "../application-policy.js";
+import { missingApplicantFields, premiumParticipant } from "../application-policy.js";
 import { HOME_LANGUAGES } from "./home-language.js";
 
 import { sha256 } from "../auth.js";
@@ -272,6 +272,14 @@ export function createD1Supabase(db, env) {
   return { from: table => new Query(client, table), rpc: async (name,args={}) => rpc(client, env, name, args), storage };
 }
 
+async function hasPremium(client, participantId) {
+  const row = (await client.run(
+    "SELECT p.plan_override,p.plan_override_expires_at,p.referral_bonus_until,s.status AS subscription_status,s.current_period_end AS subscription_period_end FROM participants p LEFT JOIN user_subscriptions s ON s.participant_id=p.id AND s.provider='stripe' WHERE p.id=? AND p.status='active' LIMIT 1",
+    [participantId],
+  ))[0];
+  return Boolean(row && premiumParticipant(row));
+}
+
 function storageKey(path) {
   const key = String(path || "");
   if (!key || key.length > 1024 || key.startsWith("/") || key.includes("\\") || key.split("/").some(part => !part || part === "." || part === "..")) {
@@ -426,6 +434,7 @@ async function rpc(client, env, name, args) {
       return { data: { enabled: active, test_mode: true, ...next }, error: null };
     }
     if (active) {
+      if (!await hasPremium(client, userId)) return { data: null, error: new Error("premium_required") };
       if (bool(participant.test_auto_apply_enabled)) return { data: null, error: new Error("test_mode_active") };
       const profile = (await client.run("SELECT profile FROM applicant_profiles WHERE participant_id=? LIMIT 1", [userId]))[0];
       if (!profile || missingApplicantFields(profile.profile).length)
@@ -583,6 +592,8 @@ async function rpc(client, env, name, args) {
     const slot = Number(v.profile_slot ?? 1);
     if (!Number.isInteger(slot) || slot < 1 || slot > 4) return { data: null, error: new Error("profile_slot_invalid") };
     if (!args.p_user) return { data: null, error: new Error("search_profile_user_missing") };
+    if (slot > 1 && !await hasPremium(client, args.p_user))
+      return { data: null, error: new Error("premium_required") };
     const criteria = { ...v };
     delete criteria.profile_slot;
     const ids = Array.isArray(v.source_ids)

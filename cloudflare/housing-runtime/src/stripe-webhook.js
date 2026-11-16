@@ -166,7 +166,7 @@ async function notifyPayment(db, env, {participantId,failed}) {
     method: "POST", headers: { "content-type": "application/json" },
     body: JSON.stringify({
       chat_id: participant.telegram_chat_id, parse_mode: "HTML",
-      text: failed ? "⚠️ <b>Premium-Zahlung fehlgeschlagen</b>\n\nBitte aktualisiere deine Zahlungsmethode über „Abo verwalten“." : "🎉 <b>Danke für dein Abo!</b>\n\n💎 Dein Traumwohnung Premium-Abo ist jetzt aktiv.\n\n⚡ Sofortige Zustellung neuer passender Inserate\n🔎 Bis zu 4 Suchprofile\n🤖 Auto-Bewerbung\n\nViel Erfolg bei der Wohnungssuche! 🏠",
+      text: failed ? "⚠️ <b>Premium-Zahlung fehlgeschlagen</b>\n\nBitte aktualisiere deine Zahlungsmethode über „Abo verwalten“." : "🎉 <b>Danke für dein Abo!</b>\n\n💎 Dein Traumwohnung Premium-Abo ist jetzt aktiv.\n\n🔎 Bis zu 4 Suchprofile\n🤖 Auto-Bewerbung\n\nViel Erfolg bei der Wohnungssuche! 🏠",
       reply_markup: { inline_keyboard: [[failed ? { text: "💳 Abo verwalten", callback_data: "portal" } : { text: "🏠 Zum Menü", callback_data: "home" }]] },
     }), signal: AbortSignal.timeout(15_000),
   });

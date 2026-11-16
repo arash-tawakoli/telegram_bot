@@ -28,7 +28,7 @@ test("matching respects property type, region, neighborhood and required facts",
   assert.equal(matchesProfile(hamburg, { ...apartment, city: "Hamburg, Altona" }, 1), true);
 });
 
-test("free users with an opted-in sender and complete profiles queue Scout without a subscription", async () => {
+test("Free users receive listing alerts but cannot queue normal AutoApply", async () => {
   const calls = [];
   const profile = {
     first_name: "Eva", last_name: "Test", email: "eva@example.com",
@@ -59,7 +59,7 @@ test("free users with an opted-in sender and complete profiles queue Scout witho
   await queueMatches(sql,"offer",1,"1:external:free-test",{
     ...apartment,canonical_url:"https://www.immobilienscout24.de/expose/172800001",
   },true);
-  assert.equal(calls.filter(x=>x.query.includes("INSERT INTO housing.applications")).length,1);
+  assert.equal(calls.filter(x=>x.query.includes("INSERT INTO housing.applications")).length,0);
   assert.equal(calls.filter(x=>x.query.includes("INSERT INTO housing.deliveries")).length,1);
 });
 

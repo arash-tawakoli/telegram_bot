@@ -41,8 +41,8 @@ export function listingRequiresWbs(facts = {}) {
 }
 
 export function premiumParticipant(row, now = Date.now()) {
-  if (row.plan_override === "free") return false;
   const override = timestampMillis(row.plan_override_expires_at);
+  if (row.plan_override === "free" && (!row.plan_override_expires_at || override > now)) return false;
   if (row.plan_override === "premium" && (!row.plan_override_expires_at || override > now)) return true;
   if (timestampMillis(row.referral_bonus_until) > now) return true;
   const periodEnd = timestampMillis(row.subscription_period_end);
