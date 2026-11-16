@@ -337,7 +337,7 @@ async function mfaVerify(env, ticketValue, factorIdValue, passCodeValue) {
   }
   throw new Error("mfa_challenge_failed");
 }
-export async function getCentralApplicationCredentials(env, { testMode = true } = {}) {
+export async function getCentralApplicationCredentials(env, { testMode = true, refreshBeforeMs = 60_000 } = {}) {
   const database = env.DB || env.HOUSING_DB;
   const centralEnv = {
     ...env,
@@ -355,7 +355,7 @@ export async function getCentralApplicationCredentials(env, { testMode = true } 
   let credentials;
   try { credentials = await decrypt(row.ciphertext, row.iv, centralEnv, CREDENTIAL_AAD); }
   catch { throw new Error("credential_decrypt_failed"); }
-  if (credentials?.access_token && credentials?.expires_at && Date.parse(credentials.expires_at) > Date.now() + 60_000) {
+  if (credentials?.access_token && credentials?.expires_at && Date.parse(credentials.expires_at) > Date.now() + refreshBeforeMs) {
     return credentials;
   }
   if (!credentials?.refresh_token) throw new Error("needs_login");
