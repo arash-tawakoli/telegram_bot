@@ -103,6 +103,13 @@ export async function sendImmomioApplication(application, env, sql, central = nu
   if (!questions.response.ok || questions.body?.errors?.length) return { status: "manual_required", error: "question_contract_unverified" };
   const custom = questions.body?.data?.customQuestionsByProperty?.customQuestions || [];
   if (custom.length) return { status: "manual_required", error: "dynamic_questions_required" };
+  // No test reservation until account, listing and dynamic questions have been
+  // checked. An unsuccessful preflight must not consume the one-shot attempt.
+  if (application.test_mode === true || application.test_mode === 1) {
+    if (typeof application.authorizeTestSend !== "function" || !await application.authorizeTestSend()) {
+      return { status: "manual_required", error: "test_send_not_authorized" };
+    }
+  }
   const created = await gql(CREATE_MUTATION, { userId: accountId, propertyId: String(target.id), captchaResponse: null }, credentials.access_token);
   if (!created.response.ok || created.body?.errors?.length || !created.body?.data?.createApplication?.id) return { status: "manual_required", error: "submission_unconfirmed" };
   const applicationId = String(created.body.data.createApplication.id);
