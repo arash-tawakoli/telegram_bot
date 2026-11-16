@@ -35,17 +35,22 @@ export async function saveDeliveredOffer(user, deliveryId) {
   if (!DELIVERY_ID.test(String(deliveryId || ""))) return false;
   const query = sql();
   const rows = await query`
-    SELECT d.offer_identity_id, oi.canonical_url, oi.facts, s.name AS source_name
+    SELECT d.offer_identity_id, oi.canonical_url, oi.facts, s.name AS source_name, saved.id AS saved_id
     FROM deliveries d
     JOIN offer_identities oi ON oi.id = d.offer_identity_id
     JOIN source_registry s ON s.id = oi.source_id
+    LEFT JOIN saved_offers saved ON saved.participant_id = d.participant_id AND saved.offer_identity_id = d.offer_identity_id
     WHERE d.id = ${deliveryId} AND d.participant_id = ${user.id}
       AND d.status = 'sent'
     LIMIT 1
   `;
   const offer = rows[0];
   const destination = safeUrl(offer?.canonical_url);
-  if (!offer?.offer_identity_id || !destination) return false;
+  if (!offer?.offer_identity_id || !destination) return null;
+  if (offer.saved_id != null) {
+    await query`DELETE FROM saved_offers WHERE id = ${offer.saved_id} AND participant_id = ${user.id}`;
+    return false;
+  }
   const facts = factsObject(offer.facts);
   const title = listingHeadline(facts).slice(0, 170);
   const warm = Number(facts.warm_rent);

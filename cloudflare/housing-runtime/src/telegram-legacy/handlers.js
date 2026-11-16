@@ -533,11 +533,11 @@ export async function handleCallback(query, user) {
         const deliveryId = data.slice(5);
         try {
             const saved = await saveDeliveredOffer(user, deliveryId);
-            await ack(saved ? "⭐ Inserat gespeichert" : "Dieses Angebot kann nicht gespeichert werden.");
-            if (saved && Array.isArray(query.message?.reply_markup?.inline_keyboard)) {
+            await ack(saved === null ? "Dieses Angebot kann nicht gespeichert werden." : saved ? "⭐ Inserat gespeichert" : "Speicherung aufgehoben");
+            if (saved !== null && Array.isArray(query.message?.reply_markup?.inline_keyboard)) {
                 const keyboard = query.message.reply_markup.inline_keyboard.map(row =>
                     row.map(item => item.callback_data === data
-                        ? { ...item, text: "⭐ Gespeichert" } : { ...item }));
+                        ? { ...item, text: saved ? "⭐ Gespeichert" : "⭐ Speichern" } : { ...item }));
                 await telegram("editMessageReplyMarkup", {
                     chat_id: chatId, message_id: messageId,
                     reply_markup: { inline_keyboard: keyboard },
