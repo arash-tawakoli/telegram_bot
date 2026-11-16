@@ -1090,6 +1090,23 @@ test("confirmed Premium reset grants seven days only to active Free users and se
   }finally{x.done()}
 });
 
+test("AutoApply refuses Start without an active search even when applicant data is complete", async () => {
+ const x=setup();
+ try{
+   x.sqlite.prepare("INSERT INTO applicant_profiles(participant_id,profile) VALUES('owner',?)")
+     .run(JSON.stringify({
+       first_name:"Anna",last_name:"Beispiel",email:"anna@example.com",
+       phone:"+491700000000",street:"Testweg",house_number:"1",
+       postcode:"20099",city:"Hamburg",salutation:"MS",household_type:"SINGLE",
+       employment_status:"EMPLOYEE",income_range:"NOT_SPECIFIED",pets:"NONE",
+       move_in_preference:"NOT_SPECIFIED",schufa_status:"NOT_SPECIFIED"
+     }));
+   await platformSessions({...x.user,is_premium:false},x.chat,89,"platforms:on");
+   assert.equal(x.sqlite.prepare("SELECT auto_apply_enabled FROM participants WHERE id='owner'").get().auto_apply_enabled,0);
+   assert.match(lastMessage(x).text,/nicht aktualisiert|nicht aktualisiert werden|konnte nicht/i);
+ } finally{x.done();}
+});
+
 test("free users can activate Scout with a complete applicant and active search, without changing other accounts", async () => {
  const x=setup();
  try {
