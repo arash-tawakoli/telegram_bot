@@ -1,4 +1,6 @@
 import test from "node:test";
+import assert from "node:assert/strict";
+import { withPlan } from "../src/telegram-legacy/runtime.js";
 import { createD1Supabase } from "../src/telegram-legacy/d1-supabase.js";
 
 function freeParticipantDatabase() {
@@ -46,9 +48,6 @@ test("Telegram D1 rejects enabling AutoApply for Free accounts", async () => {
   assert.match(result.error?.message || "", /premium_required/);
   assert.ok(!database.calls.some(({sql}) => /UPDATE application_preferences/.test(sql)));
 });
-
-import assert from "node:assert/strict";
-import { withPlan } from "../src/telegram-legacy/runtime.js";
 
 test("premium access is resolved from active and trialing D1 subscriptions", async () => {
   const user = { id: "u1", plan_override: null, referral_bonus_until: null };
