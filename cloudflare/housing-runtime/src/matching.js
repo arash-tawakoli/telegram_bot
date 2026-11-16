@@ -120,11 +120,11 @@ function berlinDayStartISO(now = new Date()) {
   return new Date(utcMidnight.getTime() - offsetMinutes * 60_000).toISOString().replace("T", " ").replace("Z", "").slice(0, 19);
 }
 
-export async function queueMatches(sql, offerId, sourceId, identityHash, facts, centralAutoApplyEnabled = true, allowTestApplications = true) {
+export async function queueMatches(sql, offerId, sourceId, identityHash, facts, centralAutoApplyEnabled = true, allowTestApplications = true, cache = null) {
   const source = sourceForId(sourceId);
   if (source?.delivery_mode !== "live") return 0;
   const targetProvider = applicationProvider(source, facts);
-  const rows = await sql`
+  const rows = cache?.profileRows ?? await sql`
     SELECT DISTINCT sp.participant_id, sp.profile_slot, sp.criteria,
       p.test_auto_apply_allowed, p.test_auto_apply_enabled,
       p.test_auto_apply_daily_limit, p.test_auto_apply_enabled_at,
@@ -141,6 +141,7 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts, 
     LEFT JOIN housing.user_subscriptions s ON s.participant_id = p.id AND s.provider = 'stripe'
     WHERE sp.active = true
   `;
+  if (cache && !cache.profileRows) cache.profileRows = rows;
   const cutover = (await sql`
     SELECT i.first_seen_at, i.expires_at, c.enabled_at
     FROM housing.offer_identities i

@@ -269,6 +269,62 @@ test("scheduled inventory retains every map entry, not the previous 15-extra lim
   } finally { globalThis.fetch = previousFetch; }
 });
 
+
+test("large Scout map subsets use a few D1 batches and one candidate-profile read", async () => {
+  const original = globalThis.fetch;
+  const writes = [], profileReads = [], otherQueries = [];
+  globalThis.fetch = async (_url, options) => {
+    const payload = JSON.parse(options.body);
+    const lifecycle = mockMcpLifecycle(payload);
+    if (lifecycle) return lifecycle;
+    const count = payload.params.name === "property_search_de" ? 20 : 65;
+    const entries = Array.from({ length: count }, (_, index) => ({
+      exposedId: String(100000 + index),
+      exposeUrl: "https://www.immobilienscout24.de/expose/" + (100000 + index),
+      title: "Mietwohnung in Hamburg",
+      address: { city: "Hamburg" },
+      price: { value: 800 },
+      ...(index === 0 ? { totalRent: null } : {}),
+    }));
+    return Response.json({ jsonrpc: "2.0", id: payload.id,
+      result: { structuredContent: { total: 125, entries } } });
+  };
+  const sql = async (pieces) => {
+    const query = pieces.join("?");
+    otherQueries.push(query);
+    if (query.includes("SELECT DISTINCT sp.participant_id")) profileReads.push(query);
+    return [];
+  };
+  sql.unsafe = async (query, params) => {
+    if (query.includes("SELECT external_id, facts")) return [{
+      external_id: "100000",
+      facts: JSON.stringify({ warm_rent: 990, property_type: "Wohnung" }),
+    }];
+    if (query.includes("INSERT INTO housing.offer_identities")) {
+      writes.push({ query, params });
+      const rows = [];
+      for (let i = 0; i < params.length; i += 5)
+        rows.push({ id: "id-" + params[i+2], external_id: params[i+2] });
+      return rows;
+    }
+    return [];
+  };
+  try {
+    const output = await ingestImmoScoutSource(sql, sourceForId(1), {
+      query: "Wohnungen zur Miete in Hamburg",
+    });
+    assert.equal(output.valid, 65);
+    assert.equal(output.inserted, 65);
+    assert.equal(output.missing_from_response, 60);
+    assert.equal(writes.length, 4, "65 offers should require four D1 batch writes");
+    assert.ok(writes.every(({params})=>params.length<=100));
+    assert.equal(profileReads.length, 1, "all matches share the same active profile snapshot");
+    assert.equal(JSON.parse(writes[0].params[4]).warm_rent, 990,
+      "previously verified rent is not lost when a later MCP card omits it");
+    assert.ok(writes.every(({query})=>query.includes("ON CONFLICT (identity_hash)")));
+  } finally { globalThis.fetch = original; }
+});
+
 test("map outage does not prevent search-only delivery preparation", async () => {
   const previous = globalThis.fetch;
   globalThis.fetch = async (_url, init) => {
