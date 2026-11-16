@@ -69,7 +69,10 @@ test("central AutoApply stays paused after deployment and does not reserve or se
 test("scheduled application processing ignores the historical pending backlog", async () => {
   const db = sqlFor(null);
   await processHousingApplication(db.query, { APPLICATION_RUN_TOKEN: "secret" }, new Request("https://runtime.test/internal/application/process?fresh_only=1", { method: "POST", headers: { authorization: "Bearer secret" } }));
-  assert.match(db.writes[2].text, /oi\.first_seen_at >= cutover\.enabled_at/);
+  assert.match(db.writes[2].text, /a\.created_at >= now\(\) - interval '24 hours'/);
+  assert.match(db.writes[2].text, /oi\.expires_at > now\(\)/);
+  assert.doesNotMatch(db.writes[2].text, /oi\.first_seen_at >= cutover\.enabled_at/,
+    "previously discovered active offers must not be blocked by cutover");
 });
 
 test("normal applications stay blocked while personal test mode is enabled", async () => {
