@@ -426,7 +426,15 @@ export async function ingestImmoScoutSource(sql, source, config = {}) {
     const rows = await sql`
       INSERT INTO housing.offer_identities (id, source_id, identity_hash, external_id, canonical_url, facts, last_seen_at, expires_at)
       VALUES (gen_random_uuid(), ${node.source_id}, ${node.source_id + ":external:" + node.identity}, ${node.identity}, ${node.canonical_url}, ${JSON.stringify(node.facts)}::jsonb, now(), now() + interval '24 hours')
-      ON CONFLICT (identity_hash) DO UPDATE SET canonical_url = EXCLUDED.canonical_url, facts = EXCLUDED.facts, last_seen_at = now(), expires_at = EXCLUDED.expires_at
+      ON CONFLICT (identity_hash) DO UPDATE SET
+        canonical_url = EXCLUDED.canonical_url,
+        facts = json_set(EXCLUDED.facts,
+          '$.warm_rent', COALESCE(json_extract(EXCLUDED.facts,'$.warm_rent'), json_extract(offer_identities.facts,'$.warm_rent')),
+          '$.property_type', COALESCE(json_extract(EXCLUDED.facts,'$.property_type'), json_extract(offer_identities.facts,'$.property_type')),
+          '$.image_url', COALESCE(json_extract(EXCLUDED.facts,'$.image_url'), json_extract(offer_identities.facts,'$.image_url')),
+          '$.rooms', COALESCE(json_extract(EXCLUDED.facts,'$.rooms'), json_extract(offer_identities.facts,'$.rooms')),
+          '$.area_sqm', COALESCE(json_extract(EXCLUDED.facts,'$.area_sqm'), json_extract(offer_identities.facts,'$.area_sqm'))
+        ), last_seen_at = now(), expires_at = EXCLUDED.expires_at
       RETURNING id
     `;
     if (rows.length) {
