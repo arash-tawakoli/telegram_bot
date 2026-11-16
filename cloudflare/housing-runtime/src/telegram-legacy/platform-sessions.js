@@ -519,10 +519,11 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   if(!['on','off'].includes(arg)) return platformSessions(user,chat,messageId,'platforms:test-status');
   const enabled=arg==='on';
   try{
-   await applicationWorker('set_test_mode',user.id,1,{
-    enabled,
-    telegramUserId:Number(user.telegram_user_id)
+   const {error}=await db.rpc('set_telegram_auto_apply_sources',{
+    p_user:user.id,p_provider:'immoscout24',p_enabled:enabled,
+    p_telegram_user_id:user.telegram_user_id,p_update_id:user.request_update_id
    });
+   if(error)throw error;
    return platformSessions(user,chat,messageId,'platforms');
   }catch(error){
    return render('⚠️ <b>Testmodus konnte nicht '+(enabled?'aktiviert':'deaktiviert')+' werden</b>\n\n'+esc(userFacingError(error)),[
@@ -555,7 +556,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
     +'Testmodus: <b>'+(testEnabled?'Aktiv':'Deaktiviert')+'</b>\n'
     +'Gespeicherter Zugang: <b>'+(credentialReady?'Verbunden':'Nicht bestätigt')+'</b>\n'
     +'Letzte Prüfung: '+esc(lastCheck)+'\n'
-    +'Tageslimit: '+Number(state.test_auto_apply_daily_limit||1)+' echte Bewerbung(en)\n\n'
+    +'Tageslimit: <b>Keines</b>\n\n'
     +'Der Testzugang nutzt das zentrale NexaLabs-Konto. Die reguläre zentrale Freigabe bleibt dabei deaktiviert. '
     +'Ob ein Bewerbungsversand erfolgreich war, ist erst nach einer bestätigten Testbewerbung nachgewiesen.',
     [[button('← Auto-Bewerbung','platforms')]]);
@@ -808,7 +809,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   ]);
  }
 
- // Global controls change the actual Auto-Bewerbung preference, not the housing search.
+ // Global controls affect the owner's test selections or regular auto-apply, not housing search.
  rows.push([
   button('▶️ Alle starten','platforms:on'),
   button('⏸ Alle pausieren','platforms:off')
