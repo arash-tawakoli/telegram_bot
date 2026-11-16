@@ -127,7 +127,7 @@ test("matching queues a separate ImmoScout test application only for an opted-in
   assert.ok(insert);
   assert.match(insert.text, /test_mode/);
   assert.match(insert.text, /test_auto_apply_enabled = true/);
-  assert.match(insert.text, /submission_started_at/);
+  assert.doesNotMatch(insert.text, /COUNT\(\*\)/, "no daily application quota in matching");
 });
 
 test("matching never queues the personal ImmoScout test path for another provider or an opted-out user", async () => {
@@ -186,7 +186,7 @@ test("test application sends through the central credential without requiring a 
   }
 });
 
-test("test application does not send when the daily quota reservation fails", async () => {
+test("test application does not send when its exclusive submission claim fails", async () => {
   const central = await centralCredentialRow();
   const db = sqlFor(applicationRow(), { reserve: false });
   const originalFetch = globalThis.fetch;
@@ -206,7 +206,7 @@ test("test application does not send when the daily quota reservation fails", as
       method: "POST", headers: { authorization: "Bearer run-secret" },
     }));
     assert.equal(result.body.status, "manual_required");
-    assert.equal(result.body.reason, "test_daily_limit_reached");
+    assert.equal(result.body.reason, "test_send_authorization_failed");
     assert.equal(requests.length, 1);
     assert.equal(requests.some((url) => url.includes("/contact")), false);
   } finally {
