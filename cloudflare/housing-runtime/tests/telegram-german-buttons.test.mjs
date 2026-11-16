@@ -1002,8 +1002,13 @@ test("delivered offer is saved once, displayed for the owner, and removable",asy
   const editMarkup=x.sent.filter(x=>x.method==="editMessageReplyMarkup").at(-1)?.body?.reply_markup;
   assert.equal(editMarkup.inline_keyboard[1][0].text,"⭐ Gespeichert");
   await tap();
+  assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM saved_offers WHERE participant_id='owner'").get().n,0,
+   "second tap must remove the saved offer");
+  assert.equal(x.sent.filter(y=>y.method==="editMessageReplyMarkup").at(-1)?.body?.reply_markup.inline_keyboard[1][0].text,"⭐ Speichern");
+  await tap();
   assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM saved_offers WHERE participant_id='owner'").get().n,1,
-   "saving the same delivered apartment twice must not create duplicates");
+   "third tap must save again without duplicates");
+  assert.equal(x.sent.filter(y=>y.method==="editMessageReplyMarkup").at(-1)?.body?.reply_markup.inline_keyboard[1][0].text,"⭐ Gespeichert");
   await handleMessage({chat:x.chat,text:"/gespeichert"},x.user);
   assert.match(lastMessage(x).text,/Balkonwohnung/);
   assert.match(lastMessage(x).text,/650 €/);
