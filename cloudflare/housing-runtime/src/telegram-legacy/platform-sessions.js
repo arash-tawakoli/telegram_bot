@@ -797,13 +797,15 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  if(stateError||preferencesError)throw Error('Auto-Bewerbung konnte nicht geladen werden.');
  const isTestAccount=state.test_auto_apply_allowed===true&&Number(user.telegram_user_id)===8538226539;
  const rows=[];
+ const statusLines=[];
+ let activeCount=0;
  for(const sourceId of [1,4,3]){
   const meta=AUTO_APPLY_PROVIDERS[sourceId];
   const running=(isTestAccount?state.test_auto_apply_enabled===true:state.auto_apply_enabled===true)&&preferences?.[meta.field]===true;
-  rows.push([
-   button(meta.name,'platforms:provider:'+sourceId),
-   button(running?'⏸ Pause':'▶️ Start','platforms:'+(running?'pause':'resume')+':'+sourceId)
-  ]);
+  if(running)activeCount++;
+  statusLines.push((running?'✅ ':'⏸ ')+meta.name+' · '+(running?'Aktiv':'Pausiert'));
+  rows.push([button(running?'⏸ '+meta.name+' pausieren':'▶️ '+meta.name+' starten',
+   'platforms:'+(running?'pause':'resume')+':'+sourceId)]);
  }
 
  // Confirm the persisted state after each button press. A stale Telegram
@@ -837,7 +839,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   : runtimeEnv().CENTRAL_AUTO_APPLY_ENABLED==='1'?''
    :'\n\nℹ️ Der automatische Versand ist derzeit zentral noch nicht freigegeben.';
  rows.push([button('← Start','home')]);
- return render('⚡ <b>Automatische Bewerbung</b>\n\n'+controlNotice+(isTestAccount
+ return render('⚡ <b>Automatische Bewerbung</b>\n\n'+controlNotice+'<b>'+activeCount+' von 3 Plattformen aktiv</b>\n'+statusLines.join('\n')+'\n\n'+(isTestAccount
   ? 'Aktiviere oder pausiere den persönlichen Testmodus für einzelne Quellen oder alle Quellen.'
   : 'Starte oder pausiere den automatischen Bewerbungsversand je Quelle oder für alle Quellen.')+' Die Wohnungssuche bleibt davon unberührt. Plattformzugänge werden zentral verwaltet.'+centralNote,rows);
 

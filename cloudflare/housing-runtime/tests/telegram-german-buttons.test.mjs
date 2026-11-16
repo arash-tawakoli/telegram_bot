@@ -342,10 +342,13 @@ test("auto-apply menu exposes only supported provider actions and non-mutating s
   try {
     x.sqlite.exec("UPDATE participants SET test_auto_apply_enabled=1,test_auto_apply_daily_limit=1 WHERE id='owner'");
     await platformSessions(x.user, x.chat, 21, "platforms");
-    const controls = lastMessage(x).reply_markup.inline_keyboard.flat().map(b => b.callback_data);
+    const view = lastMessage(x);
+    const controls = view.reply_markup.inline_keyboard.flat().map(b => b.callback_data);
+    assert.match(view.text, /0 von 3 Plattformen aktiv/);
+    for (const id of [1,4,3]) assert.ok(controls.includes("platforms:resume:"+id));
+    assert.ok(!controls.some(value => String(value || "").startsWith("platforms:provider:")),
+      "platform names should be status text, not redundant info buttons");
     assert.equal(controls.includes("platforms:test-status"), false, "personal test button remains hidden");
-    assert.ok(controls.includes("platforms:provider:3"), "Immomio central source missing");
-    assert.ok(controls.includes("platforms:provider:4"), "Immowelt central source missing");
     assert.ok(!controls.some(value => String(value || "").startsWith("platforms:login:")), "personal provider login must remain hidden");
     assert.equal(controls.some(value=>String(value||"").startsWith("platforms:test:")), false);
     assert.ok(controls.includes("home"), "back to start missing");
@@ -380,7 +383,8 @@ test("all three central sources expose status without creating participant login
     await platformSessions(x.user, x.chat, 23, "platforms");
     const controls = lastMessage(x).reply_markup.inline_keyboard.flat();
     for (const [source, provider] of [[1, "immoscout24"], [4, "immowelt"], [3, "immomio"]]) {
-      assert.ok(controls.some(button => button.callback_data === "platforms:provider:" + source));
+      assert.ok(controls.some(button => button.callback_data === "platforms:resume:" + source));
+      assert.ok(!controls.some(button => button.callback_data === "platforms:provider:" + source));
       await platformSessions(x.user, x.chat, 23, "platforms:provider:" + source);
       const page = lastMessage(x);
       assert.match(page.text, /zentral/i);
@@ -579,13 +583,19 @@ test("each provider Start/Pause independently controls stored preferences",async
   let controls=lastMessage(x).reply_markup.inline_keyboard.flat().map(b=>b.callback_data);
   for (const id of [1,4,3])assert.ok(controls.includes("platforms:resume:"+id));
   await platformSessions(x.user,x.chat,44,"platforms:resume:1");
+  assert.match(lastMessage(x).text,/1 von 3 Plattformen aktiv/);
+  assert.match(lastMessage(x).text,/✅ ImmoScout24 · Aktiv/);
+  assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][0].text,"⏸ ImmoScout24 pausieren");
   const read=()=>x.sqlite.prepare("SELECT enabled,immoscout_enabled,immowelt_enabled,immomio_enabled FROM application_preferences WHERE participant_id='owner'").get();
   assert.deepEqual([read().enabled,read().immoscout_enabled,read().immowelt_enabled,read().immomio_enabled],[1,1,0,0]);
   await platformSessions(x.user,x.chat,44,"platforms:resume:4");
+  assert.match(lastMessage(x).text,/2 von 3 Plattformen aktiv/);
   assert.deepEqual([read().enabled,read().immoscout_enabled,read().immowelt_enabled,read().immomio_enabled],[1,1,1,0]);
   await platformSessions(x.user,x.chat,44,"platforms:pause:1");
   assert.deepEqual([read().enabled,read().immoscout_enabled,read().immowelt_enabled,read().immomio_enabled],[1,0,1,0]);
   await platformSessions(x.user,x.chat,44,"platforms:pause:4");
+  assert.match(lastMessage(x).text,/0 von 3 Plattformen aktiv/);
+  assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][0].text,"▶️ ImmoScout24 starten");
   assert.deepEqual([read().enabled,read().immoscout_enabled,read().immowelt_enabled,read().immomio_enabled],[0,0,0,0]);
   controls=lastMessage(x).reply_markup.inline_keyboard.flat().map(b=>b.callback_data);
   for (const id of [1,4,3])assert.ok(controls.includes("platforms:resume:"+id));
@@ -1185,14 +1195,14 @@ test("owner Start/Pause shows persisted personal test sender state without enabl
     });
     await platformSessions(owner,chat,22,"platforms:resume:1");
     assert.match(lastMessage(x).text,/ImmoScout24<\/b>: gestartet \(persönlicher Testversand\)/);
-    assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][1].callback_data,"platforms:pause:1");
+    assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][0].callback_data,"platforms:pause:1");
     assert.equal(status().test_auto_apply_enabled,1);
     assert.equal(status().immoscout_enabled,1);
     assert.equal(status().auto_apply_enabled,0);
     assert.equal(status().enabled,0);
     await platformSessions(owner,chat,22,"platforms:pause:1");
     assert.match(lastMessage(x).text,/ImmoScout24<\/b>: pausiert/);
-    assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][1].callback_data,"platforms:resume:1");
+    assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][0].callback_data,"platforms:resume:1");
     assert.equal(status().test_auto_apply_enabled,0);
     assert.equal(status().immoscout_enabled,0);
     await platformSessions(owner,chat,22,"platforms:on");
