@@ -121,7 +121,7 @@ test("incomplete historical ImmoScout application identity blocks auto-apply for
   assert.equal(calls.some(call => call.query.includes("INSERT INTO housing.deliveries")), true);
   assert.equal(calls.some(call => call.query.includes("INSERT INTO housing.applications")), false);
 });
-test("incomplete historical ImmoScout identity also blocks personal test AutoApply", async () => {
+test("a historical provider-wide marker does not block a currently consented personal Scout application", async () => {
   const participantId = "u-test";
   const blockedHash = await applicationIdempotencyHash(`legacy:blocked:immoscout24:${participantId}`);
   const calls = [];
@@ -141,7 +141,9 @@ test("incomplete historical ImmoScout identity also blocks personal test AutoApp
   };
   assert.equal(await queueMatches(sql, "offer", 1, "1:external:123456789", { ...apartment, canonical_url: "https://www.immobilienscout24.de/expose/123456789" }), 1);
   assert.equal(calls.some(call => call.query.includes("INSERT INTO housing.deliveries")), true);
-  assert.equal(calls.some(call => call.query.includes("INSERT INTO housing.applications")), false);
+  assert.equal(calls.some(call => call.query.includes("INSERT INTO housing.applications")), true);
+  assert.equal(calls.some(call => call.values[0] === blockedHash), false,
+    "unrelated provider-wide migration markers must not block a matched offer");
 });
 test("Scout test sender accepts still-active earlier discoveries and respects per-offer deduplication", async () => {
   const participantId = "test-owner";
