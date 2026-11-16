@@ -353,7 +353,8 @@ test("auto-apply menu exposes only supported provider actions and non-mutating s
     assert.equal(controls.some(value=>String(value||"").startsWith("platforms:test:")), false);
     assert.ok(controls.includes("home"), "back to start missing");
     assert.ok(controls.includes("platforms:on"), "start all missing");
-    assert.ok(controls.includes("platforms:off"), "pause all missing");
+    assert.ok(!controls.includes("platforms:off"), "only one global action must be shown");
+    assert.match(view.text, /🔴 ImmoScout24 · Pausiert/);
     assert.ok(!controls.includes("noop"), "a visible provider control must not be a no-op");
   } finally { x.done(); }
 });
@@ -584,12 +585,16 @@ test("each provider Start/Pause independently controls stored preferences",async
   for (const id of [1,4,3])assert.ok(controls.includes("platforms:resume:"+id));
   await platformSessions(x.user,x.chat,44,"platforms:resume:1");
   assert.match(lastMessage(x).text,/1 von 3 Plattformen aktiv/);
-  assert.match(lastMessage(x).text,/✅ ImmoScout24 · Aktiv/);
+  assert.match(lastMessage(x).text,/🟢 ImmoScout24 · Aktiv/);
+  assert.match(lastMessage(x).text,/🔴 Immowelt · Pausiert/);
+  assert.equal(lastMessage(x).reply_markup.inline_keyboard.at(-2)[0].callback_data,"platforms:on",
+    "partially active configuration offers to start all");
   assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][0].text,"⏸ ImmoScout24 pausieren");
   const read=()=>x.sqlite.prepare("SELECT enabled,immoscout_enabled,immowelt_enabled,immomio_enabled FROM application_preferences WHERE participant_id='owner'").get();
   assert.deepEqual([read().enabled,read().immoscout_enabled,read().immowelt_enabled,read().immomio_enabled],[1,1,0,0]);
   await platformSessions(x.user,x.chat,44,"platforms:resume:4");
   assert.match(lastMessage(x).text,/2 von 3 Plattformen aktiv/);
+  assert.equal(lastMessage(x).reply_markup.inline_keyboard.at(-2)[0].callback_data,"platforms:on");
   assert.deepEqual([read().enabled,read().immoscout_enabled,read().immowelt_enabled,read().immomio_enabled],[1,1,1,0]);
   await platformSessions(x.user,x.chat,44,"platforms:pause:1");
   assert.deepEqual([read().enabled,read().immoscout_enabled,read().immowelt_enabled,read().immomio_enabled],[1,0,1,0]);
@@ -1162,10 +1167,17 @@ test("bulk AutoApply starts and pauses all source send preferences without chang
   x.sqlite.prepare("INSERT INTO search_profiles(id,participant_id,criteria,active) VALUES('s-one','owner',?,1)")
    .run(JSON.stringify({property_types:["Wohnung"],location_mode:"all_hamburg",max_warm_rent:1200}));
   await platformSessions(x.user,x.chat,51,"platforms:on");
+  assert.equal(lastMessage(x).reply_markup.inline_keyboard.at(-2).length,1);
+  assert.deepEqual(lastMessage(x).reply_markup.inline_keyboard.at(-2)[0],
+    {text:"⏸ Alle pausieren",callback_data:"platforms:off"});
+  assert.match(lastMessage(x).text,/3 von 3 Plattformen aktiv/);
   const p=x.sqlite.prepare("SELECT immoscout_enabled,immowelt_enabled,immomio_enabled,enabled FROM application_preferences WHERE participant_id='owner'").get();
   assert.deepEqual([p.immoscout_enabled,p.immowelt_enabled,p.immomio_enabled,p.enabled],[1,1,1,1]);
   assert.equal(x.sqlite.prepare("SELECT auto_apply_enabled FROM participants WHERE id='owner'").get().auto_apply_enabled,1);
   await platformSessions(x.user,x.chat,51,"platforms:off");
+  assert.deepEqual(lastMessage(x).reply_markup.inline_keyboard.at(-2)[0],
+    {text:"▶️ Alle starten",callback_data:"platforms:on"});
+  assert.match(lastMessage(x).text,/0 von 3 Plattformen aktiv/);
   const q=x.sqlite.prepare("SELECT immoscout_enabled,immowelt_enabled,immomio_enabled,enabled FROM application_preferences WHERE participant_id='owner'").get();
   assert.deepEqual([q.immoscout_enabled,q.immowelt_enabled,q.immomio_enabled,q.enabled],[0,0,0,0]);
   assert.equal(x.sqlite.prepare("SELECT auto_apply_enabled FROM participants WHERE id='owner'").get().auto_apply_enabled,0);

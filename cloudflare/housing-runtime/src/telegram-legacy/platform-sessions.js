@@ -803,7 +803,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   const meta=AUTO_APPLY_PROVIDERS[sourceId];
   const running=(isTestAccount?state.test_auto_apply_enabled===true:state.auto_apply_enabled===true)&&preferences?.[meta.field]===true;
   if(running)activeCount++;
-  statusLines.push((running?'✅ ':'⏸ ')+meta.name+' · '+(running?'Aktiv':'Pausiert'));
+  statusLines.push((running?'🟢 ':'🔴 ')+meta.name+' · '+(running?'Aktiv':'Pausiert'));
   rows.push([button(running?'⏸ '+meta.name+' pausieren':'▶️ '+meta.name+' starten',
    'platforms:'+(running?'pause':'resume')+':'+sourceId)]);
  }
@@ -830,10 +830,8 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
    :'⚠️ Der Schalter wurde nicht geändert. Bitte öffne die Ansicht erneut und versuche es noch einmal.\n\n';
 
  // Global controls affect the owner's test selections or regular auto-apply, not housing search.
- rows.push([
-  button('▶️ Alle starten','platforms:on'),
-  button('⏸ Alle pausieren','platforms:off')
- ]);
+ rows.push([button(activeCount===3?'⏸ Alle pausieren':'▶️ Alle starten',
+  activeCount===3?'platforms:off':'platforms:on')]);
  const centralNote=isTestAccount
   ? '\n\n🧪 <b>Persönlicher Testmodus</b>: Start/Pause steuert deinen persönlichen Testversand. Er funktioniert unabhängig von der zentralen Freigabe für andere Nutzer.'
   : runtimeEnv().CENTRAL_AUTO_APPLY_ENABLED==='1'?''
