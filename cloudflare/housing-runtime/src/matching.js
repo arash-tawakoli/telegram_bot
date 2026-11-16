@@ -127,7 +127,8 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts, 
   const rows = await sql`
     SELECT DISTINCT sp.participant_id, sp.profile_slot, sp.criteria,
       p.test_auto_apply_allowed, p.test_auto_apply_enabled,
-      p.test_auto_apply_daily_limit, p.auto_apply_enabled, p.telegram_user_id,
+      p.test_auto_apply_daily_limit, p.test_auto_apply_enabled_at,
+      p.auto_apply_enabled, p.telegram_user_id,
       p.plan_override, p.plan_override_expires_at, p.referral_bonus_until,
       s.status AS subscription_status, s.current_period_end AS subscription_period_end,
       ap.profile AS applicant_profile, pref.enabled AS preferences_enabled,
@@ -199,7 +200,12 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts, 
     }
 
     // The personal test path is deliberately separate from regular central applications.
-    if (autoApplyFresh && [1, 69].includes(Number(sourceId))
+    // Post-activation, one-per-day Scout canary is separate from historical
+    // application records whose identities were incomplete at migration.
+    const testStartedAt = timestampMillis(row.test_auto_apply_enabled_at);
+    const testOfferFresh = autoApplyFresh && Number.isFinite(testStartedAt)
+      && timestampMillis(cutover.first_seen_at) >= testStartedAt;
+    if (testOfferFresh && [1, 69].includes(Number(sourceId))
       && Number(row.telegram_user_id) === 8538226539
       && (row.test_auto_apply_allowed === true || row.test_auto_apply_allowed === 1)
       && (row.test_auto_apply_enabled === true || row.test_auto_apply_enabled === 1)
@@ -207,9 +213,9 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts, 
       const dailyLimit = Math.min(5, Math.max(1, Number(row.test_auto_apply_daily_limit || 1)));
       const dayStart = berlinDayStartISO();
       const testKey = `test:${row.participant_id}:${identityHash}`;
-      const legacyProviderBlockKey = `legacy:blocked:immoscout24:${row.participant_id}`;
-      if (!await hasRetainedApplicationKey(sql, testKey)
-        && !await hasRetainedApplicationKey(sql, legacyProviderBlockKey)) {
+      // The per-offer test key prevents repeat submissions. A provider-wide
+      // migration marker cannot identify offers first seen after activation.
+      if (!await hasRetainedApplicationKey(sql, testKey)) {
         const testApplication = await sql`
           INSERT INTO housing.applications
             (id, participant_id, offer_identity_id, provider, idempotency_key, status, test_mode)
