@@ -20,20 +20,21 @@ const SCOUT_EMPLOYMENT = Object.freeze({
   JOBSEEKER: "Arbeitssuchend", RETIRED: "Im Ruhestand", OTHER: "Sonstiges",
 });
 
+// Preserve the historic ImmoScout24 dropdown labels; formatting an income
+// range as arbitrary text can cause ERROR_RESOURCE_VALIDATION.
+const SCOUT_INCOME_RANGES = Object.freeze({
+  UNDER_500: "Unter 500€", "500_1000": "500€ - 1.000€",
+  "1000_1500": "1.000€ - 1.500€", "1500_2000": "1.500€ - 2.000€",
+  "2000_3000": "2.000€ - 3.000€", "3000_4000": "3.000€ - 4.000€",
+  "4000_5000": "4.000€ - 5.000€", OVER_5000: "Über 5000€",
+  "5000_6000": "Über 5000€", "6000_7000": "Über 5000€",
+  OVER_7000: "Über 5000€",
+});
+
 function scoutIncome(profile) {
   const exact = Number(profile?.monthly_net_income);
-  if (Number.isFinite(exact) && exact > 0) return String(exact);
-  const range = value(profile, "income_range").toUpperCase();
-  const between = /^(\d{3,5})_(\d{3,5})$/.exec(range);
-  if (between && Number(between[1]) < Number(between[2])) {
-    return `${between[1]} € - ${between[2]} €`;
-  }
-  const under = /^UNDER_(\d{3,5})$/.exec(range);
-  if (under) return `Unter ${under[1]} €`;
-  const over = /^OVER_(\d{3,5})$/.exec(range);
-  if (over) return `Über ${over[1]} €`;
-  if (range === "HOUSING_BENEFIT") return "Wohngeld";
-  return undefined;
+  if (Number.isFinite(exact) && exact > 0) return Math.round(exact);
+  return SCOUT_INCOME_RANGES[value(profile, "income_range").toUpperCase()];
 }
 
 function scoutMoveIn(profile) {
@@ -155,6 +156,24 @@ export async function refreshImmoScoutSession(sql, env, connection) {
   return refresh(env, row, connection.participant_id, credentials);
 }
 
+// Store provider validation *field names and rule codes* only, never values.
+// ImmoScout24 includes the submitted value in its ERROR_RESOURCE_VALIDATION
+// text; retaining that text could leak emails, phone numbers or addresses.
+const SAFE_VALIDATION_FIELDS = new Set([
+  ...CONTACT_SCHEMA_ORDER, "street", "houseNumber", "postcode", "city",
+  "address.street", "address.houseNumber", "address.postcode", "address.city",
+]);
+function safeValidationDetail(messages) {
+  for (const message of messages) {
+    if (typeof message !== "string" || message.length > 4000) continue;
+    const match = /\[\s*MESSAGE\s*:\s*([A-Za-z][A-Za-z0-9_.]*)\s*:[\s\S]*:\s*([A-Z][A-Z0-9_]{2,63})\s*\]/.exec(message);
+    if (match && SAFE_VALIDATION_FIELDS.has(match[1])) {
+      return { provider_validation_field: match[1], provider_validation_rule: match[2] };
+    }
+  }
+  return {};
+}
+
 export async function sendImmoScoutApplication(application, env, sql, central = null) {
   const profile = application.profile || {};
   const id = String(application.external_id || "").match(/\d{6,20}/)?.[0] || String(application.canonical_url || "").match(/\/expose\/(\d{6,20})/)?.[1];
@@ -190,6 +209,7 @@ export async function sendImmoScoutApplication(application, env, sql, central = 
   // code. Never store free-form responses, credentials or applicant details.
   const body = await response.text().catch(() => "");
   let machineCode = null;
+  let validation = {};
   try {
     const parsed = JSON.parse(body);
     const messages = parsed?.["common.messages"];
@@ -198,11 +218,16 @@ export async function sendImmoScoutApplication(application, env, sql, central = 
       ...(Array.isArray(messages) ? messages.map(item => item?.message?.messageCode) : []),
     ];
     machineCode = codes.find(code => typeof code === "string" && /^[A-Z][A-Z0-9_]{1,79}$/.test(code)) || null;
+    validation = safeValidationDetail([
+      ...(Array.isArray(messages) ? messages.map(item => item?.message?.message) : []),
+      parsed?.message?.message, parsed?.message,
+    ]);
   } catch {
     machineCode = /<messageCode>([A-Z][A-Z0-9_]{1,79})<\/messageCode>/i.exec(body)?.[1] || null;
+    validation = safeValidationDetail([...body.matchAll(/<message>([^<]{1,2000})<\/message>/g)].map(match => match[1]));
   }
   const diagnostics = { provider_http_status: response.status,
-    ...(machineCode ? { provider_message_code: machineCode } : {}) };
+    ...(machineCode ? { provider_message_code: machineCode } : {}), ...validation };
   if (response.ok && !/^ERROR_/i.test(machineCode || "")) {
     return { status: "sent", confirmation: "official_rest_2xx", ...diagnostics };
   }
