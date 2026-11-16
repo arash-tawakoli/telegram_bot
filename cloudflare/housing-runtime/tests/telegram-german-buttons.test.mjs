@@ -599,14 +599,14 @@ test("incomplete applicant profile never enables any auto-apply source",async()=
  }finally{x.done();}
 });
 
-test("all three sources stay visible for free users, but starting one requires Premium",async()=>{
+test("all three sources stay available without Premium, but an incomplete applicant cannot start",async()=>{
  const x=setup();
  try{
   await handleCallback({id:"free-menu",data:"platforms",from:{id:777},message:{chat:x.chat,message_id:59}},
    {...x.user,is_premium:false});
   const controls=lastMessage(x).reply_markup.inline_keyboard.flat().map(b=>b.callback_data);
   for(const id of [1,4,3])assert.ok(controls.includes("platforms:resume:"+id));
-  assert.match(lastMessage(x).text,/Premium erforderlich/);
+  assert.doesNotMatch(lastMessage(x).text,/Premium erforderlich/);
   await platformSessions({...x.user,is_premium:false},x.chat,59,"platforms:resume:1");
   assert.match(lastMessage(x).text,/Bewerberprofil unvollständig/);
   assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][0].callback_data,"platforms:profile");
@@ -1090,6 +1090,29 @@ test("confirmed Premium reset grants seven days only to active Free users and se
   }finally{x.done()}
 });
 
+test("free users can activate Scout with a complete applicant and active search, without changing other accounts", async () => {
+ const x=setup();
+ try {
+   const complete = {
+     first_name:"Anna",last_name:"Beispiel",email:"anna@example.com",
+     phone:"+491700000000",street:"Testweg",house_number:"1",postcode:"20099",
+     city:"Hamburg",salutation:"MS",household_type:"SINGLE",
+     employment_status:"EMPLOYEE",income_range:"NOT_SPECIFIED",
+     pets:"NONE",move_in_preference:"NOT_SPECIFIED",schufa_status:"NOT_SPECIFIED"
+   };
+   x.sqlite.prepare("INSERT INTO applicant_profiles(participant_id,profile) VALUES('owner',?)")
+     .run(JSON.stringify(complete));
+   x.sqlite.prepare("INSERT INTO search_profiles(id,participant_id,criteria,active) VALUES('s-free','owner',?,1)")
+     .run(JSON.stringify({property_types:["Wohnung"],location_mode:"all_hamburg"}));
+   const user={...x.user,is_premium:false};
+   await platformSessions(user,x.chat,89,"platforms:resume:1");
+   assert.equal(x.sqlite.prepare("SELECT auto_apply_enabled FROM participants WHERE id='owner'").get().auto_apply_enabled,1);
+   assert.deepEqual(x.sqlite.prepare("SELECT enabled,immoscout_enabled FROM application_preferences WHERE participant_id='owner'").get(),{enabled:1,immoscout_enabled:1});
+   await platformSessions(user,x.chat,89,"platforms:pause:1");
+   assert.equal(x.sqlite.prepare("SELECT auto_apply_enabled FROM participants WHERE id='owner'").get().auto_apply_enabled,0);
+ } finally { x.done(); }
+});
+
 test("bulk AutoApply starts and pauses all source send preferences without changing search profiles",async()=>{
  const x=setup();
  try{
@@ -1100,6 +1123,8 @@ test("bulk AutoApply starts and pauses all source send preferences without chang
    wbs_status:"NOT_SPECIFIED",message_apartment:"Interesse",message_house:"Interesse",
    message_temporary_wg:"Interesse",message_swap:"Interesse"
   }));
+  x.sqlite.prepare("INSERT INTO search_profiles(id,participant_id,criteria,active) VALUES('s-one','owner',?,1)")
+   .run(JSON.stringify({property_types:["Wohnung"],location_mode:"all_hamburg",max_warm_rent:1200}));
   await platformSessions(x.user,x.chat,51,"platforms:on");
   const p=x.sqlite.prepare("SELECT immoscout_enabled,immowelt_enabled,immomio_enabled,enabled FROM application_preferences WHERE participant_id='owner'").get();
   assert.deepEqual([p.immoscout_enabled,p.immowelt_enabled,p.immomio_enabled,p.enabled],[1,1,1,1]);
@@ -1108,7 +1133,7 @@ test("bulk AutoApply starts and pauses all source send preferences without chang
   const q=x.sqlite.prepare("SELECT immoscout_enabled,immowelt_enabled,immomio_enabled,enabled FROM application_preferences WHERE participant_id='owner'").get();
   assert.deepEqual([q.immoscout_enabled,q.immowelt_enabled,q.immomio_enabled,q.enabled],[0,0,0,0]);
   assert.equal(x.sqlite.prepare("SELECT auto_apply_enabled FROM participants WHERE id='owner'").get().auto_apply_enabled,0);
-  assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM search_profiles").get().n,0);
+  assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM search_profiles").get().n,1);
  }finally{x.done()}
 });
 
