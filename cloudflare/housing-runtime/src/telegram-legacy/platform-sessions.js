@@ -495,7 +495,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   if(arg==='yes'&&!user.is_premium&&!user.test_auto_apply_allowed)return render('Auto-Bewerbungen benötigen aktives Premium.',back);
   const {data:activation,error}=await db.rpc('set_telegram_auto_apply_sources',{
     p_user:user.id,p_telegram_user_id:user.telegram_user_id,p_update_id:user.request_update_id,
-    p_enabled:arg==='yes'
+    p_enabled:arg==='yes',p_from_completion:true
   });
   if(error){
    const reason=String(error.message||'');
@@ -781,7 +781,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  if(action==='off'||action==='on'){
   if(action==='on'&&!user.is_premium&&!user.test_auto_apply_allowed)return render('Auto-Bewerbungen benötigen aktives Premium.',back);
   const {error}=await db.rpc('set_telegram_auto_apply_sources',{
-    p_user:user.id,p_telegram_user_id:user.telegram_user_id,p_enabled:action==='on'
+    p_user:user.id,p_telegram_user_id:user.telegram_user_id,p_enabled:action==='on',p_update_id:user.request_update_id
   });
   if(error){
    const reason=String(error.message||'');
