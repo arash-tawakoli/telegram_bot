@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createD1Supabase } from "../cloudflare/housing-runtime/src/telegram-legacy/d1-supabase.js";
 
-function fakeD1({ rows = [], savedId = "existing-profile-slot-2" } = {}) {
+function fakeD1({ rows = [], savedId = "existing-profile-slot-2", premium = false } = {}) {
   const calls = [];
   const db = {
     prepare(query) {
@@ -16,6 +16,7 @@ function fakeD1({ rows = [], savedId = "existing-profile-slot-2" } = {}) {
             all: async () => {
               calls.push({ query, params });
               if (query.includes("SELECT id FROM search_profiles")) return { results: [{ id: savedId }], meta: { changes: 0 } };
+              if (query.startsWith("SELECT p.plan_override")) return { results: premium ? [{ plan_override: "premium" }] : [], meta: { changes: 0 } };
               if (query.startsWith("SELECT")) return { results: rows, meta: { changes: 0 } };
               return { results: [], meta: { changes: 1 } };
             },
@@ -58,7 +59,7 @@ test("D1 search-profile reads filter and order by the physical profile_slot colu
 });
 
 test("D1 search-profile saves upsert by participant and slot and replace source links atomically", async () => {
-  const { db, calls } = fakeD1();
+  const { db, calls } = fakeD1({ premium: true });
   const adapter = createD1Supabase(db, {});
   for (const slot of [1, 2, 3]) {
     const result = await adapter.rpc("save_search_profile_ui", {
