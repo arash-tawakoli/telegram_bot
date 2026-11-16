@@ -214,6 +214,8 @@ export async function processHousingApplication(sql, env, request) {
       test_mode: true, confirmation: result.confirmation || null, submission_started: submissionStarted,
       provider_http_status: result.provider_http_status || null,
       provider_message_code: result.provider_message_code || null,
+      provider_validation_field: result.provider_validation_field || null,
+      provider_validation_rule: result.provider_validation_rule || null,
     });
     return { status: 200, body: {
       ok: true, status: result.status, provider, test_mode: true,
@@ -331,6 +333,8 @@ export async function processHousingApplication(sql, env, request) {
       confirmation: result.confirmation || null,
       provider_http_status: result.provider_http_status || null,
       provider_message_code: result.provider_message_code || null,
+      provider_validation_field: result.provider_validation_field || null,
+      provider_validation_rule: result.provider_validation_rule || null,
     });
     return { status: 200, body: { ok: true, status: result.status, provider, reason: result.error || result.confirmation || null, application_id: application.id } };
   }
