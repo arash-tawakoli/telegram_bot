@@ -248,8 +248,9 @@ export async function processHousingApplication(sql, env, request) {
   if (!providerSource || applicationProvider(providerSource, facts) !== provider) return fail("failed", "not_eligible");
   if (application.participant_status !== "active" || !application.auto_apply_enabled
     || !premiumParticipant(application, now.getTime())) return fail("failed", "not_eligible");
-  if (!application.expires_at || timestampMillis(application.expires_at) <= now.getTime()
-    || !application.first_seen_at || timestampMillis(application.first_seen_at) < timestampMillis(application.cutover_enabled_at)) {
+  // A still-active listing is eligible even when the first crawl predates
+  // a sender's activation; search/profile checks and dedupe remain authoritative.
+  if (!application.expires_at || timestampMillis(application.expires_at) <= now.getTime()) {
     return fail("failed", "listing_expired");
   }
   const missing = missingApplicantFields(application.profile);
