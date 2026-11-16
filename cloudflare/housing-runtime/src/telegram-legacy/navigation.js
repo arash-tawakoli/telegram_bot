@@ -60,8 +60,7 @@ export async function premium(user, chatId, messageId) {
   let text;
   if (user.is_premium) {
     text = "💎 <b>Traumwohnung Premium</b>\n\n✅ <b>Premium ist aktiv.</b>\n\n"
-      + "<b>Deine Vorteile:</b>\n⚡ Sofortige Zustellung\n🔎 Bis zu 4 Suchprofile\n"
-      + "🤖 Auto-Bewerbung\n🔓 Baugenossenschafts-Angebote öffnen";
+      + "<b>Deine Vorteile:</b>\n🔎 Bis zu 4 Suchprofile\n🤖 Auto-Bewerbung";
     if (user.subscription?.cancel_at_period_end) text += "\n\nDein Abonnement ist zur Kündigung vorgemerkt.";
     // A manually granted Premium account has no Stripe subscription to manage.
     if (user.subscription?.stripe_customer_id) {
@@ -74,8 +73,7 @@ export async function premium(user, chatId, messageId) {
     }
   } else {
     text = "💎 <b>Traumwohnung Premium</b>\n\n<b>Deine Vorteile:</b>\n"
-      + "⚡ Sofortige Zustellung\n🔎 Bis zu 4 Suchprofile\n🤖 Auto-Bewerbung\n"
-      + "🔓 Baugenossenschafts-Angebote öffnen\n\n"
+      + "🔎 Bis zu 4 Suchprofile\n🤖 Auto-Bewerbung\n\n"
       + "<s>1,99 €</s> <b>0,99 € / Monat</b>\nKeine Mindestlaufzeit · jederzeit kündbar";
     text += "\n\nDer Premium-Tarif ist aktuell nicht direkt buchbar.";
   }
