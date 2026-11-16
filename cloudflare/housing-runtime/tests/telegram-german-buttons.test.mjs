@@ -1111,3 +1111,46 @@ test("bulk AutoApply starts and pauses all source send preferences without chang
   assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM search_profiles").get().n,0);
  }finally{x.done()}
 });
+
+test("owner Start/Pause shows persisted personal test sender state without enabling normal sends", async () => {
+  const x=setup();
+  try {
+    const ownerTelegramId=8538226539;
+    x.sqlite.prepare("UPDATE participants SET telegram_user_id=?,telegram_chat_id=? WHERE id='owner'")
+      .run(ownerTelegramId,ownerTelegramId);
+    x.sqlite.prepare("INSERT INTO applicant_profiles(participant_id,profile) VALUES(?,?)").run("owner",JSON.stringify({
+      first_name:"Test",last_name:"Person",salutation:"MR",email:"test@example.com",
+      phone:"+491700000000",street:"Testweg",house_number:"7",postcode:"20099",
+      city:"Hamburg",household_type:"SINGLE",employment_status:"EMPLOYEE",
+      income_range:"1000_1500",pets:"NO",wbs_status:"NOT_SPECIFIED",
+      move_in_preference:"FLEXIBLE",schufa_status:"NOT_SPECIFIED",
+      message_apartment:"Interesse",message_house:"Interesse",
+    }));
+    const owner={...x.user,telegram_user_id:ownerTelegramId,chat_id:ownerTelegramId};
+    const chat={id:ownerTelegramId,type:"private"};
+    const status=()=>({
+      ...x.sqlite.prepare("SELECT test_auto_apply_enabled,auto_apply_enabled FROM participants WHERE id='owner'").get(),
+      ...x.sqlite.prepare("SELECT enabled,immoscout_enabled,immowelt_enabled,immomio_enabled FROM application_preferences WHERE participant_id='owner'").get(),
+    });
+    await platformSessions(owner,chat,22,"platforms:resume:1");
+    assert.match(lastMessage(x).text,/ImmoScout24<\/b>: gestartet \(persönlicher Testversand\)/);
+    assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][1].callback_data,"platforms:pause:1");
+    assert.equal(status().test_auto_apply_enabled,1);
+    assert.equal(status().immoscout_enabled,1);
+    assert.equal(status().auto_apply_enabled,0);
+    assert.equal(status().enabled,0);
+    await platformSessions(owner,chat,22,"platforms:pause:1");
+    assert.match(lastMessage(x).text,/ImmoScout24<\/b>: pausiert/);
+    assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][1].callback_data,"platforms:resume:1");
+    assert.equal(status().test_auto_apply_enabled,0);
+    assert.equal(status().immoscout_enabled,0);
+    await platformSessions(owner,chat,22,"platforms:on");
+    assert.match(lastMessage(x).text,/Alle Quellen<\/b>: gestartet \(persönlicher Testversand\)/);
+    assert.deepEqual([status().immoscout_enabled,status().immowelt_enabled,status().immomio_enabled],[1,1,1]);
+    assert.equal(status().auto_apply_enabled,0);
+    assert.equal(status().enabled,0);
+    await platformSessions(owner,chat,22,"platforms:off");
+    assert.match(lastMessage(x).text,/Alle Quellen<\/b>: pausiert/);
+    assert.deepEqual([status().test_auto_apply_enabled,status().immoscout_enabled,status().immowelt_enabled,status().immomio_enabled],[0,0,0,0]);
+  } finally { x.done(); }
+});
