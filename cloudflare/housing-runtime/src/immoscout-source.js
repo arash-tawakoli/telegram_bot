@@ -256,7 +256,9 @@ export function hamburgCoverageQueries() {
 export function chooseImmoScoutQuery(queries, now = Date.now()) {
   if (!Array.isArray(queries) || !queries.length) throw new Error("immoscout_query_plan_empty");
   if (queries.length === 1) return queries[0];
-  const slot = Math.floor(now / (10 * 60_000));
+  // Each region now runs every 5 minutes: alternate broad discovery with
+  // a targeted area/price partition so full-city checks run every 10 minutes.
+  const slot = Math.floor(now / (5 * 60_000));
   return slot % 2 === 0 ? queries[0] : queries[1 + (Math.floor(slot / 2) % (queries.length - 1))];
 }
 
