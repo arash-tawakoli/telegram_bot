@@ -246,7 +246,7 @@ const HAMBURG_RENT_BANDS = Object.freeze([
 export function hamburgCoverageQueries() {
   return HAMBURG_BOROUGHS.flatMap(borough =>
     HAMBURG_RENT_BANDS.map(band =>
-      `Wohnungen zur Miete in Hamburg-${borough === "Hamburg-Mitte" ? "Mitte" : borough}, Deutschland, ${band}`
+      `Wohnungen zur Miete in ${borough.startsWith("Hamburg-") ? borough : "Hamburg-" + borough}, Deutschland, ${band}`
     )
   );
 }
