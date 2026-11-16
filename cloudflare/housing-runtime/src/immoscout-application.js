@@ -13,8 +13,8 @@ function value(profile, ...keys) {
 // Translate the user's persisted profile into the fields defined by Scout's
 // contactFormConfiguration. Keep unknown values missing rather than inventing them.
 const SCOUT_EMPLOYMENT = Object.freeze({
-  EMPLOYEE: "Angestellt", WORKER: "Arbeitnehmer/in",
-  SELF_EMPLOYED: "Selbstständig", CIVIL_SERVANT: "Verbeamtet",
+  EMPLOYEE: "Angestellte(r)", WORKER: "Arbeiter(in)",
+  SELF_EMPLOYED: "Selbstständige(r)", CIVIL_SERVANT: "Beamte(r)",
   APPRENTICE: "Auszubildend", STUDENT: "Studierend",
   DOCTORAL: "Promovierend", HOMEMAKER: "Hausarbeit",
   JOBSEEKER: "Arbeitssuchend", RETIRED: "Im Ruhestand", OTHER: "Sonstiges",
@@ -40,7 +40,7 @@ function scoutMoveIn(profile) {
   const date = value(profile, "move_in_date");
   if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return date;
   const preference = value(profile, "move_in_preference");
-  return preference === "IMMEDIATE" ? "Ab sofort"
+  return preference === "IMMEDIATE" ? "Sofort"
     : preference === "FLEXIBLE" ? "Flexibel" : undefined;
 }
 
@@ -96,19 +96,39 @@ function fieldValue(key, profile, message, packageUrl) {
   return undefined;
 }
 
-function prepare(config, profile, message, packageUrl, contactFormType = "") {
-  const form = { "@xmlns": { common: "http://rest.immobilienscout24.de/schema/common/1.0" } };
-  if (["LONG", "EMAIL", "PHONE"].includes(contactFormType)) form["@contactFormType"] = contactFormType;
+// Official contact POST schema is ordered. The expose's contactFormType is
+// descriptive metadata, not a valid attribute of the contact POST body.
+// Only emit properties defined by this contract; optional provider extensions
+// such as applicationPackageLink are placed in the message instead.
+const CONTACT_SCHEMA_ORDER = Object.freeze([
+  "firstname", "lastname", "phoneNumber", "emailAddress", "appointmentRequested",
+  "message", "address", "contactMailCustomStyle", "moveInDate", "petsInHousehold",
+  "numberOfPersons", "employmentRelationship", "income", "salutation",
+  "schufaInformationProvided", "schufaVerificationCode", "sendProfile",
+  "profileImageUrl", "privacyPolicyAccepted", "company", "buyReason",
+  "ownCapital", "hasPreapproval", "lotAvailable", "numberOfRequiredWorkingPlaces",
+  "plannedInvestment", "commercialUsage", "applicationPackageCompleted",
+]);
+const CONTACT_SCHEMA_FIELDS = new Set(CONTACT_SCHEMA_ORDER);
+
+function prepare(config, profile, message, packageUrl) {
+  const values = new Map();
   const missing = [];
   for (const [key, raw] of Object.entries(config || {})) {
     if (!String(key).endsWith("Field")) continue;
     const required = String(raw?.required || raw?.state || raw).toUpperCase() === "MANDATORY";
     const name = String(key).replace(/Field$/, "");
+    if (!CONTACT_SCHEMA_FIELDS.has(name)) {
+      if (required) missing.push(name);
+      continue;
+    }
     const candidate = fieldValue(name, profile, message, packageUrl);
     if (required && (candidate == null || candidate === "")) missing.push(name);
-    if (candidate != null && candidate !== "") form[name] = candidate;
+    if (candidate != null && candidate !== "") values.set(name, candidate);
   }
-  if (!form.message && String(message || "").trim()) form.message = String(message).trim();
+  if (!values.has("message") && String(message || "").trim()) values.set("message", String(message).trim());
+  const form = { "@xmlns": { common: "http://rest.immobilienscout24.de/schema/common/1.0" } };
+  for (const key of CONTACT_SCHEMA_ORDER) if (values.has(key)) form[key] = values.get(key);
   return { form, missing };
 }
 
@@ -153,7 +173,7 @@ export async function sendImmoScoutApplication(application, env, sql, central = 
   const packageUrl = String(application.document_package_url || "");
   const suffix = packageUrl ? `\n\nBewerbungsunterlagen (geschützter Link): ${packageUrl}` : "";
   const message = suffix && baseMessage.length + suffix.length <= 4000 ? baseMessage + suffix : baseMessage;
-  const prepared = prepare(expose?.contactFormConfiguration || {}, profile, message, packageUrl, contactFormType);
+  const prepared = prepare(expose?.contactFormConfiguration || {}, profile, message, packageUrl);
   if (prepared.missing.length) return { status: "manual_required", error: `required_profile_data_missing:${prepared.missing.join(",")}` };
   if (testMode) {
     if (typeof application.authorizeTestSend !== "function") return { status: "manual_required", error: "test_send_authorization_missing" };
