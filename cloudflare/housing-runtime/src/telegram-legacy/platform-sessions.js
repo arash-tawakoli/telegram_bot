@@ -492,7 +492,6 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
 
  if(action==='completion'){
   if(!['yes','no'].includes(arg))return platformSessions(user,chat,messageId,'platforms');
-  if(arg==='yes'&&!user.is_premium&&!user.test_auto_apply_allowed)return render('Auto-Bewerbungen benötigen aktives Premium.',back);
   const {data:activation,error}=await db.rpc('set_telegram_auto_apply_sources',{
     p_user:user.id,p_telegram_user_id:user.telegram_user_id,p_update_id:user.request_update_id,
     p_enabled:arg==='yes',p_from_completion:true
@@ -547,7 +546,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
     ).first();
   } catch { /* A missing status is shown as unknown, never as connected. */ }
   const testEnabled=state.test_auto_apply_enabled===true&&state.auto_apply_enabled!==true;
-  const credentialReady=central?.status==='connected'&&central?.enabled===0;
+  const credentialReady=central?.status==='connected';
   const verifiedAt=central?.last_verified_at?Date.parse(central.last_verified_at):NaN;
   const lastCheck=Number.isFinite(verifiedAt)
     ? new Date(verifiedAt).toLocaleString('de-DE')
@@ -557,7 +556,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
     +'Gespeicherter Zugang: <b>'+(credentialReady?'Verbunden':'Nicht bestätigt')+'</b>\n'
     +'Letzte Prüfung: '+esc(lastCheck)+'\n'
     +'Tageslimit: <b>Keines</b>\n\n'
-    +'Der Testzugang nutzt das zentrale NexaLabs-Konto. Die reguläre zentrale Freigabe bleibt dabei deaktiviert. '
+    +'Der Testzugang nutzt das zentrale NexaLabs-Konto unabhängig von der regulären Freigabe. '
     +'Ob ein Bewerbungsversand erfolgreich war, ist erst nach einer bestätigten Testbewerbung nachgewiesen.',
     [[button('← Auto-Bewerbung','platforms')]]);
  }
@@ -753,7 +752,6 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
      ...back
     ]);
    }
-   if(!user.is_premium&&!user.test_auto_apply_allowed)return render('Auto-Bewerbungen benötigen aktives Premium.',back);
   }
   const {error}=await db.rpc('set_telegram_auto_apply_sources',{
    p_user:user.id,
@@ -779,7 +777,6 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  }
 
  if(action==='off'||action==='on'){
-  if(action==='on'&&!user.is_premium&&!user.test_auto_apply_allowed)return render('Auto-Bewerbungen benötigen aktives Premium.',back);
   const {error}=await db.rpc('set_telegram_auto_apply_sources',{
     p_user:user.id,p_telegram_user_id:user.telegram_user_id,p_enabled:action==='on',p_update_id:user.request_update_id
   });
