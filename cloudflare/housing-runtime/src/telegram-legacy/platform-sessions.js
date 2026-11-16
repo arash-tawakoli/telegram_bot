@@ -492,8 +492,8 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
 
  if(action==='completion'){
   if(!['yes','no'].includes(arg))return platformSessions(user,chat,messageId,'platforms');
-  if(arg==='yes'&&!user.is_premium)return render('Auto-Bewerbungen benötigen aktives Premium.',back);
-  const {error}=await db.rpc('set_telegram_auto_apply_sources',{
+  if(arg==='yes'&&!user.is_premium&&!user.test_auto_apply_allowed)return render('Auto-Bewerbungen benötigen aktives Premium.',back);
+  const {data:activation,error}=await db.rpc('set_telegram_auto_apply_sources',{
     p_user:user.id,p_telegram_user_id:user.telegram_user_id,p_update_id:user.request_update_id,
     p_enabled:arg==='yes'
   });
@@ -507,7 +507,9 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   }
   const result=await platformSessions(user,chat,messageId,'platforms');
   if(arg==='yes'){
-   await sendCelebration(chat.id,'🎉 <b>Automatische Bewerbung aktiviert!</b>\n\nImmoScout24, Immowelt und Immomio sind gestartet.')
+   await sendCelebration(chat.id,activation?.test_mode
+     ? '🧪 <b>Testmodus aktiviert!</b>\n\nDie ausgewählten Quellen sind zum Testen gestartet. Auch Testbewerbungen können tatsächlich versendet werden.'
+     : '🎉 <b>Automatische Bewerbung aktiviert!</b>\n\nImmoScout24, Immowelt und Immomio sind gestartet.')
     .catch(error=>console.error('auto_apply_activation_celebration',String(error?.message||error)));
   }
   return result;
@@ -750,7 +752,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
      ...back
     ]);
    }
-   if(!user.is_premium)return render('Auto-Bewerbungen benötigen aktives Premium.',back);
+   if(!user.is_premium&&!user.test_auto_apply_allowed)return render('Auto-Bewerbungen benötigen aktives Premium.',back);
   }
   const {error}=await db.rpc('set_telegram_auto_apply_sources',{
    p_user:user.id,
@@ -776,7 +778,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  }
 
  if(action==='off'||action==='on'){
-  if(action==='on'&&!user.is_premium)return render('Auto-Bewerbungen benötigen aktives Premium.',back);
+  if(action==='on'&&!user.is_premium&&!user.test_auto_apply_allowed)return render('Auto-Bewerbungen benötigen aktives Premium.',back);
   const {error}=await db.rpc('set_telegram_auto_apply_sources',{
     p_user:user.id,p_telegram_user_id:user.telegram_user_id,p_enabled:action==='on'
   });
@@ -795,11 +797,11 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   db.from('application_preferences').select('immoscout_enabled,immowelt_enabled,immomio_enabled').eq('user_id',user.id).maybeSingle()
  ]);
  if(stateError||preferencesError)throw Error('Auto-Bewerbung konnte nicht geladen werden.');
- const testModeEnabled=state.test_auto_apply_allowed===true&&state.test_auto_apply_enabled===true&&state.auto_apply_enabled!==true;
+ const isTestAccount=state.test_auto_apply_allowed===true;
  const rows=[];
  for(const sourceId of [1,4,3]){
   const meta=AUTO_APPLY_PROVIDERS[sourceId];
-  const running=state.auto_apply_enabled===true&&preferences?.[meta.field]===true&&!testModeEnabled;
+  const running=(isTestAccount?state.test_auto_apply_enabled===true:state.auto_apply_enabled===true)&&preferences?.[meta.field]===true;
   rows.push([
    button(meta.name,'platforms:provider:'+sourceId),
    button(running?'⏸ Pause':'▶️ Start','platforms:'+(running?'pause':'resume')+':'+sourceId)
@@ -811,9 +813,13 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   button('▶️ Alle starten','platforms:on'),
   button('⏸ Alle pausieren','platforms:off')
  ]);
- const centralNote=runtimeEnv().CENTRAL_AUTO_APPLY_ENABLED==='1'?''
-  :'\n\nℹ️ Der automatische Versand ist derzeit zentral noch nicht freigegeben.';
+ const centralNote=isTestAccount
+  ? '\n\n🧪 <b>Persönlicher Testmodus</b>: Die Schalter steuern den Testversand je Quelle. Auch im Testmodus können echte Bewerbungen versendet werden.'
+  : runtimeEnv().CENTRAL_AUTO_APPLY_ENABLED==='1'?''
+   :'\n\nℹ️ Der automatische Versand ist derzeit zentral noch nicht freigegeben.';
  rows.push([button('← Start','home')]);
- return render('⚡ <b>Automatische Bewerbung</b>\n\nStarte oder pausiere den automatischen Bewerbungsversand je Quelle oder für alle Quellen. Die Wohnungssuche bleibt davon unberührt. Plattformzugänge werden zentral verwaltet.'+(user.is_premium?'':'\n\nZum Starten der Quellen ist Premium erforderlich.')+centralNote,rows);
+ return render('⚡ <b>Automatische Bewerbung</b>\n\n'+(isTestAccount
+  ? 'Aktiviere oder pausiere den persönlichen Testmodus für einzelne Quellen oder alle Quellen.'
+  : 'Starte oder pausiere den automatischen Bewerbungsversand je Quelle oder für alle Quellen.')+' Die Wohnungssuche bleibt davon unberührt. Plattformzugänge werden zentral verwaltet.'+(!isTestAccount&&!user.is_premium?'\n\nZum Starten der Quellen ist Premium erforderlich.':'')+centralNote,rows);
 
 }
