@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { processHousingApplication } from "../src/application-runtime.js";
 
 function sqlFor(row) {
@@ -78,4 +79,11 @@ test("normal applications stay blocked while personal test mode is enabled", asy
   assert.equal(result.body.status, "manual_required");
   assert.equal(result.body.reason, "test_mode_active");
   assert.equal(db.writes.some(({text}) => /SET submission_started_at = now\(\)/.test(text)), false);
+});
+
+test("no fixed daily quota remains in test or regular AutoApply", () => {
+  const source = readFileSync(new URL("../src/application-runtime.js", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /test_auto_apply_daily_limit|wait_reason = 'daily_limit'|const dailyLimit/);
+  assert.match(source, /status = 'processing' AND submission_started_at IS NULL/);
+  assert.match(source, /submission_not_reserved/);
 });
