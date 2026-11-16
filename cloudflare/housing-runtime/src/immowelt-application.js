@@ -76,6 +76,13 @@ export async function sendImmoweltApplication(application, env, sql, central = n
   </request></SendContactMail>
  </soap:Body>
 </soap:Envelope>`;
+  // Reserve the test send only after provider identity, cookies, transport
+  // verification and payload validation have passed.
+  if (application.test_mode === true || application.test_mode === 1) {
+    if (typeof application.authorizeTestSend !== "function" || !await application.authorizeTestSend()) {
+      return { status: "manual_required", error: "test_send_not_authorized" };
+    }
+  }
   let response;
   let text = "";
   try {

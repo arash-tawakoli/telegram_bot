@@ -185,9 +185,10 @@ export async function processHousingApplication(sql, env, request) {
     try {
       if (provider === "immoscout24") {
         result = await sendImmoScoutApplication({ ...application, authorizeTestSend }, env, sql);
-      } else if (!await authorizeTestSend()) {
-        result = { status: "manual_required", error: "test_send_not_authorized" };
       } else {
+        // Verify central credentials and the provider's offer before reserving
+        // the one-shot test send. Each sender reserves immediately before its
+        // irreversible network submission, not before login/preflight.
         const central = await getCentralProviderCredentials(sql, env, provider, { testMode: true });
         const sender = provider === "immowelt" ? sendImmoweltApplication : sendImmomioApplication;
         result = await sender({ ...application, authorizeTestSend }, env, sql, central);

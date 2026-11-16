@@ -18,7 +18,7 @@ import { handleLegacyTelegramUpdate } from "./telegram-legacy/index.js";
 import { runEngagementNotifications } from "./engagement-cron.js";
 import { recordTelegramActivity, recoverTelegramUpdates } from "./telegram-recovery.js";
 import { scheduledTasksForMinute, sourcesForMinute } from "./source-schedule.js";
-import { runCentralProviderSessionRefresh, runPlatformSessionReminders } from "./platform-session-cron.js";
+import { runCentralProviderSessionRefresh, runCentralScoutSessionRefresh, runPlatformSessionReminders } from "./platform-session-cron.js";
 
 const HEADERS = {
   "content-type": "application/json; charset=utf-8",
@@ -336,6 +336,14 @@ async function runScheduledHousingWork(env, minute = Math.floor(Date.now() / 60_
   } catch (error) {
     console.error("housing_central_provider_refresh_failed", String(error?.message || error));
   }
+  if (minute % 10 === 0) {
+    try {
+      const scout = await runCentralScoutSessionRefresh(env, new Date(minute * 60_000));
+      if (scout.checked) console.log("housing_central_scout_refresh", JSON.stringify(scout));
+    } catch (error) {
+      console.error("housing_central_scout_refresh_failed", String(error?.message || error));
+    }
+  }
   if (tasks.engagement) {
     try {
       const result = await withDatabase(env, (sql) => runEngagementNotifications(sql, env));
@@ -387,7 +395,7 @@ async function runScheduledHousingWork(env, minute = Math.floor(Date.now() / 60_
   };
   if (scheduledSources[0] !== undefined) await runScheduledSource(scheduledSources[0]);
 
-  for (let index = 0; index < 5; index++) {
+  for (let index = 0; index < 15; index++) {
     const deliveryRequest = new Request("https://housing-runtime.internal/internal/delivery/process", {
       method: "POST",
       headers: { authorization: `Bearer ${env.DELIVERY_RUN_TOKEN || ""}` },
@@ -416,6 +424,20 @@ async function runScheduledHousingWork(env, minute = Math.floor(Date.now() / 60_
     });
   } catch (error) {
     console.error("housing_application_scheduled_failed", String(error?.message || error));
+  }
+  // Expired normal deliveries were not eligible for the 15-minute send
+  // window. Close them instead of leaving an unprocessable pending backlog.
+  if (minute % 10 === 0) {
+    try {
+      await withDatabase(env, async sql => {
+        await sql`UPDATE housing.deliveries
+          SET status='skipped',error_message='delivery_window_expired'
+          WHERE status='pending' AND error_message IS NULL
+            AND created_at < now() - interval '15 minutes'`;
+      });
+    } catch (error) {
+      console.error("housing_delivery_expiry_cleanup_failed", String(error?.message || error));
+    }
   }
 }
 

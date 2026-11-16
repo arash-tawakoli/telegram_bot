@@ -79,3 +79,25 @@ test("existing Immowelt OG picture resolver remains available for isolated pages
   assert.equal(await resolveListingImage({}, source, 1, request), null);
   assert.deepEqual(calls, []);
 });
+
+
+test("public Scout image metadata can rescue a listing without a search-card photo", async () => {
+  const requested = [];
+  const image = "https://pictures.immobilienscout24.de/a/expose.jpg";
+  const request = async url => {
+    requested.push(String(url));
+    return new Response('<meta property="og:image" content="' + image + '">', { status: 200 });
+  };
+  const url = "https://www.immobilienscout24.de/expose/123456789";
+  assert.equal(await resolveListingImage({}, url, 1, request), image);
+  assert.equal(await resolveListingImage({}, url, 69, request), image);
+  assert.deepEqual(requested, [url, url]);
+  assert.equal(await resolveListingImage({}, "https://evil.example/expose/1", 1, request), null);
+  assert.equal(await resolveListingImage({}, "https://www.immobilienscout24.de/angebote/123", 1, request), null);
+  assert.equal(requested.length, 2);
+});
+
+test("Scout metadata may not inject unapproved photo hosts", async () => {
+  const request = async () => new Response('<meta property="og:image" content="https://example.org/photo.jpg">', {status:200});
+  assert.equal(await resolveListingImage({}, "https://www.immobilienscout24.de/expose/123456789", 1, request), null);
+});
