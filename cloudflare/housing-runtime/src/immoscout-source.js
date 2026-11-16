@@ -485,12 +485,13 @@ export async function ingestImmoScoutSource(sql, source, config = {}) {
     for (const node of chunk) {
       const offerId = byExternalId.get(node.identity);
       if (!offerId) continue;
-      // Partition scans backfill listings and deliveries, not old applications.
+      // Broad and partition scans follow the same search-profile, applicant-
+      // profile and AutoApply rules. Idempotency prevents duplicate sends.
       await queueMatches(sql, offerId, node.source_id,
         node.source_id + ":external:" + node.identity,
         { ...node.facts, canonical_url: node.canonical_url },
-        source.central_auto_apply_enabled === true && !isCoveragePartition,
-        !isCoveragePartition, profileCache);
+        source.central_auto_apply_enabled === true,
+        true, profileCache);
     }
   }
   return {
