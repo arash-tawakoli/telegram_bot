@@ -833,7 +833,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   button('⏸ Alle pausieren','platforms:off')
  ]);
  const centralNote=isTestAccount
-  ? '\n\n🧪 <b>Persönlicher Testmodus</b>: Start/Pause steuert den Testversand je Quelle. Der zentrale Live-Versand bleibt getrennt und deaktiviert. Ein aktivierter Testmodus kann echte Bewerbungen senden; deren Erfolg muss ImmoScout24 bestätigen.'
+  ? '\n\n🧪 <b>Persönlicher Testmodus</b>: Start/Pause steuert deinen persönlichen Testversand. Er funktioniert unabhängig von der zentralen Freigabe für andere Nutzer.'
   : runtimeEnv().CENTRAL_AUTO_APPLY_ENABLED==='1'?''
    :'\n\nℹ️ Der automatische Versand ist derzeit zentral noch nicht freigegeben.';
  rows.push([button('← Start','home')]);
