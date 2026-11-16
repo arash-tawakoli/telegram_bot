@@ -224,6 +224,7 @@ export async function processHousingApplication(sql, env, request) {
   }
 
   if (application.test_auto_apply_enabled) return fail("manual_required", "test_mode_active");
+  if (!premiumParticipant(application)) return fail("manual_required", "premium_required");
   if (application.preferences_enabled !== true || application.provider_enabled !== true) return fail("manual_required", "auto_apply_disabled");
 
   // Infrastructure can be deployed before operator logins and test submissions.
