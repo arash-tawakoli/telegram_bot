@@ -839,6 +839,6 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  rows.push([button('← Start','home')]);
  return render('⚡ <b>Automatische Bewerbung</b>\n\n'+controlNotice+(isTestAccount
   ? 'Aktiviere oder pausiere den persönlichen Testmodus für einzelne Quellen oder alle Quellen.'
-  : 'Starte oder pausiere den automatischen Bewerbungsversand je Quelle oder für alle Quellen.')+' Die Wohnungssuche bleibt davon unberührt. Plattformzugänge werden zentral verwaltet.'+(!isTestAccount&&!user.is_premium?'\n\nZum Starten der Quellen ist Premium erforderlich.':'')+centralNote,rows);
+  : 'Starte oder pausiere den automatischen Bewerbungsversand je Quelle oder für alle Quellen.')+' Die Wohnungssuche bleibt davon unberührt. Plattformzugänge werden zentral verwaltet.'+centralNote,rows);
 
 }
