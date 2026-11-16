@@ -1,6 +1,7 @@
 import { issueProviderAuthFlow } from "./provider-facade.js";
 import { premiumParticipant, timestampMillis } from "./application-policy.js";
 import { refreshImmoScoutSession } from "./immoscout-application.js";
+import { getCentralApplicationCredentials } from "./immoscout-central-token.js";
 import { refreshImmomioSession } from "./immomio-application.js";
 import { refreshImmoweltSession } from "./immowelt-application.js";
 
@@ -49,7 +50,29 @@ async function scanExpiringSessions(sql, env, now, centralOnly = false) {
 }
 
 export async function runCentralProviderSessionRefresh(sql, env, now = new Date()) {
-  return scanExpiringSessions(sql, env, now, true);
+  const result = await scanExpiringSessions(sql, env, now, true);
+  const database = env.HOUSING_DB || env.DB;
+  // Refresh the centrally stored ImmoScout token before its provider-issued access
+  // expiry. The encrypted connection itself has no artificial expiration date.
+  if (database && Math.floor(now.getTime() / 60_000) % 5 === 0) {
+    try {
+      const row = await database.prepare(
+        "SELECT status,enabled,expires_at FROM central_credentials WHERE singleton='central'"
+      ).first();
+      const expiry = timestampMillis(row?.expires_at);
+      if (row?.status === "connected" &&
+        (!Number.isFinite(expiry) || expiry <= now.getTime() + 10 * 60_000)) {
+        await getCentralApplicationCredentials(env, {
+          testMode: Number(row.enabled) !== 1,
+          refreshBeforeMs: 10 * 60_000,
+        });
+      }
+    } catch (error) {
+      const code = String(error?.message || "refresh_failed").replace(/[^a-z0-9_]/gi, "").slice(0, 60);
+      console.warn("housing_central_immoscout_refresh_failed", code);
+    }
+  }
+  return result;
 }
 
 async function sendReminder(sql, env, row, now, fetchImpl) {
