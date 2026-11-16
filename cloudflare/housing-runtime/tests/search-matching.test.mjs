@@ -231,7 +231,7 @@ test("new fresh matches queue AutoApply for complete premium profiles without pe
 });
 
 
-test("Hamburg and Schleswig-Holstein require verified warm rent for Scout budget matching", () => {
+test("Scout sends unknown-priced apartment alerts without treating cold rent as verified warm rent", () => {
   const shAreas=[{ name:"Kiel", area_type:"independent_city", area_code:"01002", parent_code:"SH" }];
   const scenarios=[
     {sourceId:1,criteria:hamburg,facts:{...apartment,city:"Hamburg"}},
@@ -239,8 +239,8 @@ test("Hamburg and Schleswig-Holstein require verified warm rent for Scout budget
       facts:{...apartment,title:"Wohnung in Kiel",city:"Kiel"}},
   ];
   for(const {sourceId,criteria,facts} of scenarios){
-    assert.equal(matchesProfile(criteria,{...facts,warm_rent:null,cold_rent:750},sourceId,shAreas),false,
-      "basic rent must not be misread as meeting a warm-rent cap");
+    assert.equal(matchesProfile(criteria,{...facts,warm_rent:null,cold_rent:750},sourceId,shAreas),true,
+      "unknown warm rent may be shown to user, but must not authorize sending");
     assert.equal(matchesProfile(criteria,{...facts,warm_rent:1250,cold_rent:750},sourceId,shAreas),false);
     assert.equal(matchesProfile(criteria,{...facts,warm_rent:1000,cold_rent:750},sourceId,shAreas),true);
   }
