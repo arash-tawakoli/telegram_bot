@@ -68,7 +68,7 @@ function telegramControlOrder(args, callbackData, supersedingCallbacks) {
     return { error: new Error("telegram_control_update_invalid") };
   }
   return {
-    sql: " AND EXISTS (SELECT 1 FROM telegram_updates WHERE update_id=? AND telegram_user_id=? AND callback_data=?) AND NOT EXISTS (SELECT 1 FROM telegram_updates WHERE telegram_user_id=? AND update_id>? AND callback_data IN (?,?))",
+    sql: ` AND EXISTS (SELECT 1 FROM telegram_updates WHERE update_id=? AND telegram_user_id=? AND callback_data=?) AND NOT EXISTS (SELECT 1 FROM telegram_updates WHERE telegram_user_id=? AND update_id>? AND callback_data IN (${supersedingCallbacks.map(() => "?").join(",")}))`,
     params: [updateId, telegramUserId, callbackData, telegramUserId, updateId, ...supersedingCallbacks],
     record: {
       query: "UPDATE telegram_updates SET telegram_user_id=?,callback_data=? WHERE update_id=? AND kind='callback_query'",
