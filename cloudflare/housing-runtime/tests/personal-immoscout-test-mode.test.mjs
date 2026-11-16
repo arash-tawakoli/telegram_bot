@@ -110,6 +110,14 @@ test("matching queues a separate ImmoScout test application only for an opted-in
         test_auto_apply_enabled_at: new Date(Date.now() - 7_000).toISOString(),
         test_auto_apply_daily_limit: 1,
         auto_apply_enabled: 0, immoscout_enabled: 1,
+        applicant_profile: JSON.stringify({
+          first_name: "Eva", last_name: "Test", email: "eva@example.com",
+          phone: "+49123456789", street: "Teststraße", house_number: "7",
+          postcode: "20095", city: "Hamburg", salutation: "MS",
+          household_type: "SINGLE", employment_status: "EMPLOYEE",
+          income_range: "1000_1500", pets: "NO",
+          move_in_preference: "FLEXIBLE", schufa_status: "NOT_SPECIFIED",
+        }),
       }];
     }
     if (/SELECT i\.first_seen_at/i.test(text)) return [{

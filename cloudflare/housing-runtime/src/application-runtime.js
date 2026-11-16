@@ -88,7 +88,7 @@ async function claim(sql, freshOnly = false) {
         AND (a.lease_until IS NULL OR a.lease_until < now())
         AND (${!freshOnly} = true OR a.test_mode = true OR (
           a.created_at >= now() - interval '24 hours'
-          AND oi.expires_at > now() AND oi.first_seen_at >= cutover.enabled_at
+          AND oi.expires_at > now()
         ))
       ORDER BY CASE WHEN a.test_mode = true THEN 0 ELSE 1 END, a.created_at
       LIMIT 1
@@ -248,8 +248,9 @@ export async function processHousingApplication(sql, env, request) {
   if (!providerSource || applicationProvider(providerSource, facts) !== provider) return fail("failed", "not_eligible");
   if (application.participant_status !== "active" || !application.auto_apply_enabled
     || !premiumParticipant(application, now.getTime())) return fail("failed", "not_eligible");
-  if (!application.expires_at || timestampMillis(application.expires_at) <= now.getTime()
-    || !application.first_seen_at || timestampMillis(application.first_seen_at) < timestampMillis(application.cutover_enabled_at)) {
+  // A still-active listing is eligible even when the first crawl predates
+  // a sender's activation; search/profile checks and dedupe remain authoritative.
+  if (!application.expires_at || timestampMillis(application.expires_at) <= now.getTime()) {
     return fail("failed", "listing_expired");
   }
   const missing = missingApplicantFields(application.profile);
