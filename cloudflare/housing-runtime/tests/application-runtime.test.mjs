@@ -54,7 +54,7 @@ test("central AutoApply stays paused after deployment and does not reserve or se
     id: "app-paused", participant_id: "user-1", offer_identity_id: "offer-1",
     canonical_url: "https://tenant.immomio.com/apply/12345678-1234-4234-8234-123456789012",
     provider: "immomio", status: "pending", test_mode: 0,
-    preferences_enabled: true, provider_enabled: true, auto_apply_enabled: true,
+    preferences_enabled: true, provider_enabled: true, auto_apply_enabled: true, plan_override: "premium",
   });
   const result = await processHousingApplication(db.query, { APPLICATION_RUN_TOKEN: "secret" },
     new Request("https://runtime.test/internal/application/process", {
@@ -64,6 +64,19 @@ test("central AutoApply stays paused after deployment and does not reserve or se
   assert.equal(result.body.reason, "central_auto_apply_paused");
   assert.equal(db.writes.some(({ text }) => /SET submission_started_at = now\\(\\)/.test(text)), false);
   assert.equal(db.writes.some(({ text }) => /wait_reason = 'central_auto_apply_paused'/.test(text)), true);
+});
+
+test("Free downgrade blocks already queued normal AutoApply before submission", async () => {
+  const db = sqlFor({
+    id: "app-downgraded", participant_id: "user-1", offer_identity_id: "offer-1",
+    status: "pending", test_mode: 0, plan_override: "free",
+    auto_apply_enabled: true, preferences_enabled: true, provider_enabled: true,
+  });
+  const result = await processHousingApplication(db.query, { APPLICATION_RUN_TOKEN: "secret", CENTRAL_AUTO_APPLY_ENABLED: "1" },
+    new Request("https://runtime.test/internal/application/process", {method:"POST",headers:{authorization:"Bearer secret"}}));
+  assert.equal(result.body.status, "manual_required");
+  assert.equal(result.body.reason, "premium_required");
+  assert.equal(db.writes.some(({ text }) => /SET submission_started_at = now\(\)/.test(text)), false);
 });
 
 test("scheduled application processing ignores the historical pending backlog", async () => {
