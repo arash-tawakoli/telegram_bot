@@ -121,7 +121,7 @@ test("matching queues a separate ImmoScout test application only for an opted-in
     if (/INSERT INTO housing\.applications/i.test(text)) return [{ id: "app-test-1" }];
     return [];
   };
-  const queued = await queueMatches(sql, "offer-1", 1, "1:external:123", { title: "Wohnung in Hamburg", city: "Hamburg", warm_rent: 900, rooms: 2, area_sqm: 65 });
+  const queued = await queueMatches(sql, "offer-1", 1, "1:external:123", { title: "Wohnung in Hamburg", city: "Hamburg", warm_rent: 900, rooms: 2, area_sqm: 65, canonical_url: "https://www.immobilienscout24.de/expose/123456789" });
   assert.equal(queued, 1);
   const insert = calls.find((call) => /INSERT INTO housing\.applications/i.test(call.text));
   assert.ok(insert);
