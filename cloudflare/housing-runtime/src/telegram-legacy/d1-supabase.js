@@ -431,7 +431,7 @@ async function rpc(client, env, name, args) {
       if (!profile || missingApplicantFields(profile.profile).length)
         return { data: null, error: new Error("profile_incomplete") };
       const activeSearch = (await client.run(
-        "SELECT 1 AS found FROM search_profiles WHERE participant_id=? AND active=1 AND json_valid(criteria) AND json_extract(criteria,'$.location_mode') IS NOT NULL AND json_extract(criteria,'$.property_types') IS NOT NULL LIMIT 1",
+        "SELECT 1 AS found FROM search_profiles WHERE participant_id=? AND active=1 AND json_valid(criteria) AND json_extract(criteria,'$.location_mode') IS NOT NULL AND (json_extract(criteria,'$.property_types') IS NOT NULL OR json_extract(criteria,'$.property_type') IS NOT NULL) LIMIT 1",
         [userId],
       ))[0];
       if (!activeSearch) return { data: null, error: new Error("search_profile_missing") };
