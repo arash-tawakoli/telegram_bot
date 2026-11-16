@@ -148,3 +148,32 @@ test("scheduler keeps fresh deliveries and closes only expired ordinary pending 
   assert.match(source, /error_message IS NULL\s+AND created_at < now\(\) - interval '15 minutes'/);
   assert.match(source, /SET status='skipped',error_message='delivery_window_expired'/);
 });
+
+
+test("Immomio accepts the homepage connector's canonical_url without a duplicate fact link", async () => {
+  const original = globalThis.fetch;
+  const requests = [];
+  globalThis.fetch = async (_url, options) => {
+    const query = JSON.parse(options.body).query;
+    requests.push(query);
+    if (query.includes("currentUser")) return Response.json({ data: { user: { id: "owner", email: "owner@example.com" } } });
+    if (query.includes("propertyBySourceIdentifier")) return Response.json({ data: {
+      propertyBySourceIdentifier: { id: "p1", smsVerificationRequired: false, captchaSettings: {} },
+    } });
+    if (query.includes("checkApplicationExist")) return Response.json({ data: { checkApplicationExist: null } });
+    if (query.includes("applicationQuestions")) return Response.json({ data: { customQuestionsByProperty: { customQuestions: [] } } });
+    throw new Error("no mutation permitted");
+  };
+  try {
+    const result = await sendImmomioApplication({
+      participant_id: "owner",
+      test_mode: true,
+      authorizeTestSend: async () => false,
+      profile: { email: "owner@example.com" },
+      facts: { property_type: "Wohnung" },
+      canonical_url: "https://tenant.immomio.com/de/apply/12345678-1234-4234-8234-123456789012",
+    }, {}, null, { ownerId: "owner", credentials: { access_token: "valid", expires_at: future() } });
+    assert.deepEqual(result, { status: "manual_required", error: "test_send_not_authorized" });
+    assert.equal(requests.length, 4);
+  } finally { globalThis.fetch = original; }
+});
