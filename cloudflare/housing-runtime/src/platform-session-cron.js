@@ -3,6 +3,7 @@ import { premiumParticipant, timestampMillis } from "./application-policy.js";
 import { refreshImmoScoutSession } from "./immoscout-application.js";
 import { refreshImmomioSession } from "./immomio-application.js";
 import { refreshImmoweltSession } from "./immowelt-application.js";
+import { getCentralApplicationCredentials } from "./immoscout-central-token.js";
 
 const LABELS = { immoscout24: "ImmoScout24", immowelt: "Immowelt", immomio: "Immomio" };
 const enabled = value => value === true || value === 1;
@@ -46,6 +47,37 @@ async function scanExpiringSessions(sql, env, now, centralOnly = false) {
     }
   }
   return { checked, marked };
+}
+
+// Scout's shared, encrypted OAuth credential lives in central_credentials, not
+// provider_connections. Refresh it on a bounded schedule before test sends.
+export async function runCentralScoutSessionRefresh(env, now = new Date()) {
+  const database = env.HOUSING_DB || env.DB;
+  if (!database) return { checked: 0, refreshed: 0 };
+  const row = await database.prepare(
+    "SELECT status,enabled,expires_at FROM central_credentials WHERE singleton='central'"
+  ).first();
+  if (!row || row.status !== "connected" || Number(row.enabled) !== 0) {
+    return { checked: 0, refreshed: 0 };
+  }
+  const expiry = timestampMillis(row.expires_at);
+  if (Number.isFinite(expiry) && expiry > now.getTime() + 10 * 60_000) {
+    return { checked: 0, refreshed: 0 };
+  }
+  try {
+    await getCentralApplicationCredentials(env, { testMode: true });
+    return { checked: 1, refreshed: 1 };
+  } catch (error) {
+    const reason = String(error?.message || "");
+    if (["needs_login", "central_account_mismatch"].includes(reason)) {
+      await database.prepare(
+        "UPDATE central_credentials SET status='needs_login',last_error=?,updated_at=CURRENT_TIMESTAMP WHERE singleton='central' AND status='connected' AND enabled=0"
+      ).bind(reason).run();
+    }
+    const safe = ["needs_login", "temporary_network_error", "central_account_mismatch", "credential_decrypt_failed", "test_mode_central_account_unavailable"].includes(reason)
+      ? reason : "central_refresh_failed";
+    return { checked: 1, refreshed: 0, reason: safe };
+  }
 }
 
 export async function runCentralProviderSessionRefresh(sql, env, now = new Date()) {
