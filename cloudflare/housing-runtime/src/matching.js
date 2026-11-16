@@ -104,22 +104,6 @@ async function geographicAreas(sql) {
   return areas;
 }
 
-function berlinDayStartISO(now = new Date()) {
-  const dateParts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/Berlin", year: "numeric", month: "2-digit", day: "2-digit",
-  }).formatToParts(now);
-  const part = (type) => dateParts.find((entry) => entry.type === type)?.value;
-  const year = Number(part("year")), month = Number(part("month")), day = Number(part("day"));
-  const utcMidnight = new Date(Date.UTC(year, month - 1, day));
-  const offsetParts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Europe/Berlin", timeZoneName: "shortOffset", hour: "2-digit", hourCycle: "h23",
-  }).formatToParts(utcMidnight);
-  const offsetLabel = offsetParts.find((entry) => entry.type === "timeZoneName")?.value || "GMT+0";
-  const match = offsetLabel.match(/GMT([+-])(\d{1,2})(?::?(\d{2}))?/);
-  const offsetMinutes = match ? (match[1] === "-" ? -1 : 1) * (Number(match[2]) * 60 + Number(match[3] || 0)) : 0;
-  return new Date(utcMidnight.getTime() - offsetMinutes * 60_000).toISOString().replace("T", " ").replace("Z", "").slice(0, 19);
-}
-
 export async function queueMatches(sql, offerId, sourceId, identityHash, facts, centralAutoApplyEnabled = true) {
   const source = sourceForId(sourceId);
   if (source?.delivery_mode !== "live") return 0;
@@ -127,7 +111,7 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts, 
   const rows = await sql`
     SELECT DISTINCT sp.participant_id, sp.profile_slot, sp.criteria,
       p.test_auto_apply_allowed, p.test_auto_apply_enabled,
-      p.test_auto_apply_daily_limit, p.test_auto_apply_enabled_at,
+      p.test_auto_apply_enabled_at,
       p.auto_apply_enabled, p.telegram_user_id,
       p.plan_override, p.plan_override_expires_at, p.referral_bonus_until,
       s.status AS subscription_status, s.current_period_end AS subscription_period_end,
@@ -210,8 +194,6 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts, 
       && (row.test_auto_apply_allowed === true || row.test_auto_apply_allowed === 1)
       && (row.test_auto_apply_enabled === true || row.test_auto_apply_enabled === 1)
       && !(row.auto_apply_enabled === true || row.auto_apply_enabled === 1)) {
-      const dailyLimit = Math.min(5, Math.max(1, Number(row.test_auto_apply_daily_limit || 1)));
-      const dayStart = berlinDayStartISO();
       const testKey = `test:${row.participant_id}:${identityHash}`;
       // The per-offer test key prevents repeat submissions. A provider-wide
       // migration marker cannot identify offers first seen after activation.
@@ -240,12 +222,6 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts, 
                 AND a.test_mode = true
                 AND a.status IN ('pending','processing')
             )
-            AND (
-              SELECT COUNT(*) FROM housing.applications a
-              WHERE a.participant_id = ${row.participant_id}
-                AND a.test_mode = true
-                AND a.submission_started_at >= ${dayStart}
-            ) < ${dailyLimit}
           ON CONFLICT (idempotency_key) DO NOTHING
           RETURNING id
         `;

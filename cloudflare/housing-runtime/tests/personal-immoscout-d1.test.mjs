@@ -21,7 +21,7 @@ function fakeD1({ centralEnabled = 0, complete = true, testEnabled = false, tele
   const participant = {
     id: ownerId, telegram_user_id: telegramId, status: "active",
     auto_apply_enabled: 0, test_auto_apply_allowed: 1,
-    test_auto_apply_enabled: testEnabled ? 1 : 0, test_auto_apply_daily_limit: 1,
+    test_auto_apply_enabled: testEnabled ? 1 : 0, test_auto_apply_daily_limit: 0,
   };
   const db = {
     prepare(query) {
@@ -49,7 +49,7 @@ function fakeD1({ centralEnabled = 0, complete = true, testEnabled = false, tele
                 }],
                 meta: { changes: 0 },
               };
-              if (query.startsWith("UPDATE participants SET test_auto_apply_daily_limit=1,test_auto_apply_enabled=1")) {
+              if (query.startsWith("UPDATE participants SET test_auto_apply_daily_limit=0,test_auto_apply_enabled=1")) {
                 participant.test_auto_apply_enabled = 1;
                 return { results: [], meta: { changes: 1 } };
               }
@@ -80,7 +80,8 @@ test("only the allowlisted NexaLabs owner can enable personal ImmoScout test mod
   });
   assert.equal(result.error, null);
   assert.equal(result.data.enabled, true);
-  assert.ok(calls.some(({ query }) => query.startsWith("UPDATE participants SET test_auto_apply_daily_limit=1,test_auto_apply_enabled=1")));
+  assert.equal(result.data.daily_limit, null);
+  assert.ok(calls.some(({ query }) => query.startsWith("UPDATE participants SET test_auto_apply_daily_limit=0,test_auto_apply_enabled=1")));
   assert.equal(calls.some(({ query }) => /UPDATE provider_connections|UPDATE application_preferences/.test(query)), false);
 });
 
@@ -90,7 +91,7 @@ test("test mode refuses activation when the central credential is enabled", asyn
     p_user: ownerId, p_telegram_user_id: ownerTelegramId, p_enabled: true,
   });
   assert.equal(result.error?.message, "test_mode_central_account_unavailable");
-  assert.equal(calls.some(({ query }) => query.startsWith("UPDATE participants SET test_auto_apply_daily_limit=1")), false);
+  assert.equal(calls.some(({ query }) => query.startsWith("UPDATE participants SET test_auto_apply_daily_limit=0")), false);
 });
 
 test("test mode refuses activation with an incomplete applicant profile", async () => {

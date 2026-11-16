@@ -10,22 +10,6 @@ import { centralCredentialError, getCentralProviderCredentials } from "./central
 
 function enabled(value) { return value === true || value === 1; }
 
-function berlinDayStartSql(now = new Date()) {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/Berlin", year: "numeric", month: "2-digit", day: "2-digit",
-  }).formatToParts(now);
-  const part = (type) => parts.find((entry) => entry.type === type)?.value;
-  const year = Number(part("year")), month = Number(part("month")), day = Number(part("day"));
-  const utcMidnight = new Date(Date.UTC(year, month - 1, day));
-  const offsetParts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Europe/Berlin", timeZoneName: "shortOffset", hour: "2-digit", hourCycle: "h23",
-  }).formatToParts(utcMidnight);
-  const label = offsetParts.find((entry) => entry.type === "timeZoneName")?.value || "GMT+0";
-  const match = label.match(/GMT([+-])(\d{1,2})(?::?(\d{2}))?/);
-  const offset = match ? (match[1] === "-" ? -1 : 1) * (Number(match[2]) * 60 + Number(match[3] || 0)) : 0;
-  return new Date(utcMidnight.getTime() - offset * 60_000).toISOString().replace("T", " ").replace("Z", "").slice(0, 19);
-}
-
 async function sameSecret(supplied, expected) {
   if (typeof supplied !== "string" || typeof expected !== "string" || supplied.length === 0 || supplied.length !== expected.length) return false;
   const encoder = new TextEncoder();
@@ -64,10 +48,10 @@ async function claim(sql, freshOnly = false) {
       SELECT a.id, a.participant_id, a.offer_identity_id, a.provider, a.status, a.created_at,
         a.test_mode, a.submission_started_at, a.sent_at, a.attempts,
         p.status AS participant_status, p.first_name, p.last_name, p.email, p.telegram_chat_id,
-        p.telegram_user_id, p.test_auto_apply_allowed, p.test_auto_apply_enabled, p.test_auto_apply_daily_limit,
+        p.telegram_user_id, p.test_auto_apply_allowed, p.test_auto_apply_enabled,
         p.auto_apply_enabled, p.plan_override, p.plan_override_expires_at, p.referral_bonus_until,
         ap.profile, oi.canonical_url, oi.external_id, oi.source_id, oi.first_seen_at, oi.expires_at, oi.facts,
-        pref.enabled AS preferences_enabled, pref.daily_limit, pref.timezone,
+        pref.enabled AS preferences_enabled, pref.timezone,
         pref.allowed_weekdays, pref.send_window_start, pref.send_window_end,
         CASE a.provider
           WHEN 'immoscout24' THEN pref.immoscout_enabled
@@ -149,7 +133,6 @@ export async function processHousingApplication(sql, env, request) {
     if (missing.length) return fail("manual_required", "test_mode_profile_incomplete", { missing });
     let submissionStarted = false;
     const authorizeTestSend = async () => {
-      const dailyLimit = Math.min(5, Math.max(1, Number(application.test_auto_apply_daily_limit || 1)));
       const reserved = await sql`
         UPDATE housing.applications
         SET submission_started_at = now(), quota_local_date = ${new Date().toISOString().slice(0, 10)}, lease_until = NULL, updated_at = now()
@@ -157,12 +140,6 @@ export async function processHousingApplication(sql, env, request) {
           AND status = 'processing'
           AND test_mode = true
           AND submission_started_at IS NULL
-          AND (
-            SELECT COUNT(*) FROM housing.applications q
-            WHERE q.participant_id = ${application.participant_id}
-              AND q.test_mode = true
-              AND q.submission_started_at >= ${berlinDayStartSql()}
-          ) < ${dailyLimit}
           AND EXISTS (
             SELECT 1 FROM housing.participants p
             WHERE p.id = ${application.participant_id}
@@ -279,26 +256,14 @@ export async function processHousingApplication(sql, env, request) {
     return fail("manual_required", "central_identity_mismatch");
   }
   // Uploaded applicant documents are not part of the simplified application flow.
-  const configuredLimit = Number(application.daily_limit);
-  const dailyLimit = application.daily_limit == null || !Number.isFinite(configuredLimit)
-    ? 2_147_483_647 : Math.max(0, Math.floor(configuredLimit));
+  // No per-day cap; the conditional claim and per-offer dedupe prevent duplicate sends.
   const reserved = await sql`
     UPDATE housing.applications
     SET submission_started_at = now(), quota_local_date = ${schedule.localDate}, wait_reason = NULL, updated_at = now()
     WHERE id = ${application.id} AND status = 'processing' AND submission_started_at IS NULL
-      AND (SELECT COUNT(*) FROM housing.applications q WHERE q.participant_id = ${application.participant_id}
-        AND q.quota_local_date = ${schedule.localDate} AND q.id <> ${application.id}) < ${dailyLimit}
     RETURNING id
   `;
-  if (!reserved.length) {
-    const nextAttemptAt = new Date(now.getTime() + 6 * 60 * 60_000).toISOString();
-    await sql`
-      UPDATE housing.applications
-      SET status = 'pending', wait_reason = 'daily_limit', next_attempt_at = ${nextAttemptAt}, lease_until = NULL, updated_at = now()
-      WHERE id = ${application.id} AND status = 'processing'
-    `;
-    return { status: 200, body: { ok: true, status: "deferred", provider, reason: "daily_limit", application_id: application.id } };
-  }
+  if (!reserved.length) return fail("manual_required", "submission_not_reserved");
 
   if (provider === "immowelt") {
     let result;

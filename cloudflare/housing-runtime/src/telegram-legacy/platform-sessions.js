@@ -553,7 +553,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
     +'Testmodus: <b>'+(testEnabled?'Aktiv':'Deaktiviert')+'</b>\n'
     +'Gespeicherter Zugang: <b>'+(credentialReady?'Verbunden':'Nicht bestätigt')+'</b>\n'
     +'Letzte Prüfung: '+esc(lastCheck)+'\n'
-    +'Tageslimit: '+Number(state.test_auto_apply_daily_limit||1)+' echte Bewerbung(en)\n\n'
+    +'Tageslimit: <b>Keines</b> · nur passende neue Inserate\n\n'
     +'Der Testzugang nutzt das zentrale NexaLabs-Konto. Die reguläre zentrale Freigabe bleibt dabei deaktiviert. '
     +'Ob ein Bewerbungsversand erfolgreich war, ist erst nach einer bestätigten Testbewerbung nachgewiesen.',
     [[button('← Auto-Bewerbung','platforms')]]);
