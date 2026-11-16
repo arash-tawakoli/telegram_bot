@@ -1,6 +1,6 @@
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { normalizeImmoScoutEntry, parseMcpToolResult, germanImmoScoutQuery, fetchImmoScoutSource, fetchImmoScoutMap, ingestImmoScoutSource, planImmoScoutQueries, parseMcpEnvelope, chooseImmoScoutQuery, resetMcpSession } from "../src/immoscout-source.js";
+import { normalizeImmoScoutEntry, parseMcpToolResult, germanImmoScoutQuery, fetchImmoScoutSource, fetchImmoScoutMap, ingestImmoScoutSource, planImmoScoutQueries, parseMcpEnvelope, chooseImmoScoutQuery, hamburgCoverageQueries, resetMcpSession } from "../src/immoscout-source.js";
 import { sourceForId } from "../src/source-allowlist.js";
 
 beforeEach(() => resetMcpSession());
@@ -228,6 +228,47 @@ test("both regions share bounded search + map enrichment with stable IDs and cor
   } finally { globalThis.fetch = original; }
 });
 
+test("Hamburg coverage partitions cover seven boroughs and three rent bands", () => {
+  const queries = hamburgCoverageQueries();
+  assert.equal(queries.length, 21);
+  assert.equal(new Set(queries).size, 21);
+  assert.ok(queries.some(query => query.includes("Hamburg-Nord, Deutschland")));
+  assert.ok(queries.some(query => query.includes("Hamburg-Mitte, Deutschland")));
+  assert.ok(queries.every(query => !query.includes("Hamburg-Hamburg-")));
+});
+
+test("scheduled inventory retains every map entry, not the previous 15-extra limit", async () => {
+  const previousFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (_url, init) => {
+    const payload = JSON.parse(init.body);
+    const lifecycle = mockMcpLifecycle(payload);
+    if (lifecycle) return lifecycle;
+    calls.push(payload.params.name);
+    const total = 85;
+    const entries = Array.from({ length: payload.params.name === "property_map_de" ? 60 : 20 }, (_, i) => ({
+      exposedId: String(300000 + i),
+      exposeUrl: "https://www.immobilienscout24.de/expose/" + (300000 + i),
+      title: "Moderne Wohnung in Hamburg",
+      address: { city: "Hamburg" },
+      price: { value: 900 },
+    }));
+    return Response.json({ jsonrpc: "2.0", id: payload.id,
+      result: { structuredContent: { total, entries } } });
+  };
+  try {
+    const result = await fetchImmoScoutSource(sourceForId(1), {
+      query: "Wohnungen zur Miete in Hamburg", enrichWithMap: true,
+    });
+    assert.equal(result.searchCount, 20);
+    assert.equal(result.mapCount, 60);
+    assert.equal(result.nodes.length, 60);
+    assert.equal(result.added, 40);
+    assert.ok(result.nodes.every(n => n.facts.property_type === "Wohnung"));
+    assert.deepEqual(calls, ["property_search_de", "property_map_de"]);
+  } finally { globalThis.fetch = previousFetch; }
+});
+
 test("map outage does not prevent search-only delivery preparation", async () => {
   const previous = globalThis.fetch;
   globalThis.fetch = async (_url, init) => {
@@ -271,10 +312,12 @@ test("scheduled ingestion uses the same profile-driven pipeline in both regions"
       assert.equal(out.inserted, 0);
       assert.equal(out.valid, 0);
       assert.equal(out.map_count, 0);
-      assert.ok(planImmoScoutQueries(source, [
+      const expected = planImmoScoutQueries(source, [
         { property_types: ["Wohnung"], location_mode: "boroughs", boroughs: ["Harburg"] },
         { property_types: ["Wohnung"], location_mode: "schleswig_holstein_areas", location_area_codes: ["01060"] },
-      ], [{ area_code: "01060", name: "Segeberg", area_type: "county" }]).includes(out.query));
+      ], [{ area_code: "01060", name: "Segeberg", area_type: "county" }]);
+      if (source.id === 1) expected.push(...hamburgCoverageQueries());
+      assert.ok(expected.includes(out.query), out.query);
     }
     assert.equal(calls.length, 4);
     for (let i = 0; i < 4; i += 2) {
