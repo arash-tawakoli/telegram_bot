@@ -385,7 +385,7 @@ async function rpc(client, env, name, args) {
     // The allowlisted owner's Start/Pause buttons operate the isolated test
     // flow. They must never also enable the normal application sender.
     if (bool(participant.test_auto_apply_allowed) && Number(participant.telegram_user_id) === 8538226539) {
-      if (active) {
+      if (active && enable) {
         const missing = await rpc(client, env, "application_profile_missing_fields", { p_user: userId });
         if (missing.error || missing.data.length) return { data: null, error: new Error("profile_incomplete") };
       }
@@ -401,8 +401,7 @@ async function rpc(client, env, name, args) {
       const newlyActivated = active && (!bool(participant.test_auto_apply_enabled) ||
         (provider ? enable && !bool(current[providerColumns[provider]]) :
           enable && Object.entries(next).some(([key, value]) => value && !bool(current[key]))));
-      const retired = provider && !enable ? provider :
-        !active ? null : undefined;
+      const retired = !active ? null : provider && !enable ? provider : undefined;
       const results = await client.batch([
         { query: "INSERT OR IGNORE INTO application_preferences(participant_id) VALUES(?)", params: [userId] },
         ...(order.record ? [order.record] : []),
@@ -416,8 +415,8 @@ async function rpc(client, env, name, args) {
         ...((retired !== undefined) ? [{
           query: `UPDATE applications SET status='failed',last_error='test_mode_disabled',updated_at=CURRENT_TIMESTAMP
             WHERE participant_id=? AND test_mode=1 AND status IN ('pending','processing')
-              AND submission_started_at IS NULL${retired ? " AND provider=?" : ""}`,
-          params: retired ? [userId, retired] : [userId],
+              AND submission_started_at IS NULL${retired ? " AND provider=?" : ""}${order.sql}`,
+          params: [...(retired ? [userId, retired] : [userId]), ...order.params],
         }] : []),
       ]);
       if (order.record && Number(results?.[1]?.meta?.changes || 0) !== 1)
