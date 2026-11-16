@@ -355,7 +355,7 @@ export async function getCentralApplicationCredentials(env, { testMode = true } 
   let credentials;
   try { credentials = await decrypt(row.ciphertext, row.iv, centralEnv, CREDENTIAL_AAD); }
   catch { throw new Error("credential_decrypt_failed"); }
-  if (credentials?.access_token && credentials?.expires_at && Date.parse(credentials.expires_at) > Date.now() + 60_000) {
+  if (credentials?.access_token && credentials?.expires_at && Date.parse(credentials.expires_at) > Date.now() + 10 * 60_000) {
     return credentials;
   }
   if (!credentials?.refresh_token) throw new Error("needs_login");
