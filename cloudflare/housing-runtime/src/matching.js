@@ -39,9 +39,9 @@ export function matchesProfile(criteria, facts, sourceId, areas = []) {
   if (types.length !== 1 || listingCategory(facts) !== types[0]) return false;
   const warm = number(facts?.warm_rent), cold = number(facts?.cold_rent), maxRent = number(criteria.max_warm_rent ?? criteria.maxWarmRent);
   if (criteria.require_known_warm_rent && !(warm > 0)) return false;
-  // Both Scout regions use the same verified-warm-rent requirement.
-  // A cold/basic rent cannot prove that the user's warm-rent cap is met.
-  if (maxRent != null && sourceForId(sourceId)?.family === "immoscout24" && !(warm > 0)) return false;
+  // A missing Scout warm rent must not silently hide a listing from Telegram.
+  // The notification identifies prices as unknown. Never use an unverified
+  // basic rent to authorize an automatic application (checked below).
   if (maxRent != null && ((warm > 0 && warm > maxRent) || (!(warm > 0) && !criteria.require_known_warm_rent && cold > maxRent))) return false;
   const deposit = number(facts?.deposit), maxDeposit = number(criteria.max_deposit);
   if (maxDeposit != null && (deposit == null || deposit > maxDeposit)) return false;
@@ -120,7 +120,7 @@ function berlinDayStartISO(now = new Date()) {
   return new Date(utcMidnight.getTime() - offsetMinutes * 60_000).toISOString().replace("T", " ").replace("Z", "").slice(0, 19);
 }
 
-export async function queueMatches(sql, offerId, sourceId, identityHash, facts, centralAutoApplyEnabled = true) {
+export async function queueMatches(sql, offerId, sourceId, identityHash, facts, centralAutoApplyEnabled = true, allowTestApplications = true) {
   const source = sourceForId(sourceId);
   if (source?.delivery_mode !== "live") return 0;
   const targetProvider = applicationProvider(source, facts);
@@ -175,7 +175,12 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts, 
       : provider === "immowelt" ? row.immowelt_enabled
         : provider === "immomio" ? row.immomio_enabled : false;
     const profile = object(row.applicant_profile);
-    if (autoApplyFresh && centralAutoApplyEnabled && provider && enabled(row.auto_apply_enabled) && !enabled(row.test_auto_apply_enabled) && premiumParticipant(row)
+    const profileRentCap = number(criteria.max_warm_rent ?? criteria.maxWarmRent);
+    // Notifications may include listings with unspecified warm rent; automatic
+    // submissions require the actual warm rent to meet any configured cap.
+    const sendablePrice = source?.family !== "immoscout24" || profileRentCap == null
+      || (number(facts.warm_rent) > 0 && number(facts.warm_rent) <= profileRentCap);
+    if (autoApplyFresh && centralAutoApplyEnabled && sendablePrice && provider && enabled(row.auto_apply_enabled) && !enabled(row.test_auto_apply_enabled) && premiumParticipant(row)
       && enabled(row.preferences_enabled) && enabled(providerEnabled)
       && missingApplicantFields(profile).length === 0) {
       const applicationKey = applicationIdempotencyKey(row.participant_id, provider, identityHash);
@@ -204,7 +209,7 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts, 
     const testStartedAt = timestampMillis(row.test_auto_apply_enabled_at);
     const testOfferFresh = autoApplyFresh && Number.isFinite(testStartedAt)
       && timestampMillis(cutover.first_seen_at) >= testStartedAt;
-    if (testOfferFresh && provider && enabled(providerEnabled)
+    if (allowTestApplications && sendablePrice && testOfferFresh && provider && enabled(providerEnabled)
       && Number(row.telegram_user_id) === 8538226539
       && (row.test_auto_apply_allowed === true || row.test_auto_apply_allowed === 1)
       && (row.test_auto_apply_enabled === true || row.test_auto_apply_enabled === 1)

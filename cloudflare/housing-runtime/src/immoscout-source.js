@@ -231,6 +231,26 @@ export function planImmoScoutQueries(source, rawProfiles = [], areas = []) {
   return [...all];
 }
 
+// The public MCP tools expose the global count but return only the visible
+// subset, and do not expose a page cursor. Rotate smaller, overlapping searches
+// to discover additional IDs without guessing undocumented pagination params.
+const HAMBURG_BOROUGHS = Object.freeze([
+  "Hamburg-Mitte", "Altona", "Eimsbüttel", "Hamburg-Nord",
+  "Wandsbek", "Bergedorf", "Harburg",
+]);
+const HAMBURG_RENT_BANDS = Object.freeze([
+  "Kaltmiete bis 1000 Euro",
+  "Kaltmiete 1000 bis 2000 Euro",
+  "Kaltmiete ab 2000 Euro",
+]);
+export function hamburgCoverageQueries() {
+  return HAMBURG_BOROUGHS.flatMap(borough =>
+    HAMBURG_RENT_BANDS.map(band =>
+      `Wohnungen zur Miete in ${borough.startsWith("Hamburg-") ? borough : "Hamburg-" + borough}, Deutschland, ${band}`
+    )
+  );
+}
+
 // Keep broad coverage on every second run while rotating targeted locations.
 // Without this, many active districts could starve the broad discovery query.
 export function chooseImmoScoutQuery(queries, now = Date.now()) {
@@ -255,7 +275,10 @@ async function scheduledQuery(sql, source, now = Date.now()) {
     areas = cachedAreas.values;
   }
   const queries = planImmoScoutQueries(source, profiles, areas);
-  return chooseImmoScoutQuery(queries, now);
+  // Preserve the broad crawl every second run. In-between, also cover
+  // apartment submarkets without exhausting the Worker's per-run budget.
+  const coverage = Number(source.id) === 1 ? hamburgCoverageQueries() : [];
+  return chooseImmoScoutQuery([...new Set([...queries, ...coverage])], now);
 }
 
 function queryFor(source, config = {}) {
@@ -263,7 +286,7 @@ function queryFor(source, config = {}) {
   return queryText("Wohnung", scoutRegion(source));
 }
 
-export function normalizeImmoScoutEntry(entry, sourceId) {
+export function normalizeImmoScoutEntry(entry, sourceId, requestedType = null) {
   const id = entryId(entry);
   const url = String(entry?.exposeUrl || "");
   if (!id || !/^https:\/\/www\.immobilienscout24\.de\/expose\//i.test(url)) return null;
@@ -279,7 +302,13 @@ export function normalizeImmoScoutEntry(entry, sourceId) {
   if (Number(sourceId) === 69 && postcode && !/^2[1-5]\d{3}$/.test(postcode)) return null;
   const cold = numeric(entry.price?.value);
   const total = numeric(entry.totalRent);
-  const propertyType = String(entry.type || "").toUpperCase();
+  const propertyType = String(entry.type || entry.realEstateType || entry.estateType || "").toUpperCase();
+  const title = String(entry.title || "");
+  const houseLike = /(?:einfamilienhaus|reihenhaus|doppelhaus|villa|bungalow|haus\s+zur\s+miete)/i.test(title);
+  const category = propertyType.includes("HOUSE") || houseLike ? "Haus"
+    : propertyType.includes("APARTMENT") || propertyType.includes("FLAT") ? "Wohnung"
+    : requestedType === "Wohnung" && !houseLike ? "Wohnung"
+    : requestedType === "Haus" ? "Haus" : null;
   return {
     source_id: sourceId,
     identity: id,
@@ -299,8 +328,7 @@ export function normalizeImmoScoutEntry(entry, sourceId) {
       area_sqm: numeric(entry.size),
       image_url: typeof entry.titlePictureUrls?.[0]?.href === "string" ? entry.titlePictureUrls[0].href.replace(/%WIDTH%/g, "1200").replace(/%HEIGHT%/g, "800") : null,
       provider: "immoscout24",
-      ...(propertyType.includes("HOUSE") ? { property_type: "Haus" }
-        : propertyType.includes("APARTMENT") || propertyType.includes("FLAT") ? { property_type: "Wohnung" } : {}),
+      ...(category ? { property_type: category } : {}),
       ...germanCoordinates(entry, sourceId),
     },
   };
@@ -309,10 +337,12 @@ export function normalizeImmoScoutEntry(entry, sourceId) {
 export async function fetchImmoScoutSource(source, config = {}) {
   scoutRegion(source);
   const query = queryFor(source, config);
+  const requestedType = /^Wohnungen zur Miete/i.test(query) ? "Wohnung"
+    : /^Häuser zur Miete/i.test(query) ? "Haus" : null;
   const search = await callTool("property_search_de", query);
   const nodes = new Map();
   for (const entry of search.entries) {
-    const normalized = normalizeImmoScoutEntry(entry, source.id);
+    const normalized = normalizeImmoScoutEntry(entry, source.id, requestedType);
     if (normalized && !nodes.has(normalized.identity)) nodes.set(normalized.identity, normalized);
   }
   const searchCount = nodes.size;
@@ -321,9 +351,11 @@ export async function fetchImmoScoutSource(source, config = {}) {
     try {
       const result = await callTool("property_map_de", query);
       mapCount = result.entries.length;
-      const maxExtra = Math.max(0, Math.min(20, Number(config.maxMapExtras ?? 15) || 0));
+      // Include the entire map subset (usually ~100 entries), not the old
+      // 15-extra truncation. The MCP response itself remains bounded.
+      const maxExtra = Math.max(0, Math.min(250, Number(config.maxMapExtras ?? 200) || 0));
       for (const entry of result.entries) {
-        const normalized = normalizeImmoScoutEntry(entry, source.id);
+        const normalized = normalizeImmoScoutEntry(entry, source.id, requestedType);
         if (!normalized) continue;
         const previous = nodes.get(normalized.identity);
         if (previous) {
@@ -387,21 +419,41 @@ export async function fetchImmoScoutMap(source, config = {}) {
 
 export async function ingestImmoScoutSource(sql, source, config = {}) {
   const query = config.query || await scheduledQuery(sql, source);
-  const result = await fetchImmoScoutSource(source, { ...config, query, enrichWithMap: true, maxMapExtras: 15 });
+  const isCoveragePartition = Number(source.id) === 1 && hamburgCoverageQueries().includes(query);
+  const result = await fetchImmoScoutSource(source, { ...config, query, enrichWithMap: true, maxMapExtras: 200 });
   let inserted = 0;
   for (const node of result.nodes) {
     const rows = await sql`
       INSERT INTO housing.offer_identities (id, source_id, identity_hash, external_id, canonical_url, facts, last_seen_at, expires_at)
       VALUES (gen_random_uuid(), ${node.source_id}, ${node.source_id + ":external:" + node.identity}, ${node.identity}, ${node.canonical_url}, ${JSON.stringify(node.facts)}::jsonb, now(), now() + interval '24 hours')
-      ON CONFLICT (identity_hash) DO UPDATE SET canonical_url = EXCLUDED.canonical_url, facts = EXCLUDED.facts, last_seen_at = now(), expires_at = EXCLUDED.expires_at
+      ON CONFLICT (identity_hash) DO UPDATE SET
+        canonical_url = EXCLUDED.canonical_url,
+        facts = json_set(EXCLUDED.facts,
+          '$.warm_rent', COALESCE(json_extract(EXCLUDED.facts,'$.warm_rent'), json_extract(offer_identities.facts,'$.warm_rent')),
+          '$.property_type', COALESCE(json_extract(EXCLUDED.facts,'$.property_type'), json_extract(offer_identities.facts,'$.property_type')),
+          '$.image_url', COALESCE(json_extract(EXCLUDED.facts,'$.image_url'), json_extract(offer_identities.facts,'$.image_url')),
+          '$.rooms', COALESCE(json_extract(EXCLUDED.facts,'$.rooms'), json_extract(offer_identities.facts,'$.rooms')),
+          '$.area_sqm', COALESCE(json_extract(EXCLUDED.facts,'$.area_sqm'), json_extract(offer_identities.facts,'$.area_sqm'))
+        ), last_seen_at = now(), expires_at = EXCLUDED.expires_at
       RETURNING id
     `;
     if (rows.length) {
       inserted++;
-      await queueMatches(sql, rows[0].id, node.source_id, node.source_id + ":external:" + node.identity, { ...node.facts, canonical_url: node.canonical_url }, source.central_auto_apply_enabled === true);
+      // Partition crawls backfill inventory and Telegram notifications. Do not
+      // interpret older listings newly discovered by a partition as freshly
+      // published listings eligible for automatic applications.
+      await queueMatches(sql, rows[0].id, node.source_id, node.source_id + ":external:" + node.identity,
+        { ...node.facts, canonical_url: node.canonical_url },
+        source.central_auto_apply_enabled === true && !isCoveragePartition, !isCoveragePartition);
     }
   }
-  return { fetched: result.fetched, valid: result.nodes.length, inserted, query: result.query,
+  return {
+    fetched: result.fetched, valid: result.nodes.length, inserted, query: result.query,
     search_count: result.searchCount, map_count: result.mapCount, enriched: result.enriched,
-    added: result.added, ...(result.map_error ? { map_error: result.map_error } : {}) };
+    added: result.added, coverage_partition: isCoveragePartition,
+    // MCP totals reflect the entire market, not the number of returned entries.
+    missing_from_response: result.reported_total == null ? null
+      : Math.max(0, result.reported_total - result.nodes.length),
+    ...(result.map_error ? { map_error: result.map_error } : {}),
+  };
 }

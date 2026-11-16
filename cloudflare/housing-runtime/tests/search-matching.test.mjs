@@ -231,7 +231,36 @@ test("new fresh matches queue AutoApply for complete premium profiles without pe
 });
 
 
-test("Hamburg and Schleswig-Holstein require verified warm rent for Scout budget matching", () => {
+test("Scout alerts with unknown warm rent cannot queue premium or test applications", async () => {
+  const calls = [];
+  const sql = async (parts, ...values) => {
+    const query = parts.join("?");
+    calls.push(query);
+    if (query.includes("SELECT DISTINCT sp.participant_id")) return [{
+      participant_id: "u", criteria: JSON.stringify(hamburg),
+      telegram_user_id: 8538226539, test_auto_apply_allowed: 1, test_auto_apply_enabled: 1,
+      test_auto_apply_enabled_at: new Date(Date.now() - 20_000).toISOString(),
+      auto_apply_enabled: 0, preferences_enabled: 0, immoscout_enabled: 1,
+      applicant_profile: "{}", profile_slot: 1,
+    }];
+    if (query.includes("SELECT i.first_seen_at")) return [{
+      first_seen_at: new Date(Date.now() - 5_000).toISOString(),
+      enabled_at: new Date(Date.now() - 60_000).toISOString(),
+      expires_at: new Date(Date.now() + 3600_000).toISOString(),
+    }];
+    if (query.includes("INSERT INTO housing.deliveries")) return [{ id: "del" }];
+    return [];
+  };
+  const facts = {
+    ...apartment, canonical_url: "https://www.immobilienscout24.de/expose/123456",
+    warm_rent: null, cold_rent: 750,
+  };
+  assert.equal(await queueMatches(sql, "offer", 1, "1:external:123456", facts), 1);
+  assert.ok(calls.some(x => x.includes("INSERT INTO housing.deliveries")));
+  assert.ok(!calls.some(x => x.includes("INSERT INTO housing.applications")));
+});
+
+test("Scout sends unknown-priced apartment alerts without treating cold rent as verified warm rent", () => {
   const shAreas=[{ name:"Kiel", area_type:"independent_city", area_code:"01002", parent_code:"SH" }];
   const scenarios=[
     {sourceId:1,criteria:hamburg,facts:{...apartment,city:"Hamburg"}},
@@ -239,8 +268,8 @@ test("Hamburg and Schleswig-Holstein require verified warm rent for Scout budget
       facts:{...apartment,title:"Wohnung in Kiel",city:"Kiel"}},
   ];
   for(const {sourceId,criteria,facts} of scenarios){
-    assert.equal(matchesProfile(criteria,{...facts,warm_rent:null,cold_rent:750},sourceId,shAreas),false,
-      "basic rent must not be misread as meeting a warm-rent cap");
+    assert.equal(matchesProfile(criteria,{...facts,warm_rent:null,cold_rent:750},sourceId,shAreas),true,
+      "unknown warm rent may be shown to user, but must not authorize sending");
     assert.equal(matchesProfile(criteria,{...facts,warm_rent:1250,cold_rent:750},sourceId,shAreas),false);
     assert.equal(matchesProfile(criteria,{...facts,warm_rent:1000,cold_rent:750},sourceId,shAreas),true);
   }
