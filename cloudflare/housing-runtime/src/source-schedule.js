@@ -1,6 +1,7 @@
-// One shared polling interval for both ImmoScout24 regions (10 minutes).
-// The existing source scheduler, queues, and matchers stay unchanged.
-const SOURCE_ROTATION = Object.freeze([69, 1, null, 3, 23, null, 29, null, null, 35, 69, 1, null, 3, 23, null, 29, null, null, 66]);
+// Each ImmoScout24 region is polled every five minutes, offset by one minute.
+// The other sources retain their prior 10-/20-minute frequencies.
+// One source per minute preserves the existing single-worker execution path.
+const SOURCE_ROTATION = Object.freeze([69, 1, null, 3, 23, 69, 1, 29, null, 35, 69, 1, null, 3, 23, 69, 1, 29, null, 66]);
 
 export function sourcesForMinute(minute) {
   const source = SOURCE_ROTATION[minute % SOURCE_ROTATION.length];

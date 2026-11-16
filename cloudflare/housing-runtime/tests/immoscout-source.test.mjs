@@ -387,7 +387,7 @@ test("scheduled ingestion uses the same profile-driven pipeline in both regions"
 
 test("every other Scout run preserves broad coverage while rotating specific places", () => {
   const queries=["Wohnungen zur Miete in Hamburg","Wohnungen zur Miete in Hamburg-Harburg","Wohnungen zur Miete in Hamburg-Eidelstedt"];
-  const slotMs=10*60_000;
+  const slotMs=5*60_000;
   assert.deepEqual(Array.from({length:8},(_,i)=>chooseImmoScoutQuery(queries,i*slotMs)), [
     queries[0],queries[1],queries[0],queries[2],queries[0],queries[1],queries[0],queries[2],
   ]);
