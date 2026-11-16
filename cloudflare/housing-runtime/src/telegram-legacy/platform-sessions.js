@@ -809,17 +809,38 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   ]);
  }
 
+ // Confirm the persisted state after each button press. A stale Telegram
+ // callback can be safely ignored; never imply that a send was enabled.
+ const changedProvider=(action==='resume'||action==='pause')?AUTO_APPLY_PROVIDERS[source]:null;
+ const changedAll=action==='on'||action==='off';
+ const expectedOn=action==='resume'||action==='on';
+ const actualProviderOn=changedProvider
+   ? (isTestAccount?state.test_auto_apply_enabled===true:state.auto_apply_enabled===true)
+     &&preferences?.[changedProvider.field]===true
+   :null;
+ const actualAllOn=(isTestAccount?state.test_auto_apply_enabled===true:state.auto_apply_enabled===true)
+   &&[1,4,3].every(id=>preferences?.[AUTO_APPLY_PROVIDERS[id].field]===true);
+ const actualAllOff=(isTestAccount?state.test_auto_apply_enabled!==true:state.auto_apply_enabled!==true)
+   &&[1,4,3].every(id=>preferences?.[AUTO_APPLY_PROVIDERS[id].field]!==true);
+ const applied=changedProvider?actualProviderOn===expectedOn
+   :changedAll?(expectedOn?actualAllOn:actualAllOff):null;
+ const label=changedProvider?.name||'Alle Quellen';
+ const controlNotice=applied===null?'':applied
+   ?'✅ <b>'+esc(label)+'</b>: '+(expectedOn?'gestartet':'pausiert')
+     +(isTestAccount?' (persönlicher Testversand)':'')+'\n\n'
+   :'⚠️ Der Schalter wurde nicht geändert. Bitte öffne die Ansicht erneut und versuche es noch einmal.\n\n';
+
  // Global controls affect the owner's test selections or regular auto-apply, not housing search.
  rows.push([
   button('▶️ Alle starten','platforms:on'),
   button('⏸ Alle pausieren','platforms:off')
  ]);
  const centralNote=isTestAccount
-  ? '\n\n🧪 <b>Persönlicher Testmodus</b>: Die Schalter steuern den Testversand je Quelle. Auch im Testmodus können echte Bewerbungen versendet werden.'
+  ? '\n\n🧪 <b>Persönlicher Testmodus</b>: Start/Pause steuert den Testversand je Quelle. Der zentrale Live-Versand bleibt getrennt und deaktiviert. Ein aktivierter Testmodus kann echte Bewerbungen senden; deren Erfolg muss ImmoScout24 bestätigen.'
   : runtimeEnv().CENTRAL_AUTO_APPLY_ENABLED==='1'?''
    :'\n\nℹ️ Der automatische Versand ist derzeit zentral noch nicht freigegeben.';
  rows.push([button('← Start','home')]);
- return render('⚡ <b>Automatische Bewerbung</b>\n\n'+(isTestAccount
+ return render('⚡ <b>Automatische Bewerbung</b>\n\n'+controlNotice+(isTestAccount
   ? 'Aktiviere oder pausiere den persönlichen Testmodus für einzelne Quellen oder alle Quellen.'
   : 'Starte oder pausiere den automatischen Bewerbungsversand je Quelle oder für alle Quellen.')+' Die Wohnungssuche bleibt davon unberührt. Plattformzugänge werden zentral verwaltet.'+(!isTestAccount&&!user.is_premium?'\n\nZum Starten der Quellen ist Premium erforderlich.':'')+centralNote,rows);
 
