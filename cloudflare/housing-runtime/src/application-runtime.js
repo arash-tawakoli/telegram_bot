@@ -212,6 +212,8 @@ export async function processHousingApplication(sql, env, request) {
     `;
     await event(sql, application.id, provider, "test_provider_submission", result.status, result.error || null, {
       test_mode: true, confirmation: result.confirmation || null, submission_started: submissionStarted,
+      provider_http_status: result.provider_http_status || null,
+      provider_message_code: result.provider_message_code || null,
     });
     return { status: 200, body: {
       ok: true, status: result.status, provider, test_mode: true,
@@ -325,7 +327,11 @@ export async function processHousingApplication(sql, env, request) {
       result = { status: "manual_required", error: centralCredentialError(error) };
     }
     await sql`UPDATE housing.applications SET status = ${result.status}, last_error = ${result.error || null}, sent_at = CASE WHEN ${result.status} = 'sent' THEN now() ELSE sent_at END, lease_until = NULL, wait_reason = NULL, updated_at = now() WHERE id = ${application.id}`;
-    await event(sql, application.id, provider, "provider_submission", result.status, result.error || null, { confirmation: result.confirmation || null });
+    await event(sql, application.id, provider, "provider_submission", result.status, result.error || null, {
+      confirmation: result.confirmation || null,
+      provider_http_status: result.provider_http_status || null,
+      provider_message_code: result.provider_message_code || null,
+    });
     return { status: 200, body: { ok: true, status: result.status, provider, reason: result.error || result.confirmation || null, application_id: application.id } };
   }
 
