@@ -253,20 +253,22 @@ async function applicationEvents(sql, member, body) {
   return { events: rows };
 }
 
+async function hasPremium(sql, participantId) {
+  const rows = await sql`
+    SELECT p.plan_override,p.plan_override_expires_at,p.referral_bonus_until,
+           s.status AS subscription_status,s.current_period_end AS subscription_period_end
+    FROM housing.participants p
+    LEFT JOIN housing.user_subscriptions s ON s.participant_id=p.id AND s.provider='stripe'
+    WHERE p.id=${participantId} AND p.status='active'
+  `;
+  return premiumParticipant(rows[0] || {});
+}
+
 async function setPreferences(sql, member, body) {
   const participantId = uuid(body.participantId, "participant");
   if (!await canAccessParticipant(sql, member, participantId)) throw new Error("participant_forbidden");
   const input = body.preferences && typeof body.preferences === "object" ? body.preferences : {};
-  if (input.enabled === true) {
-    const rows = await sql`
-      SELECT p.plan_override,p.plan_override_expires_at,p.referral_bonus_until,
-             s.status AS subscription_status,s.current_period_end AS subscription_period_end
-      FROM housing.participants p
-      LEFT JOIN housing.user_subscriptions s ON s.participant_id=p.id AND s.provider='stripe'
-      WHERE p.id=${participantId} AND p.status='active'
-    `;
-    if (!premiumParticipant(rows[0] || {})) throw new Error("premium_required");
-  }
+  if (Boolean(input.enabled) && !await hasPremium(sql, participantId)) throw new Error("premium_required");
   const weekdays = Array.isArray(input.allowed_weekdays) ? input.allowed_weekdays.map(Number).filter((day) => Number.isInteger(day) && day >= 1 && day <= 7) : null;
   await sql`
     INSERT INTO housing.application_preferences
@@ -285,6 +287,7 @@ async function setPreferences(sql, member, body) {
 async function startConnect(sql, member, body) {
   const participantId = uuid(body.participantId, "participant");
   if (!await canAccessParticipant(sql, member, participantId)) throw new Error("participant_forbidden");
+  if (!await hasPremium(sql, participantId)) throw new Error("premium_required");
   const selected = provider(body.provider);
   const flow = await issueProviderAuthFlow(sql, participantId, selected, "coach", "coach", {
     assignment_version: Number(body.assignmentVersion || 0),
@@ -454,7 +457,13 @@ export async function handleCoach(sql, request, env = {}) {
   if (action === "set_search_active") {
     const participantId = uuid(body.participantId, "participant");
     if (!await canAccessParticipant(sql, member, participantId)) throw new Error("participant_forbidden");
-    await sql`UPDATE housing.search_profiles SET active = ${Boolean(body.active)}, updated_at = now() WHERE id = ${uuid(body.profileId, "profile")} AND participant_id = ${participantId}`;
+    const profileId = uuid(body.profileId, "profile");
+    if (Boolean(body.active)) {
+      const profiles = await sql`SELECT profile_slot FROM housing.search_profiles WHERE id=${profileId} AND participant_id=${participantId}`;
+      if (Number(profiles[0]?.profile_slot || 1) > 1 && !await hasPremium(sql, participantId))
+        throw new Error("premium_required");
+    }
+    await sql`UPDATE housing.search_profiles SET active = ${Boolean(body.active)}, updated_at = now() WHERE id = ${profileId} AND participant_id = ${participantId}`;
     return { ok: true };
   }
   if (action === "delete_search") {
