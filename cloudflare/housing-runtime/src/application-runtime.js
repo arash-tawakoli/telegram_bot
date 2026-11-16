@@ -140,29 +140,23 @@ export async function processHousingApplication(sql, env, request) {
   }
 
   if (application.test_mode) {
-    if (provider !== "immoscout24" || Number(application.telegram_user_id) !== 8538226539
+    if (Number(application.telegram_user_id) !== 8538226539
       || !application.test_auto_apply_allowed || !application.test_auto_apply_enabled
-      || application.auto_apply_enabled || application.preferences_enabled || ![1, 69].includes(Number(application.source_id))) {
+      || application.auto_apply_enabled || application.preferences_enabled
+      || !application.provider_enabled || sourceForId(application.source_id)?.family !== provider) {
       return fail("manual_required", "test_mode_not_authorized");
     }
     const missing = missingApplicantFields(application.profile);
     if (missing.length) return fail("manual_required", "test_mode_profile_incomplete", { missing });
     let submissionStarted = false;
     const authorizeTestSend = async () => {
-      const dailyLimit = Math.min(5, Math.max(1, Number(application.test_auto_apply_daily_limit || 1)));
       const reserved = await sql`
         UPDATE housing.applications
-        SET submission_started_at = now(), quota_local_date = ${new Date().toISOString().slice(0, 10)}, lease_until = NULL, updated_at = now()
+        SET submission_started_at = now(), lease_until = NULL, updated_at = now()
         WHERE id = ${application.id}
           AND status = 'processing'
           AND test_mode = true
           AND submission_started_at IS NULL
-          AND (
-            SELECT COUNT(*) FROM housing.applications q
-            WHERE q.participant_id = ${application.participant_id}
-              AND q.test_mode = true
-              AND q.submission_started_at >= ${berlinDayStartSql()}
-          ) < ${dailyLimit}
           AND EXISTS (
             SELECT 1 FROM housing.participants p
             WHERE p.id = ${application.participant_id}
@@ -172,10 +166,15 @@ export async function processHousingApplication(sql, env, request) {
               AND p.test_auto_apply_enabled = true
               AND p.auto_apply_enabled = false
           )
-          AND NOT EXISTS (
+          AND EXISTS (
             SELECT 1 FROM housing.application_preferences pref
             WHERE pref.participant_id = ${application.participant_id}
-              AND pref.enabled = true
+              AND pref.enabled = false
+              AND CASE ${provider}
+                WHEN 'immoscout24' THEN pref.immoscout_enabled
+                WHEN 'immowelt' THEN pref.immowelt_enabled
+                WHEN 'immomio' THEN pref.immomio_enabled
+                ELSE false END = true
           )
         RETURNING id
       `;
@@ -184,7 +183,15 @@ export async function processHousingApplication(sql, env, request) {
     };
     let result;
     try {
-      result = await sendImmoScoutApplication({ ...application, authorizeTestSend }, env, sql);
+      if (provider === "immoscout24") {
+        result = await sendImmoScoutApplication({ ...application, authorizeTestSend }, env, sql);
+      } else if (!await authorizeTestSend()) {
+        result = { status: "manual_required", error: "test_send_not_authorized" };
+      } else {
+        const central = await getCentralProviderCredentials(sql, env, provider, { testMode: true });
+        const sender = provider === "immowelt" ? sendImmoweltApplication : sendImmomioApplication;
+        result = await sender({ ...application, authorizeTestSend }, env, sql, central);
+      }
     } catch (error) {
       const code = String(error?.message || "");
       result = {

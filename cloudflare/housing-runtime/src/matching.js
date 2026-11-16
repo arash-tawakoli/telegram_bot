@@ -199,19 +199,16 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts, 
       }
     }
 
-    // The personal test path is deliberately separate from regular central applications.
-    // Post-activation, one-per-day Scout canary is separate from historical
-    // application records whose identities were incomplete at migration.
+    // The owner's per-provider test path is separate from regular applications.
+    // Only offers discovered after test activation are eligible.
     const testStartedAt = timestampMillis(row.test_auto_apply_enabled_at);
     const testOfferFresh = autoApplyFresh && Number.isFinite(testStartedAt)
       && timestampMillis(cutover.first_seen_at) >= testStartedAt;
-    if (testOfferFresh && [1, 69].includes(Number(sourceId))
+    if (testOfferFresh && provider && enabled(providerEnabled)
       && Number(row.telegram_user_id) === 8538226539
       && (row.test_auto_apply_allowed === true || row.test_auto_apply_allowed === 1)
       && (row.test_auto_apply_enabled === true || row.test_auto_apply_enabled === 1)
       && !(row.auto_apply_enabled === true || row.auto_apply_enabled === 1)) {
-      const dailyLimit = Math.min(5, Math.max(1, Number(row.test_auto_apply_daily_limit || 1)));
-      const dayStart = berlinDayStartISO();
       const testKey = `test:${row.participant_id}:${identityHash}`;
       // The per-offer test key prevents repeat submissions. A provider-wide
       // migration marker cannot identify offers first seen after activation.
@@ -220,7 +217,7 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts, 
           INSERT INTO housing.applications
             (id, participant_id, offer_identity_id, provider, idempotency_key, status, test_mode)
           SELECT
-            gen_random_uuid(), ${row.participant_id}, ${offerId}, 'immoscout24', ${testKey}, 'pending', true
+            gen_random_uuid(), ${row.participant_id}, ${offerId}, ${provider}, ${testKey}, 'pending', true
           WHERE EXISTS (
             SELECT 1 FROM housing.participants p
             WHERE p.id = ${row.participant_id}
@@ -230,9 +227,14 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts, 
               AND p.test_auto_apply_enabled = true
               AND p.auto_apply_enabled = false
           )
-            AND NOT EXISTS (
+            AND EXISTS (
               SELECT 1 FROM housing.application_preferences pref
-              WHERE pref.participant_id = ${row.participant_id} AND pref.enabled = true
+              WHERE pref.participant_id = ${row.participant_id} AND pref.enabled = false
+                AND CASE ${provider}
+                  WHEN 'immoscout24' THEN pref.immoscout_enabled
+                  WHEN 'immowelt' THEN pref.immowelt_enabled
+                  WHEN 'immomio' THEN pref.immomio_enabled
+                  ELSE false END = true
             )
             AND NOT EXISTS (
               SELECT 1 FROM housing.applications a
@@ -240,12 +242,6 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts, 
                 AND a.test_mode = true
                 AND a.status IN ('pending','processing')
             )
-            AND (
-              SELECT COUNT(*) FROM housing.applications a
-              WHERE a.participant_id = ${row.participant_id}
-                AND a.test_mode = true
-                AND a.submission_started_at >= ${dayStart}
-            ) < ${dailyLimit}
           ON CONFLICT (idempotency_key) DO NOTHING
           RETURNING id
         `;

@@ -68,7 +68,7 @@ function telegramControlOrder(args, callbackData, supersedingCallbacks) {
     return { error: new Error("telegram_control_update_invalid") };
   }
   return {
-    sql: " AND EXISTS (SELECT 1 FROM telegram_updates WHERE update_id=? AND telegram_user_id=? AND callback_data=?) AND NOT EXISTS (SELECT 1 FROM telegram_updates WHERE telegram_user_id=? AND update_id>? AND callback_data IN (?,?))",
+    sql: ` AND EXISTS (SELECT 1 FROM telegram_updates WHERE update_id=? AND telegram_user_id=? AND callback_data=?) AND NOT EXISTS (SELECT 1 FROM telegram_updates WHERE telegram_user_id=? AND update_id>? AND callback_data IN (${supersedingCallbacks.map(() => "?").join(",")}))`,
     params: [updateId, telegramUserId, callbackData, telegramUserId, updateId, ...supersedingCallbacks],
     record: {
       query: "UPDATE telegram_updates SET telegram_user_id=?,callback_data=? WHERE update_id=? AND kind='callback_query'",
@@ -372,7 +372,7 @@ async function rpc(client, env, name, args) {
     if (provider && !Object.hasOwn(providerColumns, provider))
       return { data: null, error: new Error("provider_not_allowlisted") };
     const enable = args.p_enabled === true;
-    const participant = (await client.run("SELECT id,status,telegram_user_id,test_auto_apply_enabled,plan_override,plan_override_expires_at,referral_bonus_until FROM participants WHERE id=? LIMIT 1", [userId]))[0];
+    const participant = (await client.run("SELECT id,status,telegram_user_id,test_auto_apply_allowed,test_auto_apply_enabled,auto_apply_enabled,plan_override,plan_override_expires_at,referral_bonus_until FROM participants WHERE id=? LIMIT 1", [userId]))[0];
     if (!participant || participant.status !== "active" || Number(participant.telegram_user_id) !== Number(args.p_telegram_user_id))
       return { data: null, error: new Error("auto_apply_user_not_found") };
     const current = (await client.run("SELECT immoscout_enabled,immowelt_enabled,immomio_enabled FROM application_preferences WHERE participant_id=? LIMIT 1", [userId]))[0] || {};
@@ -382,6 +382,49 @@ async function rpc(client, env, name, args) {
       immomio_enabled: provider ? (provider === "immomio" ? enable : bool(current.immomio_enabled)) : enable,
     };
     const active = Object.values(next).some(Boolean);
+    // The allowlisted owner's Start/Pause buttons operate the isolated test
+    // flow. They must never also enable the normal application sender.
+    if (bool(participant.test_auto_apply_allowed) && Number(participant.telegram_user_id) === 8538226539) {
+      if (active && enable) {
+        const missing = await rpc(client, env, "application_profile_missing_fields", { p_user: userId });
+        if (missing.error || missing.data.length) return { data: null, error: new Error("profile_incomplete") };
+      }
+      const sourceId = { immoscout24: 1, immowelt: 4, immomio: 3 }[provider];
+      const callbackData = provider
+        ? `platforms:${enable ? "resume" : "pause"}:${sourceId}`
+        : args.p_from_completion === true
+          ? `platforms:completion:${enable ? "yes" : "no"}`
+          : `platforms:${enable ? "on" : "off"}`;
+      const superseding = provider
+        ? [`platforms:resume:${sourceId}`, `platforms:pause:${sourceId}`]
+        : ["platforms:on", "platforms:off", "platforms:completion:yes", "platforms:completion:no"];
+      const order = telegramControlOrder(args, callbackData, superseding);
+      if (order.error) return { data: null, error: order.error };
+      const newlyActivated = active && (!bool(participant.test_auto_apply_enabled) ||
+        (provider ? enable && !bool(current[providerColumns[provider]]) :
+          enable && Object.entries(next).some(([key, value]) => value && !bool(current[key]))));
+      const retired = !active ? null : provider && !enable ? provider : undefined;
+      const results = await client.batch([
+        { query: "INSERT OR IGNORE INTO application_preferences(participant_id) VALUES(?)", params: [userId] },
+        ...(order.record ? [order.record] : []),
+        { query: `UPDATE application_preferences SET immoscout_enabled=?,immowelt_enabled=?,immomio_enabled=?,enabled=0,updated_at=CURRENT_TIMESTAMP WHERE participant_id=?${order.sql}`,
+          params: [next.immoscout_enabled ? 1 : 0, next.immowelt_enabled ? 1 : 0, next.immomio_enabled ? 1 : 0, userId, ...order.params] },
+        { query: `UPDATE participants SET auto_apply_enabled=0,test_auto_apply_enabled=?,test_auto_apply_daily_limit=0,
+          test_auto_apply_enabled_at=CASE WHEN ? THEN CURRENT_TIMESTAMP ELSE test_auto_apply_enabled_at END,
+          test_auto_apply_disabled_at=CASE WHEN ? THEN CURRENT_TIMESTAMP ELSE test_auto_apply_disabled_at END,
+          updated_at=CURRENT_TIMESTAMP WHERE id=?${order.sql}`,
+          params: [active ? 1 : 0, newlyActivated ? 1 : 0, active ? 0 : 1, userId, ...order.params] },
+        ...((retired !== undefined) ? [{
+          query: `UPDATE applications SET status='failed',last_error='test_mode_disabled',updated_at=CURRENT_TIMESTAMP
+            WHERE participant_id=? AND test_mode=1 AND status IN ('pending','processing')
+              AND submission_started_at IS NULL${retired ? " AND provider=?" : ""}${order.sql}`,
+          params: [...(retired ? [userId, retired] : [userId]), ...order.params],
+        }] : []),
+      ]);
+      if (order.record && Number(results?.[1]?.meta?.changes || 0) !== 1)
+        return { data: null, error: new Error("telegram_control_update_missing") };
+      return { data: { enabled: active, test_mode: true, ...next }, error: null };
+    }
     if (active) {
       if (bool(participant.test_auto_apply_enabled)) return { data: null, error: new Error("test_mode_active") };
       const profile = (await client.run("SELECT profile FROM applicant_profiles WHERE participant_id=? LIMIT 1", [userId]))[0];
@@ -400,10 +443,12 @@ async function rpc(client, env, name, args) {
     const sourceId = { immoscout24: 1, immowelt: 4, immomio: 3 }[provider];
     const callbackData = provider
       ? `platforms:${enable ? "resume" : "pause"}:${sourceId}`
-      : `platforms:completion:${enable ? "yes" : "no"}`;
+      : args.p_from_completion === true
+        ? `platforms:completion:${enable ? "yes" : "no"}`
+        : `platforms:${enable ? "on" : "off"}`;
     const superseding = provider
       ? [`platforms:resume:${sourceId}`,`platforms:pause:${sourceId}`]
-      : ["platforms:completion:yes","platforms:completion:no"];
+      : ["platforms:completion:yes","platforms:completion:no","platforms:on","platforms:off"];
     const order = telegramControlOrder(args, callbackData, superseding);
     if (order.error) return { data: null, error: order.error };
     await client.batch([

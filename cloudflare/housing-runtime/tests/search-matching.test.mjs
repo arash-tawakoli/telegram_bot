@@ -164,7 +164,7 @@ test("post-activation Scout test canary survives old provider-wide migration mar
         auto_apply_enabled: 0, test_auto_apply_allowed: 1, test_auto_apply_enabled: 1,
         test_auto_apply_enabled_at: new Date(now - 6_000).toISOString(),
         test_auto_apply_daily_limit: 1, telegram_user_id: 8538226539,
-        preferences_enabled: 0, applicant_profile: JSON.stringify(profile),
+        preferences_enabled: 0, immoscout_enabled: 1, applicant_profile: JSON.stringify(profile),
       }];
       if (query.includes("SELECT i.first_seen_at")) return [{
         first_seen_at: new Date(now + firstSeenOffset).toISOString(),

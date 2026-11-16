@@ -65,7 +65,7 @@ function applicationRow(overrides = {}) {
     test_auto_apply_daily_limit: 1,
     auto_apply_enabled: 0,
     preferences_enabled: 0,
-    provider_enabled: 0,
+    provider_enabled: 1,
     connection_status: null,
     ...overrides,
   };
@@ -109,7 +109,7 @@ test("matching queues a separate ImmoScout test application only for an opted-in
         test_auto_apply_enabled: 1,
         test_auto_apply_enabled_at: new Date(Date.now() - 7_000).toISOString(),
         test_auto_apply_daily_limit: 1,
-        auto_apply_enabled: 0,
+        auto_apply_enabled: 0, immoscout_enabled: 1,
       }];
     }
     if (/SELECT i\.first_seen_at/i.test(text)) return [{
@@ -121,13 +121,14 @@ test("matching queues a separate ImmoScout test application only for an opted-in
     if (/INSERT INTO housing\.applications/i.test(text)) return [{ id: "app-test-1" }];
     return [];
   };
-  const queued = await queueMatches(sql, "offer-1", 1, "1:external:123", { title: "Wohnung in Hamburg", city: "Hamburg", warm_rent: 900, rooms: 2, area_sqm: 65 });
+  const queued = await queueMatches(sql, "offer-1", 1, "1:external:123", { title: "Wohnung in Hamburg", city: "Hamburg", warm_rent: 900, rooms: 2, area_sqm: 65, canonical_url: "https://www.immobilienscout24.de/expose/123456789" });
   assert.equal(queued, 1);
   const insert = calls.find((call) => /INSERT INTO housing\.applications/i.test(call.text));
   assert.ok(insert);
   assert.match(insert.text, /test_mode/);
   assert.match(insert.text, /test_auto_apply_enabled = true/);
-  assert.match(insert.text, /submission_started_at/);
+  assert.match(insert.text, /pref\.immoscout_enabled/);
+  assert.doesNotMatch(insert.text, /COUNT\(\*\)/);
 });
 
 test("matching never queues the personal ImmoScout test path for another provider or an opted-out user", async () => {
@@ -186,7 +187,7 @@ test("test application sends through the central credential without requiring a 
   }
 });
 
-test("test application does not send when the daily quota reservation fails", async () => {
+test("test application does not send when the atomic authorization reservation fails", async () => {
   const central = await centralCredentialRow();
   const db = sqlFor(applicationRow(), { reserve: false });
   const originalFetch = globalThis.fetch;
@@ -206,8 +207,9 @@ test("test application does not send when the daily quota reservation fails", as
       method: "POST", headers: { authorization: "Bearer run-secret" },
     }));
     assert.equal(result.body.status, "manual_required");
-    assert.equal(result.body.reason, "test_daily_limit_reached");
+    assert.equal(result.body.reason, "test_send_not_authorized");
     assert.equal(requests.length, 1);
+    assert.equal(db.writes.some(({ text }) => /COUNT\(\*\).*housing\.applications/i.test(text)), false);
     assert.equal(requests.some((url) => url.includes("/contact")), false);
   } finally {
     globalThis.fetch = originalFetch;

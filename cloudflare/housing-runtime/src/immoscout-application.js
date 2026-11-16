@@ -91,7 +91,7 @@ export async function sendImmoScoutApplication(application, env, sql, central = 
   if (testMode) {
     if (typeof application.authorizeTestSend !== "function") return { status: "manual_required", error: "test_send_authorization_missing" };
     const authorized = await application.authorizeTestSend();
-    if (!authorized) return { status: "manual_required", error: "test_daily_limit_reached" };
+    if (!authorized) return { status: "manual_required", error: "test_send_not_authorized" };
   }
   const response = await fetch(`https://rest.immobilienscout24.de/restapi/api/search/v1.0/expose/${encodeURIComponent(id)}/contact`, {
     method: "POST",
