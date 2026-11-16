@@ -282,7 +282,7 @@ test("large Scout map subsets use a few D1 batches and one candidate-profile rea
       exposedId: String(100000 + index),
       exposeUrl: "https://www.immobilienscout24.de/expose/" + (100000 + index),
       title: "Mietwohnung in Hamburg",
-      address: { city: "Hamburg" },
+      address: { city: "Kiel", postcode: "24103" },
       price: { value: 800 },
       ...(index === 0 ? { totalRent: null } : {}),
     }));
