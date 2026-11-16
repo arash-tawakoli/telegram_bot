@@ -1,4 +1,5 @@
 import { hashPassword, memberForAccess } from "./auth.js";
+import { premiumParticipant } from "./application-policy.js";
 import { assertAllowedSource } from "./source-allowlist.js";
 import { fetchImmoScoutSource, fetchImmoScoutMap, germanImmoScoutQuery } from "./immoscout-source.js";
 import { issueProviderAuthFlow, centralCall } from "./provider-facade.js";
@@ -256,6 +257,16 @@ async function setPreferences(sql, member, body) {
   const participantId = uuid(body.participantId, "participant");
   if (!await canAccessParticipant(sql, member, participantId)) throw new Error("participant_forbidden");
   const input = body.preferences && typeof body.preferences === "object" ? body.preferences : {};
+  if (input.enabled === true) {
+    const rows = await sql`
+      SELECT p.plan_override,p.plan_override_expires_at,p.referral_bonus_until,
+             s.status AS subscription_status,s.current_period_end AS subscription_period_end
+      FROM housing.participants p
+      LEFT JOIN housing.user_subscriptions s ON s.participant_id=p.id AND s.provider='stripe'
+      WHERE p.id=${participantId} AND p.status='active'
+    `;
+    if (!premiumParticipant(rows[0] || {})) throw new Error("premium_required");
+  }
   const weekdays = Array.isArray(input.allowed_weekdays) ? input.allowed_weekdays.map(Number).filter((day) => Number.isInteger(day) && day >= 1 && day <= 7) : null;
   await sql`
     INSERT INTO housing.application_preferences
