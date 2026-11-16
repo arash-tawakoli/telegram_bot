@@ -39,7 +39,9 @@ test("ImmoScout attaches the 24-hour D1 document-package link when the provider 
     const sent = calls.find(call => call.url.endsWith("/contact"));
     const form = sent.body["expose.contactForm"];
     assert.equal(form.applicationPackageCompleted, true);
-    assert.match(form.applicationPackageLink, /documents\/package\?t=signed/);
+    // Unsupported optional form extensions must not break schema validation;
+    // the signed document link stays inside the contact message.
+    assert.equal(form.applicationPackageLink, undefined);
     assert.match(form.message, /Bewerbungsunterlagen \(geschützter Link\)/);
   } finally {
     globalThis.fetch = originalFetch;
@@ -83,7 +85,7 @@ test("Scout maps persisted applicant data into all documented mandatory contact 
     }, {}, null, { credentials: { access_token: "test-only-token" } });
     assert.equal(requests.length, 2);
     const form = requests[1].body["expose.contactForm"];
-    assert.equal(form["@contactFormType"], "LONG");
+    assert.equal(form["@contactFormType"], undefined);
     assert.equal(form.firstname, "Test");
     assert.equal(form.lastname, "Person");
     assert.equal(form.phoneNumber, "+49401234567");
@@ -95,9 +97,9 @@ test("Scout maps persisted applicant data into all documented mandatory contact 
     });
     assert.equal(form.petsInHousehold, "Nein");
     assert.equal(form.numberOfPersons, 1);
-    assert.equal(form.employmentRelationship, "Angestellt");
+    assert.equal(form.employmentRelationship, "Angestellte(r)");
     assert.equal(form.income, "2000 € - 3000 €");
-    assert.equal(form.moveInDate, "Ab sofort");
+    assert.equal(form.moveInDate, "Sofort");
     assert.equal(result.status, "manual_required");
     assert.equal(result.error, "provider_rejected");
     assert.equal(result.provider_http_status, 422);
@@ -151,4 +153,90 @@ test("Scout blocks exposes that do not allow contact", async () => {
     assert.equal(result.error, "provider_contact_disabled");
     assert.equal(calls.length, 1);
   } finally { globalThis.fetch = previous; }
+});
+
+test("Scout guest contact uses documented schema order even when provider configuration is reversed", async () => {
+  const oldFetch = globalThis.fetch;
+  const calls = [];
+  const fields = {
+    applicationPackageLinkField: "OPTIONAL",
+    applicationPackageCompletedField: "MANDATORY",
+    salutationField: "MANDATORY",
+    incomeField: "MANDATORY",
+    employmentRelationshipField: "MANDATORY",
+    numberOfPersonsField: "MANDATORY",
+    petsInHouseholdField: "MANDATORY",
+    moveInDateField: "MANDATORY",
+    addressField: "MANDATORY",
+    emailAddressField: "MANDATORY",
+    phoneNumberField: "MANDATORY",
+    lastnameField: "MANDATORY",
+    firstnameField: "MANDATORY",
+    messageField: "OPTIONAL",
+  };
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push({ url: String(url), body: init.body ? JSON.parse(init.body) : null,
+      authorization: init.headers?.authorization });
+    if (String(url).endsWith("/contact")) {
+      const form = calls.at(-1).body["expose.contactForm"];
+      const keys = Object.keys(form).filter(k => k !== "@xmlns");
+      const expected = [
+        "firstname", "lastname", "phoneNumber", "emailAddress", "message", "address",
+        "moveInDate", "petsInHousehold", "numberOfPersons", "employmentRelationship",
+        "income", "salutation", "applicationPackageCompleted",
+      ];
+      if (JSON.stringify(keys) !== JSON.stringify(expected) || "@contactFormType" in form ||
+          "applicationPackageLink" in form) {
+        return Response.json({ messageCode: "ERROR_COMMON_SCHEMA_VALIDATION_FAILED" }, { status: 412 });
+      }
+      return Response.json({ ok: true });
+    }
+    return Response.json({ "expose.expose": {
+      "@contactFormType": "LONG", contactFormConfiguration: fields,
+    } });
+  };
+  try {
+    const result = await sendImmoScoutApplication({
+      test_mode: true, external_id: "123456789",
+      authorizeTestSend: async () => true,
+      profile: {
+        first_name: "Gast", last_name: "Kontakt", email: "gast@example.de",
+        phone: "+491701234567", street: "Testweg", house_number: "4",
+        postcode: "20095", city: "Hamburg", salutation: "MR", pets: "Nein",
+        household_size: 1, employment_status: "EMPLOYEE", income_range: "2000_3000",
+        move_in_preference: "IMMEDIATE", message_apartment: "Ich interessiere mich",
+      },
+      document_package_url: "https://example.test/documents/signed",
+    }, {}, null, { credentials: { access_token: "central-credential" } });
+    assert.equal(result.status, "sent");
+    assert.equal(result.confirmation, "official_rest_2xx");
+    assert.equal(calls.length, 2);
+    assert.equal(calls[1].authorization, "Bearer central-credential");
+    assert.equal(calls[1].body["expose.contactForm"].emailAddress, "gast@example.de");
+    assert.match(calls[1].body["expose.contactForm"].message, /documents\/signed/);
+  } finally { globalThis.fetch = oldFetch; }
+});
+
+test("Scout blocks unknown mandatory provider extensions before reserving a send", async () => {
+  const before = globalThis.fetch;
+  const calls = [];
+  let reserved = false;
+  globalThis.fetch = async url => {
+    calls.push(String(url));
+    if (String(url).endsWith("/contact")) throw Error("unexpected contact POST");
+    return Response.json({ "expose.expose": { contactFormConfiguration: {
+      firstNameField: "OPTIONAL", unsupportedExtraField: "MANDATORY",
+    } } });
+  };
+  try {
+    const result = await sendImmoScoutApplication({
+      test_mode: true, external_id: "123456789",
+      profile: { first_name: "Gast" },
+      authorizeTestSend: async () => { reserved = true; return true; },
+    }, {}, null, { credentials: { access_token: "central-credential" } });
+    assert.equal(result.status, "manual_required");
+    assert.match(result.error, /required_profile_data_missing:unsupportedExtra/);
+    assert.equal(reserved, false);
+    assert.equal(calls.length, 1);
+  } finally { globalThis.fetch = before; }
 });
