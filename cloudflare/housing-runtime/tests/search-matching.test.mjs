@@ -143,6 +143,61 @@ test("incomplete historical ImmoScout identity also blocks personal test AutoApp
   assert.equal(calls.some(call => call.query.includes("INSERT INTO housing.deliveries")), true);
   assert.equal(calls.some(call => call.query.includes("INSERT INTO housing.applications")), false);
 });
+test("post-activation Scout test canary survives old provider-wide migration marker, but never replays older offers", async () => {
+  const participantId = "test-owner";
+  const identityHash = "1:external:post-activation-001";
+  const oldBlock = await applicationIdempotencyHash(`legacy:blocked:immoscout24:${participantId}`);
+  const testHash = await applicationIdempotencyHash(`test:${participantId}:${identityHash}`);
+  const profile = {
+    first_name: "A", last_name: "B", email: "a@example.com", phone: "+49123456789",
+    street: "Testweg", house_number: "1", postcode: "20095", city: "Hamburg",
+    salutation: "MS", household_type: "SINGLE", employment_status: "EMPLOYEE",
+    income_range: "NOT_SPECIFIED", pets: "Keine", move_in_preference: "NOT_SPECIFIED",
+    schufa_status: "NOT_SPECIFIED",
+  };
+  async function scenario(firstSeenOffset, retainedSpecificKey = false) {
+    const calls = [], now = Date.now();
+    const sql = async (parts, ...values) => {
+      const query = parts.join("?"); calls.push({ query, values });
+      if (query.includes("SELECT DISTINCT sp.participant_id")) return [{
+        participant_id: participantId, criteria: JSON.stringify(hamburg), profile_slot: 1,
+        auto_apply_enabled: 0, test_auto_apply_allowed: 1, test_auto_apply_enabled: 1,
+        test_auto_apply_enabled_at: new Date(now - 6_000).toISOString(),
+        test_auto_apply_daily_limit: 1, telegram_user_id: 8538226539,
+        preferences_enabled: 0, applicant_profile: JSON.stringify(profile),
+      }];
+      if (query.includes("SELECT i.first_seen_at")) return [{
+        first_seen_at: new Date(now + firstSeenOffset).toISOString(),
+        enabled_at: new Date(now - 30_000).toISOString(),
+        expires_at: new Date(now + 86_400_000).toISOString(),
+      }];
+      if (query.includes("SELECT 1 FROM housing.application_dedupe_keys"))
+        return values[0] === oldBlock || (retainedSpecificKey && values[0] === testHash)
+          ? [{ found: 1 }] : [];
+      if (query.includes("INSERT INTO housing.deliveries")) return [{ id: "delivery-new" }];
+      if (query.includes("INSERT INTO housing.applications")) return [{ id: "app-new" }];
+      return [];
+    };
+    const queued = await queueMatches(sql, "offer-new", 1, identityHash,
+      { ...apartment, canonical_url: "https://www.immobilienscout24.de/expose/123456789" });
+    return { calls, queued };
+  }
+  const fresh = await scenario(-1_000);
+  assert.equal(fresh.queued, 1);
+  assert.equal(fresh.calls.some(c => c.query.includes("INSERT INTO housing.applications")), true,
+    "fresh consented canary listing queues despite an unrelated historic provider-wide block");
+  assert.equal(fresh.calls.some(c => c.values[0] === oldBlock), false,
+    "do not drop or query the historical provider-wide blocked marker for the canary");
+  assert.equal(fresh.calls.some(c => c.query.includes("INSERT INTO housing.application_dedupe_keys")), true);
+  const old = await scenario(-20_000);
+  assert.equal(old.queued, 1, "delivery queue remains unaffected");
+  assert.equal(old.calls.some(c => c.query.includes("INSERT INTO housing.applications")), false,
+    "listings first seen before activation must never be retroactively applied for");
+  const duplicate = await scenario(-1_000, true);
+  assert.equal(duplicate.calls.some(c => c.query.includes("INSERT INTO housing.applications")), false,
+    "the specific test application key always prevents repeated submissions");
+});
+
 test("new fresh matches queue AutoApply for complete premium profiles without personal connections", async () => {
   let testMode = false;
   const calls = [];
