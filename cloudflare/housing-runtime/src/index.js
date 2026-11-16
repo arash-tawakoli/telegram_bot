@@ -266,10 +266,6 @@ async function processDelivery(sql, request, env) {
   }
   const facts = { ...(details && typeof details === "object" ? details : {}), canonical_url: claimed.canonical_url };
   const photo = await resolveListingImage(facts, claimed.canonical_url, claimed.source_id);
-  if (!photo) {
-    await sql`UPDATE housing.deliveries SET status = 'failed', error_message = 'listing_photo_missing' WHERE id = ${claimed.id}`;
-    return json({ ok: true, status: "failed", reason: "listing_photo_missing" });
-  }
   let preview;
   try { preview = listingMessageRequest(claimed.telegram_chat_id, photo, facts, claimed.canonical_url, claimed.source_id, claimed.source_name, claimed.id); }
   catch {
@@ -388,7 +384,17 @@ async function runScheduledHousingWork(env, minute = Math.floor(Date.now() / 60_
       body: JSON.stringify({ source_id: sourceId }),
     });
     try {
-      await withDatabase(env, (sql) => runSource(sql, sourceRequest, env));
+      const response = await withDatabase(env, (sql) => runSource(sql, sourceRequest, env));
+      if (response.ok && [1, 69].includes(sourceId)) {
+        const audit = await response.json();
+        console.log("housing_scout_mcp_coverage", JSON.stringify({
+          source_id: sourceId, query: audit.query,
+          reported_total: audit.fetched, unique_returned: audit.valid,
+          missing_from_response: audit.missing_from_response,
+          coverage_partition: audit.coverage_partition,
+          map_error: audit.map_error || null,
+        }));
+      }
     } catch (error) {
       console.error("housing_source_scheduled_failed", JSON.stringify({ source_id: sourceId, error: String(error?.message || error) }));
     }
