@@ -69,7 +69,8 @@ test("central AutoApply stays paused after deployment and does not reserve or se
 test("Free downgrade blocks already queued normal AutoApply before submission", async () => {
   const db = sqlFor({
     id: "app-downgraded", participant_id: "user-1", offer_identity_id: "offer-1",
-    status: "pending", test_mode: 0, plan_override: "free",
+    canonical_url: "https://www.immobilienscout24.de/expose/123456789",
+    provider: "immoscout24", status: "pending", test_mode: 0, plan_override: "free",
     auto_apply_enabled: true, preferences_enabled: true, provider_enabled: true,
   });
   const result = await processHousingApplication(db.query, { APPLICATION_RUN_TOKEN: "secret", CENTRAL_AUTO_APPLY_ENABLED: "1" },
