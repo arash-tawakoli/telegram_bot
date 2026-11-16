@@ -143,7 +143,7 @@ test("incomplete historical ImmoScout identity also blocks personal test AutoApp
   assert.equal(calls.some(call => call.query.includes("INSERT INTO housing.deliveries")), true);
   assert.equal(calls.some(call => call.query.includes("INSERT INTO housing.applications")), false);
 });
-test("post-activation Scout test canary survives old provider-wide migration marker, but never replays older offers", async () => {
+test("Scout test sender accepts still-active earlier discoveries and respects per-offer deduplication", async () => {
   const participantId = "test-owner";
   const identityHash = "1:external:post-activation-001";
   const oldBlock = await applicationIdempotencyHash(`legacy:blocked:immoscout24:${participantId}`);
@@ -191,8 +191,8 @@ test("post-activation Scout test canary survives old provider-wide migration mar
   assert.equal(fresh.calls.some(c => c.query.includes("INSERT INTO housing.application_dedupe_keys")), true);
   const old = await scenario(-20_000);
   assert.equal(old.queued, 1, "delivery queue remains unaffected");
-  assert.equal(old.calls.some(c => c.query.includes("INSERT INTO housing.applications")), false,
-    "listings first seen before activation must never be retroactively applied for");
+  assert.equal(old.calls.some(c => c.query.includes("INSERT INTO housing.applications")), true,
+    "still-active listings may be applied for even if the first discovery predates Start");
   const duplicate = await scenario(-1_000, true);
   assert.equal(duplicate.calls.some(c => c.query.includes("INSERT INTO housing.applications")), false,
     "the specific test application key always prevents repeated submissions");
@@ -231,7 +231,7 @@ test("new fresh matches queue AutoApply for complete premium profiles without pe
 });
 
 
-test("Scout alerts with unknown warm rent cannot queue premium or test applications", async () => {
+test("an incomplete applicant profile cannot queue a Scout test application", async () => {
   const calls = [];
   const sql = async (parts, ...values) => {
     const query = parts.join("?");
@@ -260,6 +260,57 @@ test("Scout alerts with unknown warm rent cannot queue premium or test applicati
   assert.ok(!calls.some(x => x.includes("INSERT INTO housing.applications")));
 });
 
+
+test("Scout AutoApply follows search profile + complete applicant + Start across prices and age labels", async () => {
+  const complete = {
+    first_name: "Eva", last_name: "Test", email: "eva@example.com",
+    phone: "+49123456789", street: "Teststraße", house_number: "7", postcode: "20095",
+    city: "Hamburg", salutation: "MS", household_type: "SINGLE",
+    employment_status: "EMPLOYEE", income_range: "1000_1500",
+    pets: "NO", move_in_preference: "FLEXIBLE", schufa_status: "NOT_SPECIFIED",
+  };
+  async function caseFor({ warm = 900, cold = 750, title = "Wohnung Hamburg",
+    senderOn = 1, applicant = complete, maxRent = 1200, expired = false } = {}) {
+    const calls = [], now = Date.now();
+    const sql = async (parts, ...values) => {
+      const query = parts.join("?");
+      calls.push({ query, values });
+      if (query.includes("SELECT DISTINCT sp.participant_id")) return [{
+        participant_id: "test-owner", profile_slot: 1,
+        criteria: JSON.stringify({ ...hamburg, max_warm_rent: maxRent }),
+        test_auto_apply_allowed: 1, test_auto_apply_enabled: senderOn,
+        test_auto_apply_enabled_at: new Date(now - 10_000).toISOString(),
+        auto_apply_enabled: 0, telegram_user_id: 8538226539,
+        immoscout_enabled: 1, preferences_enabled: 0,
+        applicant_profile: JSON.stringify(applicant),
+      }];
+      if (query.includes("SELECT i.first_seen_at")) return [{
+        first_seen_at: new Date(now - 86_400_000).toISOString(),
+        enabled_at: new Date(now - 120_000).toISOString(),
+        expires_at: new Date(now + (expired ? -30_000 : 3_600_000)).toISOString(),
+      }];
+      if (query.includes("INSERT INTO housing.deliveries")) return [{ id: "delivery" }];
+      if (query.includes("INSERT INTO housing.applications")) return [{ id: "app" }];
+      return [];
+    };
+    await queueMatches(sql, "offer", 1, "1:external:" + title,
+      { title, city: "Hamburg", property_type: "Wohnung",
+        warm_rent: warm, cold_rent: cold, rooms: 3,
+        canonical_url: "https://www.immobilienscout24.de/expose/12345678" });
+    return calls.some(c => c.query.includes("INSERT INTO housing.applications"));
+  }
+  assert.equal(await caseFor({}), true, "normal matching rent is eligible");
+  assert.equal(await caseFor({ title: "Mindestalter: 55 Jahre - Service Wohnung" }), true,
+    "no new automatic age filter is imposed");
+  assert.equal(await caseFor({ warm: null, title: "Wohnung ohne Warmmiete" }), true,
+    "unknown warm rent follows search profile policy, not an extra AutoApply blocker");
+  assert.equal(await caseFor({ warm: 1300 }), false,
+    "the user's configured rent maximum is authoritative");
+  assert.equal(await caseFor({ senderOn: 0 }), false, "Pause prevents queueing");
+  assert.equal(await caseFor({ applicant: {} }), false, "the applicant profile must be complete");
+  assert.equal(await caseFor({ expired: true }), false, "expired offers cannot be sent");
+});
+
 test("Scout sends unknown-priced apartment alerts without treating cold rent as verified warm rent", () => {
   const shAreas=[{ name:"Kiel", area_type:"independent_city", area_code:"01002", parent_code:"SH" }];
   const scenarios=[
@@ -269,7 +320,7 @@ test("Scout sends unknown-priced apartment alerts without treating cold rent as 
   ];
   for(const {sourceId,criteria,facts} of scenarios){
     assert.equal(matchesProfile(criteria,{...facts,warm_rent:null,cold_rent:750},sourceId,shAreas),true,
-      "unknown warm rent may be shown to user, but must not authorize sending");
+      "a search profile permitting unknown warm rents can match without inventing a price");
     assert.equal(matchesProfile(criteria,{...facts,warm_rent:1250,cold_rent:750},sourceId,shAreas),false);
     assert.equal(matchesProfile(criteria,{...facts,warm_rent:1000,cold_rent:750},sourceId,shAreas),true);
   }
