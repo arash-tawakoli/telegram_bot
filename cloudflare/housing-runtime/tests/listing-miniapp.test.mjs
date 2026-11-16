@@ -30,7 +30,10 @@ test("a Telegram listing is one native non-clickable photo with a separate share
   assert.equal(payload.reply_markup.inline_keyboard[0][0].url, source);
   assert.equal(payload.reply_markup.inline_keyboard[1][0].callback_data, "save:" + delivery);
   assert.equal(payload.reply_markup.inline_keyboard[1][0].url, undefined);
-  assert.throws(() => listingMessageRequest(123, null, facts, source, 1, "ImmoScout24", delivery), /listing_photo_missing/);
+  const fallback = listingMessageRequest(123, null, { ...facts, image_url: null }, source, 1, "ImmoScout24", delivery);
+  assert.equal(fallback.photo, undefined);
+  assert.match(fallback.text, /Sonnige Wohnung/);
+  assert.equal(fallback.reply_markup.inline_keyboard[0][0].url, source);
 });
 
 test("successful Telegram send makes exactly one native sendPhoto call", async () => {
@@ -46,6 +49,31 @@ test("successful Telegram send makes exactly one native sendPhoto call", async (
   assert.match(calls[0].url, /\/sendPhoto$/);
   assert.equal(calls[0].body.photo, photo);
   assert.equal(calls[0].body.link_preview_options, undefined);
+});
+
+test("listing without a verified photo is sent once using Telegram sendMessage", async () => {
+  const payload = listingMessageRequest(123, null, { ...facts, image_url: null }, source, 1, "ImmoScout24", delivery);
+  const calls = [];
+  const result = await sendListingMessage("fake", payload, async (url, init) => {
+    calls.push({ url, body: JSON.parse(init.body) });
+    return Response.json({ ok: true, result: { message_id: 26 } });
+  });
+  assert.equal(result.data.result.message_id, 26);
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].url, /\/sendMessage$/);
+  assert.match(calls[0].body.text, /Kaltmiete/);
+  assert.equal(calls[0].body.photo, undefined);
+});
+
+test("a listing without a photograph still has a safe, isolated text-only page", async () => {
+  const sql = async () => [{ source_id: 1, source_name: "ImmoScout24",
+    canonical_url: source, facts: { ...facts, image_url: null } }];
+  const response = await listingMiniAppResponse(sql, delivery);
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /Sonnige Wohnung/);
+  assert.doesNotMatch(html, /<figure>|property="og:image"/);
+  assert.match(html, /Zu ImmoScout24/);
 });
 
 test("definitive Telegram errors do not cause duplicate listing messages", async () => {
