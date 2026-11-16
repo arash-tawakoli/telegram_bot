@@ -44,9 +44,14 @@ export function listingImageUrl(raw) {
 export async function resolveListingImage(facts, listingUrl, sourceId, request = fetch) {
   const existing = listingImageUrl(facts?.image_url);
   if (existing) return existing;
-  if (Number(sourceId) !== 3) return null;
-  const expose = safeUrl(listingUrl, new Set(["www.immowelt.de"]));
-  if (!expose || !new URL(expose).pathname.startsWith("/expose/")) return null;
+  // Public OG images can complete Scout or Immowelt listings whose search
+  // payload omitted the photo. Only approved provider and image hosts are read.
+  const hosts = Number(sourceId) === 3
+    ? ["www.immowelt.de"]
+    : [1, 69].includes(Number(sourceId)) ? ["www.immobilienscout24.de"] : [];
+  if (!hosts.length) return null;
+  const expose = safeUrl(listingUrl, new Set(hosts));
+  if (!expose || !/^\/expose\/[a-z0-9-]+\/?$/i.test(new URL(expose).pathname)) return null;
   try {
     const response = await request(expose, {
       headers: { accept: "text/html", "user-agent": "TraumWohnungHamburg/1.0" },
