@@ -98,7 +98,7 @@ test("Scout maps persisted applicant data into all documented mandatory contact 
     assert.equal(form.petsInHousehold, "Nein");
     assert.equal(form.numberOfPersons, 1);
     assert.equal(form.employmentRelationship, "Angestellte(r)");
-    assert.equal(form.income, "2000 € - 3000 €");
+    assert.equal(form.income, "2.000€ - 3.000€");
     assert.equal(form.moveInDate, "Sofort");
     assert.equal(result.status, "manual_required");
     assert.equal(result.error, "provider_rejected");
@@ -238,5 +238,87 @@ test("Scout blocks unknown mandatory provider extensions before reserving a send
     assert.match(result.error, /required_profile_data_missing:unsupportedExtra/);
     assert.equal(reserved, false);
     assert.equal(calls.length, 1);
+  } finally { globalThis.fetch = before; }
+});
+
+test("Scout resource-validation diagnostics capture only known field/rule, never submitted personal values", async () => {
+  const before = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push(String(url));
+    if (String(url).endsWith("/contact")) {
+      return Response.json({ "common.messages": [{ message: {
+        messageCode: "ERROR_RESOURCE_VALIDATION",
+        message: "Error while validating input for the resource. [MESSAGE: income : test-person@example.com : INVALID_VALUE]",
+      } }] }, { status: 412 });
+    }
+    return Response.json({ "expose.expose": { contactFormConfiguration: {
+      incomeField: "MANDATORY", firstnameField: "MANDATORY",
+    } } });
+  };
+  try {
+    const result = await sendImmoScoutApplication({
+      external_id: "123456789", test_mode: true,
+      authorizeTestSend: async () => true,
+      profile: { first_name: "Gast", income_range: "2000_3000" },
+    }, {}, null, { credentials: { access_token: "central-token" } });
+    assert.equal(result.status, "manual_required");
+    assert.equal(result.provider_http_status, 412);
+    assert.equal(result.provider_message_code, "ERROR_RESOURCE_VALIDATION");
+    assert.equal(result.provider_validation_field, "income");
+    assert.equal(result.provider_validation_rule, "INVALID_VALUE");
+    assert.equal(calls.length, 2);
+    assert.doesNotMatch(JSON.stringify(result), /test-person@example.com|central-token/);
+  } finally { globalThis.fetch = before; }
+});
+
+test("Scout provider diagnostics omit unknown fields and all raw values", async () => {
+  const before = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    if (String(url).endsWith("/contact")) {
+      return Response.json({ "common.messages": [{ message: {
+        messageCode: "ERROR_RESOURCE_VALIDATION",
+        message: "Error while validating input for the resource. [MESSAGE: privateField : 015112345678 : INVALID_VALUE]",
+      } }] }, { status: 412 });
+    }
+    return Response.json({ "expose.expose": { contactFormConfiguration: {
+      firstnameField: "MANDATORY",
+    } } });
+  };
+  try {
+    const result = await sendImmoScoutApplication({
+      external_id: "123456789", test_mode: true,
+      authorizeTestSend: async () => true,
+      profile: { first_name: "Gast" },
+    }, {}, null, { credentials: { access_token: "central-token" } });
+    assert.equal(result.provider_message_code, "ERROR_RESOURCE_VALIDATION");
+    assert.equal(result.provider_validation_field, undefined);
+    assert.equal(result.provider_validation_rule, undefined);
+    assert.doesNotMatch(JSON.stringify(result), /privateField|015112345678/);
+  } finally { globalThis.fetch = before; }
+});
+
+test("Scout keeps exact monthly income numeric when explicitly provided", async () => {
+  const before = globalThis.fetch;
+  let posted = null;
+  globalThis.fetch = async (url, init = {}) => {
+    if (String(url).endsWith("/contact")) {
+      posted = JSON.parse(init.body)["expose.contactForm"];
+      return Response.json({ "common.messages": [{ message: {
+        messageCode: "MESSAGE_OPERATION_SUCCESSFUL", message: "Operation successful",
+      } }] });
+    }
+    return Response.json({ "expose.expose": { contactFormConfiguration: {
+      incomeField: "MANDATORY", firstnameField: "MANDATORY",
+    } } });
+  };
+  try {
+    const result = await sendImmoScoutApplication({
+      external_id: "123456789", test_mode: true,
+      authorizeTestSend: async () => true,
+      profile: { first_name: "Gast", income_range: "2000_3000", monthly_net_income: 2750 },
+    }, {}, null, { credentials: { access_token: "central-token" } });
+    assert.equal(result.status, "sent");
+    assert.equal(posted.income, 2750);
   } finally { globalThis.fetch = before; }
 });
