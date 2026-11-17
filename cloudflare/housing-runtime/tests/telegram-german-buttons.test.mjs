@@ -105,8 +105,9 @@ test("only the home preview translates while all buttons and settings remain Ger
     assert.doesNotMatch(lastMessage(x).text, /Was ist das\?/);
     await settings(x.user, 777);
     const keys = lastMessage(x).reply_markup.inline_keyboard.map(row => row[0].callback_data);
-    assert.deepEqual(keys, ["language", "help", "referral", "home"]);
+    assert.deepEqual(keys, ["language", "help", "reset:page", "referral", "home"]);
     assert.equal(lastMessage(x).reply_markup.inline_keyboard[1][0].text, "❓ Hilfe & Support");
+    assert.equal(lastMessage(x).reply_markup.inline_keyboard[2][0].text, "♻️ Reset");
     assert.match(lastMessage(x).text, /Einstellungen/);
   } finally { x.done(); }
 });
@@ -1197,14 +1198,14 @@ test("bulk AutoApply starts and pauses all source send preferences without chang
   await platformSessions(x.user,x.chat,51,"platforms:on");
   assert.equal(lastMessage(x).reply_markup.inline_keyboard.at(-2).length,1);
   assert.deepEqual(lastMessage(x).reply_markup.inline_keyboard.at(-2)[0],
-    {text:"🟢 Alle pausieren",callback_data:"platforms:off"});
+    {text:"Alle pausieren",callback_data:"platforms:off"});
   assert.match(lastMessage(x).text,/3 von 3 Plattformen aktiv/);
   const p=x.sqlite.prepare("SELECT immoscout_enabled,immowelt_enabled,immomio_enabled,enabled FROM application_preferences WHERE participant_id='owner'").get();
   assert.deepEqual([p.immoscout_enabled,p.immowelt_enabled,p.immomio_enabled,p.enabled],[1,1,1,1]);
   assert.equal(x.sqlite.prepare("SELECT auto_apply_enabled FROM participants WHERE id='owner'").get().auto_apply_enabled,1);
   await platformSessions(x.user,x.chat,51,"platforms:off");
   assert.deepEqual(lastMessage(x).reply_markup.inline_keyboard.at(-2)[0],
-    {text:"🔴 Alle starten",callback_data:"platforms:on"});
+    {text:"Alle starten",callback_data:"platforms:on"});
   assert.match(lastMessage(x).text,/0 von 3 Plattformen aktiv/);
   const q=x.sqlite.prepare("SELECT immoscout_enabled,immowelt_enabled,immomio_enabled,enabled FROM application_preferences WHERE participant_id='owner'").get();
   assert.deepEqual([q.immoscout_enabled,q.immowelt_enabled,q.immomio_enabled,q.enabled],[0,0,0,0]);

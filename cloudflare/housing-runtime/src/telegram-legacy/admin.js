@@ -244,6 +244,7 @@ export async function adminUser(user, chatId, messageId, userId) {
                 button("♾ Lebenslang", `admin:set:${userId}:life`),
             ],
             [button("Free setzen", `admin:set:${userId}:free`)],
+            [button("♻️ 1 Reset schenken", `reset:admin:grant:${userId}`)],
             ...(isAdmin(target)
                 ? [[button("🔒 Admin-Konto", "noop")]]
                 : [

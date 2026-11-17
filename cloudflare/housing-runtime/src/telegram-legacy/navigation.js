@@ -130,6 +130,7 @@ export function settings(user, chatId, messageId) {
   const markup = { inline_keyboard: [
     [button("🌐 Sprache", "language")],
     [button("❓ Hilfe & Support", "help")],
+    [button("♻️ Reset", "reset:page")],
     [button("🎁 30 Tage Premium kostenlos", "referral")],
     [button("← Start", "home")],
   ] };
