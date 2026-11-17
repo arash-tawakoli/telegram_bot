@@ -55,30 +55,50 @@ export function home(user, chatId, messageId) {
   return messageId ? edit(chatId, messageId, text, homeKeyboard(user)) : send(chatId, text, homeKeyboard(user));
 }
 
+const PREMIUM_TIER_PREVIEWS = Object.freeze({
+  go: { label: "Go", benefits: ["🔎 1 Suchprofil", "🏠 Passende Angebote erhalten"] },
+  pro: { label: "Pro", benefits: ["✓ Alles aus Go", "🔎 Bis zu 4 Suchprofile", "🤖 Auto-Bewerbung"] },
+  max: { label: "Max", benefits: ["✓ Alles aus Pro", "✨ Weitere Funktionen in Planung"] },
+});
+
 export async function premium(user, chatId, messageId) {
-  const rows = [];
-  let text;
+  const rows = [[
+    button("Go", "premium:tier:go"),
+    button("Pro", "premium:tier:pro"),
+    button("Max", "premium:tier:max"),
+  ]];
+  let text = "💎 <b>Premium-Tarife – Vorschau</b>\n\n";
   if (user.is_premium) {
-    text = "💎 <b>Traumwohnung Premium</b>\n\n✅ <b>Premium ist aktiv.</b>\n\n"
-      + "<b>Deine Vorteile:</b>\n🔎 Bis zu 4 Suchprofile\n🤖 Auto-Bewerbung";
-    if (user.subscription?.cancel_at_period_end) text += "\n\nDein Abonnement ist zur Kündigung vorgemerkt.";
-    // A manually granted Premium account has no Stripe subscription to manage.
-    if (user.subscription?.stripe_customer_id) {
-      const { data: portal, error } = await db.rpc("get_bot_secret", { secret_name: "stripe_portal_url" });
-      if (!error && typeof portal === "string" && /^https:\/\/billing\.stripe\.com\//.test(portal)) {
-        rows.push([{ text: "💳 Abo verwalten", url: portal }]);
-      } else {
-        text += "\n\nDie Aboverwaltung ist derzeit nicht verfügbar.";
-      }
+    text += "✅ <b>Dein Premium-Zugang ist aktiv.</b>\n";
+    if (user.subscription?.cancel_at_period_end)
+      text += "Dein Abonnement ist zur Kündigung vorgemerkt.\n";
+    text += "\n";
+  }
+  text += Object.values(PREMIUM_TIER_PREVIEWS)
+    .map(plan => "<b>" + plan.label + "</b>\n" + plan.benefits.join("\n"))
+    .join("\n\n");
+  text += "\n\n<i>Alle drei Angebote sind vorerst Platzhalter und nicht buchbar. Bestehende Premium-Rechte bleiben unverändert.</i>";
+  // Existing paying subscribers must still be able to manage their subscription.
+  if (user.is_premium && user.subscription?.stripe_customer_id) {
+    const { data: portal, error } = await db.rpc("get_bot_secret", { secret_name: "stripe_portal_url" });
+    if (!error && typeof portal === "string" && /^https:\/\/billing\.stripe\.com\//.test(portal)) {
+      rows.push([{ text: "💳 Abo verwalten", url: portal }]);
+    } else {
+      text += "\n\nDie Aboverwaltung ist derzeit nicht verfügbar.";
     }
-  } else {
-    text = "💎 <b>Traumwohnung Premium</b>\n\n<b>Deine Vorteile:</b>\n"
-      + "🔎 Bis zu 4 Suchprofile\n🤖 Auto-Bewerbung\n\n"
-      + "<s>1,99 €</s> <b>0,99 € / Monat</b>\nKeine Mindestlaufzeit · jederzeit kündbar";
-    text += "\n\nDer Premium-Tarif ist aktuell nicht direkt buchbar.";
   }
   rows.push([button("← Start", "home")]);
   const markup = { inline_keyboard: rows };
+  return messageId ? edit(chatId, messageId, text, markup) : send(chatId, text, markup);
+}
+
+export function premiumTier(tier, chatId, messageId) {
+  const plan = PREMIUM_TIER_PREVIEWS[tier];
+  if (!plan) return;
+  const text = "💎 <b>" + plan.label + " – Vorschau</b>\n\n"
+    + plan.benefits.join("\n")
+    + "\n\n<i>Dieser Tarif ist derzeit nur ein Platzhalter und nicht buchbar.</i>";
+  const markup = { inline_keyboard: [[button("← Tarifübersicht", "premium")]] };
   return messageId ? edit(chatId, messageId, text, markup) : send(chatId, text, markup);
 }
 
@@ -109,7 +129,7 @@ export function settings(user, chatId, messageId) {
   const text = "⚙️ <b>Einstellungen</b>\n\nHilfe und Premium-Empfehlungen.";
   const markup = { inline_keyboard: [
     [button("🌐 Sprache", "language")],
-    [button("❓ Hilfe", "help")],
+    [button("❓ Hilfe & Support", "help")],
     [button("🎁 30 Tage Premium kostenlos", "referral")],
     [button("← Start", "home")],
   ] };
