@@ -123,7 +123,8 @@ test("a short-lived audit token only authenticates MCP parity and expires automa
     body: JSON.stringify({ source_id: 69 }),
   });
   try {
-    const env = { SOURCE_RUN_TOKEN: "source-runtime-secret", MCP_PARITY_AUDIT_TOKEN: freshToken };
+    const env = { SOURCE_RUN_TOKEN: "source-runtime-secret", MCP_PARITY_AUDIT_TOKEN: freshToken,
+      HOUSING_DB: { prepare() { throw new Error("unauthorized source run must not query D1"); } } };
     const valid = await worker.fetch(request(freshToken), env);
     assert.equal(valid.status, 200);
     assert.equal((await valid.json()).comparison.same_ids, true);
