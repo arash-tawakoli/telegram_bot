@@ -41,8 +41,15 @@ export async function showQuickActions(chatId, user, { force = false } = {}) {
   ).bind(REPLY_KEYBOARD_VERSION, user.id, REPLY_KEYBOARD_VERSION).run();
 }
 
+export const MINIAPP_URL = "https://traumwohnung-housing-runtime.arash-ce5.workers.dev/miniapp";
+
+export function miniAppKeyboard() {
+  return { inline_keyboard: [[{ text: "📱 Wohnungs-App öffnen", web_app: { url: MINIAPP_URL } }]] };
+}
+
 export function homeKeyboard(user) {
   return { inline_keyboard: [
+    [{ text: "📱 Wohnungs-App öffnen", web_app: { url: MINIAPP_URL } }],
     [button("🔎 Suchprofil", "profile")],
     [button("👤 Bewerberprofil", "platforms:profile-new")],
     [button(user.is_premium ? "⚡ Auto-Bewerbung" : "🔒 Auto-Bewerbung", "platforms")],
