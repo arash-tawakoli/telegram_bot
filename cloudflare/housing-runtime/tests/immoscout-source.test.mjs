@@ -1,6 +1,6 @@
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { normalizeImmoScoutEntry, parseMcpToolResult, germanImmoScoutQuery, fetchImmoScoutSource, fetchImmoScoutMap, ingestImmoScoutSource, planImmoScoutQueries, parseMcpEnvelope, chooseImmoScoutQuery, hamburgCoverageQueries, resetMcpSession } from "../src/immoscout-source.js";
+import { normalizeImmoScoutEntry, parseMcpToolResult, germanImmoScoutQuery, fetchImmoScoutSource, fetchImmoScoutMap, ingestImmoScoutSource, planImmoScoutQueries, parseMcpEnvelope, chooseImmoScoutQuery, chooseHamburgCoverageQuery, hamburgCoverageQueries, resetMcpSession } from "../src/immoscout-source.js";
 import { sourceForId } from "../src/source-allowlist.js";
 
 beforeEach(() => resetMcpSession());
@@ -189,6 +189,41 @@ test("SSE progress events cannot replace the correlated JSON-RPC tool result", (
   assert.deepEqual(parseMcpEnvelope(response, "expected").result.structuredContent, { entries: [], total: 0 });
 });
 
+test("Hamburg discovery rotates borough/rent partitions and profiles independently without extra MCP requests", () => {
+  const broad = "Wohnungen zur Miete in Hamburg";
+  const coverage = hamburgCoverageQueries();
+  const specific = ["Wohnungen zur Miete in Hamburg-Harburg", "Häuser zur Miete in Hamburg",
+    "WG-Zimmer zur Miete in Hamburg-Wandsbek", "Tauschwohnungen in Hamburg"];
+  const queries = [broad, ...specific];
+  const slot = 5 * 60_000;
+  const picks = Array.from({length:coverage.length*4},(_,index)=>
+    chooseHamburgCoverageQuery(queries,coverage,index*slot));
+  assert.equal(picks.filter(q=>q===broad).length,coverage.length);
+  assert.deepEqual(picks.filter((_,i)=>i%4===1),coverage,
+    "all 21 fixed geographic partitions are scanned before they repeat");
+  assert.ok(specific.every(q=>picks.includes(q)),
+    "every active profile query remains scheduled");
+  assert.deepEqual(picks.slice(0,8),[broad,coverage[0],specific[0],specific[1],
+    broad,coverage[1],specific[2],specific[3]]);
+  assert.equal(chooseHamburgCoverageQuery([broad],coverage,2*slot),coverage[0]);
+  assert.equal(chooseHamburgCoverageQuery([broad,specific[0]],[],0),broad);
+  assert.throws(()=>chooseHamburgCoverageQuery([],coverage),/plan_empty/);
+});
+
+test("MCP titles keep WG and exchange homes separate from ordinary apartments", () => {
+  const listing=(id,title,type)=>({
+    exposedId:id,exposeUrl:"https://www.immobilienscout24.de/expose/"+id,
+    title,...(type?{type}:{}),address:{city:"Hamburg"},
+  });
+  assert.equal(normalizeImmoScoutEntry(listing("901","Tauschwohnung: Biete 2 Zimmer"),1,"Wohnung").facts.property_type,"Tauschwohnung");
+  assert.equal(normalizeImmoScoutEntry(listing("902","WG-Zimmer in Hamburg"),1,"Wohnung").facts.property_type,"WG");
+  assert.equal(normalizeImmoScoutEntry(listing("903","Wohnen im Doppelhaus"),1,"Wohnung").facts.property_type,"Haus");
+  assert.equal(normalizeImmoScoutEntry(listing("904","Mietwohnung"),1,"Wohnung").facts.property_type,"Wohnung");
+  assert.equal(normalizeImmoScoutEntry(listing("905","Möbliertes Zimmer"),1,"WG").facts.property_type,"WG");
+  assert.equal(normalizeImmoScoutEntry(listing("906","2 Zimmer mit Balkon"),1,"Tauschwohnung").facts.property_type,"Tauschwohnung");
+  assert.equal(normalizeImmoScoutEntry(listing("907","Mietobjekt"),1).facts.property_type,undefined);
+});
+
 test("both regions share bounded search + map enrichment with stable IDs and correct warm rent", async () => {
   const original = globalThis.fetch;
   const calls = [];
@@ -316,6 +351,9 @@ test("large Scout map subsets use a few D1 batches and one candidate-profile rea
     assert.equal(output.valid, 160);
     assert.equal(output.inserted, 160);
     assert.equal(output.missing_from_response, 60);
+    assert.equal(output.previously_known_in_response, 1);
+    assert.equal(output.newly_discovered_in_response, 159);
+    assert.equal(output.property_types_in_response.Wohnung, 160);
     assert.equal(writes.length, 8, "160 offers should require eight D1 batch writes");
     assert.equal(reads.length, 3, "160 IDs must fit in three bounded D1 lookups");
     assert.ok(reads.every(({params})=>params.length<=100), "D1 bind-variable limit");

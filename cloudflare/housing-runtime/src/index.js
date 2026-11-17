@@ -391,6 +391,9 @@ async function runScheduledHousingWork(env, minute = Math.floor(Date.now() / 60_
           source_id: sourceId, query: audit.query,
           reported_total: audit.fetched, unique_returned: audit.valid,
           missing_from_response: audit.missing_from_response,
+          previously_known_in_response: audit.previously_known_in_response,
+          newly_discovered_in_response: audit.newly_discovered_in_response,
+          property_types_in_response: audit.property_types_in_response,
           coverage_partition: audit.coverage_partition,
           map_error: audit.map_error || null,
         }));
