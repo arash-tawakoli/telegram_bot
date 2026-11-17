@@ -334,7 +334,7 @@ test("applicant profile, field transition, text choices and separate preview wor
     assert.match(lastMessage(x).text, /Profilvorschau/);
     assert.match(lastMessage(x).text, /Anrede:/);
     assert.doesNotMatch(lastMessage(x).text,/WBS-Status/);
-    assert.equal(lastMessage(x).reply_markup.inline_keyboard.at(-1)[0].callback_data, "platforms:profile");
+    assert.equal(lastMessage(x).reply_markup.inline_keyboard.at(-1)[0].callback_data, "platforms:profile-return");
   } finally { x.done(); }
 });
 
@@ -348,7 +348,7 @@ test("free-text profile fields replace the current Telegram card and accept the 
    const prompt=lastMessage(x);
    assert.match(prompt.text,/Vorname/);
    assert.equal(prompt.message_id,21);
-   assert.equal(prompt.reply_markup.inline_keyboard[0][0].callback_data,"platforms:profile");
+   assert.equal(prompt.reply_markup.inline_keyboard[0][0].callback_data,"platforms:profile-return");
    const row=x.sqlite.prepare("SELECT telegram_state FROM participants WHERE id='owner'").get();
    const onboarding_state=JSON.parse(row?.telegram_state||"{}");
    assert.equal(onboarding_state._applicant_field,"first_name");
@@ -713,7 +713,7 @@ test("preview Bewerbungstext ändern navigates through its own text editor and b
   await call("platforms:profile-new");
   await call("platforms:profile-preview");
   let rows=lastMessage(x).reply_markup.inline_keyboard;
-  assert.deepEqual(rows.map(row=>row[0].callback_data),["platforms:preview-texts","platforms:profile-clear","platforms:profile"]);
+  assert.deepEqual(rows.map(row=>row[0].callback_data),["platforms:preview-texts","platforms:profile-clear","platforms:profile-return"]);
   assert.match(rows[0][0].text,/Bewerbungstext ändern/);
   assert.match(rows[1][0].text,/Angaben löschen/);
   await call("platforms:preview-texts");
@@ -738,7 +738,7 @@ test("preview Bewerbungstext ändern navigates through its own text editor and b
   await call("platforms:preview-texts");
   await call("platforms:profile-preview");
   assert.match(lastMessage(x).text,/Profilvorschau/);
-  await call("platforms:profile");
+  await call("platforms:profile-return");
   assert.match(lastMessage(x).text,/Bewerberprofil/);
   assert.equal(lastMessage(x).reply_markup.inline_keyboard.at(-1)[0].callback_data,"home");
   await call("home");
@@ -1259,4 +1259,104 @@ test("owner Start/Pause shows persisted personal test sender state without enabl
     assert.match(lastMessage(x).text,/Alle Quellen<\/b>: pausiert/);
     assert.deepEqual([status().test_auto_apply_enabled,status().immoscout_enabled,status().immowelt_enabled,status().immomio_enabled],[0,0,0,0]);
   } finally { x.done(); }
+});
+
+
+test("minimal search navigation labels identify their destinations",async()=>{
+  const x=setup();
+  try {
+    const call=async data=>{
+      const row=x.sqlite.prepare("SELECT telegram_state FROM participants WHERE id='owner'").get();
+      const state=JSON.parse(row?.telegram_state||"{}");
+      return handleCallback({id:"nav-"+data,data,from:{id:777},message:{chat:x.chat,message_id:39}},
+        {...x.user,onboarding_state:state,onboarding_step:state._step||null});
+    };
+    await call("profile");
+    assert.equal(lastMessage(x).reply_markup.inline_keyboard.at(-1)[0].text,"← Start");
+    await call("new");
+    await call("type:Wohnung");
+    await call("loc:neighborhoods");
+    let view=lastMessage(x);
+    assert.match(view.text,/Seite 1 von 1/);
+    assert.ok(view.reply_markup.inline_keyboard.every(row=>row.length>0),
+      "single-page location menus must not produce empty Telegram button rows");
+    assert.ok(view.reply_markup.inline_keyboard.flat().some(b=>b.text==="Auswahl bestätigen →"&&b.callback_data==="neighborhood:done"));
+    assert.ok(view.reply_markup.inline_keyboard.flat().some(b=>b.text==="← Gebietsauswahl"&&b.callback_data==="location"));
+    await call("location");
+    await call("loc:boroughs");
+    view=lastMessage(x);
+    assert.ok(view.reply_markup.inline_keyboard.flat().some(b=>b.text==="Auswahl bestätigen →"&&b.callback_data==="borough:done"));
+    await call("location");
+    await call("loc:counties_sh");
+    view=lastMessage(x);
+    assert.match(view.text,/Seite 1 von 1/);
+    assert.ok(view.reply_markup.inline_keyboard.every(row=>row.length>0));
+    assert.ok(view.reply_markup.inline_keyboard.flat().some(b=>b.text==="Auswahl bestätigen →"&&b.callback_data==="sharea:done"));
+
+    await call("types");
+    await call("type:Wohnung");
+    await call("loc:all");
+    await call("rent:800");
+    await call("rooms:2");
+    await call("area:40");
+    await call("profile:save");
+    await call("profile");
+    view=lastMessage(x);
+    assert.equal(view.reply_markup.inline_keyboard.at(-1)[0].text,"← Start");
+    await call("profile:view:1");
+    view=lastMessage(x);
+    assert.deepEqual(view.reply_markup.inline_keyboard.at(-1)[0],
+      {text:"← Suchprofile",callback_data:"profile"});
+    await call("profile:edit:1");
+    await call("profile:edit-field:1:types");
+    view=lastMessage(x);
+    assert.ok(view.reply_markup.inline_keyboard.flat().some(b=>b.text==="← Suchprofil bearbeiten"&&b.callback_data==="profile:edit:1"));
+  }finally{x.done()}
+});
+
+test("applicant profile back button keeps the entry screen after nested navigation",async()=>{
+  const x=setup();
+  try {
+    const call=async data=>{
+      const row=x.sqlite.prepare("SELECT telegram_state FROM participants WHERE id='owner'").get();
+      const state=JSON.parse(row?.telegram_state||"{}");
+      return handleCallback({id:"appnav-"+data,data,from:{id:777},message:{chat:x.chat,message_id:40}},
+        {...x.user,onboarding_state:state,onboarding_step:state._step||null});
+    };
+    await call("platforms:profile-new");
+    assert.deepEqual(lastMessage(x).reply_markup.inline_keyboard.at(-1)[0],{text:"← Start",callback_data:"home"});
+    await call("platforms:profile-preview");
+    assert.equal(lastMessage(x).reply_markup.inline_keyboard.at(-1)[0].callback_data,"platforms:profile-return");
+    await call("platforms:profile-return");
+    assert.equal(lastMessage(x).reply_markup.inline_keyboard.at(-1)[0].callback_data,"home");
+    await call("platforms:profile");
+    assert.deepEqual(lastMessage(x).reply_markup.inline_keyboard.at(-1)[0],{text:"← Auto-Bewerbung",callback_data:"platforms"});
+    await call("platforms:profile-field:salutation");
+    await call("platforms:profile-return");
+    assert.deepEqual(lastMessage(x).reply_markup.inline_keyboard.at(-1)[0],{text:"← Auto-Bewerbung",callback_data:"platforms"});
+  }finally{x.done()}
+});
+
+test("Reset admin user selection returns to the Reset workflow, not general administration",async()=>{
+  const x=setup();
+  try {
+    const admin={...x.user,telegram_user_id:8538226539,chat_id:8538226539};
+    const chat={id:8538226539,type:"private"};
+    const call=data=>handleCallback({id:"rnav-"+data,data,from:{id:8538226539},message:{chat,message_id:41}},admin);
+    await handleMessage({chat,text:"/reset"},admin);
+    assert.ok(lastMessage(x).reply_markup.inline_keyboard.flat().some(b=>b.callback_data==="reset:admin:users"));
+    await call("reset:admin:users");
+    let buttons=lastMessage(x).reply_markup.inline_keyboard.flat();
+    assert.ok(buttons.some(b=>b.callback_data==="reset:admin:user:owner"));
+    assert.ok(buttons.some(b=>b.text==="← Resets"&&b.callback_data==="reset:admin:menu"));
+    await call("reset:admin:user:owner");
+    buttons=lastMessage(x).reply_markup.inline_keyboard.flat();
+    assert.deepEqual(buttons.map(b=>b.callback_data),["reset:admin:grant:owner:reset","reset:admin:users"]);
+    await call("reset:admin:grant:owner:reset");
+    assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM usage_reset_credits WHERE participant_id='owner' AND grant_key LIKE 'user:%'").get().n,1);
+    assert.equal(lastMessage(x).reply_markup.inline_keyboard.at(-1)[0].callback_data,"reset:admin:users");
+    await call("reset:admin:users");
+    await call("reset:admin:menu");
+    assert.match(lastMessage(x).text,/Admin · Premium-Resets/);
+  }finally{x.done()}
 });
