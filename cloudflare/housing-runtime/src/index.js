@@ -9,6 +9,8 @@ import { runBerlinCoverage } from "./berlin-coverage.js";
 import { deliveryCutoverLedger, reconcileCloudflareDeliveries } from "./delivery-cutover-ledger.js";
 import { resolveListingImage } from "./telegram-listing-preview.js";
 import { listingMessageRequest, sendListingMessage, listingMiniAppResponse } from "./listing-miniapp.js";
+import { miniAppApi } from "./miniapp-api.js";
+import { miniAppPage, miniAppStyle, miniAppScript } from "./miniapp-ui.js";
 import { createSession, hashPassword, refreshSession, revokeSession, sha256, verifyPassword } from "./auth.js";
 import { handleCoach } from "./coach-api.js";
 import { handleProviderFacade } from "./provider-facade.js";
@@ -548,6 +550,15 @@ export default {
         service: "traumwohnung-housing-runtime",
         databaseConfigured: Boolean(env.HOUSING_DB),
       });
+    }
+
+    if (request.method === "GET" && routePath === "/miniapp") return miniAppPage();
+    if (request.method === "GET" && routePath === "/miniapp/app.css") return miniAppStyle();
+    if (request.method === "GET" && routePath === "/miniapp/app.js") return miniAppScript();
+    if (routePath === "/miniapp/api") {
+      if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405);
+      try { return await withDatabase(env, (sql) => miniAppApi(request, env, sql)); }
+      catch (error) { console.error("telegram_miniapp_api_failed", String(error?.message || error).slice(0, 120)); return json({ error: "miniapp_unavailable" }, 503); }
     }
 
     // Each delivery has one non-indexed, read-only page: no Telegram media gallery.
