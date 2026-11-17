@@ -801,7 +801,7 @@ export default {
     // Temporary read-only live parity audit; automatic expiry is a safety stop.
     // Only the existing MCP client runs here; no HTTP credentials, DB writes,
     // deliveries, or application side effects.
-    if (Date.now() < 1794943046958) {
+    if (Date.now() < 1794943682000) {
       ctx.waitUntil((async () => {
         const regions = [[1, "Hamburg"], [69, "Schleswig-Holstein"], [72, "Berlin"]];
         await Promise.all(regions.map(async ([sourceId, region]) => {
@@ -811,7 +811,9 @@ export default {
               query, enrichWithMap: true, maxMapExtras: 200, auditMcpIds: true,
             });
             const audit = result.mcp_parity;
-            console.log("housing_mcp_parity_live", JSON.stringify({
+            const report = {
+              checked_at: new Date().toISOString(),
+
               source_id: sourceId, region, query, contract: IMMOSCOUT_MCP_CONTRACT,
               reported_total: result.reported_total,
               search_returned: audit?.search_returned, map_returned: audit?.map_returned,
@@ -820,11 +822,14 @@ export default {
               filtered_ids_sample: audit?.filtered_ids?.slice(0, 6),
               unexpected_count: audit?.unexpected_ids?.length,
               same_ids: audit?.same_ids, map_error: result.map_error || null,
-            }));
-          } catch (error) {
-            console.error("housing_mcp_parity_live_failed", JSON.stringify({
-              source_id: sourceId, region, error: String(error?.message || error).slice(0, 160),
-            }));
+            };
+            console.log("housing_mcp_parity_live", JSON.stringify(report));
+            await env.DOCUMENTS.put(`_diagnostics/mcp-parity-20261117-${sourceId}.json`, JSON.stringify(report), { httpMetadata: { contentType: "application/json" } });
+
+            const failure = { checked_at: new Date().toISOString(), source_id: sourceId, region,
+              error: String(error?.message || error).slice(0, 160) };
+            console.error("housing_mcp_parity_live_failed", JSON.stringify(failure));
+            await env.DOCUMENTS.put(`_diagnostics/mcp-parity-20261117-${sourceId}.json`, JSON.stringify(failure), { httpMetadata: { contentType: "application/json" } });
           }
         }));
       })());
