@@ -232,14 +232,15 @@ export async function miniAppApi(request, env, sql) {
   if (request.method !== "POST" || !/application\/json/i.test(request.headers.get("content-type") || ""))
     return respond({ error: "invalid_request" }, 405);
   if (Number(request.headers.get("content-length") || 0) > 8192) return respond({ error: "request_too_large" }, 413);
-  const raw = request.headers.get("x-telegram-init-data");
-  const auth = await verifyMiniAppInitData(raw, env.TELEGRAM_BOT_TOKEN);
+  // Telegram initData is a short-lived bearer credential. Keep it in the
+  // HTTPS JSON body rather than a custom header (which observability records).
+  const body = await request.json().catch(() => null);
+  if (!body || typeof body !== "object" || Array.isArray(body)) return respond({ error: "invalid_request" }, 400);
+  const auth = await verifyMiniAppInitData(body.initData, env.TELEGRAM_BOT_TOKEN);
   if (!auth) return respond({ error: "telegram_auth_required" }, 401);
   const rows = await sql.unsafe("SELECT id,first_name FROM participants WHERE telegram_user_id=$1 AND status='active' LIMIT 1", [auth.userId]);
   const participant = rows[0];
   if (!participant) return respond({ error: "participant_not_found" }, 403);
-  const body = await request.json().catch(() => null);
-  if (!body || typeof body !== "object" || Array.isArray(body)) return respond({ error: "invalid_request" }, 400);
   if (body.action === "bootstrap") return bootstrap(sql, participant);
   if (body.action === "saved:update") return updateSaved(sql, participant.id, body);
   if (body.action === "search:toggle" || body.action === "search:update") return updateSearch(sql, participant.id, body);
