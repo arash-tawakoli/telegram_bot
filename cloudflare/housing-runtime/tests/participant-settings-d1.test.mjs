@@ -14,6 +14,9 @@ test("participant settings survive migration and Telegram device language change
     sqlite.prepare("INSERT INTO supabase_archive_rows(schema_name,table_name,row_key,row_index,payload_json) VALUES('public','bot_users',?,0,?)").run(JSON.stringify(["user"]), JSON.stringify(archived));
     sqlite.exec(readFileSync(new URL("0011_participant_settings.sql", schema), "utf8"));
     sqlite.exec(readFileSync(new URL("0023_language_trial_applicant_completion.sql", schema), "utf8"));
+    sqlite.exec(readFileSync(new URL("0027_usage_reset_credits.sql", schema), "utf8"));
+    sqlite.exec(readFileSync(new URL("0028_starter_premium_resets.sql", schema), "utf8"));
+    assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM usage_reset_credits WHERE participant_id='user' AND redeemed_at IS NULL").get().n,1);
     const before = sqlite.prepare("SELECT * FROM participants WHERE id='user'").get();
     assert.equal(before.engagement_notifications_enabled, 0);
     assert.equal(before.last_start_at, archived.last_start_at);
@@ -38,5 +41,6 @@ test("participant settings survive migration and Telegram device language change
     assert.ok(sqlite.prepare("SELECT last_start_at FROM participants WHERE telegram_user_id=8").get().last_start_at);
     assert.equal(created.data.user.language_selected_at,null);
     assert.ok(Date.parse(created.data.user.referral_bonus_until)>Date.now()+29*86400000);
+    assert.equal(sqlite.prepare("SELECT COUNT(*) AS n FROM usage_reset_credits WHERE participant_id=? AND grant_key='starter:7d'").get(created.data.user.id).n,1);
   } finally { sqlite.close(); }
 });
