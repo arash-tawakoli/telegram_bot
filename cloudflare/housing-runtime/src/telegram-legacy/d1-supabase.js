@@ -654,7 +654,7 @@ async function rpc(client, env, name, args) {
       const missingResult = await rpc(client, env, "application_profile_missing_fields", { p_user: args.p_user });
       if (missingResult.error || missingResult.data.length) return { data: null, error: new Error("test_mode_profile_incomplete") };
       const activeSearch = await client.run(
-        "SELECT sp.id FROM search_profiles sp JOIN source_links sl ON sl.search_profile_id=sp.id WHERE sp.participant_id=? AND sp.active=1 AND sl.source_id IN (1,69) LIMIT 1",
+        "SELECT sp.id FROM search_profiles sp JOIN source_links sl ON sl.search_profile_id=sp.id WHERE sp.participant_id=? AND sp.active=1 AND sl.source_id IN (1,69,72) LIMIT 1",
         [args.p_user],
       );
       if (!activeSearch.length) return { data: null, error: new Error("test_mode_search_profile_missing") };
