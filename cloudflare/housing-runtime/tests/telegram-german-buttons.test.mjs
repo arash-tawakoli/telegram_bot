@@ -589,7 +589,7 @@ test("completion celebration repeats on later profile changes, and every success
   const callback=async data=>handleCallback({id:"choice-"+data,data,from:{id:777},message:{chat:x.chat,message_id:31}},x.user);
   await callback("platforms:completion:yes");
   const effects=()=>x.sent.filter(req=>req.method==="sendMessage"&&req.body.message_effect_id==="5159385139981059251");
-  assert.equal(effects().length,3,"successful Yes adds a third confetti effect");
+  assert.equal(effects().length,3,"successful Yes adds a third heart effect");
   assert.match(effects().at(-1).body.text,/Automatische Bewerbung aktiviert/);
   await callback("platforms:completion:yes");
   assert.equal(effects().length,4,"another successful Yes also celebrates");
