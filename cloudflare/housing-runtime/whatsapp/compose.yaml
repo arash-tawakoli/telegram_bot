@@ -1,6 +1,6 @@
 services:
   waha:
-    image: devlikeapro/waha:latest
+    image: devlikeapro/waha:gows
     restart: unless-stopped
     env_file: .env
     ports:
