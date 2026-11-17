@@ -40,7 +40,7 @@ const ALIASES = {
   user_engagement_notifications: { user_id: "participant_id" },
 };
 
-const ALLOWLIST = [1, 3, 23, 29, 35, 66, 69, 71];
+const ALLOWLIST = [1, 3, 23, 29, 35, 66, 69, 71, 72];
 
 function json(value, fallback = {}) {
   if (value == null || value === "") return fallback;
@@ -597,9 +597,14 @@ async function rpc(client, env, name, args) {
       return { data: null, error: new Error("premium_required") };
     const criteria = { ...v };
     delete criteria.profile_slot;
-    const ids = Array.isArray(v.source_ids)
-      ? [...new Set(v.source_ids.map(Number).filter(source => ALLOWLIST.includes(source)))]
-      : ALLOWLIST;
+    // Berlin has a separate source and must never be accidentally linked to
+    // legacy Hamburg/Schleswig-Holstein profiles. Preserve their existing
+    // source defaults; Berlin profiles connect only to Berlin MCP.
+    const berlin = ["all_berlin", "berlin_boroughs", "berlin_localities"].includes(String(criteria.location_mode));
+    const requested = Array.isArray(v.source_ids) ? v.source_ids.map(Number) : ALLOWLIST;
+    const ids = berlin
+      ? [72]
+      : [...new Set(requested.filter(source => ALLOWLIST.includes(source) && source !== 72))];
     const statements = [
       {
         query: "INSERT INTO search_profiles(id,participant_id,profile_slot,criteria,active) VALUES(?,?,?,?,1) ON CONFLICT(participant_id,profile_slot) DO UPDATE SET criteria=excluded.criteria,active=1,updated_at=CURRENT_TIMESTAMP",
