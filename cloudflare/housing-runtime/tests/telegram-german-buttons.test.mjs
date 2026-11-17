@@ -1414,7 +1414,7 @@ test("Telegram Berlin districts and 97 Ortsteile are selectable with pagination"
     assert.ok(view.reply_markup.inline_keyboard.flat().some(b=>b.callback_data==="berlinarea:next"));
     await call("berlinarea:prev");
     await call("berlinarea:next");
-    await call("berlinarea:0");
+    await call("berlinarea:20");
     await call("berlinarea:done");
     state=JSON.parse(x.sqlite.prepare("SELECT telegram_state FROM participants WHERE id='owner'").get().telegram_state);
     assert.equal(state.location_mode,"berlin_localities");
