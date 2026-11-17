@@ -256,10 +256,26 @@ export function hamburgCoverageQueries() {
 export function chooseImmoScoutQuery(queries, now = Date.now()) {
   if (!Array.isArray(queries) || !queries.length) throw new Error("immoscout_query_plan_empty");
   if (queries.length === 1) return queries[0];
-  // Each region now runs every 5 minutes: alternate broad discovery with
-  // a targeted area/price partition so full-city checks run every 10 minutes.
+  // Schleswig-Holstein keeps its established broad/targeted rotation.
   const slot = Math.floor(now / (5 * 60_000));
   return slot % 2 === 0 ? queries[0] : queries[1 + (Math.floor(slot / 2) % (queries.length - 1))];
+}
+
+// A stable Hamburg schedule prevents growing profile-specific query lists from
+// starving the seven borough x three rent-band coverage partitions. No extra
+// MCP requests are made: each scheduled source run still fetches one query.
+export function chooseHamburgCoverageQuery(profileQueries, coverageQueries, now = Date.now()) {
+  if (!Array.isArray(profileQueries) || !profileQueries.length) throw new Error("immoscout_query_plan_empty");
+  if (!Array.isArray(coverageQueries) || !coverageQueries.length) return chooseImmoScoutQuery(profileQueries, now);
+  const slot = Math.floor(now / (5 * 60_000));
+  const phase = ((slot % 4) + 4) % 4;
+  const cycle = Math.floor(slot / 4);
+  if (phase === 0) return profileQueries[0]; // Broad Hamburg every 20 minutes.
+  if (phase === 1) return coverageQueries[cycle % coverageQueries.length];
+  const coverage = new Set(coverageQueries);
+  const specific = profileQueries.slice(1).filter(query => !coverage.has(query));
+  if (!specific.length) return coverageQueries[(cycle * 2 + phase - 2) % coverageQueries.length];
+  return specific[(cycle * 2 + phase - 2) % specific.length];
 }
 
 let cachedAreas = null;
@@ -277,10 +293,11 @@ async function scheduledQuery(sql, source, now = Date.now()) {
     areas = cachedAreas.values;
   }
   const queries = planImmoScoutQueries(source, profiles, areas);
-  // Preserve the broad crawl every second run. In-between, also cover
-  // apartment submarkets without exhausting the Worker's per-run budget.
-  const coverage = Number(source.id) === 1 ? hamburgCoverageQueries() : [];
-  return chooseImmoScoutQuery([...new Set([...queries, ...coverage])], now);
+  // For Hamburg, prioritize stable borough/rent partitions alongside active
+  // profile searches. Unlike a shared growing list, each category cycles
+  // independently and cannot be starved by unrelated new search profiles.
+  if (Number(source.id) === 1) return chooseHamburgCoverageQuery(queries, hamburgCoverageQueries(), now);
+  return chooseImmoScoutQuery(queries, now);
 }
 
 function queryFor(source, config = {}) {
@@ -306,10 +323,17 @@ export function normalizeImmoScoutEntry(entry, sourceId, requestedType = null) {
   const total = numeric(entry.totalRent);
   const propertyType = String(entry.type || entry.realEstateType || entry.estateType || "").toUpperCase();
   const title = String(entry.title || "");
+  const exchangeLike = /tauschwohnung|wohnungstausch|tauschangebot|\btausche\b/i.test(title);
+  const sharedLike = /\bwg[\s-]*zimmer\b|\bwohngemeinschaft\b|\bzimmer\s+in\s+wg\b/i.test(title);
   const houseLike = /(?:einfamilienhaus|reihenhaus|doppelhaus|villa|bungalow|haus\s+zur\s+miete)/i.test(title);
-  const category = propertyType.includes("HOUSE") || houseLike ? "Haus"
+  // Provider titles can identify exchange/room offers even when the search
+  // query is for apartments. Do not incorrectly classify these as Wohnungen.
+  const category = exchangeLike ? "Tauschwohnung"
+    : sharedLike ? "WG"
+    : propertyType.includes("HOUSE") || houseLike ? "Haus"
     : propertyType.includes("APARTMENT") || propertyType.includes("FLAT") ? "Wohnung"
-    : requestedType === "Wohnung" && !houseLike ? "Wohnung"
+    : requestedType === "WG" || requestedType === "Tauschwohnung" ? requestedType
+    : requestedType === "Wohnung" ? "Wohnung"
     : requestedType === "Haus" ? "Haus" : null;
   return {
     source_id: sourceId,
@@ -339,8 +363,8 @@ export function normalizeImmoScoutEntry(entry, sourceId, requestedType = null) {
 export async function fetchImmoScoutSource(source, config = {}) {
   scoutRegion(source);
   const query = queryFor(source, config);
-  const requestedType = /^Wohnungen zur Miete/i.test(query) ? "Wohnung"
-    : /^Häuser zur Miete/i.test(query) ? "Haus" : null;
+  const requestedType = Object.entries(RENTAL_TYPES)
+    .find(([, label]) => query.startsWith(label))?.[0] || null;
   const search = await callTool("property_search_de", query);
   const nodes = new Map();
   for (const entry of search.entries) {
@@ -440,6 +464,7 @@ export async function ingestImmoScoutSource(sql, source, config = {}) {
     priorRows.push(...rows);
   }
   const prior = new Map(priorRows.map(row => [String(row.external_id), parseJson(row.facts)]));
+  const previouslyKnown = identities.filter(id => prior.has(id)).length;
   const prepared = result.nodes.map(node => {
     const facts = { ...(prior.get(node.identity) || {}) };
     for (const [key, value] of Object.entries(node.facts)) {
@@ -498,6 +523,13 @@ export async function ingestImmoScoutSource(sql, source, config = {}) {
     fetched: result.fetched, valid: result.nodes.length, inserted, query: result.query,
     search_count: result.searchCount, map_count: result.mapCount, enriched: result.enriched,
     added: result.added, coverage_partition: isCoveragePartition,
+    previously_known_in_response: previouslyKnown,
+    newly_discovered_in_response: identities.length - previouslyKnown,
+    property_types_in_response: result.nodes.reduce((counts, node) => {
+      const type = node.facts.property_type || "unclassified";
+      counts[type] = (counts[type] || 0) + 1;
+      return counts;
+    }, {}),
     missing_from_response: result.reported_total == null ? null
       : Math.max(0, result.reported_total - result.nodes.length),
     ...(result.map_error ? { map_error: result.map_error } : {}),
