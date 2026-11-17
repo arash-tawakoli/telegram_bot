@@ -106,6 +106,7 @@ test("only the home preview translates while all buttons and settings remain Ger
     await settings(x.user, 777);
     const keys = lastMessage(x).reply_markup.inline_keyboard.map(row => row[0].callback_data);
     assert.deepEqual(keys, ["language", "help", "referral", "home"]);
+    assert.equal(lastMessage(x).reply_markup.inline_keyboard[1][0].text, "❓ Hilfe & Support");
     assert.match(lastMessage(x).text, /Einstellungen/);
   } finally { x.done(); }
 });
@@ -170,17 +171,43 @@ test("/teilen opens the referral reward and /portalsetup is no longer registered
  }finally{x.done();}
 });
 
-test("Premium only shows a real Stripe management button for paid subscriptions", async () => {
+test("Premium displays Go, Pro and Max side by side as non-purchasable previews", async () => {
   const x = setup();
   try {
     await premium(x.user, 777);
-    assert.equal(lastMessage(x).reply_markup.inline_keyboard.some(row => /Abo verwalten/.test(row[0].text)), false);
+    let view = lastMessage(x);
+    assert.deepEqual(view.reply_markup.inline_keyboard[0].map(b => b.text), ["Go", "Pro", "Max"]);
+    assert.deepEqual(view.reply_markup.inline_keyboard[0].map(b => b.callback_data),
+      ["premium:tier:go", "premium:tier:pro", "premium:tier:max"]);
+    for (const text of ["1 Suchprofil", "Bis zu 4 Suchprofile", "Auto-Bewerbung", "Weitere Funktionen in Planung"]) {
+      assert.match(view.text, new RegExp(text));
+    }
+    assert.match(view.text, /Dein Premium-Zugang ist aktiv/);
+    assert.match(view.text, /Platzhalter und nicht buchbar/);
+    assert.equal(view.reply_markup.inline_keyboard.some(row => /Abo verwalten/.test(row[0].text)), false);
+
     await premium({ ...x.user, subscription: { stripe_customer_id: "cus_test" } }, 777);
-    assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][0].url,
-      "https://billing.stripe.com/p/login/test");
+    view = lastMessage(x);
+    assert.equal(view.reply_markup.inline_keyboard[1][0].url, "https://billing.stripe.com/p/login/test");
+
     await premium({ ...x.user, is_premium: false }, 777);
-    assert.match(lastMessage(x).text,/nicht direkt buchbar/);
-    assert.equal(lastMessage(x).reply_markup.inline_keyboard.some(row=>/Premium abonnieren/.test(row[0].text)),false);
+    view = lastMessage(x);
+    assert.deepEqual(view.reply_markup.inline_keyboard[0].map(b => b.text), ["Go", "Pro", "Max"]);
+    assert.equal(view.reply_markup.inline_keyboard.some(row => row.some(b => b.url)), false);
+
+    const firstCount = x.sqlite.prepare("SELECT COUNT(*) AS n FROM user_subscriptions").get().n;
+    for (const tier of ["go", "pro", "max"]) {
+      await handleCallback({ id:"tier-"+tier, data:"premium:tier:"+tier, from:{id:777},
+        message:{chat:x.chat,message_id:67} },x.user);
+      const details = lastMessage(x);
+      assert.match(details.text, new RegExp(tier, "i"));
+      assert.match(details.text, /nicht buchbar/);
+      assert.deepEqual(details.reply_markup.inline_keyboard[0].map(b => b.callback_data), ["premium"]);
+    }
+    assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM user_subscriptions").get().n, firstCount);
+    await handleCallback({ id:"tier-back",data:"premium",from:{id:777},
+      message:{chat:x.chat,message_id:67}}, x.user);
+    assert.deepEqual(lastMessage(x).reply_markup.inline_keyboard[0].map(b => b.text), ["Go", "Pro", "Max"]);
   } finally { x.done(); }
 });
 
