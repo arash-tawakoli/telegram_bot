@@ -5,6 +5,7 @@ import { sourceForId } from "./source-allowlist.js";
 import { ingestImmomioSource } from "./immomio-source.js";
 import { ingestImmoweltSource } from "./immowelt-source.js";
 import { ingestImmoScoutSource } from "./immoscout-source.js";
+import { runBerlinCoverage } from "./berlin-coverage.js";
 import { deliveryCutoverLedger, reconcileCloudflareDeliveries } from "./delivery-cutover-ledger.js";
 import { resolveListingImage } from "./telegram-listing-preview.js";
 import { listingMessageRequest, sendListingMessage, listingMiniAppResponse } from "./listing-miniapp.js";
@@ -209,6 +210,14 @@ async function runSource(sql, request, env) {
       .catch(updateError => console.error("housing_source_failure_record_failed", String(updateError?.message || updateError)));
     throw error;
   }
+  if (source.id === 72) {
+    try {
+      result.berlin_coverage = await runBerlinCoverage(sql, sourceRow);
+    } catch (error) {
+      console.error("housing_berlin_coverage_failed", String(error?.message || error));
+      result.berlin_coverage = { error: "coverage_unavailable" };
+    }
+  }
   await sql`UPDATE housing.source_registry SET last_success_at = now(), consecutive_failures = 0 WHERE id = ${source.id}`;
   return json({ ok: true, source_id: source.id, ...result });
 }
@@ -397,6 +406,8 @@ async function runScheduledHousingWork(env, minute = Math.floor(Date.now() / 60_
           coverage_partition: audit.coverage_partition,
           map_error: audit.map_error || null,
         }));
+        if (sourceId === 72 && audit.berlin_coverage)
+          console.log("housing_berlin_coverage", JSON.stringify(audit.berlin_coverage));
       }
     } catch (error) {
       console.error("housing_source_scheduled_failed", JSON.stringify({ source_id: sourceId, error: String(error?.message || error) }));
