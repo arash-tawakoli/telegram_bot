@@ -1,6 +1,7 @@
 import { hasRetainedApplicationKey, rememberApplicationKey } from "./application-dedupe.js";
 import { applicationProvider, missingApplicantFields, premiumParticipant, timestampMillis } from "./application-policy.js";
 import { applicationIdempotencyKey, sourceForId } from "./source-allowlist.js";
+import { BERLIN_BOROUGHS, BERLIN_LOCALITIES, berlinBoroughFor } from "./berlin-geography.js";
 
 const enabled = value => value === true || value === 1;
 
@@ -61,7 +62,27 @@ export function matchesProfile(criteria, facts, sourceId, areas = []) {
     && [city, mainCity].includes(normalize(x.name))) : [];
   const isHamburg = state === "HH" || (!state && (city === "hamburg" || city.startsWith("hamburg-") || city.startsWith("hamburg,") || city.startsWith("hamburg ") || city.endsWith(", hamburg") || (!city && [1, 3, 23, 29, 35, 66].includes(Number(sourceId)))));
   const isSchleswigHolstein = state === "SH" || (!state && !isHamburg && (matchingAreas.length > 0 || (!city && [69, 71].includes(Number(sourceId)))));
+  const isBerlin = state === "BE" || (!state && (
+    /^berlin(?:$|[\s,/-])/.test(city) || (!city && Number(sourceId) === 72)));
   const mode = criteria.location_mode;
+  if (mode === "all_berlin") return isBerlin;
+  if (mode === "berlin_boroughs" || mode === "berlin_localities") {
+    if (!isBerlin) return false;
+    const wanted = list(mode === "berlin_boroughs" ? criteria.berlin_boroughs : criteria.berlin_localities).map(normalize);
+    if (!wanted.length) return false;
+    // MCP quarter is generally an Ortsteil, not necessarily one of Berlin's
+    // twelve Bezirke (e.g. Prenzlauer Berg belongs to Pankow).
+    const cityLocality = city.startsWith("berlin-") ? city.slice(7) : "";
+    const observed = normalize(facts?.district || cityLocality);
+    if (mode === "berlin_localities") {
+      if (wanted.includes(observed)) return true;
+      return wanted.some(name => name && new RegExp("(^|[^\\p{L}])" + name.replace(/[.*+?^${}()|[\]\\]/g,"\\  const isSchleswigHolstein = state === "SH" || (!state && !isHamburg && (matchingAreas.length > 0 || (!city && [69, 71].includes(Number(sourceId)))));
+  const mode = criteria.location_mode;") + "($|[^\\p{L}])","iu").test(normalize(facts?.title)));
+    }
+    if (wanted.length === BERLIN_BOROUGHS.length) return true;
+    const borough = berlinBoroughFor(observed) || BERLIN_BOROUGHS.find(name => normalize(name) === observed);
+    return !!borough && wanted.includes(normalize(borough));
+  }
   if (mode === "all_hamburg") return isHamburg;
   if (mode === "all_schleswig_holstein") return isSchleswigHolstein;
   if (mode === "schleswig_holstein_areas") {
