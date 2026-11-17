@@ -39,6 +39,8 @@ function setup() {
   for (const name of readdirSync(folder).filter(f => f.endsWith(".sql")).sort())
     db.exec(readFileSync(new URL(name, folder), "utf8"));
   const run = (q, ...args) => db.prepare(q).run(...args);
+  run("INSERT OR IGNORE INTO source_registry(id,name,family,connector) VALUES(1,?,?,?)",
+    "ImmobilienScout24 Hamburg","immoscout24","mcp");
   run("INSERT INTO participants(id,first_name,last_name,telegram_user_id,status) VALUES(?,?,?,?,?)",
     OWNER_ID, "Demo", "Owner", 50010, "active");
   run("INSERT INTO participants(id,first_name,last_name,telegram_user_id,status) VALUES(?,?,?,?,?)",
