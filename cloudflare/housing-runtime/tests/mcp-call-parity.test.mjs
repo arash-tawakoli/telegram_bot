@@ -96,7 +96,7 @@ test("parity endpoint rejects unauthorized, non-Scout and invalid query requests
     assert.equal((await send({ source_id: 1 }, "incorrect")).status, 401);
     assert.equal((await send({ source_id: 3 })).status, 422);
     assert.equal((await send({ source_id: 1, query: "Houses to buy" })).status, 400);
-    assert.equal((await send({ source_id: 1, query: "Wohnungen zur Miete in Hamburg\\nBerlin" })).status, 400);
+    assert.equal((await send({ source_id: 1, query: "Wohnungen zur Miete in Hamburg\nBerlin" })).status, 400);
     assert.equal(outbound, 0);
   } finally { globalThis.fetch = originalFetch; resetMcpSession(); }
 });
