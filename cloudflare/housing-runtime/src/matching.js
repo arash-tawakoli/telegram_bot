@@ -72,7 +72,7 @@ export function matchesProfile(criteria, facts, sourceId, areas = []) {
     if (!wanted.length) return false;
     // ImmoScout's quarter is usually an Ortsteil rather than one of 12 Bezirke.
     const cityLocality = city.startsWith("berlin-") ? city.slice(7) : "";
-    const observed = normalize(facts?.district || cityLocality);
+    const observed = normalize(facts?.district || cityLocality).split(/\s*\(/)[0].trim();
     if (mode === "berlin_localities") {
       if (wanted.includes(observed)) return true;
       const title = normalize(facts?.title);

@@ -39,6 +39,11 @@ test("Berlin matching respects city, districts and Ortsteile and excludes other 
   const mitte = { ...berlin, location_mode: "berlin_boroughs", berlin_boroughs: ["Mitte"] };
   assert.equal(matchesProfile(pankow, apartment, 72), true,
     "Prenzlauer Berg belongs to district Pankow");
+  assert.equal(matchesProfile(pankow, { ...apartment, district: "Prenzlauer Berg (Prenzlauer Berg)" }, 72), true,
+    "live MCP labels retain Ortsteil names even with parenthetical aliases");
+  assert.equal(matchesProfile(pankow, { ...apartment, district: "Buch (Pankow)" }, 72), true);
+  assert.equal(matchesProfile({ ...berlin, location_mode: "berlin_localities", berlin_localities: ["Buch"] },
+    { ...apartment, district: "Buch (Pankow)" }, 72), true);
   assert.equal(matchesProfile(mitte, apartment, 72), false);
   assert.equal(matchesProfile({ ...berlin, location_mode: "berlin_localities",
     berlin_localities: ["Prenzlauer Berg"] }, apartment, 72), true);
