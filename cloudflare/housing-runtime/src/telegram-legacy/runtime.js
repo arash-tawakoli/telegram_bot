@@ -86,6 +86,7 @@ export async function geography() {
 }
 export const HELP_TEXT = "❓ <b>Hilfe & Befehle</b>\n\n"
     + "🏠 /start – Startmenü\n"
+    + "📱 /app – Wohnungs-App öffnen\n"
     + "🔎 /suche – Suchprofil erstellen\n"
     + "👤 /suchprofile – Suchprofile anzeigen\n"
     + "💎 /premium – Premium\n"
