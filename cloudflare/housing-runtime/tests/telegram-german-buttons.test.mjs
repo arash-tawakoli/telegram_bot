@@ -1360,3 +1360,64 @@ test("Reset admin user selection returns to the Reset workflow, not general admi
     assert.match(lastMessage(x).text,/Admin · Premium-Resets/);
   }finally{x.done()}
 });
+
+
+test("Telegram search profile can select all Berlin and links only the Berlin MCP source", async () => {
+  const x = setup();
+  try {
+    const call=async data => {
+      const state=JSON.parse(x.sqlite.prepare("SELECT telegram_state FROM participants WHERE id='owner'").get().telegram_state);
+      return handleCallback({id:"berlin-"+data,data,from:{id:777},
+        message:{chat:x.chat,message_id:88}},
+        {...x.user,onboarding_state:state,onboarding_step:state._step||null});
+    };
+    await call("new");
+    await call("type:Wohnung");
+    await call("location");
+    let buttons=lastMessage(x).reply_markup.inline_keyboard.flat().map(b=>b.callback_data);
+    for(const action of ["loc:all_be","loc:boroughs_be","loc:localities_be"]) assert.ok(buttons.includes(action));
+    await call("loc:all_be");
+    await call("rent:1000");
+    await call("rooms:2");
+    await call("area:40");
+    await call("profile:save");
+    const saved=x.sqlite.prepare("SELECT criteria FROM search_profiles WHERE participant_id='owner' AND profile_slot=1").get();
+    assert.equal(JSON.parse(saved.criteria).location_mode,"all_berlin");
+    const linked=x.sqlite.prepare("SELECT source_id FROM source_links ORDER BY source_id").all().map(x=>x.source_id);
+    assert.deepEqual(linked,[72],"Berlin profiles must not link Hamburg or SH sources");
+    await call("profile:view:1");
+    assert.match(lastMessage(x).text,/Ganz Berlin/);
+  } finally { x.done(); }
+});
+
+test("Telegram Berlin districts and 97 Ortsteile are selectable with pagination", async () => {
+  const x=setup();
+  try{
+    const call=async data=>{
+      const state=JSON.parse(x.sqlite.prepare("SELECT telegram_state FROM participants WHERE id='owner'").get().telegram_state);
+      return handleCallback({id:"berlin-area-"+data,data,from:{id:777},
+        message:{chat:x.chat,message_id:89}},
+        {...x.user,onboarding_state:state,onboarding_step:state._step||null});
+    };
+    await call("new");
+    await call("type:Wohnung");
+    await call("loc:boroughs_be");
+    assert.match(lastMessage(x).text,/Berliner Bezirke/);
+    await call("berlinarea:2");
+    await call("berlinarea:done");
+    let state=JSON.parse(x.sqlite.prepare("SELECT telegram_state FROM participants WHERE id='owner'").get().telegram_state);
+    assert.deepEqual(state.berlin_boroughs,["Pankow"]);
+    await call("location");
+    await call("loc:localities_be");
+    let view=lastMessage(x);
+    assert.match(view.text,/Seite 1 von 5/);
+    assert.ok(view.reply_markup.inline_keyboard.flat().some(b=>b.callback_data==="berlinarea:next"));
+    await call("berlinarea:prev");
+    await call("berlinarea:next");
+    await call("berlinarea:0");
+    await call("berlinarea:done");
+    state=JSON.parse(x.sqlite.prepare("SELECT telegram_state FROM participants WHERE id='owner'").get().telegram_state);
+    assert.equal(state.location_mode,"berlin_localities");
+    assert.equal(state.berlin_localities.length,1);
+  }finally{x.done()}
+});
