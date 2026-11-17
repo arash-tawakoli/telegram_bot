@@ -96,7 +96,8 @@ test("only the home preview translates while all buttons and settings remain Ger
   const x = setup();
   try {
     const root = homeKeyboard(x.user).inline_keyboard;
-    assert.deepEqual(root.map(row => row[0].callback_data),
+    assert.equal(root[0][0].web_app.url, "https://traumwohnung-housing-runtime.arash-ce5.workers.dev/miniapp");
+    assert.deepEqual(root.slice(1).map(row => row[0].callback_data),
       ["profile", "platforms:profile-new", "platforms"]);
     assert.equal(root.some(row => /premium|settings/.test(row[0].callback_data)), false);
     await home(x.user, 777);
@@ -139,13 +140,16 @@ test("the help callback returns to settings and German commands are registered",
     assert.ok(commands.some(c => c.command === "fortsetzen"));
     assert.equal(commands.some(c => c.command === "resume"), false);
     assert.deepEqual(commands.map(c=>c.command),[
-      "start","suche","suchprofile","premium","gespeichert","sprache","hilfe",
+      "start","app","suche","suchprofile","premium","gespeichert","sprache","hilfe",
       "teilen","einstellungen","pause","fortsetzen","status"
     ]);
     for(const [command,description] of [["premium","Premium"],["gespeichert","Gespeicherte Inserate"],["einstellungen","Einstellungen"],["hilfe","Hilfe & Support"],["sprache","Sprache"],["teilen","30 Tage Premium kostenlos"]]){
       assert.ok(commands.some(c=>c.command===command&&c.description===description),command);
     }
     assert.equal(commands.some(c=>c.command==="portalsetup"),false);
+    await handleMessage({chat:x.chat,text:"/app"},x.user);
+    assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][0].web_app.url,
+      "https://traumwohnung-housing-runtime.arash-ce5.workers.dev/miniapp");
     await handleMessage({chat:x.chat,text:"/sprache"},x.user);
     assert.match(lastMessage(x).text,/Sprache auswählen/);
   } finally { x.done(); }
