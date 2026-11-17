@@ -79,9 +79,8 @@ function setup() {
 }
 async function call(sql, initData, action, extra = {}) {
   const request = new Request(ORIGIN + "/miniapp/api", {
-    method: "POST", headers: { "content-type": "application/json", origin: ORIGIN,
-      "x-telegram-init-data": initData },
-    body: JSON.stringify({ action, ...extra }),
+    method: "POST", headers: { "content-type": "application/json", origin: ORIGIN },
+    body: JSON.stringify({ action, ...extra, initData }),
   });
   const response = await miniAppApi(request, { TELEGRAM_BOT_TOKEN: TOKEN }, sql);
   return { status: response.status, body: await response.json(), response };
@@ -96,6 +95,25 @@ test("native Telegram Mini App HMAC authorizes only untampered recent Telegram i
   assert.equal(await verifyMiniAppInitData(raw + "&user=duplicate", TOKEN), null);
   assert.equal(await verifyMiniAppInitData("", TOKEN), null);
   assert.equal(await verifyMiniAppInitData(await validData(-5), TOKEN), null);
+});
+
+test("Telegram's Ed25519 signature field is included in bot-token HMAC verification", async () => {
+  const now = Math.floor(Date.now() / 1000);
+  const signed = await sign(new URLSearchParams({
+    query_id: "AA_test", auth_date: String(now),
+    signature: "base64url-ed25519-signature-value",
+    user: JSON.stringify({ id: 50010, first_name: "Person" }),
+  }).toString());
+  assert.deepEqual(await verifyMiniAppInitData(signed, TOKEN), { userId: 50010 });
+  const forged = new URLSearchParams(signed);
+  forged.set("signature", "changed-signature");
+  assert.equal(await verifyMiniAppInitData(forged.toString(), TOKEN), null);
+  forged.delete("signature");
+  assert.equal(await verifyMiniAppInitData(forged.toString(), TOKEN), null);
+  const x = setup();
+  try {
+    assert.equal((await call(x.sql, signed, "bootstrap")).status, 200);
+  } finally { x.done(); }
 });
 
 test("Mini App reads only the authenticated participant's offers, profiles and applications", async () => {
@@ -181,7 +199,8 @@ test("Mini App is mobile, script-checked, has four working tabs and uses centere
   assert.match(miniAppPage().headers.get("content-security-policy"), /default-src 'none'/);
   assert.match(style, /left:50%;bottom:9%/);
   assert.match(style, /prefers-reduced-motion/);
-  assert.match(script, /x-telegram-init-data/);
+  assert.match(script, /initData:tg.initData/);
+  assert.doesNotMatch(script, /x-telegram-init-data/);
   assert.match(script, /heartBurst/);
   assert.equal(MINIAPP_URL, ORIGIN + "/miniapp");
   assert.equal(homeKeyboard({ is_premium: false }).inline_keyboard[0][0].web_app.url, MINIAPP_URL);
