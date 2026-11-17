@@ -798,6 +798,37 @@ export default {
     const minute = Number.isSafeInteger(scheduledTime) && scheduledTime > 0 ? Math.floor(scheduledTime / 60_000) : Math.floor(Date.now() / 60_000);
     const tasks = scheduledTasksForMinute(minute);
     if (env.MCP_PARITY_AUDIT_UNTIL) ctx.waitUntil(runInternalMcpParityAudit(this, env));
+    // Temporary read-only live parity audit; automatic expiry is a safety stop.
+    // Only the existing MCP client runs here; no HTTP credentials, DB writes,
+    // deliveries, or application side effects.
+    if (Date.now() < 1794943046958) {
+      ctx.waitUntil((async () => {
+        const regions = [[1, "Hamburg"], [69, "Schleswig-Holstein"], [72, "Berlin"]];
+        await Promise.all(regions.map(async ([sourceId, region]) => {
+          try {
+            const query = "Wohnungen zur Miete in " + region;
+            const result = await fetchImmoScoutSource(sourceForId(sourceId), {
+              query, enrichWithMap: true, maxMapExtras: 200, auditMcpIds: true,
+            });
+            const audit = result.mcp_parity;
+            console.log("housing_mcp_parity_live", JSON.stringify({
+              source_id: sourceId, region, query, contract: IMMOSCOUT_MCP_CONTRACT,
+              reported_total: result.reported_total,
+              search_returned: audit?.search_returned, map_returned: audit?.map_returned,
+              mcp_unique_ids: audit?.mcp_unique_ids, bot_unique_ids: audit?.bot_unique_ids,
+              filtered_count: audit?.filtered_ids?.length,
+              filtered_ids_sample: audit?.filtered_ids?.slice(0, 6),
+              unexpected_count: audit?.unexpected_ids?.length,
+              same_ids: audit?.same_ids, map_error: result.map_error || null,
+            }));
+          } catch (error) {
+            console.error("housing_mcp_parity_live_failed", JSON.stringify({
+              source_id: sourceId, region, error: String(error?.message || error).slice(0, 160),
+            }));
+          }
+        }));
+      })());
+    }
     ctx.waitUntil((async () => {
       if (tasks.verifyTelegramWebhook && env.TELEGRAM_WEBHOOK_REGISTER === "1") {
         try {
