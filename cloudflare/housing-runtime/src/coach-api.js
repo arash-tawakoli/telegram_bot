@@ -1,4 +1,5 @@
 import { hashPassword, memberForAccess } from "./auth.js";
+import { createD1Supabase } from "./telegram-legacy/d1-supabase.js";
 import { premiumParticipant } from "./application-policy.js";
 import { assertAllowedSource } from "./source-allowlist.js";
 import { fetchImmoScoutSource, fetchImmoScoutMap, germanImmoScoutQuery } from "./immoscout-source.js";
@@ -264,6 +265,62 @@ async function hasPremium(sql, participantId) {
   return premiumParticipant(rows[0] || {});
 }
 
+
+/**
+ * Telegram and Coach Portal use the same D1 RPC for every AutoApply toggle.
+ * No additional dispatchers, scheduler, or source-specific application code.
+ */
+async function autoApplyParticipant(sql, member, participantId) {
+  if (!await canAccessParticipant(sql, member, participantId)) throw new Error("participant_forbidden");
+  const rows = await sql.unsafe(
+    "SELECT id,status,telegram_user_id,test_auto_apply_allowed,test_auto_apply_enabled,auto_apply_enabled FROM participants WHERE id=$1 LIMIT 1",
+    [participantId]
+  );
+  if (!rows[0] || rows[0].status !== "active") throw new Error("participant_unavailable");
+  return rows[0];
+}
+
+async function autoApplyStatus(sql, member, body, env) {
+  const participantId = uuid(body.participantId, "participant");
+  const participant = await autoApplyParticipant(sql, member, participantId);
+  const rows = await sql.unsafe(
+    "SELECT immoscout_enabled,immowelt_enabled,immomio_enabled FROM application_preferences WHERE participant_id=$1 LIMIT 1",
+    [participantId]
+  );
+  const prefs = rows[0] || {};
+  const testMode = Number(participant.test_auto_apply_allowed) === 1 &&
+    Number(participant.telegram_user_id) === 8538226539;
+  const active = testMode ? Number(participant.test_auto_apply_enabled) === 1 :
+    Number(participant.auto_apply_enabled) === 1;
+  const sources = {
+    immoscout: active && Number(prefs.immoscout_enabled) === 1,
+    immowelt: active && Number(prefs.immowelt_enabled) === 1,
+    immomio: active && Number(prefs.immomio_enabled) === 1,
+  };
+  return {
+    ok: true, sources, activeCount: Object.values(sources).filter(Boolean).length,
+    testMode, premium: await hasPremium(sql, participantId),
+    centralEnabled: env.CENTRAL_AUTO_APPLY_ENABLED === "1",
+  };
+}
+
+async function setAutoApply(sql, member, body, env) {
+  if (body.previewMemberId) throw new Error("preview_read_only");
+  if (typeof body.enabled !== "boolean") throw new Error("invalid_action");
+  const participantId = uuid(body.participantId, "participant");
+  const participant = await autoApplyParticipant(sql, member, participantId);
+  const providerName = body.provider == null ? null : provider(body.provider);
+  if (!env.HOUSING_DB) throw new Error("housing_d1_binding_missing");
+  const result = await createD1Supabase(env.HOUSING_DB, env).rpc("set_telegram_auto_apply_sources", {
+    p_user: participantId,
+    p_telegram_user_id: Number(participant.telegram_user_id ?? 0),
+    p_enabled: body.enabled,
+    ...(providerName ? { p_provider: providerName } : {}),
+  });
+  if (result.error) throw result.error;
+  return autoApplyStatus(sql, member, { participantId }, env);
+}
+
 async function setPreferences(sql, member, body) {
   const participantId = uuid(body.participantId, "participant");
   if (!await canAccessParticipant(sql, member, participantId)) throw new Error("participant_forbidden");
@@ -473,6 +530,8 @@ export async function handleCoach(sql, request, env = {}) {
     return { ok: true };
   }
   if (action === "dashboard") return dashboard(sql, member);
+  if (action === "auto_apply_status") return autoApplyStatus(sql, member, body, env);
+  if (action === "set_auto_apply") return setAutoApply(sql, member, body, env);
   if (action === "set_preferences") return setPreferences(sql, member, body);
   if (action === "start_connect") return startConnect(sql, member, body);
   if (action === "disconnect_provider") return disconnectProvider(sql, member, body);
