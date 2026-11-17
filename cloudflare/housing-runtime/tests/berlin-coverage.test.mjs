@@ -64,7 +64,7 @@ test("Berlin crawler persists new subdivisions and never claims a 20-of-80 scan 
     assert.ok(result.processed.every(r=>r.status==="split"&&r.children===5));
     assert.equal(calls.length,4);
     const counts=x.db.prepare("SELECT status,COUNT(*) n FROM scout_coverage_jobs GROUP BY status ORDER BY status").all();
-    assert.deepEqual(counts,[{status:"pending",n:119},{status:"split",n:4}]);
+    assert.deepEqual(counts.map(({status,n})=>({status,n})),[{status:"pending",n:119},{status:"split",n:4}]);
     assert.equal(x.db.prepare("SELECT COUNT(*) n FROM scout_coverage_jobs WHERE reported_total=80 AND returned_count=20").get().n,4);
     assert.equal(x.db.prepare("SELECT COUNT(*) n FROM scout_coverage_jobs WHERE status='covered'").get().n,0);
   }finally{x.done()}
