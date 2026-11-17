@@ -74,19 +74,24 @@ export async function wahaWebhook(sql, env, request) {
   const match = /^START ([a-f0-9]{32})$/i.exec(body);
   if (!match) return Response.json({ ok: true, ignored: true });
   const digest = await hash(match[1].toLowerCase());
-  const activated = await sql.begin(async tx => {
-    const rows = await tx.unsafe("SELECT participant_id FROM whatsapp_link_tokens WHERE token_hash=$1 AND expires_at>CURRENT_TIMESTAMP", [digest]);
-    if (!rows[0]) return false;
-    const existing = await tx.unsafe("SELECT participant_id FROM whatsapp_links WHERE chat_id=$1", [chatId]);
-    if (existing[0] && existing[0].participant_id !== rows[0].participant_id) return false;
-    await tx.unsafe(
-      "INSERT INTO whatsapp_links(participant_id,chat_id,enabled,consent_at,updated_at) VALUES($1,$2,1,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP) " +
-      "ON CONFLICT(participant_id) DO UPDATE SET chat_id=excluded.chat_id,enabled=1,consent_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP",
-      [rows[0].participant_id, chatId]
-    );
-    await tx.unsafe("DELETE FROM whatsapp_link_tokens WHERE participant_id=$1", [rows[0].participant_id]);
-    return true;
-  });
+  // D1's compatibility wrapper does not provide a real multi-statement transaction.
+  // Consume the token atomically (DELETE RETURNING) before binding the chat.
+  const rows = await sql.unsafe(
+    "DELETE FROM whatsapp_link_tokens WHERE token_hash=$1 AND expires_at>CURRENT_TIMESTAMP RETURNING participant_id",
+    [digest]
+  );
+  let activated = false;
+  if (rows[0]) {
+    const existing = await sql.unsafe("SELECT participant_id FROM whatsapp_links WHERE chat_id=$1", [chatId]);
+    if (!existing[0] || existing[0].participant_id === rows[0].participant_id) {
+      await sql.unsafe(
+        "INSERT INTO whatsapp_links(participant_id,chat_id,enabled,consent_at,updated_at) VALUES($1,$2,1,CURRENT_TIMESTAMP,CURRENT_TIMESTAMP) " +
+        "ON CONFLICT(participant_id) DO UPDATE SET chat_id=excluded.chat_id,enabled=1,consent_at=CURRENT_TIMESTAMP,updated_at=CURRENT_TIMESTAMP",
+        [rows[0].participant_id, chatId]
+      );
+      activated = true;
+    }
+  }
   return Response.json({ ok: true, activated });
 }
 export function formatWhatsAppListing(facts, url) {
