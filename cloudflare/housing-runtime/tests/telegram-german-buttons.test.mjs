@@ -135,6 +135,10 @@ test("the help callback returns to settings and German commands are registered",
     assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][0].callback_data, "settings");
     await handleMessage({ chat: x.chat, text: "/start" }, x.user);
     assert.match(lastMessage(x).text, /Get started/);
+    const menu = x.sent.find(item => item.method === "setChatMenuButton")?.body?.menu_button;
+    assert.equal(menu?.type, "web_app");
+    assert.equal(menu?.text, "Wohnungs-App");
+    assert.equal(menu?.web_app?.url, "https://traumwohnung-housing-runtime.arash-ce5.workers.dev/miniapp");
     const commands = x.sent.find(item => item.method === "setMyCommands")?.body?.commands || [];
     assert.ok(commands.some(c => c.command === "suchprofile"));
     assert.ok(commands.some(c => c.command === "fortsetzen"));
