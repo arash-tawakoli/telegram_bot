@@ -591,9 +591,15 @@ export default {
     // Uses the same two live tool responses for raw-vs-normalized ID comparison;
     // no database access, offers, deliveries, or applications are modified.
     if (routePath === "/internal/source/mcp-parity" && request.method === "POST") {
-      const expected = env.SOURCE_RUN_TOKEN;
       const bearer = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") || "";
-      if (!expected || !await sameSecret(bearer, expected)) return json({ error: "unauthorized" }, 401);
+      const existingValid = Boolean(env.SOURCE_RUN_TOKEN) && await sameSecret(bearer, env.SOURCE_RUN_TOKEN);
+      // Scoped, expiring audit access: "<expiry-ms>.<random>". It never grants
+      // permission to run ingestion, deliveries, or applications.
+      const auditToken = String(env.MCP_PARITY_AUDIT_TOKEN || "");
+      const auditExpiry = Number(auditToken.split(".", 1)[0]);
+      const auditValid = !existingValid && Number.isSafeInteger(auditExpiry) &&
+        auditExpiry > Date.now() && await sameSecret(bearer, auditToken);
+      if (!existingValid && !auditValid) return json({ error: "unauthorized" }, 401);
       const body = await request.json().catch(() => null);
       const source = sourceForId(body?.source_id);
       if (!source || source.family !== "immoscout24") return json({ error: "source_not_allowlisted" }, 422);
