@@ -40,7 +40,7 @@ const ALIASES = {
   user_engagement_notifications: { user_id: "participant_id" },
 };
 
-const ALLOWLIST = [1, 3, 23, 29, 35, 66, 69, 71];
+const ALLOWLIST = [1, 3, 23, 29, 35, 66, 69, 71, 72];
 
 function json(value, fallback = {}) {
   if (value == null || value === "") return fallback;
@@ -597,9 +597,14 @@ async function rpc(client, env, name, args) {
       return { data: null, error: new Error("premium_required") };
     const criteria = { ...v };
     delete criteria.profile_slot;
-    const ids = Array.isArray(v.source_ids)
-      ? [...new Set(v.source_ids.map(Number).filter(source => ALLOWLIST.includes(source)))]
-      : ALLOWLIST;
+    // Berlin has a separate source and must never be accidentally linked to
+    // legacy Hamburg/Schleswig-Holstein profiles. Preserve their existing
+    // source defaults; Berlin profiles connect only to Berlin MCP.
+    const berlin = ["all_berlin", "berlin_boroughs", "berlin_localities"].includes(String(criteria.location_mode));
+    const requested = Array.isArray(v.source_ids) ? v.source_ids.map(Number) : ALLOWLIST;
+    const ids = berlin
+      ? [72]
+      : [...new Set(requested.filter(source => ALLOWLIST.includes(source) && source !== 72))];
     const statements = [
       {
         query: "INSERT INTO search_profiles(id,participant_id,profile_slot,criteria,active) VALUES(?,?,?,?,1) ON CONFLICT(participant_id,profile_slot) DO UPDATE SET criteria=excluded.criteria,active=1,updated_at=CURRENT_TIMESTAMP",
@@ -649,7 +654,7 @@ async function rpc(client, env, name, args) {
       const missingResult = await rpc(client, env, "application_profile_missing_fields", { p_user: args.p_user });
       if (missingResult.error || missingResult.data.length) return { data: null, error: new Error("test_mode_profile_incomplete") };
       const activeSearch = await client.run(
-        "SELECT sp.id FROM search_profiles sp JOIN source_links sl ON sl.search_profile_id=sp.id WHERE sp.participant_id=? AND sp.active=1 AND sl.source_id IN (1,69) LIMIT 1",
+        "SELECT sp.id FROM search_profiles sp JOIN source_links sl ON sl.search_profile_id=sp.id WHERE sp.participant_id=? AND sp.active=1 AND sl.source_id IN (1,69,72) LIMIT 1",
         [args.p_user],
       );
       if (!activeSearch.length) return { data: null, error: new Error("test_mode_search_profile_missing") };

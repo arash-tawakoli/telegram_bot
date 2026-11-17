@@ -1,7 +1,7 @@
-// Each ImmoScout24 region is polled every five minutes, offset by one minute.
-// The other sources retain their prior 10-/20-minute frequencies.
-// One source per minute preserves the existing single-worker execution path.
-const SOURCE_ROTATION = Object.freeze([69, 1, null, 3, 23, 69, 1, 29, null, 35, 69, 1, null, 3, 23, 69, 1, 29, null, 66]);
+// Berlin uses the four previously idle slots; each of the three MCP regions
+// runs every five minutes, with at most one source per minute.
+// Existing Hamburg, SH, and cooperative source cadences remain unchanged.
+const SOURCE_ROTATION = Object.freeze([69, 1, 72, 3, 23, 69, 1, 72, 29, 35, 69, 1, 72, 3, 23, 69, 1, 72, 29, 66]);
 
 export function sourcesForMinute(minute) {
   const source = SOURCE_ROTATION[minute % SOURCE_ROTATION.length];

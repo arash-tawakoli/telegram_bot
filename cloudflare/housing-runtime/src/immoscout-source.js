@@ -1,3 +1,4 @@
+import { BERLIN_BOROUGHS } from "./berlin-geography.js";
 import { queueMatches } from "./matching.js";
 
 const MCP_URL = "https://app.chatgpt.immobilienscout24.de/v2/mcp";
@@ -130,7 +131,9 @@ function germanCoordinates(entry, sourceId) {
     ? { minLat: 53.35, maxLat: 53.82, minLng: 9.65, maxLng: 10.45 }
     : Number(sourceId) === 69
       ? { minLat: 53.3, maxLat: 55.14, minLng: 7.4, maxLng: 11.4 }
-      : null;
+      : Number(sourceId) === 72
+        ? { minLat: 52.3, maxLat: 52.72, minLng: 13.05, maxLng: 13.8 }
+        : null;
   if (!bounds || latitude == null || longitude == null
     || (country && !["de", "deu", "deutschland", "germany"].includes(country))
     || latitude < bounds.minLat || latitude > bounds.maxLat
@@ -139,7 +142,7 @@ function germanCoordinates(entry, sourceId) {
 }
 
 export function germanImmoScoutQuery(source, filter = "") {
-  if (![1, 69].includes(Number(source?.id)) || source?.family !== "immoscout24") {
+  if (![1, 69, 72].includes(Number(source?.id)) || source?.family !== "immoscout24") {
     throw new Error("immoscout_source_not_allowlisted");
   }
   const criteria = String(filter ?? "").trim();
@@ -147,7 +150,7 @@ export function germanImmoScoutQuery(source, filter = "") {
     || /(?:^|[\s,;])(?:österreich|oesterreich|austria|vienna|wien|graz|salzburg|innsbruck|linz)(?=$|[\s,;])/i.test(criteria)) {
     throw new Error("immoscout_query_invalid");
   }
-  const region = Number(source.id) === 69 ? "Schleswig-Holstein" : "Hamburg";
+  const region = scoutRegion(source);
   return `Wohnungen zur Miete in ${region}, Deutschland; ${criteria || "neueste Inserate"}`;
 }
 
@@ -178,9 +181,9 @@ function parseJson(value) {
 }
 function list(value) { return Array.isArray(value) ? value : []; }
 function scoutRegion(source) {
-  if (source?.family !== "immoscout24" || ![1, 69].includes(Number(source?.id)))
+  if (source?.family !== "immoscout24" || ![1, 69, 72].includes(Number(source?.id)))
     throw new Error("immoscout_source_not_allowlisted");
-  return Number(source.id) === 1 ? "Hamburg" : "Schleswig-Holstein";
+  return Number(source.id) === 1 ? "Hamburg" : Number(source.id) === 69 ? "Schleswig-Holstein" : "Berlin";
 }
 function safePlace(value) {
   const text = String(value ?? "").trim();
@@ -216,6 +219,15 @@ export function planImmoScoutQueries(source, rawProfiles = [], areas = []) {
           if (place) add(type, place.startsWith("Hamburg") ? place : "Hamburg-" + place);
         }
       }
+    } else if (region === "Berlin") {
+      if (mode === "all_berlin") add(type, region);
+      if (mode === "berlin_boroughs" || mode === "berlin_localities") {
+        const selected = mode === "berlin_localities" ? profile.berlin_localities : profile.berlin_boroughs;
+        for (const name of list(selected)) {
+          const place = safePlace(name);
+          if (place) add(type, place.startsWith("Berlin-") ? place : "Berlin-" + place);
+        }
+      }
     } else {
       if (mode === "all_schleswig_holstein") add(type, region);
       if (mode === "schleswig_holstein_areas") {
@@ -248,6 +260,12 @@ export function hamburgCoverageQueries() {
     HAMBURG_RENT_BANDS.map(band =>
       `Wohnungen zur Miete in ${borough.startsWith("Hamburg-") ? borough : "Hamburg-" + borough}, Deutschland, ${band}`
     )
+  );
+}
+
+export function berlinCoverageQueries() {
+  return BERLIN_BOROUGHS.flatMap(borough =>
+    HAMBURG_RENT_BANDS.map(band => `Wohnungen zur Miete in Berlin-${borough}, Deutschland, ${band}`)
   );
 }
 
@@ -297,6 +315,7 @@ async function scheduledQuery(sql, source, now = Date.now()) {
   // profile searches. Unlike a shared growing list, each category cycles
   // independently and cannot be starved by unrelated new search profiles.
   if (Number(source.id) === 1) return chooseHamburgCoverageQuery(queries, hamburgCoverageQueries(), now);
+  if (Number(source.id) === 72) return chooseHamburgCoverageQuery(queries, berlinCoverageQueries(), now);
   return chooseImmoScoutQuery(queries, now);
 }
 
@@ -314,7 +333,8 @@ export function normalizeImmoScoutEntry(entry, sourceId, requestedType = null) {
   if (country && !["de", "deu", "deutschland", "germany"].includes(country)) return null;
   const city = String(address.city || entry.city || "").toLowerCase();
   if (city && Number(sourceId) === 1 && !city.includes("hamburg")) return null;
-  if (city && Number(sourceId) === 69 && city.startsWith("hamburg")) return null;
+  if (city && Number(sourceId) === 69 && (city.startsWith("hamburg") || city.startsWith("berlin"))) return null;
+  if (Number(sourceId) === 72 && city && !/^berlin(?:$|[\s,/-])/.test(city)) return null;
   // Schleswig-Holstein postcodes fall in 21xxx–25xxx. Ignore clear
   // cross-region results without treating missing postcodes as invalid.
   const postcode = String(address.postcode || "");
@@ -415,7 +435,7 @@ export async function fetchImmoScoutSource(source, config = {}) {
  * Does not enqueue deliveries, applications or mutate the housing database.
  */
 export async function fetchImmoScoutMap(source, config = {}) {
-  if (![1, 69].includes(Number(source?.id)) || source?.family !== "immoscout24") {
+  if (![1, 69, 72].includes(Number(source?.id)) || source?.family !== "immoscout24") {
     throw new Error("immoscout_source_not_allowlisted");
   }
   const limit = Number(config.limit ?? 100);
@@ -445,7 +465,9 @@ export async function fetchImmoScoutMap(source, config = {}) {
 
 export async function ingestImmoScoutSource(sql, source, config = {}) {
   const query = config.query || await scheduledQuery(sql, source);
-  const isCoveragePartition = Number(source.id) === 1 && hamburgCoverageQueries().includes(query);
+  const isCoveragePartition = Number(source.id) === 1
+    ? hamburgCoverageQueries().includes(query)
+    : Number(source.id) === 72 && berlinCoverageQueries().includes(query);
   const result = await fetchImmoScoutSource(source, { ...config, query, enrichWithMap: true, maxMapExtras: 200 });
 
   // One bounded lookup replaces hundreds of individual reads while retaining

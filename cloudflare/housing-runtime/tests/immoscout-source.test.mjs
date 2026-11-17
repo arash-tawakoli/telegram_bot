@@ -1,6 +1,6 @@
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { normalizeImmoScoutEntry, parseMcpToolResult, germanImmoScoutQuery, fetchImmoScoutSource, fetchImmoScoutMap, ingestImmoScoutSource, planImmoScoutQueries, parseMcpEnvelope, chooseImmoScoutQuery, chooseHamburgCoverageQuery, hamburgCoverageQueries, resetMcpSession } from "../src/immoscout-source.js";
+import { normalizeImmoScoutEntry, parseMcpToolResult, germanImmoScoutQuery, fetchImmoScoutSource, fetchImmoScoutMap, ingestImmoScoutSource, planImmoScoutQueries, parseMcpEnvelope, chooseImmoScoutQuery, chooseHamburgCoverageQuery, hamburgCoverageQueries, berlinCoverageQueries, resetMcpSession } from "../src/immoscout-source.js";
 import { sourceForId } from "../src/source-allowlist.js";
 
 beforeEach(() => resetMcpSession());
@@ -131,6 +131,57 @@ test("the German MCP map drops invalid coordinates and enforces result limits", 
   } finally {
     globalThis.fetch = previousFetch;
   }
+});
+
+test("Berlin MCP stays separate from Hamburg and Schleswig-Holstein", () => {
+  const berlin = sourceForId(72);
+  assert.equal(berlin.name, "ImmobilienScout24 Berlin");
+  assert.match(germanImmoScoutQuery(berlin), /Berlin, Deutschland/);
+  assert.equal(normalizeImmoScoutEntry({
+    exposedId: "801", exposeUrl: "https://www.immobilienscout24.de/expose/801",
+    title: "Wohnung in Prenzlauer Berg",
+    address: { city: "Berlin", quarter: "Prenzlauer Berg",
+      postcode: "10405", coordinates: { lat: 52.53, lng: 13.42 } },
+  }, 72, "Wohnung").facts.latitude, 52.53);
+  assert.equal(normalizeImmoScoutEntry({
+    exposedId: "802", exposeUrl: "https://www.immobilienscout24.de/expose/802",
+    address: { city: "Potsdam", coordinates: { lat: 52.4, lng: 13.06 } },
+  }, 72), null);
+  assert.equal(normalizeImmoScoutEntry({
+    exposedId: "803", exposeUrl: "https://www.immobilienscout24.de/expose/803",
+    address: { city: "Berlin" },
+  }, 1), null);
+  assert.equal(normalizeImmoScoutEntry({
+    exposedId: "804", exposeUrl: "https://www.immobilienscout24.de/expose/804",
+    address: { city: "Berlin", postcode: "10405" },
+  }, 69), null);
+  assert.deepEqual(planImmoScoutQueries(berlin, [
+    { property_types: ["Wohnung"], location_mode: "all_berlin" },
+    { property_types: ["Wohnung"], location_mode: "berlin_boroughs",
+      berlin_boroughs: ["Pankow", "Neukölln"] },
+    { property_types: ["Haus"], location_mode: "berlin_localities",
+      berlin_localities: ["Prenzlauer Berg", "Kreuzberg"] },
+    { property_types: ["Wohnung"], location_mode: "all_hamburg" },
+  ]), [
+    "Wohnungen zur Miete in Berlin",
+    "Wohnungen zur Miete in Berlin-Pankow",
+    "Wohnungen zur Miete in Berlin-Neukölln",
+    "Häuser zur Miete in Berlin-Prenzlauer Berg",
+    "Häuser zur Miete in Berlin-Kreuzberg",
+  ]);
+});
+
+test("Berlin 36 borough/rent partitions rotate independently from profile queries", () => {
+  const coverage = berlinCoverageQueries();
+  assert.equal(coverage.length, 36);
+  assert.equal(new Set(coverage).size, 36);
+  const q = ["Wohnungen zur Miete in Berlin", "Wohnungen zur Miete in Berlin-Prenzlauer Berg"];
+  const slot = 5 * 60_000;
+  const queries = Array.from({ length: 144 }, (_,i) =>
+    chooseHamburgCoverageQuery(q, coverage, i*slot));
+  assert.deepEqual(queries.filter((_, i) => i % 4 === 1), coverage);
+  assert.equal(queries.filter(q => q === "Wohnungen zur Miete in Berlin").length,36);
+  assert.ok(queries.includes(q[1]));
 });
 
 test("Schleswig-Holstein map accepts northern coordinates but rejects Austria", () => {
