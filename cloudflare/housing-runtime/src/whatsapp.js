@@ -119,7 +119,7 @@ export async function processWhatsAppDelivery(sql, env, requester = fetch) {
     "SELECT d.id,d.participant_id FROM deliveries d " +
     "JOIN whatsapp_links w ON w.participant_id=d.participant_id AND w.enabled=1 " +
     "JOIN participants p ON p.id=d.participant_id AND p.status='active' " +
-    "WHERE d.created_at>=datetime('now','-15 minutes') AND d.offer_identity_id IS NOT NULL " +
+    "WHERE d.created_at>=datetime('now','-15 minutes') AND d.created_at>=w.consent_at AND d.offer_identity_id IS NOT NULL " +
     "AND (d.listing_expired_at IS NULL OR d.listing_expired_at>CURRENT_TIMESTAMP)"
   );
   const rows = await sql.unsafe(
@@ -128,7 +128,7 @@ export async function processWhatsAppDelivery(sql, env, requester = fetch) {
     "JOIN participants p ON p.id=wd.participant_id AND p.status='active' " +
     "JOIN deliveries d ON d.id=wd.delivery_id " +
     "JOIN offer_identities oi ON oi.id=d.offer_identity_id " +
-    "WHERE wd.status='pending' AND wd.created_at>=datetime('now','-15 minutes') " +
+    "WHERE wd.status='pending' AND wd.created_at>=datetime('now','-15 minutes') AND wd.created_at>=w.consent_at " +
     "ORDER BY wd.created_at,wd.delivery_id LIMIT 1"
   );
   if (!rows[0]) return { status: "idle" };
