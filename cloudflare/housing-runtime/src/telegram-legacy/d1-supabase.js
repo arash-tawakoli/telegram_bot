@@ -562,6 +562,7 @@ async function rpc(client, env, name, args) {
         [id, from.first_name || "Teilnehmer", from.last_name || "Unbekannt", from.username || null, from.id, chat.id, "de", from.language_code || null],
       );
       await client.run("INSERT OR IGNORE INTO application_preferences(participant_id) VALUES(?)", [id]);
+      await client.run("INSERT OR IGNORE INTO usage_reset_credits(id,participant_id,grant_key,granted_by_telegram_user_id) VALUES(lower(hex(randomblob(16))),?,'starter:7d',0)", [id]);
       user = (await client.run("SELECT * FROM participants WHERE id=?", [id]))[0];
     }
     const subscription = (await client.run(
