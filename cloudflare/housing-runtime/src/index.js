@@ -535,6 +535,53 @@ export async function handleAuth(sql, request, env = {}) {
   return json({ error: "invalid_action" }, 400);
 }
 
+// One-time operational audit. Runs only when a short-lived Cloudflare binding
+// is explicitly set; the existing SOURCE_RUN_TOKEN never leaves the Worker.
+// The three invocations use the production auth guard and never write to D1.
+let internalMcpAuditStarted = false;
+export async function runInternalMcpParityAudit(handler, env, now = Date.now()) {
+  const expires = Number(env.MCP_PARITY_AUDIT_UNTIL);
+  if (internalMcpAuditStarted || !env.SOURCE_RUN_TOKEN || !Number.isSafeInteger(expires)
+    || expires <= now || expires > now + 15 * 60_000) return false;
+  internalMcpAuditStarted = true;
+  await Promise.all([1, 69, 72].map(async sourceId => {
+    try {
+      const request = new Request("https://housing-runtime.internal/internal/source/mcp-parity", {
+        method: "POST",
+        headers: { authorization: "Bearer " + env.SOURCE_RUN_TOKEN, "content-type": "application/json" },
+        body: JSON.stringify({ source_id: sourceId }),
+      });
+      const response = await handler.fetch(request, env, {});
+      const report = await response.json().catch(() => ({}));
+      const comparison = report.comparison || {};
+      console.log("housing_mcp_parity_live_audit", JSON.stringify({
+        source_id: sourceId, http_status: response.status,
+        endpoint: report.mcp_contract?.endpoint || null,
+        protocol: report.mcp_contract?.protocol || null,
+        search_tool: report.mcp_contract?.searchTool || null,
+        map_tool: report.mcp_contract?.mapTool || null,
+        query: report.query || null,
+        reported_total: report.reported_total ?? null,
+        search_returned: comparison.search_returned ?? null,
+        map_returned: comparison.map_returned ?? null,
+        mcp_unique_ids: comparison.mcp_unique_ids ?? null,
+        bot_unique_ids: comparison.bot_unique_ids ?? null,
+        filtered_count: comparison.filtered_ids?.length ?? null,
+        filtered_examples: comparison.filtered_ids?.slice(0, 8) || [],
+        unexpected_count: comparison.unexpected_ids?.length ?? null,
+        same_ids: comparison.same_ids ?? null,
+        map_error: report.map_error || null,
+        error: report.error || null,
+      }));
+    } catch (error) {
+      console.error("housing_mcp_parity_live_audit_failed", JSON.stringify({
+        source_id: sourceId, error: String(error?.message || error).slice(0, 160),
+      }));
+    }
+  }));
+  return true;
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -750,6 +797,7 @@ export default {
     const scheduledTime = Number(controller?.scheduledTime);
     const minute = Number.isSafeInteger(scheduledTime) && scheduledTime > 0 ? Math.floor(scheduledTime / 60_000) : Math.floor(Date.now() / 60_000);
     const tasks = scheduledTasksForMinute(minute);
+    if (env.MCP_PARITY_AUDIT_UNTIL) ctx.waitUntil(runInternalMcpParityAudit(this, env));
     ctx.waitUntil((async () => {
       if (tasks.verifyTelegramWebhook && env.TELEGRAM_WEBHOOK_REGISTER === "1") {
         try {
