@@ -1,4 +1,5 @@
 import { home, premium, settings } from "./navigation.js";
+import { BERLIN_BOROUGHS, BERLIN_LOCALITIES } from "../berlin-geography.js";
 import { db, PROPERTY_TYPES, RENT_PRESETS, ROOM_PRESETS, AREA_PRESETS, NEIGHBORHOODS_PER_PAGE, finiteOrNull, esc, money, button, cancelRow, backRow, send, edit, saveState, geography } from "./runtime.js";
 export function emptyDraft(profileSlot = 1) {
     return {
@@ -8,6 +9,9 @@ export function emptyDraft(profileSlot = 1) {
         borough_ids: [],
         neighborhood_ids: [],
         location_area_codes: [],
+        berlin_boroughs: [],
+        berlin_localities: [],
+        berlin_page: 0,
         area_page: 0,
         sh_area_level: "counties",
         neighborhood_page: 0,
@@ -38,7 +42,7 @@ export function normalizeDraft(raw) {
     return {
         profile_slot: Math.max(1, Math.min(4, Number(raw?.profile_slot) || 1)),
         property_types: Array.from(new Set(propertyTypes)).slice(0, 1),
-        location_mode: ["all_hamburg", "boroughs", "neighborhoods", "all_schleswig_holstein", "schleswig_holstein_areas"].includes(String(raw?.location_mode || ""))
+        location_mode: ["all_hamburg", "boroughs", "neighborhoods", "all_schleswig_holstein", "schleswig_holstein_areas", "all_berlin", "berlin_boroughs", "berlin_localities"].includes(String(raw?.location_mode || ""))
             ? raw.location_mode
             : legacyMode,
         borough_ids: Array.isArray(raw?.borough_ids)
@@ -47,6 +51,13 @@ export function normalizeDraft(raw) {
         neighborhood_ids: Array.isArray(raw?.neighborhood_ids)
             ? raw.neighborhood_ids.map(Number).filter(Number.isFinite)
             : [],
+        berlin_boroughs: Array.isArray(raw?.berlin_boroughs)
+            ? Array.from(new Set(raw.berlin_boroughs.map(String).filter(name => BERLIN_BOROUGHS.includes(name))))
+            : [],
+        berlin_localities: Array.isArray(raw?.berlin_localities)
+            ? Array.from(new Set(raw.berlin_localities.map(String).filter(name => BERLIN_LOCALITIES.some(area => area.name === name))))
+            : [],
+        berlin_page: Number.isFinite(Number(raw?.berlin_page)) ? Math.max(0, Number(raw.berlin_page)) : 0,
         neighborhood_page: Number.isFinite(Number(raw?.neighborhood_page))
             ? Math.max(0, Number(raw.neighborhood_page))
             : 0,
@@ -111,6 +122,8 @@ export function validateDraft(draft) {
         !draft.neighborhood_ids.length) {
         return "neighborhoods";
     }
+    if (draft.location_mode === "berlin_boroughs" && !draft.berlin_boroughs.length) return "berlinareas";
+    if (draft.location_mode === "berlin_localities" && !draft.berlin_localities.length) return "berlinareas";
     if (draft.location_mode === "schleswig_holstein_areas" &&
         !draft.location_area_codes.length) {
         return "shareas";
@@ -153,12 +166,45 @@ export async function renderLocation(user, chatId, messageId, draft) {
             [button(`${draft.location_mode === "boroughs" ? "✅ " : ""}🏙 Bezirke auswählen`, "loc:boroughs")],
             [button(`${draft.location_mode === "neighborhoods" ? "✅ " : ""}📍 Stadtteile auswählen`, "loc:neighborhoods")],
             [button(`${draft.location_mode === "all_schleswig_holstein" ? "✅ " : ""}🌐 Ganz Schleswig-Holstein`, "loc:all_sh")],
+
             [button(`${draft.location_mode === "schleswig_holstein_areas" && ["counties", "mixed"].includes(draft.sh_area_level) ? "✅ " : ""}🏙 Kreise / kreisfreie Städte`, "loc:counties_sh")],
             [button(`${draft.location_mode === "schleswig_holstein_areas" && ["municipalities", "mixed"].includes(draft.sh_area_level) ? "✅ " : ""}📍 Städte / Gemeinden`, "loc:municipalities_sh")],
+            [button(`${draft.location_mode === "all_berlin" ? "✅ " : ""}🌐 Ganz Berlin`, "loc:all_be")],
+            [button(`${draft.location_mode === "berlin_boroughs" ? "✅ " : ""}🏙 Berliner Bezirke`, "loc:boroughs_be")],
+            [button(`${draft.location_mode === "berlin_localities" ? "✅ " : ""}📍 Berliner Ortsteile`, "loc:localities_be")],
             backRow(draft.profile_edit ? `profile:edit:${draft.profile_slot}` : "types"),
             cancelRow(),
         ],
     });
+}
+
+export async function renderBerlinAreas(user, chatId, messageId, draft) {
+    const boroughMode = draft.location_mode === "berlin_boroughs";
+    const areas = boroughMode
+        ? BERLIN_BOROUGHS.map(name => ({ name }))
+        : BERLIN_LOCALITIES;
+    const selected = new Set(boroughMode ? draft.berlin_boroughs : draft.berlin_localities);
+    const pages = Math.max(1, Math.ceil(areas.length / 20));
+    const page = Math.max(0, Math.min(Number(draft.berlin_page || 0), pages - 1));
+    draft.berlin_page = page;
+    await saveDraft(user, "berlinareas", draft);
+    const rows = [];
+    const visible = areas.slice(page * 20, (page + 1) * 20);
+    for (let offset = 0; offset < visible.length; offset += 2) {
+        rows.push(visible.slice(offset, offset + 2).map(area =>
+            button(`${selected.has(area.name) ? "✅ " : ""}${area.name}`, `berlinarea:${areas.indexOf(area)}`)));
+    }
+    rows.push([button("Alle auswählen", "berlinarea:all"), button("Auswahl löschen", "berlinarea:clear")]);
+    if (pages > 1) rows.push([
+        ...(page > 0 ? [button("← Vorherige", "berlinarea:prev")] : []),
+        ...(page < pages - 1 ? [button("Nächste →", "berlinarea:next")] : []),
+    ]);
+    rows.push([button("Auswahl bestätigen →", "berlinarea:done")],
+        [button("← Gebietsauswahl", "location")], cancelRow());
+    const kind = boroughMode ? "Bezirke" : "Ortsteile";
+    return edit(chatId, messageId,
+        `📍 <b>Berliner ${kind}</b>\n\nWähle ein oder mehrere Gebiete.\n\n${selected.size} ausgewählt · Seite ${page + 1} von ${pages}`,
+        { inline_keyboard: rows });
 }
 
 export async function renderSchleswigHolsteinAreas(user, chatId, messageId, draft) {
@@ -321,6 +367,20 @@ export async function renderArea(user, chatId, messageId, draft) {
 
 export async function selectedPlaces(draft) {
     const geo = await geography();
+    if (draft.location_mode === "all_berlin") {
+        return { location: "Ganz Berlin", districts: ["Ganz Berlin"], boroughs: [],
+            neighborhoods: [], berlin_boroughs: [], berlin_localities: [] };
+    }
+    if (draft.location_mode === "berlin_boroughs" || draft.location_mode === "berlin_localities") {
+        const localities = draft.location_mode === "berlin_localities" ? draft.berlin_localities : [];
+        const boroughs = draft.location_mode === "berlin_boroughs" ? draft.berlin_boroughs :
+            [...new Set(BERLIN_LOCALITIES.filter(area => localities.includes(area.name)).map(area => area.borough))];
+        const places = draft.location_mode === "berlin_boroughs" ? boroughs : localities;
+        return {
+            location: places.length > 5 ? places.slice(0,5).join(", ") + ` … (+${places.length-5})` : places.join(", "),
+            districts: places, boroughs: [], neighborhoods: [], berlin_boroughs: boroughs, berlin_localities: localities,
+        };
+    }
     if (draft.location_mode === "all_schleswig_holstein") {
         return {
             location: "Ganz Schleswig-Holstein",
@@ -427,6 +487,8 @@ export function renderStep(user, chatId, messageId, draft, step) {
     }
     if (step === "shareas")
         return renderSchleswigHolsteinAreas(user, chatId, messageId, draft);
+    if (step === "berlinareas")
+        return renderBerlinAreas(user, chatId, messageId, draft);
     if (step === "rent")
         return renderRent(user, chatId, messageId, draft);
     if (step === "rent_custom") {
@@ -488,6 +550,9 @@ export function profileLimit(user) { return user.is_premium ? 4 : 1; }
 export async function profileLocation(current) {
     if (current.location_mode === "all_schleswig_holstein")
         return "Ganz Schleswig-Holstein";
+    if (current.location_mode === "all_berlin") return "Ganz Berlin";
+    if (current.location_mode === "berlin_boroughs") return (current.berlin_boroughs || []).join(", ") || "Berlin";
+    if (current.location_mode === "berlin_localities") return (current.berlin_localities || []).join(", ") || "Berlin";
     if (current.location_mode === "schleswig_holstein_areas") {
         const stored = Array.isArray(current.districts) ? current.districts.map(String).filter(Boolean) : [];
         const codes = new Set((Array.isArray(current.location_area_codes) ? current.location_area_codes : []).map(String));
@@ -533,6 +598,9 @@ export async function draftFromProfile(current) {
             .filter((entry) => neighborhoodNames.has(String(entry.name)))
             .map((entry) => entry.id),
         location_area_codes: Array.isArray(current.location_area_codes) ? current.location_area_codes.map(String) : [],
+        berlin_boroughs: current.berlin_boroughs || [],
+        berlin_localities: current.berlin_localities || [],
+        berlin_page: 0,
         area_page: 0,
         sh_area_level: (() => {
             const selectedCodes = new Set((current.location_area_codes || []).map(String));
