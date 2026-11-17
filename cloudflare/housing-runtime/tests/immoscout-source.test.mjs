@@ -405,10 +405,10 @@ test("large Scout map subsets use a few D1 batches and one candidate-profile rea
     assert.equal(output.previously_known_in_response, 1);
     assert.equal(output.newly_discovered_in_response, 159);
     assert.equal(output.property_types_in_response.Wohnung, 160);
-    assert.equal(writes.length, 8, "160 offers should require eight D1 batch writes");
+    assert.equal(writes.length, 10, "160 offers should require ten D1 writes of 16 rows");
     assert.equal(reads.length, 3, "160 IDs must fit in three bounded D1 lookups");
-    assert.ok(reads.every(({params})=>params.length<=100), "D1 bind-variable limit");
-    assert.ok(writes.every(({params})=>params.length<=100));
+    assert.ok(reads.every(({params})=>params.length<=61), "60 IDs + source ID within D1 safety headroom");
+    assert.ok(writes.every(({params})=>params.length<=80), "five bind variables per row with safety headroom");
     assert.equal(profileReads.length, 1, "all matches share the same active profile snapshot");
     assert.equal(JSON.parse(writes[0].params[4]).warm_rent, 990,
       "previously verified rent is not lost when a later MCP card omits it");
