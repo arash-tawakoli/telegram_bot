@@ -4,7 +4,7 @@ import { HOUSING_SOURCES } from "./source-allowlist.js";
 import { sourceForId } from "./source-allowlist.js";
 import { ingestImmomioSource } from "./immomio-source.js";
 import { ingestImmoweltSource } from "./immowelt-source.js";
-import { ingestImmoScoutSource } from "./immoscout-source.js";
+import { ingestImmoScoutSource, fetchImmoScoutSource, IMMOSCOUT_MCP_CONTRACT } from "./immoscout-source.js";
 import { runBerlinCoverage } from "./berlin-coverage.js";
 import { deliveryCutoverLedger, reconcileCloudflareDeliveries } from "./delivery-cutover-ledger.js";
 import { resolveListingImage } from "./telegram-listing-preview.js";
@@ -585,6 +585,39 @@ export default {
     if ((url.pathname === "/telegram/webhook" || routePath === "/telegram/webhook") && request.method === "POST") {
       try { return await telegramWebhook(request, env, ctx); }
       catch (error) { console.error("housing_telegram_webhook_failed", String(error?.message || error)); return json({ error: "telegram_unavailable" }, 503); }
+    }
+
+    // Read-only, token-protected audit of exactly the MCP requests the bot uses.
+    // Uses the same two live tool responses for raw-vs-normalized ID comparison;
+    // no database access, offers, deliveries, or applications are modified.
+    if (routePath === "/internal/source/mcp-parity" && request.method === "POST") {
+      const expected = env.SOURCE_RUN_TOKEN;
+      const bearer = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") || "";
+      if (!expected || !await sameSecret(bearer, expected)) return json({ error: "unauthorized" }, 401);
+      const body = await request.json().catch(() => null);
+      const source = sourceForId(body?.source_id);
+      if (!source || source.family !== "immoscout24") return json({ error: "source_not_allowlisted" }, 422);
+      const broad = source.id === 1 ? "Hamburg" : source.id === 69 ? "Schleswig-Holstein" : "Berlin";
+      const query = body.query === undefined ? "Wohnungen zur Miete in " + broad : body.query;
+      if (typeof query !== "string" || query.length > 240
+        || !/^Wohnungen zur Miete (?:in|im) [^\r\n\x00-\x1f]+$/.test(query)) {
+        return json({ error: "invalid_query" }, 400);
+      }
+      try {
+        const result = await fetchImmoScoutSource(source, {
+          query, enrichWithMap: true, maxMapExtras: 200, auditMcpIds: true,
+        });
+        return json({
+          ok: true, source_id: source.id, query: result.query,
+          mcp_contract: IMMOSCOUT_MCP_CONTRACT,
+          reported_total: result.reported_total,
+          map_error: result.map_error || null,
+          comparison: result.mcp_parity,
+        });
+      } catch (error) {
+        console.error("housing_mcp_parity_failed", String(error?.message || error).slice(0,150));
+        return json({ error: "mcp_parity_unavailable" }, 503);
+      }
     }
 
     if (routePath === "/internal/source/run" && request.method === "POST") {
