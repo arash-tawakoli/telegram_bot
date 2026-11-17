@@ -3,7 +3,7 @@ import { adminTokenStatus, adminTokenStart, adminTokenRefresh } from '../coach-a
 import { createD1Client } from '../d1-database.js';
 import { refreshImmomioSession } from '../immomio-application.js';
 import { isAdmin, adminGrantLabel, adminPremiumNotice, adminUsers, adminUser, previewFreePremiumReset, executeFreePremiumReset, setUserBlocked, deleteUser, setPlanOverride, ANNOUNCEMENT_PROMPT, createAnnouncementDraft, cancelAnnouncement, sendAnnouncement } from "./admin.js";
-import { homeKeyboard, home, premium, setPaused, referralPage, settings, languageMenu, QUICK_ACTIONS, showQuickActions } from "./navigation.js";
+import { homeKeyboard, home, premium, premiumTier, setPaused, referralPage, settings, languageMenu, QUICK_ACTIONS, showQuickActions } from "./navigation.js";
 import { saveDeliveredOffer, removeSavedOffer, savedOffers } from "./saved-offers.js";
 import { draftFor, validateDraft, renderTypes, renderLocation, renderBoroughs, renderNeighborhoods, renderSchleswigHolsteinAreas, renderRent, renderCustomRent, renderRooms, renderArea, renderReview, renderReviewEdit, renderStep, afterSelection, persistProfile, profileLimit, draftFromProfile, startNewProfile, profileEditMenu, profile, renderStatus, nextSizeStep } from "./profiles.js";
 import { db, PREMIUM_LINK, PROPERTY_TYPES, RENT_PRESETS, ROOM_PRESETS, AREA_PRESETS, NEIGHBORHOODS_PER_PAGE, button, cancelRow, backRow, runtimeEnv, esc, secret, telegram, send, sendCelebration, edit, acknowledge, saveState, geography, HELP_TEXT } from "./runtime.js";
@@ -694,6 +694,11 @@ export async function handleCallback(query, user) {
         return edit(chatId, messageId, helpFor(user), {
             inline_keyboard: [[button("← Einstellungen", "settings")]],
         });
+    }
+    if (data.startsWith("premium:tier:")) {
+        const tier = data.slice("premium:tier:".length);
+        if (!["go", "pro", "max"].includes(tier)) return premium(user, chatId, messageId);
+        return premiumTier(tier, chatId, messageId);
     }
     if (data === "premium") {
         if (query.message?.photo) {
