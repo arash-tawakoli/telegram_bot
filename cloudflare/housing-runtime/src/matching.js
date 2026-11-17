@@ -1,7 +1,7 @@
 import { hasRetainedApplicationKey, rememberApplicationKey } from "./application-dedupe.js";
 import { applicationProvider, missingApplicantFields, premiumParticipant, timestampMillis } from "./application-policy.js";
 import { applicationIdempotencyKey, sourceForId } from "./source-allowlist.js";
-import { BERLIN_BOROUGHS, BERLIN_LOCALITIES, berlinBoroughFor } from "./berlin-geography.js";
+import { BERLIN_BOROUGHS, berlinBoroughFor } from "./berlin-geography.js";
 
 const enabled = value => value === true || value === 1;
 
@@ -70,14 +70,13 @@ export function matchesProfile(criteria, facts, sourceId, areas = []) {
     if (!isBerlin) return false;
     const wanted = list(mode === "berlin_boroughs" ? criteria.berlin_boroughs : criteria.berlin_localities).map(normalize);
     if (!wanted.length) return false;
-    // MCP quarter is generally an Ortsteil, not necessarily one of Berlin's
-    // twelve Bezirke (e.g. Prenzlauer Berg belongs to Pankow).
+    // ImmoScout's quarter is usually an Ortsteil rather than one of 12 Bezirke.
     const cityLocality = city.startsWith("berlin-") ? city.slice(7) : "";
     const observed = normalize(facts?.district || cityLocality);
     if (mode === "berlin_localities") {
       if (wanted.includes(observed)) return true;
-      return wanted.some(name => name && new RegExp("(^|[^\\p{L}])" + name.replace(/[.*+?^${}()|[\]\\]/g,"\\  const isSchleswigHolstein = state === "SH" || (!state && !isHamburg && (matchingAreas.length > 0 || (!city && [69, 71].includes(Number(sourceId)))));
-  const mode = criteria.location_mode;") + "($|[^\\p{L}])","iu").test(normalize(facts?.title)));
+      const title = normalize(facts?.title);
+      return wanted.some(name => name && title.includes(name));
     }
     if (wanted.length === BERLIN_BOROUGHS.length) return true;
     const borough = berlinBoroughFor(observed) || BERLIN_BOROUGHS.find(name => normalize(name) === observed);
