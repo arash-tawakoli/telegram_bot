@@ -4,7 +4,7 @@ import { adminTokenStatus, adminTokenStart, adminTokenRefresh } from '../coach-a
 import { createD1Client } from '../d1-database.js';
 import { refreshImmomioSession } from '../immomio-application.js';
 import { isAdmin, adminGrantLabel, adminPremiumNotice, adminUsers, adminUser, previewFreePremiumReset, executeFreePremiumReset, setUserBlocked, deleteUser, setPlanOverride, ANNOUNCEMENT_PROMPT, createAnnouncementDraft, cancelAnnouncement, sendAnnouncement } from "./admin.js";
-import { homeKeyboard, home, premium, premiumTier, setPaused, referralPage, settings, languageMenu, QUICK_ACTIONS, showQuickActions } from "./navigation.js";
+import { homeKeyboard, home, premium, premiumTier, setPaused, referralPage, settings, languageMenu, QUICK_ACTIONS, showQuickActions, miniAppKeyboard } from "./navigation.js";
 import { saveDeliveredOffer, removeSavedOffer, savedOffers } from "./saved-offers.js";
 import { resetPage, redeemReset, adminResetMenu, grantResetToUser, previewGlobalReset, grantGlobalReset } from "./usage-resets.js";
 import { draftFor, validateDraft, renderTypes, renderLocation, renderBoroughs, renderNeighborhoods, renderBerlinAreas, renderSchleswigHolsteinAreas, renderRent, renderCustomRent, renderRooms, renderArea, renderReview, renderReviewEdit, renderStep, afterSelection, persistProfile, profileLimit, draftFromProfile, startNewProfile, profileEditMenu, profile, renderStatus, nextSizeStep } from "./profiles.js";
@@ -13,6 +13,7 @@ import { db, PREMIUM_LINK, PROPERTY_TYPES, RENT_PRESETS, ROOM_PRESETS, AREA_PRES
 // Most-used functions first, then settings and search controls.
 const PUBLIC_COMMANDS = [
     { command: "start", description: "Startmenü" },
+    { command: "app", description: "Wohnungs-App öffnen" },
     { command: "suche", description: "Suchprofil erstellen" },
     { command: "suchprofile", description: "Suchprofile anzeigen" },
     { command: "premium", description: "Premium" },
@@ -330,6 +331,7 @@ export async function handleMessage(message, user) {
         await showQuickActions(chatId, user, { force: command === "/commands" });
         return home(user, chatId);
     }
+    if (command === "/app") return send(chatId, "Öffne deine Wohnungssuche direkt in Telegram.", miniAppKeyboard());
     if (command === "/suche")
         return startNewProfile(user, chatId);
     if (command === "/suchprofile" || command === "/profile")
