@@ -385,7 +385,7 @@ async function runScheduledHousingWork(env, minute = Math.floor(Date.now() / 60_
     });
     try {
       const response = await withDatabase(env, (sql) => runSource(sql, sourceRequest, env));
-      if (response.ok && [1, 69].includes(sourceId)) {
+      if (response.ok && [1, 69, 72].includes(sourceId)) {
         const audit = await response.json();
         console.log("housing_scout_mcp_coverage", JSON.stringify({
           source_id: sourceId, query: audit.query,
