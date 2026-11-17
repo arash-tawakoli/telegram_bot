@@ -28,6 +28,25 @@ test("matching respects property type, region, neighborhood and required facts",
   assert.equal(matchesProfile(hamburg, { ...apartment, city: "Hamburg, Altona" }, 1), true);
 });
 
+test("Berlin matching respects city, districts and Ortsteile and excludes other regions", () => {
+  const berlin = { property_types: ["Wohnung"], location_mode: "all_berlin" };
+  const apartment = { title: "Wohnung am Kollwitzplatz", city: "Berlin",
+    district: "Prenzlauer Berg", property_type: "Wohnung" };
+  assert.equal(matchesProfile(berlin, apartment, 72), true);
+  assert.equal(matchesProfile(berlin, { ...apartment, city: "Hamburg" }, 1), false);
+  assert.equal(matchesProfile(berlin, { ...apartment, city: "Potsdam" }, 72), false);
+  const pankow = { ...berlin, location_mode: "berlin_boroughs", berlin_boroughs: ["Pankow"] };
+  const mitte = { ...berlin, location_mode: "berlin_boroughs", berlin_boroughs: ["Mitte"] };
+  assert.equal(matchesProfile(pankow, apartment, 72), true,
+    "Prenzlauer Berg belongs to district Pankow");
+  assert.equal(matchesProfile(mitte, apartment, 72), false);
+  assert.equal(matchesProfile({ ...berlin, location_mode: "berlin_localities",
+    berlin_localities: ["Prenzlauer Berg"] }, apartment, 72), true);
+  assert.equal(matchesProfile({ ...berlin, location_mode: "berlin_localities",
+    berlin_localities: ["Kreuzberg"] }, apartment, 72), false);
+  assert.equal(matchesProfile(pankow, { ...apartment, city: "Berlin", district: "Kreuzberg" }, 72), false);
+});
+
 test("Free users receive listing alerts but cannot queue normal AutoApply", async () => {
   const calls = [];
   const profile = {
