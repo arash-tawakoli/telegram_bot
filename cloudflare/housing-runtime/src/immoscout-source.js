@@ -3,6 +3,9 @@ import { queueMatches } from "./matching.js";
 
 const MCP_URL = "https://app.chatgpt.immobilienscout24.de/v2/mcp";
 const MCP_PROTOCOL = "2025-06-18";
+// Leave headroom below Cloudflare D1's 100-variable limit for every statement.
+const D1_SCOUT_LOOKUP_BATCH = 60;
+const D1_SCOUT_UPSERT_BATCH = 16;
 
 // Select a complete JSON-RPC response, skipping SSE progress notifications.
 export function parseMcpEnvelope(body, requestId) {
@@ -112,6 +115,24 @@ async function postMcp(payload) {
 
 function entryId(entry) {
   return String(entry?.exposedId || entry?.exposeId || entry?.id || "").trim();
+}
+
+// A read-only comparison of the actual MCP results with the bot's normalized
+// results from the SAME search/map tool calls. No extra requests or DB writes.
+export function compareImmoScoutMcpIds(searchIds, mapIds, normalizedNodes) {
+  const rawIds = new Set([...searchIds, ...mapIds].filter(Boolean));
+  const normalizedIds = new Set(normalizedNodes.map(node => node.identity).filter(Boolean));
+  const filteredIds = [...rawIds].filter(id => !normalizedIds.has(id));
+  const unexpectedIds = [...normalizedIds].filter(id => !rawIds.has(id));
+  return {
+    search_returned: searchIds.length,
+    map_returned: mapIds.length,
+    mcp_unique_ids: rawIds.size,
+    bot_unique_ids: normalizedIds.size,
+    filtered_ids: filteredIds,
+    unexpected_ids: unexpectedIds,
+    same_ids: filteredIds.length === 0 && unexpectedIds.length === 0,
+  };
 }
 
 function numeric(value) {
@@ -386,6 +407,8 @@ export async function fetchImmoScoutSource(source, config = {}) {
   const requestedType = Object.entries(RENTAL_TYPES)
     .find(([, label]) => query.startsWith(label))?.[0] || null;
   const search = await callTool("property_search_de", query);
+  const auditSearchIds = config.auditMcpIds === true ? search.entries.map(entryId).filter(Boolean) : null;
+  let auditMapIds = [];
   const nodes = new Map();
   for (const entry of search.entries) {
     const normalized = normalizeImmoScoutEntry(entry, source.id, requestedType);
@@ -396,6 +419,7 @@ export async function fetchImmoScoutSource(source, config = {}) {
   if (config.enrichWithMap === true) {
     try {
       const result = await callTool("property_map_de", query);
+      if (auditSearchIds) auditMapIds = result.entries.map(entryId).filter(Boolean);
       mapCount = result.entries.length;
       // Include the entire map subset (usually ~100 entries), not the old
       // 15-extra truncation. The MCP response itself remains bounded.
@@ -423,6 +447,7 @@ export async function fetchImmoScoutSource(source, config = {}) {
   }
   return {
     nodes: [...nodes.values()],
+    ...(auditSearchIds ? { mcp_parity: compareImmoScoutMcpIds(auditSearchIds, auditMapIds, [...nodes.values()]) } : {}),
     fetched: search.total ?? searchCount,
     reported_total: search.total,
     query, searchCount, mapCount, enriched, added,
@@ -476,8 +501,8 @@ export async function ingestImmoScoutSource(sql, source, config = {}) {
   const priorRows = [];
   // D1 limits bound SQL variables. Partition the existing-record lookup to
   // keep each query safely below the cap even when the MCP returns 200 cards.
-  for (let offset = 0; offset < identities.length; offset += 75) {
-    const chunk = identities.slice(offset, offset + 75);
+  for (let offset = 0; offset < identities.length; offset += D1_SCOUT_LOOKUP_BATCH) {
+    const chunk = identities.slice(offset, offset + D1_SCOUT_LOOKUP_BATCH);
     const rows = await sql.unsafe(
       `SELECT external_id, facts FROM housing.offer_identities
          WHERE source_id=$1 AND external_id IN (${chunk.map((_, i) => "$" + (i + 2)).join(",")})`,
@@ -500,8 +525,8 @@ export async function ingestImmoScoutSource(sql, source, config = {}) {
   let inserted = 0;
   // An atomic multi-row D1 upsert avoids one round-trip for every Scout card.
   // Matching still uses the original per-user idempotency keys and permissions.
-  for (let offset = 0; offset < prepared.length; offset += 20) {
-    const chunk = prepared.slice(offset, offset + 20);
+  for (let offset = 0; offset < prepared.length; offset += D1_SCOUT_UPSERT_BATCH) {
+    const chunk = prepared.slice(offset, offset + D1_SCOUT_UPSERT_BATCH);
     const params = [];
     const tuples = chunk.map(node => {
       const index = params.length + 1;
