@@ -125,7 +125,7 @@ export async function adminUsers(user, chatId, messageId, filter = "all", page =
         if (page < pages - 1) nav.push(button("Weiter →", "admin:list:" + filter + ":" + (page + 1)));
         rows.push(nav);
     }
-    rows.push([button("🎁 Free-Nutzern 7 Tage Premium geben", "admin:reset:preview")]);
+    rows.push([button("🎁 Free sofort 7 Tage Premium geben", "admin:reset:preview")]);
     const text = "🛡 <b>Admin · Nutzer</b>\n\n"
         + "Nutzer: " + counts.all + " · Free: " + counts.free
         + " · Premium: " + counts.premium + " · gesperrt: " + counts.blocked
@@ -159,7 +159,7 @@ export async function previewFreePremiumReset(user, chatId, messageId) {
         [button("← Abbrechen", "admin:list")],
     ] : [[button("← Admin", "admin:list")]];
     return edit(chatId, messageId,
-        "🎁 <b>Premium-Reset · Bestätigung</b>\n\n"
+        "🎁 <b>Premium-Sofortfreigabe · Bestätigung</b>\n\n"
         + "Berechtigte aktive Free-Nutzer: <b>" + eligible + "</b>\n"
         + "Bereits bestehendes Premium wird nicht verändert.\n\n"
         + (eligible ? "Nach Bestätigung erhalten diese Nutzer 7 Tage Premium und eine Telegram-Nachricht."
@@ -195,7 +195,7 @@ export async function executeFreePremiumReset(user, chatId, messageId) {
         }
         if (upgraded.length > 1) await new Promise(resolve => setTimeout(resolve, 45));
     }
-    return edit(chatId, messageId, "✅ <b>Premium-Reset abgeschlossen</b>\n\n"
+    return edit(chatId, messageId, "✅ <b>Premium-Sofortfreigabe abgeschlossen</b>\n\n"
         + "Neu aktiviert: " + upgraded.length + "\n"
         + "Benachrichtigt: " + sent + "\n"
         + "Nachricht fehlgeschlagen: " + failed + "\n"
