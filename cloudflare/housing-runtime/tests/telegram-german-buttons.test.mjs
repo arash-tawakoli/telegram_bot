@@ -291,9 +291,9 @@ test("search-profile menu and new-profile flow expose working callbacks in Germa
     assert.equal(x.sqlite.prepare("SELECT COUNT(*) n FROM search_profiles WHERE participant_id='owner'").get().n,1);
     const linkedSources=x.sqlite.prepare("SELECT source_id FROM source_links ORDER BY source_id").all().map(row=>row.source_id);
     assert.deepEqual(linkedSources,[1,3,23,29,35,66,69,71],"new profiles must not include retired cooperative 34");
-    const confetti=x.sent.filter(y=>y.method==='sendMessage'&&y.body.message_effect_id);
-    assert.equal(confetti.length,1);
-    assert.equal(confetti[0].body.message_effect_id,"5104841245755180586");
+    const hearts=x.sent.filter(y=>y.method==='sendMessage'&&y.body.message_effect_id);
+    assert.equal(hearts.length,1);
+    assert.equal(hearts[0].body.message_effect_id,"5159385139981059251");
     assert.equal(x.sqlite.prepare("SELECT COUNT(*) n FROM profile_celebrations WHERE participant_id='owner' AND kind='search'").get().n,0,"celebrations are not limited by a saved one-time claim");
   } finally { x.done(); }
 });
@@ -485,7 +485,7 @@ test("an incomplete applicant identity never celebrates before the required fiel
       await handleAutoApplyMessage({ ...x.user, onboarding_state: state, onboarding_step: state._step || null },
         { chat: x.chat, text: value, message_id: x.sent.length + 60 });
     };
-    const effects = () => x.sent.filter(v => v.method === "sendMessage" && v.body.message_effect_id === "5104841245755180586");
+    const effects = () => x.sent.filter(v => v.method === "sendMessage" && v.body.message_effect_id === "5159385139981059251");
     assert.equal(effects().length, 0, "opening an empty profile must not celebrate");
     await field("first_name", "Mara");
     assert.equal(effects().length, 0, "one name field is not a completed identity");
@@ -566,7 +566,7 @@ test("new Telegram participants immediately receive a one-time 30-day Premium we
   }finally{x.done();}
 });
 
-test("completion celebration repeats on later profile changes, and every successful Yes gets its own confetti",async()=>{
+test("completion celebration repeats on later profile changes, and every successful Yes gets its own heart animation",async()=>{
  const x=setup();
  try{
   x.sqlite.prepare("INSERT INTO search_profiles(id,participant_id,criteria,active) VALUES('completion-search','owner',?,1)")
@@ -575,20 +575,20 @@ test("completion celebration repeats on later profile changes, and every success
   x.sqlite.exec("INSERT INTO applicant_completion_prompts(participant_id) VALUES('owner')");
   x.sqlite.prepare("INSERT INTO applicant_profiles(participant_id,profile) VALUES('owner',?)").run(JSON.stringify(incomplete));
   await platformSessions(x.user,x.chat,31,"platforms:profile-set:schufa_status:NOT_SPECIFIED");
-  const celebration=x.sent.filter(req=>req.method==="sendMessage"&&req.body.message_effect_id==="5104841245755180586");
+  const celebration=x.sent.filter(req=>req.method==="sendMessage"&&req.body.message_effect_id==="5159385139981059251");
   assert.equal(celebration.length,1);
   assert.match(celebration[0].body.text,/Jetzt die automatische Bewerbung aktivieren/);
   assert.deepEqual(celebration[0].body.reply_markup.inline_keyboard.map(row=>row[0].callback_data),
     ["platforms:completion:yes","platforms:completion:no"]);
   await platformSessions(x.user,x.chat,31,"platforms:profile-set:schufa_status:AVAILABLE");
-  assert.equal(x.sent.filter(req=>req.method==="sendMessage"&&req.body.message_effect_id==="5104841245755180586").length,2,"a second complete profile change celebrates again");
+  assert.equal(x.sent.filter(req=>req.method==="sendMessage"&&req.body.message_effect_id==="5159385139981059251").length,2,"a second complete profile change celebrates again");
   await platformSessions(x.user,x.chat,31,"platforms:profile-set:schufa_status:AVAILABLE");
-  assert.equal(x.sent.filter(req=>req.method==="sendMessage"&&req.body.message_effect_id==="5104841245755180586").length,2,"saving an unchanged field is not a new completion");
+  assert.equal(x.sent.filter(req=>req.method==="sendMessage"&&req.body.message_effect_id==="5159385139981059251").length,2,"saving an unchanged field is not a new completion");
   assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM applicant_completion_prompts WHERE participant_id='owner'").get().n,1,"the historical claim is ignored");
 
   const callback=async data=>handleCallback({id:"choice-"+data,data,from:{id:777},message:{chat:x.chat,message_id:31}},x.user);
   await callback("platforms:completion:yes");
-  const effects=()=>x.sent.filter(req=>req.method==="sendMessage"&&req.body.message_effect_id==="5104841245755180586");
+  const effects=()=>x.sent.filter(req=>req.method==="sendMessage"&&req.body.message_effect_id==="5159385139981059251");
   assert.equal(effects().length,3,"successful Yes adds a third confetti effect");
   assert.match(effects().at(-1).body.text,/Automatische Bewerbung aktiviert/);
   await callback("platforms:completion:yes");
@@ -685,7 +685,7 @@ test("every newly created search-profile slot celebrates, even for a user with a
   await create();
   await create();
   assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM search_profiles WHERE participant_id='owner'").get().n,2);
-  const effects=x.sent.filter(m=>m.method==="sendMessage"&&m.body.message_effect_id==="5104841245755180586");
+  const effects=x.sent.filter(m=>m.method==="sendMessage"&&m.body.message_effect_id==="5159385139981059251");
   assert.equal(effects.length,2);
   assert.ok(effects.every(m=>/Suchprofil ist aktiv/.test(m.body.text)));
  }finally{x.done();}
