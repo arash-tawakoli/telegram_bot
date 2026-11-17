@@ -1,4 +1,5 @@
 import { platformSessions, handleAutoApplyMessage, clearPendingField } from './platform-sessions.js';
+import { BERLIN_BOROUGHS, BERLIN_LOCALITIES } from "../berlin-geography.js";
 import { adminTokenStatus, adminTokenStart, adminTokenRefresh } from '../coach-api.js';
 import { createD1Client } from '../d1-database.js';
 import { refreshImmomioSession } from '../immomio-application.js';
@@ -6,7 +7,7 @@ import { isAdmin, adminGrantLabel, adminPremiumNotice, adminUsers, adminUser, pr
 import { homeKeyboard, home, premium, premiumTier, setPaused, referralPage, settings, languageMenu, QUICK_ACTIONS, showQuickActions } from "./navigation.js";
 import { saveDeliveredOffer, removeSavedOffer, savedOffers } from "./saved-offers.js";
 import { resetPage, redeemReset, adminResetMenu, grantResetToUser, previewGlobalReset, grantGlobalReset } from "./usage-resets.js";
-import { draftFor, validateDraft, renderTypes, renderLocation, renderBoroughs, renderNeighborhoods, renderSchleswigHolsteinAreas, renderRent, renderCustomRent, renderRooms, renderArea, renderReview, renderReviewEdit, renderStep, afterSelection, persistProfile, profileLimit, draftFromProfile, startNewProfile, profileEditMenu, profile, renderStatus, nextSizeStep } from "./profiles.js";
+import { draftFor, validateDraft, renderTypes, renderLocation, renderBoroughs, renderNeighborhoods, renderBerlinAreas, renderSchleswigHolsteinAreas, renderRent, renderCustomRent, renderRooms, renderArea, renderReview, renderReviewEdit, renderStep, afterSelection, persistProfile, profileLimit, draftFromProfile, startNewProfile, profileEditMenu, profile, renderStatus, nextSizeStep } from "./profiles.js";
 import { db, PREMIUM_LINK, PROPERTY_TYPES, RENT_PRESETS, ROOM_PRESETS, AREA_PRESETS, NEIGHBORHOODS_PER_PAGE, button, cancelRow, backRow, runtimeEnv, esc, secret, telegram, send, sendCelebration, edit, acknowledge, saveState, geography, HELP_TEXT } from "./runtime.js";
 
 // Most-used functions first, then settings and search controls.
@@ -645,6 +646,7 @@ export async function handleCallback(query, user) {
             "boroughs",
             "neighborhoods",
             "shareas",
+            "berlinareas",
             "rent",
             "rent_custom",
             "roomarea",
@@ -813,7 +815,7 @@ export async function handleCallback(query, user) {
         if (!PROPERTY_TYPES.includes(value)) {
             return renderTypes(user, chatId, messageId, draft);
         }
-        const hadExistingLocation = ["all_hamburg", "boroughs", "neighborhoods", "all_schleswig_holstein", "schleswig_holstein_areas"].includes(String(draft.location_mode || ""));
+        const hadExistingLocation = ["all_hamburg", "boroughs", "neighborhoods", "all_schleswig_holstein", "schleswig_holstein_areas", "all_berlin", "berlin_boroughs", "berlin_localities"].includes(String(draft.location_mode || ""));
         const categoryEdit = draft.profile_edit === true || draft.edit_return === true;
         draft.property_types = [value];
         // Replacing the property type does not erase the other completed filters.
@@ -826,6 +828,20 @@ export async function handleCallback(query, user) {
     }
     if (data.startsWith("loc:")) {
         const value = data.slice(4);
+        if (value === "all_be") {
+            draft.location_mode = "all_berlin";
+            draft.berlin_boroughs = [];
+            draft.berlin_localities = [];
+            draft.berlin_page = 0;
+            return afterSelection(user, chatId, messageId, draft, "rent");
+        }
+        if (value === "boroughs_be" || value === "localities_be") {
+            draft.location_mode = value === "boroughs_be" ? "berlin_boroughs" : "berlin_localities";
+            draft.berlin_page = 0;
+            draft.berlin_boroughs = [];
+            draft.berlin_localities = [];
+            return renderBerlinAreas(user, chatId, messageId, draft);
+        }
         if (value === "all") {
             draft.location_mode = "all_hamburg";
             draft.borough_ids = [];
@@ -867,6 +883,34 @@ export async function handleCallback(query, user) {
             else if (!["counties", "municipalities", "mixed"].includes(String(draft.sh_area_level || ""))) draft.sh_area_level = "counties";
             return renderSchleswigHolsteinAreas(user, chatId, messageId, draft);
         }
+    }
+    if (data.startsWith("berlinarea:")) {
+        const action = data.slice("berlinarea:".length);
+        const boroughMode = draft.location_mode === "berlin_boroughs";
+        if (!boroughMode && draft.location_mode !== "berlin_localities")
+            return renderLocation(user, chatId, messageId, draft);
+        const options = boroughMode ? BERLIN_BOROUGHS : BERLIN_LOCALITIES.map(area => area.name);
+        const key = boroughMode ? "berlin_boroughs" : "berlin_localities";
+        const selected = new Set(draft[key] || []);
+        if (action === "all") draft[key] = [...options];
+        else if (action === "clear") draft[key] = [];
+        else if (action === "prev" || action === "next") {
+            const pages = Math.max(1, Math.ceil(options.length / 20));
+            draft.berlin_page = Math.max(0, Math.min(pages - 1,
+                Number(draft.berlin_page || 0) + (action === "next" ? 1 : -1)));
+        } else if (action === "done") {
+            if (!selected.size) return renderBerlinAreas(user, chatId, messageId, draft);
+            return afterSelection(user, chatId, messageId, draft, "rent");
+        } else {
+            const index = Number(action);
+            if (!Number.isInteger(index) || index < 0 || index >= options.length)
+                return renderBerlinAreas(user, chatId, messageId, draft);
+            const name = options[index];
+            if (selected.has(name)) selected.delete(name);
+            else selected.add(name);
+            draft[key] = [...selected];
+        }
+        return renderBerlinAreas(user, chatId, messageId, draft);
     }
     if (data.startsWith("sharea:")) {
         const value = data.slice(7);
