@@ -798,23 +798,23 @@ export default {
     const minute = Number.isSafeInteger(scheduledTime) && scheduledTime > 0 ? Math.floor(scheduledTime / 60_000) : Math.floor(Date.now() / 60_000);
     const tasks = scheduledTasksForMinute(minute);
     if (env.MCP_PARITY_AUDIT_UNTIL) ctx.waitUntil(runInternalMcpParityAudit(this, env));
-    // Temporary read-only live parity audit; automatic expiry is a safety stop.
-    // Only the existing MCP client runs here; no HTTP credentials, DB writes,
-    // deliveries, or application side effects.
-    if (Date.now() < 1794943682000) {
+    // Temporary MCP-only audit, isolated from database, deliveries and
+    // applications. Results are short-lived in R2 and removed after inspection.
+    if (Date.now() < 1794943715116) {
       ctx.waitUntil((async () => {
         const regions = [[1, "Hamburg"], [69, "Schleswig-Holstein"], [72, "Berlin"]];
         await Promise.all(regions.map(async ([sourceId, region]) => {
+          const key = `_diagnostics/mcp-parity-20261117-${sourceId}.json`;
+          let report;
           try {
             const query = "Wohnungen zur Miete in " + region;
             const result = await fetchImmoScoutSource(sourceForId(sourceId), {
               query, enrichWithMap: true, maxMapExtras: 200, auditMcpIds: true,
             });
             const audit = result.mcp_parity;
-            const report = {
-              checked_at: new Date().toISOString(),
-
-              source_id: sourceId, region, query, contract: IMMOSCOUT_MCP_CONTRACT,
+            report = {
+              checked_at: new Date().toISOString(), source_id: sourceId, region,
+              query, contract: IMMOSCOUT_MCP_CONTRACT,
               reported_total: result.reported_total,
               search_returned: audit?.search_returned, map_returned: audit?.map_returned,
               mcp_unique_ids: audit?.mcp_unique_ids, bot_unique_ids: audit?.bot_unique_ids,
@@ -824,12 +824,17 @@ export default {
               same_ids: audit?.same_ids, map_error: result.map_error || null,
             };
             console.log("housing_mcp_parity_live", JSON.stringify(report));
-            await env.DOCUMENTS.put(`_diagnostics/mcp-parity-20261117-${sourceId}.json`, JSON.stringify(report), { httpMetadata: { contentType: "application/json" } });
-
-            const failure = { checked_at: new Date().toISOString(), source_id: sourceId, region,
-              error: String(error?.message || error).slice(0, 160) };
-            console.error("housing_mcp_parity_live_failed", JSON.stringify(failure));
-            await env.DOCUMENTS.put(`_diagnostics/mcp-parity-20261117-${sourceId}.json`, JSON.stringify(failure), { httpMetadata: { contentType: "application/json" } });
+          } catch (error) {
+            report = { checked_at: new Date().toISOString(), source_id: sourceId,
+              region, error: String(error?.message || error).slice(0, 160) };
+            console.error("housing_mcp_parity_live_failed", JSON.stringify(report));
+          }
+          try {
+            await env.DOCUMENTS.put(key, JSON.stringify(report), {
+              httpMetadata: { contentType: "application/json" },
+            });
+          } catch (error) {
+            console.error("housing_mcp_parity_result_write_failed", sourceId, String(error?.message || error).slice(0, 120));
           }
         }));
       })());
