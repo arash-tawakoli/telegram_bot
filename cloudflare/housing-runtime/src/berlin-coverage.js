@@ -91,7 +91,7 @@ async function failJob(sql, job, error) {
   `, [message, job.query]);
 }
 
-export async function runBerlinCoverage(sql, source, maxJobs = MAX_JOBS_PER_RUN) {
+export async function runBerlinCoverage(sql, source, maxJobs = MAX_JOBS_PER_RUN, ingest = ingestImmoScoutSource) {
   if (Number(source?.id) !== 72) return null;
   const processed = [];
   const limit = Math.max(0, Math.min(MAX_JOBS_PER_RUN, Number(maxJobs) || 0));
@@ -101,7 +101,9 @@ export async function runBerlinCoverage(sql, source, maxJobs = MAX_JOBS_PER_RUN)
     try {
       // Reuse the same ingestion, matching, delivery dedupe and offer storage
       // as the normal ImmoScout cron; only the query is more specific.
-      const result = await ingestImmoScoutSource(sql, source, { query: job.query });
+      const result = await ingest(sql, source, { query: job.query });
+      if (/429|rate.?limit/i.test(String(result.map_error || "")))
+        throw new Error("immoscout_mcp_rate_limited");
       const incomplete = result.missing_from_response == null
         || result.missing_from_response > 0;
       const children = incomplete ? await saveChildren(sql, job) : 0;
