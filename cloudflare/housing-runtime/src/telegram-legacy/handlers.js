@@ -440,13 +440,22 @@ export async function handleCallback(query, user) {
             || chatId !== Number(user.telegram_user_id)) return ack();
         await ack();
         if (data === "reset:admin:menu") return adminResetMenu(user, chatId, messageId);
+        if (data === "reset:admin:users" || data.startsWith("reset:admin:list:")) {
+            const [, , , filter = "all", page = "0"] = data.split(":");
+            return adminUsers(user, chatId, messageId, filter, Number(page), "reset");
+        }
+        if (data.startsWith("reset:admin:user:")) {
+            return adminUser(user, chatId, messageId, data.slice("reset:admin:user:".length), "reset");
+        }
         if (data === "reset:admin:all:preview") return previewGlobalReset(user, chatId, messageId);
         if (data === "reset:admin:all:confirm") return grantGlobalReset(user, chatId, messageId);
         if (data.startsWith("reset:admin:grant:")) {
-            const id = data.slice("reset:admin:grant:".length);
+            const target = data.slice("reset:admin:grant:".length);
+            const fromReset = target.endsWith(":reset");
+            const id = fromReset ? target.slice(0, -":reset".length) : target;
             const result = await grantResetToUser(user, id, query.id);
             await send(chatId, result.granted ? "✅ 1 Reset gutgeschrieben." : "Kein Reset gutgeschrieben.");
-            return adminUser(user, chatId, messageId, id);
+            return adminUser(user, chatId, messageId, id, fromReset ? "reset" : "admin");
         }
         return;
     }

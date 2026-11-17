@@ -252,6 +252,21 @@ async function offerCompletedApplicantActivation(user,chat,changed){
  }catch(error){console.error('applicant_completion_prompt',String(error?.message||error));}
 }
 
+function applicantBackButton(user) {
+ const fromAutoApply = user.onboarding_state?._applicant_return === 'platforms';
+ return button(fromAutoApply ? '← Auto-Bewerbung' : '← Start',
+  fromAutoApply ? 'platforms' : 'home');
+}
+
+async function rememberApplicantReturn(user, returnTo) {
+ const state = { ...(user.onboarding_state || {}), _applicant_return: returnTo };
+ const { error } = await db.rpc('save_ui_state', {
+  p_user: user.id, p_step: user.onboarding_step || null, p_state: state
+ });
+ if (error) throw Error('Profilnavigation konnte nicht gespeichert werden.');
+ return { ...user, onboarding_state: state };
+}
+
 async function renderApplicantProfile(user,chat,messageId,notice=''){
  const p=await ensureApplicantProfile(user.id);
  const {data:missing,error}=await db.rpc('application_profile_missing_fields',{p_user:user.id});
@@ -276,7 +291,7 @@ async function renderApplicantProfile(user,chat,messageId,notice=''){
   [f('move_in_preference','Einzugstermin')],
   [button('✍️ Bewerbungstext ändern','platforms:profile-texts')],
   [button('👁 Profilvorschau','platforms:profile-preview')],
-  [button('← Start','home')]
+  [applicantBackButton(user)]
  ];
  return messageId?edit(chat.id,messageId,text,{inline_keyboard:rows}):send(chat.id,text,{inline_keyboard:rows});
 }
@@ -300,7 +315,7 @@ async function renderApplicantProfilePreview(user,chat,messageId){
  const markup={inline_keyboard:[
   [button('✍️ Bewerbungstext ändern','platforms:preview-texts')],
   [button('🗑 Angaben löschen','platforms:profile-clear')],
-  [button('← Bewerberprofil','platforms:profile')]
+  [button('← Bewerberprofil','platforms:profile-return')]
  ]};
  return messageId?edit(chat.id,messageId,title+body,markup):send(chat.id,title+body,markup);
 }
@@ -311,7 +326,7 @@ async function renderApplicationTexts(user,chat,messageId,fromPreview=false){
  const entry=(name,label)=>button(label,'platforms:'+(fromPreview?'preview-text:':'profile-text:')+name);
  return render('✍️ <b>Bewerbungstext</b>\n\nSchreibe oder passe deinen Bewerbungstext für den Vermieter an.',[
   [entry('message_apartment','🏢 Wohnung'),entry('message_house','🏡 Haus')],
-  [button(fromPreview?'← Profilvorschau':'← Bewerberprofil',fromPreview?'platforms:profile-preview':'platforms:profile')]
+  [button(fromPreview?'← Profilvorschau':'← Bewerberprofil',fromPreview?'platforms:profile-preview':'platforms:profile-return')]
  ]);
 }
 
@@ -353,7 +368,7 @@ async function showFieldInput(user,chat,messageId,name,fromPreview=false){
  const text='👤 <b>'+esc(meta.label)+'</b>\n\n'+fieldPrompt(name)
   +'\n\nSende den neuen Wert als nächste Nachricht im Chat.';
  const isText=name==='message_apartment'||name==='message_house';
- const back=[button(isText?'← Bewerbungstext':'← Bewerberprofil',isText?(fromPreview?'platforms:preview-texts':'platforms:profile-texts'):'platforms:profile')];
+ const back=[button(isText?'← Bewerbungstext':'← Bewerberprofil',isText?(fromPreview?'platforms:preview-texts':'platforms:profile-texts'):'platforms:profile-return')];
  const rendered=messageId?await edit(chat.id,messageId,text,{inline_keyboard:[back]})
   :await send(chat.id,text,{inline_keyboard:[back]});
  if(isText){
@@ -439,7 +454,7 @@ export async function handleAutoApplyMessage(user,message){
    }
    const {error}=await db.from('applicant_profiles').upsert(values,{onConflict:'user_id'});if(error)throw Error('Bewerberprofil konnte nicht gespeichert werden.');
    await Promise.all([telegram('deleteMessage',{chat_id:chat.id,message_id:message.message_id}).catch(()=>{}),message.reply_to_message?.message_id?telegram('deleteMessage',{chat_id:chat.id,message_id:message.reply_to_message.message_id}).catch(()=>{}):null]);
-   const result=await send(chat.id,'✅ Bewerberprofil angelegt.',{inline_keyboard:[[button('👤 Profil öffnen','platforms:profile')],[button('← Automatische Bewerbung','platforms')]]});
+   const result=await send(chat.id,'✅ Bewerberprofil angelegt.',{inline_keyboard:[[button('👤 Profil öffnen','platforms:profile-return')],[button('← Automatische Bewerbung','platforms')]]});
    await offerCompletedApplicantActivation(user,chat,completedFieldChanged(previous,values));
    return result;
   }catch(error){return send(chat.id,`⚠️ ${esc(error.message)}`);}
@@ -469,7 +484,7 @@ export async function handleAutoApplyMessage(user,message){
    }
    if(!response){
     const messageField=name.startsWith('message_');
-    response=await send(chat.id,`✅ ${esc(PROFILE_FIELDS[name].label)} gespeichert.`,{inline_keyboard:[[button(messageField?'✍️ Vorschau öffnen':'👤 Bewerberprofil',messageField?`platforms:${user.onboarding_state?._applicant_text_origin==='preview'?'preview-text':'profile-text'}:${name}`:'platforms:profile')],[button('← Automatische Bewerbung','platforms')]]});
+    response=await send(chat.id,`✅ ${esc(PROFILE_FIELDS[name].label)} gespeichert.`,{inline_keyboard:[[button(messageField?'✍️ Vorschau öffnen':'👤 Bewerberprofil',messageField?`platforms:${user.onboarding_state?._applicant_text_origin==='preview'?'preview-text':'profile-text'}:${name}`:'platforms:profile-return')],[button('← Automatische Bewerbung','platforms')]]});
    }
    await offerCompletedApplicantActivation(user,chat,completedFieldChanged(previous,patch));
    return response;
@@ -607,12 +622,14 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   return showFieldInput(user,chat,messageId,arg,true);
  }
 
- if(action==='profile'){
+ if(action==='profile' || action==='profile-return'){
   await clearPendingField(user,chat);
+  if(action==='profile') user=await rememberApplicantReturn(user,'platforms');
   return renderApplicantProfile(user,chat,messageId);
  }
  if(action==='profile-new'){
   await ensureApplicantProfile(user.id);
+  user=await rememberApplicantReturn(user,'home');
   return renderApplicantProfile(user,chat,messageId);
  }
  if(action==='profile-preview'){
@@ -634,7 +651,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
     [button(mark('MR',s,'Herr'),'platforms:profile-set:salutation:MR'),button(mark('MS',s,'Frau'),'platforms:profile-set:salutation:MS')],
     [button(mark('DIVERSE',s,'Divers'),'platforms:profile-set:salutation:DIVERSE'),button(mark('NEUTRAL',s,'Neutral'),'platforms:profile-set:salutation:NEUTRAL')],
     [button(mark('NOT_SPECIFIED',s,'Keine Angabe'),'platforms:profile-set:salutation:NOT_SPECIFIED'),button(mark('COMPANY',s,'Firma'),'platforms:profile-set:salutation:COMPANY')],
-    [button('← Bewerberprofil','platforms:profile')]
+    [button('← Bewerberprofil','platforms:profile-return')]
    ]);
   }
   if(arg==='household_type'){
@@ -642,7 +659,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
     [button(mark('SINGLE',current?.household_type,'Einpersonenhaushalt'),'platforms:profile-set:household_type:SINGLE'),button(mark('TWO_ADULTS',current?.household_type,'Zwei Erwachsene'),'platforms:profile-set:household_type:TWO_ADULTS')],
     [button(mark('FAMILY',current?.household_type,'Familie'),'platforms:profile-set:household_type:FAMILY'),button(mark('SHARED_FLAT',current?.household_type,'Wohngemeinschaft'),'platforms:profile-set:household_type:SHARED_FLAT')],
     [button(mark('NOT_SPECIFIED',current?.household_type,'Keine Angabe'),'platforms:profile-set:household_type:NOT_SPECIFIED')],
-    [button('← Bewerberprofil','platforms:profile')]
+    [button('← Bewerberprofil','platforms:profile-return')]
    ]);
   }
   if(arg==='employment_status'){
@@ -655,7 +672,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
     [button(mark('DOCTORAL',e,'Doktorand(in)'),'platforms:profile-set:employment_status:DOCTORAL'),button(mark('HOMEMAKER',e,'Hausfrau/-mann'),'platforms:profile-set:employment_status:HOMEMAKER')],
     [button(mark('JOBSEEKER',e,'Arbeitssuchende(r)'),'platforms:profile-set:employment_status:JOBSEEKER'),button(mark('RETIRED',e,'Rentner(in)'),'platforms:profile-set:employment_status:RETIRED')],
     [button(mark('OTHER',e,'Sonstiges'),'platforms:profile-set:employment_status:OTHER')],
-    [button('← Bewerberprofil','platforms:profile')]
+    [button('← Bewerberprofil','platforms:profile-return')]
    ]);
   }
   if(arg==='income_range'){
@@ -667,7 +684,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
     [button(mark('4000_5000',current?.income_range,'4.000 € - 5.000 €'),'platforms:profile-set:income_range:4000_5000'),button(mark('5000_6000',current?.income_range,'5.000 € - 6.000 €'),'platforms:profile-set:income_range:5000_6000')],
     [button(mark('6000_7000',current?.income_range,'6.000 € - 7.000 €'),'platforms:profile-set:income_range:6000_7000'),button(mark('OVER_7000',current?.income_range,'Über 7.000 €'),'platforms:profile-set:income_range:OVER_7000')],
     [button(mark('NOT_SPECIFIED',current?.income_range,'Keine Angabe'),'platforms:profile-set:income_range:NOT_SPECIFIED')],
-    [button('← Bewerberprofil','platforms:profile')]
+    [button('← Bewerberprofil','platforms:profile-return')]
    ]);
   }
   if(arg==='pets'){
@@ -675,7 +692,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
    return render('<b>Haustiere</b>\n\nWähle eine Option.',[
     [button(mark('Keine Angaben',p,'Keine Angaben'),'platforms:profile-set:pets:NONE')],
     [button(mark('Ja',p,'Ja'),'platforms:profile-set:pets:YES'),button(mark('Nein',p,'Nein'),'platforms:profile-set:pets:NO')],
-    [button('← Bewerberprofil','platforms:profile')]
+    [button('← Bewerberprofil','platforms:profile-return')]
    ]);
   }
   if(arg==='move_in_preference'){
@@ -685,7 +702,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
     [button(mark('WITHIN_3_MONTHS',m,'< 3 Monate'),'platforms:profile-set:move_in_preference:WITHIN_3_MONTHS'),button(mark('AFTER_3_MONTHS',m,'> 3 Monate'),'platforms:profile-set:move_in_preference:AFTER_3_MONTHS')],
     [button(mark('FLEXIBLE',m,'Flexibel'),'platforms:profile-set:move_in_preference:FLEXIBLE'),button(mark('EXACT_DATE',m,'Genaues Datum'),'platforms:profile-set:move_in_preference:EXACT_DATE')],
     [button(mark('NOT_SPECIFIED',m,'Keine Angabe'),'platforms:profile-set:move_in_preference:NOT_SPECIFIED')],
-    [button('← Bewerberprofil','platforms:profile')]
+    [button('← Bewerberprofil','platforms:profile-return')]
    ]);
   }
   if(arg==='schufa_status'){
@@ -693,7 +710,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
     [button('Keine Angabe','platforms:profile-set:schufa_status:NOT_SPECIFIED')],
     [button('Vorhanden (< 3 Monate)','platforms:profile-set:schufa_status:AVAILABLE')],
     [button('Nicht vorhanden','platforms:profile-set:schufa_status:NOT_AVAILABLE')],
-    [button('← Bewerberprofil','platforms:profile')]
+    [button('← Bewerberprofil','platforms:profile-return')]
    ]);
   }
   if(!PROFILE_FIELDS[arg])return renderApplicantProfile(user,chat,messageId);

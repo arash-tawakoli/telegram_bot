@@ -95,7 +95,7 @@ async function adminDirectory() {
     }));
 }
 
-export async function adminUsers(user, chatId, messageId, filter = "all", page = 0) {
+export async function adminUsers(user, chatId, messageId, filter = "all", page = 0, origin = "admin") {
     if (!isAdmin(user)) return;
     const users = await adminDirectory();
     filter = ADMIN_FILTERS.has(filter) ? filter : "all";
@@ -113,19 +113,20 @@ export async function adminUsers(user, chatId, messageId, filter = "all", page =
         const name = short([entry.first_name, entry.last_name].filter(Boolean).join(" ")
             || entry.username || String(entry.telegram_user_id), 28);
         const state = !entry.is_active ? "🚫" : entry.premium ? "💎" : "▫️";
-        return [button(state + " " + name, "admin:user:" + entry.id)];
+        return [button(state + " " + name, (origin === "reset" ? "reset:admin:user:" : "admin:user:") + entry.id)];
     });
-    const filterButton = (label, key) => button((filter === key ? "✓ " : "") + label, "admin:list:" + key + ":0");
+    const filterButton = (label, key) => button((filter === key ? "✓ " : "") + label, (origin === "reset" ? "reset:admin:list:" : "admin:list:") + key + ":0");
     rows.unshift([filterButton("Alle " + counts.all, "all"), filterButton("Free " + counts.free, "free")],
         [filterButton("Premium " + counts.premium, "premium"), filterButton("Gesperrt " + counts.blocked, "blocked")]);
     if (!visible.length) rows.push([button("Keine Nutzer", "noop")]);
     if (pages > 1) {
         const nav = [];
-        if (page > 0) nav.push(button("← Zurück", "admin:list:" + filter + ":" + (page - 1)));
-        if (page < pages - 1) nav.push(button("Weiter →", "admin:list:" + filter + ":" + (page + 1)));
+        if (page > 0) nav.push(button("← Vorherige", (origin === "reset" ? "reset:admin:list:" : "admin:list:") + filter + ":" + (page - 1)));
+        if (page < pages - 1) nav.push(button("Nächste →", (origin === "reset" ? "reset:admin:list:" : "admin:list:") + filter + ":" + (page + 1)));
         rows.push(nav);
     }
-    rows.push([button("🎁 Free sofort 7 Tage Premium geben", "admin:reset:preview")]);
+    if (origin === "reset") rows.push([button("← Resets", "reset:admin:menu")]);
+    else rows.push([button("🎁 Free sofort 7 Tage Premium geben", "admin:reset:preview")]);
     const text = "🛡 <b>Admin · Nutzer</b>\n\n"
         + "Nutzer: " + counts.all + " · Free: " + counts.free
         + " · Premium: " + counts.premium + " · gesperrt: " + counts.blocked
@@ -204,7 +205,7 @@ export async function executeFreePremiumReset(user, chatId, messageId) {
         { inline_keyboard: [[button("← Admin", "admin:list")]] });
 }
 
-export async function adminUser(user, chatId, messageId, userId) {
+export async function adminUser(user, chatId, messageId, userId, origin = "admin") {
     if (!isAdmin(user))
         return;
     const { data: target, error } = await db
@@ -215,7 +216,7 @@ export async function adminUser(user, chatId, messageId, userId) {
     if (error)
         throw error;
     if (!target)
-        return adminUsers(user, chatId, messageId);
+        return adminUsers(user, chatId, messageId, "all", 0, origin);
     const { data: subscription, error: subscriptionError } = await db
         .from("user_subscriptions")
         .select("status,current_period_end,cancel_at_period_end")
@@ -234,7 +235,10 @@ export async function adminUser(user, chatId, messageId, userId) {
         `Stripe: ${esc(String(subscription?.status || "inactive").toUpperCase())}\n` +
         `Zugriff: <b>${target.is_active ? "AKTIV" : "GESPERRT"}</b>`;
     const markup = {
-        inline_keyboard: [
+        inline_keyboard: origin === "reset" ? [
+            [button("♻️ 1 Reset schenken", `reset:admin:grant:${userId}:reset`)],
+            [button("← Nutzer", "reset:admin:users")],
+        ] : [
             [
                 button("7 Tage", `admin:set:${userId}:7d`),
                 button("30 Tage", `admin:set:${userId}:30d`),

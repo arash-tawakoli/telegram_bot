@@ -126,7 +126,7 @@ export async function adminResetMenu(user, chatId, messageId) {
     + "Resets können allen Nutzern gutgeschrieben werden, auch wenn Premium bereits aktiv ist."
     + "\nAktive Telegram-Nutzer: <b>" + Number(result?.count || 0) + "</b>"
     + "\n\nDie Einlösung erfolgt erst durch einen Free-Nutzer. Bestehende Abos bleiben unverändert.",
-    [[button("👤 Nutzer auswählen", "admin:list")],
+    [[button("👤 Nutzer auswählen", "reset:admin:users")],
       [button("🎁 Allen 1 Reset geben", "reset:admin:all:preview")],
       [button("← Admin", "admin:list")]]);
 }

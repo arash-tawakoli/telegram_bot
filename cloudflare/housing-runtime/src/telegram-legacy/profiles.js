@@ -136,7 +136,7 @@ export async function renderTypes(user, chatId, messageId, draft) {
     const mark = (value, label) => `${selected === value ? "✅ " : ""}${label}`;
     const rows = [
         [button(mark("Wohnung", "🏢 Wohnung"), "type:Wohnung"), button(mark("Haus", "🏡 Haus"), "type:Haus")],
-        [button("← Start", draft.profile_edit ? `profile:edit:${draft.profile_slot}` : "home")],
+        [button(draft.profile_edit ? "← Suchprofil bearbeiten" : "← Start", draft.profile_edit ? `profile:edit:${draft.profile_slot}` : "home")],
         cancelRow(),
     ];
     const text = "🏠 <b>Was möchtest du mieten?</b>\n\nWähle genau eine Wohnform. Gebiet, Warmmiete, Zimmer und Fläche bleiben für alle Wohnformen gleich.";
@@ -196,11 +196,10 @@ export async function renderSchleswigHolsteinAreas(user, chatId, messageId, draf
     rows.push([
         button(allLabel, "sharea:all"),
         button("Auswahl löschen", "sharea:clear"),
-    ], [
-        button("←", "sharea:prev"),
-        button(`${page + 1}/${pages}`, "noop"),
-        button("→", "sharea:next"),
-    ], [button("Auswahl bestätigen", "sharea:done")], backRow("location"), cancelRow());
+    ], ...(pages > 1 ? [[
+        ...(page > 0 ? [button("← Vorherige", "sharea:prev")] : []),
+        ...(page < pages - 1 ? [button("Nächste →", "sharea:next")] : []),
+    ]] : []), [button("Auswahl bestätigen →", "sharea:done")], [button("← Gebietsauswahl", "location")], cancelRow());
     const heading = level === "counties"
         ? "Kreise und kreisfreie Städte"
         : level === "municipalities"
@@ -211,7 +210,7 @@ export async function renderSchleswigHolsteinAreas(user, chatId, messageId, draf
         : level === "municipalities"
             ? "Wähle einzelne Städte oder Gemeinden. Der Kreis steht zur Orientierung hinter dem Namen."
             : "Wähle Kreise oder einzelne Gemeinden. Bereits ausgewählte Kreise bleiben als gesamte Region markiert.";
-    const text = `📍 <b>${heading}</b>\n\n${instructions}\n\n<b>${selected.size} Gebiete ausgewählt</b>`;
+    const text = `📍 <b>${heading}</b>\n\n${instructions}\n\n<b>${selected.size} Gebiete ausgewählt</b>\nSeite ${page + 1} von ${pages}`;
     return edit(chatId, messageId, text, { inline_keyboard: rows });
 }
 
@@ -225,7 +224,7 @@ export async function renderBoroughs(user, chatId, messageId, draft) {
     rows.push([
         button("Alle auswählen", "borough:all"),
         button("Auswahl löschen", "borough:clear"),
-    ], backRow("location", "borough:done"), cancelRow());
+    ], [button("← Gebietsauswahl", "location"), button("Auswahl bestätigen →", "borough:done")], cancelRow());
     return edit(chatId, messageId, "📍 <b>Hamburger Bezirke</b>\n\nWähle einen oder mehrere der 7 Bezirke.", { inline_keyboard: rows });
 }
 
@@ -243,12 +242,11 @@ export async function renderNeighborhoods(user, chatId, messageId, draft) {
     rows.push([
         button("Alle auswählen", "neighborhood:all"),
         button("Auswahl löschen", "neighborhood:clear"),
-    ], [
-        button("←", "neighborhood:prev"),
-        button(`${page + 1}/${pages}`, "noop"),
-        button("→", "neighborhood:next"),
-    ], backRow("location", "neighborhood:done"), cancelRow());
-    return edit(chatId, messageId, `📍 <b>Hamburger Stadtteile</b>\n\nWähle beliebig viele Stadtteile.\n\n<b>${draft.neighborhood_ids.length}/${geo.neighborhoods.length} ausgewählt</b>`, { inline_keyboard: rows });
+    ], ...(pages > 1 ? [[
+        ...(page > 0 ? [button("← Vorherige", "neighborhood:prev")] : []),
+        ...(page < pages - 1 ? [button("Nächste →", "neighborhood:next")] : []),
+    ]] : []), [button("← Gebietsauswahl", "location"), button("Auswahl bestätigen →", "neighborhood:done")], cancelRow());
+    return edit(chatId, messageId, `📍 <b>Hamburger Stadtteile</b>\n\nWähle beliebig viele Stadtteile.\n\n<b>${draft.neighborhood_ids.length}/${geo.neighborhoods.length} ausgewählt</b>\nSeite ${page + 1} von ${pages}`, { inline_keyboard: rows });
 }
 
 export async function renderRent(user, chatId, messageId, draft) {
@@ -628,7 +626,7 @@ export async function profile(user, chatId, messageId, selectedSlot) {
                 [button("✏️ Suchprofil ändern", `profile:edit:${selectedSlot}`)],
                 [button(current.is_active ? "⏸ Pausieren" : "▶️ Fortsetzen", current.is_active ? `profile:pause:${selectedSlot}` : `profile:resume:${selectedSlot}`)],
                 [button("🗑 Profil löschen", `profile:delete:${selectedSlot}`)],
-                [button("← Zurück", "profile")],
+                [button("← Suchprofile", "profile")],
             ] };
         return messageId ? edit(chatId, messageId, text, markup) : send(chatId, text, markup);
     }
@@ -646,7 +644,7 @@ export async function profile(user, chatId, messageId, selectedSlot) {
     if (!user.is_premium && profiles.length >= 1) {
         rows.push([button("🔒 ➕ Weiteres Suchprofil · 💎 Premium", "premium")]);
     }
-    rows.push([button("← Zurück", "home")]);
+    rows.push([button("← Start", "home")]);
     const text = profiles.length
         ? `🔎 <b>Meine Suchprofile</b>\n\n${profiles.length}/${limit} Suchprofile angelegt.`
         : "🔎 <b>Meine Suchprofile</b>\n\nNoch kein Suchprofil angelegt.";
