@@ -11,11 +11,15 @@ function setup() {
     db.exec(readFileSync(new URL(name,folder),"utf8"));
   const sql = {
     unsafe:async (query, params=[])=>{
-      const normalized=query.replaceAll("housing.","");
+      const positional=[];
+      const normalized=query.replaceAll("housing.","").replace(/\$(\d+)/g,(_part,index)=>{
+        positional.push(params[Number(index)-1]);
+        return "?";
+      });
       const statement=db.prepare(normalized);
       if (/^\s*SELECT\b/i.test(normalized) || /\bRETURNING\b/i.test(normalized))
-        return statement.all(...params);
-      statement.run(...params);
+        return statement.all(...positional);
+      statement.run(...positional);
       return [];
     },
   };
