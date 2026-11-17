@@ -554,11 +554,15 @@ test("new Telegram participants immediately receive a one-time 30-day Premium we
     assert.ok(Date.parse(user.referral_bonus_until)>Date.now()+29*24*3600000);
     assert.equal((await withPlan(user,null)).is_premium,true);
     assert.ok(x.sqlite.prepare("SELECT welcome_premium_granted_at FROM participants WHERE id=?").get(user.id)?.welcome_premium_granted_at);
+    assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM usage_reset_credits WHERE participant_id=? AND grant_key='starter:7d' AND redeemed_at IS NULL").get(user.id).n,1,
+      "a new Premium trial user receives a banked reset for use after Premium expires");
     const prefs=x.sqlite.prepare("SELECT enabled,immoscout_enabled,immowelt_enabled,immomio_enabled FROM application_preferences WHERE participant_id=?").get(user.id);
     assert.deepEqual([prefs.enabled,prefs.immoscout_enabled,prefs.immowelt_enabled,prefs.immomio_enabled],[0,0,0,0]);
     const next=await adapter.rpc("prepare_telegram_update",{p_payload:{message}});
     assert.equal(next.data.is_new_user,false);
     assert.equal(next.data.user.referral_bonus_until,user.referral_bonus_until,"repeated updates do not extend the welcome trial");
+    assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM usage_reset_credits WHERE participant_id=?").get(user.id).n,1,
+      "repeated Telegram updates cannot grant duplicate starter resets");
   }finally{x.done();}
 });
 
