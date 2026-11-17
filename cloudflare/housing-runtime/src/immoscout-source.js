@@ -3,6 +3,10 @@ import { queueMatches } from "./matching.js";
 
 const MCP_URL = "https://app.chatgpt.immobilienscout24.de/v2/mcp";
 const MCP_PROTOCOL = "2025-06-18";
+export const IMMOSCOUT_MCP_CONTRACT = Object.freeze({
+  endpoint: MCP_URL, protocol: MCP_PROTOCOL,
+  searchTool: "property_search_de", mapTool: "property_map_de",
+});
 // Leave headroom below Cloudflare D1's 100-variable limit for every statement.
 const D1_SCOUT_LOOKUP_BATCH = 60;
 const D1_SCOUT_UPSERT_BATCH = 16;
