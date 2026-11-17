@@ -10,6 +10,7 @@ export const HOUSING_SOURCES = Object.freeze([
   { id: 35, name: "Walddörfer", family: "immomio", connector: "immomio_tenant", delivery_mode: "live" },
   { id: 66, name: "GEWOBA Nord", family: "immomio", connector: "immomio_tenant", delivery_mode: "live" },
   { id: 69, name: "ImmobilienScout24 Schleswig-Holstein", family: "immoscout24", connector: "mcp", delivery_mode: "live" },
+  { id: 72, name: "ImmobilienScout24 Berlin", family: "immoscout24", connector: "mcp", delivery_mode: "live" },
 ]);
 
 const BY_ID = new Map(HOUSING_SOURCES.map((source) => [source.id, source]));
