@@ -67,7 +67,7 @@ export async function premium(user, chatId, messageId) {
     button("Pro", "premium:tier:pro"),
     button("Max", "premium:tier:max"),
   ]];
-  let text = "💎 <b>Premium-Tarife – Vorschau</b>\n\n";
+  let text = "💎 <b>Traumwohnung Premium – Tarife (Vorschau)</b>\n\n";
   if (user.is_premium) {
     text += "✅ <b>Dein Premium-Zugang ist aktiv.</b>\n";
     if (user.subscription?.cancel_at_period_end)
