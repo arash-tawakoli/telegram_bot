@@ -4,7 +4,7 @@ import { adminTokenStatus, adminTokenStart, adminTokenRefresh } from '../coach-a
 import { createD1Client } from '../d1-database.js';
 import { refreshImmomioSession } from '../immomio-application.js';
 import { isAdmin, adminGrantLabel, adminPremiumNotice, adminUsers, adminUser, previewFreePremiumReset, executeFreePremiumReset, setUserBlocked, deleteUser, setPlanOverride, ANNOUNCEMENT_PROMPT, createAnnouncementDraft, cancelAnnouncement, sendAnnouncement } from "./admin.js";
-import { homeKeyboard, home, premium, premiumTier, setPaused, referralPage, settings, languageMenu, QUICK_ACTIONS, showQuickActions, miniAppKeyboard } from "./navigation.js";
+import { homeKeyboard, home, premium, premiumTier, setPaused, referralPage, settings, languageMenu, QUICK_ACTIONS, showQuickActions, miniAppKeyboard, MINIAPP_URL } from "./navigation.js";
 import { saveDeliveredOffer, removeSavedOffer, savedOffers } from "./saved-offers.js";
 import { resetPage, redeemReset, adminResetMenu, grantResetToUser, previewGlobalReset, grantGlobalReset } from "./usage-resets.js";
 import { draftFor, validateDraft, renderTypes, renderLocation, renderBoroughs, renderNeighborhoods, renderBerlinAreas, renderSchleswigHolsteinAreas, renderRent, renderCustomRent, renderRooms, renderArea, renderReview, renderReviewEdit, renderStep, afterSelection, persistProfile, profileLimit, draftFromProfile, startNewProfile, profileEditMenu, profile, renderStatus, nextSizeStep } from "./profiles.js";
@@ -65,7 +65,7 @@ async function syncTelegramCommands(user, chatId) {
         }),
         telegram("setChatMenuButton", {
             chat_id: chatId,
-            menu_button: { type: "commands" },
+            menu_button: { type: "web_app", text: "Wohnungs-App", web_app: { url: MINIAPP_URL } },
         }),
     ];
     if (admin) {
