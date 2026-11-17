@@ -66,7 +66,6 @@ async function claim(sql, freshOnly = false) {
         p.status AS participant_status, p.first_name, p.last_name, p.email, p.telegram_chat_id,
         p.telegram_user_id, p.test_auto_apply_allowed, p.test_auto_apply_enabled, p.test_auto_apply_daily_limit,
         p.auto_apply_enabled, p.plan_override, p.plan_override_expires_at, p.referral_bonus_until,
-        p.auto_apply_quota_reset_at,
         ap.profile, oi.canonical_url, oi.external_id, oi.source_id, oi.first_seen_at, oi.expires_at, oi.facts,
         pref.enabled AS preferences_enabled, pref.daily_limit, pref.timezone,
         pref.allowed_weekdays, pref.send_window_start, pref.send_window_end,
@@ -301,8 +300,7 @@ export async function processHousingApplication(sql, env, request) {
     SET submission_started_at = now(), quota_local_date = ${schedule.localDate}, wait_reason = NULL, updated_at = now()
     WHERE id = ${application.id} AND status = 'processing' AND submission_started_at IS NULL
       AND (SELECT COUNT(*) FROM housing.applications q WHERE q.participant_id = ${application.participant_id}
-        AND q.quota_local_date = ${schedule.localDate} AND q.id <> ${application.id}
-          AND (${!application.auto_apply_quota_reset_at} = true OR datetime(q.submission_started_at) >= datetime(${application.auto_apply_quota_reset_at}))) < ${dailyLimit}
+        AND q.quota_local_date = ${schedule.localDate} AND q.id <> ${application.id}) < ${dailyLimit}
     RETURNING id
   `;
   if (!reserved.length) {
