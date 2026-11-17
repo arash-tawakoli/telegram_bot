@@ -100,3 +100,39 @@ test("parity endpoint rejects unauthorized, non-Scout and invalid query requests
     assert.equal(outbound, 0);
   } finally { globalThis.fetch = originalFetch; resetMcpSession(); }
 });
+
+test("a short-lived audit token only authenticates MCP parity and expires automatically", async () => {
+  const initialFetch = globalThis.fetch;
+  const freshToken = String(Date.now() + 60_000) + ".temporary-test-token";
+  const expiredToken = String(Date.now() - 1000) + ".expired-token";
+  let outbound = 0;
+  globalThis.fetch = async (_url, init) => {
+    outbound++;
+    const payload = JSON.parse(init.body);
+    if (payload.method === "initialize") {
+      return Response.json({ jsonrpc: "2.0", id: payload.id,
+        result: { protocolVersion: "2025-06-18", capabilities: {} } });
+    }
+    if (payload.method === "notifications/initialized") return new Response(null, { status: 202 });
+    return Response.json({ jsonrpc: "2.0", id: payload.id,
+      result: { structuredContent: { total: 0, entries: [] } } });
+  };
+  const request = (token, path = "/internal/source/mcp-parity") => new Request("https://housing.example" + path, {
+    method: "POST",
+    headers: { authorization: "Bearer " + token, "content-type": "application/json" },
+    body: JSON.stringify({ source_id: 69 }),
+  });
+  try {
+    const env = { SOURCE_RUN_TOKEN: "source-runtime-secret", MCP_PARITY_AUDIT_TOKEN: freshToken };
+    const valid = await worker.fetch(request(freshToken), env);
+    assert.equal(valid.status, 200);
+    assert.equal((await valid.json()).comparison.same_ids, true);
+    const count = outbound;
+    assert.equal((await worker.fetch(request(freshToken, "/internal/source/run"), env)).status, 401);
+    assert.equal((await worker.fetch(request(freshToken), {
+      SOURCE_RUN_TOKEN: "source-runtime-secret", MCP_PARITY_AUDIT_TOKEN: expiredToken,
+    })).status, 401);
+    assert.equal((await worker.fetch(request("not-the-audit-token"), env)).status, 401);
+    assert.equal(outbound, count, "an unauthorized call must not reach MCP");
+  } finally { globalThis.fetch = initialFetch; resetMcpSession(); }
+});
