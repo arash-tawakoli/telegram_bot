@@ -196,10 +196,10 @@ export async function renderSchleswigHolsteinAreas(user, chatId, messageId, draf
     rows.push([
         button(allLabel, "sharea:all"),
         button("Auswahl löschen", "sharea:clear"),
-    ], [
+    ], ...(pages > 1 ? [[
         ...(page > 0 ? [button("← Vorherige", "sharea:prev")] : []),
         ...(page < pages - 1 ? [button("Nächste →", "sharea:next")] : []),
-    ], [button("Auswahl bestätigen →", "sharea:done")], [button("← Gebietsauswahl", "location")], cancelRow());
+    ]] : []), [button("Auswahl bestätigen →", "sharea:done")], [button("← Gebietsauswahl", "location")], cancelRow());
     const heading = level === "counties"
         ? "Kreise und kreisfreie Städte"
         : level === "municipalities"
@@ -242,10 +242,10 @@ export async function renderNeighborhoods(user, chatId, messageId, draft) {
     rows.push([
         button("Alle auswählen", "neighborhood:all"),
         button("Auswahl löschen", "neighborhood:clear"),
-    ], [
+    ], ...(pages > 1 ? [[
         ...(page > 0 ? [button("← Vorherige", "neighborhood:prev")] : []),
         ...(page < pages - 1 ? [button("Nächste →", "neighborhood:next")] : []),
-    ], [button("← Gebietsauswahl", "location"), button("Auswahl bestätigen →", "neighborhood:done")], cancelRow());
+    ]] : []), [button("← Gebietsauswahl", "location"), button("Auswahl bestätigen →", "neighborhood:done")], cancelRow());
     return edit(chatId, messageId, `📍 <b>Hamburger Stadtteile</b>\n\nWähle beliebig viele Stadtteile.\n\n<b>${draft.neighborhood_ids.length}/${geo.neighborhoods.length} ausgewählt</b>\nSeite ${page + 1} von ${pages}`, { inline_keyboard: rows });
 }
 
