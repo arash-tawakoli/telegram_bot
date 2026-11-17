@@ -108,8 +108,11 @@ export async function verifyMiniAppInitData(raw, botToken, now = Date.now()) {
   if (!hash || !/^[0-9a-f]{64}$/i.test(hash) || !/^\d{10}$/.test(auth || "")) return null;
   const age = Math.floor(now / 1000) - Number(auth);
   if (age < -60 || age > MAX_AUTH_AGE_SECONDS) return null;
+  // Telegram's bot-token HMAC covers every field except hash, including the
+  // newer Ed25519 "signature" field. Only third-party Ed25519 verification
+  // excludes both signature and hash from its data-check string.
   const check = [...params.entries()]
-    .filter(([key]) => key !== "hash" && key !== "signature")
+    .filter(([key]) => key !== "hash")
     .sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)
     .map(([key, value]) => key + "=" + value).join("\n");
   const secret = await hmac("WebAppData", botToken);
