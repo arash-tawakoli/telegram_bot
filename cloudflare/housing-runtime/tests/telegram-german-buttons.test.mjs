@@ -519,7 +519,7 @@ test("all nine home preview translations preserve German menu controls", async (
       assert.match(preview,/3[.] /);
       assert.ok(preview.length<900);
       await home({...x.user,ui_language:code},777);
-      assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][0].text,"🔎 Suchprofil");
+      assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][0].text,"📱 Wohnungs-App öffnen");
     }
     assert.match(homePreview("unknown"),/Was ist das/);
   }finally{x.done();}
@@ -538,7 +538,7 @@ test("first /start asks for language, choosing Sorani persists and opens the loc
     assert.equal(sqliteLanguage(x.sqlite),"ckb");
     assert.ok(x.sqlite.prepare("SELECT language_selected_at FROM participants WHERE id='owner'").get().language_selected_at);
     assert.match(lastMessage(x).text,/ئەمە چییە/);
-    assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][0].text,"🔎 Suchprofil");
+    assert.equal(lastMessage(x).reply_markup.inline_keyboard[0][0].text,"📱 Wohnungs-App öffnen");
     const adapter=createD1Supabase(x.d1,{});
     await adapter.rpc("prepare_telegram_update",{p_payload:{message:{chat:x.chat,from:{id:777,first_name:"Mara",language_code:"de"}}}});
     assert.equal(sqliteLanguage(x.sqlite),"ckb","Telegram updates must not reset the chosen language");
@@ -935,7 +935,9 @@ test("/start upgrades shortcut order from version 4 exactly once; /commands alwa
   ]);
   assert.match(messages[0].body.text,/Schnellfunktionen sind wieder verfügbar/);
   assert.match(messages[1].body.text,/Traumwohnung Hamburg/);
-  assert.deepEqual(messages[1].body.reply_markup.inline_keyboard.map(row=>row[0].callback_data),
+  assert.equal(messages[1].body.reply_markup.inline_keyboard[0][0].web_app.url,
+   "https://traumwohnung-housing-runtime.arash-ce5.workers.dev/miniapp");
+  assert.deepEqual(messages[1].body.reply_markup.inline_keyboard.slice(1).map(row=>row[0].callback_data),
    ["profile","platforms:profile-new","platforms"]);
   await handleMessage({chat:x.chat,text:"/start"},x.user);
   assert.equal(x.sent.filter(item=>item.method==="sendMessage"&&item.body.reply_markup?.keyboard).length,1,
