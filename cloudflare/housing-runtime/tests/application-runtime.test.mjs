@@ -92,8 +92,8 @@ test("free opt-in can reach provider preflight without any Telegram delivery", a
   // Immowelt's unverified transport still blocks actual sending.
   assert.equal(result.body.status, "manual_required");
   assert.equal(result.body.reason, "provider_contract_unverified");
-  assert.equal(db.writes.some(({ text }) => /FROM housing\\.deliveries/i.test(text)), false);
-  assert.equal(db.writes.some(({ text }) => /SET submission_started_at = now\\(\\)/i.test(text)), false);
+  assert.equal(db.writes.some(({ text }) => /FROM housing\.deliveries/i.test(text)), false);
+  assert.equal(db.writes.some(({ text }) => /SET submission_started_at = now\(\)/i.test(text)), false);
 });
 
 test("scheduled application processing ignores the historical pending backlog", async () => {
