@@ -69,11 +69,13 @@ async function flowFor(sql, value, allowConsumed = false) {
 
 export async function issueProviderAuthFlow(sql, participantId, provider, origin = "coach", returnTarget = "coach", context = {}) {
   if (!PROVIDERS.has(String(provider))) throw new Error("provider_unsupported");
-  const participant = (await sql`SELECT id,status,telegram_user_id FROM participants WHERE id=${participantId} LIMIT 1`)[0];
+  const participant = (await sql`SELECT id,status FROM participants WHERE id=${participantId} LIMIT 1`)[0];
   if (!participant || participant.status !== "active") throw new Error("participant_forbidden");
-  if (provider === "kleinanzeigen" &&
-      (context.central_account !== true || Number(participant.telegram_user_id) !== 8538226539))
-    throw new Error("participant_forbidden");
+  if (provider === "kleinanzeigen") {
+    const operator = (await sql`SELECT telegram_user_id FROM participants WHERE id=${participantId} LIMIT 1`)[0];
+    if (context.central_account !== true || Number(operator?.telegram_user_id) !== 8538226539)
+      throw new Error("participant_forbidden");
+  }
   await sql`DELETE FROM provider_auth_flows WHERE participant_id=${participantId} AND provider=${provider} AND consumed_at IS NULL`;
   const state = randomToken(32);
   const verifier = randomToken(48);
