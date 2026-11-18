@@ -313,7 +313,12 @@ async function processDelivery(sql, request, env) {
   try {
     ({ response, data: result } = await sendListingMessage(token, preview));
   } catch (error) {
+    // A lost Telegram response has an unknown outcome. Never retry it
+    // automatically; make the uncertainty visible in delivery status.
     if (cutover) await ledger("unknown").catch(() => {});
+    await sql`UPDATE housing.deliveries
+      SET status = 'failed', error_message = 'telegram_outcome_unknown'
+      WHERE id = ${claimed.id} AND status = 'processing'`;
     throw error;
   }
   if (!response.ok || result?.ok !== true) {
