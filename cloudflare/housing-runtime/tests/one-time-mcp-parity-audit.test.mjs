@@ -5,7 +5,11 @@ import { runInternalMcpParityAudit } from "../src/index.js";
 test("a one-time internal audit uses the existing source token without outbound credential transfer", async () => {
   const now = Date.now();
   const token = "test-only-internal-source-token";
-  const env = { SOURCE_RUN_TOKEN: token, MCP_PARITY_AUDIT_UNTIL: String(now + 60_000) };
+  const writes = [];
+  const env = {
+    SOURCE_RUN_TOKEN: token, MCP_PARITY_AUDIT_UNTIL: String(now + 60_000),
+    DOCUMENTS: { async put(key, body, options) { writes.push({ key, body: JSON.parse(body), options }); } },
+  };
   const requests = [];
   const handler = { async fetch(request) {
     requests.push({
@@ -28,4 +32,15 @@ test("a one-time internal audit uses the existing source token without outbound 
     && x.authorization === "Bearer " + token));
   assert.equal(await runInternalMcpParityAudit(handler, env, now), false);
   assert.equal(requests.length, 3);
+  assert.equal(writes.length, 1, "R2 is used only for the Hamburg audit");
+  assert.equal(writes[0].key, "_diagnostics/mcp-hamburg-parity-20261118.json");
+  assert.equal(writes[0].body.source_id, 1);
+  assert.equal(writes[0].body.same_ids, true);
+  assert.equal(writes[0].body.mcp_unique_ids, 102);
+  assert.equal(writes[0].body.bot_unique_ids, 102);
+  assert.equal(writes[0].body.http_status, 200);
+  assert.ok(writes[0].body.checked_at);
+  assert.equal(writes[0].body.endpoint, "https://app.chatgpt.immobilienscout24.de/v2/mcp");
+  assert.ok(!JSON.stringify(writes[0].body).includes(token),
+    "the source authorization token must never be persisted");
 });
