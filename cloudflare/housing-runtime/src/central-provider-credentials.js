@@ -2,7 +2,7 @@ import { decryptProviderCredentials, encryptProviderCredentials } from "./provid
 import { getCentralApplicationCredentials } from "./immoscout-central-token.js";
 import { refreshImmoweltCookies } from "./immowelt-auth.js";
 
-const PROVIDERS = new Set(["immoscout24", "immowelt", "immomio"]);
+const PROVIDERS = new Set(["immoscout24", "immowelt", "immomio", "kleinanzeigen"]);
 const OWNER_TELEGRAM_ID = 8538226539;
 
 const REFRESH_ENDPOINTS = {
@@ -11,7 +11,21 @@ const REFRESH_ENDPOINTS = {
 
 async function refreshCentralProvider(sql, env, provider, row, credentials, force = false) {
   let refreshed, expiresAt;
-  if (provider === "immowelt") {
+  if (provider === "kleinanzeigen") {
+    if (!credentials.refresh_token || !credentials.oauth_client_id) throw new Error("needs_login");
+    const response = await fetch("https://login.kleinanzeigen.de/oauth/token", {
+      method: "POST", headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify({ grant_type: "refresh_token",
+        refresh_token: String(credentials.refresh_token),
+        client_id: String(credentials.oauth_client_id) }),
+      signal: AbortSignal.timeout(20_000),
+    }).catch(() => { throw new Error("temporary_network_error"); });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || !payload?.access_token) throw new Error("needs_login");
+    expiresAt = new Date(Date.now() + Math.max(60, Number(payload.expires_in || 600)) * 1000).toISOString();
+    refreshed = { ...credentials, access_token: String(payload.access_token),
+      refresh_token: String(payload.refresh_token || credentials.refresh_token), expires_at: expiresAt };
+  } else if (provider === "immowelt") {
     if (!Array.isArray(credentials.cookies) || !credentials.cookies.length) throw new Error("needs_login");
     refreshed = await refreshImmoweltCookies(credentials, force);
     expiresAt = refreshed.expires_at || null;
