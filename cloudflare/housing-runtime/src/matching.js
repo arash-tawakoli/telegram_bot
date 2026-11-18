@@ -22,6 +22,13 @@ function object(value) {
 const normalize = value => String(value ?? "").normalize("NFKC").toLocaleLowerCase("de-DE").trim();
 const list = value => Array.isArray(value) ? value : [];
 
+// ImmoScout sometimes reports a Hamburg Stadtteil as the city (for example
+// Wilhelmsburg or Rahlstedt). Recognize Hamburg-only postal districts without
+// broadly accepting neighboring Schleswig-Holstein municipalities.
+export function isHamburgPostcode(value) {
+  return /^(?:20\d{3}|21[01]\d{2}|22[0-7]\d{2})$/.test(String(value ?? "").trim());
+}
+
 function listingCategory(facts) {
   const label = normalize([facts?.property_type, facts?.property_kind, facts?.offer_mode, facts?.title].filter(Boolean).join(" "));
   if (/\b(verkauf|kaufpreis|zum kauf|mietkauf|erbpacht)\b/.test(label) || /\b(wohnung|apartment|wg[ -]*zimmer|zimmer|haus)\s+gesucht\b/.test(label) || /\b(ich|wir)\s+suche(?:n)?\s+.{0,50}(wohnung|apartment|wg[ -]*zimmer|zimmer|haus)/.test(label)) return null;
@@ -60,7 +67,7 @@ export function matchesProfile(criteria, facts, sourceId, areas = []) {
   const mainCity = city.split(/\s*\/\s*/)[0];
   const matchingAreas = city ? areas.filter(x => ["municipality", "independent_city"].includes(x.area_type)
     && [city, mainCity].includes(normalize(x.name))) : [];
-  const isHamburg = state === "HH" || (!state && (city === "hamburg" || city.startsWith("hamburg-") || city.startsWith("hamburg,") || city.startsWith("hamburg ") || city.endsWith(", hamburg") || (!city && [1, 3, 23, 29, 35, 66].includes(Number(sourceId)))));
+  const isHamburg = state === "HH" || (!state && (city === "hamburg" || city.startsWith("hamburg-") || city.startsWith("hamburg,") || city.startsWith("hamburg ") || city.endsWith(", hamburg") || isHamburgPostcode(facts?.postal_code) || (!city && [1, 3, 23, 29, 35, 66].includes(Number(sourceId)))));
   const isSchleswigHolstein = state === "SH" || (!state && !isHamburg && (matchingAreas.length > 0 || (!city && [69, 71].includes(Number(sourceId)))));
   const isBerlin = state === "BE" || (!state && (
     /^berlin(?:$|[\s,/-])/.test(city) || (!city && Number(sourceId) === 72)));
