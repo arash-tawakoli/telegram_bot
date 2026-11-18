@@ -444,13 +444,22 @@ async function runScheduledHousingWork(env, minute = Math.floor(Date.now() / 60_
     method: "POST",
     headers: { authorization: `Bearer ${env.APPLICATION_RUN_TOKEN || ""}` },
   });
-  try {
-    await withDatabase(env, async (sql) => {
-      const result = await processHousingApplication(sql, env, applicationRequest);
-      console.log("housing_application_scheduled", JSON.stringify(result.body || result));
-    });
-  } catch (error) {
-    console.error("housing_application_scheduled_failed", String(error?.message || error));
+  // Process a small, sequential batch each minute. The application claim uses
+  // an atomic status transition, and provider calls are never parallelized here.
+  for (let index = 0; index < 5; index++) {
+    try {
+      const result = await withDatabase(env, (sql) => processHousingApplication(sql, env, applicationRequest));
+      if (result.status !== 200) {
+        console.error("housing_application_scheduled_failed", JSON.stringify(result.body || result));
+        break;
+      }
+      const outcome = result.body || result;
+      if (outcome?.status === "idle") break;
+      console.log("housing_application_scheduled", JSON.stringify(outcome));
+    } catch (error) {
+      console.error("housing_application_scheduled_failed", String(error?.message || error));
+      break;
+    }
   }
   // Expired normal deliveries were not eligible for the 15-minute send
   // window. Close them instead of leaving an unprocessable pending backlog.
