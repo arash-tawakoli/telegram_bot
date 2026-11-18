@@ -56,6 +56,8 @@ test("one run searches flats, houses and WG rooms and normalizes Hamburg offers"
   assert.deepEqual(seen.sort(), KLEINANZEIGEN_QUERIES.map((q) => q.criteria).sort());
   assert.equal(result.fetched, 4);
   assert.equal(result.skipped, 1);
+  assert.deepEqual(result.outcomes.map((o) => o.outcome), ["stored", "wanted_ad", "stored", "stored"]);
+  assert.equal(result.outcomes[1].id, "3575889765");
   const byId = new Map(result.nodes.map((node) => [node.identity, node]));
   const flat = byId.get("3575847821");
   assert.equal(flat.canonical_url, "https://www.kleinanzeigen.de/s-anzeige/helle-2-zimmer-wohnung-mit-balkon/3575847821");
@@ -120,7 +122,7 @@ test("ingest stores offers through the D1 client and recognizes them on the next
   const sql = createD1Client({ prepare, batch: async (s) => Promise.all(s.map((x) => x.all())) });
   const mcp = fakeMcp({ 203: [[ad(3575847821, "Helle 2-Zimmer-Wohnung mit Balkon")]] });
   const first = await ingestKleinanzeigenSource(sql, { id: 2 }, {}, mcp);
-  assert.deepEqual(first, { fetched: 1, valid: 1, inserted: 1, wanted_ads_skipped: 0, previously_known_in_response: 0 });
+  assert.deepEqual(first, { fetched: 1, valid: 1, inserted: 1, skipped: {}, previously_known_in_response: 0 });
   const row = sqlite.prepare("SELECT source_id, identity_hash, external_id, canonical_url, facts FROM offer_identities").get();
   assert.equal(row.identity_hash, "2:external:3575847821");
   assert.equal(JSON.parse(row.facts).district, "Ottensen");

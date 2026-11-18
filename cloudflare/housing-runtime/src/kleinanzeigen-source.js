@@ -47,12 +47,13 @@ export function snippetsById(markdown) {
 
 export function normalizeKleinanzeigenListing(entry, sourceId, query, snippet = "") {
   const id = String(entry?.id ?? "");
-  if (!/^\d{5,15}$/.test(id)) return null;
+  if (!/^\d{5,15}$/.test(id)) return { skip: "invalid_id" };
   const title = decode(entry.title).slice(0, 240);
-  if (!title || isWantedAd(title, snippet)) return null;
+  if (!title) return { skip: "no_title" };
+  if (isWantedAd(title, snippet)) return { skip: "wanted_ad" };
   let url;
-  try { url = new URL(String(entry.url || "")); } catch { return null; }
-  if (url.protocol !== "https:" || url.hostname !== "www.kleinanzeigen.de" || !url.pathname.startsWith("/s-anzeige/")) return null;
+  try { url = new URL(String(entry.url || "")); } catch { return { skip: "invalid_url" }; }
+  if (url.protocol !== "https:" || url.hostname !== "www.kleinanzeigen.de" || !url.pathname.startsWith("/s-anzeige/")) return { skip: "invalid_url" };
   const canonical = `https://www.kleinanzeigen.de${url.pathname.replace(/\/$/, "")}`;
   const location = decode(entry.location).replace(/\s+/g, " ");
   // Every query is pinned to Kleinanzeigen's Hamburg location (9409).
@@ -112,23 +113,26 @@ export async function searchKleinanzeigen(query, fetchImpl = fetch) {
   const data = result?.structuredContent;
   if (payload?.error || result?.isError || !data || !Array.isArray(data.listings)) throw new Error("kleinanzeigen_response_invalid");
   if (Number(data.categoryId) !== query.categoryId) throw new Error("kleinanzeigen_category_mismatch");
-  return { listings: data.listings, total: Number(data.totalResults) || 0, markdown: result.content?.find?.((part) => part?.type === "text")?.text || "" };
+  return { listings: data.listings, total: Number(data.totalResults) || 0, searchUrl: String(data.searchUrlList || ""), markdown: result.content?.find?.((part) => part?.type === "text")?.text || "" };
 }
 
 export async function fetchKleinanzeigenSource(source, fetchImpl = fetch) {
   const answers = await Promise.all(KLEINANZEIGEN_QUERIES.map((query) => searchKleinanzeigen(query, fetchImpl)));
   const nodes = new Map();
-  let fetched = 0, wanted = 0;
+  // One outcome per listing the MCP returned, so every ad is accounted for.
+  const outcomes = [];
   answers.forEach((answer, index) => {
+    const query = KLEINANZEIGEN_QUERIES[index];
     const snippets = snippetsById(answer.markdown);
-    fetched += answer.listings.length;
     for (const entry of answer.listings) {
-      const node = normalizeKleinanzeigenListing(entry, source.id, KLEINANZEIGEN_QUERIES[index], snippets.get(String(entry?.id)) || "");
-      if (node) nodes.set(node.identity, node);
-      else wanted++;
+      const node = normalizeKleinanzeigenListing(entry, source.id, query, snippets.get(String(entry?.id)) || "");
+      const duplicate = !node.skip && nodes.has(node.identity);
+      if (!node.skip && !duplicate) nodes.set(node.identity, node);
+      outcomes.push({ id: String(entry?.id ?? ""), categoryId: query.categoryId, outcome: node.skip || (duplicate ? "duplicate" : "stored") });
     }
   });
-  return { nodes: [...nodes.values()], fetched, skipped: wanted };
+  const skipped = outcomes.filter((o) => o.outcome !== "stored").length;
+  return { nodes: [...nodes.values()], fetched: outcomes.length, skipped, outcomes, answers };
 }
 
 export async function ingestKleinanzeigenSource(sql, source, config = {}, fetchImpl = fetch) {
@@ -148,5 +152,7 @@ export async function ingestKleinanzeigenSource(sql, source, config = {}, fetchI
     if (Number(rows[0].known) === 1 || rows[0].known === true) known++;
     if (config.queue_matches !== false) await queueMatches(sql, rows[0].id, node.source_id, identityHash, { ...node.facts, canonical_url: node.canonical_url }, source.central_auto_apply_enabled === true, true, profileCache);
   }
-  return { fetched: result.fetched, valid: result.nodes.length, inserted, wanted_ads_skipped: result.skipped, previously_known_in_response: known };
+  const skippedBy = {};
+  for (const { outcome } of result.outcomes) if (outcome !== "stored") skippedBy[outcome] = (skippedBy[outcome] || 0) + 1;
+  return { fetched: result.fetched, valid: result.nodes.length, inserted, skipped: skippedBy, previously_known_in_response: known };
 }
