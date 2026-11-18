@@ -211,7 +211,7 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts, 
     const profile = object(row.applicant_profile);
     // matchesProfile already enforces every selected search criterion. Do not
     // introduce another warm-rent filter or source-specific application gate.
-    if (listingActive && centralAutoApplyEnabled && provider && premiumParticipant(row) && enabled(row.auto_apply_enabled) && !enabled(row.test_auto_apply_enabled)
+    if (listingActive && centralAutoApplyEnabled && provider && enabled(row.auto_apply_enabled) && !enabled(row.test_auto_apply_enabled)
       && enabled(row.preferences_enabled) && enabled(providerEnabled)
       && missingApplicantFields(profile).length === 0) {
       const applicationKey = applicationIdempotencyKey(row.participant_id, provider, identityHash);
