@@ -434,7 +434,6 @@ async function rpc(client, env, name, args) {
       return { data: { enabled: active, test_mode: true, ...next }, error: null };
     }
     if (active) {
-      if (!await hasPremium(client, userId)) return { data: null, error: new Error("premium_required") };
       if (bool(participant.test_auto_apply_enabled)) return { data: null, error: new Error("test_mode_active") };
       const profile = (await client.run("SELECT profile FROM applicant_profiles WHERE participant_id=? LIMIT 1", [userId]))[0];
       if (!profile || missingApplicantFields(profile.profile).length)

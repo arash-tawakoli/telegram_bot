@@ -2,8 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { withPlan } from "../src/telegram-legacy/runtime.js";
 import { createD1Supabase } from "../src/telegram-legacy/d1-supabase.js";
+import { homeKeyboard } from "../src/telegram-legacy/navigation.js";
 
-function freeParticipantDatabase() {
+function freeParticipantDatabase({ complete = false } = {}) {
   const calls = [];
   return {
     calls,
@@ -22,7 +23,20 @@ function freeParticipantDatabase() {
               if (sql.startsWith("SELECT p.plan_override")) {
                 return { results: [{ plan_override: "free", subscription_status: null }] };
               }
-              return { results: [] };
+              if (sql.startsWith("SELECT profile FROM applicant_profiles")) {
+                return { results: complete ? [{ profile: JSON.stringify({
+                  first_name: "Eva", last_name: "Test", email: "eva@example.com",
+                  phone: "+491711234567", street: "Testweg", house_number: "1",
+                  postcode: "20095", city: "Hamburg", salutation: "MS",
+                  household_type: "SINGLE", employment_status: "EMPLOYEE",
+                  income_range: "NOT_SPECIFIED", pets: "Keine",
+                  move_in_preference: "NOT_SPECIFIED", schufa_status: "NOT_SPECIFIED"
+                }) }] : [] };
+              }
+              if (sql.startsWith("SELECT 1 AS found FROM search_profiles")) {
+                return { results: complete ? [{ found: 1 }] : [] };
+              }
+              return { results: [], meta: { changes: 1 } };
             },
           };
         },
@@ -39,14 +53,34 @@ test("Telegram D1 rejects extra search profiles for Free accounts", async () => 
   assert.ok(!database.calls.some(({sql}) => /INSERT INTO search_profiles/.test(sql)));
 });
 
-test("Telegram D1 rejects enabling AutoApply for Free accounts", async () => {
+test("Free AutoApply activation still requires a complete applicant profile", async () => {
   const database = freeParticipantDatabase();
   const api = createD1Supabase(database, {});
   const result = await api.rpc("set_telegram_auto_apply_sources", {
     p_user: "free-user", p_telegram_user_id: 1234, p_enabled: true,
   });
-  assert.match(result.error?.message || "", /premium_required/);
-  assert.ok(!database.calls.some(({sql}) => /UPDATE application_preferences/.test(sql)));
+  assert.match(result.error?.message || "", /profile_incomplete/);
+  assert.ok(!database.calls.some(({ sql }) => /UPDATE application_preferences/.test(sql)));
+});
+
+test("Free participant with completed profiles can explicitly enable AutoApply", async () => {
+  const database = freeParticipantDatabase({ complete: true });
+  const api = createD1Supabase(database, {});
+  const result = await api.rpc("set_telegram_auto_apply_sources", {
+    p_user: "free-user", p_telegram_user_id: 1234,
+    p_provider: "immoscout24", p_enabled: true,
+  });
+  assert.equal(result.error, null);
+  assert.equal(result.data?.enabled, true);
+  assert.equal(result.data?.immoscout_enabled, true);
+  assert.ok(database.calls.some(({ sql }) => /UPDATE application_preferences SET/.test(sql)));
+  assert.ok(database.calls.some(({ sql }) => /UPDATE participants SET auto_apply_enabled/.test(sql)));
+});
+
+test("Free users see unlocked Auto-Bewerbung in Telegram home", () => {
+  const markup = homeKeyboard({ is_premium: false });
+  assert.ok(markup.inline_keyboard.flat().some(button =>
+    button.text === "⚡ Auto-Bewerbung" && button.callback_data === "platforms"));
 });
 
 test("premium access is resolved from active and trialing D1 subscriptions", async () => {
