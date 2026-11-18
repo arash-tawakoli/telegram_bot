@@ -298,6 +298,30 @@ test("Scout provider diagnostics omit unknown fields and all raw values", async 
   } finally { globalThis.fetch = before; }
 });
 
+test("Scout 412 captures dotted validation rules without retaining personal values", async () => {
+  const before = globalThis.fetch;
+  globalThis.fetch = async (url) => String(url).endsWith("/contact")
+    ? Response.json({ "common.messages": { message: {
+        messageCode: "ERROR_RESOURCE_VALIDATION",
+        message: "Error while validating input for the resource. [MESSAGE: income : private-person@example.com : income.invalidValue]",
+      } } }, { status: 412 })
+    : Response.json({ "expose.expose": { contactFormConfiguration: {
+        incomeField: "MANDATORY", firstnameField: "MANDATORY",
+      } } });
+  try {
+    const result = await sendImmoScoutApplication({
+      external_id: "123456789", test_mode: true,
+      authorizeTestSend: async () => true,
+      profile: { first_name: "Gast", income_range: "2000_3000" },
+    }, {}, null, { credentials: { access_token: "central-token" } });
+    assert.equal(result.status, "manual_required");
+    assert.equal(result.provider_http_status, 412);
+    assert.equal(result.provider_validation_field, "income");
+    assert.equal(result.provider_validation_rule, "income.invalidValue");
+    assert.doesNotMatch(JSON.stringify(result), /private-person@example.com|central-token/);
+  } finally { globalThis.fetch = before; }
+});
+
 test("Scout keeps exact monthly income numeric when explicitly provided", async () => {
   const before = globalThis.fetch;
   let posted = null;
