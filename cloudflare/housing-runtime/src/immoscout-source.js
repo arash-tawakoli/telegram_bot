@@ -1,5 +1,5 @@
 import { BERLIN_BOROUGHS } from "./berlin-geography.js";
-import { queueMatches } from "./matching.js";
+import { isHamburgPostcode, queueMatches } from "./matching.js";
 
 const MCP_URL = "https://app.chatgpt.immobilienscout24.de/v2/mcp";
 const MCP_PROTOCOL = "2025-06-18";
@@ -357,7 +357,9 @@ export function normalizeImmoScoutEntry(entry, sourceId, requestedType = null) {
   const country = String(address.countryCode || address.country || "").toLowerCase();
   if (country && !["de", "deu", "deutschland", "germany"].includes(country)) return null;
   const city = String(address.city || entry.city || "").toLowerCase();
-  if (city && Number(sourceId) === 1 && !city.includes("hamburg")) return null;
+  // Hamburg districts are sometimes returned as city names by the MCP.
+  if (city && Number(sourceId) === 1 && !city.includes("hamburg")
+    && !isHamburgPostcode(address.postcode)) return null;
   if (city && Number(sourceId) === 69 && (city.startsWith("hamburg") || city.startsWith("berlin"))) return null;
   if (Number(sourceId) === 72 && city && !/^berlin(?:$|[\s,/-])/.test(city)) return null;
   // Schleswig-Holstein postcodes fall in 21xxx–25xxx. Ignore clear
