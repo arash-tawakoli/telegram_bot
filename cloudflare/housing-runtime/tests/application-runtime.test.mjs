@@ -63,7 +63,7 @@ test("central AutoApply stays paused after deployment and does not reserve or se
   assert.equal(result.body.status, "deferred");
   assert.equal(result.body.reason, "central_auto_apply_paused");
   assert.equal(db.writes.some(({ text }) => /SET submission_started_at = now\\(\\)/.test(text)), false);
-  assert.equal(db.writes.some(({ text }) => /wait_reason = 'central_auto_apply_paused'/.test(text)), true);
+  assert.equal(db.writes.some(({ text, values }) => /wait_reason = /.test(text) && values.includes("central_auto_apply_paused")), true);
 });
 
 test("free opt-in can reach provider preflight without any Telegram delivery", async () => {

@@ -364,7 +364,10 @@ export async function getCentralApplicationCredentials(env, { testMode = true } 
     refresh_token: String(credentials.refresh_token),
   });
   if (!refreshed.response.ok || !refreshed.body?.access_token) {
-    throw new Error(refreshed.response.status === 401 ? "needs_login" : "temporary_network_error");
+    // A revoked or rotated refresh token is answered with 400 invalid_grant (RFC 6749 §5.2), not 401.
+    const revoked = refreshed.response.status === 401
+      || (refreshed.response.status === 400 && refreshed.body?.error === "invalid_grant");
+    throw new Error(revoked ? "needs_login" : "temporary_network_error");
   }
   const info = await userInfo(String(refreshed.body.access_token));
   if (!info.response.ok || !info.body?.sub || validEmail(info.body?.email) !== ACCOUNT_EMAIL) {
@@ -482,34 +485,6 @@ async function internal(request, env, path) {
   }
   if (path === "/internal/mfa_verify" && request.method === "POST") {
     return json(await mfaVerify(env, body.mfaTicket, body.factorId, body.passCode));
-  }
-  if (path === "/internal/store" && request.method === "POST") {
-    const email = validEmail(body.account_hint);
-    if (email !== ACCOUNT_EMAIL || typeof body.access_token !== "string" || body.access_token.length < 20 ||
-        typeof body.refresh_token !== "string" || body.refresh_token.length < 20) return json({ error: "invalid_credentials" }, 400);
-    const expires = new Date(body.expires_at || Date.now() + 3600000);
-    if (!Number.isFinite(expires.getTime())) return json({ error: "invalid_expiry" }, 400);
-    const credentials = {
-      access_token: body.access_token, refresh_token: body.refresh_token,
-      id_token: typeof body.id_token === "string" ? body.id_token : null,
-      token_type: String(body.token_type || "Bearer"), scope: String(body.scope || SCOPE),
-      expires_at: expires.toISOString(),
-    };
-    const result = await persistCredentials(env, credentials, body.preserve_enabled === true, body.admin_telegram_id || null);
-    return json({ stored: true, ...result });
-  }
-  if (path === "/internal/mark" && request.method === "POST") {
-    const status = String(body.status || "");
-    if (!["connected", "needs_login", "error"].includes(status)) return json({ error: "invalid_status" }, 400);
-    await env.DB.prepare("UPDATE central_credentials SET status=?,last_error=?,updated_at=CURRENT_TIMESTAMP WHERE singleton='central'")
-      .bind(status, String(body.last_error || "").slice(0, 160) || null).run();
-    return json({ status });
-  }
-  if (path === "/internal/credentials" && request.method === "GET") {
-    const row = await env.DB.prepare("SELECT ciphertext,iv,account_hint,status,enabled,expires_at FROM central_credentials WHERE singleton='central'").first();
-    if (!row || row.status !== "connected") return json({ error: "needs_login" }, 404);
-    const credentials = await decrypt(row.ciphertext, row.iv, env, CREDENTIAL_AAD);
-    return json({ account_hint: row.account_hint, enabled: row.enabled === 1, status: row.status, ...credentials });
   }
   if (path === "/internal/enable" && request.method === "POST") {
     if (!ADMIN_IDS.has(String(body.admin_telegram_id || ""))) return json({ error: "admin_required" }, 403);

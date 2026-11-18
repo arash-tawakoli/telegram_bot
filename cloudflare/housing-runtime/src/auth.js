@@ -81,7 +81,7 @@ export async function memberForAccess(sql, accessToken) {
     JOIN housing.portal_members m ON m.id = s.member_id
     WHERE s.access_token_hash = ${await sha256(accessToken)}
       AND s.revoked_at IS NULL
-      AND s.access_expires_at > now()
+      AND s.access_expires_at > ${new Date().toISOString()}
       AND m.active = true
   `;
   if (!rows[0]) return null;
@@ -96,7 +96,7 @@ export async function refreshSession(sql, refreshToken) {
     FROM housing.portal_sessions
     WHERE refresh_token_hash = ${await sha256(refreshToken)}
       AND revoked_at IS NULL
-      AND refresh_expires_at > now()
+      AND refresh_expires_at > ${new Date().toISOString()}
   `;
   if (!rows[0]) return null;
   const accessToken = token();

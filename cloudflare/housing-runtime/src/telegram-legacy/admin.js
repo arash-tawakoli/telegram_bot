@@ -81,15 +81,11 @@ async function adminDirectory() {
         .select("id,telegram_user_id,first_name,last_name,username,is_active,plan_override,plan_override_expires_at,referral_bonus_until,created_at")
         .order("created_at", { ascending: false });
     if (error) throw error;
-    const ids = (users || []).map(entry => entry.id);
-    let subscriptions = [];
-    if (ids.length) {
-        const { data, error: subscriptionError } = await db.from("user_subscriptions")
-            .select("user_id,status,current_period_end").in("user_id", ids);
-        if (subscriptionError) throw subscriptionError;
-        subscriptions = data || [];
-    }
-    const subscriptionByUser = new Map(subscriptions.map(entry => [String(entry.user_id), entry]));
+    // No .in(ids): D1 allows at most 100 bound parameters, and the table is small.
+    const { data: subscriptions, error: subscriptionError } = await db.from("user_subscriptions")
+        .select("user_id,status,current_period_end");
+    if (subscriptionError) throw subscriptionError;
+    const subscriptionByUser = new Map((subscriptions || []).map(entry => [String(entry.user_id), entry]));
     return (users || []).map(entry => ({
         ...entry, premium: effectivePremiumFor(entry, subscriptionByUser.get(String(entry.id))),
     }));

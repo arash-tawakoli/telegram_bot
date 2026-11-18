@@ -391,6 +391,8 @@ async function action(sql, env, body) {
   if (flow.central) {
     const path = { resolve: "/internal/resolve", status: "/internal/status", password_login: "/internal/password_login", mfa_start: "/internal/mfa_start", mfa_verify: "/internal/mfa_verify" }[name];
     if (!path) throw new Error("provider_unsupported");
+    // The facade is public: a status request must carry a real (possibly consumed) central login ticket.
+    if (name === "status") await centralCall(env, "/internal/resolve", { state: flow.state, allow_consumed: true });
     const result = await centralCall(env, path, name === "resolve" ? { state: flow.state, allow_consumed: false } : name === "status" ? {} : { state: flow.state, mfaTicket: body.mfaTicket, factorId: body.factorId, passCode: body.passCode, email: body.email, password: body.password }, name === "status" ? "GET" : "POST");
     if (name === "resolve") return { ok: true, provider: "immoscout24", mode: "credentials", centralAccount: true, accountHint: result.account_hint || "arash@nexalabs.de", participantLabel: "NexaLabs · zentraler ImmoScout24-Zugang", origin: "telegram", returnTarget: "telegram", expiresAt: result.expires_at };
     return result;

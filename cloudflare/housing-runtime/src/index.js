@@ -321,6 +321,12 @@ async function processDelivery(sql, request, env) {
       WHERE id = ${claimed.id} AND status = 'processing'`;
     throw error;
   }
+  // 429 means Telegram did not deliver: put it back and let the next minute retry.
+  if (response.status === 429) {
+    if (cutover) await ledger("release");
+    await sql`UPDATE housing.deliveries SET status = 'pending' WHERE id = ${claimed.id} AND status = 'processing'`;
+    return json({ error: "telegram_rate_limited" }, 503);
+  }
   if (!response.ok || result?.ok !== true) {
     if (cutover) await ledger([400, 401, 403, 404, 409, 429].includes(response.status) ? "release" : "unknown");
     await sql`UPDATE housing.deliveries SET status = 'failed', error_message = 'telegram_card_failed' WHERE id = ${claimed.id}`;
@@ -434,10 +440,8 @@ async function runScheduledHousingWork(env, minute = Math.floor(Date.now() / 60_
       console.error("housing_delivery_scheduled_failed", String(error?.message || error));
       break;
     }
-    if (result.status === 200) {
-      const body = await result.clone().json().catch(() => null);
-      if (body?.status === "idle") break;
-    }
+    const body = await result.clone().json().catch(() => null);
+    if (body?.status === "idle" || body?.error === "telegram_rate_limited") break;
   }
 
   const applicationRequest = new Request("https://housing-runtime.internal/internal/application/process?fresh_only=1", {
@@ -504,7 +508,7 @@ export async function handleAuth(sql, request, env = {}) {
       const email = String(body.email || "").trim().toLowerCase();
       const displayName = String(body.displayName || "").trim().slice(0, 120);
       const password = String(body.password || "");
-      if (!/^\\S+@\\S+\\.\\S+$/.test(email) || !displayName || password.length < 12 || password.length > 512) {
+      if (!/^\S+@\S+\.\S+$/.test(email) || !displayName || password.length < 12 || password.length > 512) {
         return json({ error: "profile_invalid" }, 400);
       }
       stage = "hash_password";

@@ -438,6 +438,15 @@ export async function handleCallback(query, user) {
         await ack();
         return query.message?.chat?.type === "private" ? languageMenu(user, chatId, messageId) : undefined;
     }
+    // Buttons on engagement reminders (engagement-cron.js).
+    if (data.startsWith("engagement:")) {
+        await ack();
+        if (query.message?.chat?.type !== "private" || chatId !== Number(user.telegram_user_id)) return;
+        if (data !== "engagement:stop") return home(user, chatId, messageId);
+        // The send step re-checks this flag, so already queued reminders are cancelled too.
+        await createD1Client(runtimeEnv().HOUSING_DB)`UPDATE participants SET engagement_notifications_enabled = 0 WHERE id = ${user.id}`;
+        return edit(chatId, messageId, "🔕 Du erhältst keine weiteren Erinnerungen.", homeKeyboard(user));
+    }
     if (data.startsWith("reset:admin:")) {
         if (!isAdmin(user) || query.message?.chat?.type !== "private"
             || chatId !== Number(user.telegram_user_id)) return ack();

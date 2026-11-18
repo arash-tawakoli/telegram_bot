@@ -2,8 +2,8 @@ const PROVIDERS = new Set(["immoscout24", "immowelt", "immomio"]);
 import { sendImmoweltApplication } from "./immowelt-application.js";
 import { sendImmoScoutApplication } from "./immoscout-application.js";
 import { sendImmomioApplication } from "./immomio-application.js";
-import { matchesActiveSearch } from "./matching.js";
-import { applicationProvider, applicationSchedule, missingApplicantFields, listingRequiresWbs, timestampMillis } from "./application-policy.js";
+import { listingCategory, matchesActiveSearch } from "./matching.js";
+import { applicationProvider, applicationSchedule, missingApplicantFields, listingRequiresWbs, sqlTime, timestampMillis } from "./application-policy.js";
 import { effectiveApplicationMessages } from "./application-text.js";
 import { sourceForId } from "./source-allowlist.js";
 import { centralCredentialError, getCentralProviderCredentials } from "./central-provider-credentials.js";
@@ -87,7 +87,7 @@ async function claim(sql, freshOnly = false) {
       WHERE a.status = 'pending' AND a.next_attempt_at <= now()
         AND (a.lease_until IS NULL OR a.lease_until < now())
         AND (${!freshOnly} = true OR a.test_mode = true OR (
-          a.created_at >= now() - interval '24 hours'
+          (a.created_at >= now() - interval '24 hours' OR a.wait_reason IS NOT NULL)
           AND oi.expires_at > now()
         ))
       ORDER BY CASE WHEN a.test_mode = true THEN 0 ELSE 1 END, a.created_at
@@ -105,9 +105,7 @@ async function claim(sql, freshOnly = false) {
     try { row.profile = typeof row.profile === "string" ? JSON.parse(row.profile || "{}") : (row.profile || {}); } catch { row.profile = {}; }
     try { row.facts = typeof row.facts === "string" ? JSON.parse(row.facts || "{}") : (row.facts || {}); } catch { row.facts = {}; }
     row.profile = effectiveApplicationMessages(row.profile);
-    const propertyType = String(row.facts.property_type || row.facts.property_kind || row.facts.title || "");
-    const isHouse = /(?:^|\\b)(?:Haus|Einfamilienhaus|Reihenhaus|Doppelhaushälfte)(?:\\b|$)/i.test(propertyType);
-    row.profile.message = isHouse ? row.profile.message_house : row.profile.message_apartment;
+    row.profile.message = listingCategory(row.facts) === "Haus" ? row.profile.message_house : row.profile.message_apartment;
     row.preferences_enabled = enabled(row.preferences_enabled);
     row.provider_enabled = enabled(row.provider_enabled);
     row.test_mode = enabled(row.test_mode);
@@ -132,6 +130,15 @@ export async function processHousingApplication(sql, env, request) {
     await event(sql, application.id, provider, "processor", status, reason, metadata);
     return { status: 200, body: { ok: true, status, provider, reason, application_id: application.id } };
   };
+  // Nothing was submitted yet: put the application back in the queue.
+  const defer = async (reason, nextAttemptAt) => {
+    await sql`
+      UPDATE housing.applications
+      SET status = 'pending', wait_reason = ${reason}, next_attempt_at = ${nextAttemptAt}, lease_until = NULL, updated_at = now()
+      WHERE id = ${application.id} AND status = 'processing'
+    `;
+    return { status: 200, body: { ok: true, status: "deferred", provider, reason, application_id: application.id } };
+  };
   if (!PROVIDERS.has(provider)) return fail("failed", "provider_not_allowlisted");
   if (!application.offer_identity_id || !application.canonical_url) return fail("failed", "listing_expired");
 
@@ -152,7 +159,7 @@ export async function processHousingApplication(sql, env, request) {
     const authorizeTestSend = async () => {
       const reserved = await sql`
         UPDATE housing.applications
-        SET submission_started_at = now(), lease_until = NULL, updated_at = now()
+        SET submission_started_at = now(), updated_at = now()
         WHERE id = ${application.id}
           AND status = 'processing'
           AND test_mode = true
@@ -232,17 +239,7 @@ export async function processHousingApplication(sql, env, request) {
   // Infrastructure can be deployed before operator logins and test submissions.
   // Never send or consume queued normal applications until explicitly enabled.
   if (env.CENTRAL_AUTO_APPLY_ENABLED !== "1") {
-    const nextAttemptAt = new Date(Date.now() + 60 * 60_000).toISOString();
-    await sql`
-      UPDATE housing.applications
-      SET status = 'pending', wait_reason = 'central_auto_apply_paused',
-        next_attempt_at = ${nextAttemptAt}, lease_until = NULL, updated_at = now()
-      WHERE id = ${application.id} AND status = 'processing'
-    `;
-    return { status: 200, body: {
-      ok: true, status: "deferred", provider,
-      reason: "central_auto_apply_paused", application_id: application.id,
-    } };
+    return defer("central_auto_apply_paused", sqlTime(new Date(Date.now() + 60 * 60_000)));
   }
 
   const now = new Date();
@@ -265,14 +262,7 @@ export async function processHousingApplication(sql, env, request) {
     return fail("manual_required", "wbs_required");
   }
   const schedule = applicationSchedule(application, now);
-  if (!schedule.allowed) {
-    await sql`
-      UPDATE housing.applications
-      SET status = 'pending', wait_reason = ${schedule.reason}, next_attempt_at = ${schedule.nextAttemptAt}, lease_until = NULL, updated_at = now()
-      WHERE id = ${application.id} AND status = 'processing'
-    `;
-    return { status: 200, body: { ok: true, status: "deferred", provider, reason: schedule.reason, application_id: application.id } };
-  }
+  if (!schedule.allowed) return defer(schedule.reason, schedule.nextAttemptAt);
   // Provider credentials are resolved centrally; applicants never link accounts.
   // Fail before quota reservation when central authentication is unavailable.
   if (provider === "immowelt" && env.CENTRAL_IMMOWELT_TRANSPORT_VERIFIED !== "1") {
@@ -280,7 +270,13 @@ export async function processHousingApplication(sql, env, request) {
   }
   let central;
   try { central = await getCentralProviderCredentials(sql, env, provider); }
-  catch (error) { return fail("manual_required", centralCredentialError(error)); }
+  catch (error) {
+    const reason = centralCredentialError(error);
+    if (reason === "provider_contract_unverified") console.error("central_credentials_error", String(error?.message || error));
+    // Credentials are resolved before the quota reservation, so a transient outage is safe to retry.
+    if (reason === "temporary_network_error") return defer(reason, sqlTime(new Date(now.getTime() + 15 * 60_000)));
+    return fail("manual_required", reason);
+  }
   if (provider === "immomio"
     && (central.ownerId !== application.participant_id
       || !central.accountHint || String(central.accountHint).trim().toLowerCase()
@@ -299,15 +295,7 @@ export async function processHousingApplication(sql, env, request) {
         AND q.quota_local_date = ${schedule.localDate} AND q.id <> ${application.id}) < ${dailyLimit}
     RETURNING id
   `;
-  if (!reserved.length) {
-    const nextAttemptAt = new Date(now.getTime() + 6 * 60 * 60_000).toISOString();
-    await sql`
-      UPDATE housing.applications
-      SET status = 'pending', wait_reason = 'daily_limit', next_attempt_at = ${nextAttemptAt}, lease_until = NULL, updated_at = now()
-      WHERE id = ${application.id} AND status = 'processing'
-    `;
-    return { status: 200, body: { ok: true, status: "deferred", provider, reason: "daily_limit", application_id: application.id } };
-  }
+  if (!reserved.length) return defer("daily_limit", sqlTime(new Date(now.getTime() + 6 * 60 * 60_000)));
 
   if (provider === "immowelt") {
     let result;

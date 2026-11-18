@@ -29,7 +29,7 @@ export function isHamburgPostcode(value) {
   return /^(?:20\d{3}|21[01]\d{2}|22[0-7]\d{2})$/.test(String(value ?? "").trim());
 }
 
-function listingCategory(facts) {
+export function listingCategory(facts) {
   const label = normalize([facts?.property_type, facts?.property_kind, facts?.offer_mode, facts?.title].filter(Boolean).join(" "));
   if (/\b(verkauf|kaufpreis|zum kauf|mietkauf|erbpacht)\b/.test(label) || /\b(wohnung|apartment|wg[ -]*zimmer|zimmer|haus)\s+gesucht\b/.test(label) || /\b(ich|wir)\s+suche(?:n)?\s+.{0,50}(wohnung|apartment|wg[ -]*zimmer|zimmer|haus)/.test(label)) return null;
   if (/tauschwohnung|wohnungstausch|tauschangebot|\bswap\b/.test(label) && !/(kein(?:e|en)?|ohne)\s+(tauschwohnung|wohnungstausch|tausch)/.test(label)) return "Tauschwohnung";
@@ -220,7 +220,13 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts, 
         : null;
       const legacyImmomioKey = immomioId ? `legacy:immomio:${row.participant_id}:${immomioId}` : null;
       const legacyProviderBlockKey = provider === "immoscout24" ? `legacy:blocked:${provider}:${row.participant_id}` : null;
+      // One Scout expose can arrive through several sources (e.g. Hamburg 1 and Schleswig-Holstein 69).
+      const exposeId = provider === "immoscout24"
+        ? String(facts.canonical_url || "").match(/\/expose\/(\d+)/)?.[1]
+        : null;
+      const exposeKey = exposeId ? `expose:immoscout24:${row.participant_id}:${exposeId}` : null;
       if (!await hasRetainedApplicationKey(sql, applicationKey)
+        && (!exposeKey || !await hasRetainedApplicationKey(sql, exposeKey))
         && (!legacyImmomioKey || !await hasRetainedApplicationKey(sql, legacyImmomioKey))
         && (!legacyProviderBlockKey || !await hasRetainedApplicationKey(sql, legacyProviderBlockKey))) {
         const application = await sql`
@@ -231,7 +237,10 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts, 
           ON CONFLICT (idempotency_key) DO NOTHING
           RETURNING id
         `;
-        if (application.length) await rememberApplicationKey(sql, applicationKey);
+        if (application.length) {
+          await rememberApplicationKey(sql, applicationKey);
+          if (exposeKey) await rememberApplicationKey(sql, exposeKey);
+        }
       }
     }
 
