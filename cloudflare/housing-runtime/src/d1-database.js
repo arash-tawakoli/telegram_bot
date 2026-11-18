@@ -54,6 +54,18 @@ export function createD1Client(db) {
     const rewritten = dollarParams(query, params);
     return execute(rewritten.query, rewritten.values);
   };
+  // D1.batch is a genuine atomic transaction; the legacy sql.begin shim is
+  // not. Use batch for multi-statement writes that must commit together.
+  sql.batch = async (statements) => {
+    if (typeof db.batch !== "function") throw new Error("d1_atomic_batch_unavailable");
+    const prepared = statements.map(({ query, params = [] }) => {
+      const rewritten = dollarParams(sqliteQuery(query), params);
+      const statement = db.prepare(rewritten.query);
+      return rewritten.values.length
+        ? statement.bind(...rewritten.values.map(scalar)) : statement;
+    });
+    return db.batch(prepared);
+  };
   sql.begin = async (callback) => callback(sql);
   sql.end = async () => {};
   sql.array = (values) => values;
