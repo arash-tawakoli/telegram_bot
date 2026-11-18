@@ -1,6 +1,6 @@
 /** Shared listing facts and action links for isolated Telegram Mini App cards. */
 const IMAGE_HOSTS = new Set([
-  "pictures.immobilienscout24.de", "mms.immowelt.de", "s3.eu-central-1.amazonaws.com",
+  "pictures.immobilienscout24.de", "mms.immowelt.de", "s3.eu-central-1.amazonaws.com", "img.kleinanzeigen.de",
 ]);
 
 function escapeHtml(value) {

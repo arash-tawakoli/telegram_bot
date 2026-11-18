@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { scheduledTasksForMinute, sourcesForMinute } from "../src/source-schedule.js";
 
-test("Hamburg, Schleswig-Holstein and Berlin Scout poll every 5 minutes while other sources retain their cadence", () => {
+test("Scout regions and Kleinanzeigen poll every 5 minutes while other sources retain their cadence", () => {
   const runs = new Map();
   const idle = [];
   for (let minute = 0; minute < 40; minute++) {
@@ -11,13 +11,12 @@ test("Hamburg, Schleswig-Holstein and Berlin Scout poll every 5 minutes while ot
       idle.push(minute);
       continue;
     }
-    assert.equal(sources.length, 1);
-    const source = sources[0];
-    runs.set(source, [...(runs.get(source) || []), minute]);
+    assert.equal(sources.length, minute % 5 === 2 ? 2 : 1);
+    for (const source of sources) runs.set(source, [...(runs.get(source) || []), minute]);
   }
-  assert.deepEqual([...runs.keys()].sort((a, b) => a - b), [1, 3, 23, 29, 35, 66, 69, 72]);
+  assert.deepEqual([...runs.keys()].sort((a, b) => a - b), [1, 2, 3, 23, 29, 35, 66, 69, 72]);
   assert.deepEqual(idle, []);
-  const expected = new Map([[1, 5], [3, 10], [23, 10], [29, 10], [35, 20], [66, 20], [69, 5], [72, 5]]);
+  const expected = new Map([[1, 5], [2, 5], [3, 10], [23, 10], [29, 10], [35, 20], [66, 20], [69, 5], [72, 5]]);
   for (const [source, interval] of expected) {
     const minutes = runs.get(source);
     const gaps = minutes.slice(1).map((value, index) => value - minutes[index]);

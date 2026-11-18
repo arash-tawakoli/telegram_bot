@@ -24,7 +24,7 @@ function setup() {
     schleswigHolsteinAreas:[{code:"01002",name:"Kiel"}],
   }));
   // The real search-profile save links every enabled source. Seed the same valid IDs.
-  for (const id of [1, 3, 23, 29, 35, 66, 69, 71]) {
+  for (const id of [1, 2, 3, 23, 29, 35, 66, 69, 71]) {
     sqlite.prepare("INSERT OR IGNORE INTO source_registry(id,name,family,connector) VALUES(?,?,?,?)")
       .run(id, "Testquelle " + id, "immoscout24", "test");
   }
@@ -298,7 +298,7 @@ test("search-profile menu and new-profile flow expose working callbacks in Germa
     await callback("profile:save");
     assert.equal(x.sqlite.prepare("SELECT COUNT(*) n FROM search_profiles WHERE participant_id='owner'").get().n,1);
     const linkedSources=x.sqlite.prepare("SELECT source_id FROM source_links ORDER BY source_id").all().map(row=>row.source_id);
-    assert.deepEqual(linkedSources,[1,3,23,29,35,66,69,71],"new profiles must not include retired cooperative 34");
+    assert.deepEqual(linkedSources,[1,2,3,23,29,35,66,69,71],"new profiles must not include retired cooperative 34");
     const hearts=x.sent.filter(y=>y.method==='sendMessage'&&y.body.message_effect_id);
     assert.equal(hearts.length,1);
     assert.equal(hearts[0].body.message_effect_id,"5159385139981059251");

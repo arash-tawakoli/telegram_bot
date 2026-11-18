@@ -53,7 +53,7 @@ test("shadow retirement preserves idempotency and scheduled lookups use narrow i
     assert.equal(delivery("shadow-sent").offer_identity_id, null);
     assert.equal(db.prepare("SELECT count(*) AS count FROM offer_identities WHERE source_id=71").get().count, 0);
     assert.equal(db.prepare("SELECT count(*) AS count FROM source_registry WHERE id IN (30,32,36,39,71) AND enabled=1").get().count, 0);
-    assert.equal(db.prepare("SELECT count(*) AS count FROM source_registry WHERE enabled=1").get().count, 9);
+    assert.equal(db.prepare("SELECT count(*) AS count FROM source_registry WHERE enabled=1").get().count, 10);
     assert.equal(db.prepare("SELECT count(*) AS count FROM application_dedupe_keys WHERE key_hash=?").get("a".repeat(64)).count, 1);
     assert.equal(db.prepare("SELECT count(*) AS count FROM sqlite_master WHERE type='table' AND name IN ('scout_shadow_scans','scout_shadow_offers')").get().count, 0);
 

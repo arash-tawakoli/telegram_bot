@@ -4,6 +4,7 @@
  */
 export const HOUSING_SOURCES = Object.freeze([
   { id: 1, name: "ImmobilienScout24 Hamburg", family: "immoscout24", connector: "mcp", delivery_mode: "live" },
+  { id: 2, name: "Kleinanzeigen Hamburg", family: "kleinanzeigen", connector: "mcp", delivery_mode: "live" },
   { id: 3, name: "Immowelt Hamburg", family: "immowelt", connector: "html_discovery", delivery_mode: "live" },
   { id: 23, name: "Hamburger Wohnen", family: "immomio", connector: "immomio_tenant", delivery_mode: "live" },
   { id: 29, name: "VHW", family: "immomio", connector: "immomio_tenant", delivery_mode: "live" },
