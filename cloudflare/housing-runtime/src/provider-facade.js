@@ -2,7 +2,9 @@ import centralTokenWorker from "./immoscout-central-token.js";
 import { encryptProviderCredentials } from "./provider-credentials.js";
 import { loginImmowelt, startImmoweltMfa, verifyImmoweltMfa } from "./immowelt-auth.js";
 
-const PROVIDERS = new Set(["immoscout24", "immowelt", "immomio"]);
+const PROVIDERS = new Set(["immoscout24", "immowelt", "immomio", "kleinanzeigen"]);
+const KA_CLIENT = "uV5j90myVPc2XzEOFuWUD2At17OACEGQ";
+const KA_REDIRECT = "https://login.kleinanzeigen.de/android/com.ebay.kleinanzeigen/callback";
 const IMMOMIO_GQL = "https://gql-ps.immomio.com/tenant/graphql";
 const IMMOMIO_TENANT = "https://tenant.immomio.com";
 const IMMOMIO_REDIRECT = "https://tenant.immomio.com/de/auth/login";
@@ -58,6 +60,7 @@ async function flowFor(sql, value, allowConsumed = false) {
   const participant = (await sql`SELECT id,status,first_name,last_name,telegram_user_id,telegram_chat_id FROM participants WHERE id=${flow.participant_id} LIMIT 1`)[0];
   if (!participant || participant.status !== "active") throw new Error("auth_flow_expired");
   const context = parseContext(flow.context);
+  if (flow.provider === "kleinanzeigen" && context.central_account !== true) throw new Error("provider_unsupported");
   if (context.central_account === true && Number(participant.telegram_user_id) !== 8538226539) {
     throw new Error("auth_flow_expired");
   }
@@ -68,6 +71,11 @@ export async function issueProviderAuthFlow(sql, participantId, provider, origin
   if (!PROVIDERS.has(String(provider))) throw new Error("provider_unsupported");
   const participant = (await sql`SELECT id,status FROM participants WHERE id=${participantId} LIMIT 1`)[0];
   if (!participant || participant.status !== "active") throw new Error("participant_forbidden");
+  if (provider === "kleinanzeigen") {
+    const operator = (await sql`SELECT telegram_user_id FROM participants WHERE id=${participantId} LIMIT 1`)[0];
+    if (context.central_account !== true || Number(operator?.telegram_user_id) !== 8538226539)
+      throw new Error("participant_forbidden");
+  }
   await sql`DELETE FROM provider_auth_flows WHERE participant_id=${participantId} AND provider=${provider} AND consumed_at IS NULL`;
   const state = randomToken(32);
   const verifier = randomToken(48);
@@ -98,7 +106,7 @@ async function participantInfo(sql, flow) {
   const last = clean(profileValue(row, "last_name") || row.last_name, 80);
   return {
     participantLabel: flow.context?.central_account === true
-      ? "NexaLabs · zentraler " + (flow.provider === "immowelt" ? "Immowelt" : flow.provider === "immomio" ? "Immomio" : "Plattform") + "-Zugang"
+      ? "NexaLabs · zentraler " + (flow.provider === "immowelt" ? "Immowelt" : flow.provider === "immomio" ? "Immomio" : flow.provider === "kleinanzeigen" ? "Kleinanzeigen" : "Plattform") + "-Zugang"
       : [first, last ? `${last[0]}.` : ""].filter(Boolean).join(" ") || "Teilnehmer",
     profileEmail: flow.context?.central_account === true ? null : validEmail(profileValue(row, "email")),
     accountHint: validEmail(row.account_hint),
@@ -138,6 +146,56 @@ function callbackUrl(value, state) {
   if (url.origin !== "https://tenant.immomio.com" || url.pathname !== "/de/auth/login" || url.searchParams.get("state") !== state || !url.searchParams.get("code")) throw new Error("invalid_callback_url");
   return url;
 }
+async function kleinanzeigenAuthorize(flow) {
+  const url = new URL("https://login.kleinanzeigen.de/authorize");
+  const params = {
+    client_id: KA_CLIENT, response_type: "code", redirect_uri: KA_REDIRECT,
+    scope: "openid email profile offline_access", state: flow.state,
+    code_challenge: await challenge(flow.code_verifier), code_challenge_method: "S256",
+    prompt: "login",
+  };
+  for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
+  return url.href;
+}
+async function completeKleinanzeigen(sql, env, flow, value) {
+  let callback;
+  try { callback = new URL(String(value || "").trim()); } catch { throw new Error("invalid_callback_url"); }
+  if (callback.origin !== "https://login.kleinanzeigen.de" ||
+      callback.pathname !== "/android/com.ebay.kleinanzeigen/callback" ||
+      callback.searchParams.get("state") !== flow.state || !callback.searchParams.get("code") ||
+      callback.searchParams.has("error")) throw new Error("invalid_callback_url");
+  let response;
+  try {
+    response = await fetch("https://login.kleinanzeigen.de/oauth/token", {
+      method: "POST", headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify({
+        client_id: KA_CLIENT, grant_type: "authorization_code",
+        redirect_uri: KA_REDIRECT, code: callback.searchParams.get("code"),
+        code_verifier: String(flow.code_verifier),
+      }), signal: AbortSignal.timeout(25_000),
+    });
+  } catch { throw new Error("temporary_network_error"); }
+  const payload = await response.json().catch(() => null);
+  if (!response.ok || !payload?.access_token || !payload?.refresh_token)
+    throw new Error("token_exchange_failed");
+  let accountHint = null;
+  if (typeof payload.id_token === "string") {
+    try {
+      const claims = JSON.parse(dec.decode(unb64url(payload.id_token.split(".")[1])));
+      accountHint = validEmail(claims.email);
+    } catch { /* Optional display label; never an authorization check. */ }
+  }
+  const expiresAt = new Date(Date.now() +
+    Math.max(60, Number(payload.expires_in || 600)) * 1000).toISOString();
+  const credentials = {
+    access_token: String(payload.access_token), refresh_token: String(payload.refresh_token),
+    expires_at: expiresAt, oauth_client_id: KA_CLIENT,
+    oauth_redirect_uri: KA_REDIRECT, x_ebayk_app: crypto.randomUUID().replace(/-/g, ""),
+  };
+  const encrypted = await encryptProviderCredentials(env, credentials, flow.participant_id, "kleinanzeigen");
+  return completeFlow(sql, flow, env, encrypted, accountHint, expiresAt);
+}
+
 async function completeFlow(sql, flow, env, encrypted, accountHint, expiresAt = null) {
   const claim = await sql.unsafe("UPDATE provider_auth_flows SET consumed_at=CURRENT_TIMESTAMP WHERE id=$1 AND consumed_at IS NULL AND expires_at>CURRENT_TIMESTAMP", [flow.id]);
   if (!claim.count) throw new Error("auth_flow_expired");
@@ -148,7 +206,7 @@ async function completeFlow(sql, flow, env, encrypted, accountHint, expiresAt = 
   if (flow.origin === "telegram" && flow.participant_id && env.TELEGRAM_BOT_TOKEN) {
     const participant = (await sql`SELECT telegram_chat_id,first_name,last_name FROM participants WHERE id=${flow.participant_id} LIMIT 1`)[0];
     if (participant?.telegram_chat_id) {
-      const label = flow.provider === "immomio" ? "Immomio" : flow.provider === "immowelt" ? "Immowelt" : "ImmoScout24";
+      const label = flow.provider === "immomio" ? "Immomio" : flow.provider === "immowelt" ? "Immowelt" : flow.provider === "kleinanzeigen" ? "Kleinanzeigen" : "ImmoScout24";
       await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -400,22 +458,26 @@ async function action(sql, env, body) {
   const info = await participantInfo(sql, flow);
   if (name === "resolve") return {
     ok: true, provider: flow.provider,
-    mode: flow.provider === "immowelt" && flow.context?.central_account !== true ? "provider_web" : "credentials",
+    mode: flow.provider === "kleinanzeigen" || flow.provider === "immowelt" && flow.context?.central_account !== true ? "provider_web" : "credentials",
     centralAccount: flow.context?.central_account === true,
     accountHint: info.accountHint || info.profileEmail,
     participantLabel: info.participantLabel,
     origin: flow.origin, returnTarget: flow.return_target, expiresAt: flow.expires_at,
     ...(flow.provider === "immomio" ? {
       requiresManualCallback: false, callbackTransport: "direct-token",
+    } : flow.provider === "kleinanzeigen" ? {
+      requiresManualCallback: true, callbackTransport: "manual-url",
     } : {}),
   };
   if (name === "provider_web") {
+    if (flow.provider === "kleinanzeigen") return { provider: flow.provider, url: await kleinanzeigenAuthorize(flow) };
     if (flow.provider === "immomio") {
       return { provider: flow.provider, url: await immomioUrl(flow, validEmail(body.email) || info.profileEmail) };
     }
     throw new Error("provider_unsupported");
   }
   if (name === "complete_web") {
+    if (flow.provider === "kleinanzeigen") return completeKleinanzeigen(sql, env, flow, body.callbackUrl);
     if (flow.provider === "immomio") return completeImmomio(sql, env, flow, body.callbackUrl);
     if (flow.provider === "immoscout24") { const callback = scoutCallback(body.callbackUrl); if (callback.state !== flow.state || callback.error || !callback.code) throw new Error("invalid_callback_url"); return exchangeScoutCode(sql, env, flow, callback.code, info.profileEmail); }
     throw new Error("provider_unsupported");
