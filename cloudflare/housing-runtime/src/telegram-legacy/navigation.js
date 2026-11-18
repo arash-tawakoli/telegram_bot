@@ -52,7 +52,7 @@ export function homeKeyboard(user) {
     [{ text: "📱 Wohnungs-App öffnen", web_app: { url: MINIAPP_URL } }],
     [button("🔎 Suchprofil", "profile")],
     [button("👤 Bewerberprofil", "platforms:profile-new")],
-    [button(user.is_premium ? "⚡ Auto-Bewerbung" : "🔒 Auto-Bewerbung", "platforms")],
+    [button("⚡ Auto-Bewerbung", "platforms")],
 
   ] };
 }
