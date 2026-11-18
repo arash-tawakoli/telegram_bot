@@ -62,16 +62,18 @@ export function matchesProfile(criteria, facts, sourceId, areas = []) {
   if (minArea > 0 && area > 0 && area < minArea) return false;
 
   const city = normalize(facts?.city), state = String(facts?.state_code || "").toUpperCase();
-  // Provider labels such as "Lübeck / Travemünde" refer to the same
-  // municipality as "Lübeck" in the existing SH geography snapshot.
-  const mainCity = city.split(/\s*\/\s*/)[0];
-  const matchingAreas = city ? areas.filter(x => ["municipality", "independent_city"].includes(x.area_type)
-    && [city, mainCity].includes(normalize(x.name))) : [];
+  const mode = criteria.location_mode;
   const isHamburg = state === "HH" || (!state && (city === "hamburg" || city.startsWith("hamburg-") || city.startsWith("hamburg,") || city.startsWith("hamburg ") || city.endsWith(", hamburg") || isHamburgPostcode(facts?.postal_code) || (!city && [1, 3, 23, 29, 35, 66].includes(Number(sourceId)))));
-  const isSchleswigHolstein = state === "SH" || (!state && !isHamburg && (matchingAreas.length > 0 || (!city && [69, 71].includes(Number(sourceId)))));
   const isBerlin = state === "BE" || (!state && (
     /^berlin(?:$|[\s,/-])/.test(city) || (!city && Number(sourceId) === 72)));
-  const mode = criteria.location_mode;
+  // Only SH profiles need the 1,120-place geography lookup. The many
+  // Hamburg profiles linked to this source must not scan it per offer.
+  const needsShAreas = mode === "all_schleswig_holstein" || mode === "schleswig_holstein_areas";
+  // "Lübeck / Travemünde" matches the municipality "Lübeck".
+  const mainCity = city.split(/\s*\/\s*/)[0];
+  const matchingAreas = needsShAreas && city ? areas.filter(x => ["municipality", "independent_city"].includes(x.area_type)
+    && [city, mainCity].includes(normalize(x.name))) : [];
+  const isSchleswigHolstein = needsShAreas && (state === "SH" || (!state && !isHamburg && (matchingAreas.length > 0 || (!city && [69, 71].includes(Number(sourceId))))));
   if (mode === "all_berlin") return isBerlin;
   if (mode === "berlin_boroughs" || mode === "berlin_localities") {
     if (!isBerlin) return false;
