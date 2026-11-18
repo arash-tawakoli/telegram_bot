@@ -177,6 +177,43 @@ function safeValidationDetail(messages) {
   return {};
 }
 
+// Plus is never inferred from an HTTP 412. Only an explicit membership flag
+// or the listing's own public exclusivity marker can identify a Plus listing.
+const PLUS_REQUIRED_FLAGS = Object.freeze([
+  "requiresSuchenPlus", "suchenPlusRequired", "isPlusExclusive", "plusExclusive",
+]);
+function explicitlyPlusOnly(record) {
+  return Boolean(record && typeof record === "object" &&
+    PLUS_REQUIRED_FLAGS.some(key => record[key] === true || record[key] === "true"));
+}
+
+async function publicExclusiveExpose(id) {
+  try {
+    const response = await fetch(`https://www.immobilienscout24.de/expose/${encodeURIComponent(id)}`, {
+      headers: { accept: "text/html" }, signal: AbortSignal.timeout(4_000),
+    });
+    if (!response.ok || !/^text\/html/i.test(response.headers.get("content-type") || "")) return null;
+    // No applicant data or credentials are sent to the public listing page.
+    const html = (await response.text()).slice(0, 500_000);
+    const scoutId = /"obj_scoutId"\s*:\s*"(\d{6,20})"/i.exec(html)?.[1];
+    if (scoutId !== id) return null;
+    const match = /"obj_ExclusiveExpose"\s*:\s*"(true|false)"/i.exec(html);
+    return match ? match[1].toLowerCase() === "true" : null;
+  } catch { return null; }
+}
+
+// Persist only approved field names and primitive types. Never store submitted
+// applicant values, raw provider messages or arbitrary form extensions.
+function contactFormSignature(config, form) {
+  const required = CONTACT_SCHEMA_ORDER.filter(key => {
+    const raw = config?.[key + "Field"];
+    return String(raw?.required || raw?.state || raw).toUpperCase() === "MANDATORY";
+  });
+  const submitted = CONTACT_SCHEMA_ORDER.filter(key => Object.prototype.hasOwnProperty.call(form, key))
+    .map(key => key + ":" + (form[key] == null ? "null" : Array.isArray(form[key]) ? "array" : typeof form[key]));
+  return { provider_form_required: required.join(","), provider_form_sent_types: submitted.join(",") };
+}
+
 export async function sendImmoScoutApplication(application, env, sql, central = null) {
   const profile = application.profile || {};
   const id = String(application.external_id || "").match(/\d{6,20}/)?.[0] || String(application.canonical_url || "").match(/\/expose\/(\d{6,20})/)?.[1];
@@ -191,16 +228,26 @@ export async function sendImmoScoutApplication(application, env, sql, central = 
   const expose = detail?.["expose.expose"] || detail?.expose || detail;
   const contactFormType = String(expose?.["@contactFormType"] || "").toUpperCase();
   if (contactFormType === "NONE") return { status: "manual_required", error: "provider_contact_disabled" };
+  if (explicitlyPlusOnly(expose) || explicitlyPlusOnly(application.facts)) {
+    return { status: "manual_required", error: "plus_subscription_required", provider_plus_exclusive: true };
+  }
   const baseMessage = value(profile, "message", "message_apartment", "message_house") || "Anfrage zur Immobilie";
   const packageUrl = String(application.document_package_url || "");
   const suffix = packageUrl ? `\n\nBewerbungsunterlagen (geschützter Link): ${packageUrl}` : "";
   const message = suffix && baseMessage.length + suffix.length <= 4000 ? baseMessage + suffix : baseMessage;
-  const prepared = prepare(expose?.contactFormConfiguration || {}, profile, message, packageUrl);
+  const formConfig = expose?.contactFormConfiguration || {};
+  const prepared = prepare(formConfig, profile, message, packageUrl);
   if (prepared.missing.length) return { status: "manual_required", error: `required_profile_data_missing:${prepared.missing.join(",")}` };
   if (testMode) {
     if (typeof application.authorizeTestSend !== "function") return { status: "manual_required", error: "test_send_authorization_missing" };
     const authorized = await application.authorizeTestSend();
     if (!authorized) return { status: "manual_required", error: "test_send_not_authorized" };
+  }
+  // Verify current paid exclusivity before contacting the landlord. A missing
+  // or inaccessible public marker is unknown, never automatically Plus-only.
+  const publicExclusive = await publicExclusiveExpose(id);
+  if (publicExclusive === true) {
+    return { status: "manual_required", error: "plus_subscription_required", provider_plus_exclusive: true };
   }
   const response = await fetch(`https://rest.immobilienscout24.de/restapi/api/search/v1.0/expose/${encodeURIComponent(id)}/contact`, {
     method: "POST",
@@ -232,8 +279,12 @@ export async function sendImmoScoutApplication(application, env, sql, central = 
     machineCode = /<messageCode>([A-Z][A-Z0-9_]{1,79})<\/messageCode>/i.exec(body)?.[1] || null;
     validation = safeValidationDetail([...body.matchAll(/<message>([^<]{1,2000})<\/message>/g)].map(match => match[1]));
   }
+  // The provider's 412 validation code never establishes Plus-only access.
   const diagnostics = { provider_http_status: response.status,
-    ...(machineCode ? { provider_message_code: machineCode } : {}), ...validation };
+    ...(machineCode ? { provider_message_code: machineCode } : {}), ...validation,
+    ...(publicExclusive !== null ? { provider_plus_exclusive: publicExclusive } : {}),
+    ...(response.status === 412 ? contactFormSignature(formConfig, prepared.form) : {}),
+  };
   if (response.ok && !/^ERROR_/i.test(machineCode || "")) {
     return { status: "sent", confirmation: "official_rest_2xx", ...diagnostics };
   }
