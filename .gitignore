@@ -9,3 +9,6 @@ supabase/.temp/
 
 
 node_modules/
+
+# graphify knowledge graph (rebuild locally: graphify update .)
+graphify-out/
