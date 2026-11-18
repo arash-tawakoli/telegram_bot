@@ -178,7 +178,7 @@ const TOKEN_SOURCES = {
   immoscout24: {name:"ImmoScout24",icon:"🏢"},
   immowelt: {name:"Immowelt",icon:"🌐"},
   immomio: {name:"Immomio",icon:"🏠"},
-  // Kleinanzeigen search uses the public MCP; account OAuth is not supported.
+  // Search runs without login; the operator can additionally connect a central account.
   kleinanzeigen: {name:"Kleinanzeigen",icon:"🛒",searchOnly:true}
 };
 const TOKEN_SOURCE_NAMES = Object.keys(TOKEN_SOURCES);
@@ -229,7 +229,11 @@ async function showTokenSource(user,chatId,messageId,provider){
     +"Letzter Suchlauf: "+esc(tokenDate(item.last_success_at))+"\n"
     +"Neue Angebote (24 Std.): "+esc(String(item.offers_24h??0))+"\n"
     +(item.consecutive_failures?"Fehlgeschlagene Läufe in Folge: "+esc(String(item.consecutive_failures))+"\n":"")
-    +"\n\nDie Suche läuft ohne Anmeldung über das öffentliche MCP. Eine zentrale Konto-Anmeldung wird derzeit nicht unterstützt; die frühere Android-Rückleitung funktioniert auf iOS nicht. Automatische Bewerbungen sind für Kleinanzeigen deaktiviert.",[
+    +"\nZentrales Konto: "+esc(item.account_status==="connected"?"verbunden":item.account_status==="needs_login"?"erneut anmelden":"nicht verbunden")
+    +"\nKonto: "+esc(item.account_hint||"—")
+    +"\nToken gültig bis: "+esc(tokenDate(item.expires_at))
+    +"\n\nDie Suche funktioniert ohne Anmeldung. Der automatische Bewerbungsversand für Kleinanzeigen ist noch deaktiviert.",[
+      [button(item.account_status==="connected"?"🔐 Erneut anmelden":"🔐 Konto verbinden","token:login:"+provider)],
       [button("🔄 Jetzt suchen","token:refresh:"+provider)],
       [button("↻ Status aktualisieren","token:source:"+provider)],
       [button("← Alle Quellen","token")]
@@ -249,7 +253,7 @@ async function showTokenSource(user,chatId,messageId,provider){
   return tokenPage(chatId,messageId,text,rows);
 }
 async function startTokenLogin(user,chatId,messageId,provider) {
-  if(!Object.hasOwn(TOKEN_SOURCES,provider)||TOKEN_SOURCES[provider].searchOnly)return showTokenSources(user,chatId,messageId);
+  if(!Object.hasOwn(TOKEN_SOURCES,provider))return showTokenSources(user,chatId,messageId);
   const flow=await withAdminTokenDatabase((sql,env)=>adminTokenStart(sql,env,null,provider,"telegram"));
   const target=new URL(String(flow.url||""));
   if(target.protocol!=="https:"||target.hostname!=="login.traumwohnunghamburg.de")
