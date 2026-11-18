@@ -1,5 +1,6 @@
 import { listingImageUrl } from "./telegram-listing-preview.js";
 import { missingApplicantFields, premiumParticipant } from "./application-policy.js";
+import { whatsAppStatus, startWhatsAppLink, stopWhatsApp } from "./whatsapp.js";
 
 const MAX_AUTH_AGE_SECONDS = 86_400;
 const UUID = /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i;
@@ -128,7 +129,7 @@ export async function verifyMiniAppInitData(raw, botToken, now = Date.now()) {
   } catch { return null; }
 }
 
-async function bootstrap(sql, participant) {
+async function bootstrap(sql, participant, env) {
   const id = participant.id;
   const [offers, saved, searches, apps, profiles, prefs] = await Promise.all([
     sql.unsafe("SELECT oi.id AS offer_id, oi.facts, oi.canonical_url, s.name AS source_name, d.sent_at, EXISTS (SELECT 1 FROM saved_offers sv WHERE sv.participant_id=d.participant_id AND sv.offer_identity_id=oi.id) AS saved FROM deliveries d JOIN offer_identities oi ON oi.id=d.offer_identity_id JOIN source_registry s ON s.id=oi.source_id WHERE d.participant_id=$1 AND d.status='sent' ORDER BY d.sent_at DESC LIMIT 60", [id]),
@@ -144,6 +145,7 @@ async function bootstrap(sql, participant) {
   const preferences = prefs[0] || {};
   return respond({
     ok: true,
+    whatsapp: await whatsAppStatus(sql, id, env),
     participant: { firstName: String(participant.first_name || "").slice(0, 80) },
     offers: offers.map(rowOffer), saved: saved.map(rowOffer),
     searches: searches.map(rowSearch), applications: apps.map(rowApplication),
@@ -241,7 +243,9 @@ export async function miniAppApi(request, env, sql) {
   const rows = await sql.unsafe("SELECT id,first_name FROM participants WHERE telegram_user_id=$1 AND status='active' LIMIT 1", [auth.userId]);
   const participant = rows[0];
   if (!participant) return respond({ error: "participant_not_found" }, 403);
-  if (body.action === "bootstrap") return bootstrap(sql, participant);
+  if (body.action === "bootstrap") return bootstrap(sql, participant, env);
+  if (body.action === "whatsapp:connect") return respond(await startWhatsAppLink(sql, participant.id, env));
+  if (body.action === "whatsapp:disconnect") return respond(await stopWhatsApp(sql, participant.id));
   if (body.action === "saved:update") return updateSaved(sql, participant.id, body);
   if (body.action === "search:toggle" || body.action === "search:update") return updateSearch(sql, participant.id, body);
   if (body.action === "profile:update") return updateProfile(sql, participant.id, body);

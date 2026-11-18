@@ -10,6 +10,7 @@ import { deliveryCutoverLedger, reconcileCloudflareDeliveries } from "./delivery
 import { resolveListingImage } from "./telegram-listing-preview.js";
 import { listingMessageRequest, sendListingMessage, listingMiniAppResponse } from "./listing-miniapp.js";
 import { miniAppApi } from "./miniapp-api.js";
+import { wahaWebhook, processWhatsAppDelivery } from "./whatsapp.js";
 import { miniAppPage, miniAppStyle, miniAppScript } from "./miniapp-ui.js";
 import { createSession, hashPassword, refreshSession, revokeSession, sha256, verifyPassword } from "./auth.js";
 import { handleCoach } from "./coach-api.js";
@@ -447,6 +448,17 @@ async function runScheduledHousingWork(env, minute = Math.floor(Date.now() / 60_
   } catch (error) {
     console.error("housing_application_scheduled_failed", String(error?.message || error));
   }
+  if (env.WAHA_ENABLED === "1") {
+    for (let index = 0; index < 5; index++) {
+      try {
+        const result = await withDatabase(env, sql => processWhatsAppDelivery(sql, env));
+        if (["idle", "disabled", "busy"].includes(result.status)) break;
+      } catch (error) {
+        console.error("whatsapp_delivery_failed", String(error?.message || error).slice(0, 90));
+        break;
+      }
+    }
+  }
   // Expired normal deliveries were not eligible for the 15-minute send
   // window. Close them instead of leaving an unprocessable pending backlog.
   if (minute % 10 === 0) {
@@ -616,6 +628,15 @@ export default {
     }
 
     if (routePath === "/stripe/webhook") return handleStripeWebhook(request, env);
+
+    if (routePath === "/whatsapp/webhook") {
+      if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405);
+      try { return await withDatabase(env, sql => wahaWebhook(sql, env, request)); }
+      catch (error) {
+        console.error("whatsapp_webhook_failed", String(error?.message || error).slice(0, 90));
+        return json({ error: "whatsapp_webhook_unavailable" }, 503);
+      }
+    }
 
     if (routePath === "/internal/delivery-cutover-ledger" && request.method === "POST") {
       const secret = String(env.DELIVERY_CUTOVER_SECRET || "");
