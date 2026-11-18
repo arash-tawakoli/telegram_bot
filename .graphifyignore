@@ -1,0 +1,7 @@
+# Agent tooling, not project code
+.claude/
+# Supabase is not used
+supabase/
+# Generated audit evidence
+docs/runtime-snapshot-*/
+docs/migration-registry.d/
