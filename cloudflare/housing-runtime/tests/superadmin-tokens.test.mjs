@@ -12,7 +12,7 @@ function setup(role="super_admin"){
   queries.push(query);
   if(query.includes("FROM housing.portal_sessions s"))return [{id:"member",role,active:true,display_name:"Test"}];
   if(query.includes("FROM housing.participants WHERE telegram_user_id"))return [{id:OWNER_ID}];
-  if(query.includes("SELECT id,status FROM participants WHERE id="))return [{id:OWNER_ID,status:"active"}];
+  if(query.includes("FROM participants WHERE id="))return [{id:OWNER_ID,status:"active",telegram_user_id:8538226539}];
   if(query.includes("FROM housing.provider_connections"))return [
    {provider:"immowelt",status:"connected",account_hint:"account@example.test",expires_at:null},
    {provider:"immomio",status:"needs_login",account_hint:null,expires_at:null}
@@ -70,12 +70,13 @@ test("Super Admin sees only existing credential metadata, never token secrets",a
  assert.equal(rows.immomio.scope,"central");
  assert.equal(rows.kleinanzeigen.scope,"search");
  assert.equal(rows.kleinanzeigen.status,"disconnected");
+ assert.equal(rows.kleinanzeigen.account_status,"disconnected");
  assert.doesNotMatch(JSON.stringify(rows),/access_token|refresh_token|ciphertext|test-internal-secret/);
 });
 
 test("login buttons reuse existing one-time central and provider connection flows",async()=>{
  const x=setup();
- for(const provider of ["immoscout24","immowelt","immomio"]){
+ for(const provider of ["immoscout24","immowelt","immomio","kleinanzeigen"]){
   const response=await handleCoach(x.sql,x.request("admin_token_start",{provider}),x.env);
   assert.equal(response.provider,provider);
   assert.ok(response.url.startsWith(origin),provider);
@@ -83,6 +84,5 @@ test("login buttons reuse existing one-time central and provider connection flow
   assert.equal(response.scope,"central");
  }
  assert.equal(x.flowInsertions.length,1,"Only ImmoScout uses the existing central OAuth flow");
- assert.equal(x.queries.filter(q=>q.includes("INSERT INTO provider_auth_flows")).length,2);
- await assert.rejects(handleCoach(x.sql,x.request("admin_token_start",{provider:"kleinanzeigen"}),x.env),/provider_not_allowlisted/);
+ assert.equal(x.queries.filter(q=>q.includes("INSERT INTO provider_auth_flows")).length,3);
 });
