@@ -554,7 +554,9 @@ export async function runInternalMcpParityAudit(handler, env, now = Date.now()) 
       const response = await handler.fetch(request, env, {});
       const report = await response.json().catch(() => ({}));
       const comparison = report.comparison || {};
-      console.log("housing_mcp_parity_live_audit", JSON.stringify({
+      const auditSummary = {
+        checked_at: new Date().toISOString(),
+
         source_id: sourceId, http_status: response.status,
         endpoint: report.mcp_contract?.endpoint || null,
         protocol: report.mcp_contract?.protocol || null,
@@ -572,7 +574,14 @@ export async function runInternalMcpParityAudit(handler, env, now = Date.now()) 
         same_ids: comparison.same_ids ?? null,
         map_error: report.map_error || null,
         error: report.error || null,
-      }));
+      };
+      console.log("housing_mcp_parity_live_audit", JSON.stringify(auditSummary));
+      if (sourceId === 1 && env.DOCUMENTS) {
+        // Temporary, read-only MCP parity result. No identities, credentials,
+        // participants, applications, or listings are written to the database.
+        await env.DOCUMENTS.put("_diagnostics/mcp-hamburg-parity-20261118.json",
+          JSON.stringify(auditSummary), { httpMetadata: { contentType: "application/json" } });
+      }
     } catch (error) {
       console.error("housing_mcp_parity_live_audit_failed", JSON.stringify({
         source_id: sourceId, error: String(error?.message || error).slice(0, 160),
