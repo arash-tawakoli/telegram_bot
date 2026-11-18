@@ -64,7 +64,7 @@ export async function listingMiniAppResponse(sql, id) {
     '<script nonce="' + nonce + '">' + APP_JS + '</script></body></html>',
   ].join("");
   const csp = "default-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'; frame-ancestors 'none'; " +
-    "img-src https://pictures.immobilienscout24.de https://mms.immowelt.de https://s3.eu-central-1.amazonaws.com; " +
+    "img-src https://pictures.immobilienscout24.de https://mms.immowelt.de https://s3.eu-central-1.amazonaws.com https://img.kleinanzeigen.de; " +
     "style-src 'nonce-" + nonce + "'; script-src 'nonce-" + nonce + "' https://telegram.org";
   return new Response(page, { status: 200, headers: { "content-type": "text/html; charset=utf-8",
     "cache-control": "no-store", "referrer-policy": "no-referrer", "x-robots-tag": "noindex, nofollow",

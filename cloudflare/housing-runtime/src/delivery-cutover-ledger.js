@@ -21,6 +21,9 @@ export function listingIdentity(value) {
   } else if (host === "immowelt.de") {
     match = url.pathname.match(/^\/expose\/([a-z0-9_-]+)\/?$/i);
     if (match) return `immowelt:${match[1]}`;
+  } else if (host === "kleinanzeigen.de") {
+    match = url.pathname.match(/^\/s-anzeige\/[a-z0-9_-]+\/([0-9]{5,15})\/?$/i);
+    if (match) return `kleinanzeigen:${match[1]}`;
   } else if (host === "tenant.immomio.com") {
     match = url.pathname.match(/^\/(?:de\/)?apply\/([0-9a-f-]{36})\/?$/i);
     if (match && UUID.test(match[1])) return `immomio:${match[1].toLowerCase()}`;

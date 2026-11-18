@@ -4,6 +4,7 @@ import { HOUSING_SOURCES } from "./source-allowlist.js";
 import { sourceForId } from "./source-allowlist.js";
 import { ingestImmomioSource } from "./immomio-source.js";
 import { ingestImmoweltSource } from "./immowelt-source.js";
+import { ingestKleinanzeigenSource } from "./kleinanzeigen-source.js";
 import { ingestImmoScoutSource, fetchImmoScoutSource, IMMOSCOUT_MCP_CONTRACT } from "./immoscout-source.js";
 import { runBerlinCoverage } from "./berlin-coverage.js";
 import { deliveryCutoverLedger, reconcileCloudflareDeliveries } from "./delivery-cutover-ledger.js";
@@ -187,7 +188,7 @@ async function runSource(sql, request, env) {
   const body = await request.json().catch(() => ({}));
   const source = sourceForId(body.source_id);
   if (!source) return json({ error: "source_not_allowlisted" }, 422);
-  if (!['immomio', 'immowelt', 'immoscout24'].includes(source.family)) return json({ error: "source_adapter_not_ported", source: source.family }, 409);
+  if (!['immomio', 'immowelt', 'immoscout24', 'kleinanzeigen'].includes(source.family)) return json({ error: "source_adapter_not_ported", source: source.family }, 409);
   const rows = await sql`SELECT id, name, connector_config FROM housing.source_registry WHERE id = ${source.id} AND enabled = true`;
   if (!rows[0]) return json({ error: "source_not_configured" }, 404);
   const rawConnectorConfig = rows[0].connector_config || {};
@@ -206,7 +207,9 @@ async function runSource(sql, request, env) {
       ? await ingestImmomioSource(sql, sourceRow, connectorConfig)
       : source.family === "immowelt"
         ? await ingestImmoweltSource(sql, sourceRow, connectorConfig)
-        : await ingestImmoScoutSource(sql, sourceRow, connectorConfig);
+        : source.family === "kleinanzeigen"
+          ? await ingestKleinanzeigenSource(sql, sourceRow, connectorConfig)
+          : await ingestImmoScoutSource(sql, sourceRow, connectorConfig);
   } catch (error) {
     await sql`UPDATE housing.source_registry SET consecutive_failures = COALESCE(consecutive_failures, 0) + 1 WHERE id = ${source.id}`
       .catch(updateError => console.error("housing_source_failure_record_failed", String(updateError?.message || updateError)));
@@ -426,7 +429,7 @@ async function runScheduledHousingWork(env, minute = Math.floor(Date.now() / 60_
       console.error("housing_source_scheduled_failed", JSON.stringify({ source_id: sourceId, error: String(error?.message || error) }));
     }
   };
-  if (scheduledSources[0] !== undefined) await runScheduledSource(scheduledSources[0]);
+  for (const sourceId of scheduledSources) await runScheduledSource(sourceId);
 
   for (let index = 0; index < 15; index++) {
     const deliveryRequest = new Request("https://housing-runtime.internal/internal/delivery/process", {

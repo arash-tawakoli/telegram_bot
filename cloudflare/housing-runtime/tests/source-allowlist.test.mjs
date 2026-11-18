@@ -9,13 +9,13 @@ import {
 } from "../src/source-allowlist.js";
 
 test("allowlist contains only the verified housing source families", () => {
-  assert.equal(HOUSING_SOURCES.length, 8);
+  assert.equal(HOUSING_SOURCES.length, 9);
   assert.equal(sourceForId(72)?.name, "ImmobilienScout24 Berlin");
   assert.deepEqual(
     [...new Set(HOUSING_SOURCES.map((source) => source.family))].sort(),
-    ["immomio", "immoscout24", "immowelt"],
+    ["immomio", "immoscout24", "immowelt", "kleinanzeigen"],
   );
-  assert.equal(sourceForId(2), null);
+  assert.equal(sourceForId(2)?.name, "Kleinanzeigen Hamburg");
   for (const id of [30, 32, 34, 36, 39, 71]) assert.equal(sourceForId(id), null);
   assert.deepEqual(HOUSING_SOURCES.filter(s => s.family === 'immomio').map(s => s.id), [23, 29, 35, 66]);
 });

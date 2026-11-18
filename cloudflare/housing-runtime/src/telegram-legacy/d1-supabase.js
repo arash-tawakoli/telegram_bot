@@ -39,7 +39,7 @@ const ALIASES = {
   user_engagement_notifications: { user_id: "participant_id" },
 };
 
-const ALLOWLIST = [1, 3, 23, 29, 35, 66, 69, 71, 72];
+const ALLOWLIST = [1, 2, 3, 23, 29, 35, 66, 69, 71, 72];
 
 function json(value, fallback = {}) {
   if (value == null || value === "") return fallback;
