@@ -130,4 +130,15 @@ test("ingest stores offers through the D1 client and recognizes them on the next
   const second = await ingestKleinanzeigenSource(sql, { id: 2 }, {}, mcp);
   assert.equal(second.previously_known_in_response, 1);
   assert.equal(sqlite.prepare("SELECT COUNT(*) n FROM offer_identities").get().n, 1);
+
+  // The /token "Jetzt suchen" button and its status use the same bookkeeping as the cron.
+  const { runKleinanzeigenNow, kleinanzeigenStatus } = await import("../src/kleinanzeigen-source.js");
+  assert.equal((await kleinanzeigenStatus(sql)).status, "pending");
+  await runKleinanzeigenNow(sql, {}, mcp);
+  const ok = await kleinanzeigenStatus(sql);
+  assert.equal(ok.status, "connected");
+  assert.equal(ok.offers_24h, 1);
+  await assert.rejects(runKleinanzeigenNow(sql, {}, async () => new Response("down", { status: 503 })), /kleinanzeigen_http_503/);
+  const broken = await kleinanzeigenStatus(sql);
+  assert.deepEqual([broken.status, broken.consecutive_failures], ["error", 1]);
 });
