@@ -185,9 +185,10 @@ test("test application sends through the central credential without requiring a 
     }));
     assert.equal(result.body.status, "sent");
     assert.equal(result.body.test_mode, true);
-    assert.equal(requests.length, 2);
+    assert.equal(requests.length, 3);
     assert.match(requests[0].url, /\/expose\/123456789$/);
-    assert.match(requests[1].url, /\/expose\/123456789\/contact$/);
+    assert.match(requests[1].url, /^https:\/\/www\.immobilienscout24\.de\/expose\/123456789$/);
+    assert.match(requests[2].url, /\/expose\/123456789\/contact$/);
     assert.ok(db.writes.some(({ text }) => /submission_started_at = now\(\)/i.test(text)));
     assert.equal(db.writes.some(({ text }) => /UPDATE housing\\.provider_connections/i.test(text)), false);
   } finally {
@@ -244,8 +245,9 @@ test("owner test applications continue working when central credentials support 
     }));
     assert.equal(result.body.status, "sent");
     assert.equal(result.body.test_mode, true);
-    assert.equal(requests.length, 2);
-    assert.match(requests[1].url, /\/contact$/);
+    assert.equal(requests.length, 3);
+    assert.match(requests[1].url, /^https:\/\/www\.immobilienscout24\.de\/expose\/123456789$/);
+    assert.match(requests[2].url, /\/contact$/);
   } finally {
     globalThis.fetch = originalFetch;
   }
