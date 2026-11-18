@@ -156,3 +156,31 @@ export async function ingestKleinanzeigenSource(sql, source, config = {}, fetchI
   for (const { outcome } of result.outcomes) if (outcome !== "stored") skippedBy[outcome] = (skippedBy[outcome] || 0) + 1;
   return { fetched: result.fetched, valid: result.nodes.length, inserted, skipped: skippedBy, previously_known_in_response: known };
 }
+
+// Search-only status for /token and the portal: there is no login or token,
+// so "connected" means the scheduled search runs and succeeds.
+export async function kleinanzeigenStatus(sql) {
+  const row = (await sql`
+    SELECT r.enabled, r.last_success_at, r.consecutive_failures,
+      (SELECT count(*) FROM housing.offer_identities o WHERE o.source_id = r.id AND o.first_seen_at > datetime('now','-1 day')) AS offers_24h
+    FROM housing.source_registry r WHERE r.id = 2
+  `)[0];
+  if (!row) return { scope: "search", status: "disconnected", enabled: false };
+  const failures = Number(row.consecutive_failures || 0);
+  const status = Number(row.enabled) !== 1 ? "disconnected" : failures > 0 ? "error" : row.last_success_at ? "connected" : "pending";
+  return { scope: "search", status, enabled: Number(row.enabled) === 1, last_success_at: row.last_success_at || null, consecutive_failures: failures, offers_24h: Number(row.offers_24h || 0) };
+}
+
+// Same bookkeeping as the scheduled run in index.js runSource.
+export async function runKleinanzeigenNow(sql, env, fetchImpl = fetch) {
+  const row = (await sql`SELECT id, name, connector_config FROM housing.source_registry WHERE id = 2 AND enabled = true`)[0];
+  if (!row) throw new Error("source_not_configured");
+  try {
+    const result = await ingestKleinanzeigenSource(sql, { ...row, id: 2, family: "kleinanzeigen", central_auto_apply_enabled: env?.CENTRAL_AUTO_APPLY_ENABLED === "1" }, {}, fetchImpl);
+    await sql`UPDATE housing.source_registry SET last_success_at = now(), consecutive_failures = 0 WHERE id = 2`;
+    return result;
+  } catch (error) {
+    await sql`UPDATE housing.source_registry SET consecutive_failures = COALESCE(consecutive_failures, 0) + 1 WHERE id = 2`.catch(() => {});
+    throw error;
+  }
+}

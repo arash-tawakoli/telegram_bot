@@ -68,6 +68,8 @@ test("Super Admin sees only existing credential metadata, never token secrets",a
  assert.equal(rows.immowelt.status,"connected");
  assert.equal(rows.immomio.status,"needs_login");
  assert.equal(rows.immomio.scope,"central");
+ assert.equal(rows.kleinanzeigen.scope,"search");
+ assert.equal(rows.kleinanzeigen.status,"disconnected");
  assert.doesNotMatch(JSON.stringify(rows),/access_token|refresh_token|ciphertext|test-internal-secret/);
 });
 

@@ -8,6 +8,7 @@ import { getCentralProviderCredentials } from "./central-provider-credentials.js
 import { configureLegacyRuntime } from "./telegram-legacy/runtime.js";
 import { deleteUser } from "./telegram-legacy/admin.js";
 import { createTelegramLink } from "./telegram-link.js";
+import { kleinanzeigenStatus } from "./kleinanzeigen-source.js";
 
 const HEADERS = {
   "content-type": "application/json; charset=utf-8",
@@ -445,9 +446,10 @@ async function ownerParticipant(sql) {
 }
 
 export async function adminTokenStatus(sql, env) {
-  const [scout, ownerId] = await Promise.all([
+  const [scout, ownerId, kleinanzeigen] = await Promise.all([
     centralCall(env, "/internal/status", {}, "GET"),
     ownerParticipant(sql),
+    kleinanzeigenStatus(sql),
   ]);
   let rows = ownerId ? await sql`
     SELECT provider, status, account_hint, expires_at, updated_at
@@ -476,6 +478,7 @@ export async function adminTokenStatus(sql, env) {
       const status = expired ? "needs_login" : (row.status || "disconnected");
       return [name, { scope: "central", configured: status === "connected", status, account_hint: row.account_hint || null, expires_at: row.expires_at || null }];
     })),
+    kleinanzeigen,
   };
 }
 

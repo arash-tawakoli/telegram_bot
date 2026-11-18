@@ -837,9 +837,10 @@ test("/token shares the portal's three provider connections and securely reuses 
   const chat={id:adminId,type:"private"};
   await handleMessage({chat,text:"/token"},user);
   let buttons=lastMessage(x).reply_markup.inline_keyboard.flat();
-  assert.deepEqual(buttons.slice(0,3).map(b=>b.callback_data),[
-   "token:source:immoscout24","token:source:immowelt","token:source:immomio"
+  assert.deepEqual(buttons.slice(0,4).map(b=>b.callback_data),[
+   "token:source:immoscout24","token:source:immowelt","token:source:immomio","token:source:kleinanzeigen"
   ]);
+  assert.match(buttons[3].text,/Kleinanzeigen · 🟡 Erster Suchlauf ausstehend/);
   assert.match(buttons[1].text,/Verbunden/);
   assert.match(buttons[2].text,/Erneut anmelden/);
   assert.doesNotMatch(lastMessage(x).text,/refresh_token|access_token|ciphertext/i);
@@ -866,6 +867,14 @@ test("/token shares the portal's three provider connections and securely reuses 
   assert.match(lastMessage(x).text,/immomio@example.test/);
   await action("token:refresh:immomio");
   assert.match(lastMessage(x).text,/erneut bei der Quelle an/i);
+  x.sqlite.prepare("UPDATE source_registry SET last_success_at='2026-11-18 22:33:19' WHERE id=2").run();
+  await action("token:source:kleinanzeigen");
+  assert.match(lastMessage(x).text,/Suche aktiv/);
+  assert.match(lastMessage(x).text,/keine Anmeldung und keinen Token/);
+  assert.deepEqual(lastMessage(x).reply_markup.inline_keyboard.flat().map(b=>b.callback_data),
+   ["token:refresh:kleinanzeigen","token:source:kleinanzeigen","token"]);
+  await action("token:login:kleinanzeigen");
+  assert.match(lastMessage(x).text,/Quellen und Tokens/);
   await action("token:source:immoscout24");
   assert.match(lastMessage(x).text,/ImmoScout24/);
   await action("token:login:immoscout24");

@@ -3,6 +3,7 @@ import { BERLIN_BOROUGHS, BERLIN_LOCALITIES } from "../berlin-geography.js";
 import { adminTokenStatus, adminTokenStart, adminTokenRefresh } from '../coach-api.js';
 import { createD1Client } from '../d1-database.js';
 import { refreshImmomioSession } from '../immomio-application.js';
+import { runKleinanzeigenNow } from '../kleinanzeigen-source.js';
 import { isAdmin, adminGrantLabel, adminPremiumNotice, adminUsers, adminUser, previewFreePremiumReset, executeFreePremiumReset, setUserBlocked, deleteUser, setPlanOverride, ANNOUNCEMENT_PROMPT, createAnnouncementDraft, cancelAnnouncement, sendAnnouncement } from "./admin.js";
 import { homeKeyboard, home, premium, premiumTier, setPaused, referralPage, settings, languageMenu, QUICK_ACTIONS, showQuickActions, miniAppKeyboard, MINIAPP_URL } from "./navigation.js";
 import { saveDeliveredOffer, removeSavedOffer, savedOffers } from "./saved-offers.js";
@@ -176,7 +177,9 @@ async function startCentralImmoScoutToken(user, chatId) {
 const TOKEN_SOURCES = {
   immoscout24: {name:"ImmoScout24",icon:"🏢"},
   immowelt: {name:"Immowelt",icon:"🌐"},
-  immomio: {name:"Immomio",icon:"🏠"}
+  immomio: {name:"Immomio",icon:"🏠"},
+  // Search only: no login or token, the search runs through Kleinanzeigen's public MCP.
+  kleinanzeigen: {name:"Kleinanzeigen",icon:"🛒",searchOnly:true}
 };
 const TOKEN_SOURCE_NAMES = Object.keys(TOKEN_SOURCES);
 const tokenPage = (chatId,messageId,text,rows) => messageId
@@ -186,6 +189,10 @@ const tokenDate = value => value && Number.isFinite(Date.parse(value))
   ? new Date(value).toLocaleString("de-DE")
   : "—";
 function tokenStatusLabel(item) {
+  if(item?.scope==="search") return item.status==="connected" ? "✅ Suche aktiv"
+    : item.status==="error" ? "🔴 Suche gestört"
+    : item.status==="pending" ? "🟡 Erster Suchlauf ausstehend"
+    : "⚪ Pausiert";
   return item?.status==="connected" ? "✅ Verbunden"
     : item?.status==="pending" ? "🟡 Anmeldung läuft"
     : item?.status==="needs_login" ? "🟠 Erneut anmelden"
@@ -211,12 +218,22 @@ async function showTokenSources(user,chatId,messageId) {
     return [button(meta.icon+" "+meta.name+" · "+tokenStatusLabel(item),"token:source:"+provider)];
   });
   rows.push([button("← Start","home")]);
-  return tokenPage(chatId,messageId,"🔑 <b>Quellen und Tokens</b>\n\nVerwalte deine drei Plattformzugänge. Telegram und das interne Portal verwenden dieselben verschlüsselten Anmeldedaten. Geheimnisse werden nicht im Chat angezeigt.",rows);
+  return tokenPage(chatId,messageId,"🔑 <b>Quellen und Tokens</b>\n\nVerwalte deine Plattformzugänge und Suchquellen. Telegram und das interne Portal verwenden dieselben verschlüsselten Anmeldedaten. Geheimnisse werden nicht im Chat angezeigt.",rows);
 }
 async function showTokenSource(user,chatId,messageId,provider){
   if(!Object.hasOwn(TOKEN_SOURCES,provider))return showTokenSources(user,chatId,messageId);
   const item=(await withAdminTokenDatabase((sql,env)=>adminTokenStatus(sql,env)))[provider]||{};
   const meta=TOKEN_SOURCES[provider];
+  if(meta.searchOnly)return tokenPage(chatId,messageId,
+    "🔑 <b>"+meta.name+"</b>\n\nStatus: <b>"+tokenStatusLabel(item)+"</b>\n"
+    +"Letzter Suchlauf: "+esc(tokenDate(item.last_success_at))+"\n"
+    +"Neue Angebote (24 Std.): "+esc(String(item.offers_24h??0))+"\n"
+    +(item.consecutive_failures?"Fehlgeschlagene Läufe in Folge: "+esc(String(item.consecutive_failures))+"\n":"")
+    +"\nKleinanzeigen braucht keine Anmeldung und keinen Token. Die Suche läuft alle 5 Minuten über die öffentliche Kleinanzeigen-Schnittstelle. Automatische Bewerbungen gibt es für Kleinanzeigen noch nicht.",[
+      [button("🔄 Jetzt suchen","token:refresh:"+provider)],
+      [button("↻ Status aktualisieren","token:source:"+provider)],
+      [button("← Alle Quellen","token")]
+    ]);
   const text="🔑 <b>"+meta.name+"</b>\n\nStatus: <b>"+tokenStatusLabel(item)+"</b>\n"
     +"Konto: "+esc(item.account_hint||"—")+"\n"
     +"Gültig bis: "+esc(tokenDate(item.expires_at))+"\n\n"
@@ -232,7 +249,7 @@ async function showTokenSource(user,chatId,messageId,provider){
   return tokenPage(chatId,messageId,text,rows);
 }
 async function startTokenLogin(user,chatId,messageId,provider) {
-  if(!Object.hasOwn(TOKEN_SOURCES,provider))return showTokenSources(user,chatId,messageId);
+  if(!Object.hasOwn(TOKEN_SOURCES,provider)||TOKEN_SOURCES[provider].searchOnly)return showTokenSources(user,chatId,messageId);
   const flow=await withAdminTokenDatabase((sql,env)=>adminTokenStart(sql,env,null,provider,"telegram"));
   const target=new URL(String(flow.url||""));
   if(target.protocol!=="https:"||target.hostname!=="login.traumwohnunghamburg.de")
@@ -246,6 +263,22 @@ async function startTokenLogin(user,chatId,messageId,provider) {
 async function refreshTokenSource(user,chatId,messageId,provider) {
   if(!Object.hasOwn(TOKEN_SOURCES,provider))return showTokenSources(user,chatId,messageId);
   if(provider==="immowelt")return startTokenLogin(user,chatId,messageId,provider);
+  if(TOKEN_SOURCES[provider].searchOnly){
+    try{
+      const result=await withAdminTokenDatabase((sql,env)=>runKleinanzeigenNow(sql,env));
+      return tokenPage(chatId,messageId,"✅ <b>Kleinanzeigen-Suche ausgeführt.</b>\n\nGefunden: "+esc(String(result.fetched))
+        +"\nGespeichert: "+esc(String(result.valid))+"\nDavon neu: "+esc(String(result.valid-result.previously_known_in_response)),[
+        [button("↻ Status prüfen","token:source:"+provider)],
+        [button("← Alle Quellen","token")]
+      ]);
+    }catch(error){
+      console.error("telegram_kleinanzeigen_run_failed",String(error?.message||error));
+      return tokenPage(chatId,messageId,"⚠️ <b>Kleinanzeigen</b>\n\nDie Suche ist gerade nicht erreichbar. Der nächste automatische Lauf versucht es in spätestens 5 Minuten erneut.",[
+        [button("↻ Status prüfen","token:source:"+provider)],
+        [button("← Alle Quellen","token")]
+      ]);
+    }
+  }
   try{
     if(provider==="immoscout24"){
       const result=await withAdminTokenDatabase((_sql,env)=>adminTokenRefresh(env));
