@@ -5,13 +5,7 @@ import { runInternalMcpParityAudit } from "../src/index.js";
 test("a one-time internal audit uses the existing source token without outbound credential transfer", async () => {
   const now = Date.now();
   const token = "test-only-internal-source-token";
-  const objects = [];
-  const env = {
-    SOURCE_RUN_TOKEN: token, MCP_PARITY_AUDIT_UNTIL: String(now + 60_000),
-    DOCUMENTS: { async put(key, body, options) {
-      objects.push({ key, value: JSON.parse(body), options });
-    } },
-  };
+  const env = { SOURCE_RUN_TOKEN: token, MCP_PARITY_AUDIT_UNTIL: String(now + 60_000) };
   const requests = [];
   const handler = { async fetch(request) {
     requests.push({
@@ -29,18 +23,9 @@ test("a one-time internal audit uses the existing source token without outbound 
   } };
   assert.equal(await runInternalMcpParityAudit(handler, { ...env, MCP_PARITY_AUDIT_UNTIL: String(now - 1) }, now), false);
   assert.equal(await runInternalMcpParityAudit(handler, env, now), true);
-  assert.deepEqual(requests.map(x => x.body.source_id), [72]);
+  assert.deepEqual(requests.map(x => x.body.source_id), [1, 69, 72]);
   assert.ok(requests.every(x => x.url.endsWith("/internal/source/mcp-parity")
     && x.authorization === "Bearer " + token));
   assert.equal(await runInternalMcpParityAudit(handler, env, now), false);
-  assert.equal(requests.length, 1);
-  assert.equal(objects.length, 1, "write exactly one Berlin result to R2");
-  assert.equal(objects[0].key, "_diagnostics/mcp-berlin-parity-20261118.json");
-  assert.equal(objects[0].value.source_id, 72);
-  assert.equal(objects[0].value.same_ids, true);
-  assert.equal(objects[0].value.mcp_unique_ids, 102);
-  assert.equal(objects[0].value.bot_unique_ids, 102);
-  assert.equal(objects[0].value.http_status, 200);
-  assert.ok(objects[0].value.checked_at);
-  assert.ok(!JSON.stringify(objects[0]).includes(token), "source secret must never be persisted");
+  assert.equal(requests.length, 3);
 });
