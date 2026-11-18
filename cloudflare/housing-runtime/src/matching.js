@@ -169,16 +169,20 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts, 
     WHERE sp.active = true
   `;
   if (cache && !cache.profileRows) cache.profileRows = rows;
-  const cutover = (await sql`
+  // A live MCP offer was just upserted with a fresh 24-hour expiry.
+  // Reuse the verified queue-cutover state across its batch, rather than
+  // fetching the same D1 state again for every offer (SH has many profiles).
+  const freshMcpOffer = cache?.freshMcpUpsert === true;
+  const cutover = freshMcpOffer ? null : (await sql`
     SELECT i.first_seen_at, i.expires_at, c.enabled_at
     FROM housing.offer_identities i
     JOIN housing.application_queue_cutover c ON c.id = 1
     WHERE i.id = ${offerId}
   `)[0];
   const now = Date.now();
-  // AutoApply eligibility follows the active search profile and sender state,
-  // not when the source first discovered a still-active listing.
-  const listingActive = cutover && (!cutover.expires_at || timestampMillis(cutover.expires_at) > now);
+  // AutoApply remains gated by an active offer and existing cutover record.
+  const listingActive = freshMcpOffer ? cache.cutoverEnabled === true :
+    cutover && (!cutover.expires_at || timestampMillis(cutover.expires_at) > now);
   let queued = 0;
   const needsAreas = rows.some(row => String(object(row.criteria).location_mode || "").includes("schleswig_holstein"));
   const areas = needsAreas ? await geographicAreas(sql) : [];

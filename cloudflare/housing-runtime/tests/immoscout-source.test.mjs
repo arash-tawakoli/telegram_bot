@@ -436,6 +436,10 @@ test("large Scout map subsets use a few D1 batches and one candidate-profile rea
     assert.ok(reads.every(({params})=>params.length<=61), "60 IDs + source ID within D1 safety headroom");
     assert.ok(writes.every(({params})=>params.length<=80), "five bind variables per row with safety headroom");
     assert.equal(profileReads.length, 1, "all matches share the same active profile snapshot");
+    assert.equal(otherQueries.filter(q=>q.includes("SELECT enabled_at FROM housing.application_queue_cutover")).length, 1,
+      "every live MCP ingestion checks the cutover only once");
+    assert.equal(otherQueries.filter(q=>q.includes("SELECT i.first_seen_at")).length, 0,
+      "do not read each newly upserted offer again from D1");
     assert.equal(JSON.parse(writes[0].params[4]).warm_rent, 990,
       "previously verified rent is not lost when a later MCP card omits it");
     assert.ok(writes.every(({query})=>query.includes("ON CONFLICT (identity_hash)")));
@@ -483,6 +487,8 @@ test("targeted Hamburg Scout searches queue consented complete-profile AutoApply
       auto_apply_enabled: 0, immoscout_enabled: 1,
       preferences_enabled: 0,
     }];
+    if (statement.includes("SELECT enabled_at FROM housing.application_queue_cutover"))
+      return [{ enabled_at: new Date(Date.now() - 120_000).toISOString() }];
     if (statement.includes("SELECT i.first_seen_at")) return [{
       first_seen_at: new Date(Date.now() - 86_400_000).toISOString(),
       enabled_at: new Date(Date.now() - 120_000).toISOString(),

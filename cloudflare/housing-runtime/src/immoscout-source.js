@@ -527,7 +527,10 @@ export async function ingestImmoScoutSource(sql, source, config = {}) {
     return { ...node, facts };
   });
 
-  const profileCache = {};
+  // Each offer in this call is freshly verified by the MCP and its D1
+  // upsert sets expires_at = now() + 24h. Check the application cutover once.
+  const cutover = await sql`SELECT enabled_at FROM housing.application_queue_cutover WHERE id = 1`;
+  const profileCache = { freshMcpUpsert: true, cutoverEnabled: cutover.length > 0 };
   let inserted = 0;
   // An atomic multi-row D1 upsert avoids one round-trip for every Scout card.
   // Matching still uses the original per-user idempotency keys and permissions.
