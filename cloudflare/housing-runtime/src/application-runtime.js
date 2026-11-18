@@ -216,6 +216,9 @@ export async function processHousingApplication(sql, env, request) {
       provider_message_code: result.provider_message_code || null,
       provider_validation_field: result.provider_validation_field || null,
       provider_validation_rule: result.provider_validation_rule || null,
+      provider_plus_exclusive: result.provider_plus_exclusive ?? null,
+      provider_form_required: result.provider_form_required || null,
+      provider_form_sent_types: result.provider_form_sent_types || null,
     });
     return { status: 200, body: {
       ok: true, status: result.status, provider, test_mode: true,
@@ -329,6 +332,9 @@ export async function processHousingApplication(sql, env, request) {
       provider_message_code: result.provider_message_code || null,
       provider_validation_field: result.provider_validation_field || null,
       provider_validation_rule: result.provider_validation_rule || null,
+      provider_plus_exclusive: result.provider_plus_exclusive ?? null,
+      provider_form_required: result.provider_form_required || null,
+      provider_form_sent_types: result.provider_form_sent_types || null,
     });
     return { status: 200, body: { ok: true, status: result.status, provider, reason: result.error || result.confirmation || null, application_id: application.id } };
   }
