@@ -66,18 +66,34 @@ test("central AutoApply stays paused after deployment and does not reserve or se
   assert.equal(db.writes.some(({ text }) => /wait_reason = 'central_auto_apply_paused'/.test(text)), true);
 });
 
-test("Free downgrade blocks already queued normal AutoApply before submission", async () => {
+test("free opt-in can reach provider preflight without any Telegram delivery", async () => {
   const db = sqlFor({
-    id: "app-downgraded", participant_id: "user-1", offer_identity_id: "offer-1",
-    canonical_url: "https://www.immobilienscout24.de/expose/123456789",
-    provider: "immoscout24", status: "pending", test_mode: 0, plan_override: "free",
-    auto_apply_enabled: true, preferences_enabled: true, provider_enabled: true,
+    id: "app-free", participant_id: "user-1", offer_identity_id: "offer-1",
+    provider: "immowelt", source_id: 3, status: "pending", test_mode: 0,
+    canonical_url: "https://www.immowelt.de/expose/123456",
+    expires_at: "2099-01-01T00:00:00Z",
+    facts: { title: "Wohnung in Hamburg", city: "Hamburg" },
+    profile: {
+      first_name: "Eva", last_name: "Test", email: "eva@example.com",
+      phone: "+491711234567", street: "Testweg", house_number: "1",
+      postcode: "20095", city: "Hamburg", salutation: "MS",
+      household_type: "SINGLE", employment_status: "EMPLOYEE",
+      income_range: "NOT_SPECIFIED", pets: "Keine",
+      move_in_preference: "NOT_SPECIFIED", schufa_status: "NOT_SPECIFIED",
+    },
+    plan_override: "free", participant_status: "active", auto_apply_enabled: true,
+    preferences_enabled: true, provider_enabled: true,
   });
-  const result = await processHousingApplication(db.query, { APPLICATION_RUN_TOKEN: "secret", CENTRAL_AUTO_APPLY_ENABLED: "1" },
-    new Request("https://runtime.test/internal/application/process", {method:"POST",headers:{authorization:"Bearer secret"}}));
+  const result = await processHousingApplication(db.query, {
+    APPLICATION_RUN_TOKEN: "secret", CENTRAL_AUTO_APPLY_ENABLED: "1",
+  }, new Request("https://runtime.test/internal/application/process", {
+    method: "POST", headers: { authorization: "Bearer secret" },
+  }));
+  // Immowelt's unverified transport still blocks actual sending.
   assert.equal(result.body.status, "manual_required");
-  assert.equal(result.body.reason, "premium_required");
-  assert.equal(db.writes.some(({ text }) => /SET submission_started_at = now\(\)/.test(text)), false);
+  assert.equal(result.body.reason, "provider_contract_unverified");
+  assert.equal(db.writes.some(({ text }) => /FROM housing\\.deliveries/i.test(text)), false);
+  assert.equal(db.writes.some(({ text }) => /SET submission_started_at = now\\(\\)/i.test(text)), false);
 });
 
 test("scheduled application processing ignores the historical pending backlog", async () => {
