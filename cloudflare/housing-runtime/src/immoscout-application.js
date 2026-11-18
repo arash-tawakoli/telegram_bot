@@ -190,7 +190,7 @@ function explicitlyPlusOnly(record) {
 async function publicExclusiveExpose(id) {
   try {
     const response = await fetch(`https://www.immobilienscout24.de/expose/${encodeURIComponent(id)}`, {
-      headers: { accept: "text/html" }, signal: AbortSignal.timeout(7_000),
+      headers: { accept: "text/html" }, signal: AbortSignal.timeout(4_000),
     });
     if (!response.ok || !/^text\/html/i.test(response.headers.get("content-type") || "")) return null;
     // No applicant data or credentials are sent to the public listing page.
@@ -241,6 +241,12 @@ export async function sendImmoScoutApplication(application, env, sql, central = 
     const authorized = await application.authorizeTestSend();
     if (!authorized) return { status: "manual_required", error: "test_send_not_authorized" };
   }
+  // Verify current paid exclusivity before contacting the landlord. A missing
+  // or inaccessible public marker is unknown, never automatically Plus-only.
+  const publicExclusive = await publicExclusiveExpose(id);
+  if (publicExclusive === true) {
+    return { status: "manual_required", error: "plus_subscription_required", provider_plus_exclusive: true };
+  }
   const response = await fetch(`https://rest.immobilienscout24.de/restapi/api/search/v1.0/expose/${encodeURIComponent(id)}/contact`, {
     method: "POST",
     headers: { accept: "application/json", "content-type": "application/json", authorization: `Bearer ${credentials.access_token}`, "user-agent": USER_AGENT },
@@ -271,10 +277,7 @@ export async function sendImmoScoutApplication(application, env, sql, central = 
     machineCode = /<messageCode>([A-Z][A-Z0-9_]{1,79})<\/messageCode>/i.exec(body)?.[1] || null;
     validation = safeValidationDetail([...body.matchAll(/<message>([^<]{1,2000})<\/message>/g)].map(match => match[1]));
   }
-  // The provider's 412 validation code does not establish Plus-only access.
-  // Check the public exclusivity marker only for these rejected submissions.
-  const publicExclusive = response.status === 412 && machineCode === "ERROR_RESOURCE_VALIDATION"
-    ? await publicExclusiveExpose(id) : null;
+  // The provider's 412 validation code never establishes Plus-only access.
   const diagnostics = { provider_http_status: response.status,
     ...(machineCode ? { provider_message_code: machineCode } : {}), ...validation,
     ...(publicExclusive !== null ? { provider_plus_exclusive: publicExclusive } : {}),
