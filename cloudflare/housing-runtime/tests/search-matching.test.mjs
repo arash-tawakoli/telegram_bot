@@ -418,3 +418,33 @@ test("provider city labels match the canonical municipality in both states", () 
   assert.equal(matchesProfile(sh,{...apartment,city:"Lübeck / Travemünde",title:"Wohnung in Lübeck"},69,areas),true);
   assert.equal(matchesProfile(sh,{...apartment,city:"Barsbüttel/OT Stellau"},69,areas),false);
 });
+
+test("Hamburg profiles linked to SH sources do not scan SH geography", () => {
+  const neverScan = new Proxy([{ area_type: "municipality", name: "Kiel", area_code: "01002" }], {
+    get(target, prop, receiver) {
+      if (prop === "filter") throw new Error("unrelated SH geography scan");
+      return Reflect.get(target, prop, receiver);
+    },
+  });
+  assert.equal(matchesProfile(
+    { property_types: ["Wohnung"], location_mode: "all_hamburg" },
+    { property_type: "Wohnung", city: "Hamburg", postal_code: "20095", warm_rent: 800 },
+    69, neverScan,
+  ), true);
+  assert.equal(matchesProfile(
+    { property_types: ["Wohnung"], location_mode: "all_berlin" },
+    { property_type: "Wohnung", city: "Berlin", warm_rent: 800 },
+    69, neverScan,
+  ), true);
+  const areas = [{ area_type: "municipality", name: "Kiel", area_code: "01002", parent_code: "01" }];
+  assert.equal(matchesProfile(
+    { property_types: ["Wohnung"], location_mode: "all_schleswig_holstein" },
+    { property_type: "Wohnung", city: "Kiel", warm_rent: 800 },
+    69, areas,
+  ), true);
+  assert.equal(matchesProfile(
+    { property_types: ["Wohnung"], location_mode: "schleswig_holstein_areas", location_area_codes: ["01002"] },
+    { property_type: "Wohnung", city: "Kiel", warm_rent: 800 },
+    69, areas,
+  ), true);
+});
