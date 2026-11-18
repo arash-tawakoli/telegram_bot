@@ -133,11 +133,14 @@ async function createParticipant(sql, member, body) {
   if (!firstName || !lastName) throw new Error("profile_required");
   const assignedMemberId = body.coachMemberId ? uuid(body.coachMemberId, "coach_member") : member.id;
   if (!isAdmin(member) && assignedMemberId !== member.id) throw new Error("member_management_forbidden");
-  await sql.begin(async (tx) => {
-    await tx`INSERT INTO housing.participants (id, email, first_name, last_name) VALUES (${participantId}, ${email}, ${firstName}, ${lastName})`;
-    await tx`INSERT INTO housing.applicant_profiles (participant_id, profile) VALUES (${participantId}, ${JSON.stringify({ phone: text(body.phone, 80), city: text(body.city, 120) })}::jsonb)`;
-    await tx`INSERT INTO housing.participant_assignments (participant_id, member_id) VALUES (${participantId}, ${assignedMemberId})`;
-  });
+  await sql.batch([
+    { query: "INSERT INTO housing.participants (id,email,first_name,last_name) VALUES ($1,$2,$3,$4)",
+      params: [participantId,email,firstName,lastName] },
+    { query: "INSERT INTO housing.applicant_profiles (participant_id,profile) VALUES ($1,$2)",
+      params: [participantId,JSON.stringify({ phone: text(body.phone,80), city: text(body.city,120) })] },
+    { query: "INSERT INTO housing.participant_assignments (participant_id,member_id) VALUES ($1,$2)",
+      params: [participantId,assignedMemberId] },
+  ]);
   return { ok: true, participantId };
 }
 
@@ -160,15 +163,28 @@ async function saveSearch(sql, member, body) {
   const sourceIds = Array.isArray(profile.source_ids) ? profile.source_ids.map((id) => Number(id)) : [];
   for (const sourceId of sourceIds) assertAllowedSource(sourceId);
   delete profile.source_ids;
-  await sql.begin(async (tx) => {
-    await tx`
-      INSERT INTO housing.search_profiles (id, participant_id, criteria, active)
-      VALUES (${searchId}, ${participantId}, ${JSON.stringify(profile)}::jsonb, true)
-      ON CONFLICT (id) DO UPDATE SET criteria = EXCLUDED.criteria, updated_at = now()
-    `;
-    await tx`DELETE FROM housing.source_links WHERE search_profile_id = ${searchId}`;
-    for (const sourceId of sourceIds) await tx`INSERT INTO housing.source_links (search_profile_id, source_id) VALUES (${searchId}, ${sourceId})`;
+  // A supplied search profile must already belong to this participant.
+  if (body.profileId) {
+    const owner = await sql.unsafe("SELECT participant_id FROM housing.search_profiles WHERE id=$1", [searchId]);
+    if (owner[0] && owner[0].participant_id !== participantId) throw new Error("participant_forbidden");
+  }
+  const commands = [
+    { query: `INSERT INTO housing.search_profiles (id,participant_id,criteria,active)
+        VALUES ($1,$2,$3,1)
+        ON CONFLICT (id) DO UPDATE SET criteria=excluded.criteria,updated_at=CURRENT_TIMESTAMP
+        WHERE search_profiles.participant_id=excluded.participant_id`,
+      params: [searchId,participantId,JSON.stringify(profile)] },
+    { query: `DELETE FROM housing.source_links WHERE search_profile_id=$1
+        AND EXISTS(SELECT 1 FROM housing.search_profiles WHERE id=$1 AND participant_id=$2)`,
+      params: [searchId,participantId] },
+  ];
+  for (const sourceId of sourceIds) commands.push({
+    query: `INSERT INTO housing.source_links(search_profile_id,source_id)
+      SELECT $1,$2 WHERE EXISTS(
+        SELECT 1 FROM housing.search_profiles WHERE id=$1 AND participant_id=$3)`,
+    params: [searchId,sourceId,participantId],
   });
+  await sql.batch(commands);
   return { ok: true, profileId: searchId };
 }
 
