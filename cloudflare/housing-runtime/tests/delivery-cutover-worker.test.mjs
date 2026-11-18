@@ -68,6 +68,9 @@ test("an uncertain Telegram outcome blocks both systems from resending", async (
   try {
     assert.equal((await x.run()).status, 503);
     assert.equal((await x.ledger("claim")).status, "unknown");
+    const delivery = x.sqlite.prepare("SELECT status,error_message FROM deliveries").get();
+    assert.equal(delivery.status, "failed", "uncertain sends must not remain processing");
+    assert.equal(delivery.error_message, "telegram_outcome_unknown");
   } finally { globalThis.fetch = original; x.sqlite.close(); }
 });
 
