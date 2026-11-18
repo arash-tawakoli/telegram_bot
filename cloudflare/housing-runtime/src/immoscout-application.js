@@ -166,8 +166,11 @@ const SAFE_VALIDATION_FIELDS = new Set([
 function safeValidationDetail(messages) {
   for (const message of messages) {
     if (typeof message !== "string" || message.length > 4000) continue;
-    const match = /\[\s*MESSAGE\s*:\s*([A-Za-z][A-Za-z0-9_.]*)\s*:[\s\S]*:\s*([A-Z][A-Z0-9_]{2,63})\s*\]/.exec(message);
-    if (match && SAFE_VALIDATION_FIELDS.has(match[1])) {
+    // ImmoScout rules may be uppercase enums or dotted lower-case identifiers.
+    // Extract only allowlisted field names and machine-readable rule codes.
+    const match = /\[\s*MESSAGE\s*:\s*([A-Za-z][A-Za-z0-9_.]*)\s*:[\s\S]*:\s*([A-Za-z][A-Za-z0-9_.]{2,63})\s*\]/.exec(message);
+    if (match && SAFE_VALIDATION_FIELDS.has(match[1])
+      && /^(?:[A-Z][A-Z0-9_]{2,63}|[a-z][A-Za-z0-9_]*(?:\.[A-Za-z0-9_]+)+)$/.test(match[2])) {
       return { provider_validation_field: match[1], provider_validation_rule: match[2] };
     }
   }
@@ -222,6 +225,9 @@ export async function sendImmoScoutApplication(application, env, sql, central = 
       ...(Array.isArray(messages) ? messages.map(item => item?.message?.message) : []),
       parsed?.message?.message, parsed?.message,
     ]);
+    // Some provider envelopes vary in nesting. Scan the bounded response as
+    // fallback, but persist only the safely extracted field/rule, never raw text.
+    if (!validation.provider_validation_field) validation = safeValidationDetail([body]);
   } catch {
     machineCode = /<messageCode>([A-Z][A-Z0-9_]{1,79})<\/messageCode>/i.exec(body)?.[1] || null;
     validation = safeValidationDetail([...body.matchAll(/<message>([^<]{1,2000})<\/message>/g)].map(match => match[1]));
