@@ -83,8 +83,8 @@ test("Scout maps persisted applicant data into all documented mandatory contact 
       },
       authorizeTestSend: async () => true,
     }, {}, null, { credentials: { access_token: "test-only-token" } });
-    assert.equal(requests.length, 2);
-    const form = requests[1].body["expose.contactForm"];
+    assert.equal(requests.length, 3);
+    const form = requests.find(request => request.url.endsWith("/contact")).body["expose.contactForm"];
     assert.equal(form["@contactFormType"], undefined);
     assert.equal(form.firstname, "Test");
     assert.equal(form.lastname, "Person");
@@ -210,10 +210,11 @@ test("Scout guest contact uses documented schema order even when provider config
     }, {}, null, { credentials: { access_token: "central-credential" } });
     assert.equal(result.status, "sent");
     assert.equal(result.confirmation, "official_rest_2xx");
-    assert.equal(calls.length, 2);
-    assert.equal(calls[1].authorization, "Bearer central-credential");
-    assert.equal(calls[1].body["expose.contactForm"].emailAddress, "gast@example.de");
-    assert.match(calls[1].body["expose.contactForm"].message, /documents\/signed/);
+    assert.equal(calls.length, 3);
+    const posted = calls.find(call => call.url.endsWith("/contact"));
+    assert.equal(posted.authorization, "Bearer central-credential");
+    assert.equal(posted.body["expose.contactForm"].emailAddress, "gast@example.de");
+    assert.match(posted.body["expose.contactForm"].message, /documents\/signed/);
   } finally { globalThis.fetch = oldFetch; }
 });
 
@@ -238,6 +239,110 @@ test("Scout blocks unknown mandatory provider extensions before reserving a send
     assert.match(result.error, /required_profile_data_missing:unsupportedExtra/);
     assert.equal(reserved, false);
     assert.equal(calls.length, 1);
+  } finally { globalThis.fetch = before; }
+});
+
+test("Scout skips explicitly Suchen+ required exposes before contacting the landlord", async () => {
+  const before = globalThis.fetch;
+  const urls = [];
+  globalThis.fetch = async url => {
+    urls.push(String(url));
+    if (String(url).endsWith("/contact")) throw Error("exclusive listing must not be contacted");
+    return Response.json({ "expose.expose": {
+      requiresSuchenPlus: true, contactFormConfiguration: { firstnameField: "MANDATORY" },
+    } });
+  };
+  try {
+    const result = await sendImmoScoutApplication({
+      external_id: "123456789", profile: { first_name: "Test" },
+    }, {}, null, { credentials: { access_token: "private-test-token" } });
+    assert.equal(result.status, "manual_required");
+    assert.equal(result.error, "plus_subscription_required");
+    assert.equal(result.provider_plus_exclusive, true);
+    assert.equal(urls.length, 1, "explicit Plus flag skips the extra public check and POST");
+  } finally { globalThis.fetch = before; }
+});
+
+test("Scout skips live exclusive Suchen+ listing before contact POST", async () => {
+  const before = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async url => {
+    calls.push(String(url));
+    if (String(url).endsWith("/contact")) throw Error("exclusive listing must not be contacted");
+    if (String(url).startsWith("https://www.immobilienscout24.de/expose/")) {
+      return new Response('<script>{"obj_scoutId":"123456789","obj_ExclusiveExpose":"true"}</script>',
+        { headers: { "content-type": "text/html" } });
+    }
+    return Response.json({ "expose.expose": {
+      contactFormConfiguration: { firstnameField: "MANDATORY" },
+    } });
+  };
+  try {
+    const result = await sendImmoScoutApplication({
+      external_id: "123456789", profile: { first_name: "Test" },
+    }, {}, null, { credentials: { access_token: "private-test-token" } });
+    assert.equal(result.status, "manual_required");
+    assert.equal(result.error, "plus_subscription_required");
+    assert.equal(result.provider_plus_exclusive, true);
+    assert.equal(calls.length, 2);
+  } finally { globalThis.fetch = before; }
+});
+
+test("Scout keeps ordinary 412 separate from paid exclusivity with safe form-shape diagnostics", async () => {
+  const before = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, init = {}) => {
+    calls.push(String(url));
+    if (String(url).startsWith("https://www.immobilienscout24.de/expose/")) {
+      return new Response('<script>{"obj_scoutId":"123456789","obj_ExclusiveExpose":"false"}</script>',
+        { headers: { "content-type": "text/html" } });
+    }
+    if (String(url).endsWith("/contact")) {
+      return Response.json({ "common.messages": [{ message: {
+        messageCode: "ERROR_RESOURCE_VALIDATION",
+        message: "Sensitive value guest@example.de should not be retained",
+      } }] }, { status: 412 });
+    }
+    return Response.json({ "expose.expose": { contactFormConfiguration: {
+      firstnameField: "MANDATORY", incomeField: "OPTIONAL", messageField: "OPTIONAL",
+    } } });
+  };
+  try {
+    const result = await sendImmoScoutApplication({
+      external_id: "123456789",
+      profile: { first_name: "Gast", email: "guest@example.de", income_range: "2000_3000" },
+    }, {}, null, { credentials: { access_token: "private-test-token" } });
+    assert.equal(result.status, "manual_required");
+    assert.equal(result.error, "provider_rejected");
+    assert.equal(result.provider_plus_exclusive, false);
+    assert.equal(result.provider_http_status, 412);
+    assert.equal(result.provider_form_required, "firstname");
+    assert.equal(result.provider_form_sent_types, "firstname:string,message:string,income:string");
+    assert.equal(calls.length, 3);
+    assert.doesNotMatch(JSON.stringify(result), /guest@example.de|private-test-token|Sensitive value/);
+  } finally { globalThis.fetch = before; }
+});
+
+test("Scout treats failed public Plus verification as unknown, not as a paywall", async () => {
+  const before = globalThis.fetch;
+  globalThis.fetch = async url => {
+    if (String(url).startsWith("https://www.immobilienscout24.de/expose/")) {
+      return new Response("unavailable", { status: 403 });
+    }
+    if (String(url).endsWith("/contact")) return Response.json({
+      "common.messages": [{ message: { messageCode: "ERROR_RESOURCE_VALIDATION" } }],
+    }, { status: 412 });
+    return Response.json({ "expose.expose": {
+      contactFormConfiguration: { firstnameField: "MANDATORY" },
+    } });
+  };
+  try {
+    const result = await sendImmoScoutApplication({
+      external_id: "123456789", profile: { first_name: "Gast" },
+    }, {}, null, { credentials: { access_token: "private-test-token" } });
+    assert.equal(result.error, "provider_rejected");
+    assert.equal(result.provider_http_status, 412);
+    assert.equal(result.provider_plus_exclusive, undefined);
   } finally { globalThis.fetch = before; }
 });
 
@@ -267,7 +372,7 @@ test("Scout resource-validation diagnostics capture only known field/rule, never
     assert.equal(result.provider_message_code, "ERROR_RESOURCE_VALIDATION");
     assert.equal(result.provider_validation_field, "income");
     assert.equal(result.provider_validation_rule, "INVALID_VALUE");
-    assert.equal(calls.length, 2);
+    assert.equal(calls.length, 3);
     assert.doesNotMatch(JSON.stringify(result), /test-person@example.com|central-token/);
   } finally { globalThis.fetch = before; }
 });
