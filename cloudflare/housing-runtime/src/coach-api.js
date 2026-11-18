@@ -479,7 +479,7 @@ export async function adminTokenStatus(sql, env) {
       return [name, { scope: "central", configured: status === "connected", status, account_hint: row.account_hint || null, expires_at: row.expires_at || null }];
     })),
     kleinanzeigen: {
-      ...kleinanzeigen, scope: "search",
+      ...kleinanzeigen, scope: "search", login_supported: false,
       account_status: (() => {
         const row = connection("kleinanzeigen");
         return row.expires_at && Date.parse(row.expires_at) <= Date.now()
@@ -492,7 +492,8 @@ export async function adminTokenStatus(sql, env) {
 }
 
 export async function adminTokenStart(sql, env, member, providerName, channel = 'coach') {
-  if (!PROVIDERS.has(providerName) && providerName !== "kleinanzeigen") throw new Error("provider_not_allowlisted");
+  if (providerName === "kleinanzeigen") throw new Error("provider_contract_unverified");
+  if (!PROVIDERS.has(providerName)) throw new Error("provider_not_allowlisted");
   const ownerId = await ownerParticipant(sql);
   if (!ownerId) throw new Error("owner_telegram_account_unavailable");
   if (providerName === "immoscout24") {

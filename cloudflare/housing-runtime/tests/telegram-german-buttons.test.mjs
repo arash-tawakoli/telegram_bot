@@ -870,14 +870,13 @@ test("/token shares the portal's three provider connections and securely reuses 
   x.sqlite.prepare("UPDATE source_registry SET last_success_at='2026-11-18 22:33:19' WHERE id=2").run();
   await action("token:source:kleinanzeigen");
   assert.match(lastMessage(x).text,/Suche aktiv/);
-  assert.match(lastMessage(x).text,/Zentrales Konto: nicht verbunden/);
+  assert.match(lastMessage(x).text,/zentrale Konto-Anmeldung wird derzeit nicht unterstützt/);
   assert.deepEqual(lastMessage(x).reply_markup.inline_keyboard.flat().map(b=>b.callback_data),
-   ["token:login:kleinanzeigen","token:refresh:kleinanzeigen","token:source:kleinanzeigen","token"]);
+   ["token:refresh:kleinanzeigen","token:source:kleinanzeigen","token"]);
   await action("token:login:kleinanzeigen");
-  assert.ok(lastMessage(x).reply_markup.inline_keyboard[0][0].url?.startsWith("https://login.traumwohnunghamburg.de/connect?ticket="));
-  const kaFlow=x.sqlite.prepare("SELECT provider,context FROM provider_auth_flows WHERE participant_id=? AND provider='kleinanzeigen'").get(ownerUuid);
-  assert.equal(kaFlow.provider,"kleinanzeigen");
-  assert.equal(JSON.parse(kaFlow.context).central_account,true);
+  assert.match(lastMessage(x).text,/Quellen und Tokens/);
+  const kaFlows=x.sqlite.prepare("SELECT COUNT(*) AS n FROM provider_auth_flows WHERE participant_id=? AND provider='kleinanzeigen'").get(ownerUuid);
+  assert.equal(kaFlows.n,0);
   await action("token:source:immoscout24");
   assert.match(lastMessage(x).text,/ImmoScout24/);
   await action("token:login:immoscout24");
