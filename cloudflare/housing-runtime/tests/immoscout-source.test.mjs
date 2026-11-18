@@ -32,6 +32,32 @@ test("ImmoScout MCP entries become minimal offer facts", () => {
   assert.equal(result.canonical_url, "https://www.immobilienscout24.de/expose/123");
 });
 
+test("Hamburg Scout MCP keeps district-only city labels with Hamburg postcodes", () => {
+  for (const [id, city, postcode] of [
+    ["172700970", "Wilhelmsburg", "21109"],
+    ["171875598", "Rahlstedt", "22149"],
+    ["88800001", "Bergedorf", "21029"],
+    ["88800002", "Langenhorn", "22415"],
+  ]) {
+    const normalized = normalizeImmoScoutEntry({
+      exposedId: id,
+      exposeUrl: "https://www.immobilienscout24.de/expose/" + id,
+      title: "Mietwohnung in " + city, address: { city, postcode },
+    }, 1, "Wohnung");
+    assert.equal(normalized?.identity, id, city + " must not be lost");
+    assert.equal(normalized?.facts.postal_code, postcode);
+  }
+  for (const [city, postcode] of [
+    ["Norderstedt", "22844"], ["Kiel", "24103"], ["Berlin", "10115"],
+    ["Lübeck", "23552"], ["Bremen", "28201"],
+  ]) {
+    assert.equal(normalizeImmoScoutEntry({
+      exposedId: "88800003", exposeUrl: "https://www.immobilienscout24.de/expose/88800003",
+      address: { city, postcode },
+    }, 1, "Wohnung"), null, city + " is outside Hamburg");
+  }
+});
+
 test("ImmoScout MCP errors fail closed", () => {
   assert.throws(() => parseMcpToolResult({ result: { isError: true, content: [{ text: "bad" }] } }), /bad/);
   assert.throws(() => parseMcpToolResult({ result: {} }), /immoscout_inventory_unrecognized/);
