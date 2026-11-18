@@ -195,6 +195,8 @@ async function publicExclusiveExpose(id) {
     if (!response.ok || !/^text\/html/i.test(response.headers.get("content-type") || "")) return null;
     // No applicant data or credentials are sent to the public listing page.
     const html = (await response.text()).slice(0, 500_000);
+    const scoutId = /"obj_scoutId"\s*:\s*"(\d{6,20})"/i.exec(html)?.[1];
+    if (scoutId !== id) return null;
     const match = /"obj_ExclusiveExpose"\s*:\s*"(true|false)"/i.exec(html);
     return match ? match[1].toLowerCase() === "true" : null;
   } catch { return null; }
@@ -285,9 +287,6 @@ export async function sendImmoScoutApplication(application, env, sql, central = 
   };
   if (response.ok && !/^ERROR_/i.test(machineCode || "")) {
     return { status: "sent", confirmation: "official_rest_2xx", ...diagnostics };
-  }
-  if (publicExclusive === true) {
-    return { status: "manual_required", error: "plus_subscription_required", ...diagnostics };
   }
   if (response.status === 401 || response.status === 403) return { status: "manual_required", error: "needs_login", ...diagnostics };
   if (response.status === 404 || response.status === 410) return { status: "failed", error: "listing_unavailable", ...diagnostics };
