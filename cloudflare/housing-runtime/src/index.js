@@ -544,7 +544,7 @@ export async function runInternalMcpParityAudit(handler, env, now = Date.now()) 
   if (internalMcpAuditStarted || !env.SOURCE_RUN_TOKEN || !Number.isSafeInteger(expires)
     || expires <= now || expires > now + 15 * 60_000) return false;
   internalMcpAuditStarted = true;
-  await Promise.all([69].map(async sourceId => {
+  await Promise.all([1, 69, 72].map(async sourceId => {
     try {
       const request = new Request("https://housing-runtime.internal/internal/source/mcp-parity", {
         method: "POST",
@@ -554,9 +554,7 @@ export async function runInternalMcpParityAudit(handler, env, now = Date.now()) 
       const response = await handler.fetch(request, env, {});
       const report = await response.json().catch(() => ({}));
       const comparison = report.comparison || {};
-      const auditSummary = {
-        checked_at: new Date().toISOString(),
-
+      console.log("housing_mcp_parity_live_audit", JSON.stringify({
         source_id: sourceId, http_status: response.status,
         endpoint: report.mcp_contract?.endpoint || null,
         protocol: report.mcp_contract?.protocol || null,
@@ -574,23 +572,11 @@ export async function runInternalMcpParityAudit(handler, env, now = Date.now()) 
         same_ids: comparison.same_ids ?? null,
         map_error: report.map_error || null,
         error: report.error || null,
-      };
-      console.log("housing_mcp_parity_live_audit", JSON.stringify(auditSummary));
-      // Temporary, read-only: only the non-sensitive MCP ID counts go to R2.
-      if (env.DOCUMENTS) {
-        await env.DOCUMENTS.put("_diagnostics/mcp-schleswig-holstein-parity-20261118.json",
-          JSON.stringify(auditSummary), { httpMetadata: { contentType: "application/json" } });
-      }
+      }));
     } catch (error) {
-      const failure = { checked_at: new Date().toISOString(),
-        source_id: sourceId, error: String(error?.message || error).slice(0, 160) };
-      console.error("housing_mcp_parity_live_audit_failed", JSON.stringify(failure));
-      try {
-        if (env.DOCUMENTS) await env.DOCUMENTS.put("_diagnostics/mcp-schleswig-holstein-parity-20261118.json",
-          JSON.stringify(failure), { httpMetadata: { contentType: "application/json" } });
-      } catch (storageError) {
-        console.error("housing_mcp_parity_audit_storage_failed", String(storageError?.message || storageError).slice(0, 120));
-      }
+      console.error("housing_mcp_parity_live_audit_failed", JSON.stringify({
+        source_id: sourceId, error: String(error?.message || error).slice(0, 160),
+      }));
     }
   }));
   return true;
