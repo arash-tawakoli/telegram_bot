@@ -7,7 +7,6 @@ const TABLES = {
   search_profiles: "search_profiles",
   applicant_profiles: "applicant_profiles",
   platform_connections: "provider_connections",
-  platform_sessions: "portal_sessions",
   applicant_documents: "documents",
   listings: "offer_identities",
   delivery_events: "deliveries",
