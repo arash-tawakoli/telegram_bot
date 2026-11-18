@@ -28,6 +28,24 @@ test("matching respects property type, region, neighborhood and required facts",
   assert.equal(matchesProfile(hamburg, { ...apartment, city: "Hamburg, Altona" }, 1), true);
 });
 
+test("Hamburg district-only MCP city names match Hamburg profiles, not Schleswig-Holstein", () => {
+  const base = { property_type: "Wohnung", title: "2-Zimmer-Wohnung", warm_rent: 900 };
+  for (const [city, postal_code] of [
+    ["Wilhelmsburg", "21109"], ["Rahlstedt", "22149"],
+    ["Bergedorf", "21029"], ["Langenhorn", "22415"],
+  ]) {
+    const facts = { ...base, city, postal_code };
+    assert.equal(matchesProfile(hamburg, facts, 1), true, city + " is in Hamburg");
+    assert.equal(matchesProfile({ ...hamburg, location_mode: "all_schleswig_holstein" },
+      facts, 69), false, city + " must not be sent as Schleswig-Holstein");
+  }
+  for (const [city, postal_code] of [["Norderstedt", "22844"],
+    ["Kiel", "24103"], ["Lübeck", "23552"], ["Berlin", "10115"]]) {
+    assert.equal(matchesProfile(hamburg, { ...base, city, postal_code }, 1), false,
+      city + " must not match Hamburg");
+  }
+});
+
 test("Berlin matching respects city, districts and Ortsteile and excludes other regions", () => {
   const berlin = { property_types: ["Wohnung"], location_mode: "all_berlin" };
   const apartment = { title: "Wohnung am Kollwitzplatz", city: "Berlin",
