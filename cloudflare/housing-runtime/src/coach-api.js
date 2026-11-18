@@ -173,13 +173,25 @@ async function saveSearch(sql, member, body) {
 }
 
 async function dashboard(sql, member) {
-  const [participants, applications, sent] = await Promise.all([
-    sql`SELECT count(*)::int AS count FROM housing.participants WHERE status = 'active'`,
-    sql`SELECT count(*)::int AS count FROM housing.applications`,
-    sql`SELECT count(*)::int AS count FROM housing.applications WHERE status = 'sent'`,
-  ]);
   const rows = await participantRows(sql, member);
-  return { participants: rows.length, participantRows: rows, applications: Number(applications[0]?.count || 0), sent: Number(sent[0]?.count || 0), failed: 0, pending: 0, manualRequired: 0, recentApplications: [] };
+  const counts = await sql.unsafe(`
+    SELECT a.status, COUNT(*) AS count FROM housing.applications a
+    WHERE ($1 = 1 OR EXISTS (
+      SELECT 1 FROM housing.participant_assignments pa
+      WHERE pa.participant_id = a.participant_id AND pa.member_id = $2
+    ))
+    GROUP BY a.status
+  `, [isAdmin(member) ? 1 : 0, member.id]);
+  const byStatus = Object.fromEntries(counts.map(row => [row.status, Number(row.count || 0)]));
+  const sent = byStatus.sent || 0;
+  const failed = byStatus.failed || 0;
+  const pending = (byStatus.pending || 0) + (byStatus.processing || 0);
+  const manualRequired = byStatus.manual_required || 0;
+  return {
+    participants: rows.length, participantRows: rows,
+    applications: sent + failed + pending + manualRequired,
+    sent, failed, pending, manualRequired, recentApplications: [],
+  };
 }
 
 function applicationRow(row) {
