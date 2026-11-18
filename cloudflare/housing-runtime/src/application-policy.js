@@ -17,6 +17,11 @@ export function timestampMillis(value) {
   return Date.parse(text.endsWith("+00") ? `${text.slice(0, -3)}Z` : text);
 }
 
+// D1 stores CURRENT_TIMESTAMP as "YYYY-MM-DD HH:MM:SS" and compares as text; ISO strings would sort after it.
+export function sqlTime(date) {
+  return date.toISOString().replace("T", " ").slice(0, 19);
+}
+
 export function missingApplicantFields(value) {
   const profile = parse(value);
   const missing = [];
@@ -77,8 +82,8 @@ export function applicationSchedule(preferences, now = new Date()) {
     || (start <= end ? nowMinutes < start || nowMinutes > end : nowMinutes < start && nowMinutes > end))) {
     reason = "outside_send_window";
   }
-  const delay = reason === "weekday_blocked" ? 6 * 60_000 : 15 * 60_000;
-  return { allowed: reason === null, reason, localDate, nextAttemptAt: new Date(now.getTime() + delay).toISOString() };
+  const delay = reason === "weekday_blocked" ? 60 * 60_000 : 15 * 60_000;
+  return { allowed: reason === null, reason, localDate, nextAttemptAt: sqlTime(new Date(now.getTime() + delay)) };
 }
 
 export function applicationProvider(source, facts = {}) {

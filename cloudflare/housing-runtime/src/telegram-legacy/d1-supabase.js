@@ -577,7 +577,7 @@ async function rpc(client, env, name, args) {
           chat_id: user.telegram_chat_id,
           is_active: user.status === "active",
           onboarding_state: JSON.parse(user.telegram_state || "{}"),
-          onboarding_step: null,
+          onboarding_step: JSON.parse(user.telegram_state || "{}")._step || null,
           telegram_user_id: user.telegram_user_id,
         },
         subscription,
