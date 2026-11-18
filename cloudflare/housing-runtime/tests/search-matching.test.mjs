@@ -70,7 +70,7 @@ test("Berlin matching respects city, districts and Ortsteile and excludes other 
   assert.equal(matchesProfile(pankow, { ...apartment, city: "Berlin", district: "Kreuzberg" }, 72), false);
 });
 
-test("Free users receive listing alerts but cannot queue normal AutoApply", async () => {
+test("Free users with explicit opt-in receive listings and queue normal AutoApply", async () => {
   const calls = [];
   const profile = {
     first_name: "Eva", last_name: "Test", email: "eva@example.com",
@@ -101,7 +101,7 @@ test("Free users receive listing alerts but cannot queue normal AutoApply", asyn
   await queueMatches(sql,"offer",1,"1:external:free-test",{
     ...apartment,canonical_url:"https://www.immobilienscout24.de/expose/172800001",
   },true);
-  assert.equal(calls.filter(x=>x.query.includes("INSERT INTO housing.applications")).length,0);
+  assert.equal(calls.filter(x=>x.query.includes("INSERT INTO housing.applications")).length,1);
   assert.equal(calls.filter(x=>x.query.includes("INSERT INTO housing.deliveries")).length,1);
 });
 

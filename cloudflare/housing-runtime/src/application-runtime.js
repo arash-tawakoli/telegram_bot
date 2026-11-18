@@ -3,7 +3,7 @@ import { sendImmoweltApplication } from "./immowelt-application.js";
 import { sendImmoScoutApplication } from "./immoscout-application.js";
 import { sendImmomioApplication } from "./immomio-application.js";
 import { matchesActiveSearch } from "./matching.js";
-import { applicationProvider, applicationSchedule, missingApplicantFields, listingRequiresWbs, premiumParticipant, timestampMillis } from "./application-policy.js";
+import { applicationProvider, applicationSchedule, missingApplicantFields, listingRequiresWbs, timestampMillis } from "./application-policy.js";
 import { effectiveApplicationMessages } from "./application-text.js";
 import { sourceForId } from "./source-allowlist.js";
 import { centralCredentialError, getCentralProviderCredentials } from "./central-provider-credentials.js";
@@ -224,7 +224,6 @@ export async function processHousingApplication(sql, env, request) {
   }
 
   if (application.test_auto_apply_enabled) return fail("manual_required", "test_mode_active");
-  if (!premiumParticipant(application)) return fail("manual_required", "premium_required");
   if (application.preferences_enabled !== true || application.provider_enabled !== true) return fail("manual_required", "auto_apply_disabled");
 
   // Infrastructure can be deployed before operator logins and test submissions.
@@ -256,14 +255,8 @@ export async function processHousingApplication(sql, env, request) {
   const missing = missingApplicantFields(application.profile);
   if (missing.length) return fail("manual_required", "profile_incomplete", { missing });
   if (!await matchesActiveSearch(sql, application.participant_id, application.source_id, facts)) return fail("failed", "not_eligible");
-  const delivery = await sql`
-    SELECT 1 FROM housing.deliveries
-    WHERE participant_id = ${application.participant_id}
-      AND offer_identity_id = ${application.offer_identity_id}
-      AND status IN ('pending','processing','sent')
-    LIMIT 1
-  `;
-  if (!delivery.length) return fail("failed", "not_eligible");
+  // The application is authorized by user opt-in, active search, applicant profile,
+  // listing validity, and provider checks. Telegram delivery is independent.
 
   if (listingRequiresWbs(application.facts)) {
     return fail("manual_required", "wbs_required");
