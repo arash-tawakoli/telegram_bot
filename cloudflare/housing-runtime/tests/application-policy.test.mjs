@@ -22,6 +22,9 @@ test("premium overrides expire and source family controls the provider target", 
   assert.equal(premiumParticipant({ plan_override: "premium", plan_override_expires_at: "2026-11-14T00:00:00Z" }, Date.parse("2026-11-13T00:00:00Z")), true);
   assert.equal(premiumParticipant({ plan_override: "free", subscription_status: "active" }), false);
   assert.equal(premiumParticipant({ plan_override: "free", plan_override_expires_at: "2026-11-12T00:00:00Z", subscription_status: "active" }, Date.parse("2026-11-13T00:00:00Z")), true);
+  assert.equal(applicationProvider({ family: "kleinanzeigen" }, { canonical_url: "https://www.kleinanzeigen.de/s-anzeige/wohnung-in-hamburg/1234567890" }), "kleinanzeigen");
+  assert.equal(applicationProvider({ family: "kleinanzeigen" }, { canonical_url: "https://example.invalid/s-anzeige/test/1234567890" }), null);
+  assert.equal(applicationProvider({ family: "immoscout24" }, { canonical_url: "https://www.kleinanzeigen.de/s-anzeige/wohnung/1234567890" }), null);
   assert.equal(applicationProvider({ family: "immowelt" }, { canonical_url: "https://www.immowelt.de/expose/abc" }), "immowelt");
   assert.equal(applicationProvider({ family: "immomio" }, { canonical_url: "https://tenant.immomio.com/de/apply/12345678-1234-4234-8234-123456789012" }), "immomio");
 });
