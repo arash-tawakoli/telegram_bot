@@ -454,7 +454,7 @@ export async function adminTokenStatus(sql, env) {
   let rows = ownerId ? await sql`
     SELECT provider, status, account_hint, expires_at, updated_at
     FROM housing.provider_connections
-    WHERE participant_id = ${ownerId} AND provider IN ('immowelt', 'immomio')
+    WHERE participant_id = ${ownerId} AND provider IN ('immowelt', 'immomio', 'kleinanzeigen')
   ` : [];
   // Refresh only near-expired connected central tokens. Status checks never require a browser.
   const refreshable = rows.filter(row =>
@@ -466,7 +466,7 @@ export async function adminTokenStatus(sql, env) {
     rows = await sql`
       SELECT provider, status, account_hint, expires_at, updated_at
       FROM housing.provider_connections
-      WHERE participant_id = ${ownerId} AND provider IN ('immowelt', 'immomio')
+      WHERE participant_id = ${ownerId} AND provider IN ('immowelt', 'immomio', 'kleinanzeigen')
     `;
   }
   const connection = name => rows.find(row => row.provider === name) || {};
@@ -478,12 +478,21 @@ export async function adminTokenStatus(sql, env) {
       const status = expired ? "needs_login" : (row.status || "disconnected");
       return [name, { scope: "central", configured: status === "connected", status, account_hint: row.account_hint || null, expires_at: row.expires_at || null }];
     })),
-    kleinanzeigen,
+    kleinanzeigen: {
+      ...kleinanzeigen, scope: "search",
+      account_status: (() => {
+        const row = connection("kleinanzeigen");
+        return row.expires_at && Date.parse(row.expires_at) <= Date.now()
+          ? "needs_login" : row.status || "disconnected";
+      })(),
+      account_hint: connection("kleinanzeigen").account_hint || null,
+      expires_at: connection("kleinanzeigen").expires_at || null,
+    },
   };
 }
 
 export async function adminTokenStart(sql, env, member, providerName, channel = 'coach') {
-  if (!PROVIDERS.has(providerName)) throw new Error("provider_not_allowlisted");
+  if (!PROVIDERS.has(providerName) && providerName !== "kleinanzeigen") throw new Error("provider_not_allowlisted");
   const ownerId = await ownerParticipant(sql);
   if (!ownerId) throw new Error("owner_telegram_account_unavailable");
   if (providerName === "immoscout24") {
