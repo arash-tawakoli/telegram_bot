@@ -161,7 +161,7 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts, 
       p.plan_override, p.plan_override_expires_at, p.referral_bonus_until,
       s.status AS subscription_status, s.current_period_end AS subscription_period_end,
       ap.profile AS applicant_profile, pref.enabled AS preferences_enabled,
-      pref.immoscout_enabled, pref.immowelt_enabled, pref.immomio_enabled
+      pref.immoscout_enabled, pref.immowelt_enabled, pref.immomio_enabled, pref.kleinanzeigen_enabled
     FROM housing.search_profiles sp
     JOIN housing.source_links sl ON sl.search_profile_id = sp.id AND sl.source_id = ${sourceId}
     JOIN housing.participants p ON p.id = sp.participant_id AND p.status = 'active'
@@ -206,6 +206,7 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts, 
 
     const provider = targetProvider;
     const providerEnabled = provider === "immoscout24" ? row.immoscout_enabled
+      : provider === "kleinanzeigen" ? row.kleinanzeigen_enabled
       : provider === "immowelt" ? row.immowelt_enabled
         : provider === "immomio" ? row.immomio_enabled : false;
     const profile = object(row.applicant_profile);
@@ -276,6 +277,7 @@ export async function queueMatches(sql, offerId, sourceId, identityHash, facts, 
               WHERE pref.participant_id = ${row.participant_id} AND pref.enabled = false
                 AND CASE ${provider}
                   WHEN 'immoscout24' THEN pref.immoscout_enabled
+                  WHEN 'kleinanzeigen' THEN pref.kleinanzeigen_enabled
                   WHEN 'immowelt' THEN pref.immowelt_enabled
                   WHEN 'immomio' THEN pref.immomio_enabled
                   ELSE false END = true
