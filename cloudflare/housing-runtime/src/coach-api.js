@@ -173,70 +173,89 @@ async function saveSearch(sql, member, body) {
 }
 
 async function dashboard(sql, member) {
-  const [participants, applications, sent] = await Promise.all([
-    sql`SELECT count(*)::int AS count FROM housing.participants WHERE status = 'active'`,
-    sql`SELECT count(*)::int AS count FROM housing.applications`,
-    sql`SELECT count(*)::int AS count FROM housing.applications WHERE status = 'sent'`,
-  ]);
   const rows = await participantRows(sql, member);
-  return { participants: rows.length, participantRows: rows, applications: Number(applications[0]?.count || 0), sent: Number(sent[0]?.count || 0), failed: 0, pending: 0, manualRequired: 0, recentApplications: [] };
+  const counts = await sql.unsafe(`
+    SELECT a.status, COUNT(*) AS count FROM housing.applications a
+    WHERE ($1 = 1 OR EXISTS (
+      SELECT 1 FROM housing.participant_assignments pa
+      WHERE pa.participant_id = a.participant_id AND pa.member_id = $2
+    ))
+    GROUP BY a.status
+  `, [isAdmin(member) ? 1 : 0, member.id]);
+  const byStatus = Object.fromEntries(counts.map(row => [row.status, Number(row.count || 0)]));
+  const sent = byStatus.sent || 0;
+  const failed = byStatus.failed || 0;
+  const pending = (byStatus.pending || 0) + (byStatus.processing || 0);
+  const manualRequired = byStatus.manual_required || 0;
+  return {
+    participants: rows.length, participantRows: rows,
+    applications: sent + failed + pending + manualRequired,
+    sent, failed, pending, manualRequired, recentApplications: [],
+  };
 }
 
 function applicationRow(row) {
+  let facts = row.facts || {};
+  if (typeof facts === "string") {
+    try { facts = JSON.parse(facts); } catch { facts = {}; }
+  }
   return {
-    id: row.id,
-    status: row.status,
-    last_error: row.last_error,
-    wait_reason: row.wait_reason || null,
-    created_at: row.created_at,
-    sent_at: row.sent_at,
+    id: row.id, status: row.status, last_error: row.last_error,
+    wait_reason: row.wait_reason || null, created_at: row.created_at, sent_at: row.sent_at,
     participant: { participantId: row.participant_id, name: [row.first_name, row.last_name].filter(Boolean).join(" "), coach: row.coach || "" },
-    listings: { title: "Wohnungsangebot", canonical_url: row.canonical_url, district: null, postal_code: null, city: null, sources: { name: row.source_name || "" } },
-    latestEvent: row.event_id ? { provider: row.provider, event_type: row.event_type, status: row.event_status, reason: row.event_reason, document_result: row.document_result, created_at: row.event_created_at } : null,
+    listings: { title: facts.title || "Wohnungsangebot", canonical_url: row.canonical_url, district: facts.district || null, postal_code: facts.postal_code || null, city: facts.city || null, sources: { name: row.source_name || "" } },
+    latestEvent: row.event_id ? { provider: row.event_provider || row.provider, event_type: row.event_type, status: row.event_status, reason: row.event_reason, document_result: row.document_result, created_at: row.event_created_at } : { provider: row.provider },
   };
 }
 
 async function applicationPage(sql, member, body) {
-  const scope = body.scope === "mine" && !isAdmin(member) ? member.id : null;
   const page = Math.max(1, Math.min(10_000, Number(body.page || 1)));
   const pageSize = Math.max(1, Math.min(100, Number(body.pageSize || 50)));
   const days = [7, 30, 90].includes(Number(body.days)) ? Number(body.days) : 30;
+  const clauses = ["datetime(a.created_at) >= datetime('now', $1)"];
+  const params = ["-" + days + " days"];
+  // A coach is always limited to their assignments, even with scope=all.
+  if (!isAdmin(member) || body.scope === "mine") {
+    params.push(member.id);
+    clauses.push(`pa.member_id = $${params.length}`);
+  }
   const status = text(body.status, 40);
+  if (status) { params.push(status); clauses.push(`a.status = $${params.length}`); }
   const providerName = body.provider ? provider(body.provider) : "";
-  if (providerName && !PROVIDERS.has(providerName)) throw new Error("provider_not_allowlisted");
-  const rows = await sql`
-    WITH latest_events AS (
-      SELECT DISTINCT ON (ae.application_id)
-        ae.application_id, ae.id AS event_id, ae.provider, ae.event_type, ae.status AS event_status,
-        ae.reason AS event_reason, ae.document_result, ae.created_at AS event_created_at
-      FROM housing.application_events ae
-      ORDER BY ae.application_id, ae.created_at DESC
-    )
-    SELECT a.id, a.participant_id, a.status, a.last_error, a.created_at, a.updated_at,
-      p.first_name, p.last_name, a.offer_identity_id, oi.canonical_url, sr.name AS source_name,
-      pe.event_id, pe.provider, pe.event_type, pe.event_status, pe.event_reason, pe.document_result, pe.event_created_at,
-      pm.display_name AS coach
+  if (providerName) { params.push(providerName); clauses.push(`a.provider = $${params.length}`); }
+  const participantId = text(body.participantId, 80);
+  if (participantId) { params.push(participantId); clauses.push(`a.participant_id = $${params.length}`); }
+  const documentResult = text(body.documentResult, 60);
+  if (documentResult) { params.push(documentResult); clauses.push(`ev.document_result = $${params.length}`); }
+  if (body.coachMemberId && isAdmin(member)) {
+    params.push(text(body.coachMemberId, 80));
+    clauses.push(`pa.member_id = $${params.length}`);
+  }
+  const from = `
     FROM housing.applications a
     JOIN housing.participants p ON p.id = a.participant_id
-    JOIN housing.offer_identities oi ON oi.id = a.offer_identity_id
-    JOIN housing.source_registry sr ON sr.id = oi.source_id
-    LEFT JOIN latest_events pe ON pe.application_id = a.id
+    LEFT JOIN housing.offer_identities oi ON oi.id = a.offer_identity_id
+    LEFT JOIN housing.source_registry sr ON sr.id = oi.source_id
     LEFT JOIN housing.participant_assignments pa ON pa.participant_id = a.participant_id
     LEFT JOIN housing.portal_members pm ON pm.id = pa.member_id
-    WHERE a.created_at >= now() - (${days} || ' days')::interval
-      AND (${scope}::uuid IS NULL OR a.participant_id IN (SELECT participant_id FROM housing.participant_assignments WHERE member_id = ${scope}))
-      AND (${status} = '' OR a.status = ${status})
-      AND (${providerName} = '' OR a.provider = ${providerName})
-    ORDER BY a.created_at DESC
-    LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}
+    LEFT JOIN housing.application_events ev ON ev.id = (
+      SELECT e.id FROM housing.application_events e
+      WHERE e.application_id = a.id ORDER BY e.created_at DESC,e.id DESC LIMIT 1
+    )
   `;
-  const countRows = await sql`
-    SELECT count(*)::int AS total FROM housing.applications a
-    WHERE a.created_at >= now() - (${days} || ' days')::interval
-      AND (${scope}::uuid IS NULL OR a.participant_id IN (SELECT participant_id FROM housing.participant_assignments WHERE member_id = ${scope}))
-      AND (${status} = '' OR a.status = ${status})
-      AND (${providerName} = '' OR a.provider = ${providerName})
-  `;
+  const where = " WHERE " + clauses.join(" AND ");
+  const countRows = await sql.unsafe("SELECT COUNT(*) AS total " + from + where, params);
+  const rows = await sql.unsafe(`
+    SELECT a.id,a.participant_id,a.provider,a.status,a.last_error,a.wait_reason,
+      a.created_at,a.sent_at,p.first_name,p.last_name,oi.facts,oi.canonical_url,
+      sr.name AS source_name,pm.display_name AS coach,
+      ev.id AS event_id,ev.provider AS event_provider,ev.event_type,
+      ev.status AS event_status,ev.reason AS event_reason,ev.document_result,
+      ev.created_at AS event_created_at
+    ${from} ${where}
+    ORDER BY datetime(a.created_at) DESC,a.id DESC
+    LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+  `, [...params,pageSize,(page - 1) * pageSize]);
   const total = Number(countRows[0]?.total || 0);
   return { applications: rows.map(applicationRow), total, page, pageSize, pages: Math.ceil(total / pageSize) };
 }
