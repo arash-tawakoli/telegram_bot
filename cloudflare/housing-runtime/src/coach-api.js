@@ -5,6 +5,9 @@ import { assertAllowedSource } from "./source-allowlist.js";
 import { fetchImmoScoutSource, fetchImmoScoutMap, germanImmoScoutQuery } from "./immoscout-source.js";
 import { issueProviderAuthFlow, centralCall } from "./provider-facade.js";
 import { getCentralProviderCredentials } from "./central-provider-credentials.js";
+import { configureLegacyRuntime } from "./telegram-legacy/runtime.js";
+import { deleteUser } from "./telegram-legacy/admin.js";
+import { createTelegramLink } from "./telegram-link.js";
 
 const HEADERS = {
   "content-type": "application/json; charset=utf-8",
@@ -50,6 +53,38 @@ function provider(value) {
   const result = raw === "immoscout" ? "immoscout24" : raw;
   if (!PROVIDERS.has(result)) throw new Error("provider_not_allowlisted");
   return result;
+}
+
+// The portal already checked coach_participants before forwarding; check again here.
+async function coachCanSee(sql, member, participantId) {
+  if (isAdmin(member)) return true;
+  const rows = await sql`SELECT 1 FROM housing.coach_participants WHERE participant_id = ${participantId} AND coach_member_id = ${member.id}`;
+  return Boolean(rows[0]);
+}
+
+async function deleteParticipant(sql, member, body, env) {
+  if (!isAdmin(member)) throw new Error("admin_required");
+  if (body.previewMemberId) throw new Error("preview_read_only");
+  if (body.confirmDelete !== true) throw new Error("deletion_confirmation_required");
+  const id = String(body.participantId || "");
+  if (!(await sql`SELECT 1 FROM housing.participants WHERE id = ${id}`)[0]) throw new Error("participant_unavailable");
+  // deleteUser purges stored documents and provider sessions, refuses admins, then deletes (cascades the rest).
+  configureLegacyRuntime(env, env.HOUSING_DB);
+  try { await deleteUser(id); }
+  catch (error) {
+    if (/admin accounts/.test(String(error?.message))) throw new Error("participant_forbidden");
+    throw error;
+  }
+  await sql`INSERT INTO housing.coach_audit_events (actor_member_id, participant_id, action, changes)
+    VALUES (${member.id}, NULL, 'delete_participant', ${JSON.stringify({ participant_id: id })})`;
+  return { ok: true, mode: "deleted_permanently" };
+}
+
+async function telegramLink(sql, member, body, env) {
+  if (body.previewMemberId) throw new Error("preview_read_only");
+  const id = String(body.participantId || "");
+  if (!await coachCanSee(sql, member, id)) throw new Error("participant_forbidden");
+  return createTelegramLink(env.HOUSING_DB, id, member.id);
 }
 
 async function canAccessParticipant(sql, member, participantId) {
@@ -572,6 +607,8 @@ export async function handleCoach(sql, request, env = {}) {
   if (action === "disconnect_provider") return disconnectProvider(sql, member, body);
   if (action === "applications") return applicationPage(sql, member, body);
   if (action === "application_events") return applicationEvents(sql, member, body);
+  if (action === "delete_participant") return deleteParticipant(sql, member, body, env);
+  if (action === "telegram_link") return telegramLink(sql, member, body, env);
   throw new Error("invalid_action");
 }
 
