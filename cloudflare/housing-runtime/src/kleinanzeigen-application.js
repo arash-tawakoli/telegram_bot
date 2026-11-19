@@ -130,9 +130,11 @@ export async function sendKleinanzeigenApplication(application, env, sql, centra
     return { status: "manual_required", error: "submission_unconfirmed",
       provider_http_status: submitted.provider_http_status, failure_stage: "post_response_rejected",
       provider_response_keys: responseKeys };
-  const conversation = result.conversationId || result.data?.conversationId
-    || result.conversation?.id || result.data?.conversation?.id;
-  if (!conversation || !/^[a-z0-9_-]{3,128}$/i.test(String(conversation)))
+  const conversationValue = result.conversationId ?? result.data?.conversationId
+    ?? result.conversation?.id ?? result.data?.conversation?.id;
+  const conversation = conversationValue && typeof conversationValue === "object"
+    ? conversationValue.value ?? conversationValue.id : conversationValue;
+  if (!conversation || !/^[a-z0-9:_-]{3,128}$/i.test(String(conversation)))
     return { status: "manual_required", error: "submission_unconfirmed",
       provider_http_status: submitted.provider_http_status, failure_stage: "post_confirmation_missing",
       provider_response_keys: responseKeys };
