@@ -60,7 +60,8 @@ test("honors provider enum values and never invents unsupported values",()=>{
 test("required consent and unverified conditional schemas fail closed",()=>{
   const unknown=prepareKleinanzeigenApplicantForm(form({consent:{type:"boolean"},
     message:{type:"string"}}),{...applicant,consent:true},"Text");
-  assert.equal(unknown.ok,true, "explicit user-provided consent may be mapped");
+  assert.equal(unknown.ok,false, "consent must be granted to that advertiser explicitly");
+  assert.deepEqual(unknown.unsupported.map(x=>x.id),["consent"]);
   const conditional=form({message:{type:"string"}});
   conditional.schema.if={properties:{pets:{const:"YES"}}};
   assert.equal(prepareKleinanzeigenApplicantForm(conditional,applicant,"Text").error,"form_schema_unverified");
