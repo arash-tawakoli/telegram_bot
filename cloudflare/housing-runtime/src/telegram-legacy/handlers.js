@@ -2,11 +2,12 @@ import { platformSessions, handleAutoApplyMessage, clearPendingField } from './p
 import { BERLIN_BOROUGHS, BERLIN_LOCALITIES } from "../berlin-geography.js";
 import { adminTokenStatus, adminTokenStart, adminTokenRefresh } from '../coach-api.js';
 import { createD1Client } from '../d1-database.js';
+import { MENU_BUTTON } from '../telegram-menu.js';
 import { refreshImmomioSession } from '../immomio-application.js';
 import { runKleinanzeigenNow } from '../kleinanzeigen-source.js';
 import { handleProviderFacade } from '../provider-facade.js';
 import { isAdmin, adminGrantLabel, adminPremiumNotice, adminUsers, adminUser, previewFreePremiumReset, executeFreePremiumReset, setUserBlocked, deleteUser, setPlanOverride, ANNOUNCEMENT_PROMPT, createAnnouncementDraft, cancelAnnouncement, sendAnnouncement } from "./admin.js";
-import { homeKeyboard, home, premium, premiumTier, setPaused, referralPage, settings, languageMenu, QUICK_ACTIONS, showQuickActions, miniAppKeyboard, MINIAPP_URL } from "./navigation.js";
+import { homeKeyboard, home, premium, premiumTier, setPaused, referralPage, settings, languageMenu, QUICK_ACTIONS, showQuickActions, miniAppKeyboard } from "./navigation.js";
 import { saveDeliveredOffer, removeSavedOffer, savedOffers } from "./saved-offers.js";
 import { resetPage, redeemReset, adminResetMenu, grantResetToUser, previewGlobalReset, grantGlobalReset } from "./usage-resets.js";
 import { draftFor, validateDraft, renderTypes, renderLocation, renderBoroughs, renderNeighborhoods, renderBerlinAreas, renderSchleswigHolsteinAreas, renderRent, renderCustomRent, renderRooms, renderArea, renderReview, renderReviewEdit, renderStep, afterSelection, persistProfile, profileLimit, draftFromProfile, startNewProfile, profileEditMenu, profile, renderStatus, nextSizeStep } from "./profiles.js";
@@ -67,7 +68,7 @@ async function syncTelegramCommands(user, chatId) {
         }),
         telegram("setChatMenuButton", {
             chat_id: chatId,
-            menu_button: { type: "web_app", text: "Wohnungs-App", web_app: { url: MINIAPP_URL } },
+            menu_button: MENU_BUTTON,
         }),
     ];
     if (admin) {
