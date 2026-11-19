@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { prepareKleinanzeigenApplicantForm } from "../src/kleinanzeigen-application-profile.js";
+import { prepareKleinanzeigenApplicantForm, describeKleinanzeigenForm } from "../src/kleinanzeigen-application-profile.js";
 import { providerDynamicReadiness } from "../src/telegram-legacy/application-profile-adapters.js";
 
 const applicant = {
@@ -81,4 +81,15 @@ test("unified applicant profile exposes provider dynamic readiness",()=>{
   assert.equal(result.payload.contactFirstName,"Sona");
   assert.equal(result.payload.message,"Hallo");
   assert.deepEqual(result.missing,[]);
+});
+
+test("form diagnostics persist only bounded schema keys, never account values or messages",()=>{
+  const f={schema:{type:"object",required:["message","customField"],properties:{
+    message:{type:"string"},customField:{type:"string",enum:["private@example.test","different@example.test"]}
+  }},data:{message:"Hi, my email is private@example.test",email:"operator@example.test"},uiSchema:{type:"Control",scope:"#/properties/customField",label:"Custom: private@example.test"},access_token:"SECRET"};
+  const diagnostic=describeKleinanzeigenForm(f);
+  assert.deepEqual(diagnostic.required_ids,["message","customField"]);
+  assert.deepEqual(diagnostic.form_data_keys,["message","email"]);
+  assert.equal(diagnostic.fields.find(x=>x.id==="customField")?.enum_count,2);
+  assert.doesNotMatch(JSON.stringify(diagnostic),/private@example|operator@example|SECRET|Hi, my email/);
 });
