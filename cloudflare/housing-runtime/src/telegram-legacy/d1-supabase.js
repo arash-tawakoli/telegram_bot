@@ -379,7 +379,7 @@ async function rpc(client, env, name, args) {
     if (provider && !Object.hasOwn(providerColumns, provider))
       return { data: null, error: new Error("provider_not_allowlisted") };
     const enable = args.p_enabled === true;
-    const kaAvailable = env.CENTRAL_KLEINANZEIGEN_TRANSPORT_VERIFIED === "1";
+    const kaAvailable = env.CENTRAL_KLEINANZEIGEN_SEND_ENABLED === "1";
     if (provider === "kleinanzeigen" && enable && !kaAvailable)
       return { data: null, error: new Error("provider_transport_unverified") };
     const participant = (await client.run("SELECT id,status,telegram_user_id,test_auto_apply_allowed,test_auto_apply_enabled,auto_apply_enabled,plan_override,plan_override_expires_at,referral_bonus_until FROM participants WHERE id=? LIMIT 1", [userId]))[0];
@@ -712,7 +712,7 @@ async function rpc(client, env, name, args) {
     const source = { immoscout: 1, immoscout24: 1, immomio: 3, immowelt: 4, kleinanzeigen: 2 }[args.p_provider];
     if (!col) return { data: null, error: new Error("provider_not_allowlisted") };
     const enabled = args.p_enabled === true || args.p_enabled === 1;
-    if (args.p_provider === "kleinanzeigen" && enabled && env.CENTRAL_KLEINANZEIGEN_TRANSPORT_VERIFIED !== "1") return { data: null, error: new Error("provider_transport_unverified") };
+    if (args.p_provider === "kleinanzeigen" && enabled && env.CENTRAL_KLEINANZEIGEN_SEND_ENABLED !== "1") return { data: null, error: new Error("provider_transport_unverified") };
     const callbackData = `platforms:${enabled ? "resume" : "pause"}:${source}`;
     const order = telegramControlOrder(args, callbackData, [`platforms:pause:${source}`, `platforms:resume:${source}`]);
     if (order.error) return { data: null, error: order.error };
