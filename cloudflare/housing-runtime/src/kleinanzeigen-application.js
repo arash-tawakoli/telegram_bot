@@ -38,11 +38,15 @@ function responseError(status) {
   return "provider_contract_unverified";
 }
 
-function headers(token, content = false) {
+function headers(credentials, content = false) {
   return {
     accept: "application/json", "accept-language": "de-DE",
-    authorization: "Bearer " + token,
-    "user-agent": "TraumWohnungHamburg/1.0",
+    authorization: "Bearer " + credentials.access_token,
+    ...(credentials.x_ebayk_app ? {
+      "x-ebayk-app": String(credentials.x_ebayk_app),
+      "x-ecg-user-agent": "ebayk-android-app-2026.37.1",
+      "x-ecg-user-version": "2026.37.1",
+    } : {}),
     ...(content ? { "content-type": "application/json" } : {}),
   };
 }
@@ -52,7 +56,7 @@ async function providerRequest(id, credentials, method, payload) {
   try {
     response = await fetch(CONTACT(id), {
       method,
-      headers: headers(credentials.access_token, method === "POST"),
+      headers: headers(credentials, method === "POST"),
       ...(payload ? { body: JSON.stringify(payload) } : {}),
       signal: AbortSignal.timeout(25_000),
     });
