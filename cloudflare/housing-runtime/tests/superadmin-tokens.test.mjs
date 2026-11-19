@@ -11,7 +11,7 @@ function setup(role="super_admin"){
   const query=parts.join("?");
   queries.push(query);
   if(query.includes("FROM housing.portal_sessions s"))return [{id:"member",role,active:true,display_name:"Test"}];
-  if(query.includes("FROM housing.participants WHERE telegram_user_id"))return [{id:OWNER_ID}];
+  if(query.includes("FROM housing.participants WHERE telegram_user_id")&&!query.includes("provider_connections"))return [{id:OWNER_ID}];
   if(query.includes("FROM participants WHERE id="))return [{id:OWNER_ID,status:"active",telegram_user_id:8538226539}];
   if(query.includes("FROM housing.provider_connections"))return [
    {provider:"immowelt",status:"connected",account_hint:"account@example.test",expires_at:null},
