@@ -272,7 +272,7 @@ export async function processHousingApplication(sql, env, request) {
   if (provider === "immowelt" && env.CENTRAL_IMMOWELT_TRANSPORT_VERIFIED !== "1") {
     return fail("manual_required", "provider_contract_unverified");
   }
-  if (provider === "kleinanzeigen" && env.CENTRAL_KLEINANZEIGEN_TRANSPORT_VERIFIED !== "1") {
+  if (provider === "kleinanzeigen" && env.CENTRAL_KLEINANZEIGEN_SEND_ENABLED !== "1") {
     return defer("provider_transport_unverified", sqlTime(new Date(now.getTime() + 60 * 60_000)));
   }
   let central;
