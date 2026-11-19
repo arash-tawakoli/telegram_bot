@@ -14,10 +14,10 @@ for(const path of [
  test('Retired housing provider is unavailable: '+path,()=>{
   const src=readFileSync(new URL(path,import.meta.url),'utf8');
   if (path.includes('/cloudflare/housing-runtime/src/telegram-legacy/platform-sessions.js')) {
-   // Kleinanzeigen is allowed in the shared applicant profile as informational
-   // context, but it must not acquire a live AutoApply sender or personal login.
+   // The unified applicant profile and source toggle are allowed, but private
+   // Kleinanzeigen sending must remain gated until provider transport is verified.
    assert.match(src,/Kleinanzeigen · Versand noch nicht freigegeben/);
-   assert.doesNotMatch(src,/2:\\s*\\{key:\\s*['"]kleinanzeigen['"]/i);
+   assert.match(src,/CENTRAL_KLEINANZEIGEN_TRANSPORT_VERIFIED/);
    assert.doesNotMatch(src,/login_share|complete_shared_login|probe_kleinanzeigen/i);
   } else {
    assert.doesNotMatch(src,/Kleinanzeigen|login_share|complete_shared_login|probe_kleinanzeigen/i);
