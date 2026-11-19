@@ -50,7 +50,7 @@
       "PREVIEW_MODE": "1",
       "TELEGRAM_WEBHOOK_REGISTER": "0",
       "CENTRAL_AUTO_APPLY_ENABLED": "0",
-      "AUTO_APPLY_PROVIDERS": "none"
+      "AUTO_APPLY_PROVIDERS": ""
     }
   },
   "limits": {
