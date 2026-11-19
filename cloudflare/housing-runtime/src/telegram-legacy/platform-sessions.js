@@ -833,9 +833,10 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
    'platforms:'+(running?'pause':'resume')+':'+sourceId)]);
  }
 
- // Kleinanzeigen shares the same profile and has its own source selection.
- // It is listed as an informational status until its outbound contract is verified.
+ // Fourth platform uses the same dynamic applicant profile. The provider
+ // detail action is read-only until its outbound transport is verified.
  statusLines.push('Kleinanzeigen · Versand noch nicht freigegeben');
+ rows.push([button('⚪ Kleinanzeigen · Profil & Status','platforms:provider:2')]);
 
  // Confirm the persisted state after each button press. A stale Telegram
  // callback can be safely ignored; never imply that a send was enabled.
@@ -868,6 +869,6 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  rows.push([button('← Start','home')]);
  return render('⚡ <b>Automatische Bewerbung</b>\n\n'+controlNotice+'<b>'+activeCount+' von 3 Plattformen aktiv</b>\n'+statusLines.join('\n')+'\n\n'+(isTestAccount
   ? 'Aktiviere oder pausiere den persönlichen Testmodus für einzelne Quellen oder alle Quellen.'
-  : 'Starte oder pausiere den automatischen Bewerbungsversand je Quelle oder für alle Quellen.')+' Die Wohnungssuche bleibt davon unberührt. Plattformzugänge werden zentral verwaltet. Kleinanzeigen nutzt dasselbe Bewerberprofil; der Versand bleibt bis zur Schnittstellenprüfung gesperrt.'+centralNote,rows);
+  : 'Starte oder pausiere den automatischen Bewerbungsversand je Quelle oder für alle Quellen.')+' Die Wohnungssuche bleibt davon unberührt. Plattformzugänge werden zentral verwaltet. Kleinanzeigen ist als vierte Plattform aufgeführt und nutzt dasselbe Bewerberprofil; der Versand bleibt bis zur Schnittstellenprüfung gesperrt.'+centralNote,rows);
 
 }
