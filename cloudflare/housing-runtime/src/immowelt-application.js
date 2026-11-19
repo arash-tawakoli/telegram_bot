@@ -1,5 +1,6 @@
 import { getCentralProviderCredentials } from "./central-provider-credentials.js";
 import { decryptProviderCredentials, encryptProviderCredentials } from "./provider-credentials.js";
+import { providerSendEnabled } from "./application-policy.js";
 import { refreshImmoweltCookies } from "./immowelt-auth.js";
 
 function xml(value) {
@@ -47,7 +48,7 @@ export async function sendImmoweltApplication(application, env, sql, central = n
   // OIDC bearer tokens are for account login, not a verified SOAP send credential.
   // Never fall back to Cloudflare Browser cookies or represent an unverified send as successful.
   const connection = central || await getCentralProviderCredentials(sql, env, "immowelt");
-  if (connection.credentials.access_token) {
+  if (connection.credentials.access_token && !connection.credentials.cookies?.length) {
     return { status: "manual_required", error: "provider_credentials_bearer_only" };
   }
   const cookies = (Array.isArray(connection.credentials.cookies) ? connection.credentials.cookies : []).filter((cookie) => {
@@ -59,8 +60,8 @@ export async function sendImmoweltApplication(application, env, sql, central = n
       && (!Number.isFinite(expiry) || expiry < 0 || expiry * 1000 > Date.now() + 60_000);
   });
   if (!cookies.length) return { status: "manual_required", error: "needs_login" };
-  // SOAP authentication and on-behalf-of delivery have not been verified.
-  if (env.CENTRAL_IMMOWELT_TRANSPORT_VERIFIED !== "1") {
+  // Normal sends are gated in the runtime; test sends are gated here.
+  if (application.test_mode && !providerSendEnabled(env, "immowelt")) {
     return { status: "manual_required", error: "provider_transport_unverified" };
   }
   const cookieHeader = cookies.map((cookie) => `${cookie.name}=${cookie.value}`).join("; ");
@@ -96,9 +97,13 @@ export async function sendImmoweltApplication(application, env, sql, central = n
   } catch {
     return { status: "manual_required", error: "submission_unconfirmed" };
   }
+  // Diagnostics for every send; cookie values are stripped from the excerpt.
+  let excerpt = text.replace(/\s+/g, " ");
+  for (const cookie of cookies) excerpt = excerpt.split(cookie.value).join("[redacted]");
+  const diagnostics = { provider_http_status: response.status, provider_response_excerpt: excerpt.slice(0, 300) };
   if (response.ok && /<SendContactMailResult>\s*true\s*<\/SendContactMailResult>/i.test(text)) {
-    return { status: "sent", confirmation: "immowelt_communication_service" };
+    return { status: "sent", confirmation: "immowelt_communication_service", ...diagnostics };
   }
-  if (/<SendContactMailResult>\s*false\s*<\/SendContactMailResult>/i.test(text)) return { status: "manual_required", error: "provider_rejected" };
-  return { status: "manual_required", error: "submission_unconfirmed" };
+  if (/<SendContactMailResult>\s*false\s*<\/SendContactMailResult>/i.test(text)) return { status: "manual_required", error: "provider_rejected", ...diagnostics };
+  return { status: "manual_required", error: "submission_unconfirmed", ...diagnostics };
 }

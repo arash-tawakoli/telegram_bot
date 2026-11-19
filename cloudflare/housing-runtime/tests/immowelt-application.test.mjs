@@ -32,6 +32,27 @@ test("Immowelt bearer-only credentials report their own reason", async () => {
 
 test("Immowelt unset transport flag reports its own reason", async () => {
   const cookies = [{ name: "oauth.access.token", value: "v", domain: ".immowelt.de", expires: -1 }];
-  const result = await sendImmoweltApplication(GUID_APP, {}, null, { credentials: { cookies } });
+  const result = await sendImmoweltApplication({ ...GUID_APP, test_mode: true }, {}, null, { credentials: { cookies } });
   assert.equal(result.error, "provider_transport_unverified");
+});
+
+test("normal Immowelt application with the gate on sends the applicant's own identity", async () => {
+  const original = globalThis.fetch;
+  let sent;
+  globalThis.fetch = async (url, init) => {
+    sent = { url: String(url), body: String(init.body), cookie: init.headers.cookie };
+    return new Response("<r><SendContactMailResult>true</SendContactMailResult><note>session-secret</note></r>", { status: 200 });
+  };
+  try {
+    const cookies = [{ name: "oauth.access.token", value: "session-secret", domain: ".immowelt.de", expires: -1 }];
+    const result = await sendImmoweltApplication({
+      ...GUID_APP,
+      profile: { first_name: "Eva", last_name: "Test", email: "eva@example.com", phone: "+491711234567", message: "Hallo" },
+    }, { AUTO_APPLY_PROVIDERS: "immowelt" }, null, { ownerId: "owner", credentials: { cookies } });
+    assert.equal(result.status, "sent");
+    assert.match(sent.body, /<Name>Eva Test<\/Name><EMail>eva@example\.com<\/EMail>/);
+    assert.equal(result.provider_http_status, 200);
+    assert.ok(result.provider_response_excerpt.length <= 300);
+    assert.doesNotMatch(result.provider_response_excerpt, /session-secret/);
+  } finally { globalThis.fetch = original; }
 });

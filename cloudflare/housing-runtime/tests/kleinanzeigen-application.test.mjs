@@ -13,7 +13,7 @@ const listing = {
   },
 };
 const central = { credentials: { access_token: "central-private-token" }, accountHint: "operator@example.test" };
-const enabled = { CENTRAL_KLEINANZEIGEN_SEND_ENABLED: "1" };
+const enabled = { AUTO_APPLY_PROVIDERS: "kleinanzeigen" };
 const form = {
   schema: {
     type: "object",
@@ -50,7 +50,7 @@ test("applicant name and contact email are retained even with a central account"
 
 test("transport gate never calls a private provider endpoint when unverified",async()=>{
   await withFetch(()=>{ throw Error("provider must not be called"); },async()=>{
-    const result=await sendKleinanzeigenApplication(listing,{},null,central);
+    const result=await sendKleinanzeigenApplication({...listing,test_mode:true},{},null,central);
     assert.equal(result.status,"manual_required");
     assert.equal(result.error,"provider_contract_unverified");
   });

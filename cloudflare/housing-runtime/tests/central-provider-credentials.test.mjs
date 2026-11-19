@@ -173,6 +173,7 @@ test("Immowelt refuses to transmit until the central session transport is verifi
   globalThis.fetch = async () => { throw new Error("unexpected outbound request"); };
   try {
     const result = await sendImmoweltApplication({
+      test_mode: true,
       canonical_url: "https://www.immowelt.de/expose/64f4e6cd-26d3-4bb6-9481-a0a87694bf38",
       profile: { email: "applicant@example.com", first_name: "Anna", last_name: "Beispiel" },
     }, {}, null, {

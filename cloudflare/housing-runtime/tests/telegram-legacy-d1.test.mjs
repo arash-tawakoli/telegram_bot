@@ -214,7 +214,7 @@ test("Telegram controls expose the shared Kleinanzeigen profile with verified tr
   const source=readFileSync(new URL("../src/telegram-legacy/platform-sessions.js",import.meta.url),"utf8");
   assert.match(source,/Kleinanzeigen · Versand noch nicht freigegeben/);
   assert.match(source,/2:\{key:'kleinanzeigen'/i);
-  assert.match(source,/CENTRAL_KLEINANZEIGEN_SEND_ENABLED/);
+  assert.match(source,/providerSendEnabled/);
   assert.match(source,/1:\{key:'immoscout24'/);
   assert.match(source,/3:\{key:'immomio'/);
   assert.match(source,/4:\{key:'immowelt'/);

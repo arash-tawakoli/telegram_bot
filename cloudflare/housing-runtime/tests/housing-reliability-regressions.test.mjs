@@ -132,7 +132,7 @@ test("verified Immowelt sender does not transmit when atomic test authorization 
       authorizeTestSend: async () => { reserved++; return false; },
       canonical_url: "https://www.immowelt.de/expose/64f4e6cd-26d3-4bb6-9481-a0a87694bf38",
       profile: { first_name: "Anna", last_name: "Beispiel", email: "anna@example.com" },
-    }, { CENTRAL_IMMOWELT_TRANSPORT_VERIFIED: "1" }, null, { ownerId: "owner-id", credentials: {
+    }, { AUTO_APPLY_PROVIDERS: "immowelt" }, null, { ownerId: "owner-id", credentials: {
       cookies: [{ domain: ".immowelt.de", name: "session", value: "opaque", expires: -1 }],
     } });
     assert.deepEqual(result, { status: "manual_required", error: "test_send_not_authorized" });

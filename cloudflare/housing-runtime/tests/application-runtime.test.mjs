@@ -42,7 +42,7 @@ test("application processor fails closed when central provider credentials are a
     preferences_enabled: true, provider_enabled: true, daily_limit: null, timezone: "Europe/Berlin",
     allowed_weekdays: null, send_window_start: null, send_window_end: null, connection_status: "connected",
   });
-  const result = await processHousingApplication(db.query, { APPLICATION_RUN_TOKEN: "secret", CENTRAL_AUTO_APPLY_ENABLED: "1" }, new Request("https://runtime.test/internal/application/process", { method: "POST", headers: { authorization: "Bearer secret" } }));
+  const result = await processHousingApplication(db.query, { APPLICATION_RUN_TOKEN: "secret", CENTRAL_AUTO_APPLY_ENABLED: "1", AUTO_APPLY_PROVIDERS: "immomio" }, new Request("https://runtime.test/internal/application/process", { method: "POST", headers: { authorization: "Bearer secret" } }));
   assert.equal(result.body.status, "manual_required");
   assert.equal(result.body.reason, "central_provider_unavailable");
   assert.equal(db.writes.some(({ text }) => /SET submission_started_at = now\(\)/.test(text)), false);
@@ -66,7 +66,7 @@ test("central AutoApply stays paused after deployment and does not reserve or se
   assert.equal(db.writes.some(({ text, values }) => /wait_reason = /.test(text) && values.includes("central_auto_apply_paused")), true);
 });
 
-test("free opt-in can reach provider preflight without any Telegram delivery", async () => {
+test("gate off: a free opt-in Immowelt application is deferred, not failed", async () => {
   const db = sqlFor({
     id: "app-free", participant_id: "user-1", offer_identity_id: "offer-1",
     provider: "immowelt", source_id: 3, status: "pending", test_mode: 0,
@@ -89,9 +89,9 @@ test("free opt-in can reach provider preflight without any Telegram delivery", a
   }, new Request("https://runtime.test/internal/application/process", {
     method: "POST", headers: { authorization: "Bearer secret" },
   }));
-  // Immowelt's unverified transport still blocks actual sending.
-  assert.equal(result.body.status, "manual_required");
-  assert.equal(result.body.reason, "provider_contract_unverified");
+  // The provider gate is off: the application waits instead of failing.
+  assert.equal(result.body.status, "deferred");
+  assert.equal(result.body.reason, "provider_send_disabled");
   assert.equal(db.writes.some(({ text }) => /FROM housing\.deliveries/i.test(text)), false);
   assert.equal(db.writes.some(({ text }) => /SET submission_started_at = now\(\)/i.test(text)), false);
 });

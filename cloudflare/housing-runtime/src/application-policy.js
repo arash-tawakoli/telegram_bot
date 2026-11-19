@@ -7,6 +7,16 @@ const REQUIRED_ENUMS = {
   schufa_status: ["NOT_SPECIFIED", "AVAILABLE", "NOT_AVAILABLE"],
 };
 
+// One send gate for every provider: AUTO_APPLY_PROVIDERS is a comma list such as
+// "immoscout24,immowelt,kleinanzeigen". Unknown names and an empty value enable nothing.
+// Immomio stays out of the default list: createApplication submits the central
+// account's own Immomio profile, so sending for others would apply as the owner.
+const SEND_PROVIDERS = ["immoscout24", "immowelt", "immomio", "kleinanzeigen"];
+export function providerSendEnabled(env, provider) {
+  if (!SEND_PROVIDERS.includes(provider)) return false;
+  return String(env?.AUTO_APPLY_PROVIDERS ?? "").split(",").map((name) => name.trim().toLowerCase()).includes(provider);
+}
+
 function parse(value, fallback = {}) {
   if (value && typeof value === "object") return value;
   try { return JSON.parse(value || "{}"); } catch { return fallback; }

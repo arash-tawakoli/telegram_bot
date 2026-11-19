@@ -4,7 +4,7 @@ import { sendImmoScoutApplication } from "./immoscout-application.js";
 import { sendImmomioApplication } from "./immomio-application.js";
 import { sendKleinanzeigenApplication } from "./kleinanzeigen-application.js";
 import { listingCategory, matchesActiveSearch } from "./matching.js";
-import { applicationProvider, applicationSchedule, missingApplicantFields, listingRequiresWbs, sqlTime, timestampMillis } from "./application-policy.js";
+import { applicationProvider, applicationSchedule, providerSendEnabled, missingApplicantFields, listingRequiresWbs, sqlTime, timestampMillis } from "./application-policy.js";
 import { effectiveApplicationMessages } from "./application-text.js";
 import { sourceForId } from "./source-allowlist.js";
 import { centralCredentialError, getCentralProviderCredentials } from "./central-provider-credentials.js";
@@ -227,6 +227,7 @@ export async function processHousingApplication(sql, env, request) {
       test_mode: true, confirmation: result.confirmation || null, submission_started: submissionStarted,
       error_detail: errorDetail,
       provider_http_status: result.provider_http_status || null,
+      provider_response_excerpt: result.provider_response_excerpt || null,
       provider_message_code: result.provider_message_code || null,
       provider_validation_field: result.provider_validation_field || null,
       provider_validation_rule: result.provider_validation_rule || null,
@@ -281,11 +282,8 @@ export async function processHousingApplication(sql, env, request) {
   if (!schedule.allowed) return defer(schedule.reason, schedule.nextAttemptAt);
   // Provider credentials are resolved centrally; applicants never link accounts.
   // Fail before quota reservation when central authentication is unavailable.
-  if (provider === "immowelt" && env.CENTRAL_IMMOWELT_TRANSPORT_VERIFIED !== "1") {
-    return fail("manual_required", "provider_contract_unverified");
-  }
-  if (provider === "kleinanzeigen" && env.CENTRAL_KLEINANZEIGEN_SEND_ENABLED !== "1") {
-    return defer("provider_transport_unverified", sqlTime(new Date(now.getTime() + 60 * 60_000)));
+  if (!providerSendEnabled(env, provider)) {
+    return defer("provider_send_disabled", sqlTime(new Date(now.getTime() + 60 * 60_000)));
   }
   let central;
   try { central = await getCentralProviderCredentials(sql, env, provider); }
@@ -360,7 +358,11 @@ export async function processHousingApplication(sql, env, request) {
     try { result = await sendImmoweltApplication(application, env, sql, central); }
     catch (error) { result = { status: "manual_required", error: centralCredentialError(error) }; }
     await sql`UPDATE housing.applications SET status = ${result.status}, last_error = ${result.error || null}, sent_at = CASE WHEN ${result.status} = 'sent' THEN now() ELSE sent_at END, lease_until = NULL, wait_reason = NULL, updated_at = now() WHERE id = ${application.id}`;
-    await event(sql, application.id, provider, "provider_submission", result.status, result.error || null, { confirmation: result.confirmation || null });
+    await event(sql, application.id, provider, "provider_submission", result.status, result.error || null, {
+      confirmation: result.confirmation || null,
+      provider_http_status: result.provider_http_status || null,
+      provider_response_excerpt: result.provider_response_excerpt || null,
+    });
     return { status: 200, body: { ok: true, status: result.status, provider, reason: result.error || result.confirmation || null, application_id: application.id } };
   }
 
