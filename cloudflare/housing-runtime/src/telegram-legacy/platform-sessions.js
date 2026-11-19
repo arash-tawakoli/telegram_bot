@@ -97,6 +97,9 @@ const PROFILE_FIELDS={
  message_house:{label:'Bewerbungstext Haus',required:false,max:4000}
 };
 const DOCUMENT_BUCKET='applicant-documents';
+// 0 = no cap (stored as NULL, which the application runtime treats as unlimited).
+export const DAILY_LIMIT_OPTIONS=[3,5,10,20,50,0];
+export const dailyLimitLabel=value=>value==null||!Number(value)?'Unbegrenzt':Number(value)+' pro Tag';
 const SETUP_PROMPT='👤 Bewerberprofil · Grundeinrichtung';
 const FIELD_PROMPT_PREFIX='👤 Bewerberprofil · ';
 const IMMOMIO_CALLBACK_ORIGIN='https://tenant.immomio.com';
@@ -547,6 +550,26 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   }
  }
 
+ // Daily cap for automatic applications across all sources; NULL means no cap.
+ if(action==='limit'||action==='limit-set'){
+  const DB=runtimeEnv().HOUSING_DB;
+  if(action==='limit-set'){
+   const value=Number(arg);
+   if(!DAILY_LIMIT_OPTIONS.includes(value))return platformSessions(user,chat,messageId,'platforms:limit');
+   await DB.prepare('INSERT OR IGNORE INTO application_preferences(participant_id) VALUES(?)').bind(user.id).run();
+   await DB.prepare('UPDATE application_preferences SET daily_limit=?,updated_at=CURRENT_TIMESTAMP WHERE participant_id=?').bind(value||null,user.id).run();
+   return render('✅ Tageslimit gespeichert: <b>'+dailyLimitLabel(value||null)+'</b>\n\nZählt alle Quellen zusammen. Weitere passende Angebote werden am nächsten Tag beworben.',back);
+  }
+  const row=await DB.prepare('SELECT daily_limit FROM application_preferences WHERE participant_id=?').bind(user.id).first();
+  const current=row?.daily_limit??null;
+  const option=value=>button(((current??0)===value?'✅ ':'')+(value?value+' pro Tag':'Unbegrenzt'),'platforms:limit-set:'+value);
+  return render('📊 <b>Tageslimit</b>\n\nWie viele automatische Bewerbungen sollen höchstens pro Tag rausgehen? Das Limit gilt für alle Quellen zusammen.\n\nAktuell: <b>'+dailyLimitLabel(current)+'</b>',[
+   [option(3),option(5),option(10)],
+   [option(20),option(50),option(0)],
+   ...back
+  ]);
+ }
+
  if(action==='test-status'){
   const {data:state,error}=await db.from('bot_users')
     .select('test_auto_apply_allowed,test_auto_apply_enabled,test_auto_apply_daily_limit,test_auto_apply_enabled_at,auto_apply_enabled')
@@ -820,7 +843,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
 
   const [{data:state,error:stateError},{data:preferences,error:preferencesError}]=await Promise.all([
   db.from('bot_users').select('auto_apply_enabled,test_auto_apply_allowed,test_auto_apply_enabled,test_auto_apply_daily_limit,test_auto_apply_enabled_at,test_auto_apply_disabled_at').eq('id',user.id).single(),
-  db.from('application_preferences').select('immoscout_enabled,immowelt_enabled,immomio_enabled,kleinanzeigen_enabled').eq('user_id',user.id).maybeSingle()
+  db.from('application_preferences').select('immoscout_enabled,immowelt_enabled,immomio_enabled,kleinanzeigen_enabled,daily_limit').eq('user_id',user.id).maybeSingle()
  ]);
  if(stateError||preferencesError)throw Error('Auto-Bewerbung konnte nicht geladen werden.');
  const isTestAccount=state.test_auto_apply_allowed===true&&Number(user.telegram_user_id)===8538226539;
@@ -866,6 +889,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
    :'⚠️ Der Schalter wurde nicht geändert. Bitte öffne die Ansicht erneut und versuche es noch einmal.\n\n';
 
  // Global controls affect the owner's test selections or regular auto-apply, not housing search.
+ rows.push([button('📊 Tageslimit: '+dailyLimitLabel(preferences?.daily_limit??null),'platforms:limit')]);
  rows.push([button(activeCount===visibleSenders.length?'Alle pausieren':'Alle starten',
   activeCount===visibleSenders.length?'platforms:off':'platforms:on')]);
  const centralNote=isTestAccount

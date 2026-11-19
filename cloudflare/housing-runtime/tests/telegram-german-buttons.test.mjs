@@ -1528,3 +1528,22 @@ test("Kleinanzeigen share without OAuth code is deleted and never triggers token
     assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM provider_connections WHERE provider='kleinanzeigen'").get().n,0);
   }finally{x.done();}
 });
+
+test("daily limit: auto-apply screen links it, choices persist, 0 clears the cap", async () => {
+  const x = setup();
+  try {
+    await platformSessions(x.user, x.chat, 41, "platforms");
+    const buttons = lastMessage(x).reply_markup.inline_keyboard.flat();
+    assert.ok(buttons.some(b => b.callback_data === "platforms:limit" && /Tageslimit: Unbegrenzt/.test(b.text)));
+    await platformSessions(x.user, x.chat, 41, "platforms:limit");
+    assert.match(lastMessage(x).text, /Tageslimit/);
+    const limit = () => x.sqlite.prepare("SELECT daily_limit FROM application_preferences WHERE participant_id='owner'").get()?.daily_limit;
+    await platformSessions(x.user, x.chat, 41, "platforms:limit-set:5");
+    assert.equal(limit(), 5);
+    assert.match(lastMessage(x).text, /5 pro Tag/);
+    await platformSessions(x.user, x.chat, 41, "platforms:limit-set:7");
+    assert.equal(limit(), 5, "values outside the options are ignored");
+    await platformSessions(x.user, x.chat, 41, "platforms:limit-set:0");
+    assert.equal(limit(), null);
+  } finally { x.done(); }
+});
