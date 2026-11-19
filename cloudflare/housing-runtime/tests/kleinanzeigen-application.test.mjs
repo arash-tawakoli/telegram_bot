@@ -12,7 +12,7 @@ const listing = {
   },
 };
 const central = { credentials: { access_token: "central-private-token" }, accountHint: "operator@example.test" };
-const enabled = { CENTRAL_KLEINANZEIGEN_TRANSPORT_VERIFIED: "1" };
+const enabled = { CENTRAL_KLEINANZEIGEN_SEND_ENABLED: "1" };
 const form = {
   schema: {
     type: "object",
