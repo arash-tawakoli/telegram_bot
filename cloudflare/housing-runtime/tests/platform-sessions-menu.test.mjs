@@ -22,7 +22,7 @@ function fakeD1() {
   };
 }
 
-test("auto-apply menu only iterates provider adapters that still exist", async () => {
+test("auto-apply menu lists four providers while only verified senders can be started", async () => {
   configureLegacyRuntime({ TELEGRAM_BOT_TOKEN: "test-token" }, fakeD1());
   secretCache.delete("telegram_bot_token_runtime");
   const requests = [];
@@ -51,7 +51,10 @@ test("auto-apply menu only iterates provider adapters that still exist", async (
   assert.equal(labels.some(text => text.includes("ImmoScout24")), true);
   assert.equal(labels.some(text => text.includes("Immomio")), true);
   assert.equal(labels.some(text => text.includes("Immowelt")), true);
-  assert.equal(labels.some(text => text.includes("Kleinanzeigen")), false);
+  assert.equal(labels.some(text => text.includes("Kleinanzeigen")), true);
+  const actions = keyboard.flat().map(button => button.callback_data);
+  assert.ok(actions.includes("platforms:provider:2"), "Kleinanzeigen should open its profile/status detail");
+  assert.ok(!actions.includes("platforms:resume:2"), "unverified Kleinanzeigen sending must not be enabled");
   assert.equal(labels.some(text => text.includes("verbinden")), false);
 });
 
