@@ -17,7 +17,7 @@ for(const path of [
    // The unified applicant profile and source toggle are allowed, but private
    // Kleinanzeigen sending must remain gated until provider transport is verified.
    assert.match(src,/Kleinanzeigen · Versand noch nicht freigegeben/);
-   assert.match(src,/CENTRAL_KLEINANZEIGEN_TRANSPORT_VERIFIED/);
+   assert.match(src,/CENTRAL_KLEINANZEIGEN_SEND_ENABLED/);
    assert.doesNotMatch(src,/login_share|complete_shared_login|probe_kleinanzeigen/i);
   } else {
    assert.doesNotMatch(src,/Kleinanzeigen|login_share|complete_shared_login|probe_kleinanzeigen/i);
