@@ -3,7 +3,8 @@ import {providerSendEnabled} from '../application-policy.js';
 import {encryptProviderCredentials} from '../provider-credentials.js';
 import {providerStaticMissing} from './application-profile-adapters.js';
 import { DEFAULT_APPLICATION_TEXT, resolveApplicationText } from '../application-text.js';
-import { GUIDED_STEPS, QUESTIONS, nextQuestion, stepIndex, previousField, progressBar, parseStreetLine } from './onboarding.js';
+import { GUIDED_STEPS, QUESTIONS, nextQuestion, stepIndex, previousField, progressBar, parseStreetLine, parseContactShare, contactKeyboard, suggestCity, SELF_INPUT_LABEL } from './onboarding.js';
+import { quickActionsKeyboard } from './navigation.js';
 
 const userFacingError=(error)=>{
  const reason=String(error?.message||error||'');
@@ -123,7 +124,6 @@ const DOCUMENT_BUCKET='applicant-documents';
 // 0 = no cap (stored as NULL, which the application runtime treats as unlimited).
 export const DAILY_LIMIT_OPTIONS=[3,5,10,20,50,0];
 export const dailyLimitLabel=value=>value==null||!Number(value)?'Unbegrenzt':Number(value)+' pro Tag';
-const SETUP_PROMPT='👤 Bewerberprofil · Grundeinrichtung';
 const FIELD_PROMPT_PREFIX='👤 Bewerberprofil · ';
 const IMMOMIO_CALLBACK_ORIGIN='https://tenant.immomio.com';
 const IMMOMIO_CALLBACK_PATH='/de/auth/login';
@@ -325,7 +325,7 @@ async function renderApplicantProfile(user,chat,messageId,notice=''){
 const pairs=buttons=>buttons.reduce((rows,item,index)=>{if(index%2===0)rows.push([item]);else rows.at(-1).push(item);return rows;},[]);
 
 // One question per message. Without `field` it resumes at the first missing answer.
-async function renderGuided(user,chat,messageId,field){
+async function renderGuided(user,chat,messageId,field,{manual=false}={}){
  const profile=await ensureApplicantProfile(user.id);
  const state={...(user.onboarding_state||{})};
  for(const key of ['_applicant_field','_applicant_guided','_applicant_message_id','_applicant_prompt_message_id','_applicant_text_origin'])delete state[key];
@@ -345,12 +345,24 @@ async function renderGuided(user,chat,messageId,field){
  const previous=previousField(field);
  const back=button('← Zurück',previous?'platforms:gq:'+previous:'home');
  let text,rows;
+ const contactCard=field==='first_name'&&!manual&&!String(profile.last_name||'').trim()&&!String(profile.phone||'').trim();
+ if(contactCard){
+  // request_contact exists only on reply keyboards, so this question is a fresh message.
+  if(messageId)await telegram('deleteMessage',{chat_id:chat.id,message_id:messageId}).catch(()=>{});
+  const card=await send(chat.id,head+'Teile deinen Kontakt – dann sind Vorname, Nachname und Telefon sofort ausgefüllt. Oder gib sie selbst ein.',contactKeyboard());
+  state._applicant_field=field;state._applicant_guided=true;state._applicant_message_id=Number(card?.message_id||0);
+  const {error}=await db.rpc('save_ui_state',{p_user:user.id,p_step:user.onboarding_step||null,p_state:state});
+  if(error)throw Error('Profileingabe konnte nicht gestartet werden.');
+  return card;
+ }
+ const suggestedCity=field==='city'?suggestCity(profile.postcode):null;
  if(CHOICES[field]){
   text=head+esc(question.q)+'\n\nWähle eine Option.';
   rows=[...pairs(CHOICES[field].map(([value,label])=>button(label,'platforms:gset:'+field+':'+value))),[back]];
  }else{
-  text=head+esc(question.q)+(question.example?'\nBeispiel: <code>'+esc(question.example)+'</code>':'')+'\n\nSchick mir die Antwort als Nachricht.';
-  rows=[[back]];
+  text=head+esc(question.q)+(question.example?'\nBeispiel: <code>'+esc(question.example)+'</code>':'')
+   +(suggestedCity?'\n\nZu '+esc(profile.postcode)+' passt wahrscheinlich '+suggestedCity+'. Tippe auf den Button oder schick mir einen anderen Ort.':'\n\nSchick mir die Antwort als Nachricht.');
+  rows=[...(suggestedCity?[[button('📍 '+suggestedCity,'platforms:gcity')]]:[]),[back]];
   state._applicant_field=field;state._applicant_guided=true;
  }
  const rendered=messageId?await edit(chat.id,messageId,text,{inline_keyboard:rows}):await send(chat.id,text,{inline_keyboard:rows});
@@ -503,25 +515,26 @@ export async function handleAutoApplyMessage(user,message){
    return send(chat.id,`⚠️ ${esc(error.message)}`,{inline_keyboard:[[button(`🔐 ${name} erneut verbinden`,`platforms:login:${source}`)],[button('← Automatische Bewerbung','platforms')]]});
   }
  }
- if(replied.startsWith(SETUP_PROMPT)){
-  const parts=text.split('|').map(v=>v.trim());
- if(![2,3,5,6].includes(parts.length))return send(chat.id,'Bitte <code>Vorname | Nachname</code> eingeben; optional kannst du die E-Mail als dritten Wert ergänzen. Für ImmoScout24 und Immowelt ist die E-Mail erforderlich.');
+ const guidedCard=Number(user.onboarding_state?._applicant_message_id||0);
+ const dropMessages=(...ids)=>Promise.all(ids.filter(id=>id>0).map(id=>telegram('deleteMessage',{chat_id:chat.id,message_id:id}).catch(()=>{})));
+ // Giving back the persistent shortcuts that the one-time contact keyboard replaced.
+ const restoreShortcuts=async()=>{const sent=await send(chat.id,'⌨️',quickActionsKeyboard()).catch(()=>null);if(sent?.message_id)await dropMessages(sent.message_id);};
+ if(user.onboarding_state?._applicant_guided===true&&(message.contact||text===SELF_INPUT_LABEL)){
   try{
-   const previous=await readProfile(user.id);
-   const values={
-    user_id:user.id,
-    first_name:validateField('first_name',parts[0]),last_name:validateField('last_name',parts[1]),email:parts.length>=3?validateField('email',parts[2]):null,...(parts.length>=5?{phone:validateField('phone',parts[3]),city:validateField('city',parts[4])}:{}),updated_at:new Date().toISOString()
-   };
-   if(parts.length===6){
-    const legacySize=validateField('household_size',parts[5]);
-    values.household_size=legacySize;
-    values.household_type=legacySize===1?'SINGLE':legacySize===2?'TWO_ADULTS':null;
+   if(text===SELF_INPUT_LABEL){
+    await dropMessages(message.message_id,guidedCard);
+    await restoreShortcuts();
+    return renderGuided(user,chat,undefined,'first_name',{manual:true});
    }
-   const {error}=await db.from('applicant_profiles').upsert(values,{onConflict:'user_id'});if(error)throw Error('Bewerberprofil konnte nicht gespeichert werden.');
-   await Promise.all([telegram('deleteMessage',{chat_id:chat.id,message_id:message.message_id}).catch(()=>{}),message.reply_to_message?.message_id?telegram('deleteMessage',{chat_id:chat.id,message_id:message.reply_to_message.message_id}).catch(()=>{}):null]);
-   const result=await send(chat.id,'✅ Bewerberprofil angelegt.',{inline_keyboard:[[button('👤 Profil öffnen','platforms:profile-return')],[button('← Automatische Bewerbung','platforms')]]});
-   await offerCompletedApplicantActivation(user,chat,completedFieldChanged(previous,values));
-   return result;
+   const shared=parseContactShare(message);
+   if(!shared)return send(chat.id,'⚠️ Bitte teile deinen eigenen Kontakt oder tippe auf „'+SELF_INPUT_LABEL+'“.');
+   await ensureApplicantProfile(user.id);
+   const patch={first_name:shared.first_name,phone:shared.phone,...(shared.last_name?{last_name:shared.last_name}:{}),updated_at:new Date().toISOString()};
+   const {error}=await db.from('applicant_profiles').update(patch).eq('user_id',user.id);
+   if(error)throw Error('Änderung konnte nicht gespeichert werden.');
+   await dropMessages(message.message_id,guidedCard);
+   await restoreShortcuts();
+   return renderGuided(user,chat,undefined);
   }catch(error){return send(chat.id,`⚠️ ${esc(error.message)}`);}
  }
  const pendingField=String(user.onboarding_state?._applicant_field||'');
@@ -730,6 +743,14 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  }
  if(action==='g')return renderGuided(user,chat,messageId);
  if(action==='gq')return renderGuided(user,chat,messageId,QUESTIONS[arg]?arg:undefined);
+ if(action==='gcity'){
+  const current=await ensureApplicantProfile(user.id),city=suggestCity(current.postcode);
+  if(city){
+   const {error}=await db.from('applicant_profiles').update({city,updated_at:new Date().toISOString()}).eq('user_id',user.id);
+   if(error)throw Error('Änderung konnte nicht gespeichert werden.');
+  }
+  return renderGuided(user,chat,messageId);
+ }
  if(action==='gset'){
   await ensureApplicantProfile(user.id);
   if(arg==='move_in_preference'&&choice==='EXACT_DATE')return renderGuided(user,chat,messageId,'move_in_date');

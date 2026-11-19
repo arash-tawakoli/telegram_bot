@@ -9,6 +9,7 @@ import { createD1Client } from "../src/d1-database.js";
 import { issueProviderAuthFlow } from "../src/provider-facade.js";
 import { decryptProviderCredentials } from "../src/provider-credentials.js";
 import { platformSessions, handleAutoApplyMessage } from "../src/telegram-legacy/platform-sessions.js";
+import { parseContactShare, suggestCity, SELF_INPUT_LABEL } from "../src/telegram-legacy/onboarding.js";
 import { homePreview, HOME_LANGUAGES } from "../src/telegram-legacy/home-language.js";
 import { createD1Supabase } from "../src/telegram-legacy/d1-supabase.js";
 import { withPlan } from "../src/telegram-legacy/runtime.js";
@@ -1643,5 +1644,74 @@ test("guided back button returns to the previous step and a street without numbe
     await guidedCall(x, "platforms:gq:street");
     await guidedText(x, "Testweg");
     assert.match(lastMessage(x).text, /Bitte so eingeben: Musterstraße 12a/);
+  } finally { x.done(); }
+});
+
+test("contact share parsing accepts only the sender's own contact", () => {
+  const own = { from: { id: 777 }, contact: { user_id: 777, first_name: " Mara ", last_name: "Beispiel", phone_number: "4917612345678" } };
+  assert.deepEqual(parseContactShare(own), { first_name: "Mara", last_name: "Beispiel", phone: "+4917612345678" });
+  assert.equal(parseContactShare({ ...own, contact: { ...own.contact, user_id: 12 } }), null, "a forwarded foreign contact is refused");
+  assert.equal(parseContactShare({ from: { id: 777 }, contact: { first_name: "X", phone_number: "123" } }), null);
+  assert.equal(parseContactShare({ from: { id: 777 }, text: "hi" }), null);
+  assert.deepEqual(parseContactShare({ ...own, contact: { ...own.contact, last_name: undefined } }).last_name, "");
+});
+
+test("postcode suggests Hamburg only for 20xxx-22xxx and never guesses elsewhere", () => {
+  for (const code of ["20095", "21073", "22767"]) assert.equal(suggestCity(code), "Hamburg", code);
+  for (const code of ["10115", "24103", "19999", "23000", "2009", "abcde", "", null]) assert.equal(suggestCity(code), null, String(code));
+});
+
+test("first question offers contact sharing; a shared contact fills name and phone", async () => {
+  const x = setup();
+  try {
+    await guidedCall(x, "platforms:profile-new");
+    const card = lastMessage(x);
+    assert.deepEqual(card.reply_markup.keyboard.flat().map(b => b.text), ["📱 Kontakt teilen", SELF_INPUT_LABEL]);
+    assert.equal(card.reply_markup.keyboard[0][0].request_contact, true);
+    const state = guidedState(x);
+    await handleAutoApplyMessage({ ...x.user, onboarding_state: state },
+      { chat: x.chat, message_id: 300, from: { id: 777 }, contact: { user_id: 777, first_name: "Mara", last_name: "Beispiel", phone_number: "491761234567" } });
+    const saved = guidedProfile(x);
+    assert.equal(saved.first_name, "Mara"); assert.equal(saved.last_name, "Beispiel"); assert.equal(saved.phone, "+491761234567");
+    assert.match(lastMessage(x).text, /E-Mail-Adresse/, "continues with the next question");
+    assert.ok(x.sent.some(r => r.method === "deleteMessage" && r.body.message_id === 300), "the shared contact card is removed");
+    assert.ok(x.sent.some(r => r.method === "sendMessage" && r.body.reply_markup?.is_persistent), "shortcut keyboard is restored");
+  } finally { x.done(); }
+});
+
+test("a foreign contact is refused and 'Selbst eingeben' switches to typing the first name", async () => {
+  const x = setup();
+  try {
+    await guidedCall(x, "platforms:profile-new");
+    const state = guidedState(x);
+    await handleAutoApplyMessage({ ...x.user, onboarding_state: state },
+      { chat: x.chat, message_id: 301, from: { id: 777 }, contact: { user_id: 5, first_name: "Fremd", phone_number: "491761234567" } });
+    assert.match(lastMessage(x).text, /eigenen Kontakt/);
+    assert.equal(x.sqlite.prepare("SELECT COUNT(*) n FROM applicant_profiles WHERE participant_id='owner' AND profile LIKE '%Fremd%'").get().n, 0);
+    await handleAutoApplyMessage({ ...x.user, onboarding_state: state }, { chat: x.chat, message_id: 302, text: SELF_INPUT_LABEL });
+    assert.match(lastMessage(x).text, /Vorname/);
+    assert.equal(lastMessage(x).reply_markup.keyboard, undefined);
+    assert.equal(guidedState(x)._applicant_field, "first_name");
+    assert.equal(x.sqlite.prepare("SELECT COUNT(*) n FROM applicant_profiles WHERE participant_id='owner' AND profile LIKE '%Selbst%'").get().n, 0, "the button label is never saved as a name");
+  } finally { x.done(); }
+});
+
+test("city question suggests Hamburg for a Hamburg postcode, otherwise only asks", async () => {
+  const x = setup();
+  try {
+    const base = { ...completeApplicant }; delete base.city;
+    x.sqlite.prepare("INSERT INTO applicant_profiles(participant_id,profile) VALUES('owner',?)").run(JSON.stringify(base));
+    await guidedCall(x, "platforms:profile-new");
+    assert.match(lastMessage(x).text, /In welchem Ort/);
+    assert.match(lastMessage(x).text, /Hamburg/);
+    assert.ok(lastMessage(x).reply_markup.inline_keyboard.flat().some(b => b.callback_data === "platforms:gcity"));
+    await guidedCall(x, "platforms:gcity");
+    assert.equal(guidedProfile(x).city, "Hamburg");
+    x.sqlite.prepare("UPDATE applicant_profiles SET profile=?").run(JSON.stringify({ ...base, postcode: "10115" }));
+    await guidedCall(x, "platforms:g");
+    assert.doesNotMatch(lastMessage(x).text, /wahrscheinlich/);
+    assert.ok(!lastMessage(x).reply_markup.inline_keyboard.flat().some(b => b.callback_data === "platforms:gcity"));
+    await guidedCall(x, "platforms:gcity");
+    assert.equal(guidedProfile(x).city, undefined, "no mapping outside 20xxx-22xxx");
   } finally { x.done(); }
 });
