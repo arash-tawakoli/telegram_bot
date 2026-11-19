@@ -235,6 +235,9 @@ export async function processHousingApplication(sql, env, request) {
         missing_fields: result.missing_fields || null,
         unsupported_fields: result.unsupported_fields || null,
         form_diagnostic: result.form_diagnostic || null,
+        failure_stage: result.failure_stage || null,
+        failure_kind: result.failure_kind || null,
+        provider_response_keys: result.provider_response_keys || null,
       } : {}),
     });
     return { status: 200, body: {
@@ -332,6 +335,9 @@ export async function processHousingApplication(sql, env, request) {
       missing_fields: result.missing_fields || null,
       unsupported_fields: result.unsupported_fields || null,
       form_diagnostic: result.form_diagnostic || null,
+      failure_stage: result.failure_stage || null,
+      failure_kind: result.failure_kind || null,
+      provider_response_keys: result.provider_response_keys || null,
     });
     return { status: 200, body: { ok: true, status: result.status, provider, reason: result.error || result.confirmation || null, application_id: application.id } };
   }
