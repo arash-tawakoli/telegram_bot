@@ -77,7 +77,7 @@ const PROFILE_FIELDS={
  salutation:{label:'Anrede',type:'choice',required:true,max:40},
  first_name:{label:'Vorname',required:true,max:120},
  last_name:{label:'Nachname',required:true,max:120},
- email:{label:'E-Mail-Adresse',required:true,max:320,hint:'ImmoScout24 und Immowelt: Pflichtfeld beim Bewerben. Immomio: nötig zum Verbinden des Kontos; beim Bewerben kein Feld.'},
+ email:{label:'E-Mail-Adresse',required:true,max:320,hint:'Einheitliches Bewerberprofil für ImmoScout24, Immowelt, Immomio und Kleinanzeigen. Zusätzliche Formularpflichtfelder werden je Inserat geprüft.'},
  phone:{label:'Telefonnummer',required:true,max:80},
  street:{label:'Straße',required:true,max:160},
  house_number:{label:'Hausnummer',required:true,max:40},
@@ -277,7 +277,7 @@ async function renderApplicantProfile(user,chat,messageId,notice=''){
  };
  const text='👤 <b>Bewerberprofil</b>\n\n'
   +(notice?esc(notice)+'\n\n':'')
-  +'Hinterlege deine Angaben für Vermieter und Bewerbungen. Unter <b>Profilvorschau</b> siehst du alle gespeicherten Daten.';
+  +'Ein gemeinsames Profil für ImmoScout24, Immowelt, Immomio und Kleinanzeigen. Zusätzliche Pflichtangaben hängen vom jeweiligen Inserat ab. Unter <b>Profilvorschau</b> siehst du alle gespeicherten Daten.';
  const rows=[
   [f('salutation','Anrede'),f('schufa_status','SCHUFA')],
   [f('first_name','Vorname'),f('last_name','Nachname')],
@@ -752,6 +752,16 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  if(action==='docs'||action.startsWith('doc-')) return renderApplicantProfile(user,chat,messageId);
 
  if(action==='provider'){
+  if(source===2){
+   const {data:missing,error}=await db.rpc('application_profile_missing_fields',{p_user:user.id});
+   if(error)throw Error('Bewerberprofil konnte nicht geprüft werden.');
+   return render('<b>Kleinanzeigen</b>\n\nDas gemeinsame Bewerberprofil wird auch für Kleinanzeigen verwendet.'
+     +'\nProfil: '+(Array.isArray(missing)&&missing.length===0?'Pflichtangaben vollständig':'Bitte fehlende Basisangaben ergänzen')
+     +'\nZusätzliche Pflichtfelder werden dynamisch je Kontaktformular geprüft.'
+     +'\n\nAutomatischer Versand ist noch nicht freigegeben, da die Nachrichten-Schnittstelle nicht verifiziert ist.',[
+      [button('👤 Bewerberprofil','platforms:profile')], ...back
+     ]);
+  }
   const meta=AUTO_APPLY_PROVIDERS[source];if(!meta)return;
   return render(`<b>${meta.name}</b>\n\nDie Plattform wird zentral von NexaLabs verwaltet. Du musst kein eigenes Plattformkonto verbinden.`,back);
  }
@@ -823,6 +833,10 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
    'platforms:'+(running?'pause':'resume')+':'+sourceId)]);
  }
 
+ // Kleinanzeigen shares the same profile and has its own source selection.
+ // It is listed as an informational status until its outbound contract is verified.
+ statusLines.push('Kleinanzeigen · Versand noch nicht freigegeben');
+
  // Confirm the persisted state after each button press. A stale Telegram
  // callback can be safely ignored; never imply that a send was enabled.
  const changedProvider=(action==='resume'||action==='pause')?AUTO_APPLY_PROVIDERS[source]:null;
@@ -854,6 +868,6 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  rows.push([button('← Start','home')]);
  return render('⚡ <b>Automatische Bewerbung</b>\n\n'+controlNotice+'<b>'+activeCount+' von 3 Plattformen aktiv</b>\n'+statusLines.join('\n')+'\n\n'+(isTestAccount
   ? 'Aktiviere oder pausiere den persönlichen Testmodus für einzelne Quellen oder alle Quellen.'
-  : 'Starte oder pausiere den automatischen Bewerbungsversand je Quelle oder für alle Quellen.')+' Die Wohnungssuche bleibt davon unberührt. Plattformzugänge werden zentral verwaltet.'+centralNote,rows);
+  : 'Starte oder pausiere den automatischen Bewerbungsversand je Quelle oder für alle Quellen.')+' Die Wohnungssuche bleibt davon unberührt. Plattformzugänge werden zentral verwaltet. Kleinanzeigen nutzt dasselbe Bewerberprofil; der Versand bleibt bis zur Schnittstellenprüfung gesperrt.'+centralNote,rows);
 
 }

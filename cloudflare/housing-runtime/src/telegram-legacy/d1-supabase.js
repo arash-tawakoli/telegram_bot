@@ -109,7 +109,7 @@ function outputRow(table, row) {
   if (table === "delivery_events") return { ...row, listing_id: row.offer_identity_id, profile_id: row.participant_id };
   if (table === "applications") return { ...row, user_id: row.participant_id, listing_id: row.offer_identity_id, test_mode: bool(row.test_mode) };
   if (table === "platform_auth_flows") return { ...row, user_id: row.participant_id, context: json(row.context, {}) };
-  if (table === "application_preferences") return { ...row, user_id: row.participant_id, enabled: bool(row.enabled), immoscout_enabled: bool(row.immoscout_enabled), immomio_enabled: bool(row.immomio_enabled), immowelt_enabled: bool(row.immowelt_enabled) };
+  if (table === "application_preferences") return { ...row, user_id: row.participant_id, enabled: bool(row.enabled), immoscout_enabled: bool(row.immoscout_enabled), immomio_enabled: bool(row.immomio_enabled), immowelt_enabled: bool(row.immowelt_enabled), kleinanzeigen_enabled: bool(row.kleinanzeigen_enabled) };
   if (table === "user_subscriptions") return { ...row, user_id: row.participant_id, cancel_at_period_end: bool(row.cancel_at_period_end) };
   if (table === "referral_codes") return { ...row, user_id: row.participant_id, active: bool(row.active) };
   if (table === "referrals") return { ...row, referrer_user_id: row.referrer_participant_id, referred_user_id: row.referred_participant_id };
