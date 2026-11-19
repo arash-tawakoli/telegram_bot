@@ -384,6 +384,8 @@ test("auto-apply menu exposes only supported provider actions and non-mutating s
     const view = lastMessage(x);
     const controls = view.reply_markup.inline_keyboard.flat().map(b => b.callback_data);
     assert.match(view.text, /0 von 3 Plattformen aktiv/);
+    assert.match(view.text, /Kleinanzeigen · Versand noch nicht freigegeben/);
+    assert.ok(!controls.includes("platforms:resume:2"), "Kleinanzeigen must not pretend to send without verified transport");
     for (const id of [1,4,3]) assert.ok(controls.includes("platforms:resume:"+id));
     assert.ok(!controls.some(value => String(value || "").startsWith("platforms:provider:")),
       "platform names should be status text, not redundant info buttons");
