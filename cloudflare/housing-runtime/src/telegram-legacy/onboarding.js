@@ -71,9 +71,39 @@ export function parseContactShare(message){
  if(!contact||message?.from?.id==null||Number(contact.user_id)!==Number(message.from.id))return null;
  const digits=String(contact.phone_number||'').replace(/\D/g,'');
  const first_name=String(contact.first_name||'').trim().slice(0,120);
- if(!first_name||digits.length<7)return null;
- return {first_name,last_name:String(contact.last_name||'').trim().slice(0,120),phone:'+'+digits};
+ const phone=normalizePhone('+'+digits);
+ if(!first_name||!phone)return null;
+ return {first_name,last_name:String(contact.last_name||'').trim().slice(0,120),phone};
 }
 
 // Hamburg postcodes are 20xxx-22xxx. Anything else is asked, never guessed.
 export const suggestCity=postcode=>/^2[0-2]\d{3}$/.test(String(postcode||'').trim())?'Hamburg':null;
+
+export const PHONE_HINT='Bitte so eingeben: 0176 1234567 oder +49 176 1234567';
+
+// German numbers become "+49 …"; other international numbers keep their "+". Anything whose
+// country is unclear (no 0, 00 or + prefix) returns null instead of being guessed.
+export function normalizePhone(input){
+ let text=String(input??'').trim().replace(/\(0\)/g,'');
+ if(!/^\+?[\d\s\-/().]+$/.test(text))return null;
+ const plus=text.startsWith('+');
+ let digits=text.replace(/\D/g,'');
+ if(!plus&&digits.startsWith('00'))digits=digits.slice(2);
+ else if(!plus&&digits.startsWith('0')&&!digits.startsWith('00'))digits='49'+digits.slice(1);
+ else if(!plus&&!(digits.startsWith('49')&&digits.length>=11))return null;
+ if(digits.length<8||digits.length>15)return null;
+ if(!digits.startsWith('49'))return '+'+digits;
+ const national=digits.slice(2).replace(/^0+/,'');
+ if(national.length<7||national.length>12)return null;
+ return /^1[5-7]\d/.test(national)?`+49 ${national.slice(0,3)} ${national.slice(3)}`:`+49 ${national}`;
+}
+
+// "01.12.2026" or "2026-12-01" -> "2026-12-01"; null when it is not a real calendar date.
+export function normalizeDate(input){
+ const raw=String(input??'').trim();
+ const german=raw.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+ const iso=german?`${german[3]}-${german[2].padStart(2,'0')}-${german[1].padStart(2,'0')}`:raw;
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(iso))return null;
+ const date=new Date(`${iso}T00:00:00Z`);
+ return !Number.isNaN(date.getTime())&&date.toISOString().startsWith(iso)?iso:null;
+}

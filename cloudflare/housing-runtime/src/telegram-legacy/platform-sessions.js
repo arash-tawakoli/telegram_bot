@@ -3,7 +3,7 @@ import {providerSendEnabled} from '../application-policy.js';
 import {encryptProviderCredentials} from '../provider-credentials.js';
 import {providerStaticMissing} from './application-profile-adapters.js';
 import { DEFAULT_APPLICATION_TEXT, resolveApplicationText } from '../application-text.js';
-import { GUIDED_STEPS, QUESTIONS, nextQuestion, stepIndex, previousField, progressBar, parseStreetLine, parseContactShare, contactKeyboard, suggestCity, SELF_INPUT_LABEL } from './onboarding.js';
+import { GUIDED_STEPS, QUESTIONS, nextQuestion, stepIndex, previousField, progressBar, parseStreetLine, parseContactShare, contactKeyboard, suggestCity, SELF_INPUT_LABEL, normalizePhone, normalizeDate, PHONE_HINT } from './onboarding.js';
 import { quickActionsKeyboard } from './navigation.js';
 
 const userFacingError=(error)=>{
@@ -471,29 +471,30 @@ async function showFieldInput(user,chat,messageId,name,fromPreview=false){
 function fieldPrompt(name){
  const meta=PROFILE_FIELDS[name];if(!meta)return null;
  const optional=meta.required?'':'\nOptional: Sende nur <code>-</code>, um den Wert zu löschen.';
- const extra=meta.type==='date'?'\nFormat: <code>JJJJ-MM-TT</code>':meta.type==='integer'?'\nZahl von 1 bis 20':meta.type==='money'?'\nNur den Betrag eingeben, z. B. <code>2500</code>':meta.hint?`\n${meta.hint}`:'';
+ const extra=meta.type==='date'?'\nBeispiel: <code>01.12.2026</code>':meta.type==='integer'?'\nZahl von 1 bis 20':meta.type==='money'?'\nNur den Betrag eingeben, z. B. <code>2500</code>':meta.hint?`\n${meta.hint}`:QUESTIONS[name]?.example?`\nBeispiel: <code>${esc(QUESTIONS[name].example)}</code>`:'';
  return `Bitte gib den neuen Wert ein.${extra}${optional}`;
 }
 
 function validateField(name,input){
  const meta=PROFILE_FIELDS[name];if(!meta)throw Error('Unbekanntes Profilfeld.');
  const raw=String(input??'').trim();
+ const example=QUESTIONS[name]?.example;
  if(raw==='-'&&!meta.required)return null;
- if(!raw&&meta.required)throw Error(`${meta.label} darf nicht leer sein.`);
+ if(!raw&&meta.required)throw Error(`Bitte gib „${meta.label}“ ein${example?', z. B. '+example:''}.`);
  if(!raw)return null;
- if(name==='email'&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw))throw Error('Bitte eine gültige E-Mail-Adresse eingeben.');
- if(name==='phone'&&(raw.length<3||raw.length>80))throw Error('Bitte eine gültige Telefonnummer eingeben.');
- if(name==='postcode'&&!/^\d{5}$/.test(raw))throw Error('Bitte eine fünfstellige PLZ eingeben.');
+ if(name==='email'&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(raw))throw Error('Bitte so eingeben: name@beispiel.de');
+ if(name==='phone'){const phone=normalizePhone(raw);if(!phone)throw Error(PHONE_HINT);return phone;}
+ if(name==='postcode'&&!/^\d{5}$/.test(raw))throw Error('Bitte so eingeben: fünf Ziffern, z. B. 20095');
  if(meta.type==='integer'){
-  const n=Number(raw);if(!Number.isInteger(n)||n<1||n>20)throw Error('Haushaltsgröße muss zwischen 1 und 20 liegen.');return n;
+  const n=Number(raw);if(!Number.isInteger(n)||n<1||n>20)throw Error('Bitte so eingeben: eine Zahl von 1 bis 20, z. B. 2');return n;
  }
  if(meta.type==='money'){
-  const n=Number(raw.replace(/\./g,'').replace(',','.'));if(!Number.isFinite(n)||n<0||n>1000000)throw Error('Bitte ein gültiges monatliches Nettoeinkommen eingeben.');return n;
+  const n=Number(raw.replace(/\./g,'').replace(',','.'));if(!Number.isFinite(n)||n<0||n>1000000)throw Error('Bitte so eingeben: nur der Betrag in Euro, z. B. 2500');return n;
  }
  if(meta.type==='date'){
-  if(!/^\d{4}-\d{2}-\d{2}$/.test(raw)||Number.isNaN(Date.parse(`${raw}T00:00:00Z`)))throw Error('Bitte das Datum als JJJJ-MM-TT eingeben.');return raw;
+  const date=normalizeDate(raw);if(!date)throw Error('Bitte so eingeben: 01.12.2026 oder 2026-12-01');return date;
  }
- if(raw.length>(meta.max||4000))throw Error(`${meta.label} ist zu lang.`);
+ if(raw.length>(meta.max||4000))throw Error(`„${meta.label}“ ist zu lang (höchstens ${meta.max||4000} Zeichen).`);
  return raw;
 }
 

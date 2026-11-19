@@ -9,7 +9,7 @@ import { createD1Client } from "../src/d1-database.js";
 import { issueProviderAuthFlow } from "../src/provider-facade.js";
 import { decryptProviderCredentials } from "../src/provider-credentials.js";
 import { platformSessions, handleAutoApplyMessage } from "../src/telegram-legacy/platform-sessions.js";
-import { parseContactShare, suggestCity, SELF_INPUT_LABEL } from "../src/telegram-legacy/onboarding.js";
+import { parseContactShare, suggestCity, normalizePhone, normalizeDate, SELF_INPUT_LABEL } from "../src/telegram-legacy/onboarding.js";
 import { homePreview, HOME_LANGUAGES } from "../src/telegram-legacy/home-language.js";
 import { createD1Supabase } from "../src/telegram-legacy/d1-supabase.js";
 import { withPlan } from "../src/telegram-legacy/runtime.js";
@@ -1649,7 +1649,7 @@ test("guided back button returns to the previous step and a street without numbe
 
 test("contact share parsing accepts only the sender's own contact", () => {
   const own = { from: { id: 777 }, contact: { user_id: 777, first_name: " Mara ", last_name: "Beispiel", phone_number: "4917612345678" } };
-  assert.deepEqual(parseContactShare(own), { first_name: "Mara", last_name: "Beispiel", phone: "+4917612345678" });
+  assert.deepEqual(parseContactShare(own), { first_name: "Mara", last_name: "Beispiel", phone: "+49 176 12345678" });
   assert.equal(parseContactShare({ ...own, contact: { ...own.contact, user_id: 12 } }), null, "a forwarded foreign contact is refused");
   assert.equal(parseContactShare({ from: { id: 777 }, contact: { first_name: "X", phone_number: "123" } }), null);
   assert.equal(parseContactShare({ from: { id: 777 }, text: "hi" }), null);
@@ -1672,7 +1672,7 @@ test("first question offers contact sharing; a shared contact fills name and pho
     await handleAutoApplyMessage({ ...x.user, onboarding_state: state },
       { chat: x.chat, message_id: 300, from: { id: 777 }, contact: { user_id: 777, first_name: "Mara", last_name: "Beispiel", phone_number: "491761234567" } });
     const saved = guidedProfile(x);
-    assert.equal(saved.first_name, "Mara"); assert.equal(saved.last_name, "Beispiel"); assert.equal(saved.phone, "+491761234567");
+    assert.equal(saved.first_name, "Mara"); assert.equal(saved.last_name, "Beispiel"); assert.equal(saved.phone, "+49 176 1234567");
     assert.match(lastMessage(x).text, /E-Mail-Adresse/, "continues with the next question");
     assert.ok(x.sent.some(r => r.method === "deleteMessage" && r.body.message_id === 300), "the shared contact card is removed");
     assert.ok(x.sent.some(r => r.method === "sendMessage" && r.body.reply_markup?.is_persistent), "shortcut keyboard is restored");
@@ -1713,5 +1713,43 @@ test("city question suggests Hamburg for a Hamburg postcode, otherwise only asks
     assert.ok(!lastMessage(x).reply_markup.inline_keyboard.flat().some(b => b.callback_data === "platforms:gcity"));
     await guidedCall(x, "platforms:gcity");
     assert.equal(guidedProfile(x).city, undefined, "no mapping outside 20xxx-22xxx");
+  } finally { x.done(); }
+});
+
+test("phone numbers normalise to +49 only when the country is unambiguous", () => {
+  for (const [input, expected] of [
+    ["0176 1234567", "+49 176 1234567"], ["+49 176 1234567", "+49 176 1234567"], ["0049 176 1234567", "+49 176 1234567"],
+    ["0176/1234567", "+49 176 1234567"], ["+49 (0) 176 1234567", "+49 176 1234567"], ["4917612345678", "+49 176 12345678"],
+    ["040 1234567", "+49 401234567"], ["+43 660 1234567", "+436601234567"],
+  ]) assert.equal(normalizePhone(input), expected, input);
+  for (const input of ["1761234567", "12345", "abc", "", "0176 12", "+49 12", "0176 1234567 ext 5"]) assert.equal(normalizePhone(input), null, input);
+});
+
+test("dates accept German and ISO format but only real calendar days", () => {
+  assert.equal(normalizeDate("01.12.2026"), "2026-12-01");
+  assert.equal(normalizeDate("1.2.2027"), "2027-02-01");
+  assert.equal(normalizeDate("2026-12-01"), "2026-12-01");
+  for (const input of ["2026-02-31", "31.02.2026", "morgen", ""]) assert.equal(normalizeDate(input), null, input);
+});
+
+test("invalid guided answers get a friendly message with an example and are not saved", async () => {
+  const x = setup();
+  try {
+    const base = { ...completeApplicant }; delete base.phone; delete base.email; delete base.postcode;
+    x.sqlite.prepare("INSERT INTO applicant_profiles(participant_id,profile) VALUES('owner',?)").run(JSON.stringify(base));
+    const expectations = [
+      ["email", "kein-email", /Bitte so eingeben: name@beispiel\.de/],
+      ["phone", "123", /Bitte so eingeben: 0176 1234567 oder \+49 176 1234567/],
+      ["postcode", "2009", /fünf Ziffern, z\. B\. 20095/],
+    ];
+    for (const [field, value, message] of expectations) {
+      await guidedCall(x, "platforms:gq:" + field);
+      await guidedText(x, value);
+      assert.match(lastMessage(x).text, message, field);
+      assert.equal(guidedProfile(x)[field], undefined, field + " stays unsaved");
+    }
+    await guidedCall(x, "platforms:gq:phone");
+    await guidedText(x, "0176 1234567");
+    assert.equal(guidedProfile(x).phone, "+49 176 1234567");
   } finally { x.done(); }
 });
