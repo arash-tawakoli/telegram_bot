@@ -896,6 +896,8 @@ export async function handleCallback(query, user) {
         return renderTypes(user, chatId, messageId, draft);
     if (data === "location")
         return renderLocation(user, chatId, messageId, draft);
+    if (data === "location:more")
+        return renderLocation(user, chatId, messageId, draft, true);
     if (data === "boroughs") {
         return renderBoroughs(user, chatId, messageId, draft);
     }
