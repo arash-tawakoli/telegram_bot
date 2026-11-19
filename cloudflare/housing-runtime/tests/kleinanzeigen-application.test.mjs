@@ -68,6 +68,7 @@ test("dynamic contact form uses the participant's own identity and returns provi
     assert.match(payload.message,/Mina Beispiel/);
     assert.match(payload.message,/mina@example\.test/);
     assert.equal(request.headers.authorization,"Bearer central-private-token");
+    assert.match(request.headers["X-EBAYK-WENKSE-SESSION-ID"],/^[a-f0-9]{32}$/);
     return Response.json({conversationId:"conv_12345",success:true});
   },()=>sendKleinanzeigenApplication(listing,enabled,null,central));
   assert.equal(network.length,2);
@@ -95,6 +96,9 @@ test("a provider response without a conversation reference is never called deliv
     ?Response.json(form):Response.json({status:"ok"}),()=>sendKleinanzeigenApplication(listing,enabled,null,central));
   assert.equal(result.status,"manual_required");
   assert.equal(result.error,"submission_unconfirmed");
+  assert.equal(result.provider_http_status,200);
+  assert.equal(result.failure_stage,"post_confirmation_missing");
+  assert.deepEqual(result.provider_response_keys,["status"]);
 });
 
 test("test mode requires a one-time authorization before the irreversible POST",async()=>{
@@ -116,4 +120,6 @@ test("unknown POST outcome cannot cause an automatic repeat",async()=>{
   assert.equal(posts,1);
   assert.equal(result.status,"manual_required");
   assert.equal(result.error,"submission_unconfirmed");
+  assert.equal(result.failure_stage,"post_fetch_exception");
+  assert.equal(result.failure_kind,"other");
 });
