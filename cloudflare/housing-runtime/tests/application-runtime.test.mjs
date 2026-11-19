@@ -112,3 +112,25 @@ test("normal applications stay blocked while personal test mode is enabled", asy
   assert.equal(result.body.reason, "test_mode_active");
   assert.equal(db.writes.some(({text}) => /SET submission_started_at = now\(\)/.test(text)), false);
 });
+
+test("test-mode provider failure records a truncated error_detail", async () => {
+  const db = sqlFor({
+    id: "app-detail", participant_id: "owner-1", offer_identity_id: "offer-1", provider: "immowelt",
+    source_id: 3, status: "pending", test_mode: 1, telegram_user_id: 8538226539,
+    test_auto_apply_allowed: 1, test_auto_apply_enabled: 1, auto_apply_enabled: 0, preferences_enabled: 0,
+    provider_enabled: 1, canonical_url: "https://www.immowelt.de/expose/b9280be8-15b0-4d66-bc46-13a65184a747",
+    expires_at: "2099-01-01T00:00:00Z",
+    profile: {
+      first_name: "Eva", last_name: "Test", email: "eva@example.com", phone: "+491711234567",
+      street: "Testweg", house_number: "1", postcode: "20095", city: "Hamburg", salutation: "MS",
+      household_type: "SINGLE", employment_status: "EMPLOYEE", income_range: "NOT_SPECIFIED", pets: "Keine",
+      move_in_preference: "NOT_SPECIFIED", schufa_status: "NOT_SPECIFIED",
+    },
+  });
+  const result = await processHousingApplication(db.query, { APPLICATION_RUN_TOKEN: "secret" },
+    new Request("https://runtime.test/internal/application/process", { method: "POST", headers: { authorization: "Bearer secret" } }));
+  assert.equal(result.body.reason, "provider_contract_unverified");
+  const event = db.writes.find(({ values }) => values.includes("test_provider_submission"));
+  const metadata = JSON.parse(event.values.find((value) => typeof value === "string" && value.startsWith("{")));
+  assert.equal(metadata.error_detail, "central_provider_unavailable");
+});

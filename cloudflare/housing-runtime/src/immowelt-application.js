@@ -48,7 +48,7 @@ export async function sendImmoweltApplication(application, env, sql, central = n
   // Never fall back to Cloudflare Browser cookies or represent an unverified send as successful.
   const connection = central || await getCentralProviderCredentials(sql, env, "immowelt");
   if (connection.credentials.access_token) {
-    return { status: "manual_required", error: "provider_contract_unverified" };
+    return { status: "manual_required", error: "provider_credentials_bearer_only" };
   }
   const cookies = (Array.isArray(connection.credentials.cookies) ? connection.credentials.cookies : []).filter((cookie) => {
     const domain = String(cookie.domain || "").toLowerCase();
@@ -61,7 +61,7 @@ export async function sendImmoweltApplication(application, env, sql, central = n
   if (!cookies.length) return { status: "manual_required", error: "needs_login" };
   // SOAP authentication and on-behalf-of delivery have not been verified.
   if (env.CENTRAL_IMMOWELT_TRANSPORT_VERIFIED !== "1") {
-    return { status: "manual_required", error: "provider_contract_unverified" };
+    return { status: "manual_required", error: "provider_transport_unverified" };
   }
   const cookieHeader = cookies.map((cookie) => `${cookie.name}=${cookie.value}`).join("; ");
   const phone = profileValue(profile, "phone");

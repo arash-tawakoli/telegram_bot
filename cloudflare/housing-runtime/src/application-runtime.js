@@ -192,6 +192,7 @@ export async function processHousingApplication(sql, env, request) {
       return submissionStarted;
     };
     let result;
+    let errorDetail = null;
     try {
       if (provider === "immoscout24") {
         result = await sendImmoScoutApplication({ ...application, authorizeTestSend }, env, sql);
@@ -206,6 +207,7 @@ export async function processHousingApplication(sql, env, request) {
       }
     } catch (error) {
       const code = String(error?.message || "");
+      errorDetail = code.slice(0, 200);
       result = {
         status: "manual_required",
         error: submissionStarted ? "submission_unconfirmed"
@@ -223,6 +225,7 @@ export async function processHousingApplication(sql, env, request) {
     `;
     await event(sql, application.id, provider, "test_provider_submission", result.status, result.error || null, {
       test_mode: true, confirmation: result.confirmation || null, submission_started: submissionStarted,
+      error_detail: errorDetail,
       provider_http_status: result.provider_http_status || null,
       provider_message_code: result.provider_message_code || null,
       provider_validation_field: result.provider_validation_field || null,

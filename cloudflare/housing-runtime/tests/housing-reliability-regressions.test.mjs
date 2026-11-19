@@ -117,7 +117,7 @@ test("unverified Immowelt send never reserves the one-shot test submission", asy
     }, {}, null, { ownerId: "owner-id", credentials: {
       cookies: [{ domain: ".immowelt.de", name: "session", value: "opaque", expires: -1 }],
     } });
-    assert.deepEqual(result, { status: "manual_required", error: "provider_contract_unverified" });
+    assert.deepEqual(result, { status: "manual_required", error: "provider_transport_unverified" });
     assert.equal(reserved, 0);
   } finally { globalThis.fetch = original; }
 });

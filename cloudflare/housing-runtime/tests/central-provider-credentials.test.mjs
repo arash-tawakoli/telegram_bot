@@ -179,7 +179,7 @@ test("Immowelt refuses to transmit until the central session transport is verifi
       ownerId: OWNER_ID,
       credentials: { cookies: [{ name: "session", value: "opaque", domain: ".immowelt.de", expires: -1 }] },
     });
-    assert.deepEqual(result, { status: "manual_required", error: "provider_contract_unverified" });
+    assert.deepEqual(result, { status: "manual_required", error: "provider_transport_unverified" });
   } finally {
     globalThis.fetch = originalFetch;
   }
