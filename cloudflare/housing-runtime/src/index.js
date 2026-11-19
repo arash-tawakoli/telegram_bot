@@ -19,6 +19,7 @@ import { handleStripeWebhook } from "./stripe-webhook.js";
 import { processHousingApplication } from "./application-runtime.js";
 import { reconcileKleinanzeigenReadbackOnce } from "./kleinanzeigen-readback.js";
 import { createD1Client } from "./d1-database.js";
+import { migrateMenuButtons } from "./telegram-menu.js";
 import { handleLegacyTelegramUpdate } from "./telegram-legacy/index.js";
 import { runEngagementNotifications } from "./engagement-cron.js";
 import { recordTelegramActivity, recoverTelegramUpdates } from "./telegram-recovery.js";
@@ -832,6 +833,8 @@ export default {
         try {
           const result = await ensureTelegramWebhook(env);
           console.log("telegram_webhook_registered", JSON.stringify(result));
+          const menu = await withDatabase(env, (sql) => migrateMenuButtons(sql, env));
+          if (!menu.skipped) console.log("telegram_menu_buttons_migrated", JSON.stringify(menu));
         } catch (error) {
           console.error("telegram_webhook_registration_failed", String(error?.message || "unknown").slice(0, 120));
         }
