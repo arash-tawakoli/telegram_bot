@@ -2,9 +2,8 @@ import { missingApplicantFields } from '../application-policy.js';
 
 // One entry per guided question. Fields in one entry are answered in one step.
 export const GUIDED_STEPS=[
- ['salutation'],['schufa_status'],['first_name'],['last_name'],['email'],['phone'],
- ['street'],['house_number'],['postcode'],['city'],
- ['household_type'],['employment_status'],['income_range'],['pets'],['move_in_preference']
+ ['first_name','last_name'],['email'],['phone'],['household_type'],['employment_status'],['income_range'],
+ ['pets'],['move_in_preference'],['schufa_status'],['salutation'],['postcode'],['city'],['street','house_number']
 ];
 
 export const QUESTIONS={
@@ -14,7 +13,7 @@ export const QUESTIONS={
  last_name:{q:'Und dein Nachname?',example:'Beispiel'},
  email:{q:'Wie lautet deine E-Mail-Adresse?',example:'name@beispiel.de'},
  phone:{q:'Unter welcher Nummer erreichen Vermieter dich?',example:'0176 1234567'},
- street:{q:'In welcher Straße wohnst du?',example:'Musterstraße'},
+ street:{q:'Wie lautet deine Straße mit Hausnummer?',example:'Musterstraße 12a'},
  house_number:{q:'Welche Hausnummer?',example:'12a'},
  postcode:{q:'Wie lautet deine PLZ?',example:'20095'},
  city:{q:'In welchem Ort wohnst du?',example:'Hamburg'},
@@ -52,3 +51,9 @@ export function nextQuestion(profile){
 
 export const previousField=field=>{const index=stepIndex(field);return index>0?GUIDED_STEPS[index-1][0]:null;};
 export const progressBar=(done,total)=>'▓'.repeat(done)+'░'.repeat(Math.max(0,total-done));
+
+// "Musterstraße 12a" -> street and house number; null when no number follows the street.
+export function parseStreetLine(input){
+ const match=String(input||'').trim().replace(/\s+/g,' ').match(/^(.*\S)\s+(\d+\s?[a-zA-Z]?(?:\s?[-–/]\s?\d+\s?[a-zA-Z]?)?)$/);
+ return match?{street:match[1],house_number:match[2].replace(/\s+/g,'')}:null;
+}

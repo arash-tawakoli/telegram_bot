@@ -1598,3 +1598,50 @@ test("a complete profile opens the edit grid instead of the guided flow", async 
     assert.ok(lastMessage(x).reply_markup.inline_keyboard.flat().some(b => b.callback_data === "platforms:profile-field:salutation"));
   } finally { x.done(); }
 });
+
+test("guided questions follow the agreed order, with street and house number in one step", async () => {
+  const x = setup();
+  try {
+    const asked = [];
+    const answers = {
+      first_name: "Mara", last_name: "Beispiel", email: "mara@example.org", phone: "0176 1234567",
+      postcode: "20095", city: "Hamburg", street: "Testweg 12a"
+    };
+    const choose = { household_type: "SINGLE", employment_status: "EMPLOYEE", income_range: "2000_3000", pets: "NO",
+      move_in_preference: "EXACT_DATE", schufa_status: "AVAILABLE", salutation: "MS" };
+    await guidedCall(x, "platforms:profile-new");
+    for (let guard = 0; guard < 30 && guidedState(x)._applicant_field !== "__done"; guard++) {
+      const card = lastMessage(x);
+      const field = guidedState(x)._applicant_field;
+      if (field) { asked.push(field); await guidedText(x, field === "move_in_date" ? "2026-12-01" : answers[field]); }
+      else {
+        const gset = card.reply_markup.inline_keyboard.flat().map(b => b.callback_data).find(d => d?.startsWith("platforms:gset:"));
+        if (!gset) break;
+        const name = gset.split(":")[2];
+        asked.push(name);
+        await guidedCall(x, `platforms:gset:${name}:${choose[name]}`);
+      }
+    }
+    assert.deepEqual(asked, ["first_name", "last_name", "email", "phone", "household_type", "employment_status", "income_range",
+      "pets", "move_in_preference", "move_in_date", "schufa_status", "salutation", "postcode", "city", "street"]);
+    const saved = guidedProfile(x);
+    assert.equal(saved.street, "Testweg"); assert.equal(saved.house_number, "12a");
+    assert.equal(saved.move_in_preference, "EXACT_DATE"); assert.equal(saved.move_in_date, "2026-12-01");
+  } finally { x.done(); }
+});
+
+test("guided back button returns to the previous step and a street without number is rejected", async () => {
+  const x = setup();
+  try {
+    await guidedCall(x, "platforms:profile-new");
+    await guidedText(x, "Mara"); await guidedText(x, "Beispiel");
+    assert.match(lastMessage(x).text, /E-Mail-Adresse/);
+    const back = lastMessage(x).reply_markup.inline_keyboard.flat().find(b => b.text === "← Zurück");
+    assert.equal(back.callback_data, "platforms:gq:first_name");
+    await guidedCall(x, back.callback_data);
+    assert.match(lastMessage(x).text, /Vorname/);
+    await guidedCall(x, "platforms:gq:street");
+    await guidedText(x, "Testweg");
+    assert.match(lastMessage(x).text, /Bitte so eingeben: Musterstraße 12a/);
+  } finally { x.done(); }
+});

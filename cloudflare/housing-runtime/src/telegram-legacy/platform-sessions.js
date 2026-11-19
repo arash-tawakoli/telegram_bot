@@ -3,7 +3,7 @@ import {providerSendEnabled} from '../application-policy.js';
 import {encryptProviderCredentials} from '../provider-credentials.js';
 import {providerStaticMissing} from './application-profile-adapters.js';
 import { DEFAULT_APPLICATION_TEXT, resolveApplicationText } from '../application-text.js';
-import { GUIDED_STEPS, QUESTIONS, nextQuestion, stepIndex, previousField, progressBar } from './onboarding.js';
+import { GUIDED_STEPS, QUESTIONS, nextQuestion, stepIndex, previousField, progressBar, parseStreetLine } from './onboarding.js';
 
 const userFacingError=(error)=>{
  const reason=String(error?.message||error||'');
@@ -532,9 +532,17 @@ export async function handleAutoApplyMessage(user,message){
   const [name]=entry;
   try{
    const previous=await ensureApplicantProfile(user.id);
-   const value=validateField(name,text),patch=name==='move_in_date'
-    ? {[name]:value,move_in_preference:'EXACT_DATE',updated_at:new Date().toISOString()}
-    : {[name]:value,updated_at:new Date().toISOString()};
+   let patch;
+   if(name==='street'&&user.onboarding_state?._applicant_guided===true){
+    const parsed=parseStreetLine(text);
+    if(!parsed)throw Error('Bitte so eingeben: Musterstraße 12a');
+    patch={street:validateField('street',parsed.street),house_number:validateField('house_number',parsed.house_number),updated_at:new Date().toISOString()};
+   }else{
+    const value=validateField(name,text);
+    patch=name==='move_in_date'
+     ? {[name]:value,move_in_preference:'EXACT_DATE',updated_at:new Date().toISOString()}
+     : {[name]:value,updated_at:new Date().toISOString()};
+   }
    const {error}=await db.from('applicant_profiles').update(patch).eq('user_id',user.id);if(error)throw Error('Änderung konnte nicht gespeichert werden.');
    await Promise.all([telegram('deleteMessage',{chat_id:chat.id,message_id:message.message_id}).catch(()=>{}),message.reply_to_message?.message_id?telegram('deleteMessage',{chat_id:chat.id,message_id:message.reply_to_message.message_id}).catch(()=>{}):null]);
    const editMessageId=Number(user.onboarding_state?._applicant_message_id||0);
