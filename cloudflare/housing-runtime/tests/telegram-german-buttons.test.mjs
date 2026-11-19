@@ -1415,6 +1415,7 @@ test("Telegram search profile can select all Berlin and links only the Berlin MC
     await call("new");
     await call("type:Wohnung");
     await call("location");
+    await call("location:more");
     let buttons=lastMessage(x).reply_markup.inline_keyboard.flat().map(b=>b.callback_data);
     for(const action of ["loc:all_be","loc:boroughs_be","loc:localities_be"]) assert.ok(buttons.includes(action));
     await call("loc:all_be");
@@ -1775,5 +1776,34 @@ test("the completion button only opens the existing source toggles and enables n
     assert.ok(view.reply_markup.inline_keyboard.flat().some(b => b.callback_data === "platforms:resume:1"));
     assert.ok(view.reply_markup.inline_keyboard.flat().some(b => b.callback_data === "platforms:limit"), "the Tageslimit button is part of that screen");
     assert.equal(x.sqlite.prepare("SELECT auto_apply_enabled FROM participants WHERE id='owner'").get().auto_apply_enabled, 0);
+  } finally { x.done(); }
+});
+
+test("search-profile location offers Hamburg first and keeps Berlin and Schleswig-Holstein behind 'Weitere Regionen'", async () => {
+  const x = setup();
+  try {
+    const call = async data => {
+      const state = JSON.parse(x.sqlite.prepare("SELECT telegram_state FROM participants WHERE id='owner'").get().telegram_state);
+      return handleCallback({ id: "loc-" + data, data, from: { id: 777 }, message: { chat: x.chat, message_id: 89 } },
+        { ...x.user, onboarding_state: state, onboarding_step: state._step || null });
+    };
+    await call("new");
+    await call("type:Wohnung");
+    await call("location");
+    const main = lastMessage(x).reply_markup.inline_keyboard;
+    assert.deepEqual(main.slice(0, 4).map(row => [row[0].text, row[0].callback_data]), [
+      ["📍 Ganz Hamburg", "loc:all"], ["🏘 Bezirke wählen", "loc:boroughs"],
+      ["🏠 Stadtteile wählen", "loc:neighborhoods"], ["➕ Weitere Regionen …", "location:more"]]);
+    const mainCallbacks = main.flat().map(b => b.callback_data);
+    for (const hidden of ["loc:all_be", "loc:boroughs_be", "loc:localities_be", "loc:all_sh", "loc:counties_sh", "loc:municipalities_sh"])
+      assert.ok(!mainCallbacks.includes(hidden), hidden + " lives behind Weitere Regionen");
+    await call("location:more");
+    const more = lastMessage(x).reply_markup.inline_keyboard.flat();
+    for (const shown of ["loc:all_be", "loc:boroughs_be", "loc:localities_be", "loc:all_sh", "loc:counties_sh", "loc:municipalities_sh"])
+      assert.ok(more.some(b => b.callback_data === shown), shown);
+    assert.ok(more.some(b => b.callback_data === "location" && /Hamburg/.test(b.text)));
+    await call("loc:all_be");
+    await call("location");
+    assert.match(lastMessage(x).reply_markup.inline_keyboard[3][0].text, /^✅ ➕ Weitere Regionen/, "an existing Berlin choice stays visible");
   } finally { x.done(); }
 });

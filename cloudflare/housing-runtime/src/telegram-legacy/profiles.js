@@ -158,21 +158,34 @@ export async function renderTypes(user, chatId, messageId, draft) {
         : send(chatId, text, { inline_keyboard: rows });
 }
 
-export async function renderLocation(user, chatId, messageId, draft) {
+const OTHER_REGION_MODES = ["all_schleswig_holstein", "schleswig_holstein_areas", "all_berlin", "berlin_boroughs", "berlin_localities"];
+
+// Hamburg first; Schleswig-Holstein and Berlin sit one tap away and keep their callbacks.
+export async function renderLocation(user, chatId, messageId, draft, more = false) {
     await saveDraft(user, "location", draft);
+    const mark = (active) => (active ? "✅ " : "");
+    const back = backRow(draft.profile_edit ? `profile:edit:${draft.profile_slot}` : "types");
+    if (more) {
+        return edit(chatId, messageId, "➕ <b>Weitere Regionen</b>", {
+            inline_keyboard: [
+                [button(`${mark(draft.location_mode === "all_schleswig_holstein")}🌐 Ganz Schleswig-Holstein`, "loc:all_sh")],
+                [button(`${mark(draft.location_mode === "schleswig_holstein_areas" && ["counties", "mixed"].includes(draft.sh_area_level))}🏙 Kreise / kreisfreie Städte`, "loc:counties_sh")],
+                [button(`${mark(draft.location_mode === "schleswig_holstein_areas" && ["municipalities", "mixed"].includes(draft.sh_area_level))}📍 Städte / Gemeinden`, "loc:municipalities_sh")],
+                [button(`${mark(draft.location_mode === "all_berlin")}🌐 Ganz Berlin`, "loc:all_be")],
+                [button(`${mark(draft.location_mode === "berlin_boroughs")}🏙 Berliner Bezirke`, "loc:boroughs_be")],
+                [button(`${mark(draft.location_mode === "berlin_localities")}📍 Berliner Ortsteile`, "loc:localities_be")],
+                [button("← Hamburg", "location")],
+                cancelRow(),
+            ],
+        });
+    }
     return edit(chatId, messageId, "📍 <b>Wo möchtest du suchen?</b>", {
         inline_keyboard: [
-            [button(`${draft.location_mode === "all_hamburg" ? "✅ " : ""}🌐 Ganz Hamburg`, "loc:all")],
-            [button(`${draft.location_mode === "boroughs" ? "✅ " : ""}🏙 Bezirke auswählen`, "loc:boroughs")],
-            [button(`${draft.location_mode === "neighborhoods" ? "✅ " : ""}📍 Stadtteile auswählen`, "loc:neighborhoods")],
-            [button(`${draft.location_mode === "all_schleswig_holstein" ? "✅ " : ""}🌐 Ganz Schleswig-Holstein`, "loc:all_sh")],
-
-            [button(`${draft.location_mode === "schleswig_holstein_areas" && ["counties", "mixed"].includes(draft.sh_area_level) ? "✅ " : ""}🏙 Kreise / kreisfreie Städte`, "loc:counties_sh")],
-            [button(`${draft.location_mode === "schleswig_holstein_areas" && ["municipalities", "mixed"].includes(draft.sh_area_level) ? "✅ " : ""}📍 Städte / Gemeinden`, "loc:municipalities_sh")],
-            [button(`${draft.location_mode === "all_berlin" ? "✅ " : ""}🌐 Ganz Berlin`, "loc:all_be")],
-            [button(`${draft.location_mode === "berlin_boroughs" ? "✅ " : ""}🏙 Berliner Bezirke`, "loc:boroughs_be")],
-            [button(`${draft.location_mode === "berlin_localities" ? "✅ " : ""}📍 Berliner Ortsteile`, "loc:localities_be")],
-            backRow(draft.profile_edit ? `profile:edit:${draft.profile_slot}` : "types"),
+            [button(`${mark(draft.location_mode === "all_hamburg")}📍 Ganz Hamburg`, "loc:all")],
+            [button(`${mark(draft.location_mode === "boroughs")}🏘 Bezirke wählen`, "loc:boroughs")],
+            [button(`${mark(draft.location_mode === "neighborhoods")}🏠 Stadtteile wählen`, "loc:neighborhoods")],
+            [button(`${mark(OTHER_REGION_MODES.includes(draft.location_mode))}➕ Weitere Regionen …`, "location:more")],
+            back,
             cancelRow(),
         ],
     });
