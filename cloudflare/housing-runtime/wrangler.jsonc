@@ -22,7 +22,8 @@
   },
   "vars": {
     "TELEGRAM_WEBHOOK_REGISTER": "1",
-    "CENTRAL_AUTO_APPLY_ENABLED": "1"
+    "CENTRAL_AUTO_APPLY_ENABLED": "1",
+    "CENTRAL_KLEINANZEIGEN_SEND_ENABLED": "1"
   },
   "d1_databases": [
     {
@@ -47,7 +48,8 @@
     "vars": {
       "PREVIEW_MODE": "1",
       "TELEGRAM_WEBHOOK_REGISTER": "0",
-      "CENTRAL_AUTO_APPLY_ENABLED": "0"
+      "CENTRAL_AUTO_APPLY_ENABLED": "0",
+      "CENTRAL_KLEINANZEIGEN_SEND_ENABLED": "0"
     }
   },
   "limits": {
