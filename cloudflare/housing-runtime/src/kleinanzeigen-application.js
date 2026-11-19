@@ -108,9 +108,11 @@ export async function sendKleinanzeigenApplication(application, env, sql, centra
   if (!Object.keys(mapped.payload).some((key) => /message|nachricht|anschreiben/i.test(key)))
     return { status: "manual_required", error: "message_field_unavailable" };
 
-  if (application.test_mode && (typeof application.authorizeTestSend !== "function"
-      || await application.authorizeTestSend() !== true))
-    return { status: "manual_required", error: "test_send_not_authorized" };
+  // Irreversible network I/O starts only after the existing one-use
+  // application reservation is durably granted by the queue processor.
+  const authorize = application.test_mode ? application.authorizeTestSend : application.authorizeSend;
+  if (typeof authorize !== "function" || await authorize() !== true)
+    return { status: "manual_required", error: application.test_mode ? "test_send_not_authorized" : "send_not_authorized" };
 
   const submitted = await providerRequest(id, credentials, "POST", mapped.payload);
   if (submitted.error)
