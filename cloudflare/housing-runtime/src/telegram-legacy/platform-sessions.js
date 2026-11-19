@@ -261,17 +261,26 @@ const completedFieldChanged=(previous,patch)=>Object.entries(patch).some(
  ([key,value])=>PROFILE_FIELDS[key]?.required===true&&String(previous?.[key]??'')!==String(value??'')
 );
 
+// Completion screen. Starting AutoApply stays the user's own explicit choice on the next screen.
 async function offerCompletedApplicantActivation(user,chat,changed){
  if(!changed)return;
  try{
   const {data:missing,error}=await db.rpc('application_profile_missing_fields',{p_user:user.id});
   if(error)throw error;
   if(Array.isArray(missing)&&missing.length===0){
+   const p=await readProfile(user.id)||{};
+   const name=[p.first_name,p.last_name].filter(Boolean).join(' ');
+   const summary=[
+    '👤 '+esc(name),'✉️ '+esc(p.email),'📞 '+esc(p.phone),
+    '🏠 '+esc(`${p.street||''} ${p.house_number||''}`.trim())+', '+esc(`${p.postcode||''} ${p.city||''}`.trim()),
+    '👪 '+householdLabel(p)+' · '+employmentLabel(p.employment_status),
+    '📅 Einzug: '+moveInLabel(p)
+   ].join('\n');
    await sendCelebration(chat.id,
-    '🎉 <b>Dein Bewerberprofil ist vollständig!</b>\n\nJetzt die automatische Bewerbung aktivieren und sofort Angebote erhalten?',
+    '🎉 <b>Dein Bewerberprofil ist vollständig!</b>\n\n'+summary+'\n\nJetzt kannst du die Auto-Bewerbung starten – du wählst selbst, auf welchen Plattformen.',
     {inline_keyboard:[
-      [button('Ja, aktivieren','platforms:completion:yes')],
-      [button('Nein, später','platforms:completion:no')]
+      [button('⚡ Auto-Bewerbung starten','platforms')],
+      [button('✏️ Angaben ändern','platforms:profile-return')]
     ]});
   }
  }catch(error){console.error('applicant_completion_prompt',String(error?.message||error));}
