@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { prepareKleinanzeigenApplicantForm } from "../src/kleinanzeigen-application-profile.js";
+import { providerDynamicReadiness } from "../src/telegram-legacy/application-profile-adapters.js";
 
 const applicant = {
   first_name: "Sona", last_name: "Testname", email: "sona@example.test",
@@ -71,4 +72,13 @@ test("optional fields are never treated as compulsory and invalid dates are repo
     marketing:{type:"boolean"}},["moveInDate","message"]);
   assert.equal(prepareKleinanzeigenApplicantForm(f,{...applicant,move_in_preference:"FLEXIBLE"},"Hallo").ok,false);
   assert.equal(prepareKleinanzeigenApplicantForm(f,{...applicant,move_in_date:"2026-12-01"},"Hallo").ok,true);
+});
+
+test("unified applicant profile exposes provider dynamic readiness",()=>{
+  const sample=form({message:{type:"string"},contactFirstName:{type:"string"}});
+  const result=providerDynamicReadiness("kleinanzeigen",sample,applicant,"Hallo");
+  assert.equal(result.ok,true);
+  assert.equal(result.payload.contactFirstName,"Sona");
+  assert.equal(result.payload.message,"Hallo");
+  assert.deepEqual(result.missing,[]);
 });
