@@ -102,7 +102,7 @@ test("near-expired token: no ctx awaits refresh and re-reads (Telegram), ctx def
  const awaited=await run(undefined);
  const deferred=[];
  const background=await run({waitUntil:p=>deferred.push(p)});
- assert.equal(deferred.length,1);
+ assert.equal(deferred.length,2,"last_seen write + refresh");
  assert.ok(awaited>background,"no ctx waits for the refresh and re-reads before responding");
  await Promise.all(deferred);
 });
