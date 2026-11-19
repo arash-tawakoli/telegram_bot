@@ -470,13 +470,27 @@ export async function adminTokenStatus(sql, env, ctx) {
         AND provider IN ('immowelt', 'immomio', 'kleinanzeigen')
     `,
   ]);
-  // Near-expired tokens refresh in the background; the response never waits on a provider.
+  // Portal path (ctx present): refresh near-expired tokens in the background, never block the response.
+  // Telegram /token has no ctx: await the refresh and re-read so it shows the refreshed status.
+  let current = rows;
   const refreshable = rows.filter(row =>
     row.status === "connected" && row.expires_at
     && Date.parse(row.expires_at) < Date.now() + 60_000);
-  if (refreshable.length && ctx?.waitUntil) ctx.waitUntil(Promise.all(refreshable.map(row =>
-    getCentralProviderCredentials(sql, env, row.provider).catch(() => null))));
-  const connection = name => rows.find(row => row.provider === name) || {};
+  if (refreshable.length) {
+    const refresh = Promise.all(refreshable.map(row =>
+      getCentralProviderCredentials(sql, env, row.provider).catch(() => null)));
+    if (ctx?.waitUntil) ctx.waitUntil(refresh);
+    else {
+      await refresh;
+      current = await sql`
+        SELECT provider, status, account_hint, expires_at, updated_at
+        FROM housing.provider_connections
+        WHERE participant_id = (SELECT id FROM housing.participants WHERE telegram_user_id = ${OWNER_TELEGRAM_ID} AND status = 'active' LIMIT 1)
+          AND provider IN ('immowelt', 'immomio', 'kleinanzeigen')
+      `;
+    }
+  }
+  const connection = name => current.find(row => row.provider === name) || {};
   return {
     immoscout24: { scope: "central", configured: scout.configured === true, status: scout.status || "disconnected", account_hint: scout.account_hint || null, enabled: scout.enabled === true, expires_at: scout.expires_at || null, last_verified_at: scout.last_verified_at || null },
     ...Object.fromEntries(["immowelt", "immomio"].map(name => {
