@@ -4,7 +4,10 @@ import { DatabaseSync } from "node:sqlite";
 import { readFileSync, readdirSync } from "node:fs";
 import { configureLegacyRuntime } from "../src/telegram-legacy/runtime.js";
 import { home, homeKeyboard, settings, premium, referralPage, QUICK_ACTIONS, quickActionsKeyboard } from "../src/telegram-legacy/navigation.js";
-import { handleCallback, handleMessage } from "../src/telegram-legacy/handlers.js";
+import { handleCallback, handleMessage, kleinanzeigenCallbackFromMessage } from "../src/telegram-legacy/handlers.js";
+import { createD1Client } from "../src/d1-database.js";
+import { issueProviderAuthFlow } from "../src/provider-facade.js";
+import { decryptProviderCredentials } from "../src/provider-credentials.js";
 import { platformSessions, handleAutoApplyMessage } from "../src/telegram-legacy/platform-sessions.js";
 import { homePreview, HOME_LANGUAGES } from "../src/telegram-legacy/home-language.js";
 import { createD1Supabase } from "../src/telegram-legacy/d1-supabase.js";
@@ -1442,4 +1445,77 @@ test("Telegram Berlin districts and 97 Ortsteile are selectable with pagination"
     assert.equal(state.location_mode,"berlin_localities");
     assert.equal(state.berlin_localities.length,1);
   }finally{x.done()}
+});
+
+test("Kleinanzeigen Safari share accepts URL text, caption and text_link entities only from exact origin",()=>{
+  const base="https://login.kleinanzeigen.de/android/com.ebay.kleinanzeigen/callback";
+  const target=base+"?code=secret-code&state=matching-state";
+  for(const message of [
+    {text:target},
+    {text:"Kleinanzeigen: "+target+" (geteilt über Safari)"},
+    {caption:"Link: "+target},
+    {text:"Anmeldung",entities:[{type:"text_link",offset:0,length:9,url:target}]},
+  ]){
+    const found=kleinanzeigenCallbackFromMessage(message);
+    assert.equal(found?.code,"secret-code");
+    assert.equal(found?.state,"matching-state");
+    assert.equal(found?.callbackUrl,target);
+  }
+  assert.equal(kleinanzeigenCallbackFromMessage({text:target.replace("login.kleinanzeigen.de","fake.test")}),null);
+  assert.equal(kleinanzeigenCallbackFromMessage({text:"https://www.kleinanzeigen.de/"}),null);
+  assert.equal(kleinanzeigenCallbackFromMessage({text:base})?.code,null);
+});
+
+test("operator shares Kleinanzeigen callback to Telegram: bot consumes PKCE and stores encrypted tokens",async()=>{
+  const x=setup();
+  try{
+    const ownerTelegramId=8538226539;
+    const ownerId="33333333-3333-4333-8333-333333333333";
+    x.sqlite.prepare("INSERT INTO participants(id,first_name,last_name,telegram_user_id,telegram_chat_id,language_selected_at) VALUES(?,?,?,?,?,CURRENT_TIMESTAMP)")
+      .run(ownerId,"Nexa","Admin",ownerTelegramId,ownerTelegramId);
+    const flow=await issueProviderAuthFlow(createD1Client(x.d1),ownerId,"kleinanzeigen","telegram","telegram",
+      {central_account:true,channel:"telegram"});
+    const callbackUrl="https://login.kleinanzeigen.de/android/com.ebay.kleinanzeigen/callback?code=test-code&state="+flow.state;
+    const originalFetch=globalThis.fetch;
+    let providerCalls=0;
+    globalThis.fetch=(url,options)=> {
+      if(String(url)==="https://login.kleinanzeigen.de/oauth/token"){
+        providerCalls++;
+        assert.equal(JSON.parse(options.body).grant_type,"authorization_code");
+        assert.ok(JSON.parse(options.body).code_verifier);
+        return Promise.resolve(Response.json({access_token:"ka-access-token",refresh_token:"ka-refresh-token",expires_in:600}));
+      }
+      return originalFetch(url,options);
+    };
+    const user={...x.user,id:ownerId,user_id:ownerId,telegram_user_id:ownerTelegramId,
+      chat_id:ownerTelegramId,language_selected_at:"2026-11-19T00:00:00Z"};
+    await handleMessage({chat:{id:ownerTelegramId,type:"private"},from:{id:ownerTelegramId},
+      message_id:321,text:"Kleinanzeigen Anmeldung: "+callbackUrl},user);
+    const saved=x.sqlite.prepare("SELECT status,ciphertext,iv,key_version,expires_at FROM provider_connections WHERE provider='kleinanzeigen' AND participant_id=?").get(ownerId);
+    assert.equal(saved.status,"connected");
+    const decrypted=await decryptProviderCredentials({CENTRAL_TOKEN_ENCRYPTION_KEY:"1".repeat(64)},saved,ownerId,"kleinanzeigen");
+    assert.equal(decrypted.access_token,"ka-access-token");
+    assert.equal(decrypted.refresh_token,"ka-refresh-token");
+    assert.equal(providerCalls,1);
+    assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM provider_auth_flows WHERE state=? AND consumed_at IS NOT NULL").get(flow.state).n,1);
+    assert.ok(x.sent.some(item=>item.method==="deleteMessage"&&item.body.message_id===321));
+    assert.ok(x.sent.some(item=>item.method==="sendMessage"&&/Kleinanzeigen verbunden/.test(item.body.text||"")));
+    assert.doesNotMatch(JSON.stringify(x.sent),/test-code|ka-access-token|ka-refresh-token/);
+    await handleMessage({chat:{id:ownerTelegramId,type:"private"},from:{id:ownerTelegramId},
+      message_id:322,text:callbackUrl},user);
+    assert.equal(providerCalls,1,"replayed shared code must not be exchanged twice");
+  }finally{x.done();}
+});
+
+test("Kleinanzeigen share without OAuth code is deleted and never triggers token exchange",async()=>{
+  const x=setup();
+  try{
+    const id=8538226539;
+    const user={...x.user,id:"owner",telegram_user_id:id,chat_id:id};
+    const url="https://login.kleinanzeigen.de/android/com.ebay.kleinanzeigen/callback";
+    await handleMessage({chat:{id,type:"private"},from:{id},message_id:444,text:url},user);
+    assert.ok(x.sent.some(item=>item.method==="deleteMessage"&&item.body.message_id===444));
+    assert.match(lastMessage(x).text,/keinen Anmeldecode/);
+    assert.equal(x.sqlite.prepare("SELECT COUNT(*) AS n FROM provider_connections WHERE provider='kleinanzeigen'").get().n,0);
+  }finally{x.done();}
 });

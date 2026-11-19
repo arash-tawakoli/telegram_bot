@@ -4,6 +4,7 @@ import { adminTokenStatus, adminTokenStart, adminTokenRefresh } from '../coach-a
 import { createD1Client } from '../d1-database.js';
 import { refreshImmomioSession } from '../immomio-application.js';
 import { runKleinanzeigenNow } from '../kleinanzeigen-source.js';
+import { handleProviderFacade } from '../provider-facade.js';
 import { isAdmin, adminGrantLabel, adminPremiumNotice, adminUsers, adminUser, previewFreePremiumReset, executeFreePremiumReset, setUserBlocked, deleteUser, setPlanOverride, ANNOUNCEMENT_PROMPT, createAnnouncementDraft, cancelAnnouncement, sendAnnouncement } from "./admin.js";
 import { homeKeyboard, home, premium, premiumTier, setPaused, referralPage, settings, languageMenu, QUICK_ACTIONS, showQuickActions, miniAppKeyboard, MINIAPP_URL } from "./navigation.js";
 import { saveDeliveredOffer, removeSavedOffer, savedOffers } from "./saved-offers.js";
@@ -232,7 +233,7 @@ async function showTokenSource(user,chatId,messageId,provider){
     +"\nZentrales Konto: "+esc(item.account_status==="connected"?"verbunden":item.account_status==="needs_login"?"erneut anmelden":"nicht verbunden")
     +"\nKonto: "+esc(item.account_hint||"—")
     +"\nToken gültig bis: "+esc(tokenDate(item.expires_at))
-    +"\n\nDie Suche funktioniert ohne Anmeldung. Der automatische Bewerbungsversand für Kleinanzeigen ist noch deaktiviert.",[
+    +"\n\nNach der Anmeldung in Safari: Teilen → Telegram → diesen Bot auswählen und senden. Der Rückleitungslink wird direkt geprüft und der Token automatisch gespeichert. Keine manuelle Eingabe nötig. Kleinanzeigen-Bewerbungen bleiben deaktiviert.",[
       [button(item.account_status==="connected"?"🔐 Erneut anmelden":"🔐 Konto verbinden","token:login:"+provider)],
       [button("🔄 Jetzt suchen","token:refresh:"+provider)],
       [button("↻ Status aktualisieren","token:source:"+provider)],
@@ -258,7 +259,7 @@ async function startTokenLogin(user,chatId,messageId,provider) {
   const target=new URL(String(flow.url||""));
   if(target.protocol!=="https:"||target.hostname!=="login.traumwohnunghamburg.de")
     throw new Error("invalid_login_link");
-  return tokenPage(chatId,messageId,"🔐 <b>"+TOKEN_SOURCES[provider].name+"</b>\n\nÖffne den sicheren Anmeldelink. Nach erfolgreicher Anmeldung werden die vorhandenen Zugangsdaten im gemeinsamen Cloudflare-Backend aktualisiert.\n\nGültig bis: "+esc(tokenDate(flow.expiresAt)),[
+  return tokenPage(chatId,messageId,"🔐 <b>"+TOKEN_SOURCES[provider].name+"</b>\n\n"+(provider==="kleinanzeigen"?"Melde dich in Safari bei Kleinanzeigen an. Danach über <b>Teilen → Telegram</b> den Rückleitungslink direkt an diesen Bot senden. Der Token wird ohne weitere Eingabeschritte ausgetauscht, sofern ein Anmeldecode vorhanden ist.":"Öffne den sicheren Anmeldelink. Nach erfolgreicher Anmeldung werden die vorhandenen Zugangsdaten im gemeinsamen Cloudflare-Backend aktualisiert.")+"\n\nGültig bis: "+esc(tokenDate(flow.expiresAt)),[
     [{text:"🌐 Anmeldung öffnen",url:target.href}],
     [button("↻ Status prüfen","token:source:"+provider)],
     [button("← Alle Quellen","token")]
@@ -313,8 +314,75 @@ async function refreshTokenSource(user,chatId,messageId,provider) {
   }
 }
 
+const KLEIN_CALLBACK_PREFIX=/https:\/\/login\.kleinanzeigen\.de\/android\/com\.ebay\.kleinanzeigen\/callback[^\s<>"']*/gi;
+export function kleinanzeigenCallbackFromMessage(message) {
+  for (const key of ["text", "caption"]) {
+    const value=String(message?.[key]||"");
+    const items=[value, ...[...value.matchAll(KLEIN_CALLBACK_PREFIX)].map(match=>match[0])];
+    const entities=message?.[key==="text"?"entities":"caption_entities"]||[];
+    for (const entity of entities) {
+      if(entity?.type==="text_link"&&entity.url)items.push(String(entity.url));
+      if(entity?.type==="url"&&Number.isInteger(entity.offset)&&Number.isInteger(entity.length))
+        items.push(value.slice(entity.offset,entity.offset+entity.length));
+    }
+    for(const item of items) {
+      const match=String(item).match(/https:\/\/login\.kleinanzeigen\.de\/android\/com\.ebay\.kleinanzeigen\/callback[^\s<>"']*/i);
+      if(!match)continue;
+      let url;
+      try{url=new URL(match[0].replace(/[)\]},.;!?]+$/g,""));}catch{continue;}
+      if(url.origin!=="https://login.kleinanzeigen.de"||
+          url.pathname!=="/android/com.ebay.kleinanzeigen/callback"||
+          url.username||url.password||url.port||url.href.length>4096)continue;
+      return {callbackUrl:url.href,code:url.searchParams.get("code"),
+        state:url.searchParams.get("state"),error:url.searchParams.get("error")};
+    }
+  }
+  return null;
+}
+
+async function completeSharedKleinanzeigenLogin(user,message,callback){
+  const chatId=Number(message.chat.id);
+  if(!isAdmin(user)||message.chat?.type!=="private"||
+      chatId!==Number(user.telegram_user_id)||
+      (message.from?.id!=null&&Number(message.from.id)!==Number(user.telegram_user_id)))return;
+  // An authorization code is a secret. Remove the incoming share before processing it.
+  if(Number.isSafeInteger(message.message_id)) {
+    await telegram("deleteMessage",{chat_id:chatId,message_id:message.message_id})
+      .catch(()=>{});
+  }
+  if(callback.error)return send(chatId,
+    "⚠️ Kleinanzeigen hat die Anmeldung abgelehnt. Bitte starte den Login über /token erneut.");
+  if(!callback.code||!callback.state)return send(chatId,
+    "⚠️ Der geteilte Link enthält keinen Anmeldecode. Der Token konnte nicht ausgetauscht werden. Bitte prüfe, ob Kleinanzeigen nach dem Login einen Link mit code und state bereitstellt.");
+  try {
+    const result=await withAdminTokenDatabase(async(sql,env)=>{
+      const request=new Request("https://housing-runtime.internal/edge/provider/facade",{
+        method:"POST",headers:{"content-type":"application/json"},
+        body:JSON.stringify({action:"complete_web",ticket:callback.state,callbackUrl:callback.callbackUrl})
+      });
+      const response=await handleProviderFacade(sql,request,env);
+      const body=await response.json().catch(()=>({}));
+      if(!response.ok||body.authenticated!==true)
+        throw new Error(["invalid_callback_url","auth_flow_expired","token_exchange_failed","needs_login","temporary_network_error"].includes(body.error)
+          ?body.error:"login_failed");
+      return body;
+    });
+    // completeFlow notifies the operator via Telegram upon a verified exchange.
+    return result;
+  }catch(error){
+    const code=String(error?.message||"");
+    const explanation=code==="auth_flow_expired"?"Der Anmeldelink ist abgelaufen oder wurde bereits verwendet."
+      :code==="invalid_callback_url"?"Der geteilte Link gehört nicht zur aktuellen Anmeldung."
+      :code==="token_exchange_failed"?"Kleinanzeigen hat den Token-Austausch nicht bestätigt."
+      :"Die Anmeldung konnte nicht abgeschlossen werden.";
+    return send(chatId,"⚠️ <b>Kleinanzeigen nicht verbunden</b>\n\n"+explanation+"\nBitte starte den Login über /token erneut.");
+  }
+}
+
 export async function handleMessage(message, user) {
     const chatId = Number(message.chat.id);
+    const callback=kleinanzeigenCallbackFromMessage(message);
+    if(callback)return completeSharedKleinanzeigenLogin(user,message,callback);
     const text = String(message.text || "").trim();
     const [rawCommand, argument = ""] = text.split(/\s+/, 2);
     const command = rawCommand
