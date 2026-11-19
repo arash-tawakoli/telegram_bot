@@ -38,7 +38,7 @@ function messages(payload){
   const r=root.messages??root.data?.messages??[];
   return Array.isArray(r)?r:[];
 }
-function outboundMatch(item,text){
+export function outboundMatch(item,text){
   const dir=String(item.direction??item.boundness??"").toUpperCase();
   return (dir==="SENT"||dir.includes("OUT"))&&clean(item.message??item.text??item.body??item.textShort??"")===clean(text);
 }
