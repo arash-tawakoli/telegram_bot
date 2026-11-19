@@ -56,16 +56,19 @@ async function providerRequest(id, credentials, method, payload) {
   try {
     response = await fetch(CONTACT(id), {
       method,
-      headers: headers(credentials, method === "POST"),
+      headers: { ...headers(credentials, method === "POST"),
+        ...(method === "POST" ? { "X-EBAYK-WENKSE-SESSION-ID": crypto.randomUUID().replace(/-/g, "") } : {}) },
       ...(payload ? { body: JSON.stringify(payload) } : {}),
       signal: AbortSignal.timeout(25_000),
     });
-  } catch { return { error: method === "POST" ? "submission_unconfirmed" : "temporary_network_error" }; }
+  } catch (error) { return { error: method === "POST" ? "submission_unconfirmed" : "temporary_network_error",
+      failure_stage: method === "POST" ? "post_fetch_exception" : "get_fetch_exception",
+      failure_kind: ["AbortError","TimeoutError","TypeError"].includes(String(error?.name)) ? String(error.name) : "other" }; }
   const data = await response.json().catch(() => null);
   if (!response.ok) {
     return { error: method === "POST" && (response.status === 429 || response.status >= 500)
       ? "submission_unconfirmed" : responseError(response.status),
-      provider_http_status: response.status };
+      provider_http_status: response.status, failure_stage: method === "POST" ? "post_http_error" : "get_http_error" };
   }
   return { data, provider_http_status: response.status };
 }
@@ -117,14 +120,22 @@ export async function sendKleinanzeigenApplication(application, env, sql, centra
 
   const submitted = await providerRequest(id, credentials, "POST", mapped.payload);
   if (submitted.error)
-    return { status: "manual_required", error: submitted.error, provider_http_status: submitted.provider_http_status };
+    return { status: "manual_required", error: submitted.error,
+      provider_http_status: submitted.provider_http_status,
+      failure_stage: submitted.failure_stage || null, failure_kind: submitted.failure_kind || null };
   const result = submitted.data;
+  const responseKeys = result && typeof result === "object" && !Array.isArray(result)
+    ? Object.keys(result).filter(key => /^[a-zA-Z][a-zA-Z0-9_]{0,63}$/.test(key)).slice(0, 20) : [];
   if (!result || result.success === false || result.ok === false || result.error || result.errors)
-    return { status: "manual_required", error: "submission_unconfirmed" };
+    return { status: "manual_required", error: "submission_unconfirmed",
+      provider_http_status: submitted.provider_http_status, failure_stage: "post_response_rejected",
+      provider_response_keys: responseKeys };
   const conversation = result.conversationId || result.data?.conversationId
     || result.conversation?.id || result.data?.conversation?.id;
   if (!conversation || !/^[a-z0-9_-]{3,128}$/i.test(String(conversation)))
-    return { status: "manual_required", error: "submission_unconfirmed" };
+    return { status: "manual_required", error: "submission_unconfirmed",
+      provider_http_status: submitted.provider_http_status, failure_stage: "post_confirmation_missing",
+      provider_response_keys: responseKeys };
   return {
     status: "sent", confirmation: "kleinanzeigen_conversation_created",
     conversationId: String(conversation), provider_http_status: submitted.provider_http_status,
