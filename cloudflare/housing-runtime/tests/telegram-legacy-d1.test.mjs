@@ -209,10 +209,11 @@ test("Retired provider cannot be enabled through D1 preferences", async () => {
   assert.match(String(result.error),/provider_not_allowlisted/);
 });
 
-test("Telegram controls only expose retained housing providers", async () => {
+test("Telegram controls expose only verified senders; Kleinanzeigen profile stays informational", async () => {
   const {readFileSync}=await import("node:fs");
   const source=readFileSync(new URL("../src/telegram-legacy/platform-sessions.js",import.meta.url),"utf8");
-  assert.doesNotMatch(source,/kleinanzeigen/i);
+  assert.match(source,/Kleinanzeigen · Versand noch nicht freigegeben/);
+  assert.doesNotMatch(source,/2:\{key:'kleinanzeigen'/i);
   assert.match(source,/1:\{key:'immoscout24'/);
   assert.match(source,/3:\{key:'immomio'/);
   assert.match(source,/4:\{key:'immowelt'/);
