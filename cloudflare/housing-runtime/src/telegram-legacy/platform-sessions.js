@@ -3,6 +3,7 @@ import {providerSendEnabled} from '../application-policy.js';
 import {encryptProviderCredentials} from '../provider-credentials.js';
 import {providerStaticMissing} from './application-profile-adapters.js';
 import { DEFAULT_APPLICATION_TEXT, resolveApplicationText } from '../application-text.js';
+import { GUIDED_STEPS, QUESTIONS, nextQuestion, stepIndex, previousField, progressBar } from './onboarding.js';
 
 const userFacingError=(error)=>{
  const reason=String(error?.message||error||'');
@@ -74,6 +75,28 @@ const EMPLOYMENT_CHOICES={
  OTHER:'Sonstiges'
 };
 const PET_CHOICES={NONE:'Keine Angaben',YES:'Ja',NO:'Nein'};
+const lastNotSpecified=entries=>[...entries.filter(([key])=>key!=='NOT_SPECIFIED'),...entries.filter(([key])=>key==='NOT_SPECIFIED')];
+const CHOICES={
+ salutation:lastNotSpecified(Object.entries(SALUTATION_LABELS)),
+ schufa_status:[['AVAILABLE','Vorhanden (< 3 Monate)'],['NOT_AVAILABLE','Nicht vorhanden'],['NOT_SPECIFIED','Keine Angabe']],
+ household_type:lastNotSpecified(Object.entries(HOUSEHOLD_LABELS)),
+ employment_status:lastNotSpecified(Object.entries(EMPLOYMENT_CHOICES)),
+ income_range:lastNotSpecified(Object.entries(INCOME_LABELS).filter(([key])=>key!=='OVER_5000')),
+ pets:[['YES','Ja'],['NO','Nein'],['NONE','Keine Angabe']],
+ move_in_preference:lastNotSpecified(Object.entries(MOVE_IN_LABELS))
+};
+// Profile columns written by one button press; null for an unknown field or value.
+function choicePatch(field,choice){
+ const has=(map)=>Object.hasOwn(map,choice);
+ if(field==='salutation')return has(SALUTATION_LABELS)?{salutation:choice}:null;
+ if(field==='household_type')return has(HOUSEHOLD_LABELS)?{household_type:choice,household_size:choice==='SINGLE'?1:choice==='TWO_ADULTS'?2:null}:null;
+ if(field==='employment_status')return has(EMPLOYMENT_CHOICES)?{employment_status:choice}:null;
+ if(field==='income_range')return has(INCOME_LABELS)?{income_range:choice,monthly_net_income:null}:null;
+ if(field==='pets')return has(PET_CHOICES)?{pets:PET_CHOICES[choice]}:null;
+ if(field==='move_in_preference')return has(MOVE_IN_LABELS)&&choice!=='EXACT_DATE'?{move_in_preference:choice,move_in_date:null}:null;
+ if(field==='schufa_status')return ['NOT_SPECIFIED','AVAILABLE','NOT_AVAILABLE'].includes(choice)?{schufa_status:choice}:null;
+ return null;
+}
 const PROFILE_FIELDS={
  salutation:{label:'Anrede',type:'choice',required:true,max:40},
  first_name:{label:'Vorname',required:true,max:120},
@@ -283,6 +306,7 @@ async function renderApplicantProfile(user,chat,messageId,notice=''){
   +(notice?esc(notice)+'\n\n':'')
   +'Hinterlege deine Angaben für Vermieter und Bewerbungen. Ein gemeinsames Profil gilt für ImmoScout24, Immowelt, Immomio und Kleinanzeigen. Zusätzliche Pflichtangaben hängen vom jeweiligen Inserat ab. Unter <b>Profilvorschau</b> siehst du alle gespeicherten Daten.';
  const rows=[
+  ...(pending.length?[[button('▶️ Schritt für Schritt ausfüllen','platforms:g')]]:[]),
   [f('salutation','Anrede'),f('schufa_status','SCHUFA')],
   [f('first_name','Vorname'),f('last_name','Nachname')],
   [f('email','E-Mail'),f('phone','Telefon')],
@@ -296,6 +320,44 @@ async function renderApplicantProfile(user,chat,messageId,notice=''){
   [applicantBackButton(user)]
  ];
  return messageId?edit(chat.id,messageId,text,{inline_keyboard:rows}):send(chat.id,text,{inline_keyboard:rows});
+}
+
+const pairs=buttons=>buttons.reduce((rows,item,index)=>{if(index%2===0)rows.push([item]);else rows.at(-1).push(item);return rows;},[]);
+
+// One question per message. Without `field` it resumes at the first missing answer.
+async function renderGuided(user,chat,messageId,field){
+ const profile=await ensureApplicantProfile(user.id);
+ const state={...(user.onboarding_state||{})};
+ for(const key of ['_applicant_field','_applicant_guided','_applicant_message_id','_applicant_prompt_message_id','_applicant_text_origin'])delete state[key];
+ if(!field){
+  const next=nextQuestion(profile);
+  if(!next){
+   const {error}=await db.rpc('save_ui_state',{p_user:user.id,p_step:user.onboarding_step||null,p_state:state});
+   if(error)throw Error('Profilnavigation konnte nicht gespeichert werden.');
+   const result=await renderApplicantProfile({...user,onboarding_state:state},chat,messageId,'✅ Alle Pflichtangaben sind ausgefüllt.');
+   await offerCompletedApplicantActivation(user,chat,true);
+   return result;
+  }
+  field=next.field;
+ }
+ const total=GUIDED_STEPS.length,index=Math.max(0,stepIndex(field)),question=QUESTIONS[field];
+ const head='👤 <b>Bewerberprofil · Frage '+(index+1)+' von '+total+'</b>\n'+progressBar(index+1,total)+'\n\n';
+ const previous=previousField(field);
+ const back=button('← Zurück',previous?'platforms:gq:'+previous:'home');
+ let text,rows;
+ if(CHOICES[field]){
+  text=head+esc(question.q)+'\n\nWähle eine Option.';
+  rows=[...pairs(CHOICES[field].map(([value,label])=>button(label,'platforms:gset:'+field+':'+value))),[back]];
+ }else{
+  text=head+esc(question.q)+(question.example?'\nBeispiel: <code>'+esc(question.example)+'</code>':'')+'\n\nSchick mir die Antwort als Nachricht.';
+  rows=[[back]];
+  state._applicant_field=field;state._applicant_guided=true;
+ }
+ const rendered=messageId?await edit(chat.id,messageId,text,{inline_keyboard:rows}):await send(chat.id,text,{inline_keyboard:rows});
+ if(state._applicant_field)state._applicant_message_id=Number(messageId||rendered?.message_id||0);
+ const {error}=await db.rpc('save_ui_state',{p_user:user.id,p_step:user.onboarding_step||null,p_state:state});
+ if(error)throw Error('Profileingabe konnte nicht gestartet werden.');
+ return rendered;
 }
 
 async function renderApplicantProfilePreview(user,chat,messageId){
@@ -351,6 +413,7 @@ export async function clearPendingField(user,chat){
  if(!state._applicant_field)return;
  const promptId=Number(state._applicant_prompt_message_id||0);
  delete state._applicant_field;
+ delete state._applicant_guided;
  delete state._applicant_message_id;
  delete state._applicant_prompt_message_id;
  delete state._applicant_text_origin;
@@ -475,10 +538,12 @@ export async function handleAutoApplyMessage(user,message){
    const {error}=await db.from('applicant_profiles').update(patch).eq('user_id',user.id);if(error)throw Error('Änderung konnte nicht gespeichert werden.');
    await Promise.all([telegram('deleteMessage',{chat_id:chat.id,message_id:message.message_id}).catch(()=>{}),message.reply_to_message?.message_id?telegram('deleteMessage',{chat_id:chat.id,message_id:message.reply_to_message.message_id}).catch(()=>{}):null]);
    const editMessageId=Number(user.onboarding_state?._applicant_message_id||0);
+   const guided=Boolean(pendingField)&&user.onboarding_state?._applicant_guided===true;
    let response;
    if(pendingField){
      await clearPendingField(user,chat);
-     if(editMessageId>0){
+     if(guided)response=await renderGuided(user,chat,editMessageId>0?editMessageId:undefined);
+     else if(editMessageId>0){
        response=name.startsWith('message_')
          ? await renderApplicationTextDetail(user,chat,editMessageId,name,user.onboarding_state?._applicant_text_origin==='preview')
          : await renderApplicantProfile(user,chat,editMessageId,'✅ '+PROFILE_FIELDS[name].label+' gespeichert.');
@@ -488,7 +553,7 @@ export async function handleAutoApplyMessage(user,message){
     const messageField=name.startsWith('message_');
     response=await send(chat.id,`✅ ${esc(PROFILE_FIELDS[name].label)} gespeichert.`,{inline_keyboard:[[button(messageField?'✍️ Vorschau öffnen':'👤 Bewerberprofil',messageField?`platforms:${user.onboarding_state?._applicant_text_origin==='preview'?'preview-text':'profile-text'}:${name}`:'platforms:profile-return')],[button('← Automatische Bewerbung','platforms')]]});
    }
-   await offerCompletedApplicantActivation(user,chat,completedFieldChanged(previous,patch));
+   if(!guided)await offerCompletedApplicantActivation(user,chat,completedFieldChanged(previous,patch));
    return response;
   }catch(error){return send(chat.id,`⚠️ ${esc(error.message)}`);}
  }
@@ -651,9 +716,21 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   return renderApplicantProfile(user,chat,messageId);
  }
  if(action==='profile-new'){
-  await ensureApplicantProfile(user.id);
+  const current=await ensureApplicantProfile(user.id);
   user=await rememberApplicantReturn(user,'home');
-  return renderApplicantProfile(user,chat,messageId);
+  return nextQuestion(current)?renderGuided(user,chat,messageId):renderApplicantProfile(user,chat,messageId);
+ }
+ if(action==='g')return renderGuided(user,chat,messageId);
+ if(action==='gq')return renderGuided(user,chat,messageId,QUESTIONS[arg]?arg:undefined);
+ if(action==='gset'){
+  await ensureApplicantProfile(user.id);
+  if(arg==='move_in_preference'&&choice==='EXACT_DATE')return renderGuided(user,chat,messageId,'move_in_date');
+  const patch=choicePatch(arg,choice);
+  if(patch){
+   const {error}=await db.from('applicant_profiles').update({...patch,updated_at:new Date().toISOString()}).eq('user_id',user.id);
+   if(error)throw Error('Änderung konnte nicht gespeichert werden.');
+  }
+  return renderGuided(user,chat,messageId);
  }
  if(action==='profile-preview'){
   return renderApplicantProfilePreview(user,chat,messageId);
@@ -741,32 +818,9 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  }
  if(action==='profile-set'){
   const previous=await ensureApplicantProfile(user.id);
-  let patch=null;
-  if(arg==='salutation'){
-   if(!Object.hasOwn(SALUTATION_LABELS,choice))return renderApplicantProfile(user,chat,messageId);
-   patch={salutation:choice};
-  }else if(arg==='household_type'){
-   if(!Object.hasOwn(HOUSEHOLD_LABELS,choice))return renderApplicantProfile(user,chat,messageId);
-   patch={household_type:choice,household_size:choice==='SINGLE'?1:choice==='TWO_ADULTS'?2:null};
-  }else if(arg==='employment_status'){
-   if(!Object.hasOwn(EMPLOYMENT_CHOICES,choice))return renderApplicantProfile(user,chat,messageId);
-   patch={employment_status:choice};
-  }else if(arg==='income_range'){
-   if(!Object.hasOwn(INCOME_LABELS,choice))return renderApplicantProfile(user,chat,messageId);
-   patch={income_range:choice,monthly_net_income:null};
-  }else if(arg==='pets'){
-   const value=PET_CHOICES[choice];if(value===undefined)return renderApplicantProfile(user,chat,messageId);
-   patch={pets:value};
-  }else if(arg==='move_in_preference'){
-   if(!Object.hasOwn(MOVE_IN_LABELS,choice))return renderApplicantProfile(user,chat,messageId);
-   if(choice==='EXACT_DATE'){
-    return showFieldInput(user,chat,messageId,'move_in_date');
-   }
-   patch={move_in_preference:choice,move_in_date:null};
-  }else if(arg==='schufa_status'){
-   if(!['NOT_SPECIFIED','AVAILABLE','NOT_AVAILABLE'].includes(choice))return renderApplicantProfile(user,chat,messageId);
-   patch={schufa_status:choice};
-  }else return renderApplicantProfile(user,chat,messageId);
+  if(arg==='move_in_preference'&&choice==='EXACT_DATE')return showFieldInput(user,chat,messageId,'move_in_date');
+  const patch=choicePatch(arg,choice);
+  if(!patch)return renderApplicantProfile(user,chat,messageId);
   const {error}=await db.from('applicant_profiles').update({...patch,updated_at:new Date().toISOString()}).eq('user_id',user.id);
   if(error)throw Error('Änderung konnte nicht gespeichert werden.');
   const result=await renderApplicantProfile(user,chat,messageId);
