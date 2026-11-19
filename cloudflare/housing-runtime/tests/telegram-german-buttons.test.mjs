@@ -600,9 +600,12 @@ test("completion celebration repeats on later profile changes, and every success
   await platformSessions(x.user,x.chat,31,"platforms:profile-set:schufa_status:NOT_SPECIFIED");
   const celebration=x.sent.filter(req=>req.method==="sendMessage"&&req.body.message_effect_id==="5159385139981059251");
   assert.equal(celebration.length,1);
-  assert.match(celebration[0].body.text,/Jetzt die automatische Bewerbung aktivieren/);
-  assert.deepEqual(celebration[0].body.reply_markup.inline_keyboard.map(row=>row[0].callback_data),
-    ["platforms:completion:yes","platforms:completion:no"]);
+  assert.match(celebration[0].body.text,/Mara Beispiel/,"the completion screen summarises the profile");
+  assert.deepEqual(celebration[0].body.reply_markup.inline_keyboard.map(row=>[row[0].text,row[0].callback_data]),
+    [["⚡ Auto-Bewerbung starten","platforms"],["✏️ Angaben ändern","platforms:profile-return"]]);
+  const prefsRow=()=>x.sqlite.prepare("SELECT enabled,immoscout_enabled,immowelt_enabled,immomio_enabled FROM application_preferences WHERE participant_id='owner'").get();
+  assert.ok([undefined,0].includes(prefsRow()?.enabled)&&[undefined,0].includes(prefsRow()?.immoscout_enabled),"completing the profile never enables AutoApply");
+  assert.equal(x.sqlite.prepare("SELECT auto_apply_enabled FROM participants WHERE id='owner'").get().auto_apply_enabled,0);
   await platformSessions(x.user,x.chat,31,"platforms:profile-set:schufa_status:AVAILABLE");
   assert.equal(x.sent.filter(req=>req.method==="sendMessage"&&req.body.message_effect_id==="5159385139981059251").length,2,"a second complete profile change celebrates again");
   await platformSessions(x.user,x.chat,31,"platforms:profile-set:schufa_status:AVAILABLE");
@@ -1751,5 +1754,26 @@ test("invalid guided answers get a friendly message with an example and are not 
     await guidedCall(x, "platforms:gq:phone");
     await guidedText(x, "0176 1234567");
     assert.equal(guidedProfile(x).phone, "+49 176 1234567");
+  } finally { x.done(); }
+});
+
+test("the completion button only opens the existing source toggles and enables nothing", async () => {
+  const x = setup();
+  try {
+    x.sqlite.prepare("INSERT INTO search_profiles(id,participant_id,criteria,active) VALUES('done-search','owner',?,1)")
+      .run(JSON.stringify({ property_types: ["Wohnung"], location_mode: "all_hamburg" }));
+    const partial = { ...completeApplicant }; delete partial.pets;
+    x.sqlite.prepare("INSERT INTO applicant_profiles(participant_id,profile) VALUES('owner',?)").run(JSON.stringify(partial));
+    await guidedCall(x, "platforms:profile-new");
+    await guidedCall(x, "platforms:gset:pets:NO");
+    const done = x.sent.filter(r => r.method === "sendMessage" && r.body.message_effect_id).at(-1).body;
+    assert.match(done.text, /Bewerberprofil ist vollständig/);
+    assert.deepEqual(done.reply_markup.inline_keyboard.flat().map(b => b.callback_data), ["platforms", "platforms:profile-return"]);
+    await guidedCall(x, "platforms");
+    const view = lastMessage(x);
+    assert.match(view.text, /0 von 3 Plattformen aktiv/);
+    assert.ok(view.reply_markup.inline_keyboard.flat().some(b => b.callback_data === "platforms:resume:1"));
+    assert.ok(view.reply_markup.inline_keyboard.flat().some(b => b.callback_data === "platforms:limit"), "the Tageslimit button is part of that screen");
+    assert.equal(x.sqlite.prepare("SELECT auto_apply_enabled FROM participants WHERE id='owner'").get().auto_apply_enabled, 0);
   } finally { x.done(); }
 });
