@@ -17,6 +17,7 @@ import { handleCoach } from "./coach-api.js";
 import { handleProviderFacade } from "./provider-facade.js";
 import { handleStripeWebhook } from "./stripe-webhook.js";
 import { processHousingApplication } from "./application-runtime.js";
+import { reconcileKleinanzeigenReadbackOnce } from "./kleinanzeigen-readback.js";
 import { createD1Client } from "./d1-database.js";
 import { handleLegacyTelegramUpdate } from "./telegram-legacy/index.js";
 import { runEngagementNotifications } from "./engagement-cron.js";
@@ -356,6 +357,19 @@ async function runScheduledHousingWork(env, minute = Math.floor(Date.now() / 60_
     if (result.checked || result.marked) console.log("housing_central_provider_refresh", JSON.stringify(result));
   } catch (error) {
     console.error("housing_central_provider_refresh_failed", String(error?.message || error));
+  }
+  // One explicit, inbox-only reconciliation for a prior uncertain send.
+  // Never queues applications or retries an outbound POST.
+  if (env.KLEINANZEIGEN_READBACK_APPLICATION_ID) {
+    try {
+      const result = await withDatabase(env, sql => reconcileKleinanzeigenReadbackOnce(sql, env));
+      if (!["disabled","already_checked","not_eligible"].includes(result.status))
+        console.log("kleinanzeigen_readback_audit", JSON.stringify(result));
+    } catch (error) {
+      console.error("kleinanzeigen_readback_audit_failed",
+        ["temporary_network_error","needs_login"].includes(String(error?.message))
+          ? String(error.message) : "audit_error");
+    }
   }
   if (minute % 10 === 0) {
     try {
