@@ -48,14 +48,6 @@ test("applicant name and contact email are retained even with a central account"
   assert.equal(personalizedKleinanzeigenMessage({...listing.profile,email:""},listing.profile.message),null);
 });
 
-test("transport gate never calls a private provider endpoint when unverified",async()=>{
-  await withFetch(()=>{ throw Error("provider must not be called"); },async()=>{
-    const result=await sendKleinanzeigenApplication({...listing,test_mode:true},{},null,central);
-    assert.equal(result.status,"manual_required");
-    assert.equal(result.error,"provider_contract_unverified");
-  });
-});
-
 test("dynamic contact form uses the participant's own identity and returns provider conversation reference",async()=>{
   const network=[];
   const result=await withFetch(async(url,request)=>{

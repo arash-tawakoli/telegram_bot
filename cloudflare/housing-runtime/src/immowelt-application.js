@@ -1,6 +1,5 @@
 import { getCentralProviderCredentials } from "./central-provider-credentials.js";
 import { decryptProviderCredentials, encryptProviderCredentials } from "./provider-credentials.js";
-import { providerSendEnabled } from "./application-policy.js";
 import { refreshImmoweltCookies } from "./immowelt-auth.js";
 
 function xml(value) {
@@ -45,8 +44,8 @@ export async function sendImmoweltApplication(application, env, sql, central = n
   }
   const id = estateId(url, application.external_id);
   if (!/^[0-9A-F]{32}$/.test(id)) return { status: "manual_required", error: "provider_identifier_unresolved" };
-  // OIDC bearer tokens are for account login, not a verified SOAP send credential.
-  // Never fall back to Cloudflare Browser cookies or represent an unverified send as successful.
+  // Bearer-only credentials are not a SOAP send credential. A cookie session that also
+  // carries an access_token is allowed; cookies are filtered and validated below.
   const connection = central || await getCentralProviderCredentials(sql, env, "immowelt");
   if (connection.credentials.access_token && !connection.credentials.cookies?.length) {
     return { status: "manual_required", error: "provider_credentials_bearer_only" };
@@ -60,10 +59,6 @@ export async function sendImmoweltApplication(application, env, sql, central = n
       && (!Number.isFinite(expiry) || expiry < 0 || expiry * 1000 > Date.now() + 60_000);
   });
   if (!cookies.length) return { status: "manual_required", error: "needs_login" };
-  // Normal sends are gated in the runtime; test sends are gated here.
-  if (application.test_mode && !providerSendEnabled(env, "immowelt")) {
-    return { status: "manual_required", error: "provider_transport_unverified" };
-  }
   const cookieHeader = cookies.map((cookie) => `${cookie.name}=${cookie.value}`).join("; ");
   const phone = profileValue(profile, "phone");
   const message = profileValue(profile, "message", "message_apartment", "message_house") || "Anfrage zur Immobilie";
@@ -77,12 +72,12 @@ export async function sendImmoweltApplication(application, env, sql, central = n
   </request></SendContactMail>
  </soap:Body>
 </soap:Envelope>`;
-  // Reserve the test send only after provider identity, cookies, transport
-  // verification and payload validation have passed.
-  if (application.test_mode === true || application.test_mode === 1) {
-    if (typeof application.authorizeTestSend !== "function" || !await application.authorizeTestSend()) {
-      return { status: "manual_required", error: "test_send_not_authorized" };
-    }
+  // Reserve the send (and the daily quota) only after identity, cookies and payload
+  // validation have passed, so unsendable rows never consume quota.
+  const test = application.test_mode === true || application.test_mode === 1;
+  const authorize = test ? application.authorizeTestSend : application.authorizeSend;
+  if (typeof authorize !== "function" || await authorize() !== true) {
+    return { status: "manual_required", error: test ? "test_send_not_authorized" : "send_not_authorized" };
   }
   let response;
   let text = "";
@@ -97,9 +92,15 @@ export async function sendImmoweltApplication(application, env, sql, central = n
   } catch {
     return { status: "manual_required", error: "submission_unconfirmed" };
   }
-  // Diagnostics for every send; cookie values are stripped from the excerpt.
+  // Diagnostics for every send. Strip cookie values (raw and URL-encoded), e-mail addresses
+  // and phone-like numbers so the stored excerpt carries no credentials or applicant data.
   let excerpt = text.replace(/\s+/g, " ");
-  for (const cookie of cookies) excerpt = excerpt.split(cookie.value).join("[redacted]");
+  for (const cookie of cookies) {
+    for (const secret of [cookie.value, encodeURIComponent(cookie.value)]) {
+      if (secret.length >= 6) excerpt = excerpt.split(secret).join("[redacted]");
+    }
+  }
+  excerpt = excerpt.replace(/[^\s<>@]+@[^\s<>]+/g, "[email]").replace(/\+?\d[\d\s/()-]{5,}\d/g, "[number]");
   const diagnostics = { provider_http_status: response.status, provider_response_excerpt: excerpt.slice(0, 300) };
   if (response.ok && /<SendContactMailResult>\s*true\s*<\/SendContactMailResult>/i.test(text)) {
     return { status: "sent", confirmation: "immowelt_communication_service", ...diagnostics };

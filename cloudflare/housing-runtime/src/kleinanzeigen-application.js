@@ -1,4 +1,3 @@
-import { providerSendEnabled } from "./application-policy.js";
 import { getCentralProviderCredentials } from "./central-provider-credentials.js";
 import { prepareKleinanzeigenApplicantForm, describeKleinanzeigenForm } from "./kleinanzeigen-application-profile.js";
 
@@ -76,9 +75,7 @@ async function providerRequest(id, credentials, method, payload) {
 
 export async function sendKleinanzeigenApplication(application, env, sql, central = null) {
   // The historical private contact endpoint is not a published partner transport.
-  // Normal sends are gated in the runtime; test sends are gated here.
-  if (application.test_mode && !providerSendEnabled(env, "kleinanzeigen"))
-    return { status: "manual_required", error: "provider_contract_unverified" };
+  // The send gate (AUTO_APPLY_PROVIDERS) is enforced once in application-runtime.js.
   const id = kleinanzeigenListingId(application);
   if (!id) return { status: "manual_required", error: "provider_identifier_unresolved" };
 

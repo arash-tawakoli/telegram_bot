@@ -196,6 +196,8 @@ export async function processHousingApplication(sql, env, request) {
     try {
       if (provider === "immoscout24") {
         result = await sendImmoScoutApplication({ ...application, authorizeTestSend }, env, sql);
+      } else if (["immowelt", "kleinanzeigen"].includes(provider) && !providerSendEnabled(env, provider)) {
+        result = { status: "manual_required", error: "provider_transport_unverified" };
       } else {
         // Verify central credentials and the provider's offer before reserving
         // the one-shot test send. Each sender reserves immediately before its
@@ -304,7 +306,7 @@ export async function processHousingApplication(sql, env, request) {
   const configuredLimit = Number(application.daily_limit);
   const dailyLimit = application.daily_limit == null || !Number.isFinite(configuredLimit)
     ? 2_147_483_647 : Math.max(0, Math.floor(configuredLimit));
-  if (provider === "kleinanzeigen") {
+  if (provider === "kleinanzeigen" || provider === "immowelt") {
     const authorizeSend = async () => {
       const reserved = await sql`
         UPDATE housing.applications
@@ -316,7 +318,8 @@ export async function processHousingApplication(sql, env, request) {
             AND p.status = 'active' AND p.auto_apply_enabled = true)
           AND EXISTS (SELECT 1 FROM housing.application_preferences pref
             WHERE pref.participant_id = ${application.participant_id}
-              AND pref.enabled = true AND pref.kleinanzeigen_enabled = true)
+              AND pref.enabled = true
+              AND CASE ${provider} WHEN 'immowelt' THEN pref.immowelt_enabled ELSE pref.kleinanzeigen_enabled END = true)
           AND (SELECT COUNT(*) FROM housing.applications q
             WHERE q.participant_id = ${application.participant_id}
               AND q.quota_local_date = ${schedule.localDate}
@@ -326,12 +329,14 @@ export async function processHousingApplication(sql, env, request) {
       return reserved.length > 0;
     };
     let result;
-    try { result = await sendKleinanzeigenApplication({ ...application, authorizeSend }, env, sql, central); }
+    const sender = provider === "immowelt" ? sendImmoweltApplication : sendKleinanzeigenApplication;
+    try { result = await sender({ ...application, authorizeSend }, env, sql, central); }
     catch (error) { result = { status: "manual_required", error: centralCredentialError(error) }; }
     await sql`UPDATE housing.applications SET status = ${result.status}, last_error = ${result.error || null}, sent_at = CASE WHEN ${result.status} = 'sent' THEN now() ELSE sent_at END, lease_until = NULL, wait_reason = NULL, updated_at = now() WHERE id = ${application.id}`;
     await event(sql, application.id, provider, "provider_submission", result.status, result.error || null, {
       confirmation: result.confirmation || null, conversation_id: result.conversationId || null,
       provider_http_status: result.provider_http_status || null,
+      provider_response_excerpt: result.provider_response_excerpt || null,
       required_fields: result.required_fields || null,
       missing_fields: result.missing_fields || null,
       unsupported_fields: result.unsupported_fields || null,
@@ -352,19 +357,6 @@ export async function processHousingApplication(sql, env, request) {
     RETURNING id
   `;
   if (!reserved.length) return defer("daily_limit", sqlTime(new Date(now.getTime() + 6 * 60 * 60_000)));
-
-  if (provider === "immowelt") {
-    let result;
-    try { result = await sendImmoweltApplication(application, env, sql, central); }
-    catch (error) { result = { status: "manual_required", error: centralCredentialError(error) }; }
-    await sql`UPDATE housing.applications SET status = ${result.status}, last_error = ${result.error || null}, sent_at = CASE WHEN ${result.status} = 'sent' THEN now() ELSE sent_at END, lease_until = NULL, wait_reason = NULL, updated_at = now() WHERE id = ${application.id}`;
-    await event(sql, application.id, provider, "provider_submission", result.status, result.error || null, {
-      confirmation: result.confirmation || null,
-      provider_http_status: result.provider_http_status || null,
-      provider_response_excerpt: result.provider_response_excerpt || null,
-    });
-    return { status: 200, body: { ok: true, status: result.status, provider, reason: result.error || result.confirmation || null, application_id: application.id } };
-  }
 
   if (provider === "immoscout24") {
     let result;

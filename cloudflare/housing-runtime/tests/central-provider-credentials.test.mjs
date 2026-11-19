@@ -168,7 +168,7 @@ test("Immomio never creates an application under the wrong account identity", as
   }
 });
 
-test("Immowelt refuses to transmit until the central session transport is verified", async () => {
+test("Immowelt never transmits without a granted send reservation", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () => { throw new Error("unexpected outbound request"); };
   try {
@@ -180,7 +180,7 @@ test("Immowelt refuses to transmit until the central session transport is verifi
       ownerId: OWNER_ID,
       credentials: { cookies: [{ name: "session", value: "opaque", domain: ".immowelt.de", expires: -1 }] },
     });
-    assert.deepEqual(result, { status: "manual_required", error: "provider_transport_unverified" });
+    assert.deepEqual(result, { status: "manual_required", error: "test_send_not_authorized" });
   } finally {
     globalThis.fetch = originalFetch;
   }
