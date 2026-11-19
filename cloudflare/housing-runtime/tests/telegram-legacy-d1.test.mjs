@@ -203,17 +203,18 @@ test("applicant profile update merges JSON fields and preserves existing data", 
   assert.equal(calls[1].params[1], "2026-11-09T21:00:00.000Z");
 });
 
-test("Retired provider cannot be enabled through D1 preferences", async () => {
+test("Kleinanzeigen sender cannot be enabled without verified transport", async () => {
   const db = createD1Supabase({prepare(){throw Error("Unexpected database write");}}, {});
   const result = await db.rpc("set_application_provider_enabled_shared", {p_user:"participant-1",p_provider:"kleinanzeigen",p_enabled:true});
-  assert.match(String(result.error),/provider_not_allowlisted/);
+  assert.match(String(result.error),/provider_transport_unverified/);
 });
 
-test("Telegram controls expose only verified senders; Kleinanzeigen profile stays informational", async () => {
+test("Telegram controls expose the shared Kleinanzeigen profile with verified transport gating", async () => {
   const {readFileSync}=await import("node:fs");
   const source=readFileSync(new URL("../src/telegram-legacy/platform-sessions.js",import.meta.url),"utf8");
   assert.match(source,/Kleinanzeigen · Versand noch nicht freigegeben/);
-  assert.doesNotMatch(source,/2:\{key:'kleinanzeigen'/i);
+  assert.match(source,/2:\{key:'kleinanzeigen'/i);
+  assert.match(source,/CENTRAL_KLEINANZEIGEN_TRANSPORT_VERIFIED/);
   assert.match(source,/1:\{key:'immoscout24'/);
   assert.match(source,/3:\{key:'immomio'/);
   assert.match(source,/4:\{key:'immowelt'/);
