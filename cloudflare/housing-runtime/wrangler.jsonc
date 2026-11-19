@@ -23,7 +23,7 @@
   "vars": {
     "TELEGRAM_WEBHOOK_REGISTER": "1",
     "CENTRAL_AUTO_APPLY_ENABLED": "1",
-    "AUTO_APPLY_PROVIDERS": "immoscout24,immowelt,kleinanzeigen",
+    "AUTO_APPLY_PROVIDERS": "immoscout24,kleinanzeigen",
     "KLEINANZEIGEN_READBACK_APPLICATION_ID": "9fcf2a89-18fb-430d-a358-6ca061c9e63b"
   },
   "d1_databases": [
