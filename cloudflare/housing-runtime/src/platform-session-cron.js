@@ -4,6 +4,7 @@ import { refreshImmoScoutSession } from "./immoscout-application.js";
 import { refreshImmomioSession } from "./immomio-application.js";
 import { refreshImmoweltSession } from "./immowelt-application.js";
 import { getCentralApplicationCredentials } from "./immoscout-central-token.js";
+import { getCentralProviderCredentials } from "./central-provider-credentials.js";
 
 const LABELS = { immoscout24: "ImmoScout24", immowelt: "Immowelt", immomio: "Immomio" };
 const enabled = value => value === true || value === 1;
@@ -14,7 +15,7 @@ async function scanExpiringSessions(sql, env, now, centralOnly = false) {
     FROM housing.provider_connections pc
     JOIN housing.participants p ON p.id = pc.participant_id
     WHERE pc.status = 'connected' AND p.status = 'active' AND p.telegram_user_id = ${8538226539}
-      AND pc.provider IN ('immowelt','immomio')
+      AND pc.provider IN ('immowelt','immomio','kleinanzeigen')
       AND (pc.expires_at IS NOT NULL OR pc.provider = 'immowelt')
   ` : await sql`
     SELECT pc.participant_id, pc.provider, pc.ciphertext, pc.iv, pc.key_version, pc.expires_at, pc.updated_at
@@ -36,6 +37,7 @@ async function scanExpiringSessions(sql, env, now, centralOnly = false) {
     try {
       if (connection.provider === "immoscout24") await refreshImmoScoutSession(sql, env, connection);
       else if (connection.provider === "immowelt") await refreshImmoweltSession(sql, env, connection, hourlyRefresh);
+      else if (connection.provider === "kleinanzeigen") await getCentralProviderCredentials(sql, env, "kleinanzeigen");
       else await refreshImmomioSession(sql, env, connection, hourlyRefresh);
     } catch (error) {
       if (String(error?.message || error) !== "needs_login") continue;
