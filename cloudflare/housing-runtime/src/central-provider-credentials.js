@@ -111,5 +111,6 @@ export function centralCredentialError(error) {
     "needs_login", "temporary_network_error", "credential_decrypt_failed",
     "provider_contract_unverified",
   ]);
+  if (!allowed.has(reason)) console.error("central_credentials_unmapped_error", reason.slice(0, 200));
   return allowed.has(reason) ? reason : "provider_contract_unverified";
 }
