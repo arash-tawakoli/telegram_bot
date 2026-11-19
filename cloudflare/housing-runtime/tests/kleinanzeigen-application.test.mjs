@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { kleinanzeigenListingId, personalizedKleinanzeigenMessage, sendKleinanzeigenApplication } from "../src/kleinanzeigen-application.js";
 
 const listing = {
+  authorizeSend: async () => true,
   canonical_url: "https://www.kleinanzeigen.de/s-anzeige/wohnung-in-hamburg/3575968302",
   external_id: "3575968302",
   profile: {
