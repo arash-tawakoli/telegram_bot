@@ -29,7 +29,7 @@ function adapterFixture() {
     CREATE TABLE application_preferences(
       participant_id TEXT PRIMARY KEY,enabled INTEGER DEFAULT 0,
       immoscout_enabled INTEGER DEFAULT 0,immowelt_enabled INTEGER DEFAULT 0,
-      immomio_enabled INTEGER DEFAULT 0,updated_at TEXT
+      immomio_enabled INTEGER DEFAULT 0,kleinanzeigen_enabled INTEGER DEFAULT 0,updated_at TEXT
     );
     CREATE TABLE applications(
       participant_id TEXT,provider TEXT,test_mode INTEGER,status TEXT,
