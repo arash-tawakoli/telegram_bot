@@ -60,6 +60,6 @@ export function deliveryIdempotencyKey(participantId, offerIdentityHash) {
 
 export function applicationIdempotencyKey(participantId, provider, offerIdentityHash) {
   const p = required(provider, "provider").toLowerCase();
-  if (!["immoscout24", "immowelt", "immomio"].includes(p)) throw new Error("provider_not_allowlisted");
+  if (!["immoscout24", "immowelt", "immomio", "kleinanzeigen"].includes(p)) throw new Error("provider_not_allowlisted");
   return `${required(participantId, "participant_id")}:${p}:${required(offerIdentityHash, "identity_hash")}`;
 }
