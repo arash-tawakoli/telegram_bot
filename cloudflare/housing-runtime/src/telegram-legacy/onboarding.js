@@ -57,3 +57,23 @@ export function parseStreetLine(input){
  const match=String(input||'').trim().replace(/\s+/g,' ').match(/^(.*\S)\s+(\d+\s?[a-zA-Z]?(?:\s?[-–/]\s?\d+\s?[a-zA-Z]?)?)$/);
  return match?{street:match[1],house_number:match[2].replace(/\s+/g,'')}:null;
 }
+
+export const SELF_INPUT_LABEL='✍️ Selbst eingeben';
+// Reply keyboard of the first question: Telegram only offers request_contact on reply keyboards.
+export const contactKeyboard=()=>({
+ keyboard:[[{text:'📱 Kontakt teilen',request_contact:true}],[{text:SELF_INPUT_LABEL}]],
+ resize_keyboard:true,one_time_keyboard:true,input_field_placeholder:'Kontakt teilen oder selbst eingeben'
+});
+
+// Only the sender's own contact card counts; a forwarded foreign contact must not fill the profile.
+export function parseContactShare(message){
+ const contact=message?.contact;
+ if(!contact||message?.from?.id==null||Number(contact.user_id)!==Number(message.from.id))return null;
+ const digits=String(contact.phone_number||'').replace(/\D/g,'');
+ const first_name=String(contact.first_name||'').trim().slice(0,120);
+ if(!first_name||digits.length<7)return null;
+ return {first_name,last_name:String(contact.last_name||'').trim().slice(0,120),phone:'+'+digits};
+}
+
+// Hamburg postcodes are 20xxx-22xxx. Anything else is asked, never guessed.
+export const suggestCity=postcode=>/^2[0-2]\d{3}$/.test(String(postcode||'').trim())?'Hamburg':null;
