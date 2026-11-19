@@ -1,5 +1,5 @@
 import { getCentralProviderCredentials } from "./central-provider-credentials.js";
-import { prepareKleinanzeigenApplicantForm } from "./kleinanzeigen-application-profile.js";
+import { prepareKleinanzeigenApplicantForm, describeKleinanzeigenForm } from "./kleinanzeigen-application-profile.js";
 
 const GATEWAY = "https://gateway.kleinanzeigen.de";
 const CONTACT = (id) => GATEWAY + "/user-contactdetails/api/v1/ad/" + id + "/contact-form";
@@ -96,6 +96,7 @@ export async function sendKleinanzeigenApplication(application, env, sql, centra
   const mapped = prepareKleinanzeigenApplicantForm(inspected.data, profile, message);
   if (!mapped.ok) return {
     status: "manual_required", error: mapped.error,
+    form_diagnostic: describeKleinanzeigenForm(inspected.data),
     required_fields: mapped.fields.map((item) => item.id),
     missing_fields: mapped.missing.map((item) => item.id),
     unsupported_fields: mapped.unsupported.map((item) => item.id),
