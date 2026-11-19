@@ -72,8 +72,8 @@ async function providerRequest(id, credentials, method, payload) {
 
 export async function sendKleinanzeigenApplication(application, env, sql, central = null) {
   // The historical private contact endpoint is not a published partner transport.
-  // Enable only after a real account/messagebox smoke test succeeds.
-  if (env.CENTRAL_KLEINANZEIGEN_TRANSPORT_VERIFIED !== "1")
+  // Only explicitly enabled, opted-in sends are allowed; unknown outcomes fail closed.
+  if (env.CENTRAL_KLEINANZEIGEN_SEND_ENABLED !== "1")
     return { status: "manual_required", error: "provider_contract_unverified" };
   const id = kleinanzeigenListingId(application);
   if (!id) return { status: "manual_required", error: "provider_identifier_unresolved" };
