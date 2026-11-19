@@ -123,3 +123,27 @@ test("unknown POST outcome cannot cause an automatic repeat",async()=>{
   assert.equal(result.failure_stage,"post_fetch_exception");
   assert.equal(result.failure_kind,"other");
 });
+
+test("Kleinanzeigen colon-delimited conversation IDs are accepted, not mislabeled unconfirmed",async()=>{
+  const result=await withFetch(async(_url,request)=>request.method==="GET"
+    ?Response.json(form):Response.json({conversationId:"abc123:def456",conclusionFeedback:null}),
+    ()=>sendKleinanzeigenApplication(listing,enabled,null,central));
+  assert.equal(result.status,"sent");
+  assert.equal(result.conversationId,"abc123:def456");
+});
+test("wrapped conversation reference is handled without interpreting unrelated response fields",async()=>{
+  const result=await withFetch(async(_url,request)=>request.method==="GET"
+    ?Response.json(form):Response.json({conversationId:{value:"abc123:def456"},conclusionFeedback:null}),
+    ()=>sendKleinanzeigenApplication(listing,enabled,null,central));
+  assert.equal(result.status,"sent");
+  assert.equal(result.conversationId,"abc123:def456");
+});
+test("missing or unsafe conversation reference never produces a false success",async()=>{
+  for(const id of [null,"abc/unsafe","",{}]){
+    const result=await withFetch(async(_url,request)=>request.method==="GET"
+      ?Response.json(form):Response.json({conversationId:id,conclusionFeedback:null}),
+      ()=>sendKleinanzeigenApplication(listing,enabled,null,central));
+    assert.equal(result.status,"manual_required");
+    assert.equal(result.error,"submission_unconfirmed");
+  }
+});
