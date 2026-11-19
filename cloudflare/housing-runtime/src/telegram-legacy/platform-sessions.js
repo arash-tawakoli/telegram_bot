@@ -755,15 +755,15 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
   if(source===2){
    const {data:missing,error}=await db.rpc('application_profile_missing_fields',{p_user:user.id});
    if(error)throw Error('Bewerberprofil konnte nicht geprüft werden.');
-   return render('<b>Kleinanzeigen</b>\\n\\nDas gemeinsame Bewerberprofil wird auch für Kleinanzeigen verwendet.'
-     +'\\nProfil: '+(Array.isArray(missing)&&missing.length===0?'Pflichtangaben vollständig':'Bitte fehlende Basisangaben ergänzen')
-     +'\\nZusätzliche Pflichtfelder werden dynamisch je Kontaktformular geprüft.'
-     +'\\n\\nAutomatischer Versand ist noch nicht freigegeben, da die Nachrichten-Schnittstelle nicht verifiziert ist.',[
+   return render('<b>Kleinanzeigen</b>\n\nDas gemeinsame Bewerberprofil wird auch für Kleinanzeigen verwendet.'
+     +'\nProfil: '+(Array.isArray(missing)&&missing.length===0?'Pflichtangaben vollständig':'Bitte fehlende Basisangaben ergänzen')
+     +'\nZusätzliche Pflichtfelder werden dynamisch je Kontaktformular geprüft.'
+     +'\n\nAutomatischer Versand ist noch nicht freigegeben, da die Nachrichten-Schnittstelle nicht verifiziert ist.',[
       [button('👤 Bewerberprofil','platforms:profile')], ...back
      ]);
   }
   const meta=AUTO_APPLY_PROVIDERS[source];if(!meta)return;
-  return render(`<b>${meta.name}</b>\\n\\nDie Plattform wird zentral von NexaLabs verwaltet. Du musst kein eigenes Plattformkonto verbinden.`,back);
+  return render(`<b>${meta.name}</b>\n\nDie Plattform wird zentral von NexaLabs verwaltet. Du musst kein eigenes Plattformkonto verbinden.`,back);
  }
 
  if(action==='pause'||action==='resume'){
