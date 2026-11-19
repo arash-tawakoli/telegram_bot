@@ -387,8 +387,8 @@ test("auto-apply menu exposes only supported provider actions and non-mutating s
     assert.match(view.text, /Kleinanzeigen · Versand noch nicht freigegeben/);
     assert.ok(!controls.includes("platforms:resume:2"), "Kleinanzeigen must not pretend to send without verified transport");
     for (const id of [1,4,3]) assert.ok(controls.includes("platforms:resume:"+id));
-    assert.ok(!controls.some(value => String(value || "").startsWith("platforms:provider:")),
-      "platform names should be status text, not redundant info buttons");
+    assert.deepEqual(controls.filter(value => String(value || "").startsWith("platforms:provider:")),
+      ["platforms:provider:2"], "only Kleinanzeigen has an informational profile/status detail");
     assert.equal(controls.includes("platforms:test-status"), false, "personal test button remains hidden");
     assert.ok(!controls.some(value => String(value || "").startsWith("platforms:login:")), "personal provider login must remain hidden");
     assert.equal(controls.some(value=>String(value||"").startsWith("platforms:test:")), false);
@@ -398,6 +398,15 @@ test("auto-apply menu exposes only supported provider actions and non-mutating s
     assert.match(view.text, /ImmoScout24 · Pausiert/);
     assert.equal(view.reply_markup.inline_keyboard[0][0].text, "🔴 ImmoScout24 starten");
     assert.ok(!controls.includes("noop"), "a visible provider control must not be a no-op");
+    assert.ok(view.reply_markup.inline_keyboard.flat().some(b=>b.text.includes("Kleinanzeigen")&&b.callback_data==="platforms:provider:2"));
+    await platformSessions(x.user, x.chat, 21, "platforms:provider:2");
+    const detail=lastMessage(x);
+    assert.match(detail.text,/gemeinsame Bewerberprofil/);
+    assert.match(detail.text,/Automatischer Versand ist noch nicht freigegeben/);
+    assert.ok(detail.reply_markup.inline_keyboard.flat().some(b=>b.callback_data==="platforms:profile"));
+    assert.ok(detail.reply_markup.inline_keyboard.flat().some(b=>b.callback_data==="platforms"));
+    const prefs=x.sqlite.prepare("SELECT kleinanzeigen_enabled FROM application_preferences WHERE participant_id='owner'").get();
+    assert.notEqual(prefs?.kleinanzeigen_enabled,1,"opening the detail never activates unverified sending");
   } finally { x.done(); }
 });
 
