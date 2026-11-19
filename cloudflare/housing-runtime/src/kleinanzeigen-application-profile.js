@@ -86,6 +86,44 @@ function normalizedValue(property, raw) {
   if (Number.isInteger(property.maxLength) && value.length > property.maxLength) return undefined;
   return value;
 }
+// Form diagnostics must never persist field values, names, email addresses,
+// prefilled account details or bearer tokens. Record only field identifiers
+// and JSON Schema type/shape metadata, bounded for D1 event retention.
+function safeFieldId(id) {
+  const value = String(id ?? "");
+  return /^[a-zA-Z_][a-zA-Z0-9_.-]{0,63}$/.test(value) ? value : null;
+}
+function safeFieldNames(value, cap = 48) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+  return Object.keys(value).slice(0, cap).map(safeFieldId).filter(Boolean);
+}
+export function describeKleinanzeigenForm(form) {
+  const schema = form?.schema, properties = schema?.properties;
+  const required = Array.isArray(schema?.required)
+    ? [...new Set(schema.required.map(safeFieldId).filter(Boolean))].slice(0, 48) : [];
+  const fieldIds = safeFieldNames(properties);
+  return {
+    envelope_keys: safeFieldNames(form, 20),
+    schema_keys: safeFieldNames(schema, 20),
+    schema_type: typeof schema?.type === "string" ? schema.type.slice(0, 24) : null,
+    required_present: Array.isArray(schema?.required),
+    required_ids: required,
+    field_ids: fieldIds,
+    fields: fieldIds.map(id => {
+      const prop = properties[id];
+      return {
+        id, type: typeof prop?.type === "string" ? prop.type.slice(0, 24) : null,
+        required: required.includes(id),
+        enum_count: Array.isArray(prop?.enum) ? prop.enum.length : 0,
+        one_of_count: Array.isArray(prop?.oneOf) ? prop.oneOf.length : 0,
+        any_of_count: Array.isArray(prop?.anyOf) ? prop.anyOf.length : 0,
+        has_default: Object.prototype.hasOwnProperty.call(prop || {}, "default"),
+      };
+    }),
+    form_data_keys: safeFieldNames(form?.data, 48),
+  };
+}
+
 export function prepareKleinanzeigenApplicantForm(form, profile = {}, applicationMessage = "") {
   const schema = form?.schema;
   if (!schema || schema.type !== "object" || !schema.properties || typeof schema.properties !== "object" ||
