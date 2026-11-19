@@ -64,7 +64,7 @@ function cards(html, base, sourceId) {
         cold_rent: number(text, /([\d.,]+)\s*(?:€|EUR)\s*(?:Kaltmiete|Nettokaltmiete)/i) ?? number(text, /(?:Kaltmiete|Nettokaltmiete)\s*(?:[:=]|beträgt|ist)\s*(?:€|EUR)?\s*([\d.,]+)/i),
         rooms: number(text, /([\d]+(?:[.,][\d]+)?)\s*(?:Zimmer|Zi\.)/i),
         area_sqm: number(text, /([\d]+(?:[.,][\d]+)?)\s*m²/i),
-        postal_code: text.match(/\b(20\d{3}|21\d{3}|22\d{3}|23\d{3})\b/)?.[1] || null,
+        postal_code: text.match(/\((\d{5})\)/)?.[1] || text.match(/\b(20\d{3}|21\d{3}|22\d{3}|23\d{3})\b/)?.[1] || null, // Immowelt prints "Kiel (24106)"; the bare Hamburg-range scan is the fallback
         image_url: listingPhoto(chunk, base),
         provider: "immowelt",
       },
