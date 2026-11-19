@@ -11,7 +11,7 @@ function setup(role="super_admin"){
   const query=parts.join("?");
   queries.push(query);
   if(query.includes("FROM housing.portal_sessions s"))return [{id:"member",role,active:true,display_name:"Test"}];
-  if(query.includes("FROM housing.participants WHERE telegram_user_id"))return [{id:OWNER_ID}];
+  if(query.includes("FROM housing.participants WHERE telegram_user_id")&&!query.includes("provider_connections"))return [{id:OWNER_ID}];
   if(query.includes("FROM participants WHERE id="))return [{id:OWNER_ID,status:"active",telegram_user_id:8538226539}];
   if(query.includes("FROM housing.provider_connections"))return [
    {provider:"immowelt",status:"connected",account_hint:"account@example.test",expires_at:null},
@@ -85,4 +85,24 @@ test("login buttons reuse existing one-time central and provider connection flow
  }
  assert.equal(x.flowInsertions.length,1,"Only ImmoScout uses the existing central OAuth flow");
  assert.equal(x.queries.filter(q=>q.includes("INSERT INTO provider_auth_flows")).length,3);
+});
+
+test("near-expired token: no ctx awaits refresh and re-reads (Telegram), ctx defers it (portal)",async()=>{
+ const soon=new Date(Date.now()+10_000).toISOString();
+ const run=async ctx=>{
+  const x=setup();
+  const inner=x.sql;
+  const sql=async(parts,...v)=>parts.join("?").includes("FROM housing.provider_connections")
+   ?(x.queries.push(parts.join("?")),[{provider:"immowelt",status:"connected",account_hint:null,expires_at:soon}])
+   :inner(parts,...v);
+  await handleCoach(sql,x.request("admin_token_status"),x.env,ctx);
+  const atResponse=x.queries.length;
+  return atResponse;
+ };
+ const awaited=await run(undefined);
+ const deferred=[];
+ const background=await run({waitUntil:p=>deferred.push(p)});
+ assert.equal(deferred.length,2,"last_seen write + refresh");
+ assert.ok(awaited>background,"no ctx waits for the refresh and re-reads before responding");
+ await Promise.all(deferred);
 });

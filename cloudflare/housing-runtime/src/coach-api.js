@@ -36,9 +36,9 @@ function actorToken(request) {
   return authorization.startsWith("Bearer ") ? authorization.slice(7).trim() : "";
 }
 
-async function actor(sql, request) {
+async function actor(sql, request, ctx) {
   const token = actorToken(request);
-  const member = await memberForAccess(sql, token);
+  const member = await memberForAccess(sql, token, ctx?.waitUntil && (p => ctx.waitUntil(p)));
   if (member) return member;
   throw new Error("unauthorized");
 }
@@ -353,12 +353,25 @@ async function autoApplyParticipant(sql, member, participantId) {
 
 async function autoApplyStatus(sql, member, body, env) {
   const participantId = uuid(body.participantId, "participant");
-  const participant = await autoApplyParticipant(sql, member, participantId);
-  const rows = await sql.unsafe(
-    "SELECT immoscout_enabled,immowelt_enabled,immomio_enabled FROM application_preferences WHERE participant_id=$1 LIMIT 1",
-    [participantId]
-  );
-  const prefs = rows[0] || {};
+  // One wave: authorization and all reads run together; nothing is returned unless access passes.
+  const [allowed, rows] = await Promise.all([
+    canAccessParticipant(sql, member, participantId),
+    sql.unsafe(
+      `SELECT p.id,p.status,p.telegram_user_id,p.test_auto_apply_allowed,p.test_auto_apply_enabled,p.auto_apply_enabled,
+              p.plan_override,p.plan_override_expires_at,p.referral_bonus_until,
+              s.status AS subscription_status,s.current_period_end AS subscription_period_end,
+              ap.immoscout_enabled,ap.immowelt_enabled,ap.immomio_enabled
+       FROM participants p
+       LEFT JOIN user_subscriptions s ON s.participant_id=p.id AND s.provider='stripe'
+       LEFT JOIN application_preferences ap ON ap.participant_id=p.id
+       WHERE p.id=$1 LIMIT 1`,
+      [participantId]
+    ),
+  ]);
+  if (!allowed) throw new Error("participant_forbidden");
+  const participant = rows[0];
+  if (!participant || participant.status !== "active") throw new Error("participant_unavailable");
+  const prefs = participant;
   const testMode = Number(participant.test_auto_apply_allowed) === 1 &&
     Number(participant.telegram_user_id) === 8538226539;
   const active = testMode ? Number(participant.test_auto_apply_enabled) === 1 :
@@ -370,7 +383,7 @@ async function autoApplyStatus(sql, member, body, env) {
   };
   return {
     ok: true, sources, activeCount: Object.values(sources).filter(Boolean).length,
-    testMode, premium: await hasPremium(sql, participantId),
+    testMode, premium: premiumParticipant(participant),
     centralEnabled: env.CENTRAL_AUTO_APPLY_ENABLED === "1",
   };
 }
@@ -445,31 +458,39 @@ async function ownerParticipant(sql) {
   return rows[0]?.id || null;
 }
 
-export async function adminTokenStatus(sql, env) {
-  const [scout, ownerId, kleinanzeigen] = await Promise.all([
+export async function adminTokenStatus(sql, env, ctx) {
+  // One wave: owner lookup is a subselect instead of its own round trip.
+  const [scout, kleinanzeigen, rows] = await Promise.all([
     centralCall(env, "/internal/status", {}, "GET"),
-    ownerParticipant(sql),
     kleinanzeigenStatus(sql),
+    sql`
+      SELECT provider, status, account_hint, expires_at, updated_at
+      FROM housing.provider_connections
+      WHERE participant_id = (SELECT id FROM housing.participants WHERE telegram_user_id = ${OWNER_TELEGRAM_ID} AND status = 'active' LIMIT 1)
+        AND provider IN ('immowelt', 'immomio', 'kleinanzeigen')
+    `,
   ]);
-  let rows = ownerId ? await sql`
-    SELECT provider, status, account_hint, expires_at, updated_at
-    FROM housing.provider_connections
-    WHERE participant_id = ${ownerId} AND provider IN ('immowelt', 'immomio', 'kleinanzeigen')
-  ` : [];
-  // Refresh only near-expired connected central tokens. Status checks never require a browser.
+  // Portal path (ctx present): refresh near-expired tokens in the background, never block the response.
+  // Telegram /token has no ctx: await the refresh and re-read so it shows the refreshed status.
+  let current = rows;
   const refreshable = rows.filter(row =>
     row.status === "connected" && row.expires_at
     && Date.parse(row.expires_at) < Date.now() + 60_000);
   if (refreshable.length) {
-    await Promise.all(refreshable.map(row =>
+    const refresh = Promise.all(refreshable.map(row =>
       getCentralProviderCredentials(sql, env, row.provider).catch(() => null)));
-    rows = await sql`
-      SELECT provider, status, account_hint, expires_at, updated_at
-      FROM housing.provider_connections
-      WHERE participant_id = ${ownerId} AND provider IN ('immowelt', 'immomio', 'kleinanzeigen')
-    `;
+    if (ctx?.waitUntil) ctx.waitUntil(refresh);
+    else {
+      await refresh;
+      current = await sql`
+        SELECT provider, status, account_hint, expires_at, updated_at
+        FROM housing.provider_connections
+        WHERE participant_id = (SELECT id FROM housing.participants WHERE telegram_user_id = ${OWNER_TELEGRAM_ID} AND status = 'active' LIMIT 1)
+          AND provider IN ('immowelt', 'immomio', 'kleinanzeigen')
+      `;
+    }
   }
-  const connection = name => rows.find(row => row.provider === name) || {};
+  const connection = name => current.find(row => row.provider === name) || {};
   return {
     immoscout24: { scope: "central", configured: scout.configured === true, status: scout.status || "disconnected", account_hint: scout.account_hint || null, enabled: scout.enabled === true, expires_at: scout.expires_at || null, last_verified_at: scout.last_verified_at || null },
     ...Object.fromEntries(["immowelt", "immomio"].map(name => {
@@ -517,14 +538,14 @@ export async function adminTokenRefresh(env) {
   return { status: result.status, verified: true, enabled: false, expires_at: result.expires_at || null };
 }
 
-export async function handleCoach(sql, request, env = {}) {
-  const member = await actor(sql, request, env);
+export async function handleCoach(sql, request, env = {}, ctx) {
+  const member = await actor(sql, request, ctx);
   const body = await request.json().catch(() => ({}));
   const action = String(body.action || "");
   if (action.startsWith("admin_token_")) {
     if (member.role !== "super_admin") throw new Error("super_admin_required");
     if (body.previewMemberId) throw new Error("preview_read_only");
-    if (action === "admin_token_status") return adminTokenStatus(sql, env);
+    if (action === "admin_token_status") return adminTokenStatus(sql, env, ctx);
     if (action === "admin_token_start") return adminTokenStart(sql, env, member, String(body.provider || ""));
     if (action === "admin_token_refresh") return adminTokenRefresh(env);
     throw new Error("invalid_action");

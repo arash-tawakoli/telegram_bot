@@ -741,7 +741,7 @@ export default {
 
     if (request.method === "POST" && url.pathname === "/edge/coach") {
       try {
-        return await withDatabase(env, async (sql) => json(await handleCoach(sql, request, env)));
+        return await withDatabase(env, async (sql) => json(await handleCoach(sql, request, env, ctx)));
       } catch (error) {
         const code = String(error?.message || "");
         const status = code === "unauthorized" ? 401 : ["participant_forbidden", "admin_required", "super_admin_required", "preview_read_only"].includes(code) ? 403 : ["invalid_action", "provider_not_allowlisted"].includes(code) ? 400 : 422;
