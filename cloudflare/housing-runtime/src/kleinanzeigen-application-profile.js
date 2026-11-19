@@ -104,7 +104,9 @@ export function prepareKleinanzeigenApplicantForm(form, profile = {}, applicatio
   // represented by the provider. Mandatory fields are derived from the live schema.
   for (const [key, property] of Object.entries(schema.properties)) {
     const isRequired = required.includes(key);
-    if (!isRequired && !/(message|nachricht|anschreiben|bewerbungstext)/.test(canonical(key))) continue;
+    // Also overwrite optional identity/contact fields that a provider might prefill from the central account.
+    // The actual applicant, never the operator, supplies these values.
+    if (!isRequired && !/(message|nachricht|anschreiben|bewerbungstext|firstname|vorname|givenname|lastname|nachname|surname|familyname|contactname|fullname|displayname|contactperson|email|mailadresse|mailaddress|phone|telefon|mobile|handy)/.test(canonical(key))) continue;
     const item = { id: key, label: labelFor(form.uiSchema, key), required: isRequired, type: text(property?.type) };
     if (isRequired) fields.push(item);
     if (!property || typeof property !== "object" || property.readOnly || property.oneOf || property.anyOf || property.allOf) {

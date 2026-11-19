@@ -47,5 +47,6 @@ test("external IDs take precedence over mutable URLs", async () => {
 test("delivery and application keys make duplicate work unique", () => {
   assert.equal(deliveryIdempotencyKey("user-1", "hash-1"), "user-1:hash-1");
   assert.equal(applicationIdempotencyKey("user-1", "ImmoWelt", "hash-1"), "user-1:immowelt:hash-1");
-  assert.throws(() => applicationIdempotencyKey("user-1", "kleinanzeigen", "hash-1"), /provider_not_allowlisted/);
+  assert.equal(applicationIdempotencyKey("user-1", "kleinanzeigen", "hash-1"), "user-1:kleinanzeigen:hash-1");
+  assert.throws(() => applicationIdempotencyKey("user-1", "unknown", "hash-1"), /provider_not_allowlisted/);
 });

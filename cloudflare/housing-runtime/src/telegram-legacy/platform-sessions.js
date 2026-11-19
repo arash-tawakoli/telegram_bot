@@ -494,7 +494,8 @@ export async function handleAutoApplyMessage(user,message){
 const AUTO_APPLY_PROVIDERS={
   1:{key:'immoscout24',name:'ImmoScout24',field:'immoscout_enabled'},
   3:{key:'immomio',name:'Immomio',field:'immomio_enabled'},
-  4:{key:'immowelt',name:'Immowelt',field:'immowelt_enabled'}
+  4:{key:'immowelt',name:'Immowelt',field:'immowelt_enabled'},
+  2:{key:'kleinanzeigen',name:'Kleinanzeigen',field:'kleinanzeigen_enabled'}
 };
 
 export async function platformSessions(user,chat,messageId,data='platforms'){
@@ -758,7 +759,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
    return render('<b>Kleinanzeigen</b>\n\nDas gemeinsame Bewerberprofil wird auch für Kleinanzeigen verwendet.'
      +'\nProfil: '+(Array.isArray(missing)&&missing.length===0?'Pflichtangaben vollständig':'Bitte fehlende Basisangaben ergänzen')
      +'\nZusätzliche Pflichtfelder werden dynamisch je Kontaktformular geprüft.'
-     +'\n\nAutomatischer Versand ist noch nicht freigegeben, da die Nachrichten-Schnittstelle nicht verifiziert ist.',[
+     +'\n\n'+(runtimeEnv().CENTRAL_KLEINANZEIGEN_SEND_ENABLED==='1'?'Versandversuche freigeschaltet. Die Bestätigung wird je Inserat geprüft; Start/Pause über die Plattformliste.':'Automatischer Versand ist noch nicht freigegeben, da die Nachrichten-Schnittstelle nicht verifiziert ist.'),[
       [button('👤 Bewerberprofil','platforms:profile')], ...back
      ]);
   }
@@ -768,6 +769,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
 
  if(action==='pause'||action==='resume'){
   const meta=AUTO_APPLY_PROVIDERS[source];if(!meta)return;
+  if(source===2 && action==='resume' && runtimeEnv().CENTRAL_KLEINANZEIGEN_SEND_ENABLED!=='1') return render('Kleinanzeigen-Versand ist noch nicht verifiziert und kann nicht gestartet werden.',back);
   if(action==='resume'){
    const {data:missing,error:profileError}=await db.rpc('application_profile_missing_fields',{p_user:user.id});
    if(profileError)throw Error('Bewerberprofil konnte nicht geprüft werden.');
@@ -817,14 +819,16 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
 
   const [{data:state,error:stateError},{data:preferences,error:preferencesError}]=await Promise.all([
   db.from('bot_users').select('auto_apply_enabled,test_auto_apply_allowed,test_auto_apply_enabled,test_auto_apply_daily_limit,test_auto_apply_enabled_at,test_auto_apply_disabled_at').eq('id',user.id).single(),
-  db.from('application_preferences').select('immoscout_enabled,immowelt_enabled,immomio_enabled').eq('user_id',user.id).maybeSingle()
+  db.from('application_preferences').select('immoscout_enabled,immowelt_enabled,immomio_enabled,kleinanzeigen_enabled').eq('user_id',user.id).maybeSingle()
  ]);
  if(stateError||preferencesError)throw Error('Auto-Bewerbung konnte nicht geladen werden.');
  const isTestAccount=state.test_auto_apply_allowed===true&&Number(user.telegram_user_id)===8538226539;
  const rows=[];
  const statusLines=[];
  let activeCount=0;
- for(const sourceId of [1,4,3]){
+ const kaAvailable=runtimeEnv().CENTRAL_KLEINANZEIGEN_SEND_ENABLED==='1';
+ const visibleSenders=kaAvailable?[1,4,3,2]:[1,4,3];
+ for(const sourceId of visibleSenders){
   const meta=AUTO_APPLY_PROVIDERS[sourceId];
   const running=(isTestAccount?state.test_auto_apply_enabled===true:state.auto_apply_enabled===true)&&preferences?.[meta.field]===true;
   if(running)activeCount++;
@@ -833,10 +837,11 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
    'platforms:'+(running?'pause':'resume')+':'+sourceId)]);
  }
 
- // Fourth platform uses the same dynamic applicant profile. The provider
- // detail action is read-only until its outbound transport is verified.
- statusLines.push('Kleinanzeigen · Versand noch nicht freigegeben');
- rows.push([button('⚪ Kleinanzeigen · Profil & Status','platforms:provider:2')]);
+ // Fourth platform shares the same dynamic profile and is always discoverable.
+ if(!kaAvailable){
+  statusLines.push('Kleinanzeigen · Versand noch nicht freigegeben');
+  rows.push([button('⚪ Kleinanzeigen · Profil & Status','platforms:provider:2')]);
+ }
 
  // Confirm the persisted state after each button press. A stale Telegram
  // callback can be safely ignored; never imply that a send was enabled.
@@ -848,9 +853,9 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
      &&preferences?.[changedProvider.field]===true
    :null;
  const actualAllOn=(isTestAccount?state.test_auto_apply_enabled===true:state.auto_apply_enabled===true)
-   &&[1,4,3].every(id=>preferences?.[AUTO_APPLY_PROVIDERS[id].field]===true);
+   &&visibleSenders.every(id=>preferences?.[AUTO_APPLY_PROVIDERS[id].field]===true);
  const actualAllOff=(isTestAccount?state.test_auto_apply_enabled!==true:state.auto_apply_enabled!==true)
-   &&[1,4,3].every(id=>preferences?.[AUTO_APPLY_PROVIDERS[id].field]!==true);
+   &&visibleSenders.every(id=>preferences?.[AUTO_APPLY_PROVIDERS[id].field]!==true);
  const applied=changedProvider?actualProviderOn===expectedOn
    :changedAll?(expectedOn?actualAllOn:actualAllOff):null;
  const label=changedProvider?.name||'Alle Quellen';
@@ -860,15 +865,15 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
    :'⚠️ Der Schalter wurde nicht geändert. Bitte öffne die Ansicht erneut und versuche es noch einmal.\n\n';
 
  // Global controls affect the owner's test selections or regular auto-apply, not housing search.
- rows.push([button(activeCount===3?'Alle pausieren':'Alle starten',
-  activeCount===3?'platforms:off':'platforms:on')]);
+ rows.push([button(activeCount===visibleSenders.length?'Alle pausieren':'Alle starten',
+  activeCount===visibleSenders.length?'platforms:off':'platforms:on')]);
  const centralNote=isTestAccount
   ? '\n\n🧪 <b>Persönlicher Testmodus</b>: Start/Pause steuert deinen persönlichen Testversand. Er funktioniert unabhängig von der zentralen Freigabe für andere Nutzer.'
   : runtimeEnv().CENTRAL_AUTO_APPLY_ENABLED==='1'?''
    :'\n\nℹ️ Der automatische Versand ist derzeit zentral noch nicht freigegeben.';
  rows.push([button('← Start','home')]);
- return render('⚡ <b>Automatische Bewerbung</b>\n\n'+controlNotice+'<b>'+activeCount+' von 3 Plattformen aktiv</b>\n'+statusLines.join('\n')+'\n\n'+(isTestAccount
+ return render('⚡ <b>Automatische Bewerbung</b>\n\n'+controlNotice+'<b>'+activeCount+' von '+visibleSenders.length+' Plattformen aktiv</b>\n'+statusLines.join('\n')+'\n\n'+(isTestAccount
   ? 'Aktiviere oder pausiere den persönlichen Testmodus für einzelne Quellen oder alle Quellen.'
-  : 'Starte oder pausiere den automatischen Bewerbungsversand je Quelle oder für alle Quellen.')+' Die Wohnungssuche bleibt davon unberührt. Plattformzugänge werden zentral verwaltet. Kleinanzeigen ist als vierte Plattform aufgeführt und nutzt dasselbe Bewerberprofil; der Versand bleibt bis zur Schnittstellenprüfung gesperrt.'+centralNote,rows);
+  : 'Starte oder pausiere den automatischen Bewerbungsversand je Quelle oder für alle Quellen.')+' Die Wohnungssuche bleibt davon unberührt. Plattformzugänge werden zentral verwaltet. Kleinanzeigen ist als vierte Plattform aufgeführt und nutzt dasselbe Bewerberprofil. Der Versand richtet sich nach der geprüften Transportfreigabe.'+centralNote,rows);
 
 }

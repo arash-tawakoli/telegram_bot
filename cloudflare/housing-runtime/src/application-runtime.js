@@ -1,7 +1,8 @@
-const PROVIDERS = new Set(["immoscout24", "immowelt", "immomio"]);
+const PROVIDERS = new Set(["immoscout24", "immowelt", "immomio", "kleinanzeigen"]);
 import { sendImmoweltApplication } from "./immowelt-application.js";
 import { sendImmoScoutApplication } from "./immoscout-application.js";
 import { sendImmomioApplication } from "./immomio-application.js";
+import { sendKleinanzeigenApplication } from "./kleinanzeigen-application.js";
 import { listingCategory, matchesActiveSearch } from "./matching.js";
 import { applicationProvider, applicationSchedule, missingApplicantFields, listingRequiresWbs, sqlTime, timestampMillis } from "./application-policy.js";
 import { effectiveApplicationMessages } from "./application-text.js";
@@ -71,6 +72,7 @@ async function claim(sql, freshOnly = false) {
         pref.allowed_weekdays, pref.send_window_start, pref.send_window_end,
         CASE a.provider
           WHEN 'immoscout24' THEN pref.immoscout_enabled
+          WHEN 'kleinanzeigen' THEN pref.kleinanzeigen_enabled
           WHEN 'immowelt' THEN pref.immowelt_enabled
           WHEN 'immomio' THEN pref.immomio_enabled
           ELSE false
@@ -179,6 +181,7 @@ export async function processHousingApplication(sql, env, request) {
               AND pref.enabled = false
               AND CASE ${provider}
                 WHEN 'immoscout24' THEN pref.immoscout_enabled
+                WHEN 'kleinanzeigen' THEN pref.kleinanzeigen_enabled
                 WHEN 'immowelt' THEN pref.immowelt_enabled
                 WHEN 'immomio' THEN pref.immomio_enabled
                 ELSE false END = true
@@ -197,7 +200,8 @@ export async function processHousingApplication(sql, env, request) {
         // the one-shot test send. Each sender reserves immediately before its
         // irreversible network submission, not before login/preflight.
         const central = await getCentralProviderCredentials(sql, env, provider, { testMode: true });
-        const sender = provider === "immowelt" ? sendImmoweltApplication : sendImmomioApplication;
+        const sender = provider === "immowelt" ? sendImmoweltApplication
+          : provider === "kleinanzeigen" ? sendKleinanzeigenApplication : sendImmomioApplication;
         result = await sender({ ...application, authorizeTestSend }, env, sql, central);
       }
     } catch (error) {
@@ -268,6 +272,9 @@ export async function processHousingApplication(sql, env, request) {
   if (provider === "immowelt" && env.CENTRAL_IMMOWELT_TRANSPORT_VERIFIED !== "1") {
     return fail("manual_required", "provider_contract_unverified");
   }
+  if (provider === "kleinanzeigen" && env.CENTRAL_KLEINANZEIGEN_SEND_ENABLED !== "1") {
+    return defer("provider_transport_unverified", sqlTime(new Date(now.getTime() + 60 * 60_000)));
+  }
   let central;
   try { central = await getCentralProviderCredentials(sql, env, provider); }
   catch (error) {
@@ -287,6 +294,41 @@ export async function processHousingApplication(sql, env, request) {
   const configuredLimit = Number(application.daily_limit);
   const dailyLimit = application.daily_limit == null || !Number.isFinite(configuredLimit)
     ? 2_147_483_647 : Math.max(0, Math.floor(configuredLimit));
+  if (provider === "kleinanzeigen") {
+    const authorizeSend = async () => {
+      const reserved = await sql`
+        UPDATE housing.applications
+        SET submission_started_at = now(), quota_local_date = ${schedule.localDate},
+            wait_reason = NULL, updated_at = now()
+        WHERE id = ${application.id} AND status = 'processing'
+          AND submission_started_at IS NULL
+          AND EXISTS (SELECT 1 FROM housing.participants p WHERE p.id = ${application.participant_id}
+            AND p.status = 'active' AND p.auto_apply_enabled = true)
+          AND EXISTS (SELECT 1 FROM housing.application_preferences pref
+            WHERE pref.participant_id = ${application.participant_id}
+              AND pref.enabled = true AND pref.kleinanzeigen_enabled = true)
+          AND (SELECT COUNT(*) FROM housing.applications q
+            WHERE q.participant_id = ${application.participant_id}
+              AND q.quota_local_date = ${schedule.localDate}
+              AND q.id <> ${application.id}) < ${dailyLimit}
+        RETURNING id
+      `;
+      return reserved.length > 0;
+    };
+    let result;
+    try { result = await sendKleinanzeigenApplication({ ...application, authorizeSend }, env, sql, central); }
+    catch (error) { result = { status: "manual_required", error: centralCredentialError(error) }; }
+    await sql`UPDATE housing.applications SET status = ${result.status}, last_error = ${result.error || null}, sent_at = CASE WHEN ${result.status} = 'sent' THEN now() ELSE sent_at END, lease_until = NULL, wait_reason = NULL, updated_at = now() WHERE id = ${application.id}`;
+    await event(sql, application.id, provider, "provider_submission", result.status, result.error || null, {
+      confirmation: result.confirmation || null, conversation_id: result.conversationId || null,
+      provider_http_status: result.provider_http_status || null,
+      required_fields: result.required_fields || null,
+      missing_fields: result.missing_fields || null,
+      unsupported_fields: result.unsupported_fields || null,
+    });
+    return { status: 200, body: { ok: true, status: result.status, provider, reason: result.error || result.confirmation || null, application_id: application.id } };
+  }
+
   const reserved = await sql`
     UPDATE housing.applications
     SET submission_started_at = now(), quota_local_date = ${schedule.localDate}, wait_reason = NULL, updated_at = now()

@@ -374,19 +374,23 @@ async function rpc(client, env, name, args) {
   }
   if (name === "set_telegram_auto_apply_sources") {
     const userId = String(args.p_user || "");
-    const providerColumns = { immoscout24: "immoscout_enabled", immowelt: "immowelt_enabled", immomio: "immomio_enabled" };
+    const providerColumns = { immoscout24: "immoscout_enabled", immowelt: "immowelt_enabled", immomio: "immomio_enabled", kleinanzeigen: "kleinanzeigen_enabled" };
     const provider = String(args.p_provider || "");
     if (provider && !Object.hasOwn(providerColumns, provider))
       return { data: null, error: new Error("provider_not_allowlisted") };
     const enable = args.p_enabled === true;
+    const kaAvailable = env.CENTRAL_KLEINANZEIGEN_SEND_ENABLED === "1";
+    if (provider === "kleinanzeigen" && enable && !kaAvailable)
+      return { data: null, error: new Error("provider_transport_unverified") };
     const participant = (await client.run("SELECT id,status,telegram_user_id,test_auto_apply_allowed,test_auto_apply_enabled,auto_apply_enabled,plan_override,plan_override_expires_at,referral_bonus_until FROM participants WHERE id=? LIMIT 1", [userId]))[0];
     if (!participant || participant.status !== "active" || Number(participant.telegram_user_id) !== Number(args.p_telegram_user_id))
       return { data: null, error: new Error("auto_apply_user_not_found") };
-    const current = (await client.run("SELECT immoscout_enabled,immowelt_enabled,immomio_enabled FROM application_preferences WHERE participant_id=? LIMIT 1", [userId]))[0] || {};
+    const current = (await client.run("SELECT immoscout_enabled,immowelt_enabled,immomio_enabled,kleinanzeigen_enabled FROM application_preferences WHERE participant_id=? LIMIT 1", [userId]))[0] || {};
     const next = {
       immoscout_enabled: provider ? (provider === "immoscout24" ? enable : bool(current.immoscout_enabled)) : enable,
       immowelt_enabled: provider ? (provider === "immowelt" ? enable : bool(current.immowelt_enabled)) : enable,
       immomio_enabled: provider ? (provider === "immomio" ? enable : bool(current.immomio_enabled)) : enable,
+      kleinanzeigen_enabled: provider ? (provider === "kleinanzeigen" ? enable : bool(current.kleinanzeigen_enabled)) : (enable && kaAvailable),
     };
     const active = Object.values(next).some(Boolean);
     // The allowlisted owner's Start/Pause buttons operate the isolated test
@@ -396,7 +400,7 @@ async function rpc(client, env, name, args) {
         const missing = await rpc(client, env, "application_profile_missing_fields", { p_user: userId });
         if (missing.error || missing.data.length) return { data: null, error: new Error("profile_incomplete") };
       }
-      const sourceId = { immoscout24: 1, immowelt: 4, immomio: 3 }[provider];
+      const sourceId = { immoscout24: 1, immowelt: 4, immomio: 3, kleinanzeigen: 2 }[provider];
       const callbackData = provider
         ? `platforms:${enable ? "resume" : "pause"}:${sourceId}`
         : args.p_from_completion === true
@@ -414,8 +418,8 @@ async function rpc(client, env, name, args) {
       const results = await client.batch([
         { query: "INSERT OR IGNORE INTO application_preferences(participant_id) VALUES(?)", params: [userId] },
         ...(order.record ? [order.record] : []),
-        { query: `UPDATE application_preferences SET immoscout_enabled=?,immowelt_enabled=?,immomio_enabled=?,enabled=0,updated_at=CURRENT_TIMESTAMP WHERE participant_id=?${order.sql}`,
-          params: [next.immoscout_enabled ? 1 : 0, next.immowelt_enabled ? 1 : 0, next.immomio_enabled ? 1 : 0, userId, ...order.params] },
+        { query: `UPDATE application_preferences SET immoscout_enabled=?,immowelt_enabled=?,immomio_enabled=?,kleinanzeigen_enabled=?,enabled=0,updated_at=CURRENT_TIMESTAMP WHERE participant_id=?${order.sql}`,
+          params: [next.immoscout_enabled ? 1 : 0, next.immowelt_enabled ? 1 : 0, next.immomio_enabled ? 1 : 0, next.kleinanzeigen_enabled ? 1 : 0, userId, ...order.params] },
         { query: `UPDATE participants SET auto_apply_enabled=0,test_auto_apply_enabled=?,test_auto_apply_daily_limit=0,
           test_auto_apply_enabled_at=CASE WHEN ? THEN CURRENT_TIMESTAMP ELSE test_auto_apply_enabled_at END,
           test_auto_apply_disabled_at=CASE WHEN ? THEN CURRENT_TIMESTAMP ELSE test_auto_apply_disabled_at END,
@@ -443,7 +447,7 @@ async function rpc(client, env, name, args) {
       ))[0];
       if (!activeSearch) return { data: null, error: new Error("search_profile_missing") };
     }
-    const sourceId = { immoscout24: 1, immowelt: 4, immomio: 3 }[provider];
+    const sourceId = { immoscout24: 1, immowelt: 4, immomio: 3, kleinanzeigen: 2 }[provider];
     const callbackData = provider
       ? `platforms:${enable ? "resume" : "pause"}:${sourceId}`
       : args.p_from_completion === true
@@ -457,8 +461,8 @@ async function rpc(client, env, name, args) {
     await client.batch([
       { query: "INSERT OR IGNORE INTO application_preferences(participant_id) VALUES(?)", params: [userId] },
       ...(order.record ? [order.record] : []),
-      { query: `UPDATE application_preferences SET immoscout_enabled=?,immowelt_enabled=?,immomio_enabled=?,enabled=?,updated_at=CURRENT_TIMESTAMP WHERE participant_id=?${order.sql}`,
-        params: [next.immoscout_enabled ? 1 : 0, next.immowelt_enabled ? 1 : 0, next.immomio_enabled ? 1 : 0, active ? 1 : 0, userId, ...order.params] },
+      { query: `UPDATE application_preferences SET immoscout_enabled=?,immowelt_enabled=?,immomio_enabled=?,kleinanzeigen_enabled=?,enabled=?,updated_at=CURRENT_TIMESTAMP WHERE participant_id=?${order.sql}`,
+        params: [next.immoscout_enabled ? 1 : 0, next.immowelt_enabled ? 1 : 0, next.immomio_enabled ? 1 : 0, next.kleinanzeigen_enabled ? 1 : 0, active ? 1 : 0, userId, ...order.params] },
       { query: `UPDATE participants SET auto_apply_enabled=?,updated_at=CURRENT_TIMESTAMP WHERE id=?${order.sql}`,
         params: [active ? 1 : 0, userId, ...order.params] },
     ]);
@@ -704,10 +708,11 @@ async function rpc(client, env, name, args) {
     return { data: { enabled }, error: null };
   }
   if (name === "set_application_provider_enabled_shared") {
-    const col = { immoscout: "immoscout_enabled", immoscout24: "immoscout_enabled", immowelt: "immowelt_enabled", immomio: "immomio_enabled" }[args.p_provider];
-    const source = { immoscout: 1, immoscout24: 1, immomio: 3, immowelt: 4 }[args.p_provider];
+    const col = { immoscout: "immoscout_enabled", immoscout24: "immoscout_enabled", immowelt: "immowelt_enabled", immomio: "immomio_enabled", kleinanzeigen: "kleinanzeigen_enabled" }[args.p_provider];
+    const source = { immoscout: 1, immoscout24: 1, immomio: 3, immowelt: 4, kleinanzeigen: 2 }[args.p_provider];
     if (!col) return { data: null, error: new Error("provider_not_allowlisted") };
     const enabled = args.p_enabled === true || args.p_enabled === 1;
+    if (args.p_provider === "kleinanzeigen" && enabled && env.CENTRAL_KLEINANZEIGEN_SEND_ENABLED !== "1") return { data: null, error: new Error("provider_transport_unverified") };
     const callbackData = `platforms:${enabled ? "resume" : "pause"}:${source}`;
     const order = telegramControlOrder(args, callbackData, [`platforms:pause:${source}`, `platforms:resume:${source}`]);
     if (order.error) return { data: null, error: order.error };

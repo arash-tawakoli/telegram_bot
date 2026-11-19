@@ -89,6 +89,7 @@ export function applicationSchedule(preferences, now = new Date()) {
 export function applicationProvider(source, facts = {}) {
   const url = String(facts.canonical_url || facts.applicationLink || facts.application_link || facts.applicationUrl || facts.application_url || "");
   if (source?.family === "immoscout24" && /^https:\/\/(?:www\.)?immobilienscout24\.de\/expose\//i.test(url)) return "immoscout24";
+  if (source?.family === "kleinanzeigen" && /^https:\/\/www\.kleinanzeigen\.de\/s-anzeige\/[^/?#]+\/\d{6,20}\/?(?:[?#]|$)/i.test(url)) return "kleinanzeigen";
   if (source?.family === "immowelt" && /^https:\/\/www\.immowelt\.de\/expose\//i.test(url)) return "immowelt";
   if (source?.family === "immomio" && /^https:\/\/tenant\.immomio\.com\/(?:de\/)?apply\/[0-9a-f-]{36}(?:[/?#]|$)/i.test(url)) return "immomio";
   return null;
