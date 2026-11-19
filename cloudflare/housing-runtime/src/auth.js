@@ -73,19 +73,22 @@ export async function createSession(sql, memberId) {
   return { access_token: accessToken, refresh_token: refreshToken, expires_in: ACCESS_TTL_SECONDS };
 }
 
-export async function memberForAccess(sql, accessToken) {
+// `defer` (e.g. ctx.waitUntil) takes the last_seen_at write off the response path.
+export async function memberForAccess(sql, accessToken, defer) {
   if (!accessToken) return null;
+  const hash = await sha256(accessToken);
   const rows = await sql`
     SELECT m.id, m.email, m.display_name, m.role, m.active
     FROM housing.portal_sessions s
     JOIN housing.portal_members m ON m.id = s.member_id
-    WHERE s.access_token_hash = ${await sha256(accessToken)}
+    WHERE s.access_token_hash = ${hash}
       AND s.revoked_at IS NULL
       AND s.access_expires_at > ${new Date().toISOString()}
       AND m.active = true
   `;
   if (!rows[0]) return null;
-  await sql`UPDATE housing.portal_sessions SET last_seen_at = now() WHERE access_token_hash = ${await sha256(accessToken)}`;
+  const touch = sql`UPDATE housing.portal_sessions SET last_seen_at = now() WHERE access_token_hash = ${hash}`;
+  if (defer) defer(touch.catch(() => {})); else await touch;
   return rows[0];
 }
 
