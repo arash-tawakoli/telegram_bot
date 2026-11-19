@@ -277,7 +277,7 @@ async function renderApplicantProfile(user,chat,messageId,notice=''){
  };
  const text='👤 <b>Bewerberprofil</b>\n\n'
   +(notice?esc(notice)+'\n\n':'')
-  +'Ein gemeinsames Profil für ImmoScout24, Immowelt, Immomio und Kleinanzeigen. Zusätzliche Pflichtangaben hängen vom jeweiligen Inserat ab. Unter <b>Profilvorschau</b> siehst du alle gespeicherten Daten.';
+  +'Hinterlege deine Angaben für Vermieter und Bewerbungen. Ein gemeinsames Profil gilt für ImmoScout24, Immowelt, Immomio und Kleinanzeigen. Zusätzliche Pflichtangaben hängen vom jeweiligen Inserat ab. Unter <b>Profilvorschau</b> siehst du alle gespeicherten Daten.';
  const rows=[
   [f('salutation','Anrede'),f('schufa_status','SCHUFA')],
   [f('first_name','Vorname'),f('last_name','Nachname')],
