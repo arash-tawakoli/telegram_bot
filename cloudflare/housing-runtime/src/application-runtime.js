@@ -230,6 +230,12 @@ export async function processHousingApplication(sql, env, request) {
       provider_plus_exclusive: result.provider_plus_exclusive ?? null,
       provider_form_required: result.provider_form_required || null,
       provider_form_sent_types: result.provider_form_sent_types || null,
+      ...(provider === "kleinanzeigen" ? {
+        required_fields: result.required_fields || null,
+        missing_fields: result.missing_fields || null,
+        unsupported_fields: result.unsupported_fields || null,
+        form_diagnostic: result.form_diagnostic || null,
+      } : {}),
     });
     return { status: 200, body: {
       ok: true, status: result.status, provider, test_mode: true,
@@ -325,6 +331,7 @@ export async function processHousingApplication(sql, env, request) {
       required_fields: result.required_fields || null,
       missing_fields: result.missing_fields || null,
       unsupported_fields: result.unsupported_fields || null,
+      form_diagnostic: result.form_diagnostic || null,
     });
     return { status: 200, body: { ok: true, status: result.status, provider, reason: result.error || result.confirmation || null, application_id: application.id } };
   }
