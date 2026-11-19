@@ -20,6 +20,8 @@ function knownField(key) {
 }
 function fieldValue(key, profile, message, property) {
   const k = canonical(key);
+  // Consent is specific to each advertiser. A general profile flag cannot grant it.
+  if (/(consent|privacy|datenschutz|widerruf|einwilligung|agb|terms)/.test(k)) return undefined;
   const field = (...names) => {
     for (const name of names) if (own(profile, name) && text(profile[name])) return profile[name];
     return undefined;
