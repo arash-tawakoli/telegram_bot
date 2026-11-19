@@ -834,8 +834,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  }
 
  // Kleinanzeigen shares the same profile and has its own source selection.
- // It is displayed separately until its outbound contact contract is verified.
- rows.push([button('⚪ Kleinanzeigen · Versandprüfung offen','platforms:provider:2')]);
+ // It is listed as an informational status until its outbound contract is verified.
  statusLines.push('Kleinanzeigen · Versand noch nicht freigegeben');
 
  // Confirm the persisted state after each button press. A stale Telegram
