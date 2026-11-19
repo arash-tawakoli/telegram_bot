@@ -315,6 +315,8 @@ test("applicant profile, field transition, text choices and separate preview wor
       message: { chat: x.chat, message_id: 21 },
     }, x.user);
     await callback("platforms:profile-new");
+    assert.match(lastMessage(x).text, /Frage 1 von/, "an empty profile opens the guided flow");
+    await callback("platforms:profile-return");
     assert.match(lastMessage(x).text, /Bewerberprofil/);
     const keys = lastMessage(x).reply_markup.inline_keyboard.flat().map(b => b.callback_data);
     for (const name of ["salutation","first_name","last_name","email","phone","street","house_number","postcode","city","household_type","employment_status","income_range","pets","move_in_preference","schufa_status"]) {
@@ -1358,6 +1360,7 @@ test("applicant profile back button keeps the entry screen after nested navigati
         {...x.user,onboarding_state:state,onboarding_step:state._step||null});
     };
     await call("platforms:profile-new");
+    await call("platforms:profile-return");
     assert.deepEqual(lastMessage(x).reply_markup.inline_keyboard.at(-1)[0],{text:"← Start",callback_data:"home"});
     await call("platforms:profile-preview");
     assert.equal(lastMessage(x).reply_markup.inline_keyboard.at(-1)[0].callback_data,"platforms:profile-return");
@@ -1545,5 +1548,53 @@ test("daily limit: auto-apply screen links it, choices persist, 0 clears the cap
     assert.equal(limit(), 5, "values outside the options are ignored");
     await platformSessions(x.user, x.chat, 41, "platforms:limit-set:0");
     assert.equal(limit(), null);
+  } finally { x.done(); }
+});
+
+// Guided applicant profile: one question per message, resume at the first gap.
+const guidedState = x => JSON.parse(x.sqlite.prepare("SELECT telegram_state FROM participants WHERE id='owner'").get()?.telegram_state || "{}");
+const guidedProfile = x => JSON.parse(x.sqlite.prepare("SELECT profile FROM applicant_profiles WHERE participant_id='owner'").get().profile);
+const guidedCall = (x, data) => handleCallback({ id: "g-" + data, data, from: { id: 777 }, message: { chat: x.chat, message_id: 70 } },
+  { ...x.user, onboarding_state: guidedState(x), onboarding_step: guidedState(x)._step || null });
+const guidedText = (x, text) => { const state = guidedState(x); return handleAutoApplyMessage({ ...x.user, onboarding_state: state, onboarding_step: state._step || null },
+  { chat: x.chat, message_id: x.sent.length + 100, text }); };
+
+test("guided profile resumes at the first missing field, advances after each answer and goes back", async () => {
+  const x = setup();
+  try {
+    const partial = { ...completeApplicant }; delete partial.email; delete partial.pets;
+    x.sqlite.prepare("INSERT INTO applicant_profiles(participant_id,profile) VALUES('owner',?)").run(JSON.stringify(partial));
+    await guidedCall(x, "platforms:profile-new");
+    let card = lastMessage(x);
+    assert.match(card.text, /Frage \d+ von \d+/);
+    assert.match(card.text, /▓+░*/);
+    assert.match(card.text, /E-Mail-Adresse/, "resumes at the first missing field, not at the start");
+    assert.equal(guidedState(x)._applicant_field, "email");
+    assert.ok(card.reply_markup.inline_keyboard.flat().some(b => b.text === "← Zurück"));
+    await guidedText(x, "mara@example.org");
+    assert.equal(guidedProfile(x).email, "mara@example.org");
+    card = lastMessage(x);
+    assert.match(card.text, /Haustiere/, "the next unanswered question follows automatically");
+    const choices = card.reply_markup.inline_keyboard.flat().map(b => b.callback_data);
+    assert.ok(choices.includes("platforms:gset:pets:NONE"));
+    assert.equal(card.reply_markup.inline_keyboard.flat().find(b => b.callback_data === "platforms:gset:pets:NONE").text, "Keine Angabe");
+    assert.ok(choices.every(data => Buffer.byteLength(data) < 64));
+    await guidedCall(x, "platforms:gset:pets:YES");
+    assert.equal(guidedProfile(x).pets, "Ja");
+    const grid = x.sent.filter(item => item.method === "editMessageText").at(-1).body;
+    assert.match(grid.text, /Pflichtangaben sind ausgefüllt/, "a complete profile ends in the edit grid");
+    assert.ok(grid.reply_markup.inline_keyboard.flat().some(b => b.callback_data === "platforms:profile-field:email"));
+    assert.match(lastMessage(x).text, /vollständig/, "completion is still announced");
+    assert.equal(guidedState(x)._applicant_field, undefined);
+  } finally { x.done(); }
+});
+
+test("a complete profile opens the edit grid instead of the guided flow", async () => {
+  const x = setup();
+  try {
+    x.sqlite.prepare("INSERT INTO applicant_profiles(participant_id,profile) VALUES('owner',?)").run(JSON.stringify(completeApplicant));
+    await guidedCall(x, "platforms:profile-new");
+    assert.doesNotMatch(lastMessage(x).text, /Frage \d+ von/);
+    assert.ok(lastMessage(x).reply_markup.inline_keyboard.flat().some(b => b.callback_data === "platforms:profile-field:salutation"));
   } finally { x.done(); }
 });
