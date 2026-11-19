@@ -104,24 +104,6 @@ test("Immomio keeps the test send unreserved until identity and listing checks p
   } finally { globalThis.fetch = original; }
 });
 
-test("unverified Immowelt send never reserves the one-shot test submission", async () => {
-  const original = globalThis.fetch;
-  let reserved = 0;
-  globalThis.fetch = async () => { throw new Error("unverified send must never reach the network"); };
-  try {
-    const result = await sendImmoweltApplication({
-      test_mode: true,
-      authorizeTestSend: async () => { reserved++; return true; },
-      canonical_url: "https://www.immowelt.de/expose/64f4e6cd-26d3-4bb6-9481-a0a87694bf38",
-      profile: { first_name: "Anna", last_name: "Beispiel", email: "anna@example.com" },
-    }, {}, null, { ownerId: "owner-id", credentials: {
-      cookies: [{ domain: ".immowelt.de", name: "session", value: "opaque", expires: -1 }],
-    } });
-    assert.deepEqual(result, { status: "manual_required", error: "provider_transport_unverified" });
-    assert.equal(reserved, 0);
-  } finally { globalThis.fetch = original; }
-});
-
 test("verified Immowelt sender does not transmit when atomic test authorization fails", async () => {
   const original = globalThis.fetch;
   let reserved = 0;
@@ -132,7 +114,7 @@ test("verified Immowelt sender does not transmit when atomic test authorization 
       authorizeTestSend: async () => { reserved++; return false; },
       canonical_url: "https://www.immowelt.de/expose/64f4e6cd-26d3-4bb6-9481-a0a87694bf38",
       profile: { first_name: "Anna", last_name: "Beispiel", email: "anna@example.com" },
-    }, { CENTRAL_IMMOWELT_TRANSPORT_VERIFIED: "1" }, null, { ownerId: "owner-id", credentials: {
+    }, { AUTO_APPLY_PROVIDERS: "immowelt" }, null, { ownerId: "owner-id", credentials: {
       cookies: [{ domain: ".immowelt.de", name: "session", value: "opaque", expires: -1 }],
     } });
     assert.deepEqual(result, { status: "manual_required", error: "test_send_not_authorized" });

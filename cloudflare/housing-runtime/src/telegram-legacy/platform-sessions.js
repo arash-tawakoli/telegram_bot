@@ -1,4 +1,5 @@
 import {db,secret,send,edit,sendCelebration,button,telegram,esc,runtimeEnv} from './runtime.js';
+import {providerSendEnabled} from '../application-policy.js';
 import {encryptProviderCredentials} from '../provider-credentials.js';
 import {providerStaticMissing} from './application-profile-adapters.js';
 import { DEFAULT_APPLICATION_TEXT, resolveApplicationText } from '../application-text.js';
@@ -759,7 +760,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
    return render('<b>Kleinanzeigen</b>\n\nDas gemeinsame Bewerberprofil wird auch für Kleinanzeigen verwendet.'
      +'\nProfil: '+(Array.isArray(missing)&&missing.length===0?'Pflichtangaben vollständig':'Bitte fehlende Basisangaben ergänzen')
      +'\nZusätzliche Pflichtfelder werden dynamisch je Kontaktformular geprüft.'
-     +'\n\n'+(runtimeEnv().CENTRAL_KLEINANZEIGEN_SEND_ENABLED==='1'?'Versandversuche freigeschaltet. Die Bestätigung wird je Inserat geprüft; Start/Pause über die Plattformliste.':'Automatischer Versand ist noch nicht freigegeben, da die Nachrichten-Schnittstelle nicht verifiziert ist.'),[
+     +'\n\n'+(providerSendEnabled(runtimeEnv(),'kleinanzeigen')?'Versandversuche freigeschaltet. Die Bestätigung wird je Inserat geprüft; Start/Pause über die Plattformliste.':'Automatischer Versand ist noch nicht freigegeben, da die Nachrichten-Schnittstelle nicht verifiziert ist.'),[
       [button('👤 Bewerberprofil','platforms:profile')], ...back
      ]);
   }
@@ -769,7 +770,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
 
  if(action==='pause'||action==='resume'){
   const meta=AUTO_APPLY_PROVIDERS[source];if(!meta)return;
-  if(source===2 && action==='resume' && runtimeEnv().CENTRAL_KLEINANZEIGEN_SEND_ENABLED!=='1') return render('Kleinanzeigen-Versand ist noch nicht verifiziert und kann nicht gestartet werden.',back);
+  if(source===2 && action==='resume' && !providerSendEnabled(runtimeEnv(),'kleinanzeigen')) return render('Kleinanzeigen-Versand ist noch nicht verifiziert und kann nicht gestartet werden.',back);
   if(action==='resume'){
    const {data:missing,error:profileError}=await db.rpc('application_profile_missing_fields',{p_user:user.id});
    if(profileError)throw Error('Bewerberprofil konnte nicht geprüft werden.');
@@ -826,7 +827,7 @@ export async function platformSessions(user,chat,messageId,data='platforms'){
  const rows=[];
  const statusLines=[];
  let activeCount=0;
- const kaAvailable=runtimeEnv().CENTRAL_KLEINANZEIGEN_SEND_ENABLED==='1';
+ const kaAvailable=providerSendEnabled(runtimeEnv(),'kleinanzeigen');
  const visibleSenders=kaAvailable?[1,4,3,2]:[1,4,3];
  for(const sourceId of visibleSenders){
   const meta=AUTO_APPLY_PROVIDERS[sourceId];
