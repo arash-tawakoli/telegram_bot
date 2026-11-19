@@ -93,3 +93,60 @@ test("form diagnostics persist only bounded schema keys, never account values or
   assert.equal(diagnostic.fields.find(x=>x.id==="customField")?.enum_count,2);
   assert.doesNotMatch(JSON.stringify(diagnostic),/private@example|operator@example|SECRET|Hi, my email/);
 });
+
+test("actual Kleinanzeigen XCF salutation/Schufa enum choices map from shared profile",()=>{
+  const f=form({
+    contactFirstName:{type:"string"},
+    contactLastName:{type:"string"},
+    currentSchufaInformation:{
+      type:"string",enum:["CURRENT","NOT_AVAILABLE","NO_ANSWER"],
+      oneOf:[
+        {const:"CURRENT",title:"Vorhanden (< 3 Monate)"},
+        {const:"NOT_AVAILABLE",title:"Nicht vorhanden"},
+        {const:"NO_ANSWER",title:"Keine Angabe"},
+      ],
+    },
+    salutation:{type:"string",enum:["HERR","FRAU","DIVERS","OHNE"],
+      oneOf:[
+        {const:"HERR",title:"Herr"},{const:"FRAU",title:"Frau"},
+        {const:"DIVERS",title:"Divers"},{const:"OHNE",title:"Keine Angabe"},
+      ],
+    },
+    message:{type:"string"},
+  });
+  const r=prepareKleinanzeigenApplicantForm(f,{...applicant,salutation:"MR",schufa_status:"AVAILABLE"},"Guten Tag");
+  assert.equal(r.ok,true);
+  assert.equal(r.payload.salutation,"HERR");
+  assert.equal(r.payload.currentSchufaInformation,"CURRENT");
+  assert.equal(r.payload.message,"Guten Tag");
+  assert.deepEqual(r.unsupported,[]);
+});
+
+test("advertiser's conditional phone callback fields are evaluated, not ignored",()=>{
+  const f=form({
+    contactFirstName:{type:"string"},message:{type:"string"},
+    phoneCallDesired:{type:"boolean"},
+    phoneNumber:{type:"string"}
+  },["contactFirstName","message","phoneCallDesired"]);
+  f.schema.allOf=[{if:{properties:{phoneCallDesired:{const:true}}},
+    then:{required:["phoneNumber"]}}];
+  const noCall=prepareKleinanzeigenApplicantForm(f,applicant,"Guten Tag");
+  assert.equal(noCall.ok,true);
+  assert.equal(noCall.payload.phoneCallDesired,false);
+  const wantsCall=prepareKleinanzeigenApplicantForm(f,{...applicant,phone_call_desired:true},"Guten Tag");
+  assert.equal(wantsCall.ok,true);
+  assert.equal(wantsCall.payload.phoneCallDesired,true);
+  assert.equal(wantsCall.payload.phoneNumber,applicant.phone);
+  const noPhone=prepareKleinanzeigenApplicantForm(f,{...applicant,phone:undefined,phone_call_desired:true},"Guten Tag");
+  assert.equal(noPhone.ok,false);
+  assert.deepEqual(noPhone.missing.map(x=>x.id),["phoneNumber"]);
+});
+test("unrecognized allOf branches and unsupported Schufa options block submission",()=>{
+  const f=form({message:{type:"string"},salutation:{type:"string",enum:["UNRELATED"]}});
+  f.schema.allOf=[{if:{not:{properties:{message:{const:"X"}}}},then:{required:["salutation"]}}];
+  assert.equal(prepareKleinanzeigenApplicantForm(f,applicant,"Guten Tag").error,"form_schema_unverified");
+  delete f.schema.allOf;
+  const out=prepareKleinanzeigenApplicantForm(f,{...applicant,salutation:"MR"},"Guten Tag");
+  assert.equal(out.ok,false);
+  assert.deepEqual(out.missing.map(x=>x.id),["salutation"]);
+});
