@@ -15,6 +15,9 @@ const labelFor = (uiSchema, key) => {
   return text(controls.find((item) => item.scope.endsWith("/properties/" + key))?.label) || key;
 };
 function canonical(key) { return text(key).toLowerCase().replace(/[^a-z0-9äöüß]/g, ""); }
+function knownField(key) {
+  return /(message|nachricht|anschreiben|bewerbungstext|contacttext|firstname|vorname|givenname|lastname|nachname|surname|familyname|contactname|fullname|displayname|contactperson|email|mailadresse|mailaddress|phone|telefon|mobile|handy|housenumber|hausnummer|streetnumber|street|straße|strasse|postcode|postalcode|zipcode|zip|plz|city|stadt|wohnort|town|household|haushalt|personenzahl|numberofpersons|income|einkommen|nettogehalt|employment|beschäftigung|beschaeftigung|beruf|movein|einzug|schufa|bonität|bonitaet|pets|haustier|wbs|wohnberechtigung|salutation|anrede)/.test(canonical(key));
+}
 function fieldValue(key, profile, message, property) {
   const k = canonical(key);
   const field = (...names) => {
@@ -107,7 +110,7 @@ export function prepareKleinanzeigenApplicantForm(form, profile = {}, applicatio
       continue;
     }
     const raw = fieldValue(key, profile, message, property);
-    if (raw === undefined && isRequired) { unsupported.push(item); continue; }
+    if (raw === undefined && isRequired) { (knownField(key) ? missing : unsupported).push(item); continue; }
     if (raw === undefined) continue;
     const value = normalizedValue(property, raw);
     if (value === undefined) {
