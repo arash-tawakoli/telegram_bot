@@ -495,23 +495,50 @@ export async function fetchImmoScoutMap(source, config = {}) {
   };
 }
 
+const UPSERT_SQL = (tuples) => `INSERT INTO housing.offer_identities
+       (id,source_id,identity_hash,external_id,canonical_url,facts,last_seen_at,expires_at)
+       VALUES ${tuples.join(",")}
+       ON CONFLICT (identity_hash) DO UPDATE SET
+         canonical_url=EXCLUDED.canonical_url,
+         facts=json_set(EXCLUDED.facts,
+           '$.warm_rent',COALESCE(json_extract(EXCLUDED.facts,'$.warm_rent'),json_extract(offer_identities.facts,'$.warm_rent')),
+           '$.property_type',COALESCE(json_extract(EXCLUDED.facts,'$.property_type'),json_extract(offer_identities.facts,'$.property_type')),
+           '$.image_url',COALESCE(json_extract(EXCLUDED.facts,'$.image_url'),json_extract(offer_identities.facts,'$.image_url')),
+           '$.rooms',COALESCE(json_extract(EXCLUDED.facts,'$.rooms'),json_extract(offer_identities.facts,'$.rooms')),
+           '$.area_sqm',COALESCE(json_extract(EXCLUDED.facts,'$.area_sqm'),json_extract(offer_identities.facts,'$.area_sqm'))
+         ),
+         last_seen_at=now(),expires_at=EXCLUDED.expires_at
+       RETURNING id,external_id`;
+const D1_TOUCH_BATCH = 90; // 90 ids + source + marker stay under D1's 100 bound variables
+const withoutCoordinates = (facts) => JSON.stringify(Object.fromEntries(
+  Object.entries(facts).filter(([key]) => key !== "latitude" && key !== "longitude" && key !== "sweep_type")));
+
 /**
- * Upsert verified MCP nodes and queue their matches. `rematchIds` (a Set) limits
- * queueMatches to new, re-listed or changed offers plus the given identities:
- * a full sweep of ~1,200 offers would otherwise exceed the D1 query budget.
- * Without it every node is matched, as the one-query ingest always did.
+ * Upsert verified MCP nodes and queue their matches.
+ *
+ * Default: every node is upserted and matched (the one-query ingest).
+ * `sweepType` (inventory sweeps of ~1,000-5,000 offers) takes the cheap path:
+ *  - unchanged live offers only get `last_seen_at`/`expires_at` bumped, in chunked UPDATEs;
+ *  - new, re-listed or changed offers are fully upserted and matched; offers whose
+ *    only change is coordinates are upserted without matching;
+ *  - `rematchIds` adds a bounded slice of unchanged offers to the matching;
+ *  - `silent` (baseline inventory) upserts without any matching, so a first sweep does not
+ *    create a backlog of deliveries for listings that have existed for weeks;
+ *  - `used()` / `soft`: once D1 usage reaches `soft`, remaining full upserts are deferred
+ *    (known offers are only touched, unknown ones left for the next sweep).
  */
-export async function persistImmoScoutNodes(sql, source, nodes, { rematchIds = null } = {}) {
-  // One bounded lookup replaces hundreds of individual reads while retaining
-  // verified facts omitted by a later, smaller MCP result.
+export async function persistImmoScoutNodes(sql, source, nodes, {
+  rematchIds = null, sweepType = null, silent = false, used = () => 0, soft = Infinity,
+} = {}) {
+  const cheap = sweepType != null;
   const identities = nodes.map(node => node.identity);
   const priorRows = [];
-  // D1 limits bound SQL variables. Partition the existing-record lookup to
-  // keep each query safely below the cap even when the MCP returns 200 cards.
-  for (let offset = 0; offset < identities.length; offset += D1_SCOUT_LOOKUP_BATCH) {
-    const chunk = identities.slice(offset, offset + D1_SCOUT_LOOKUP_BATCH);
+  const lookupBatch = cheap ? D1_TOUCH_BATCH : D1_SCOUT_LOOKUP_BATCH;
+  // D1 limits bound SQL variables; partition the existing-record lookup.
+  for (let offset = 0; offset < identities.length; offset += lookupBatch) {
+    const chunk = identities.slice(offset, offset + lookupBatch);
     const rows = await sql.unsafe(
-      `SELECT external_id, facts, expires_at FROM housing.offer_identities
+      `SELECT external_id, facts, expires_at, id FROM housing.offer_identities
          WHERE source_id=$1 AND external_id IN (${chunk.map((_, i) => "$" + (i + 2)).join(",")})`,
       [source.id, ...chunk],
     );
@@ -528,45 +555,48 @@ export async function persistImmoScoutNodes(sql, source, nodes, { rematchIds = n
       else if (!(key in facts)) facts[key] = value;
     }
     const before = priorByExternalId.get(node.identity);
-    const changed = !before || !(timestampMillis(before.expires_at) > now)
-      || JSON.stringify(facts) !== JSON.stringify(prior.get(node.identity));
-    return { ...node, facts, queue: !rematchIds || changed || rematchIds.has(node.identity) };
+    const live = before && timestampMillis(before.expires_at) > now;
+    const identical = before && JSON.stringify(facts) === JSON.stringify(prior.get(node.identity));
+    const material = !before || !live || withoutCoordinates(facts) !== withoutCoordinates(prior.get(node.identity));
+    const rematch = Boolean(rematchIds?.has(node.identity));
+    return {
+      ...node, facts, before, material,
+      touchOnly: cheap && live && identical,
+      queue: !silent && (cheap ? material || rematch : (!rematchIds || material || rematch)),
+    };
   });
 
   // Each offer in this call is freshly verified by the MCP and its D1
   // upsert sets expires_at = now() + 24h. Check the application cutover once.
   const cutover = await sql`SELECT enabled_at FROM housing.application_queue_cutover WHERE id = 1`;
   const profileCache = { freshMcpUpsert: true, cutoverEnabled: cutover.length > 0 };
-  let inserted = 0, queuedOffers = 0;
-  // An atomic multi-row D1 upsert avoids one round-trip for every Scout card.
-  // Matching still uses the original per-user idempotency keys and permissions.
-  for (let offset = 0; offset < prepared.length; offset += D1_SCOUT_UPSERT_BATCH) {
-    const chunk = prepared.slice(offset, offset + D1_SCOUT_UPSERT_BATCH);
+  const match = (node, offerId) => queueMatches(sql, offerId, node.source_id,
+    node.source_id + ":external:" + node.identity,
+    { ...node.facts, canonical_url: node.canonical_url },
+    source.central_auto_apply_enabled === true, true, profileCache);
+  let inserted = 0, queuedOffers = 0, touched = 0, deferred = 0, skipped = 0;
+  const full = [], touch = [];
+  for (const node of prepared) (node.touchOnly ? touch : full).push(node);
+
+  // Stay below the D1 budget: the remaining full upserts become touches (known) or wait (unknown).
+  // Small chunks while matching, because each matched offer costs one query per matching profile.
+  const fullBatch = cheap && !silent ? 8 : D1_SCOUT_UPSERT_BATCH;
+  for (let offset = 0; offset < full.length; offset += fullBatch) {
+    const chunk = full.slice(offset, offset + fullBatch);
+    if (cheap && used() >= soft) {
+      for (const node of chunk) node.before ? (deferred++, touch.push({ ...node, touchOnly: true, queue: false })) : skipped++;
+      continue;
+    }
     const params = [];
     const tuples = chunk.map(node => {
       const index = params.length + 1;
       params.push(node.source_id, node.source_id + ":external:" + node.identity,
-        node.identity, node.canonical_url, JSON.stringify(node.facts));
+        node.identity, node.canonical_url,
+        JSON.stringify(cheap ? { ...node.facts, sweep_type: sweepType } : node.facts));
       return `(gen_random_uuid(), $${index}, $${index + 1}, $${index + 2},
         $${index + 3}, $${index + 4}, now(), now() + interval '24 hours')`;
     });
-    const rows = await sql.unsafe(
-      `INSERT INTO housing.offer_identities
-       (id,source_id,identity_hash,external_id,canonical_url,facts,last_seen_at,expires_at)
-       VALUES ${tuples.join(",")}
-       ON CONFLICT (identity_hash) DO UPDATE SET
-         canonical_url=EXCLUDED.canonical_url,
-         facts=json_set(EXCLUDED.facts,
-           '$.warm_rent',COALESCE(json_extract(EXCLUDED.facts,'$.warm_rent'),json_extract(offer_identities.facts,'$.warm_rent')),
-           '$.property_type',COALESCE(json_extract(EXCLUDED.facts,'$.property_type'),json_extract(offer_identities.facts,'$.property_type')),
-           '$.image_url',COALESCE(json_extract(EXCLUDED.facts,'$.image_url'),json_extract(offer_identities.facts,'$.image_url')),
-           '$.rooms',COALESCE(json_extract(EXCLUDED.facts,'$.rooms'),json_extract(offer_identities.facts,'$.rooms')),
-           '$.area_sqm',COALESCE(json_extract(EXCLUDED.facts,'$.area_sqm'),json_extract(offer_identities.facts,'$.area_sqm'))
-         ),
-         last_seen_at=now(),expires_at=EXCLUDED.expires_at
-       RETURNING id,external_id`,
-      params,
-    );
+    const rows = await sql.unsafe(UPSERT_SQL(tuples), params);
     inserted += rows.length;
     const byExternalId = new Map(rows.map(row => [String(row.external_id), row.id]));
     for (const node of chunk) {
@@ -575,14 +605,26 @@ export async function persistImmoScoutNodes(sql, source, nodes, { rematchIds = n
       queuedOffers++;
       // Broad and partition scans follow the same search-profile, applicant-
       // profile and AutoApply rules. Idempotency prevents duplicate sends.
-      await queueMatches(sql, offerId, node.source_id,
-        node.source_id + ":external:" + node.identity,
-        { ...node.facts, canonical_url: node.canonical_url },
-        source.central_auto_apply_enabled === true,
-        true, profileCache);
+      await match(node, offerId);
     }
   }
-  return { inserted, previouslyKnown, queuedOffers };
+
+  for (let offset = 0; offset < touch.length; offset += D1_TOUCH_BATCH) {
+    const chunk = touch.slice(offset, offset + D1_TOUCH_BATCH);
+    await sql.unsafe(
+      `UPDATE housing.offer_identities
+         SET last_seen_at=now(), expires_at=now() + interval '24 hours', facts=json_set(facts,'$.sweep_type',$2)
+       WHERE source_id=$1 AND external_id IN (${chunk.map((_, i) => "$" + (i + 3)).join(",")})`,
+      [source.id, sweepType, ...chunk.map(node => node.identity)],
+    );
+    touched += chunk.length;
+  }
+  for (const node of touch) {
+    if (!node.queue || !node.before || used() >= soft) continue;
+    queuedOffers++;
+    await match(node, node.before.id);
+  }
+  return { inserted, previouslyKnown, queuedOffers, touched, deferred, skipped };
 }
 
 export async function ingestImmoScoutSource(sql, source, config = {}) {

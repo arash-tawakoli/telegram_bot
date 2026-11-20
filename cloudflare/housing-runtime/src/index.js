@@ -7,7 +7,6 @@ import { ingestImmoweltSource } from "./immowelt-source.js";
 import { ingestKleinanzeigenSource } from "./kleinanzeigen-source.js";
 import { ingestImmoScoutSource, fetchImmoScoutSource, IMMOSCOUT_MCP_CONTRACT } from "./immoscout-source.js";
 import { ingestImmoScoutSweep } from "./immoscout-sweep.js";
-import { runBerlinCoverage } from "./berlin-coverage.js";
 import { deliveryCutoverLedger, reconcileCloudflareDeliveries } from "./delivery-cutover-ledger.js";
 import { resolveListingImage } from "./telegram-listing-preview.js";
 import { listingMessageRequest, sendListingMessage, listingMiniAppResponse } from "./listing-miniapp.js";
@@ -212,21 +211,13 @@ async function runSource(sql, request, env) {
         ? await ingestImmoweltSource(sql, sourceRow, connectorConfig)
         : source.family === "kleinanzeigen"
           ? await ingestKleinanzeigenSource(sql, sourceRow, connectorConfig)
-          : source.id === 1
+          : [1, 69, 72].includes(source.id)
             ? await ingestImmoScoutSweep(sql, sourceRow, connectorConfig)
             : await ingestImmoScoutSource(sql, sourceRow, connectorConfig);
   } catch (error) {
     await sql`UPDATE housing.source_registry SET consecutive_failures = COALESCE(consecutive_failures, 0) + 1 WHERE id = ${source.id}`
       .catch(updateError => console.error("housing_source_failure_record_failed", String(updateError?.message || updateError)));
     throw error;
-  }
-  if (source.id === 72) {
-    try {
-      result.berlin_coverage = await runBerlinCoverage(sql, sourceRow);
-    } catch (error) {
-      console.error("housing_berlin_coverage_failed", String(error?.message || error));
-      result.berlin_coverage = { error: "coverage_unavailable" };
-    }
   }
   await sql`UPDATE housing.source_registry SET last_success_at = now(), consecutive_failures = 0 WHERE id = ${source.id}`;
   return json({ ok: true, source_id: source.id, ...result });
@@ -441,8 +432,6 @@ async function runScheduledHousingWork(env, minute = Math.floor(Date.now() / 60_
           sweep: audit.sweep || null,
           map_error: audit.map_error || null,
         }));
-        if (sourceId === 72 && audit.berlin_coverage)
-          console.log("housing_berlin_coverage", JSON.stringify(audit.berlin_coverage));
       }
     } catch (error) {
       console.error("housing_source_scheduled_failed", JSON.stringify({ source_id: sourceId, error: String(error?.message || error) }));
