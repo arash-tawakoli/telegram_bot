@@ -19,12 +19,14 @@ export const MCP_PAGE_SIZE = 20;
 export const LIMITS = Object.freeze({
   concurrency: 4,
   stepCalls: 48,          // MCP calls between two persist steps (<= ~960 entries)
-  fetchBudget: 450,       // per invocation, leaves room below 1,000 for the rest of the cron run
-  d1Soft: 500,            // per invocation; full upserts are deferred beyond this
-  tickSeconds: 200,       // wall budget of the sweep part of one tick
+  fetchBudget: 850,       // per invocation (queue consumer), below the 1,000 subrequest limit
+  d1Soft: 400,            // per invocation, sweep statements only; full upserts are deferred beyond this
+  d1Matching: 250,        // per invocation, queueMatches statements; matching waits beyond this
+  d1Hard: 900,            // per invocation, everything; no further step starts beyond this (limit 1,000)
+  tickSeconds: 270,       // wall budget of the sweep part of one tick (a region is enqueued every 5 minutes)
   windowMs: 30 * 60_000,  // a sweep must finish within this to be allowed to delist
-  leaseMs: 6 * 60_000,    // another tick of the same sweep may not start while one runs
-  rematchPerTick: 60,
+  leaseMs: 8 * 60_000,    // another tick of the same sweep may not start while one runs
+  rematchPerTick: 60,     // unchanged offers re-matched per tick (a hash-rotating slice plus any backlog)
 });
 const RETRY_DELAYS_MS = [400, 1200];
 // Kaltmiete bounds in euros; null = open end.
@@ -152,7 +154,8 @@ export function meterSql(sql) {
   return Object.assign(metered, { meter });
 }
 
-const emptyState = () => ({ v: 2, leaves: null, baseline: true, done: [], pending: null, sweep: null, lease: 0 });
+const emptyState = () => ({ v: 2, leaves: null, baseline: true, done: [], pending: null, sweep: null, lease: 0, rematchBacklog: [] });
+const hashOf = id => [...String(id)].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
 
 // Plans written before the size split may hold room-count leaves, which lose 2.5-room and 6+ room offers.
 // Fold them back into their price range, which is then split by size when it is crowded.
@@ -249,8 +252,9 @@ export async function ingestImmoScoutSweep(rawSql, source, config = {}) {
 
     const deadline = startedTick + limits.tickSeconds * 1000;
     const slot = Math.floor(startedTick / (5 * 60_000));
-    let foundInTick = 0, persistedTotals = { inserted: 0, previouslyKnown: 0, queuedOffers: 0, touched: 0, deferred: 0, skipped: 0 };
-    while (state.pending.length && fetches < limits.fetchBudget && sql.meter.queries < limits.d1Soft && Date.now() < deadline) {
+    let foundInTick = 0, persistedTotals = { inserted: 0, previouslyKnown: 0, queuedOffers: 0, touched: 0, deferred: 0, skipped: 0, matchQueries: 0 };
+    const sweepSpent = () => sql.meter.queries - persistedTotals.matchQueries;
+    while (state.pending.length && fetches < limits.fetchBudget && sweepSpent() < limits.d1Soft && sql.meter.queries < limits.d1Hard && Date.now() < deadline) {
       const step = await sweepLeaves({
         search, base, leaves: state.pending, deadline, concurrency: limits.concurrency,
         maxCalls: Math.min(limits.stepCalls, limits.fetchBudget - fetches), sleep: config.sleep,
@@ -266,12 +270,18 @@ export async function ingestImmoScoutSweep(rawSql, source, config = {}) {
         }
         nodes.set(node.identity, node);
       }
-      const ids = [...nodes.keys()].sort();
-      const rematchIds = new Set(Array.from({ length: Math.min(limits.rematchPerTick, ids.length) },
-        (_, i) => ids[(slot * limits.rematchPerTick + i) % ids.length]));
+      // Every offer is re-matched once per cycle: a stable hash picks its slot, and what a tick could not afford is carried over.
+      const backlog = new Set(state.rematchBacklog);
+      const cycle = Math.max(1, Math.ceil((sweepState.totalStart || nodes.size) / limits.rematchPerTick));
+      const rematchIds = new Set([...nodes.keys()].filter(id => backlog.has(id) || hashOf(id) % cycle === slot % cycle));
       const persisted = await persistImmoScoutNodes(sql, source, [...nodes.values()], {
-        rematchIds, sweepType: type, silent: state.baseline, used: () => sql.meter.queries, soft: limits.d1Soft,
+        rematchIds, rematchFirst: backlog, sweepType: type, silent: state.baseline,
+        used: () => sql.meter.queries, soft: limits.d1Soft,
+        matchSoft: limits.d1Matching, matchUsed: persistedTotals.matchQueries,
       });
+      for (const id of persisted.rematched) backlog.delete(id);
+      for (const id of persisted.rematchSkipped) backlog.add(id);
+      state.rematchBacklog = [...backlog].slice(-600);
       // Progress is recorded only after the offers of this step are stored, so a failed step is redone.
       for (const id of step.entries.keys()) seen.add(id);
       state.pending = step.pending;
@@ -320,7 +330,7 @@ export async function ingestImmoScoutSweep(rawSql, source, config = {}) {
 
   // Other property types (houses, WG rooms, ...) keep the one-query rotation while budget remains.
   let other = null;
-  if (config.otherTypes !== false && fetches < limits.fetchBudget && sql.meter.queries < limits.d1Soft) {
+  if (config.otherTypes !== false && fetches < limits.fetchBudget && sql.meter.queries < limits.d1Hard) {
     try {
       const profiles = await sql.unsafe(
         "SELECT sp.criteria FROM housing.search_profiles sp JOIN housing.source_links sl ON sl.search_profile_id=sp.id WHERE sl.source_id=$1 AND sp.active=true ORDER BY sp.id",

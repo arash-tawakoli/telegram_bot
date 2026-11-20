@@ -495,9 +495,9 @@ export async function fetchImmoScoutMap(source, config = {}) {
   };
 }
 
-const UPSERT_SQL = (tuples) => `INSERT INTO housing.offer_identities
+const UPSERT_SQL = (rows) => `INSERT INTO housing.offer_identities
        (id,source_id,identity_hash,external_id,canonical_url,facts,last_seen_at,expires_at)
-       VALUES ${tuples.join(",")}
+       ${rows}
        ON CONFLICT (identity_hash) DO UPDATE SET
          canonical_url=EXCLUDED.canonical_url,
          facts=json_set(EXCLUDED.facts,
@@ -509,7 +509,11 @@ const UPSERT_SQL = (tuples) => `INSERT INTO housing.offer_identities
          ),
          last_seen_at=now(),expires_at=EXCLUDED.expires_at
        RETURNING id,external_id`;
-const D1_TOUCH_BATCH = 90; // 90 ids + source + marker stay under D1's 100 bound variables
+// Sweep rows travel as one bound JSON array (json_each), so a statement is not limited by D1's 100 bound variables.
+const D1_JSON_LOOKUP_BATCH = 250, D1_JSON_TOUCH_BATCH = 250, D1_JSON_UPSERT_BATCH = 40;
+const JSON_ROWS_SQL = `SELECT gen_random_uuid(), $1, json_extract(value,'$.k'), json_extract(value,'$.i'),
+         json_extract(value,'$.u'), json_extract(value,'$.f'), now(), now() + interval '24 hours'
+       FROM json_each($2) WHERE true`;
 const withoutCoordinates = (facts) => JSON.stringify(Object.fromEntries(
   Object.entries(facts).filter(([key]) => key !== "latitude" && key !== "longitude" && key !== "sweep_type")));
 
@@ -528,20 +532,25 @@ const withoutCoordinates = (facts) => JSON.stringify(Object.fromEntries(
  *    (known offers are only touched, unknown ones left for the next sweep).
  */
 export async function persistImmoScoutNodes(sql, source, nodes, {
-  rematchIds = null, sweepType = null, silent = false, used = () => 0, soft = Infinity,
+  rematchIds = null, rematchFirst = null, sweepType = null, silent = false, used = () => 0, soft = Infinity,
+  matchSoft = Infinity, matchUsed = 0,
 } = {}) {
   const cheap = sweepType != null;
   const identities = nodes.map(node => node.identity);
   const priorRows = [];
-  const lookupBatch = cheap ? D1_TOUCH_BATCH : D1_SCOUT_LOOKUP_BATCH;
-  // D1 limits bound SQL variables; partition the existing-record lookup.
-  for (let offset = 0; offset < identities.length; offset += lookupBatch) {
-    const chunk = identities.slice(offset, offset + lookupBatch);
-    const rows = await sql.unsafe(
-      `SELECT external_id, facts, expires_at, id FROM housing.offer_identities
-         WHERE source_id=$1 AND external_id IN (${chunk.map((_, i) => "$" + (i + 2)).join(",")})`,
-      [source.id, ...chunk],
-    );
+  // D1 limits bound SQL variables; the one-query ingest partitions the lookup, the sweep sends the ids as one JSON array.
+  const lookupSize = cheap ? D1_JSON_LOOKUP_BATCH : D1_SCOUT_LOOKUP_BATCH;
+  for (let offset = 0; offset < identities.length; offset += lookupSize) {
+    const chunk = identities.slice(offset, offset + lookupSize);
+    const rows = cheap
+      ? await sql.unsafe(
+        `SELECT external_id, facts, expires_at, id FROM housing.offer_identities
+           WHERE source_id=$1 AND external_id IN (SELECT value FROM json_each($2))`,
+        [source.id, JSON.stringify(chunk)])
+      : await sql.unsafe(
+        `SELECT external_id, facts, expires_at, id FROM housing.offer_identities
+           WHERE source_id=$1 AND external_id IN (${chunk.map((_, i) => "$" + (i + 2)).join(",")})`,
+        [source.id, ...chunk]);
     priorRows.push(...rows);
   }
   const priorByExternalId = new Map(priorRows.map(row => [String(row.external_id), row]));
@@ -574,29 +583,54 @@ export async function persistImmoScoutNodes(sql, source, nodes, {
     node.source_id + ":external:" + node.identity,
     { ...node.facts, canonical_url: node.canonical_url },
     source.central_auto_apply_enabled === true, true, profileCache);
-  let inserted = 0, queuedOffers = 0, touched = 0, deferred = 0, skipped = 0;
+  let inserted = 0, queuedOffers = 0, touched = 0, deferred = 0, skipped = 0, matchQueries = 0;
+  const rematched = [], rematchSkipped = [];
+  // Matching has its own D1 allowance: it cannot starve the sweep, and the sweep allowance excludes it.
+  const sweepSpent = () => used() - matchUsed - matchQueries;
+  const matchLeft = () => matchUsed + matchQueries < matchSoft;
   const full = [], touch = [];
   for (const node of prepared) (node.touchOnly ? touch : full).push(node);
+  const matched = async (node, offerId) => {
+    const before = used();
+    await match(node, offerId);
+    matchQueries += used() - before;
+  };
+
+  const upsert = async (chunk) => {
+    if (!cheap) {
+      const params = [];
+      const tuples = chunk.map(node => {
+        const index = params.length + 1;
+        params.push(node.source_id, node.source_id + ":external:" + node.identity,
+          node.identity, node.canonical_url, JSON.stringify(node.facts));
+        return `(gen_random_uuid(), $${index}, $${index + 1}, $${index + 2},
+        $${index + 3}, $${index + 4}, now(), now() + interval '24 hours')`;
+      });
+      return sql.unsafe(UPSERT_SQL(`VALUES ${tuples.join(",")}`), params);
+    }
+    const rows = chunk.map(node => ({
+      k: source.id + ":external:" + node.identity, i: node.identity, u: node.canonical_url,
+      f: JSON.stringify({ ...node.facts, sweep_type: sweepType }),
+    }));
+    return sql.unsafe(UPSERT_SQL(JSON_ROWS_SQL), [source.id, JSON.stringify(rows)]);
+  };
 
   // Stay below the D1 budget: the remaining full upserts become touches (known) or wait (unknown).
-  // Small chunks while matching, because each matched offer costs one query per matching profile.
-  const fullBatch = cheap && !silent ? 8 : D1_SCOUT_UPSERT_BATCH;
-  for (let offset = 0; offset < full.length; offset += fullBatch) {
-    const chunk = full.slice(offset, offset + fullBatch);
-    if (cheap && used() >= soft) {
+  // Small chunks while matching, because each matched offer costs several queries per matching profile.
+  const queued = full.filter(node => node.queue), plain = full.filter(node => !node.queue);
+  const queuedSize = !cheap ? D1_SCOUT_UPSERT_BATCH : silent ? D1_JSON_UPSERT_BATCH : 8;
+  const plainSize = cheap ? D1_JSON_UPSERT_BATCH : D1_SCOUT_UPSERT_BATCH;
+  const chunks = [];
+  for (let o = 0; o < queued.length; o += queuedSize) chunks.push(queued.slice(o, o + queuedSize));
+  for (let o = 0; o < plain.length; o += plainSize) chunks.push(plain.slice(o, o + plainSize));
+  for (const chunk of chunks) {
+    // A chunk that must be matched waits as a whole when either allowance is spent: an offer is never stored
+    // without its matching, so it stays "new or changed" and is picked up by the next sweep.
+    if (cheap && (sweepSpent() >= soft || (chunk.some(node => node.queue) && !matchLeft()))) {
       for (const node of chunk) node.before ? (deferred++, touch.push({ ...node, touchOnly: true, queue: false })) : skipped++;
       continue;
     }
-    const params = [];
-    const tuples = chunk.map(node => {
-      const index = params.length + 1;
-      params.push(node.source_id, node.source_id + ":external:" + node.identity,
-        node.identity, node.canonical_url,
-        JSON.stringify(cheap ? { ...node.facts, sweep_type: sweepType } : node.facts));
-      return `(gen_random_uuid(), $${index}, $${index + 1}, $${index + 2},
-        $${index + 3}, $${index + 4}, now(), now() + interval '24 hours')`;
-    });
-    const rows = await sql.unsafe(UPSERT_SQL(tuples), params);
+    const rows = await upsert(chunk);
     inserted += rows.length;
     const byExternalId = new Map(rows.map(row => [String(row.external_id), row.id]));
     for (const node of chunk) {
@@ -605,26 +639,31 @@ export async function persistImmoScoutNodes(sql, source, nodes, {
       queuedOffers++;
       // Broad and partition scans follow the same search-profile, applicant-
       // profile and AutoApply rules. Idempotency prevents duplicate sends.
-      await match(node, offerId);
+      await matched(node, offerId);
+      rematched.push(node.identity);
     }
   }
 
-  for (let offset = 0; offset < touch.length; offset += D1_TOUCH_BATCH) {
-    const chunk = touch.slice(offset, offset + D1_TOUCH_BATCH);
+  for (let offset = 0; offset < touch.length; offset += D1_JSON_TOUCH_BATCH) {
+    const chunk = touch.slice(offset, offset + D1_JSON_TOUCH_BATCH);
     await sql.unsafe(
       `UPDATE housing.offer_identities
          SET last_seen_at=now(), expires_at=now() + interval '24 hours', facts=json_set(facts,'$.sweep_type',$2)
-       WHERE source_id=$1 AND external_id IN (${chunk.map((_, i) => "$" + (i + 3)).join(",")})`,
-      [source.id, sweepType, ...chunk.map(node => node.identity)],
+       WHERE source_id=$1 AND external_id IN (SELECT value FROM json_each($3))`,
+      [source.id, sweepType, JSON.stringify(chunk.map(node => node.identity))],
     );
     touched += chunk.length;
   }
-  for (const node of touch) {
-    if (!node.queue || !node.before || used() >= soft) continue;
+  // Rematching unchanged offers: the carried-over backlog goes first; what does not fit is returned for the next tick.
+  const rematches = touch.filter(node => node.queue && node.before)
+    .sort((a, b) => Number(rematchFirst?.has(b.identity) || false) - Number(rematchFirst?.has(a.identity) || false));
+  for (const node of rematches) {
+    if (!matchLeft()) { rematchSkipped.push(node.identity); continue; }
     queuedOffers++;
-    await match(node, node.before.id);
+    await matched(node, node.before.id);
+    rematched.push(node.identity);
   }
-  return { inserted, previouslyKnown, queuedOffers, touched, deferred, skipped };
+  return { inserted, previouslyKnown, queuedOffers, touched, deferred, skipped, matchQueries, rematched, rematchSkipped };
 }
 
 export async function ingestImmoScoutSource(sql, source, config = {}) {
