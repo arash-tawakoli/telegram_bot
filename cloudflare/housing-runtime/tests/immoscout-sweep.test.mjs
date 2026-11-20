@@ -207,7 +207,7 @@ test("offers vanish only after a complete sweep; incomplete sweeps expire nothin
   // An MCP error mid-sweep must never mark anything gone.
   sqlite.exec("UPDATE offer_identities SET last_seen_at=datetime('now','-1 hour'), expires_at=datetime('now','+1 day') WHERE source_id=1");
   const base = market(shrunk);
-  const broken = (await tick(sql, { search: async (query) => { if (/Kaltmiete 600 bis/.test(query) || /Kaltmiete bis 400/.test(query)) throw new Error("immoscout_mcp_http_500"); return base.search(query); } })).sweep;
+  const broken = (await tick(sql, { search: async (query) => { if (/Kaltmiete bis \d+ Euro$/.test(query)) throw new Error("immoscout_mcp_http_500"); return base.search(query); } })).sweep;
   assert.equal(broken.complete, false);
   assert.equal(broken.gone, 0);
   assert.equal(count(sqlite, "expires_at > datetime('now')"), 91, "nothing expired after an incomplete sweep");
@@ -407,4 +407,45 @@ test("a new offer is never stored without its matching: with no matching allowan
   assert.equal(count(sqlite, "external_id='901'"), 1);
   assert.ok(sqlite.prepare("SELECT COUNT(*) n FROM deliveries d JOIN offer_identities o ON o.id=d.offer_identity_id WHERE o.external_id='901'").get().n > 0, "and it was matched when stored");
   assert.ok(later.queuedOffers >= 1);
+});
+
+test("leaf packing: neighbours merge up to 18 offers, never across a gap or over an incomplete leaf, and size bands pack too", () => {
+  const done = [
+    { lo: 0, hi: 400, total: 9, complete: true }, { lo: 400, hi: 600, total: 8, complete: true },   // 17 -> one leaf
+    { lo: 600, hi: 800, total: 2, complete: true },                                                  // 17 + 2 > 18 -> new leaf
+    { lo: 800, hi: 900, total: 3, complete: true }, { lo: 900, hi: 1000, total: 4, complete: false }, // incomplete stays apart
+    { lo: 1000, hi: 1200, total: 1, complete: true }, { lo: 1300, hi: 1400, total: 1, complete: true }, // gap 1200..1300
+    { lo: 2000, hi: 2001, slo: 0, shi: 30, total: 9, complete: true }, { lo: 2000, hi: 2001, slo: 30, shi: 40, total: 9, complete: true },
+    { lo: 2000, hi: 2001, slo: 40, shi: 50, total: 9, complete: true },
+  ];
+  const packed = mergeLeaves(done);
+  assert.deepEqual(packed.map(l => [l.lo, l.hi, l.slo ?? null, l.shi ?? null]), [
+    [0, 600, null, null], [600, 900, null, null], [900, 1000, null, null], [1000, 1200, null, null], [1300, 1400, null, null],
+    [2000, 2001, 0, 40], [2000, 2001, 40, 50],
+  ]);
+  assert.equal(packed[0].total, 17);
+  assert.ok(packed.every(l => l.total == null || l.total <= 18 || !l.complete));
+  assert.ok(mergeLeaves(done, 10).length > packed.length, "a larger pack target means fewer leaves");
+});
+
+test("a packed plan is reused with fewer calls; leaves that grew past a page re-split and nothing is lost", async () => {
+  const listings = Array.from({ length: 400 }, (_, i) => listing(i + 1, 300 + i * 4));
+  const first = await sweepLeaves({ search: market(listings).search, base: BASE, sleep: noSleep });
+  assert.equal(first.complete, true);
+  const plan10 = mergeLeaves(first.done, 10), plan18 = mergeLeaves(first.done, 18);
+  assert.ok(plan18.length < plan10.length && plan18.length <= Math.ceil(400 / 9) + 2, `${plan18.length} leaves vs ${plan10.length}`);
+
+  // Same market: the packed plan is complete in fewer calls.
+  const m = market(listings);
+  const again = await sweepLeaves({ search: m.search, base: BASE, leaves: plan18, sleep: noSleep });
+  assert.equal(again.complete, true);
+  assert.equal(again.entries.size, 400);
+  assert.equal(again.calls, plan18.length);
+
+  // 60 new offers land in one packed leaf: it exceeds a page, splits again, and every listing is still found.
+  const grown = [...listings, ...Array.from({ length: 60 }, (_, i) => listing(1000 + i, 700 + (i % 3), 2, 20 + i * 2))];
+  const regrown = await sweepLeaves({ search: market(grown).search, base: BASE, leaves: plan18, sleep: noSleep });
+  assert.equal(regrown.complete, true);
+  assert.equal(regrown.entries.size, 460);
+  assert.ok(regrown.calls > plan18.length, "the overflowing leaf was split");
 });
