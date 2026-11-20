@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import { readdirSync, readFileSync } from "node:fs";
 import { createD1Client } from "../src/d1-database.js";
-import { ingestImmoScoutSweep, sweepLeaves, splitLeaf, leafQuery, mergeLeaves, initialLeaves, dropRoomLeaves } from "../src/immoscout-sweep.js";
+import { ingestImmoScoutSweep, sweepLeaves, splitLeaf, leafQuery, mergeLeaves, initialLeaves, dropRoomLeaves, coversWholeMarket } from "../src/immoscout-sweep.js";
 
 const BASE = "Wohnung mieten in Hamburg";
 const noSleep = async () => {};
@@ -199,7 +199,7 @@ test("offers vanish only after a complete sweep; incomplete sweeps expire nothin
   // Pretend the previous sweep happened long ago; ten offers then disappear (one is the exchange flat).
   sqlite.exec("UPDATE offer_identities SET last_seen_at=datetime('now','-1 hour') WHERE source_id=1");
   const shrunk = listings.slice(10, 90);
-  const complete = (await tick(sql, market(shrunk))).sweep;
+  const complete = (await tick(sql, market(shrunk), { limits: { maxDelistShare: 1 } })).sweep;
   assert.equal(complete.complete, true);
   assert.equal(complete.gone, 11, "the Tauschwohnung found by the sweep is delisted like a Wohnung");
   assert.equal(count(sqlite, "expires_at > datetime('now')"), 80);
@@ -212,18 +212,36 @@ test("offers vanish only after a complete sweep; incomplete sweeps expire nothin
   assert.equal(broken.gone, 0);
   assert.equal(count(sqlite, "expires_at > datetime('now')"), 91, "nothing expired after an incomplete sweep");
 
-  // A found count that differs from the broad total (a search that hides offers) is incomplete too.
-  const partial = market(listings);
-  const lying = (await tick(sql, { search: async (query) => { const r = await partial.search(query); return query === BASE ? { ...r, total: r.total + 5 } : r; } })).sweep;
-  assert.equal(lying.complete, false);
-  assert.equal(lying.gone, 0);
+  // The broad total moving during the sweep (new offers, removed offers) no longer blocks delisting.
+  sqlite.exec("UPDATE offer_identities SET last_seen_at=datetime('now','-1 hour'), expires_at=datetime('now','+1 day') WHERE source_id=1");
+  const moving = market(shrunk);
+  const drift = (await tick(sql, { search: async (query) => { const r = await moving.search(query); return query === BASE ? { ...r, total: r.total + 3 } : r; } }, { limits: { maxDelistShare: 1 } })).sweep;
+  assert.equal(drift.complete, true);
+  assert.equal(drift.gone, 11);
+
+  // Brake: a sweep that would expire more than the allowed share expires nothing.
+  sqlite.exec("UPDATE offer_identities SET last_seen_at=datetime('now','-1 hour'), expires_at=datetime('now','+1 day') WHERE source_id=1");
+  const braked = (await tick(sql, market(listings.slice(0, 40)))).sweep;
+  assert.equal(braked.complete, true);
+  assert.equal(braked.gone, 0, "51 of 91 unseen is far beyond 5%");
+  assert.equal(count(sqlite, "expires_at > datetime('now')"), 91);
+});
+
+test("whole-market check: price ranges and size bands must leave no gap", () => {
+  assert.equal(coversWholeMarket(initialLeaves()), true);
+  assert.equal(coversWholeMarket([{ lo: 0, hi: 600 }, { lo: 600, hi: null }]), true);
+  assert.equal(coversWholeMarket([{ lo: 0, hi: 600 }, { lo: 700, hi: null }]), false, "gap 600..700");
+  assert.equal(coversWholeMarket([{ lo: 0, hi: 600 }]), false, "no open top");
+  const bands = [[0, 30], [30, 40], [40, 50], [50, 65], [65, 80], [80, null]].map(([slo, shi]) => ({ lo: 600, hi: 601, slo, shi }));
+  assert.equal(coversWholeMarket([{ lo: 0, hi: 600 }, ...bands, { lo: 601, hi: null }]), true);
+  assert.equal(coversWholeMarket([{ lo: 0, hi: 600 }, ...bands.slice(1), { lo: 601, hi: null }]), false, "size band 0..30 missing");
 });
 
 test("a sweep spread over several ticks resumes and delists only after the last tick", async () => {
   const { sqlite, sql } = database();
   const listings = Array.from({ length: 400 }, (_, i) => listing(i + 1, 300 + i * 4));
   const m = market(listings);
-  const small = { limits: { stepCalls: 6, fetchBudget: 20 } };
+  const small = { limits: { stepCalls: 6, fetchBudget: 20, maxDelistShare: 1 } };
   const ticks = [];
   for (let i = 0; i < 40; i++) {
     const result = (await tick(sql, m, small)).sweep;

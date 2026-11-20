@@ -26,7 +26,8 @@ export const LIMITS = Object.freeze({
   tickSeconds: 270,       // wall budget of the sweep part of one tick (a region is enqueued every 5 minutes)
   windowMs: 30 * 60_000,  // a sweep must finish within this to be allowed to delist
   leaseMs: 8 * 60_000,    // another tick of the same sweep may not start while one runs
-  packTotal: 18,          // neighbouring complete leaves are packed into one while their combined total stays within this (< page size 20)
+  packTotal: 18,
+  maxDelistShare: 0.05,   // a sweep never expires more than this share at once (normal churn is far below)          // neighbouring complete leaves are packed into one while their combined total stays within this (< page size 20)
   rematchPerTick: 60,     // unchanged offers re-matched per tick (a hash-rotating slice plus any backlog)
 });
 const RETRY_DELAYS_MS = [400, 1200];
@@ -197,7 +198,45 @@ async function saveState(sql, sourceId, type, state) {
 }
 
 // Offers of this sweep type that no tick of this sweep touched (every upsert/touch sets last_seen_at = now()).
-async function delistUnseen(sql, sourceId, type, startedAt) {
+// True when the visited ranges leave no gap on the price axis [0, ∞); a price range that was split by
+// living area counts only when its size bands also cover [0, ∞). With every range complete this proves the sweep saw
+// the whole market, independent of the broad total, which keeps moving while a large region is swept.
+export function coversWholeMarket(leaves) {
+  const gapless = (spans) => {
+    let reach = 0;
+    for (const [lo, hi] of spans.sort((a, b) => a[0] - b[0])) {
+      if (lo > reach) return false;
+      reach = Math.max(reach, hi ?? Infinity);
+    }
+    return reach === Infinity;
+  };
+  const prices = [], banded = new Map();
+  for (const leaf of leaves) {
+    if (leaf.slo == null) { prices.push([leaf.lo, leaf.hi]); continue; }
+    const key = `${leaf.lo}|${leaf.hi}`;
+    if (!banded.has(key)) banded.set(key, []);
+    banded.get(key).push([leaf.slo, leaf.shi]);
+  }
+  for (const [key, bands] of banded) {
+    if (!gapless(bands)) continue;
+    const [lo, hi] = key.split("|");
+    prices.push([Number(lo), hi === "null" ? null : Number(hi)]);
+  }
+  return gapless(prices);
+}
+
+async function delistUnseen(sql, sourceId, type, startedAt, maxGone) {
+  // Brake against a faulty MCP answer (e.g. a range suddenly reported empty): normal churn per sweep is well below this.
+  const [{ n }] = await sql.unsafe(
+    `SELECT count(*) AS n FROM housing.offer_identities
+      WHERE source_id = $1 AND last_seen_at < $3 AND expires_at > now()
+        AND COALESCE(json_extract(facts, '$.sweep_type'), json_extract(facts, '$.property_type')) = $2`,
+    [sourceId, type, sqlTime(new Date(startedAt))],
+  );
+  if (Number(n) > maxGone) {
+    console.warn("immoscout_sweep_delist_braked", JSON.stringify({ source_id: sourceId, type, unseen: Number(n), max: maxGone }));
+    return 0;
+  }
   const rows = await sql.unsafe(
     `UPDATE housing.offer_identities SET expires_at = now()
       WHERE source_id = $1 AND last_seen_at < $3 AND expires_at > now()
@@ -316,10 +355,11 @@ export async function ingestImmoScoutSweep(rawSql, source, config = {}) {
       let totalEnd = null;
       try { totalEnd = (await search(base)).total; } catch { /* the start total alone then decides */ }
       const inWindow = Date.now() - sweepState.startedAt <= limits.windowMs;
-      // The broad total can move while a sweep runs, so either reading may match.
+      // Complete = every range read fully, no errors, and the ranges cover the whole price axis.
       const complete = inWindow && sweepState.errors === 0 && seen.size > 0
-        && state.done.every(leaf => leaf.complete) && (seen.size === totalStart || seen.size === totalEnd);
-      const gone = complete ? await delistUnseen(sql, source.id, type, sweepState.startedAt) : 0;
+        && state.done.every(leaf => leaf.complete) && coversWholeMarket(state.done);
+      const gone = complete
+        ? await delistUnseen(sql, source.id, type, sweepState.startedAt, Math.ceil(seen.size * limits.maxDelistShare)) : 0;
       Object.assign(summary, {
         mcp_total: totalStart, found: seen.size, coverage: totalStart ? Number((seen.size / totalStart).toFixed(4)) : null,
         calls: sweepState.calls, leaves: mergeLeaves(state.done).length,
