@@ -285,7 +285,7 @@ test("unchanged offers are only touched; new and changed ones are upserted and m
   const { sqlite, sql } = database();
   const listings = Array.from({ length: 200 }, (_, i) => listing(i + 1, 300 + i * 10));
   const inserts = () => sqlite.prepare("SELECT 1").get(), writes = [];
-  const counting = (inner) => Object.assign((...a) => inner(...a), inner, { unsafe: (q, p) => { if (/INSERT INTO housing\.offer_identities/.test(q)) writes.push(p.length / 5); return inner.unsafe(q, p); } });
+  const counting = (inner) => Object.assign((...a) => inner(...a), inner, { unsafe: (q, p) => { if (/INSERT INTO housing\.offer_identities/.test(q)) writes.push(/json_each/.test(q) ? JSON.parse(p[1]).length : p.length / 5); return inner.unsafe(q, p); } });
   const csql = counting(sql);
   // Baseline: silent, nothing queued even though everything is new.
   const baseline = (await tick(csql, market(listings))).sweep;
@@ -300,7 +300,7 @@ test("unchanged offers are only touched; new and changed ones are upserted and m
   assert.equal(writes.length, 0, "no row upserts for unchanged offers");
   assert.equal(steady.touched, 200);
   assert.ok(steady.queuedOffers <= 60, "only the rotating slice is matched");
-  assert.ok(steady.d1_queries < 40, "200 offers cost a handful of D1 queries: " + steady.d1_queries);
+  assert.ok(steady.d1_queries < 20, "200 offers cost a handful of D1 queries: " + steady.d1_queries);
 
   // A new offer, a price change and a coordinate fill.
   const changed = [...listings, listing(900, 450)];
@@ -356,4 +356,55 @@ test("the initial plan covers every price from 0 upwards without gaps", () => {
 test("room-count leaves of an older stored plan fold back into their price range", () => {
   const legacy = [{ lo: 0, hi: 400, rooms: null }, { lo: 800, hi: 801, rooms: 1 }, { lo: 800, hi: 801, rooms: 2 }, { lo: 800, hi: 801, rooms: 5 }, { lo: 801, hi: 900, rooms: null }];
   assert.deepEqual(dropRoomLeaves(legacy), [{ lo: 0, hi: 400, rooms: null }, { lo: 800, hi: 801 }, { lo: 801, hi: 900, rooms: null }]);
+});
+
+function seedProfiles(sqlite, n) {
+  const criteria = JSON.stringify({ boroughs: [], wbs_only: false, districts: ["Ganz Hamburg"], is_active: true, min_rooms: 1, min_area_sqm: 20,
+    location_mode: "all_hamburg", max_warm_rent: 900, neighborhoods: [], property_types: ["Wohnung"], location_area_codes: [],
+    location_state_code: "HH", furnished_preference: "any", require_known_warm_rent: false });
+  for (let i = 0; i < n; i++) {
+    sqlite.prepare("INSERT INTO participants(id,first_name,last_name,status) VALUES(?,?,?,'active')").run("p" + i, "T", "P" + i);
+    sqlite.prepare("INSERT INTO search_profiles(id,participant_id,criteria,active,profile_slot) VALUES(?,?,?,1,1)").run("s" + i, "p" + i, criteria);
+    sqlite.prepare("INSERT INTO source_links(search_profile_id,source_id) VALUES(?,1)").run("s" + i);
+  }
+  sqlite.exec("INSERT OR IGNORE INTO application_queue_cutover(id,enabled_at) VALUES(1,CURRENT_TIMESTAMP)");
+}
+const deliveries = sqlite => sqlite.prepare("SELECT COUNT(*) n FROM deliveries").get().n;
+
+test("matching has its own D1 allowance: it cannot starve the sweep, and what it cannot afford is carried over", async () => {
+  const { sqlite, sql } = database();
+  seedProfiles(sqlite, 30);
+  const listings = Array.from({ length: 60 }, (_, i) => listing(i + 1, 300 + i * 5));
+  const m = market(listings);
+  await tick(sql, m); // silent baseline
+  assert.equal(deliveries(sqlite), 0);
+
+  // A tiny matching allowance: every unchanged offer picked for re-matching waits in the backlog, the sweep still touches everything.
+  const tight = (await tick(sql, m, { limits: { d1Matching: 10, rematchPerTick: 60 } })).sweep;
+  assert.equal(tight.touched + tight.inserted >= 60, true, "the sweep itself is not held back");
+  assert.ok(tight.matchQueries <= 10 + 31, "matching stops at its allowance (one offer may overshoot): " + tight.matchQueries);
+  const backlog = () => JSON.parse(sqlite.prepare("SELECT leaves FROM immoscout_sweep_plans WHERE source_id=1").get().leaves).rematchBacklog;
+  assert.ok(backlog().length > 0, "unaffordable re-matches are remembered");
+  const before = deliveries(sqlite);
+
+  // A generous allowance later works the backlog off first.
+  const roomy = (await tick(sql, m, { limits: { d1Matching: 5000, rematchPerTick: 60 } })).sweep;
+  assert.equal(backlog().length, 0, "the backlog is drained");
+  assert.ok(deliveries(sqlite) > before, "carried-over offers were matched");
+  assert.ok(roomy.matchQueries > tight.matchQueries);
+});
+
+test("a new offer is never stored without its matching: with no matching allowance it waits for the next sweep", async () => {
+  const { sqlite, sql } = database();
+  seedProfiles(sqlite, 5);
+  const listings = Array.from({ length: 30 }, (_, i) => listing(i + 1, 300 + i * 5));
+  await tick(sql, market(listings));
+  const grown = [...listings, listing(901, 420)];
+  const none = (await tick(sql, market(grown), { limits: { d1Matching: 0 } })).sweep;
+  assert.equal(none.skipped, 1);
+  assert.equal(count(sqlite, "external_id='901'"), 0, "not stored, so it is still new next time");
+  const later = (await tick(sql, market(grown))).sweep;
+  assert.equal(count(sqlite, "external_id='901'"), 1);
+  assert.ok(sqlite.prepare("SELECT COUNT(*) n FROM deliveries d JOIN offer_identities o ON o.id=d.offer_identity_id WHERE o.external_id='901'").get().n > 0, "and it was matched when stored");
+  assert.ok(later.queuedOffers >= 1);
 });

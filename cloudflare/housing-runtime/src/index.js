@@ -211,7 +211,7 @@ async function runSource(sql, request, env) {
         ? await ingestImmoweltSource(sql, sourceRow, connectorConfig)
         : source.family === "kleinanzeigen"
           ? await ingestKleinanzeigenSource(sql, sourceRow, connectorConfig)
-          : [1, 69, 72].includes(source.id)
+          : IMMOSCOUT_SWEEP_SOURCES.includes(source.id)
             ? await ingestImmoScoutSweep(sql, sourceRow, connectorConfig)
             : await ingestImmoScoutSource(sql, sourceRow, connectorConfig);
   } catch (error) {
@@ -344,6 +344,66 @@ async function processDelivery(sql, request, env) {
   return json({ ok: true, status: "sent", format: "isolated_mini_app", delivery_id: claimed.id });
 }
 
+const IMMOSCOUT_SWEEP_SOURCES = Object.freeze([1, 69, 72]);
+// A queued tick older than this is dropped: the next cron minute enqueues a fresh one.
+const SWEEP_MESSAGE_MAX_AGE_MS = 10 * 60_000;
+
+async function runScheduledSource(env, sourceId) {
+  const sourceRequest = new Request("https://housing-runtime.internal/internal/source/run", {
+    method: "POST",
+    headers: { authorization: `Bearer ${env.SOURCE_RUN_TOKEN || ""}`, "content-type": "application/json" },
+    body: JSON.stringify({ source_id: sourceId }),
+  });
+  try {
+    const response = await withDatabase(env, (sql) => runSource(sql, sourceRequest, env));
+    if (response.ok && IMMOSCOUT_SWEEP_SOURCES.includes(sourceId)) {
+      const audit = await response.json();
+      console.log("housing_scout_mcp_coverage", JSON.stringify({
+        source_id: sourceId, query: audit.query,
+        reported_total: audit.fetched, unique_returned: audit.valid,
+        missing_from_response: audit.missing_from_response,
+        previously_known_in_response: audit.previously_known_in_response,
+        newly_discovered_in_response: audit.newly_discovered_in_response,
+        property_types_in_response: audit.property_types_in_response,
+        coverage_partition: audit.coverage_partition,
+        sweep: audit.sweep || null,
+        map_error: audit.map_error || null,
+      }));
+    }
+  } catch (error) {
+    console.error("housing_source_scheduled_failed", JSON.stringify({ source_id: sourceId, error: String(error?.message || error) }));
+  }
+}
+
+// True when the region's tick was handed to the queue. Without the binding (local runs, tests) or when
+// the send fails, the caller runs it inline; the sweep lease keeps either path from running a region twice.
+async function enqueueImmoScoutSweep(env, sourceId, minute) {
+  if (!IMMOSCOUT_SWEEP_SOURCES.includes(sourceId) || !env.IMMOSCOUT_SWEEP_QUEUE || env.PREVIEW_MODE === "1") return false;
+  try {
+    await env.IMMOSCOUT_SWEEP_QUEUE.send({ source_id: sourceId, minute, at: Date.now() });
+    return true;
+  } catch (error) {
+    console.error("immoscout_sweep_enqueue_failed", String(error?.message || error).slice(0, 160));
+    return false;
+  }
+}
+
+async function runImmoScoutSweepBatch(batch, env) {
+  for (const message of batch.messages) {
+    const sourceId = Number(message.body?.source_id);
+    try {
+      if (env.PREVIEW_MODE === "1" || !IMMOSCOUT_SWEEP_SOURCES.includes(sourceId)) continue;
+      if (Date.now() - Number(message.body?.at || 0) > SWEEP_MESSAGE_MAX_AGE_MS) {
+        console.warn("immoscout_sweep_message_stale", JSON.stringify({ source_id: sourceId }));
+        continue;
+      }
+      await runScheduledSource(env, sourceId);
+    } finally {
+      message.ack(); // never redelivered: the next cron minute enqueues the next tick
+    }
+  }
+}
+
 async function runScheduledHousingWork(env, minute = Math.floor(Date.now() / 60_000)) {
   const scheduledSources = sourcesForMinute(minute);
   const tasks = scheduledTasksForMinute(minute);
@@ -411,33 +471,11 @@ async function runScheduledHousingWork(env, minute = Math.floor(Date.now() / 60_
     try { await reconcileCloudflareDeliveries(env.HOUSING_DB); }
     catch { console.error("delivery_cutover_reconciliation_failed"); }
   }
-  const runScheduledSource = async (sourceId) => {
-    const sourceRequest = new Request("https://housing-runtime.internal/internal/source/run", {
-      method: "POST",
-      headers: { authorization: `Bearer ${env.SOURCE_RUN_TOKEN || ""}`, "content-type": "application/json" },
-      body: JSON.stringify({ source_id: sourceId }),
-    });
-    try {
-      const response = await withDatabase(env, (sql) => runSource(sql, sourceRequest, env));
-      if (response.ok && [1, 69, 72].includes(sourceId)) {
-        const audit = await response.json();
-        console.log("housing_scout_mcp_coverage", JSON.stringify({
-          source_id: sourceId, query: audit.query,
-          reported_total: audit.fetched, unique_returned: audit.valid,
-          missing_from_response: audit.missing_from_response,
-          previously_known_in_response: audit.previously_known_in_response,
-          newly_discovered_in_response: audit.newly_discovered_in_response,
-          property_types_in_response: audit.property_types_in_response,
-          coverage_partition: audit.coverage_partition,
-          sweep: audit.sweep || null,
-          map_error: audit.map_error || null,
-        }));
-      }
-    } catch (error) {
-      console.error("housing_source_scheduled_failed", JSON.stringify({ source_id: sourceId, error: String(error?.message || error) }));
-    }
-  };
-  for (const sourceId of scheduledSources) await runScheduledSource(sourceId);
+  // The ImmoScout regions sweep in their own queue invocation: a sweep tick runs for minutes and
+  // would otherwise hold back deliveries and applications and share their subrequest budget.
+  for (const sourceId of scheduledSources) {
+    if (!(await enqueueImmoScoutSweep(env, sourceId, minute))) await runScheduledSource(env, sourceId);
+  }
 
   for (let index = 0; index < 15; index++) {
     const deliveryRequest = new Request("https://housing-runtime.internal/internal/delivery/process", {
@@ -813,6 +851,10 @@ export default {
     }
 
     return json({ error: "not_found" }, 404);
+  },
+
+  async queue(batch, env) {
+    await runImmoScoutSweepBatch(batch, env);
   },
 
   async scheduled(controller, env, ctx) {

@@ -40,6 +40,23 @@
       "bucket_name": "traumwohnung-applicant-documents"
     }
   ],
+  // ImmoScout sweeps (sources 1, 69, 72) run in their own queue invocation, not inside the cron run.
+  // Create the queue once before deploying: wrangler queues create immoscout-sweep
+  // Previews do not inherit this producer binding and cannot consume the queue.
+  "queues": {
+    "producers": [
+      { "queue": "immoscout-sweep", "binding": "IMMOSCOUT_SWEEP_QUEUE" }
+    ],
+    "consumers": [
+      {
+        "queue": "immoscout-sweep",
+        "max_batch_size": 1,
+        "max_batch_timeout": 0,
+        "max_retries": 0,
+        "max_concurrency": 3
+      }
+    ]
+  },
   "triggers": {
     "crons": [
       "* * * * *"
