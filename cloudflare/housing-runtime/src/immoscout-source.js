@@ -1,5 +1,6 @@
 import { BERLIN_BOROUGHS } from "./berlin-geography.js";
 import { isHamburgPostcode, queueMatches } from "./matching.js";
+import { timestampMillis } from "./application-policy.js";
 
 const MCP_URL = "https://app.chatgpt.immobilienscout24.de/v2/mcp";
 const MCP_PROTOCOL = "2025-06-18";
@@ -189,7 +190,7 @@ export function parseMcpToolResult(payload) {
   return { entries: content.entries, total };
 }
 
-async function callTool(name, query) {
+export async function callTool(name, query) {
   return parseMcpToolResult(await postMcp({ jsonrpc: "2.0", id: crypto.randomUUID(), method: "tools/call", params: { name, arguments: { query } } }));
 }
 
@@ -205,7 +206,7 @@ function parseJson(value) {
   try { return JSON.parse(value || "{}"); } catch { return {}; }
 }
 function list(value) { return Array.isArray(value) ? value : []; }
-function scoutRegion(source) {
+export function scoutRegion(source) {
   if (source?.family !== "immoscout24" || ![1, 69, 72].includes(Number(source?.id)))
     throw new Error("immoscout_source_not_allowlisted");
   return Number(source.id) === 1 ? "Hamburg" : Number(source.id) === 69 ? "Schleswig-Holstein" : "Berlin";
@@ -494,44 +495,49 @@ export async function fetchImmoScoutMap(source, config = {}) {
   };
 }
 
-export async function ingestImmoScoutSource(sql, source, config = {}) {
-  const query = config.query || await scheduledQuery(sql, source);
-  const isCoveragePartition = Number(source.id) === 1
-    ? hamburgCoverageQueries().includes(query)
-    : Number(source.id) === 72 && berlinCoverageQueries().includes(query);
-  const result = await fetchImmoScoutSource(source, { ...config, query, enrichWithMap: true, maxMapExtras: 200 });
-
+/**
+ * Upsert verified MCP nodes and queue their matches. `rematchIds` (a Set) limits
+ * queueMatches to new, re-listed or changed offers plus the given identities:
+ * a full sweep of ~1,200 offers would otherwise exceed the D1 query budget.
+ * Without it every node is matched, as the one-query ingest always did.
+ */
+export async function persistImmoScoutNodes(sql, source, nodes, { rematchIds = null } = {}) {
   // One bounded lookup replaces hundreds of individual reads while retaining
   // verified facts omitted by a later, smaller MCP result.
-  const identities = result.nodes.map(node => node.identity);
+  const identities = nodes.map(node => node.identity);
   const priorRows = [];
   // D1 limits bound SQL variables. Partition the existing-record lookup to
   // keep each query safely below the cap even when the MCP returns 200 cards.
   for (let offset = 0; offset < identities.length; offset += D1_SCOUT_LOOKUP_BATCH) {
     const chunk = identities.slice(offset, offset + D1_SCOUT_LOOKUP_BATCH);
     const rows = await sql.unsafe(
-      `SELECT external_id, facts FROM housing.offer_identities
+      `SELECT external_id, facts, expires_at FROM housing.offer_identities
          WHERE source_id=$1 AND external_id IN (${chunk.map((_, i) => "$" + (i + 2)).join(",")})`,
       [source.id, ...chunk],
     );
     priorRows.push(...rows);
   }
+  const priorByExternalId = new Map(priorRows.map(row => [String(row.external_id), row]));
   const prior = new Map(priorRows.map(row => [String(row.external_id), parseJson(row.facts)]));
   const previouslyKnown = identities.filter(id => prior.has(id)).length;
-  const prepared = result.nodes.map(node => {
+  const now = Date.now();
+  const prepared = nodes.map(node => {
     const facts = { ...(prior.get(node.identity) || {}) };
     for (const [key, value] of Object.entries(node.facts)) {
       if (value != null && value !== "") facts[key] = value;
       else if (!(key in facts)) facts[key] = value;
     }
-    return { ...node, facts };
+    const before = priorByExternalId.get(node.identity);
+    const changed = !before || !(timestampMillis(before.expires_at) > now)
+      || JSON.stringify(facts) !== JSON.stringify(prior.get(node.identity));
+    return { ...node, facts, queue: !rematchIds || changed || rematchIds.has(node.identity) };
   });
 
   // Each offer in this call is freshly verified by the MCP and its D1
   // upsert sets expires_at = now() + 24h. Check the application cutover once.
   const cutover = await sql`SELECT enabled_at FROM housing.application_queue_cutover WHERE id = 1`;
   const profileCache = { freshMcpUpsert: true, cutoverEnabled: cutover.length > 0 };
-  let inserted = 0;
+  let inserted = 0, queuedOffers = 0;
   // An atomic multi-row D1 upsert avoids one round-trip for every Scout card.
   // Matching still uses the original per-user idempotency keys and permissions.
   for (let offset = 0; offset < prepared.length; offset += D1_SCOUT_UPSERT_BATCH) {
@@ -565,7 +571,8 @@ export async function ingestImmoScoutSource(sql, source, config = {}) {
     const byExternalId = new Map(rows.map(row => [String(row.external_id), row.id]));
     for (const node of chunk) {
       const offerId = byExternalId.get(node.identity);
-      if (!offerId) continue;
+      if (!offerId || !node.queue) continue;
+      queuedOffers++;
       // Broad and partition scans follow the same search-profile, applicant-
       // profile and AutoApply rules. Idempotency prevents duplicate sends.
       await queueMatches(sql, offerId, node.source_id,
@@ -575,6 +582,17 @@ export async function ingestImmoScoutSource(sql, source, config = {}) {
         true, profileCache);
     }
   }
+  return { inserted, previouslyKnown, queuedOffers };
+}
+
+export async function ingestImmoScoutSource(sql, source, config = {}) {
+  const query = config.query || await scheduledQuery(sql, source);
+  const isCoveragePartition = Number(source.id) === 1
+    ? hamburgCoverageQueries().includes(query)
+    : Number(source.id) === 72 && berlinCoverageQueries().includes(query);
+  const result = await fetchImmoScoutSource(source, { ...config, query, enrichWithMap: true, maxMapExtras: 200 });
+  const identities = result.nodes.map(node => node.identity);
+  const { inserted, previouslyKnown } = await persistImmoScoutNodes(sql, source, result.nodes);
   return {
     fetched: result.fetched, valid: result.nodes.length, inserted, query: result.query,
     search_count: result.searchCount, map_count: result.mapCount, enriched: result.enriched,

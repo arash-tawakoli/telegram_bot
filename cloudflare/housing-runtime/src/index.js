@@ -6,6 +6,7 @@ import { ingestImmomioSource } from "./immomio-source.js";
 import { ingestImmoweltSource } from "./immowelt-source.js";
 import { ingestKleinanzeigenSource } from "./kleinanzeigen-source.js";
 import { ingestImmoScoutSource, fetchImmoScoutSource, IMMOSCOUT_MCP_CONTRACT } from "./immoscout-source.js";
+import { ingestImmoScoutSweep } from "./immoscout-sweep.js";
 import { runBerlinCoverage } from "./berlin-coverage.js";
 import { deliveryCutoverLedger, reconcileCloudflareDeliveries } from "./delivery-cutover-ledger.js";
 import { resolveListingImage } from "./telegram-listing-preview.js";
@@ -211,7 +212,9 @@ async function runSource(sql, request, env) {
         ? await ingestImmoweltSource(sql, sourceRow, connectorConfig)
         : source.family === "kleinanzeigen"
           ? await ingestKleinanzeigenSource(sql, sourceRow, connectorConfig)
-          : await ingestImmoScoutSource(sql, sourceRow, connectorConfig);
+          : source.id === 1
+            ? await ingestImmoScoutSweep(sql, sourceRow, connectorConfig)
+            : await ingestImmoScoutSource(sql, sourceRow, connectorConfig);
   } catch (error) {
     await sql`UPDATE housing.source_registry SET consecutive_failures = COALESCE(consecutive_failures, 0) + 1 WHERE id = ${source.id}`
       .catch(updateError => console.error("housing_source_failure_record_failed", String(updateError?.message || updateError)));
@@ -435,6 +438,7 @@ async function runScheduledHousingWork(env, minute = Math.floor(Date.now() / 60_
           newly_discovered_in_response: audit.newly_discovered_in_response,
           property_types_in_response: audit.property_types_in_response,
           coverage_partition: audit.coverage_partition,
+          sweep: audit.sweep || null,
           map_error: audit.map_error || null,
         }));
         if (sourceId === 72 && audit.berlin_coverage)
