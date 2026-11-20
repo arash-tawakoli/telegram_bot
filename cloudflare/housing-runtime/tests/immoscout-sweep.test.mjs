@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import { readdirSync, readFileSync } from "node:fs";
 import { createD1Client } from "../src/d1-database.js";
-import { ingestImmoScoutSweep, sweepLeaves, splitLeaf, leafQuery, mergeLeaves, initialLeaves } from "../src/immoscout-sweep.js";
+import { ingestImmoScoutSweep, sweepLeaves, splitLeaf, leafQuery, mergeLeaves, initialLeaves, dropRoomLeaves } from "../src/immoscout-sweep.js";
 
 const BASE = "Wohnung mieten in Hamburg";
 const noSleep = async () => {};
@@ -13,16 +13,17 @@ function market(listings) {
   const calls = [];
   const search = async (query) => {
     calls.push(query);
-    let [, rest] = query.split(", ");
-    const price = { lo: 0, hi: Infinity, rooms: null };
+        const price = { lo: 0, hi: Infinity, slo: 0, shi: Infinity };
     for (const part of query.split(", ").slice(1)) {
       let m;
       if ((m = part.match(/^Kaltmiete bis (\d+) Euro$/))) price.hi = Number(m[1]);
       else if ((m = part.match(/^Kaltmiete (\d+) bis (\d+) Euro$/))) { price.lo = Number(m[1]); price.hi = Number(m[2]); }
       else if ((m = part.match(/^Kaltmiete ab (\d+) Euro$/))) price.lo = Number(m[1]);
-      else if ((m = part.match(/^(\d+) Zimmer$/))) price.rooms = Number(m[1]);
+      else if ((m = part.match(/^Wohnfläche bis (\d+) m²$/))) price.shi = Number(m[1]);
+      else if ((m = part.match(/^Wohnfläche (\d+) bis (\d+) m²$/))) { price.slo = Number(m[1]); price.shi = Number(m[2]); }
+      else if ((m = part.match(/^Wohnfläche ab (\d+) m²$/))) price.slo = Number(m[1]);
     }
-    const hits = listings.filter(l => l.price >= price.lo && l.price <= price.hi && (price.rooms == null || l.rooms === price.rooms));
+    const hits = listings.filter(l => l.price >= price.lo && l.price <= price.hi && l.entry.size >= price.slo && l.entry.size <= price.shi);
     return { total: hits.length, entries: hits.slice(0, 20).map(l => l.entry) };
   };
   return { search, calls };
@@ -33,25 +34,32 @@ const entry = (id, price, rooms = 2) => ({
   type: "APARTMENT_RENT", price: { value: price }, totalRent: price + 100, rooms, size: 50,
   address: { city: "Hamburg", postcode: "20095" },
 });
-const listing = (id, price, rooms = 2) => ({ price, rooms, entry: entry(id, price, rooms) });
+const listing = (id, price, rooms = 2, size = 50) => ({ price, rooms, entry: { ...entry(id, price, rooms), size } });
 
 test("leaf queries use the price wording the MCP maps to exact URL filters", () => {
   assert.equal(leafQuery(BASE, { lo: 0, hi: 400 }), `${BASE}, Kaltmiete bis 400 Euro`);
   assert.equal(leafQuery(BASE, { lo: 700, hi: 720 }), `${BASE}, Kaltmiete 700 bis 720 Euro`);
   assert.equal(leafQuery(BASE, { lo: 3000, hi: null }), `${BASE}, Kaltmiete ab 3000 Euro`);
-  assert.equal(leafQuery(BASE, { lo: 700, hi: 701, rooms: 2 }), `${BASE}, Kaltmiete 700 bis 701 Euro, 2 Zimmer`);
-});
+  });
 
-test("bisection overlaps at the midpoint, grows the open top range and falls back to rooms", () => {
-  assert.deepEqual(splitLeaf({ lo: 400, hi: 600 }), [{ lo: 400, hi: 500, rooms: null }, { lo: 500, hi: 600, rooms: null }]);
-  assert.deepEqual(splitLeaf({ lo: 0, hi: 401 }), [{ lo: 0, hi: 200, rooms: null }, { lo: 200, hi: 401, rooms: null }]);
-  assert.deepEqual(splitLeaf({ lo: 3000, hi: null }), [{ lo: 3000, hi: 6000, rooms: null }, { lo: 6000, hi: null, rooms: null }]);
-  assert.deepEqual(splitLeaf({ lo: 800, hi: 801 }).map(l => l.rooms), [1, 2, 3, 4, 5]);
-  assert.equal(splitLeaf({ lo: 800, hi: 801, rooms: 2 }), null, "nothing narrower than one room count at one price");
+test("bisection overlaps at the midpoint, grows the open top range and falls back to living area", () => {
+  assert.deepEqual(splitLeaf({ lo: 400, hi: 600 }), [{ lo: 400, hi: 500 }, { lo: 500, hi: 600 }]);
+  assert.deepEqual(splitLeaf({ lo: 0, hi: 401 }), [{ lo: 0, hi: 200 }, { lo: 200, hi: 401 }]);
+  assert.deepEqual(splitLeaf({ lo: 3000, hi: null }), [{ lo: 3000, hi: 6000 }, { lo: 6000, hi: null }]);
   // Every child strictly shrinks, so the recursion cannot loop on the parent.
   for (const parent of [{ lo: 0, hi: 2 }, { lo: 10, hi: 13 }, { lo: 999, hi: 1001 }]) {
     for (const child of splitLeaf(parent)) assert.ok(child.hi - child.lo < parent.hi - parent.lo);
   }
+  // A one-euro price range (cent rents) splits by living area with overlapping bands, not by room count,
+  // which would lose 2.5-room, 6+ room and unknown-room offers.
+  const bySize = splitLeaf({ lo: 800, hi: 801 });
+  assert.deepEqual(bySize.map(l => [l.slo, l.shi]), [[0, 30], [30, 40], [40, 50], [50, 65], [65, 80], [80, null]]);
+  assert.equal(leafQuery(BASE, bySize[0]), `${BASE}, Kaltmiete 800 bis 801 Euro, Wohnfläche bis 30 m²`);
+  assert.equal(leafQuery(BASE, bySize[1]), `${BASE}, Kaltmiete 800 bis 801 Euro, Wohnfläche 30 bis 40 m²`);
+  assert.equal(leafQuery(BASE, bySize[5]), `${BASE}, Kaltmiete 800 bis 801 Euro, Wohnfläche ab 80 m²`);
+  assert.deepEqual(splitLeaf({ lo: 800, hi: 801, slo: 30, shi: 40 }).map(l => [l.slo, l.shi]), [[30, 35], [35, 40]]);
+  assert.deepEqual(splitLeaf({ lo: 800, hi: 801, slo: 80, shi: null }).map(l => [l.slo, l.shi]), [[80, 160], [160, null]]);
+  assert.equal(splitLeaf({ lo: 800, hi: 801, slo: 40, shi: 41 }), null, "nothing narrower than one m² at one rent");
 });
 
 test("a sweep finds every listing, including cent rents on a split boundary and equal-price clusters", async () => {
@@ -59,16 +67,26 @@ test("a sweep finds every listing, including cent rents on a split boundary and 
   let id = 1;
   for (let i = 0; i < 300; i++) listings.push(listing(id++, 300 + ((i * 37) % 1500)));
   listings.push(listing(id++, 500.5), listing(id++, 400.01), listing(id++, 399.99), listing(id++, 5200), listing(id++, 7000));
-  // 30 listings at exactly the same price can only be separated by rooms.
-  for (let i = 0; i < 30; i++) listings.push(listing(id++, 800, (i % 5) + 1));
+  // 30 listings at exactly the same price, including half rooms and 7 rooms, can only be separated by area.
+  for (let i = 0; i < 30; i++) listings.push(listing(id++, 800, [1, 2, 2.5, 3.5, 7][i % 5], 20 + i * 2));
   const { search, calls } = market(listings);
   const sweep = await sweepLeaves({ search, base: BASE, sleep: noSleep });
   assert.equal(sweep.entries.size, listings.length);
   assert.equal(sweep.complete, true);
   assert.equal(sweep.errors, 0);
-  assert.ok(calls.some(q => /, \d Zimmer$/.test(q)), "rooms fallback was used");
+  assert.ok(calls.some(q => /Wohnfläche/.test(q)), "area fallback was used");
   assert.ok(calls.some(q => /Kaltmiete ab \d+ Euro/.test(q)));
   assert.ok(calls.length <= 400);
+});
+
+test("a dense price point with one room count is separated by living area", async () => {
+  const listings = Array.from({ length: 60 }, (_, i) => listing(i + 1, 600, 1, 18 + i)); // same rent, same rooms, sizes 18..77
+  listings.push(listing(99, 599.5, 1, 30.5), listing(98, 600, 1, 30));
+  const { search, calls } = market(listings);
+  const sweep = await sweepLeaves({ search, base: BASE, sleep: noSleep });
+  assert.equal(sweep.entries.size, listings.length);
+  assert.equal(sweep.complete, true);
+  assert.ok(calls.some(q => /Wohnfläche/.test(q)));
 });
 
 test("a stored plan is reused, and a leaf that grew beyond one page is split again", async () => {
@@ -83,7 +101,7 @@ test("a stored plan is reused, and a leaf that grew beyond one page is split aga
   assert.equal(steady.calls.length, initial.leaves.length, "one call per stored leaf");
   assert.ok(steady.calls.length < first.calls.length, "no re-discovery of the plan");
 
-  const grown = [...listings, ...Array.from({ length: 40 }, (_, i) => listing(1000 + i, 500 + (i % 3), (i % 5) + 1))];
+  const grown = [...listings, ...Array.from({ length: 40 }, (_, i) => listing(1000 + i, 500 + (i % 3), [1, 2, 2.5, 3.5, 7][i % 5], 20 + i))];
   const regrown = market(grown);
   const resplit = await sweepLeaves({ search: regrown.search, base: BASE, leaves: reused.leaves, sleep: noSleep });
   assert.equal(resplit.entries.size, grown.length);
@@ -93,8 +111,8 @@ test("a stored plan is reused, and a leaf that grew beyond one page is split aga
 
 test("neighbouring small leaves merge, crowded ones stay apart", () => {
   const leaves = [
-    { lo: 0, hi: 400, rooms: null, total: 3, complete: true }, { lo: 400, hi: 600, rooms: null, total: 4, complete: true },
-    { lo: 600, hi: 800, rooms: null, total: 18, complete: true }, { lo: 800, hi: null, rooms: null, total: 2, complete: true },
+    { lo: 0, hi: 400, total: 3, complete: true }, { lo: 400, hi: 600, total: 4, complete: true },
+    { lo: 600, hi: 800, total: 18, complete: true }, { lo: 800, hi: null, total: 2, complete: true },
   ];
   assert.deepEqual(mergeLeaves(leaves).map(l => [l.lo, l.hi]), [[0, 600], [600, 800], [800, null]]);
 });
@@ -114,12 +132,26 @@ test("transient MCP errors are retried; a persistent error makes the sweep incom
   assert.equal(failed.complete, false);
 });
 
-test("the call budget stops a runaway sweep and reports it as incomplete", async () => {
-  const { search } = market(Array.from({ length: 500 }, (_, i) => listing(i + 1, 300 + i * 3)));
-  const sweep = await sweepLeaves({ search, base: BASE, maxCalls: 12, sleep: noSleep });
-  assert.equal(sweep.truncated, true);
-  assert.equal(sweep.complete, false);
-  assert.ok(sweep.calls <= 12);
+test("the call budget leaves unvisited ranges pending instead of failing them", async () => {
+  const listings = Array.from({ length: 500 }, (_, i) => listing(i + 1, 300 + i * 3));
+  const { search } = market(listings);
+  const first = await sweepLeaves({ search, base: BASE, maxCalls: 12, sleep: noSleep });
+  assert.equal(first.truncated, true);
+  assert.equal(first.complete, false);
+  assert.equal(first.errors, 0);
+  assert.ok(first.pending.length > 0 && first.calls <= 12 + 4 * 3);
+  // Resuming with the pending ranges finds the rest; the union is the whole market.
+  const found = new Map(first.entries);
+  let pending = first.pending;
+  const done = [...first.done];
+  for (let guard = 0; pending.length && guard < 100; guard++) {
+    const next = await sweepLeaves({ search, base: BASE, leaves: pending, maxCalls: 12, sleep: noSleep });
+    for (const [id, entry] of next.entries) found.set(id, entry);
+    done.push(...next.done);
+    pending = next.pending;
+  }
+  assert.equal(found.size, 500);
+  assert.ok(done.every(leaf => leaf.complete));
 });
 
 function database() {
@@ -142,58 +174,176 @@ function database() {
   return { sqlite, sql: createD1Client({ prepare, batch: async (statements) => Promise.all(statements.map(s => s.all())) }) };
 }
 const SOURCE = { id: 1, family: "immoscout24", central_auto_apply_enabled: false };
-const count = (sqlite, where) => sqlite.prepare(`SELECT COUNT(*) n FROM offer_identities WHERE source_id=1 AND ${where}`).get().n;
+const BERLIN = { id: 72, family: "immoscout24", central_auto_apply_enabled: false };
+const count = (sqlite, where, id = 1) => sqlite.prepare(`SELECT COUNT(*) n FROM offer_identities WHERE source_id=${id} AND ${where}`).get().n;
+const noMap = async () => ({ entries: [] });
+const tick = (sql, market, extra = {}, source = SOURCE) => ingestImmoScoutSweep(sql, source, {
+  search: market.search, map: noMap, otherTypes: false, sleep: noSleep, ...extra,
+});
 
 test("offers vanish only after a complete sweep; incomplete sweeps expire nothing", async () => {
   const { sqlite, sql } = database();
   const listings = Array.from({ length: 90 }, (_, i) => listing(i + 1, 300 + i * 20));
-  const run = (market, extra = {}) => ingestImmoScoutSweep(sql, SOURCE, {
-    search: market.search, map: async () => ({ entries: [] }), otherTypes: false, ...extra,
-  });
+  listings.push({ price: 1000, rooms: 2, entry: { ...entry(500, 1000), title: "Tauschwohnung gegen Haus" } });
 
-  const first = await run(market(listings));
-  assert.equal(first.sweep.complete, true);
-  assert.equal(first.sweep.found, 90);
-  assert.equal(first.sweep.gone, 0);
-  assert.equal(first.sweep.new, 90);
-  assert.equal(count(sqlite, "expires_at > datetime('now')"), 90);
+  const first = (await tick(sql, market(listings))).sweep;
+  assert.equal(first.finished, true);
+  assert.equal(first.complete, true);
+  assert.equal(first.found, 91);
+  assert.equal(first.mcp_total, 91);
+  assert.equal(first.gone, 0);
+  assert.equal(first.new, 91);
+  assert.equal(count(sqlite, "expires_at > datetime('now')"), 91);
   assert.ok(sqlite.prepare("SELECT leaves FROM immoscout_sweep_plans WHERE source_id=1").get(), "leaf plan stored");
 
-  // Pretend the previous sweep happened long ago; ten offers then disappear from the market.
+  // Pretend the previous sweep happened long ago; ten offers then disappear (one is the exchange flat).
   sqlite.exec("UPDATE offer_identities SET last_seen_at=datetime('now','-1 hour') WHERE source_id=1");
-  const shrunk = listings.slice(10);
-  const complete = await run(market(shrunk));
-  assert.equal(complete.sweep.complete, true);
-  assert.equal(complete.sweep.gone, 10);
+  const shrunk = listings.slice(10, 90);
+  const complete = (await tick(sql, market(shrunk))).sweep;
+  assert.equal(complete.complete, true);
+  assert.equal(complete.gone, 11, "the Tauschwohnung found by the sweep is delisted like a Wohnung");
   assert.equal(count(sqlite, "expires_at > datetime('now')"), 80);
 
   // An MCP error mid-sweep must never mark anything gone.
   sqlite.exec("UPDATE offer_identities SET last_seen_at=datetime('now','-1 hour'), expires_at=datetime('now','+1 day') WHERE source_id=1");
-  const { search } = market(shrunk);
-  const broken = await run({ search: async (query) => { if (/Kaltmiete 600 bis/.test(query) || /Kaltmiete bis 400/.test(query)) throw new Error("immoscout_mcp_http_500"); return search(query); } });
-  assert.equal(broken.sweep.complete, false);
-  assert.equal(broken.sweep.gone, 0);
-  assert.equal(count(sqlite, "expires_at > datetime('now')"), 90, "nothing expired after an incomplete sweep");
+  const base = market(shrunk);
+  const broken = (await tick(sql, { search: async (query) => { if (/Kaltmiete 600 bis/.test(query) || /Kaltmiete bis 400/.test(query)) throw new Error("immoscout_mcp_http_500"); return base.search(query); } })).sweep;
+  assert.equal(broken.complete, false);
+  assert.equal(broken.gone, 0);
+  assert.equal(count(sqlite, "expires_at > datetime('now')"), 91, "nothing expired after an incomplete sweep");
 
-  // Found count differing from the broad total (here: a search that hides offers) is incomplete too.
+  // A found count that differs from the broad total (a search that hides offers) is incomplete too.
   const partial = market(listings);
-  const lying = await run({ search: async (query) => { const r = await partial.search(query); return query === BASE ? { ...r, total: r.total + 5 } : r; } });
-  assert.equal(lying.sweep.complete, false);
-  assert.equal(lying.sweep.gone, 0);
+  const lying = (await tick(sql, { search: async (query) => { const r = await partial.search(query); return query === BASE ? { ...r, total: r.total + 5 } : r; } })).sweep;
+  assert.equal(lying.complete, false);
+  assert.equal(lying.gone, 0);
 });
 
-test("only new, changed or re-listed offers are matched, plus a bounded rotating slice", async () => {
+test("a sweep spread over several ticks resumes and delists only after the last tick", async () => {
   const { sqlite, sql } = database();
-  const listings = Array.from({ length: 150 }, (_, i) => listing(i + 1, 300 + i * 10));
-  const run = () => ingestImmoScoutSweep(sql, SOURCE, { search: market(listings).search, map: async () => ({ entries: [] }), otherTypes: false });
-  const first = await run();
-  assert.equal(first.sweep.queued_offers, 150, "everything is new on the first sweep");
-  const second = await run();
-  assert.equal(second.sweep.new, 0);
-  assert.ok(second.sweep.queued_offers <= 60, "unchanged offers are not re-matched beyond the rotating slice");
-  listings[0].entry.totalRent += 50;
-  const third = await run();
-  assert.ok(third.sweep.queued_offers >= 1 && third.sweep.queued_offers <= 61);
+  const listings = Array.from({ length: 400 }, (_, i) => listing(i + 1, 300 + i * 4));
+  const m = market(listings);
+  const small = { limits: { stepCalls: 6, fetchBudget: 20 } };
+  const ticks = [];
+  for (let i = 0; i < 40; i++) {
+    const result = (await tick(sql, m, small)).sweep;
+    ticks.push(result);
+    if (result.finished) break;
+    assert.equal(result.gone, undefined, "no delisting while the sweep is unfinished");
+    assert.ok(result.fetches <= 20 + 8 + 3, "stays near the per-invocation fetch budget: " + result.fetches);
+  }
+  assert.ok(ticks.length > 2, "the sweep needed several ticks");
+  const last = ticks.at(-1);
+  assert.equal(last.finished, true);
+  assert.equal(last.complete, true);
+  assert.equal(last.found, 400);
+  assert.equal(last.gone, 0);
+  assert.equal(count(sqlite, "expires_at > datetime('now')"), 400);
+
+  // Next sweep reuses the finished plan and, split over ticks again, delists the 20 vanished offers at its end.
+  sqlite.exec("UPDATE offer_identities SET last_seen_at=datetime('now','-1 hour') WHERE source_id=1");
+  const shrunk = market(listings.slice(20));
+  let final = null;
+  for (let i = 0; i < 40 && !final; i++) {
+    const result = (await tick(sql, shrunk, small)).sweep;
+    if (result.finished) final = result; else assert.equal(count(sqlite, "expires_at <= datetime('now')"), 0, "nothing expires mid-sweep");
+  }
+  assert.equal(final.complete, true);
+  assert.equal(final.gone, 20);
+});
+
+test("a sweep that outlives its window cannot delist, but keeps the refined plan", async () => {
+  const { sqlite, sql } = database();
+  const listings = Array.from({ length: 120 }, (_, i) => listing(i + 1, 300 + i * 10));
+  const m = market(listings);
+  const small = { limits: { stepCalls: 6, fetchBudget: 14 } };
+  const startedFirst = await tick(sql, m, small);
+  assert.equal(startedFirst.sweep.finished, false);
+  // Age the unfinished sweep beyond the 30 minute window.
+  const stored = JSON.parse(sqlite.prepare("SELECT leaves FROM immoscout_sweep_plans WHERE source_id=1").get().leaves);
+  stored.sweep.startedAt -= 31 * 60_000;
+  sqlite.prepare("UPDATE immoscout_sweep_plans SET leaves=? WHERE source_id=1").run(JSON.stringify(stored));
+  sqlite.exec("UPDATE offer_identities SET last_seen_at=datetime('now','-2 hours') WHERE source_id=1");
+  let final = null;
+  for (let i = 0; i < 40 && !final; i++) { const r = (await tick(sql, m, small)).sweep; if (r.finished) final = r; }
+  assert.equal(final.complete, true, "the restarted sweep itself is complete");
+  assert.equal(final.gone, 0, "listings seen in the aged sweep were touched before the restart, none are stale");
+  const aged = JSON.parse(sqlite.prepare("SELECT leaves FROM immoscout_sweep_plans WHERE source_id=1").get().leaves);
+  assert.ok(aged.leaves.length > 9, "the refined ranges survived as the plan");
+});
+
+test("a running tick holds a lease; a second tick of the same source does not start", async () => {
+  const { sqlite, sql } = database();
+  const m = market(Array.from({ length: 30 }, (_, i) => listing(i + 1, 300 + i * 50)));
+  await tick(sql, m);
+  sqlite.prepare("UPDATE immoscout_sweep_plans SET leaves=json_set(leaves,'$.lease',?) WHERE source_id=1").run(Date.now() + 60_000);
+  const skipped = (await tick(sql, m)).sweep;
+  assert.equal(skipped.skipped, "previous_tick_running");
+});
+
+test("unchanged offers are only touched; new and changed ones are upserted and matched, coordinates alone are not", async () => {
+  const { sqlite, sql } = database();
+  const listings = Array.from({ length: 200 }, (_, i) => listing(i + 1, 300 + i * 10));
+  const inserts = () => sqlite.prepare("SELECT 1").get(), writes = [];
+  const counting = (inner) => Object.assign((...a) => inner(...a), inner, { unsafe: (q, p) => { if (/INSERT INTO housing\.offer_identities/.test(q)) writes.push(p.length / 5); return inner.unsafe(q, p); } });
+  const csql = counting(sql);
+  // Baseline: silent, nothing queued even though everything is new.
+  const baseline = (await tick(csql, market(listings))).sweep;
+  assert.equal(baseline.baseline, true);
+  assert.equal(baseline.queuedOffers, 0, "the first inventory creates no delivery backlog");
+  assert.equal(count(sqlite, "json_extract(facts,'$.sweep_type')='Wohnung'"), 200);
+
+  // Steady state: unchanged offers are touched in bulk, not upserted.
+  writes.length = 0;
+  const steady = (await tick(csql, market(listings))).sweep;
+  assert.equal(steady.baseline, false, "a finished sweep ends the baseline");
+  assert.equal(writes.length, 0, "no row upserts for unchanged offers");
+  assert.equal(steady.touched, 200);
+  assert.ok(steady.queuedOffers <= 60, "only the rotating slice is matched");
+  assert.ok(steady.d1_queries < 40, "200 offers cost a handful of D1 queries: " + steady.d1_queries);
+
+  // A new offer, a price change and a coordinate fill.
+  const changed = [...listings, listing(900, 450)];
+  changed[0].entry.totalRent += 50;
+  const withCoords = market(changed);
+  const mapped = async () => ({ entries: [{ ...entry(2, 310), address: { city: "Hamburg", postcode: "20095", coordinates: { lat: 53.5, lng: 10 } } }] });
+  writes.length = 0;
+  const third = (await tick(csql, withCoords, { map: mapped })).sweep;
+  assert.equal(writes.reduce((a, b) => a + b, 0), 3, "new + changed + coordinates are upserted");
+  assert.ok(third.queuedOffers >= 2, "new and changed offers are matched");
+  const coordinateOnly = JSON.parse(sqlite.prepare("SELECT facts FROM offer_identities WHERE external_id='2'").get().facts);
+  assert.equal(coordinateOnly.latitude, 53.5);
+});
+
+test("beyond the D1 budget new offers wait and known ones are only touched", async () => {
+  const { sqlite, sql } = database();
+  const listings = Array.from({ length: 80 }, (_, i) => listing(i + 1, 300 + i * 10));
+  await tick(sql, market(listings));
+  sqlite.exec("UPDATE offer_identities SET last_seen_at=datetime('now','-1 hour')");
+  const grown = listings.map(l => ({ ...l, entry: { ...l.entry, totalRent: l.entry.totalRent + 10 } }));
+  grown.push(listing(901, 700), listing(902, 710));
+  const tight = (await tick(sql, market(grown), { limits: { d1Soft: 3 } })).sweep;
+  assert.equal(tight.deferred, 80, "known offers with new facts are touched only");
+  assert.equal(tight.skipped, 2, "unknown offers are left for the next sweep");
+  assert.equal(count(sqlite, "expires_at > datetime('now')"), 80);
+  assert.equal(count(sqlite, "last_seen_at > datetime('now','-1 minute')"), 80, "touched offers stay alive");
+});
+
+test("Berlin and Schleswig-Holstein sweep their own region query", async () => {
+  for (const [id, region, city, postcode] of [[72, "Berlin", "Berlin", "10115"], [69, "Schleswig-Holstein", "Kiel", "24103"]]) {
+    const { sqlite, sql } = database();
+    sqlite.prepare("INSERT OR IGNORE INTO source_registry(id,name,family,connector) VALUES(?,?,?,?)").run(id, "Scout " + id, "immoscout24", "test");
+    const queries = [];
+    const search = async (query) => {
+      queries.push(query);
+      const entries = Array.from({ length: 5 }, (_, i) => ({ ...entry(id * 1000 + i, 500 + i), address: { city, postcode } }));
+      return { total: 5, entries };
+    };
+    const result = (await tick(sql, { search }, {}, { id, family: "immoscout24", central_auto_apply_enabled: false })).sweep;
+    assert.ok(queries.every(q => q.startsWith(`Wohnung mieten in ${region}`)), region);
+    assert.equal(result.found, 5);
+    assert.equal(count(sqlite, "1=1", id), 5);
+  }
 });
 
 test("the initial plan covers every price from 0 upwards without gaps", () => {
@@ -201,4 +351,9 @@ test("the initial plan covers every price from 0 upwards without gaps", () => {
   assert.equal(leaves[0].lo, 0);
   assert.equal(leaves.at(-1).hi, null);
   for (let i = 1; i < leaves.length; i++) assert.equal(leaves[i].lo, leaves[i - 1].hi);
+});
+
+test("room-count leaves of an older stored plan fold back into their price range", () => {
+  const legacy = [{ lo: 0, hi: 400, rooms: null }, { lo: 800, hi: 801, rooms: 1 }, { lo: 800, hi: 801, rooms: 2 }, { lo: 800, hi: 801, rooms: 5 }, { lo: 801, hi: 900, rooms: null }];
+  assert.deepEqual(dropRoomLeaves(legacy), [{ lo: 0, hi: 400, rooms: null }, { lo: 800, hi: 801 }, { lo: 801, hi: 900, rooms: null }]);
 });
