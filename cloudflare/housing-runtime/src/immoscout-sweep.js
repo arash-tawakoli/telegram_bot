@@ -55,7 +55,9 @@ export function leafQuery(base, { lo, hi, slo = null, shi = null }) {
 export function splitLeaf(leaf) {
   const { lo, hi, slo = null, shi = null } = leaf;
   if (slo != null) {
-    if (shi == null) return slo > 0 ? [{ lo, hi, slo, shi: slo * 2 }, { lo, hi, slo: slo * 2, shi: null }] : null;
+    // Packing can fold every band of a price back into one [0, ∞) band; it splits into the bands again.
+    if (shi == null) return slo > 0 ? [{ lo, hi, slo, shi: slo * 2 }, { lo, hi, slo: slo * 2, shi: null }]
+      : SIZE_BANDS.map(([from, to]) => ({ lo, hi, slo: from, shi: to }));
     if (shi - slo < 2) return null;
     const mid = Math.floor((slo + shi) / 2);
     return [{ lo, hi, slo, shi: mid }, { lo, hi, slo: mid, shi }];

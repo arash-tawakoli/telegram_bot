@@ -227,6 +227,12 @@ test("offers vanish only after a complete sweep; incomplete sweeps expire nothin
   assert.equal(count(sqlite, "expires_at > datetime('now')"), 91);
 });
 
+test("a size band packed back to [0, ∞) splits into the size bands again", () => {
+  const parts = splitLeaf({ lo: 989, hi: 990, slo: 0, shi: null });
+  assert.ok(Array.isArray(parts) && parts.length > 1);
+  assert.equal(coversWholeMarket([{ lo: 0, hi: 989 }, ...parts, { lo: 990, hi: null }]), true);
+});
+
 test("whole-market check: price ranges and size bands must leave no gap", () => {
   assert.equal(coversWholeMarket(initialLeaves()), true);
   assert.equal(coversWholeMarket([{ lo: 0, hi: 600 }, { lo: 600, hi: null }]), true);
