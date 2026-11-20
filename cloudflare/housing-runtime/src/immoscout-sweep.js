@@ -26,6 +26,7 @@ export const LIMITS = Object.freeze({
   tickSeconds: 270,       // wall budget of the sweep part of one tick (a region is enqueued every 5 minutes)
   windowMs: 30 * 60_000,  // a sweep must finish within this to be allowed to delist
   leaseMs: 8 * 60_000,    // another tick of the same sweep may not start while one runs
+  packTotal: 18,          // neighbouring complete leaves are packed into one while their combined total stays within this (< page size 20)
   rematchPerTick: 60,     // unchanged offers re-matched per tick (a hash-rotating slice plus any backlog)
 });
 const RETRY_DELAYS_MS = [400, 1200];
@@ -66,17 +67,25 @@ export function splitLeaf(leaf) {
   return SIZE_BANDS.map(([from, to]) => ({ lo, hi, slo: from, shi: to }));
 }
 
-// Neighbouring small leaves collapse so the stored plan does not only grow.
-// A merged leaf that turns out to hold more than one page is simply split again.
-export function mergeLeaves(leaves, maxTotal = 10) {
-  const sorted = [...leaves].sort((a, b) => a.lo - b.lo || (a.hi ?? Infinity) - (b.hi ?? Infinity));
+// Neighbouring complete leaves are packed into one while their combined total fits in a page, so the stored
+// plan costs about total/18 calls instead of one per leaf. Ranges that share a boundary (the overlap point of a
+// split, counted in both) or size bands of one price range are neighbours; the sum over-counts the shared
+// boundary, never under-counts. A packed leaf that holds more than a page next time is simply split again, and
+// completeness is still decided per visit (entries === total).
+export function mergeLeaves(leaves, maxTotal = LIMITS.packTotal) {
+  const key = leaf => [leaf.lo, leaf.hi ?? Infinity, leaf.slo ?? -1];
+  const sorted = [...leaves].sort((a, b) => { const x = key(a), y = key(b); return x[0] - y[0] || x[1] - y[1] || x[2] - y[2]; });
   const out = [];
   for (const leaf of sorted) {
     const last = out.at(-1);
-    if (last && last.slo == null && leaf.slo == null && last.hi != null && last.hi === leaf.lo
-      && last.complete && leaf.complete && last.total + leaf.total <= maxTotal) {
-      out[out.length - 1] = { lo: last.lo, hi: leaf.hi, total: last.total + leaf.total, complete: true };
-    } else out.push(leaf);
+    if (last && last.complete && leaf.complete && last.total + leaf.total <= maxTotal) {
+      const prices = last.slo == null && leaf.slo == null && last.hi != null && last.hi === leaf.lo;
+      const sizes = last.slo != null && leaf.slo != null && last.lo === leaf.lo && last.hi === leaf.hi
+        && last.shi != null && last.shi === leaf.slo;
+      if (prices) { out[out.length - 1] = { lo: last.lo, hi: leaf.hi, total: last.total + leaf.total, complete: true }; continue; }
+      if (sizes) { out[out.length - 1] = { lo: last.lo, hi: last.hi, slo: last.slo, shi: leaf.shi, total: last.total + leaf.total, complete: true }; continue; }
+    }
+    out.push(leaf);
   }
   return out;
 }
